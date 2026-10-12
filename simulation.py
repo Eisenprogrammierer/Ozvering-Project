@@ -40,26 +40,36 @@ def p_success(att_type, att_work, dfn_type, dfn_work):
 
 
 class Agent:
-    """Базовый автомат (IPO + BDI). Символьный state — единственный источник истины."""
-    def __init__(self, defense="FIRE"):
+    """Базовый автомат (IPO + BDI). Символьный state — единственный источник истины.
+    Энергия — РЕАЛЬНЫЙ РЕСУРС: расходуется на работу и пополняется отдыхом/успешной
+    передачей. Формула энергии = floor(sqrt(сила)) сохранена как ПОТОК (восстановление),
+    а не как мгновенное значение: за шаг агент восстанавливает ~sqrt(force) единиц."""
+    def __init__(self, defense=None):
         self.force = 10
-        self.defense = defense
+        self.energy_pool = 3
+        # защита ротируется каждый ход (см. rotate_defense) — фиксированный тип
+        # делал исход предопределённым (контр-тип гарантировал победу)
+        self.defense = defense if defense is not None else random.choice(TYPES)
         self.last_act = "REST"
         self.last_work = 0
-        self.state = {"energy": 3, "defense": defense, "last_act": "REST"}
+        self.state = {"energy": 3, "defense": self.defense, "last_act": "REST"}
         self.beliefs = {"opp_energy": 3, "opp_defense": None,
                         "opp_last_act": "REST", "opp_last_work": 0}
 
     @property
-    def energy(self):
-        # нижняя граница 1 сохранена: неудача не может быть роковой
+    def regen(self):
+        """Поток восстановления структуры: dE/dt = floor(sqrt(F)) (энергия как мера силы)."""
         return max(1, math.floor(math.sqrt(self.force)))
 
+    def tick_energy(self):
+        """Обновление пула энергии: пассивная регенерация (поток sqrt(силы)), кап = 2*regen."""
+        self.energy_pool = min(self.energy_pool + self.regen, 2 * self.regen)
+
     def sense(self, opp, rng):
-        """Input: частичная наблюдаемость — видим энергию (шум) и прошлый ход врага.
+        """Input: частичная наблюдаемость — видим пул энергии (шум) и прошлый ход врага.
         Тип защиты адресата НЕ наблюдаем напрямую: оценка формируется через
         скользящее большинство последних действий противника (символьные beliefs)."""
-        self.beliefs["opp_energy"] = max(1, opp.energy + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
+        self.beliefs["opp_energy"] = max(1, opp.energy_pool + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
         hist = self.beliefs.setdefault("opp_act_hist", [])
         hist.append(opp.last_act)
         if len(hist) > 5:
@@ -72,62 +82,82 @@ class Agent:
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
+    def rotate_defense(self, rng):
+        """Защита ротируется каждый ход среди типов, НЕ контрящих последний тип атаки
+        противника (наблюдаемый). Это не 'читерство' и не случайность ради случайности:
+        фиксированная защита делала исход предопределённым (контр-тип гарантировал
+        победу); ротация оставляет место для стратегии — агент может эксплуатировать
+        ограничение ротации, угадывая оставшиеся два типа."""
+        counters = [t for t in TYPES if not MULT.get((self.beliefs["opp_last_act"], t))]
+        self.defense = rng.choice(counters) if counters else rng.choice(TYPES)
+        self.state = {"energy": self.energy_pool, "defense": self.defense,
+                      "last_act": self.last_act}
+
     def upkeep(self):
         """Поддержание структуры: сила расходуется на саму себя каждый ход."""
         self.force = max(1, self.force - UPKEEP)
 
     def commit(self, act, work):
-        """Фиксирует намерение; работа ограничена доступной энергией и капом.
-        Отдых восстанавливает структуру (net +REST_GAIN с учётом upkeep)."""
+        """Фиксирует намерение; работа ограничена ДОСТУПНЫМ ПУЛОМ энергии (тратится!),
+        капом и силой. Отдых восстанавливает структуру (net +REST_GAIN с учётом upkeep)."""
         if act == "REST":
             self.force += REST_GAIN
             self.last_act, self.last_work = "REST", 0
             return 0
-        w = min(int(work), self.energy, MAX_WORK)
+        w = min(int(work), self.energy_pool, MAX_WORK)
+        if w <= 0:                      # энергии нет — тело не слушается: принудительный отдых
+            self.force += REST_GAIN
+            self.last_act, self.last_work = "REST", 0
+            return 0
+        self.energy_pool -= w           # ЭНЕРГИЯ РЕАЛЬНО ТРАТИТСЯ НА РАБОТУ
         self.last_act, self.last_work = act, w
         return w
 
     def rest_if_starving(self):
-        """Инстинкт самосохранения автомата: при критической энергии отдых обязателен.
+        """Инстинкт самосохранения автомата: при критическом пуле энергии отдых обязателен.
         Это нижний ярус иерархии (рефлекс), не подлежащий ни утилитарному расчёту,
         ни Q-разведке — иначе агенты взаимно вымирают в nash-равновесии 'все атакуют'.
         Рефлекс симметричен: обе стороны получают тот же шанс восстановления."""
-        if self.energy <= STARVING_E:
+        if self.energy_pool <= STARVING_E:
             self.force += REST_GAIN
             self.last_act, self.last_work = "REST", 0
             return True
         return False
 
     def process_hit(self, tr):
-        """Обработка входящей передачи: потеря силы и обновление состояния."""
+        """Обработка входящей передачи: потеря силы И части пула энергии (структура повреждена)."""
         self.force = max(1, self.force - tr)
-        self.state = {"energy": self.energy, "defense": self.defense,
+        self.energy_pool = max(0, self.energy_pool - tr // 2)
+        self.state = {"energy": self.energy_pool, "defense": self.defense,
                       "last_act": self.last_act}
 
     def gain(self, tr):
         self.force += tr
-        self.state = {"energy": self.energy, "defense": self.defense,
+        self.state = {"energy": self.energy_pool, "defense": self.defense,
                       "last_act": self.last_act}
 
 
 class UtilityAI(Agent):
-    """Заскриптованный агент: утилита по ожидаемой выгоде, без обучения."""
+    """Заскриптованный агент: утилита по ожидаемой выгоде, без обучения.
+    Починка асимметрии: больше НЕ привязан к FIRE — защита ротируется каждый ход
+    (см. rotate_defense), поэтому 'вечный контр-тип' не гарантирует исход никому."""
     def __init__(self):
-        super().__init__("FIRE")
+        super().__init__()
 
     def expected_gain(self, act, work):
         """Оценка U(action) = delta - затраты + gamma*ожидаемый transfer.
         Асимметрия информации: тип ЗАЩИТЫ противника ненаблюдаем (3 равновероятные
-        гипотезы), но тип его ПОСЛЕДНЕЙ АТАКИ наблюдаем — и именно им он стабильно
-        атакует. Поэтому ожидаемые потери считаются по реальному типу атаки врага,
-        а ожидаемый выигрыш — по среднему множителю/штрафу (защита скрыта)."""
+        гипотезы), но тип его ПОСЛЕДНЕЙ АТАКИ наблюдаем. Ожидаемый выигрыш — по
+        среднему множителю/штрафу; ожидаемые потери — по вероятности того, что
+        НАША ротированная защита контрится его прошлым типом (2 из 3 случаев)."""
         ev = 0.0
         for hypo in TYPES:
             m = MULT.get((act, hypo), 1.0)
             p = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((hypo, act)) else P_BASE
             ev += work * m * p / 3.0
-        loss_m = MULT.get(self.beliefs["opp_last_act"], {}).get(self.defense, 1.0) \
-            if False else MULT.get((self.beliefs["opp_last_act"], self.defense), 1.0)
+        # наша защита выбрана из НЕконтрящих его прошлый ход; вероятность, что он
+        # всё же бьёт по нашей защите с множителем x3 = 1/2 (два допустимых типа)
+        loss_m = 1.0 * 0.5 + 3.0 * 0.5
         cost = COST_FRACTION * work + 0.5 * self.beliefs["opp_last_work"] * loss_m
         return ev - cost
 
@@ -135,11 +165,10 @@ class UtilityAI(Agent):
         best, best_u = ("REST", 0), self.expected_gain("REST", 0)
         for t in TYPES:
             for frac in (0.3, 0.7):
-                w = int(self.energy * frac)
+                w = int(self.energy_pool * frac)
                 u = self.expected_gain(t, w)
                 if u > best_u:
                     best, best_u = (t, w), u
-        # если атака выгодна, бьём максимальным из равных по утилите вариантов
         return best
 
 
@@ -147,7 +176,7 @@ class RLAgent(Agent):
     """Обучающийся агент (Q-Learning). Состояние — дискретизированные beliefs,
     поэтому Q-значения переносятся между партиями: обучение накапливается."""
     def __init__(self, q=None):
-        super().__init__("WATER")
+        super().__init__()
         self.Q = q if q is not None else {}
 
     def discretize(self, e):
@@ -160,7 +189,7 @@ class RLAgent(Agent):
     def skey(self):
         # Признак угрозы: атакует ли противник типом, контрящим нашу защиту
         threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
-        return (self.discretize(self.energy),
+        return (self.discretize(self.energy_pool),
                 self.discretize(self.beliefs["opp_energy"]),
                 self.beliefs["opp_last_act"],
                 threat)
@@ -192,13 +221,41 @@ def resolve_attack(att, dfn, work, rng):
         dfn.process_hit(tr)
 
 
+# --- ЭКОНОМИЧЕСКИЙ БАЛАНС (калибровка) ---
+# В текущей среде отдых даёт чистый +REST_GAIN в силу, а атака — ~0 чистой выгоды
+# (отнятое у цели work*m агент тут же получает обратно из её пула силы). Поэтому
+# пассивная стратегия «вечно отдыхать» непобедима, и исход определяет порядок
+# разрешения атак, а не качество стратегии. Для калибровки вводим ФУНДАМЕНТАЛЬНЫЙ
+# закон модели: сила — мера способности сообщать энергию; при успешной передаче
+# адресат теряет ровно столько способности, сколько потерял адресант энергии,
+# то есть delta(сила адресата) = -work (без множитея), а множитель типа x3 остаётся
+# на стороне ПРИЁМА (delta(сила адресанта) = +work*m). Тогда атака становится
+# чистым выигрышем только при удачном типе/мощности, а промах — чистым убытком:
+# баланс сил перестаёт быть производным от порядка ходов.
+POWER_LAW = False   # True -> включён фундаментальный закон; False -> прежняя механика
+
+
+def resolve_attack_calibrated(att, dfn, work, rng):
+    """Версия с учётом POWER_LAW (по умолчанию делегирует прежней механике)."""
+    if not POWER_LAW:
+        return resolve_attack(att, dfn, work, rng)
+    att.force = max(1, att.force - int(COST_FRACTION * work))
+    if work and rng.random() < p_success(att.last_act, work, dfn.defense, dfn.last_work):
+        m = MULT.get((att.last_act, dfn.defense), 1.0)
+        att.gain(int(work * m))          # приём усиливает адресанта по множителю типа
+        dfn.force = max(1, dfn.force - work)   # способность уходит безвозвратно (мера = работа)
+        dfn.energy_pool = max(0, dfn.energy_pool - work // 2)
+        dfn.state = {"energy": dfn.energy_pool, "defense": dfn.defense,
+                     "last_act": dfn.last_act}
+
+
 def check_capture(rl, ai):
     """Решение о поражении НЕ детерминировано одним удачным ходом: требуется
     устойчивое доминирование — серия из CAPTURE_STREAK шагов, в течение которых
-    энергия победителя >= ratio*проигравшего. Иначе партия идёт дальше."""
+    пул энергии победителя >= ratio*проигравшего. Иначе партия идёт дальше."""
     global _dom_rl, _dom_ai
-    _dom_rl = _dom_rl + 1 if (rl.energy >= CAPTURE_RATIO * ai.energy and rl.force > ai.force) else 0
-    _dom_ai = _dom_ai + 1 if (ai.energy >= CAPTURE_RATIO * rl.energy and ai.force > rl.force) else 0
+    _dom_rl = _dom_rl + 1 if (rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool and rl.force > ai.force) else 0
+    _dom_ai = _dom_ai + 1 if (ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool and ai.force > rl.force) else 0
     if _dom_rl >= CAPTURE_STREAK:
         _dom_rl = _dom_ai = 0
         cap = int(ai.force * CAPTURE_FRAC)
@@ -228,8 +285,14 @@ def play_game(rl, ai, steps=1000, seed=0):
         rl.sense(ai, rng)
         ai.sense(rl, rng)
 
+        # симметричная ротация защиты (починка фиксированного контр-типа)
+        rl.rotate_defense(rng)
+        ai.rotate_defense(rng)
+
         rl.upkeep()
         ai.upkeep()
+        rl.tick_energy()      # пассивная регенерация пула: поток ~ sqrt(силы)
+        ai.tick_energy()
 
         eps = max(0.05, 1.0 - step / 300)
         a_idx = rl.form_intention(eps)
@@ -241,15 +304,15 @@ def play_game(rl, ai, steps=1000, seed=0):
         if rl.rest_if_starving():
             w_rl = 0
         else:
-            w_rl = rl.commit(act_name, rl.energy * frac)
+            w_rl = rl.commit(act_name, rl.energy_pool * frac)
         ai_act, ai_work = ai.form_intention()
         if ai.rest_if_starving():
             w_ai = 0
         else:
             w_ai = ai.commit(ai_act, ai_work)
 
-        resolve_attack(rl, ai, w_rl, rng)
-        resolve_attack(ai, rl, w_ai, rng)
+        resolve_attack_calibrated(rl, ai, w_rl, rng)
+        resolve_attack_calibrated(ai, rl, w_ai, rng)
 
         rl_hist.append(rl.force)
         ai_hist.append(ai.force)
