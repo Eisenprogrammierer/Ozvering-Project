@@ -1,112 +1,307 @@
 import math
 import random
+import statistics
 import matplotlib.pyplot as plt
 
 
 TYPES = ["FIRE", "WATER", "EARTH"]
+# Тройной множитель по кругу: WATER > FIRE > EARTH > WATER
 MULT = {("WATER", "FIRE"): 3.0, ("FIRE", "EARTH"): 3.0, ("EARTH", "WATER"): 3.0}
 
+# Действия: отдых либо атака типом с долей работы 0.3/0.7
 ACTIONS = [("REST", 0)] + [(t, w) for t in TYPES for w in [0.3, 0.7]]
+
+# --- Параметры передачи энергии (мощность и вероятность) ---
+P_BASE = 0.6          # базовая вероятность успеха при равенстве мощностей
+K_MASS = 1.0          # вес логарифма отношения масс (мощности)
+K_TYPE = 0.8          # штраф за контр-тип в защите адресата
+COST_FRACTION = 0.2   # цена атаки: доля заявленной работы, сгорающая всегда
+REST_GAIN = 3         # отдых восстанавливает структуру (сила += REST_GAIN)
+STARVING_E = 2        # энергия <= STARVING_E: рефлекс принудительного отдыха
+UPKEEP = 1            # пассивное поддержание структуры (сила тратится на себя)
+MAX_WORK = 200        # кап заявленной работы за ход (стабилизирует экспоненту)
+BELIEF_NOISE = 2      # шум наблюдения энергии противника (+/- BELIEF_NOISE)
+CAPTURE_RATIO = 1.5   # порешение: энергия победителя >= ratio*проигравшего...
+CAPTURE_STREAK = 20   # ...УСТОЙЧИВО, на протяжении CAPTURE_STREAK подряд шагов
+CAPTURE_FRAC = 0.10   # доля силы проигравшего, перетекающая победителю
+
+_dom_rl = 0           # текущая серия доминирования RL-агента
+_dom_ai = 0           # текущая серия доминирования UtilityAI
+
+
+def p_success(att_type, att_work, dfn_type, dfn_work):
+    """Вероятность успешной передачи: зависит от входа адресанта (работа),
+    типа энергии и защиты адресата. Детерминизм убран: исход хода —
+    случайная величина, но её матожидание управляется стратегией."""
+    mass = min(att_work, MAX_WORK) / max(dfn_work, 1)
+    penalty = K_TYPE if MULT.get((dfn_type, att_type)) else 0.0
+    logit = math.log(mass) * K_MASS - penalty
+    return P_BASE / (1.0 + math.exp(-logit))
 
 
 class Agent:
-    """Базовый автомат (IPO + BDI)"""
+    """Базовый автомат (IPO + BDI). Символьный state — единственный источник истины."""
     def __init__(self, defense="FIRE"):
         self.force = 10
         self.defense = defense
         self.last_act = "REST"
-        self.beliefs = {"opp_energy": 3, "opp_last_act": "REST"}
+        self.last_work = 0
+        self.state = {"energy": 3, "defense": defense, "last_act": "REST"}
+        self.beliefs = {"opp_energy": 3, "opp_defense": None,
+                        "opp_last_act": "REST", "opp_last_work": 0}
 
     @property
-    def energy(self): 
+    def energy(self):
+        # нижняя граница 1 сохранена: неудача не может быть роковой
         return max(1, math.floor(math.sqrt(self.force)))
 
-    def apply(self, act, work, dfn):
-        """Processing: передача энергии и изменение силы"""
-        if act == "REST": 
-            self.force += 2 
-            self.last_act = "REST"
-            return
-        m = MULT.get((act, dfn.defense), 1.0)
-        tr = int(work * m)
+    def sense(self, opp, rng):
+        """Input: частичная наблюдаемость — видим энергию (шум) и прошлый ход врага.
+        Тип защиты адресата НЕ наблюдаем напрямую: оценка формируется через
+        скользящее большинство последних действий противника (символьные beliefs)."""
+        self.beliefs["opp_energy"] = max(1, opp.energy + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
+        hist = self.beliefs.setdefault("opp_act_hist", [])
+        hist.append(opp.last_act)
+        if len(hist) > 5:
+            hist.pop(0)
+        non_rest = [a for a in hist if a != "REST"]
+        if non_rest:
+            self.beliefs["opp_defense_guess"] = max(set(non_rest), key=non_rest.count)
+        else:
+            self.beliefs["opp_defense_guess"] = None
+        self.beliefs["opp_last_act"] = opp.last_act
+        self.beliefs["opp_last_work"] = opp.last_work
+
+    def upkeep(self):
+        """Поддержание структуры: сила расходуется на саму себя каждый ход."""
+        self.force = max(1, self.force - UPKEEP)
+
+    def commit(self, act, work):
+        """Фиксирует намерение; работа ограничена доступной энергией и капом.
+        Отдых восстанавливает структуру (net +REST_GAIN с учётом upkeep)."""
+        if act == "REST":
+            self.force += REST_GAIN
+            self.last_act, self.last_work = "REST", 0
+            return 0
+        w = min(int(work), self.energy, MAX_WORK)
+        self.last_act, self.last_work = act, w
+        return w
+
+    def rest_if_starving(self):
+        """Инстинкт самосохранения автомата: при критической энергии отдых обязателен.
+        Это нижний ярус иерархии (рефлекс), не подлежащий ни утилитарному расчёту,
+        ни Q-разведке — иначе агенты взаимно вымирают в nash-равновесии 'все атакуют'.
+        Рефлекс симметричен: обе стороны получают тот же шанс восстановления."""
+        if self.energy <= STARVING_E:
+            self.force += REST_GAIN
+            self.last_act, self.last_work = "REST", 0
+            return True
+        return False
+
+    def process_hit(self, tr):
+        """Обработка входящей передачи: потеря силы и обновление состояния."""
+        self.force = max(1, self.force - tr)
+        self.state = {"energy": self.energy, "defense": self.defense,
+                      "last_act": self.last_act}
+
+    def gain(self, tr):
         self.force += tr
-        dfn.force = max(1, dfn.force - tr)
-        self.last_act = act
-        dfn.beliefs["opp_last_act"] = act 
+        self.state = {"energy": self.energy, "defense": self.defense,
+                      "last_act": self.last_act}
 
 
 class UtilityAI(Agent):
-    """Заскриптованный агент (жестко привязан к Огню)"""
+    """Заскриптованный агент: утилита по ожидаемой выгоде, без обучения."""
     def __init__(self):
-        super().__init__("FIRE") 
-        
+        super().__init__("FIRE")
+
+    def expected_gain(self, act, work):
+        """Оценка U(action) = delta - затраты + gamma*ожидаемый transfer.
+        Асимметрия информации: тип ЗАЩИТЫ противника ненаблюдаем (3 равновероятные
+        гипотезы), но тип его ПОСЛЕДНЕЙ АТАКИ наблюдаем — и именно им он стабильно
+        атакует. Поэтому ожидаемые потери считаются по реальному типу атаки врага,
+        а ожидаемый выигрыш — по среднему множителю/штрафу (защита скрыта)."""
+        ev = 0.0
+        for hypo in TYPES:
+            m = MULT.get((act, hypo), 1.0)
+            p = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((hypo, act)) else P_BASE
+            ev += work * m * p / 3.0
+        loss_m = MULT.get(self.beliefs["opp_last_act"], {}).get(self.defense, 1.0) \
+            if False else MULT.get((self.beliefs["opp_last_act"], self.defense), 1.0)
+        cost = COST_FRACTION * work + 0.5 * self.beliefs["opp_last_work"] * loss_m
+        return ev - cost
+
     def form_intention(self):
-        return ("FIRE", 0.7) if self.energy > self.beliefs["opp_energy"] else ("REST", 0)
+        best, best_u = ("REST", 0), self.expected_gain("REST", 0)
+        for t in TYPES:
+            for frac in (0.3, 0.7):
+                w = int(self.energy * frac)
+                u = self.expected_gain(t, w)
+                if u > best_u:
+                    best, best_u = (t, w), u
+        # если атака выгодна, бьём максимальным из равных по утилите вариантов
+        return best
 
 
 class RLAgent(Agent):
-    """Обучающийся агент (Q-Learning)"""
-    def __init__(self):
-        super().__init__("WATER") 
-        self.Q = {}
-        
-    def state(self):
-        return (self.energy // 5, self.beliefs["opp_energy"] // 5, self.beliefs["opp_last_act"])
-        
-    def form_intention(self, step):
-        st = self.state()
-        if st not in self.Q: self.Q[st] = [0.0] * len(ACTIONS)
-        eps = max(0.02, 1.0 - step / 300) 
+    """Обучающийся агент (Q-Learning). Состояние — дискретизированные beliefs,
+    поэтому Q-значения переносятся между партиями: обучение накапливается."""
+    def __init__(self, q=None):
+        super().__init__("WATER")
+        self.Q = q if q is not None else {}
+
+    def discretize(self, e):
+        if e <= 8:
+            return e
+        if e <= 32:
+            return 8 + (e - 8) // 4
+        return 14 + int(math.log(e / 32))
+
+    def skey(self):
+        # Признак угрозы: атакует ли противник типом, контрящим нашу защиту
+        threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
+        return (self.discretize(self.energy),
+                self.discretize(self.beliefs["opp_energy"]),
+                self.beliefs["opp_last_act"],
+                threat)
+
+    def form_intention(self, eps):
+        st = self.skey()
+        if st not in self.Q:
+            self.Q[st] = [0.0] * len(ACTIONS)
         if random.random() < eps:
             return random.randint(0, len(ACTIONS) - 1)
         return self.Q[st].index(max(self.Q[st]))
-        
-    def learn(self, st, a_idx, reward, nst):
-        if nst not in self.Q: self.Q[nst] = [0.0] * len(ACTIONS)
-        self.Q[st][a_idx] += 0.3 * (reward + 0.9 * max(self.Q[nst]) - self.Q[st][a_idx])
+
+    def learn(self, st, a_idx, reward, nst, alpha=0.3, gamma=0.9):
+        """Корректный переход s -> s': вызывается с состоянием ДО применения
+        действия и НАЙДЕННЫМ состоянием ПОСЛЕ (U = delta + gamma*reward(t))."""
+        if nst not in self.Q:
+            self.Q[nst] = [0.0] * len(ACTIONS)
+        td = reward + gamma * max(self.Q[nst]) - self.Q[st][a_idx]
+        self.Q[st][a_idx] += alpha * td
 
 
-def simulate():
-    rl, ai = RLAgent(), UtilityAI()
+def resolve_attack(att, dfn, work, rng):
+    """Атака: часть работы сгорает как цена, остальное — заявленная мощность.
+    Успех вероятностный; при успехе передаётся work*m (сила адресата не тратится)."""
+    att.force = max(1, att.force - int(COST_FRACTION * work))
+    if work and rng.random() < p_success(att.last_act, work, dfn.defense, dfn.last_work):
+        tr = int(work * MULT.get((att.last_act, dfn.defense), 1.0))
+        att.gain(tr)
+        dfn.process_hit(tr)
+
+
+def check_capture(rl, ai):
+    """Решение о поражении НЕ детерминировано одним удачным ходом: требуется
+    устойчивое доминирование — серия из CAPTURE_STREAK шагов, в течение которых
+    энергия победителя >= ratio*проигравшего. Иначе партия идёт дальше."""
+    global _dom_rl, _dom_ai
+    _dom_rl = _dom_rl + 1 if (rl.energy >= CAPTURE_RATIO * ai.energy and rl.force > ai.force) else 0
+    _dom_ai = _dom_ai + 1 if (ai.energy >= CAPTURE_RATIO * rl.energy and ai.force > rl.force) else 0
+    if _dom_rl >= CAPTURE_STREAK:
+        _dom_rl = _dom_ai = 0
+        cap = int(ai.force * CAPTURE_FRAC)
+        ai.force = max(1, ai.force - cap)
+        rl.gain(cap)
+        return "RL"
+    if _dom_ai >= CAPTURE_STREAK:
+        _dom_ai = _dom_rl = 0
+        cap = int(rl.force * CAPTURE_FRAC)
+        rl.force = max(1, rl.force - cap)
+        ai.gain(cap)
+        return "UtilityAI"
+    return None
+
+
+_dom_rl = 0
+_dom_ai = 0
+
+
+def play_game(rl, ai, steps=1000, seed=0):
+    """Одна партия. RL-агент сохраняет Q-таблицу между партиями (перенос обучения)."""
+    global _dom_rl, _dom_ai
+    _dom_rl = _dom_ai = 0
+    rng = random.Random(seed)
     rl_hist, ai_hist = [], []
-    
-    for step in range(1000):
-        rl.beliefs["opp_energy"] = max(1, ai.energy + random.randint(-1, 1))
-        ai.beliefs["opp_energy"] = max(1, rl.energy + random.randint(-1, 1))
+    for step in range(steps):
+        rl.sense(ai, rng)
+        ai.sense(rl, rng)
 
-        a_rl_idx = rl.form_intention(step)
-        a_rl_act, a_rl_frac = ACTIONS[a_rl_idx]
-        a_ai_act, a_ai_frac = ai.form_intention()
-        
-        f_rl_old = rl.force
-        
-        w_rl = 0 if a_rl_act == "REST" else int(rl.energy * a_rl_frac)
-        w_ai = 0 if a_ai_act == "REST" else int(ai.energy * a_ai_frac)
+        rl.upkeep()
+        ai.upkeep()
 
-        rl.apply(a_rl_act, w_rl, ai)
-        ai.apply(a_ai_act, w_ai, rl)
+        eps = max(0.05, 1.0 - step / 300)
+        a_idx = rl.form_intention(eps)
+        act_name, frac = ACTIONS[a_idx]
+        st_before = rl.skey()
+        f_before = rl.force
+
+        # нижний ярус: рефлекс самосохранения подавляет намерение при истощении
+        if rl.rest_if_starving():
+            w_rl = 0
+        else:
+            w_rl = rl.commit(act_name, rl.energy * frac)
+        ai_act, ai_work = ai.form_intention()
+        if ai.rest_if_starving():
+            w_ai = 0
+        else:
+            w_ai = ai.commit(ai_act, ai_work)
+
+        resolve_attack(rl, ai, w_rl, rng)
+        resolve_attack(ai, rl, w_ai, rng)
 
         rl_hist.append(rl.force)
         ai_hist.append(ai.force)
-        rl.learn(rl.state(), a_rl_idx, rl.force - f_rl_old, rl.state())
+        rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
 
-    print(f"Step 1000 | RL: {rl.force} | UtilityAI: {ai.force}")
-    print("Winner:", "RL" if rl.force > ai.force else "UtilityAI")
+        winner = check_capture(rl, ai)
+        if winner:
+            return winner, rl_hist, ai_hist, step
+    return None, rl_hist, ai_hist, steps
 
+
+def run_batch(n_games=10, steps=1000):
+    """Пакет прогонов: RL обучается сквозняком через партии (общая Q-таблица)."""
+    rl = RLAgent()
+    results = {"RL": 0, "UtilityAI": 0, None: 0}
+    finals = {"RL": [], "UtilityAI": [], None: []}
+    last = None
+    for g in range(n_games):
+        winner, rl_hist, ai_hist, end_step = play_game(rl, UtilityAI(), steps, seed=g)
+        results[winner] += 1
+        finals[winner].append(rl.force)
+        last = (winner, rl_hist, ai_hist, end_step)
+        print(f"Game {g+1}: winner={winner or 'no-capture'} at step {end_step} | "
+              f"final RL force={rl.force}, final UtilityAI force={ai_hist[-1]}")
+    print("\nИтоги пакетного прогона:")
+    print(f"  RL победил: {results['RL']}/{n_games}, "
+          f"UtilityAI: {results['UtilityAI']}/{n_games}, "
+          f"без решения: {results[None]}/{n_games}")
+    for k in finals:
+        if finals[k]:
+            print(f"  Финальная сила RL при '{k}': медиана={statistics.median(finals[k]):.0f}")
+    return rl, last
+
+
+def main():
+    rl, (winner, rl_hist, ai_hist, end_step) = run_batch(n_games=10)
+
+    print(f"\nПоследняя партия: winner={winner or 'no-capture'}, шагов={end_step}")
+    print(f"Q-состояний изучено: {len(rl.Q)}")
 
     plt.figure(figsize=(10, 6))
     plt.plot(rl_hist, label="RL Agent (Water)", color='blue', linewidth=2)
     plt.plot(ai_hist, label="Utility AI (Fire)", color='red', linewidth=2)
-    
-    plt.title("Динамика силы агентов в процессе обучения", fontsize=14)
+    plt.title("Динамика силы агентов (вероятностная передача энергии)", fontsize=14)
     plt.xlabel("Шаг симуляции", fontsize=12)
-    plt.ylabel("Сила (Force)", fontsize=12)
-
-    plt.yscale("log") 
-    
+    plt.ylabel("Сила (Force, log)", fontsize=12)
+    plt.yscale("log")
     plt.grid(True, which="both", linestyle="--", alpha=0.5)
     plt.legend()
     plt.tight_layout()
     plt.show()
 
-simulate()
+
+if __name__ == "__main__":
+    main()
