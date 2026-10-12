@@ -34,6 +34,8 @@ BELIEF_NOISE = 2      # шум наблюдения энергии против�
 CAPTURE_RATIO = 1.5   # порешение: энергия победителя >= ratio*проигравшего...
 CAPTURE_STREAK = 20   # ...УСТОЙЧИВО, на протяжении CAPTURE_STREAK подряд шагов
 CAPTURE_FRAC = 0.10   # доля силы проигравшего, перетекающая победителю
+# --- КЛАУЗЕВИЦ: оборона сильна до прорыва (см. breach_factor) ---
+BREACH_K = 8          # пологость перехода «до/после прорыва» (чем больше, тем резче)
 
 _dom_rl = 0           # текущая серия доминирования RL-агента
 _dom_ai = 0           # текущая серия доминирования UtilityAI
@@ -47,6 +49,43 @@ def p_success(att_type, att_work, dfn_type, dfn_work):
     penalty = K_TYPE if MULT.get((dfn_type, att_type)) else 0.0
     logit = math.log(mass) * K_MASS - penalty
     return P_BASE / (1.0 + math.exp(-logit))
+
+
+# ===================== КЛАУЗЕВИЦ: ОБОРОНА СИЛЬНА ДО ПРОРЫВА =====================
+# Аналогия (оперативный ресурс -> СИЛА, солдаты -> ЭНЕРГИЯ, наступление -> РАБОТА):
+# обороняющийся держит рубеж, пока его структура (сила F_d) выше наступающего
+# (F_a). Пока рубеж держится — потери несут наступающие: цена работы повышена
+# (COST_DEFENDER_HELD > COST_FRACTION), а успех передач редок (p делится на DEF_SHOCK).
+# Как только силы сравнялись/наступающий превзошёл — рубеж ПРОБИТ, и дальше потери
+# несут уже обороняющиеся, причём «куда как больше»: урон передачей усиливается
+# множителем прорыва B(t), растущим лавинообразно по мере удаления победителя.
+# Отступление (сознательное или вынужденное поражением) = добровольная потеря
+# части силы ради сохранения пула энергии; на новом рубеже защита получает
+# временный шок-бонус (DEF_SHOCK восстанавливается) — «отступать на более
+# выгодный рубеж и нести больше потерь на первых этапах отступления».
+# СТОЯТЬ ДО КОНЦА = отказ отступить => при глубоком прорыве поражение
+# сопоставимо с разгромом (CAPTURE_FRAC растёт с глубиной прорыва).
+# Формализация перехода «до/после» — сигмоида по логарифму отношения сил:
+#   B(r) = 1 + (B_MAX-1)*sigmoid(K*(ln r - ln R_BREACH)),  r = F_a/F_d >= 1
+# B=1 до прорыва, B->B_MAX глубоко за прорывом; резкость задаёт BREACH_K.
+DEF_SHOCK = 2.5       # оборона до прорыва: вероятность успеха атакующего /DEF_SHOCK
+COST_DEFENDER_HELD = 0.45  # цена работы, пока рубеж держится (против COST_FRACTION=0.2)
+R_BREACH = 1.0        # порог отношения сил, после которого рубеж считается пробитым
+B_MAX = 3.0           # предел множителя прорыва (лавина после прорыва)
+
+
+def breach_factor(f_att, f_def):
+    """Множитель тяжести потерь ОБОРОНЯЮЩЕГОСЯ после прорыва. До прорыва (r<=1)
+    равен 1; после — растёт сигмоидально к B_MAX. Симметрично: чей рубеж пробит,
+    тот и теряет помноженное."""
+    r = max(f_att, 1) / max(f_def, 1)
+    x = BREACH_K * (math.log(max(r, 1e-9)) - math.log(R_BREACH))
+    return 1.0 + (B_MAX - 1.0) / (1.0 + math.exp(-x))
+
+
+def defender_holds(f_att, f_def):
+    """Рубеж держится, пока обороняющийся не слабее наступающего (r < 1)."""
+    return f_att < f_def
 
 
 class Agent:
@@ -65,7 +104,8 @@ class Agent:
         self.last_work = 0
         self.state = {"energy": 3, "defense": self.defense, "last_act": "REST"}
         self.beliefs = {"opp_energy": 3, "opp_defense": None,
-                        "opp_last_act": "REST", "opp_last_work": 0}
+                        "opp_last_act": "REST", "opp_last_work": 0,
+                        "opp_force": 10}
 
     @property
     def rest_ceiling(self):
@@ -104,6 +144,8 @@ class Agent:
         Тип защиты адресата НЕ наблюдаем напрямую: оценка формируется через
         скользящее большинство последних действий противника (символьные beliefs)."""
         self.beliefs["opp_energy"] = max(1, opp.energy_pool + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
+        # сила противника наблюдаема лишь грубо (округление до порядка): частичная наблюдаемость
+        self.beliefs["opp_force"] = max(1, int(round(opp.force, -1)))
         hist = self.beliefs.setdefault("opp_act_hist", [])
         hist.append(opp.last_act)
         if len(hist) > 5:
@@ -145,6 +187,26 @@ class Agent:
         self.last_act, self.last_work = act, w
         return w
 
+    RETREAT_FRAC = 0.25     # теряемая доля силы при отступлении
+    RETREAT_TRIGGER = 0.6   # отступаем, если F < trigger*F_opp (рубеж явно проигран)
+
+    def try_retreat(self):
+        """Отступление по Клаузевицу: сознательная потеря доли силы ради сохранения
+        пула энергии («солдат») и занятия более выгодного рубежа. Компенсации:
+        энергия НЕ утрачивается при организованном уходе, а отдых восстанавливает
+        структуру только до нового (пониженного) потолка покоя — отступивший платит
+        тем, что его «бездеятельный предел» падает вместе с brokem units."""
+        opp_f = self.beliefs.get("opp_force", self.force)
+        if self.force <= 5 or self.force >= self.RETREAT_TRIGGER * opp_f:
+            return False                      # отступать рано или не из чего
+        lost = int(self.force * self.RETREAT_FRAC)
+        self.force = max(1, self.force - lost)
+        self.rest_units = max(0.0, self.rest_units - lost / L_STEP)
+        self.last_act, self.last_work = "RETREAT", 0
+        self.state = {"energy": self.energy_pool, "defense": self.defense,
+                      "last_act": "RETREAT"}
+        return True
+
     def rest_if_starving(self):
         """Инстинкт самосохранения автомата: при критическом пуле энергии отдых обязателен.
         Это нижний ярус иерархии (рефлекс), не подлежащий ни утилитарному расчёту,
@@ -169,31 +231,34 @@ class Agent:
 
 
 class UtilityAI(Agent):
-    """Заскриптованный агент: утилита по ожидаемой выгоде, без обучения.
-    Починка асимметрии: больше НЕ привязан к FIRE — защита ротируется каждый ход
-    (см. rotate_defense), поэтому 'вечный контр-тип' не гарантирует исход никому."""
+    """Заскриптованный агент: утилита по ожидаемой выгоде с УЧЁТОМ ФАЗ БОЯ
+    (Клаузевиц). До прорыва чужого рубежа атака убыточна (цена x2.25, успех /DEF_SHOCK)
+    — утилита это отражает и сама отвергает авантюры; после прорыва B(r)>1 делает
+    работу выгодной. Отступление — отдельное намерение (ниже порога триггера)."""
     def __init__(self):
         super().__init__()
 
     def expected_gain(self, act, work):
-        """Оценка U(action) = delta - затраты + gamma*ожидаемый transfer.
-        Асимметрия информации: тип ЗАЩИТЫ противника ненаблюдаем (3 равновероятные
-        гипотезы), но тип его ПОСЛЕДНЕЙ АТАКИ наблюдаем. Ожидаемый выигрыш — по
-        среднему множителю/штрафу; ожидаемые потери — по вероятности того, что
-        НАША ротированная защита контрится его прошлым типом (2 из 3 случаев)."""
         ev = 0.0
         for hypo in TYPES:
             m = MULT.get((act, hypo), 1.0)
             p = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((hypo, act)) else P_BASE
             ev += work * m * p / 3.0
-        # наша защита выбрана из НЕконтрящих его прошлый ход; вероятность, что он
-        # всё же бьёт по нашей защите с множителем x3 = 1/2 (два допустимых типа)
+        # фаза: наступаем на того, кто сильнее нас? => рубеж держится, потери наши
+        held = defender_holds(self.force, self.beliefs["opp_force"])
+        if held:
+            ev /= DEF_SHOCK                      # успех редок до прорыва
+            cost_frac = COST_DEFENDER_HELD
+        else:
+            B = breach_factor(self.force, self.beliefs["opp_force"])
+            ev *= min(B, B_MAX)                  # после прорыва потери врага помножены
+            cost_frac = COST_FRACTION
         loss_m = 1.0 * 0.5 + 3.0 * 0.5
-        cost = COST_FRACTION * work + 0.5 * self.beliefs["opp_last_work"] * loss_m
+        cost = cost_frac * work + 0.5 * self.beliefs["opp_last_work"] * loss_m
         return ev - cost
 
     def form_intention(self):
-        best, best_u = ("REST", 0), self.expected_gain("REST", 0)
+        best, best_u = ("REST", 0), self.rest_gain()   # отдых = логистическая дельта силы
         for t in TYPES:
             for frac in (0.3, 0.7):
                 w = int(self.energy_pool * frac)
@@ -204,8 +269,9 @@ class UtilityAI(Agent):
 
 
 class RLAgent(Agent):
-    """Обучающийся агент (Q-Learning). Состояние — дискретизированные beliefs,
-    поэтому Q-значения переносятся между партиями: обучение накапливается."""
+    """Обучающийся агент (Q-Learning). Состояние — дискретизированные beliefs
+    плюс ФАЗА БОЯ (держит/пробит) — чтобы Q-значения различали «до прорыва» и
+    «после прорыва»: там разные оптимальные действия. RETREAT — отдельное действие."""
     def __init__(self, q=None):
         super().__init__()
         self.Q = q if q is not None else {}
@@ -217,27 +283,32 @@ class RLAgent(Agent):
             return 8 + (e - 8) // 4
         return 14 + int(math.log(e / 32))
 
+    def phase(self):
+        """r = F_self/F_opp в лог-шкале, квантованно: -2..+2 (до/после прорыва)."""
+        r = math.log(max(self.force, 1) / max(self.beliefs["opp_force"], 1))
+        return max(-2, min(2, int(round(r * 2))))
+
     def skey(self):
-        # Признак угрозы: атакует ли противник типом, контрящим нашу защиту
         threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
         return (self.discretize(self.energy_pool),
                 self.discretize(self.beliefs["opp_energy"]),
                 self.beliefs["opp_last_act"],
-                threat)
+                threat, self.phase())
 
     def form_intention(self, eps):
         st = self.skey()
+        na = len(ACTIONS) + 1          # последнее действие — RETREAT
         if st not in self.Q:
-            self.Q[st] = [0.0] * len(ACTIONS)
+            self.Q[st] = [0.0] * na
         if random.random() < eps:
-            return random.randint(0, len(ACTIONS) - 1)
+            return random.randint(0, na - 1)
         return self.Q[st].index(max(self.Q[st]))
 
     def learn(self, st, a_idx, reward, nst, alpha=0.3, gamma=0.9):
         """Корректный переход s -> s': вызывается с состоянием ДО применения
         действия и НАЙДЕННЫМ состоянием ПОСЛЕ (U = delta + gamma*reward(t))."""
         if nst not in self.Q:
-            self.Q[nst] = [0.0] * len(ACTIONS)
+            self.Q[nst] = [0.0] * (len(ACTIONS) + 1)
         td = reward + gamma * max(self.Q[nst]) - self.Q[st][a_idx]
         self.Q[st][a_idx] += alpha * td
 
@@ -267,42 +338,65 @@ def resolve_attack(att, dfn, work, rng):
 # на стороне ПРИЁМА (delta(сила адресанта) = +work*m). Тогда атака становится
 # чистым выигрышем только при удачном типе/мощности, а промах — чистым убытком:
 # баланс сил перестаёт быть производным от порядка ходов.
-POWER_LAW = False   # True -> включён фундаментальный закон; False -> прежняя механика
+POWER_LAW = True    # Клаузевиц включён: потери после прорыва необратимы (перенос с множителем B)
 
 
 def resolve_attack_calibrated(att, dfn, work, rng):
-    """Версия с учётом POWER_LAW (по умолчанию делегирует прежней механике)."""
-    if not POWER_LAW:
-        return resolve_attack(att, dfn, work, rng)
-    att.force = max(1, att.force - int(COST_FRACTION * work))
-    if work and rng.random() < p_success(att.last_act, work, dfn.defense, dfn.last_work):
-        m = MULT.get((att.last_act, dfn.defense), 1.0)
-        tr = int(work * m)
-        att.gain(tr)                     # приём усиливает адресанта по множителю типа
-        att.rest_units += tr             # труд порождает рост потолка покоя
-        dfn.force = max(1, dfn.force - work)   # способность уходит безвозвратно (мера = работа)
-        dfn.energy_pool = max(0, dfn.energy_pool - work // 2)
-        dfn.state = {"energy": dfn.energy_pool, "defense": dfn.defense,
-                     "last_act": dfn.last_act}
+    """Единая механика передачи с КЛАУЗЕВИЦЕМ (POWER_LAW — переключаемый калибровочный
+    закон переноса силы; фазы боя — всегда включены):
+
+    ФАЗА 1. Рубеж держится (F_att < F_def): потери несут наступающие.
+      - цена работы повышена: COST_DEFENDER_HELD вместо COST_FRACTION;
+      - успех передач редок: p_eff = p_success / DEF_SHOCK.
+    ФАЗА 2. Рубеж пробит (r = F_att/F_def >= R_BREACH): потери несут обороняющиеся,
+    «куда как больше»: урон передачей умножается на B(r) = breach_factor (->B_MAX).
+    При POWER_LAW способность адресата уходит безвозвратно (-work*B), при приём
+    адресант получает work*m (множитель типа остаётся на стороне приёма)."""
+    if not work:
+        return
+    held = defender_holds(att.force, dfn.force)
+    cost_frac = COST_DEFENDER_HELD if held else COST_FRACTION
+    att.force = max(1, att.force - int(cost_frac * work))
+    p = p_success(att.last_act, work, dfn.defense, dfn.last_work)
+    if held:
+        p /= DEF_SHOCK                       # оборона сильна до прорыва
+    if rng.random() >= p:
+        return
+    m = MULT.get((att.last_act, dfn.defense), 1.0)
+    tr = int(work * m)
+    att.gain(tr)                             # приём усиливает адресанта по множителю типа
+    att.rest_units += tr                     # труд порождает рост потолка покоя
+    if POWER_LAW:
+        B = breach_factor(att.force, dfn.force)   # лавина после прорыва
+        dfn.force = max(1, dfn.force - work * B)  # способность уходит помноженной
+        dfn.energy_pool = max(0, dfn.energy_pool - int(work * B) // 2)
+    else:
+        dfn.process_hit(tr)                  # прежняя механика: перенос work*m
 
 
 def check_capture(rl, ai):
     """Решение о поражении НЕ детерминировано одним удачным ходом: требуется
-    устойчивое доминирование — серия из CAPTURE_STREAK шагов, в течение которых
-    пул энергии победителя >= ratio*проигравшего. Иначе партия идёт дальше."""
+    устойчивое доминирование — серия из CAPTURE_STREAK шагов. Но ТЯЖЕСТЬ поражения
+    по Клаузевицу зависит от глубины прорыва: 'стоять до конца' при B(r)>>1 означает
+    поражение, сопоставимое с разгромом — доля перетекающей силы растёт от
+    CAPTURE_FRAC до ~B_MAX*CAPTURE_FRAC."""
     global _dom_rl, _dom_ai
     _dom_rl = _dom_rl + 1 if (rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool and rl.force > ai.force) else 0
     _dom_ai = _dom_ai + 1 if (ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool and ai.force > rl.force) else 0
     if _dom_rl >= CAPTURE_STREAK:
         _dom_rl = _dom_ai = 0
-        cap = int(ai.force * CAPTURE_FRAC)
+        B = breach_factor(rl.force, ai.force)
+        cap = int(ai.force * min(CAPTURE_FRAC * B, 0.9))   # разгром: до 90% силы
         ai.force = max(1, ai.force - cap)
+        ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
         return "RL"
     if _dom_ai >= CAPTURE_STREAK:
         _dom_ai = _dom_rl = 0
-        cap = int(rl.force * CAPTURE_FRAC)
+        B = breach_factor(ai.force, rl.force)
+        cap = int(rl.force * min(CAPTURE_FRAC * B, 0.9))
         rl.force = max(1, rl.force - cap)
+        rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
         ai.gain(cap)
         return "UtilityAI"
     return None
@@ -312,8 +406,9 @@ _dom_rl = 0
 _dom_ai = 0
 
 
-def play_game(rl, ai, steps=1000, seed=0):
-    """Одна партия. RL-агент сохраняет Q-таблицу между партиями (перенос обучения)."""
+def play_game(rl, ai, steps=1000, seed=0, retreat=True):
+    """Одна партия. RL сохраняет Q-таблицу между партиями (перенос обучения).
+    retreat=False — эксперимент «стоять до конца»: отступления запрещены обеим сторонам."""
     global _dom_rl, _dom_ai
     _dom_rl = _dom_ai = 0
     rng = random.Random(seed)
@@ -322,7 +417,6 @@ def play_game(rl, ai, steps=1000, seed=0):
         rl.sense(ai, rng)
         ai.sense(rl, rng)
 
-        # симметричная ротация защиты (починка фиксированного контр-типа)
         rl.rotate_defense(rng)
         ai.rotate_defense(rng)
 
@@ -333,20 +427,32 @@ def play_game(rl, ai, steps=1000, seed=0):
 
         eps = max(0.05, 1.0 - step / 300)
         a_idx = rl.form_intention(eps)
-        act_name, frac = ACTIONS[a_idx]
         st_before = rl.skey()
         f_before = rl.force
 
-        # нижний ярус: рефлекс самосохранения подавляет намерение при истощении
-        if rl.rest_if_starving():
-            w_rl = 0
+        # --- нижний ярус: рефлекс самосохранения подавляет намерение при истощении ---
+        rl_restressed = rl.rest_if_starving()
+        if not rl_restressed:
+            if a_idx >= len(ACTIONS):                 # RETREAT как намерение RL
+                if retreat and rl.try_retreat():
+                    w_rl = 0
+                else:
+                    w_rl = rl.commit("REST", 0)       # отказ/невозможность -> отдых
+            else:
+                act_name, frac = ACTIONS[a_idx]
+                w_rl = rl.commit(act_name, rl.energy_pool * frac)
         else:
-            w_rl = rl.commit(act_name, rl.energy_pool * frac)
-        ai_act, ai_work = ai.form_intention()
-        if ai.rest_if_starving():
+            w_rl = 0
+
+        # --- UtilityAI: отступление как утилитарное решение (Клаузевиц) ---
+        if retreat and ai.try_retreat():
             w_ai = 0
         else:
-            w_ai = ai.commit(ai_act, ai_work)
+            ai_act, ai_work = ai.form_intention()
+            if ai.rest_if_starving():
+                w_ai = 0
+            else:
+                w_ai = ai.commit(ai_act, ai_work)
 
         resolve_attack_calibrated(rl, ai, w_rl, rng)
         resolve_attack_calibrated(ai, rl, w_ai, rng)
