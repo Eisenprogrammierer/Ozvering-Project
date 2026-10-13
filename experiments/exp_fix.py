@@ -18,6 +18,8 @@ H-C: проблема в цене давления на дне (COST+RETALIATION
 Методология: скриптованные политики (SAVER — копит отдыхом; PRESSER — давит;
 TIMING — копит, бьёт в окно), дуэли и одиночная динамика, 5 сидов.
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import random, statistics
 import matplotlib
 matplotlib.use("Agg")
@@ -99,10 +101,11 @@ print("H-A: ДОСТИЖИМОСТЬ ОКНА ПРИ СТАРТЕ С ДНА. С�
 print("     Одиночный PRESSER против пассива-мишени; фиксируем первый такт,")
 print("     когда вход мишени открылся, старт F=10 у обоих.")
 print("="*78)
-base_on, base_off, base_decay = S.ON_THRESHOLD, S.OFF_THRESHOLD, S.DECAY_ADOPT
+# ON теперь масштабный: ON(F)=max(ON_MIN, ON_FRAC*F). Сетка лечится через ON_FRAC.
+base_on, base_off, base_decay = S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT
 for decay in (0.95, 0.90, 0.80):
     for on in (40.0, 25.0, 15.0):
-        S.DECAY_ADOPT = decay; S.ON_THRESHOLD = on; S.OFF_THRESHOLD = on*0.4
+        S.DECAY_ADOPT = decay; S.ON_FRAC = on; S.OFF_FRAC = 0.4
         res = []
         for sd in range(3):
             rng = random.Random(sd)
@@ -115,7 +118,7 @@ for decay in (0.95, 0.90, 0.80):
                     first_open = t
             res.append(first_open)
         print(f"  DECAY={decay}, ON={on}: первые окна {res}")
-S.ON_THRESHOLD, S.OFF_THRESHOLD, S.DECAY_ADOPT = base_on, base_off, base_decay
+S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT = base_on, base_off, base_decay
 
 print()
 print("="*78)
