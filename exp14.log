@@ -1,0 +1,16 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+=== Э20: RL vs UtilityAI, n=30 (RL обучается сквозняком) ===
+G1: UtilityAI @ 27 | F_RL=1 F_AI=34
+G6: UtilityAI @ 27 | F_RL=2 F_AI=4
+G11: UtilityAI @ 29 | F_RL=2 F_AI=4
+G16: UtilityAI @ 19 | F_RL=1 F_AI=71
+G21: UtilityAI @ 49 | F_RL=2 F_AI=4
+G26: UtilityAI @ 25 | F_RL=2 F_AI=4
+G28: UtilityAI @ 48 | F_RL=2 F_AI=4
+G29: UtilityAI @ 35 | F_RL=2 F_AI=4
+G30: UtilityAI @ 27 | F_RL=2 F_AI=4
+Итог: {'RL': 0, 'UtilityAI': 30, None: 0}
+
+=== Э21: замеры «Кто теряет больше» — средние потери за ход до/после прорыва в живых партиях ===
+ДО прорыва (рубеж держится): потери наступающего=0.46/ход, обороняющегося=0.16/ход -> вердикт: атакующий теряет БОЛЬШЕ
+ПОСЛЕ прорыва:               потери наступающего=0.00/ход, обороняющегося=0.00/ход -> вердикт: атакующий теряет больше (!?)

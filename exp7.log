@@ -1,0 +1,27 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+B(r) при r<=1 (ожидали 1.0 — «до прорыва нет лавины»):
+  r=0.3: B=1.000
+  r=0.5: B=1.008
+  r=0.8: B=1.287
+  r=0.95: B=1.798
+  r=1.0: B=2.000
+
+try_retreat при F=8, opp=40 (0.6*40=24 > 8): результат=True
+try_retreat при F=20, opp=30: результат=False -> корректно? ждём True
+
+=== Э9: эффект починки B — RL vs UtilityAI, n=10 ===
+G1: UtilityAI @ 25 | F_RL=1 F_AI=33
+G2: UtilityAI @ 79 | F_RL=1 F_AI=63
+G3: no-cap @ 1000 | F_RL=1 F_AI=1
+G4: UtilityAI @ 23 | F_RL=1 F_AI=70
+G5: UtilityAI @ 27 | F_RL=1 F_AI=107
+G6: no-cap @ 1000 | F_RL=1 F_AI=1
+G7: no-cap @ 1000 | F_RL=1 F_AI=1
+G8: UtilityAI @ 42 | F_RL=1 F_AI=73
+G9: no-cap @ 1000 | F_RL=1 F_AI=1
+G10: UtilityAI @ 19 | F_RL=1 F_AI=65
+Итог: {'RL': 0, 'UtilityAI': 6, None: 4}
+
+=== Э10: отступление vs стоять до конца (после починки B), n=20 ===
+отступление РАЗРЕШЕНО: жертва 7/20, агрессор 4/20, ничьи 9/20 | всего отступлений=0 | медиана финала жертвы=1
+СТОЯТЬ ДО КОНЦА      : жертва 7/20, агрессор 4/20, ничьи 9/20 | всего отступлений=0 | медиана финала жертвы=1

@@ -1,0 +1,50 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+=== Э1: Зеркальные дуэли UtilityAI vs UtilityAI (честность архитектуры) ===
+{'A': 0, 'B': 0, None: 30}
+
+=== Э2: Пассив (вечный отдых) vs UtilityAI — уязвимость закрыта? ===
+Passive wins=0, UtilityAI wins=0, ties=30
+
+=== Э3: Аналитика S-кривой: окупаемость труда при m=1 и m=3 ===
+S(x/X*) по x: [0.0, 0.1, 0.308, 0.5, 0.735, 0.877, 0.941]
+m=1.0, p=0.60: при S=1 E[dF]/w = +0.40; при S=0.1 = -0.14
+m=3.0, p=0.60: при S=1 E[dF]/w = +1.60; при S=0.1 = -0.02
+m=3.0, p=0.41: при S=1 E[dF]/w = +1.04; при S=0.1 = -0.08
+
+=== Э4: RL vs UtilityAI (пакет из 10 партий, сквозное обучение) ===
+Game 1: winner=UtilityAI at step 21 | final RL force=5, final UtilityAI force=24
+Game 2: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 3: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 4: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 5: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 6: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 7: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 8: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 9: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+Game 10: winner=UtilityAI at step 19 | final RL force=5, final UtilityAI force=26
+
+Итоги пакетного прогона:
+  RL победил: 0/10, UtilityAI: 10/10, без решения: 0/10
+  Финальная сила RL при 'UtilityAI': медиана=5
+
+=== Э5: Давление без типа (m=1) никогда не окупается гарантированно? ===
+шаг, деппрессия(defender), dFa, dFd (первые 12):
+(0, 0.0, 4.0, -1, 0)
+(1, 0.0, 8.0, -1, 0)
+(2, 0.0, 12.0, -1, 0)
+(3, 0.0, 23.0, 2, -11)
+(4, 0.0, 27.0, -1, 0)
+(5, 0.0, 41.0, 5, -14)
+(6, 0.0, 42.0, 0, 0)
+(7, 0.0, 42.0, 0.0, 0)
+(8, 0.0, 46.0, -1.0, 0)
+(9, 0.0, 47.0, 0.0, 0)
+(10, 0.0, 47.0, 0.0, 0)
+(11, 0.0, 51.0, -1.0, 0)
+последние 6:
+(54, 0.0, 294.0, 0.0, 0)
+(55, 0.0, 298.0, -1.0, 0)
+(56, 0.0, 302.0, -1.0, 0)
+(57, 0.0, 302.5, 0.0, 0)
+(58, 0.0, 302.5, 0.0, 0)
+(59, 0.0, 317.5, 22.0, 0)

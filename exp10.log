@@ -1,0 +1,11 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+Ответный удар AI(F=14)->RL(F=6), w=4, POWER_LAW: RL 6->1 (ожидание: -work*B)
+B(AI->RL)=3.00, held=False
+
+rest_gain при малых F (L_BASE=30, MAX_REST_DELTA=8):
+F=1: gain=0.000 net после upkeep=-1.000
+F=2: gain=0.258 net после upkeep=-0.742
+F=3: gain=0.498 net после upkeep=-0.502
+F=5: gain=0.924 net после upkeep=-0.076
+=> ПРИ F<=4 ЧИСТЫЙ ОТДЫХ ОТРИЦАТЕЛЕН: падший к F=1 агент НЕВОССТАНИМ (death spiral).
+Это и есть 'разгром': поражение сопоставимо с уничтожением. Но тогда среда должна заканчивать партию раньше.

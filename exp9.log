@@ -1,0 +1,41 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+t= 0 RL:F   9.0->  10.6 E  6->  6 act=REST    w= 0 | AI:F  10.6 E  6->  6 act=REST    w= 0
+t= 1 RL:F   9.6->   8.6 E  2->  2 act=FIRE    w= 4 | AI:F  11.2 E  6->  6 act=REST    w= 0
+t= 2 RL:F   7.6->   7.6 E  3->  3 act=FIRE    w= 1 | AI:F  10.2 E  2->  2 act=FIRE    w= 4
+t= 3 RL:F   6.6->   9.6 E  3->  3 act=EARTH   w= 1 | AI:F   9.8 E  6->  6 act=REST    w= 0
+t= 4 RL:F   8.6->   8.6 E  3->  3 act=WATER   w= 1 | AI:F  10.3 E  6->  6 act=REST    w= 0
+t= 5 RL:F   7.6->   8.3 E  4->  4 act=REST    w= 0 | AI:F  10.9 E  6->  6 act=REST    w= 0
+t= 6 RL:F   7.3->   8.1 E  4->  4 act=REST    w= 0 | AI:F  11.6 E  6->  6 act=REST    w= 0
+t= 7 RL:F   7.1->   7.1 E  2->  2 act=EARTH   w= 2 | AI:F  10.6 E  2->  2 act=FIRE    w= 4
+t= 8 RL:F   6.1->   6.1 E  2->  2 act=EARTH   w= 2 | AI:F  11.2 E  6->  6 act=REST    w= 0
+t= 9 RL:F   5.1->   1.0 E  4->  0 act=REST    w= 0 | AI:F  14.2 E  2->  2 act=FIRE    w= 4
+t=10 RL:F   1.0->   1.0 E  2->  0 act=RETREAT w= 0 | AI:F  16.2 E  2->  2 act=FIRE    w= 3
+t=11 RL:F   1.0->   1.0 E  2->  0 act=WATER   w= 0 | AI:F  18.2 E  2->  2 act=FIRE    w= 3
+t=12 RL:F   1.0->   1.0 E  2->  0 act=FIRE    w= 0 | AI:F  21.2 E  2->  2 act=FIRE    w= 4
+t=13 RL:F   1.0->   1.0 E  2->  0 act=REST    w= 0 | AI:F  24.2 E  2->  2 act=FIRE    w= 4
+t=14 RL:F   1.0->   1.0 E  2->  0 act=FIRE    w= 0 | AI:F  27.2 E  2->  2 act=FIRE    w= 4
+t=15 RL:F   1.0->   1.0 E  2->  0 act=FIRE    w= 0 | AI:F  30.2 E  3->  3 act=FIRE    w= 4
+t=16 RL:F   1.0->   1.0 E  2->  2 act=EARTH   w= 0 | AI:F  28.2 E  3->  3 act=WATER   w= 5
+t=17 RL:F   1.0->   1.0 E  2->  2 act=FIRE    w= 0 | AI:F  26.2 E  3->  3 act=WATER   w= 5
+t=18 RL:F   1.0->   1.0 E  2->  0 act=REST    w= 0 | AI:F  29.2 E  3->  3 act=WATER   w= 5
+t=19 RL:F   1.0->   1.0 E  2->  2 act=FIRE    w= 0 | AI:F  27.2 E  3->  3 act=WATER   w= 5
+t=20 RL:F   1.0->   1.0 E  2->  0 act=WATER   w= 0 | AI:F  30.2 E  3->  3 act=WATER   w= 5
+t=21 RL:F   1.0->   1.0 E  2->  2 act=EARTH   w= 0 | AI:F  28.2 E  3->  3 act=WATER   w= 5
+t=22 RL:F   1.0->   1.0 E  2->  2 act=REST    w= 0 | AI:F  26.2 E  3->  3 act=WATER   w= 5
+t=23 RL:F   1.0->   1.0 E  2->  0 act=WATER   w= 0 | AI:F  29.2 E  3->  3 act=WATER   w= 5
+t=24 RL:F   1.0->   1.0 E  2->  0 act=FIRE    w= 0 | AI:F  32.2 E  3->  3 act=WATER   w= 5
+t=25 RL:F   1.0->   1.0 E  2->  2 act=RETREAT w= 0 | AI:F  30.2 E  3->  3 act=WATER   w= 5
+t=26 RL:F   1.0->   1.0 E  2->  2 act=FIRE    w= 0 | AI:F  28.2 E  3->  3 act=WATER   w= 5
+t=27 RL:F   1.0->   1.0 E  2->  0 act=REST    w= 0 | AI:F  31.2 E  3->  3 act=WATER   w= 5
+t=28 RL:F   1.0->   1.0 E  2->  2 act=EARTH   w= 0 | AI:F  29.2 E  3->  3 act=WATER   w= 5
+t=29 RL:F   1.0->   1.0 E  2->  2 act=REST    w= 0 | AI:F  27.2 E  3->  3 act=WATER   w= 5
+t=30 RL:F   1.0->   1.0 E  2->  2 act=RETREAT w= 0 | AI:F  25.2 E  3->  3 act=WATER   w= 5
+t=31 RL:F   1.0->   1.0 E  2->  0 act=REST    w= 0 | AI:F  36.2 E  3->  3 act=FIRE    w= 4
+t=32 RL:F   1.0->   1.0 E  2->  2 act=EARTH   w= 0 | AI:F  34.2 E  3->  3 act=WATER   w= 5
+t=33 RL:F   1.0->   1.0 E  2->  0 act=REST    w= 0 | AI:F  37.2 E  3->  3 act=WATER   w= 5
+t=34 RL:F   1.0->   1.0 E  2->  2 act=EARTH   w= 0 | AI:F  35.2 E  3->  3 act=FIRE    w= 6
+t=35 RL:F   1.0->   1.0 E  2->  0 act=FIRE    w= 0 | AI:F  38.2 E  3->  3 act=WATER   w= 5
+t=36 RL:F   1.0->   1.0 E  2->  2 act=RETREAT w= 0 | AI:F  36.2 E  3->  3 act=FIRE    w= 6
+t=37 RL:F   1.0->   1.0 E  2->  0 act=RETREAT w= 0 | AI:F  39.2 E  3->  3 act=WATER   w= 5
+t=38 RL:F   1.0->   1.0 E  2->  0 act=EARTH   w= 0 | AI:F  55.2 E  3->  3 act=FIRE    w= 6
+t=39 RL:F   1.0->   1.0 E  2->  2 act=REST    w= 0 | AI:F  53.2 E  3->  3 act=FIRE    w= 7
