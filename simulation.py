@@ -68,9 +68,18 @@ K_TYPE = 0.8          # штраф за контр-тип в защите адр
 COST_FRACTION = 0.2   # цена работы: доля вложенной энергии, сгорающая всегда
 
 # --- ПОРОГИ ШМИТТА ВХОДА АДРЕСАТА (гистерезис «упорство окупается») -------------
-ON_THRESHOLD = 40.0   # верхний порог: накопленная принятая работа >= ON => вход ОТКРЫВАЕТСЯ
-OFF_THRESHOLD = 15.0  # нижний порог (ниже ON!): пока w_adopt > OFF окно держится;
-                      # самовольное захлопывание раньше — по таймеру OPEN_TTL
+# ЛЕЧЕНИЕ H-A (подтверждено экспериментом exp_fix.py): абсолютный порог ON=40
+# создавал catch-22 — предельный выход малой структуры w<=F//4 давал асимптоту
+# накопления w/(1-DECAY)=20w < 40 при F<16: дно было НЕПОКОРИМО в принципе,
+# и среда имела два разобщённых аттрактора (дно и плато). Порог сделан
+# МАСШТАБНЫМ: ON(F) = max(ON_MIN, ON_FRAC·F) — крупный автомат требует крупного
+# напора, малый уязвим к малому; catch-22 снят без новых переменных (порог
+# выводится из уже принятой входящей работы и СИЛЫ адресата — двух метрик модели).
+ON_THRESHOLD = 40.0   # (справочно; прежний абсолютный порог)
+ON_FRAC = 0.25        # верхний порог Шмитта = доля СИЛЫ адресата
+ON_MIN = 6.0          # но не ниже этого (защита от нулевого порога у дна)
+OFF_FRAC = 0.4        # нижний порог = OFF_FRAC · ON(F) (гистерезис масштабирован)
+MIN_OUTPUT = 2        # минимальный легальный выход работы (анти-catch-22)
 OPEN_TTL = 8          # длительность окна восприимчивости (тактов)
 GAIN_MAX = 1.2        # предельная отдача давления: при открытом входе адресант
                       # получает m*w*GAIN_MAX (сверх трения — окно «распахивает»
@@ -193,7 +202,9 @@ class Agent:
         захлопывается сама; сброс накопления ниже OFF тоже закрывает её.
         Гистерезис ON > OFF исключает дребезг от шума наблюдений и мелочи."""
         self.w_adopt += w
-        if not self.in_open and self.w_adopt >= ON_THRESHOLD:
+        # Масштабный порог Шмитта (см. комментарий к ON_FRAC): ON(F) = max(ON_MIN, ON_FRAC*F).
+        on_now = max(ON_MIN, ON_FRAC * self.force)
+        if not self.in_open and self.w_adopt >= on_now:
             self.in_open = True
             self.open_timer = OPEN_TTL
 
@@ -203,7 +214,8 @@ class Agent:
         self.w_adopt *= DECAY_ADOPT
         if self.in_open:
             self.open_timer -= 1
-            if self.open_timer <= 0 or self.w_adopt < OFF_THRESHOLD:
+            off_now = OFF_FRAC * max(ON_MIN, ON_FRAC * self.force)
+            if self.open_timer <= 0 or self.w_adopt < off_now:
                 self.in_open = False
 
     def sense(self, opp, rng):
@@ -246,10 +258,10 @@ class Agent:
         # предельный выход ограничен половиной силы — иначе агент с F=3 способен
         # заявить передачу, разрушающую его структуру (диагностика: смерть RL
         # на 19-м шагу именно от этого).
-        # Предельный выход: не более четверти структуры за ход, НО минимум 1 —
-        # иначе агент на F<=3 попадает в ловушку (работа запрещена, покой нулевой,
-        # вечная ничья на дне; показано диагностикой).
-        w = min(int(work), self.energy_pool, MAX_WORK, max(1, self.force // 4))
+        # Предельный выход: не более четверти структуры за ход, НО минимум
+        # MIN_OUTPUT=2 — иначе асимптота накопления входа w/(1-DECAY)=20w не
+        # догоняет масштабный порог ON(F) при малом F (catch-22 дна; лечение H-A).
+        w = min(int(work), self.energy_pool, MAX_WORK, max(MIN_OUTPUT, self.force // 4))
         if w <= 0:
             self.do_rest(chosen=False)
             return 0
@@ -296,8 +308,9 @@ class UtilityAI(Agent):
             return p * m * GAIN_MAX
         base = Y_SMALL * p * m
         # Опционная надбавка за накопление давления: чем ближе вход противника
-        # к порогу ON, тем ценнее каждый удар (он покупает будущее окно).
-        progress = min(1.0, self.beliefs["opp_w_adopt"] / ON_THRESHOLD)
+        # к его масштабному порогу ON(F), тем ценнее каждый удар (покупает окно).
+        on_opp = max(ON_MIN, ON_FRAC * self.beliefs["opp_force"])
+        progress = min(1.0, self.beliefs["opp_w_adopt"] / on_opp)
         option = OPTION_VALUE * progress
         return base + option
 

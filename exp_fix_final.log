@@ -1,0 +1,29 @@
+МАТРИЦА ДУЭЛЕЙ ПОСЛЕ ЛЕЧЕНИЯ (5 сидов на ячейку):
+  F0=10 PRESSER vs PASSIVE: A=5 B=0 ничья=0 | окно B:101т
+  F0=10  TIMING vs PASSIVE: A=0 B=0 ничья=5 | окно B:0т
+  F0=10  TIMING vs PRESSER: A=0 B=5 ничья=0 | окно B:0т
+  F0=10 PRESSER vs TIMING : A=5 B=0 ничья=0 | окно B:101т
+  F0=30 PRESSER vs PASSIVE: A=5 B=0 ничья=0 | окно B:61т
+  F0=30  TIMING vs PASSIVE: A=3 B=2 ничья=0 | окно B:62т
+  F0=30  TIMING vs PRESSER: A=4 B=1 ничья=0 | окно B:23т
+  F0=30 PRESSER vs TIMING : A=3 B=2 ничья=0 | окно B:27т
+
+RL BATCH (обучение сквозняком, 10 партий по 1000 шагов):
+Game 1: winner=no-capture at step 1000 | final RL force=1, final UtilityAI force=1
+Game 2: winner=RL at step 57 | final RL force=24, final UtilityAI force=3
+Game 3: winner=RL at step 27 | final RL force=17, final UtilityAI force=2
+Game 4: winner=RL at step 150 | final RL force=14, final UtilityAI force=1
+Game 5: winner=RL at step 25 | final RL force=72, final UtilityAI force=8
+Game 6: winner=RL at step 19 | final RL force=105, final UtilityAI force=5
+Game 7: winner=RL at step 19 | final RL force=246, final UtilityAI force=11
+Game 8: winner=RL at step 19 | final RL force=388, final UtilityAI force=9
+Game 9: winner=RL at step 19 | final RL force=607, final UtilityAI force=17
+Game 10: winner=RL at step 19 | final RL force=1111, final UtilityAI force=34
+
+Итоги пакетного прогона:
+  RL победил: 9/10, UtilityAI: 0/10, без решения: 1/10
+  Финальная сила RL при 'RL': медиана=105
+  Финальная сила RL при 'None': медиана=1
+
+RL BATCH #2 (продолжение обучения тех же Q, ещё 10 партий):
+  {'RL': 10, 'UtilityAI': 0, None: 0}
