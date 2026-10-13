@@ -1,0 +1,547 @@
+From 98c150b9661613de1db9e666d80c81492f169eee Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Tue, 13 Oct 2026 11:26:35 +0000
+Subject: [PATCH 9/9] Repository cleanup: single canonical model, consistent
+ docs, organized experiments
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Structure: moved all exp_*.py/diag scripts to experiments/, treatment copies of
+  the model to experiments/treatments/ (frozen historical variants, clearly marked),
+  logs to experiments/, FIX_HYPOTHESIS.md to docs/. Added experiments/README.md with
+  run instructions.
+- Contradictions removed: simulation_v2.py banner marks it as architecturally
+  rejected prototype (IDEA/CAPITAL/FORCE ontology refused by project owner);
+  ideas.md got a status header separating accepted ideas (partial observability,
+  Schmitt persistence-without-guarantee) from rejected ones (modes, profiles,
+  capital/resistance variables, external environment, Clausewitz layer).
+- README.md now documents actual implementation state of simulation.py (energy as
+  consumable pool, Schmitt trigger with scale-free ON(F), logistic rest, capture
+  end condition with guaranteed survival) — resolves stale description gap.
+- Code consistency: ON_THRESHOLD in simulation.py converted to an explicit
+  historical-comment (was unused dead constant referenced by docs); experiment
+  scripts patched to use current scale-free thresholds (ON_FRAC/OFF_FRAC) and to
+  import simulation from repo root; verified syntax + smoke game runs.
+- No architecture changes: pure IPO automaton + two metrics preserved.
+---
+ README.md                                     | 19 +++++++++++++++++++
+ FIX_HYPOTHESIS.md => docs/FIX_HYPOTHESIS.md   |  0
+ docs/PR_schmitt_hysteresis.md                 | 15 ++++++++++++++-
+ experiments/README.md                         | 16 ++++++++++++++++
+ exp10.log => experiments/exp10.log            |  0
+ exp11.log => experiments/exp11.log            |  0
+ exp12.log => experiments/exp12.log            |  0
+ exp13.log => experiments/exp13.log            |  0
+ exp14.log => experiments/exp14.log            |  0
+ exp15.log => experiments/exp15.log            |  0
+ exp16.log => experiments/exp16.log            |  0
+ exp2.log => experiments/exp2.log              |  0
+ exp3.log => experiments/exp3.log              |  0
+ exp4.log => experiments/exp4.log              |  0
+ exp5.log => experiments/exp5.log              |  0
+ exp6.log => experiments/exp6.log              |  0
+ exp7.log => experiments/exp7.log              |  0
+ exp8.log => experiments/exp8.log              |  0
+ exp9.log => experiments/exp9.log              |  0
+ .../exp_balance.log                           |  0
+ .../exp_clausewitz.log                        |  0
+ exp_diag.py => experiments/exp_diag.py        |  2 ++
+ exp_diag2.py => experiments/exp_diag2.py      |  2 ++
+ exp_diag3.py => experiments/exp_diag3.py      |  2 ++
+ exp_fix.log => experiments/exp_fix.log        |  0
+ exp_fix.py => experiments/exp_fix.py          |  9 ++++++---
+ .../exp_fix_final.log                         |  0
+ exp_hyp.log => experiments/exp_hyp.log        |  0
+ .../exp_hypotheses.py                         |  4 +++-
+ exp_rerun.log => experiments/exp_rerun.log    |  0
+ exp_review.log => experiments/exp_review.log  |  0
+ .../exp_schmitt_suite.py                      |  6 ++++--
+ exp_suite.log => experiments/exp_suite.log    |  0
+ exp_suite.py => experiments/exp_suite.py      |  2 ++
+ exp_suite2.log => experiments/exp_suite2.log  |  0
+ exp_suite2.py => experiments/exp_suite2.py    |  2 ++
+ exp_trace.py => experiments/exp_trace.py      |  2 ++
+ exp_v2.log => experiments/exp_v2.log          |  0
+ .../treatments/sim_treatA.py                  |  0
+ .../treatments/sim_treatA2.py                 |  0
+ .../treatments/sim_treat_full.py              |  0
+ .../treatments/sim_treat_scale.py             |  0
+ .../treatments/sim_treat_scale2.py            |  0
+ ideas.md                                      | 12 ++++++++++++
+ simulation.py                                 |  2 +-
+ simulation_v2.py                              |  7 +++++++
+ 46 files changed, 94 insertions(+), 8 deletions(-)
+ rename FIX_HYPOTHESIS.md => docs/FIX_HYPOTHESIS.md (100%)
+ create mode 100644 experiments/README.md
+ rename exp10.log => experiments/exp10.log (100%)
+ rename exp11.log => experiments/exp11.log (100%)
+ rename exp12.log => experiments/exp12.log (100%)
+ rename exp13.log => experiments/exp13.log (100%)
+ rename exp14.log => experiments/exp14.log (100%)
+ rename exp15.log => experiments/exp15.log (100%)
+ rename exp16.log => experiments/exp16.log (100%)
+ rename exp2.log => experiments/exp2.log (100%)
+ rename exp3.log => experiments/exp3.log (100%)
+ rename exp4.log => experiments/exp4.log (100%)
+ rename exp5.log => experiments/exp5.log (100%)
+ rename exp6.log => experiments/exp6.log (100%)
+ rename exp7.log => experiments/exp7.log (100%)
+ rename exp8.log => experiments/exp8.log (100%)
+ rename exp9.log => experiments/exp9.log (100%)
+ rename exp_balance.log => experiments/exp_balance.log (100%)
+ rename exp_clausewitz.log => experiments/exp_clausewitz.log (100%)
+ rename exp_diag.py => experiments/exp_diag.py (91%)
+ rename exp_diag2.py => experiments/exp_diag2.py (92%)
+ rename exp_diag3.py => experiments/exp_diag3.py (92%)
+ rename exp_fix.log => experiments/exp_fix.log (100%)
+ rename exp_fix.py => experiments/exp_fix.py (94%)
+ rename exp_fix_final.log => experiments/exp_fix_final.log (100%)
+ rename exp_hyp.log => experiments/exp_hyp.log (100%)
+ rename exp_hypotheses.py => experiments/exp_hypotheses.py (97%)
+ rename exp_rerun.log => experiments/exp_rerun.log (100%)
+ rename exp_review.log => experiments/exp_review.log (100%)
+ rename exp_schmitt_suite.py => experiments/exp_schmitt_suite.py (96%)
+ rename exp_suite.log => experiments/exp_suite.log (100%)
+ rename exp_suite.py => experiments/exp_suite.py (98%)
+ rename exp_suite2.log => experiments/exp_suite2.log (100%)
+ rename exp_suite2.py => experiments/exp_suite2.py (97%)
+ rename exp_trace.py => experiments/exp_trace.py (92%)
+ rename exp_v2.log => experiments/exp_v2.log (100%)
+ rename sim_treatA.py => experiments/treatments/sim_treatA.py (100%)
+ rename sim_treatA2.py => experiments/treatments/sim_treatA2.py (100%)
+ rename sim_treat_full.py => experiments/treatments/sim_treat_full.py (100%)
+ rename sim_treat_scale.py => experiments/treatments/sim_treat_scale.py (100%)
+ rename sim_treat_scale2.py => experiments/treatments/sim_treat_scale2.py (100%)
+
+diff --git a/README.md b/README.md
+index 292db96..0625f50 100644
+--- a/README.md
++++ b/README.md
+@@ -16,3 +16,22 @@ force = int
+ U(action) = [delta + gamma * (reward(t)) | action]
+ # delta - затраты на действие, gamma - дисконт (0<gamma<1), reward(t) - изменение силы в момент t
+ ```
++
++
++# Состояние реализации (актуально)
++Рабочая модель — `simulation.py`. Реализовано согласно согласованной архитектуре:
++- сущности — IPO-автоматы (+BDI у персонажей), только две метрики: сила и энергия;
++- энергия — расходуемый пул, пополняемый в такт √силы; работа списывается из пула;
++- восприимчивость входа адресата — триггер Шмитта с гистерезисом (масштабный порог
++  ON(F) = max(ON_MIN, ON_FRAC·F)): упорное давление МОЖЕТ открыть окно, но не гарантирует;
++- частичная наблюдаемость — шум наблюдения вместо шума результата;
++- отдых — логистическая прибыль с потолком, растущим только от успешной работы;
++- агенты: UtilityAI (утилитарный расчёт U(action)) и RLAgent (Q-learning, перенос обучения
++  между партиями); условие конца — устойчивое доминирование (capture), при этом «жизнь»
++  агенту гарантирована (сила не опускается ниже 1).
++
++Эксперименты и их логи — в `experiments/` (запуск из корня репозитория). Исторические
++документы обсуждения (`ideas.md`, `simulation_v2.py`) помечены статус-шапками как
++частично отвергнутые; канонической является механика `simulation.py`.
++
++Запуск: `python3 simulation.py` (пакет из 10 партий + график динамики силы).
+diff --git a/FIX_HYPOTHESIS.md b/docs/FIX_HYPOTHESIS.md
+similarity index 100%
+rename from FIX_HYPOTHESIS.md
+rename to docs/FIX_HYPOTHESIS.md
+diff --git a/docs/PR_schmitt_hysteresis.md b/docs/PR_schmitt_hysteresis.md
+index 5b67013..6316787 100644
+--- a/docs/PR_schmitt_hysteresis.md
++++ b/docs/PR_schmitt_hysteresis.md
+@@ -1,6 +1,7 @@
+ # Pull Request: Гистерезис Шмитта вместо S-кривой, чистая IPO-метрика, масштабный порог проницаемости
+ 
+-**Направление:** `qwen-code-5a306cb0-7433-4192-9c32-73b726fb4cd8` (локальная) → `start-of-a-joint-project-b4cd8` (на GitHub) → далее в `main`
++**Направление:** `qwen-code-5a306cb0-…` → `start-of-a-joint-project-b4cd8` (открытый PR)
++**Статус ветки:** актуальна на HEAD (`9ff3a4c`); содержимое проверено и приведено к согласованному состоянию
+ **Новых коммитов относительно удалённой ветки:** 6 (`cbcc3ed`…`fc86ffb`) — гипотезы H-A/B/C, фикс catch-22, чистка `.pyc`, документация PR
+ **Дифф к удалённой ветке:** 15 файлов, +3693 / −11 (ядро — `simulation.py` +35/−11; остальное — эксперименты и логи)
+ **Полная история ветки относительно `main`:** 12 коммитов, 45 файлов, +5656 / −285
+@@ -72,3 +73,15 @@ UtilityAI обновлён для учёта гистерезисного сос
+ 
+ ---
+ *Подготовлено Qwen для Eisenprogrammierer. Рабочее дерево чистое, `import simulation` проходит.*
++
++
++---
++
++## 4. Примечание о структуре репозитория (актуально на HEAD)
++
++- `simulation.py` — единственная каноническая модель (IPO + две метрики, пороги Шмитта с масштабным ON(F)).
++- `experiments/` — скрипты проверок гипотез и их логи; запускаются из корня: `python3 experiments/exp_schmitt_suite.py`.
++- `experiments/treatments/` — замороженные изолированные копии модели для проверки лечения H-A (не являются актуальной моделью).
++- `simulation_v2.py` — экспериментальный прототип нейтральной онтологии (IDEA/CAPITAL/FORCE); **архитектурно отвергнут** автором проекта как перегружающий модель (см. возражения к ideas.md). Сохранён для истории идей.
++- `ideas.md` — исторический документ штурма со статус-шапкой (что принято, что отвергнуто).
++- `docs/` — тело PR и протокол фиксации гипотезы H-A.
+diff --git a/experiments/README.md b/experiments/README.md
+new file mode 100644
+index 0000000..5800855
+--- /dev/null
++++ b/experiments/README.md
+@@ -0,0 +1,16 @@
++# Эксперименты
++
++Все скрипты запускаются **из корня репозитория** (они сами добавляют родительскую
++директорию в `sys.path`, но логи пишутся относительно cwd):
++
++```bash
++python3 experiments/exp_schmitt_suite.py   # пороги Шмитта, матрица дуэлей, дребезг
++python3 experiments/exp_hypotheses.py      # конкурентные гипотезы H1-H3 о провалах RL
++python3 experiments/exp_fix.py             # проверка лечения H-A (сетка ON x DECAY)
++python3 experiments/exp_suite.py           # ранние дуэли Worker/Patient/Passive (истор.)
++python3 experiments/exp_diag*.py           # диагностика (истор.)
++```
++
++- `treatments/` — замороженные изолированные копии модели для проверки гипотезы H-A
++  (не актуальная модель; история эксперимента).
++- `*.log` — сохранённые выводы прогонов на момент фиксации соответствующих коммитов.
+diff --git a/exp10.log b/experiments/exp10.log
+similarity index 100%
+rename from exp10.log
+rename to experiments/exp10.log
+diff --git a/exp11.log b/experiments/exp11.log
+similarity index 100%
+rename from exp11.log
+rename to experiments/exp11.log
+diff --git a/exp12.log b/experiments/exp12.log
+similarity index 100%
+rename from exp12.log
+rename to experiments/exp12.log
+diff --git a/exp13.log b/experiments/exp13.log
+similarity index 100%
+rename from exp13.log
+rename to experiments/exp13.log
+diff --git a/exp14.log b/experiments/exp14.log
+similarity index 100%
+rename from exp14.log
+rename to experiments/exp14.log
+diff --git a/exp15.log b/experiments/exp15.log
+similarity index 100%
+rename from exp15.log
+rename to experiments/exp15.log
+diff --git a/exp16.log b/experiments/exp16.log
+similarity index 100%
+rename from exp16.log
+rename to experiments/exp16.log
+diff --git a/exp2.log b/experiments/exp2.log
+similarity index 100%
+rename from exp2.log
+rename to experiments/exp2.log
+diff --git a/exp3.log b/experiments/exp3.log
+similarity index 100%
+rename from exp3.log
+rename to experiments/exp3.log
+diff --git a/exp4.log b/experiments/exp4.log
+similarity index 100%
+rename from exp4.log
+rename to experiments/exp4.log
+diff --git a/exp5.log b/experiments/exp5.log
+similarity index 100%
+rename from exp5.log
+rename to experiments/exp5.log
+diff --git a/exp6.log b/experiments/exp6.log
+similarity index 100%
+rename from exp6.log
+rename to experiments/exp6.log
+diff --git a/exp7.log b/experiments/exp7.log
+similarity index 100%
+rename from exp7.log
+rename to experiments/exp7.log
+diff --git a/exp8.log b/experiments/exp8.log
+similarity index 100%
+rename from exp8.log
+rename to experiments/exp8.log
+diff --git a/exp9.log b/experiments/exp9.log
+similarity index 100%
+rename from exp9.log
+rename to experiments/exp9.log
+diff --git a/exp_balance.log b/experiments/exp_balance.log
+similarity index 100%
+rename from exp_balance.log
+rename to experiments/exp_balance.log
+diff --git a/exp_clausewitz.log b/experiments/exp_clausewitz.log
+similarity index 100%
+rename from exp_clausewitz.log
+rename to experiments/exp_clausewitz.log
+diff --git a/exp_diag.py b/experiments/exp_diag.py
+similarity index 91%
+rename from exp_diag.py
+rename to experiments/exp_diag.py
+index 6e4b8da..454de1b 100644
+--- a/exp_diag.py
++++ b/experiments/exp_diag.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, statistics
+ from simulation import *
+ 
+diff --git a/exp_diag2.py b/experiments/exp_diag2.py
+similarity index 92%
+rename from exp_diag2.py
+rename to experiments/exp_diag2.py
+index bdb38dd..baf8610 100644
+--- a/exp_diag2.py
++++ b/experiments/exp_diag2.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, statistics
+ from simulation import *
+ 
+diff --git a/exp_diag3.py b/experiments/exp_diag3.py
+similarity index 92%
+rename from exp_diag3.py
+rename to experiments/exp_diag3.py
+index 7349476..71a4d65 100644
+--- a/exp_diag3.py
++++ b/experiments/exp_diag3.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random
+ from simulation import *
+ 
+diff --git a/exp_fix.log b/experiments/exp_fix.log
+similarity index 100%
+rename from exp_fix.log
+rename to experiments/exp_fix.log
+diff --git a/exp_fix.py b/experiments/exp_fix.py
+similarity index 94%
+rename from exp_fix.py
+rename to experiments/exp_fix.py
+index d0a9304..a69aa61 100644
+--- a/exp_fix.py
++++ b/experiments/exp_fix.py
+@@ -18,6 +18,8 @@ H-C: проблема в цене давления на дне (COST+RETALIATION
+ Методология: скриптованные политики (SAVER — копит отдыхом; PRESSER — давит;
+ TIMING — копит, бьёт в окно), дуэли и одиночная динамика, 5 сидов.
+ """
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, statistics
+ import matplotlib
+ matplotlib.use("Agg")
+@@ -99,10 +101,11 @@ print("H-A: ДОСТИЖИМОСТЬ ОКНА ПРИ СТАРТЕ С ДНА. С
+ print("     Одиночный PRESSER против пассива-мишени; фиксируем первый такт,")
+ print("     когда вход мишени открылся, старт F=10 у обоих.")
+ print("="*78)
+-base_on, base_off, base_decay = S.ON_THRESHOLD, S.OFF_THRESHOLD, S.DECAY_ADOPT
++# ON теперь масштабный: ON(F)=max(ON_MIN, ON_FRAC*F). Сетка лечится через ON_FRAC.
++base_on, base_off, base_decay = S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT
+ for decay in (0.95, 0.90, 0.80):
+     for on in (40.0, 25.0, 15.0):
+-        S.DECAY_ADOPT = decay; S.ON_THRESHOLD = on; S.OFF_THRESHOLD = on*0.4
++        S.DECAY_ADOPT = decay; S.ON_FRAC = on; S.OFF_FRAC = 0.4
+         res = []
+         for sd in range(3):
+             rng = random.Random(sd)
+@@ -115,7 +118,7 @@ for decay in (0.95, 0.90, 0.80):
+                     first_open = t
+             res.append(first_open)
+         print(f"  DECAY={decay}, ON={on}: первые окна {res}")
+-S.ON_THRESHOLD, S.OFF_THRESHOLD, S.DECAY_ADOPT = base_on, base_off, base_decay
++S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT = base_on, base_off, base_decay
+ 
+ print()
+ print("="*78)
+diff --git a/exp_fix_final.log b/experiments/exp_fix_final.log
+similarity index 100%
+rename from exp_fix_final.log
+rename to experiments/exp_fix_final.log
+diff --git a/exp_hyp.log b/experiments/exp_hyp.log
+similarity index 100%
+rename from exp_hyp.log
+rename to experiments/exp_hyp.log
+diff --git a/exp_hypotheses.py b/experiments/exp_hypotheses.py
+similarity index 97%
+rename from exp_hypotheses.py
+rename to experiments/exp_hypotheses.py
+index f7f3d71..4f9a494 100644
+--- a/exp_hypotheses.py
++++ b/experiments/exp_hypotheses.py
+@@ -20,6 +20,8 @@ H3 «Локальный оптимум Q-таблицы / ранняя смер
+    Тест: (a) фиксация eps=0 после pre-train vs обучение с нуля; (b) трассировка
+    первых 30 шагов партии — где именно утекает сила.
+ """
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random
+ import statistics
+ import matplotlib
+@@ -40,7 +42,7 @@ def make_scripted(kind):
+                 counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
+                 t = rng.choice(counters) if counters else rng.choice(S.TYPES)
+                 return (t, int(me.energy_pool * 0.7))
+-            if me.beliefs["opp_w_adopt"] >= 0.6 * S.ON_THRESHOLD and me.force > 30:
++            if me.beliefs["opp_w_adopt"] >= 0.6 * max(S.ON_MIN, S.ON_FRAC * me.beliefs["opp_force"]) and me.force > 30:
+                 return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
+             return ("REST", 0)
+         raise ValueError(kind)
+diff --git a/exp_rerun.log b/experiments/exp_rerun.log
+similarity index 100%
+rename from exp_rerun.log
+rename to experiments/exp_rerun.log
+diff --git a/exp_review.log b/experiments/exp_review.log
+similarity index 100%
+rename from exp_review.log
+rename to experiments/exp_review.log
+diff --git a/exp_schmitt_suite.py b/experiments/exp_schmitt_suite.py
+similarity index 96%
+rename from exp_schmitt_suite.py
+rename to experiments/exp_schmitt_suite.py
+index 6c6829d..3f981b8 100644
+--- a/exp_schmitt_suite.py
++++ b/experiments/exp_schmitt_suite.py
+@@ -5,6 +5,8 @@
+ Э2. RL vs UtilityAI после сквозного обучения.
+ Э3. Проверка гистерезиса: нет дребезга контакта при колебаниях около OFF/ON.
+ """
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random
+ import statistics
+ import simulation as S
+@@ -23,7 +25,7 @@ def scripted(kind, me, opp, rng):
+             counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
+             t = rng.choice(counters) if counters else rng.choice(S.TYPES)
+             return (t, int(me.energy_pool * 0.7))
+-        if me.beliefs["opp_w_adopt"] >= 0.6 * S.ON_THRESHOLD and me.force > 30:
++        if me.beliefs["opp_w_adopt"] >= 0.6 * max(S.ON_MIN, S.ON_FRAC * me.beliefs["opp_force"]) and me.force > 30:
+             return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
+         return ("REST", 0)
+     raise ValueError(kind)
+@@ -71,7 +73,7 @@ for i in range(40):
+     trace.append((i + 1, round(d.w_adopt, 1), d.in_open))
+ opens = [t for t in trace if t[2]]
+ first_open = opens[0][0] if opens else None
+-print(f"Окно открылось на такте {first_open} (порог ON={S.ON_THRESHOLD}); "
++print(f"Окно открылось на такте {first_open} (порог ON(F)=max(ON_MIN, ON_FRAC*F)); "
+       f"до него {first_open-1 if first_open else '-'} тактов почти бесплодного напора.")
+ # закрытие по TTL без подкрепления:
+ if first_open:
+diff --git a/exp_suite.log b/experiments/exp_suite.log
+similarity index 100%
+rename from exp_suite.log
+rename to experiments/exp_suite.log
+diff --git a/exp_suite.py b/experiments/exp_suite.py
+similarity index 98%
+rename from exp_suite.py
+rename to experiments/exp_suite.py
+index 886b811..fb03b1a 100644
+--- a/exp_suite.py
++++ b/experiments/exp_suite.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, statistics
+ from simulation import *
+ 
+diff --git a/exp_suite2.log b/experiments/exp_suite2.log
+similarity index 100%
+rename from exp_suite2.log
+rename to experiments/exp_suite2.log
+diff --git a/exp_suite2.py b/experiments/exp_suite2.py
+similarity index 97%
+rename from exp_suite2.py
+rename to experiments/exp_suite2.py
+index c074ab2..7af89d8 100644
+--- a/exp_suite2.py
++++ b/experiments/exp_suite2.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, statistics
+ import simulation as S
+ from simulation import *
+diff --git a/exp_trace.py b/experiments/exp_trace.py
+similarity index 92%
+rename from exp_trace.py
+rename to experiments/exp_trace.py
+index b7fb012..1206b5e 100644
+--- a/exp_trace.py
++++ b/experiments/exp_trace.py
+@@ -1,3 +1,5 @@
++import sys, os
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+ import random, math
+ from simulation import *
+ 
+diff --git a/exp_v2.log b/experiments/exp_v2.log
+similarity index 100%
+rename from exp_v2.log
+rename to experiments/exp_v2.log
+diff --git a/sim_treatA.py b/experiments/treatments/sim_treatA.py
+similarity index 100%
+rename from sim_treatA.py
+rename to experiments/treatments/sim_treatA.py
+diff --git a/sim_treatA2.py b/experiments/treatments/sim_treatA2.py
+similarity index 100%
+rename from sim_treatA2.py
+rename to experiments/treatments/sim_treatA2.py
+diff --git a/sim_treat_full.py b/experiments/treatments/sim_treat_full.py
+similarity index 100%
+rename from sim_treat_full.py
+rename to experiments/treatments/sim_treat_full.py
+diff --git a/sim_treat_scale.py b/experiments/treatments/sim_treat_scale.py
+similarity index 100%
+rename from sim_treat_scale.py
+rename to experiments/treatments/sim_treat_scale.py
+diff --git a/sim_treat_scale2.py b/experiments/treatments/sim_treat_scale2.py
+similarity index 100%
+rename from sim_treat_scale2.py
+rename to experiments/treatments/sim_treat_scale2.py
+diff --git a/ideas.md b/ideas.md
+index 348bc34..2e593a6 100644
+--- a/ideas.md
++++ b/ideas.md
+@@ -1,5 +1,17 @@
+ # Мозговой штурм: сбалансированная, не-милитаристская модель «общественных автоматов»
+ 
++> **СТАТУС ДОКУМЕНТА (актуализировано после возражений автора проекта):**
++> Это исторический документ мозгового штурма. Из него ПРИНЯТЫ: частичная
++> наблюдаемость вместо шума результата; идея упорства без гарантии (реализована
++> через пороги Шмитта в simulation.py). ОТВЕРГНУТЫ И НЕ РЕАЛИЗУЮТСЯ: раздел III
++> (нейтральная онтология НОРМЫ/ОБМЕН/ДИСПЛИН — социологична, сужает область),
++> раздел IV (профили-«конституции» — избыточные сущности), переменные capital/
++> resistance (раздел II) — всё выводится из IPO + двух метрик; внешняя среда,
++> автономный доход, конверсия — отложены; Клаузевиц-слой (фронты/прорывы) отложен.
++> Единица симуляции — типы FIRE/WATER/EARTH с тройным множителем (согласовано).
++> Рабочий код ядра: simulation.py. Эксперименты: experiments/.
++
++
+ ## Диагноз текущей модели (почему результат = архитектура, а не стратегия)
+ 1. Жёсткий цикл 3x (IDEA→CAPITAL→FORCE→IDEA): один тип доминирует над другим втрое —
+    победа предопределена выбором типа, т.е. «архитектурой», а не решениями.
+diff --git a/simulation.py b/simulation.py
+index d1d8fc0..53f7d9a 100644
+--- a/simulation.py
++++ b/simulation.py
+@@ -75,7 +75,7 @@ COST_FRACTION = 0.2   # цена работы: доля вложенной эн
+ # МАСШТАБНЫМ: ON(F) = max(ON_MIN, ON_FRAC·F) — крупный автомат требует крупного
+ # напора, малый уязвим к малому; catch-22 снят без новых переменных (порог
+ # выводится из уже принятой входящей работы и СИЛЫ адресата — двух метрик модели).
+-ON_THRESHOLD = 40.0   # (справочно; прежний абсолютный порог)
++# ON_THRESHOLD (ИСТОРИЧЕСКАЯ СПРАВКА, в коде НЕ используется): прежний абсолютный порог Шмитта = 40.
+ ON_FRAC = 0.25        # верхний порог Шмитта = доля СИЛЫ адресата
+ ON_MIN = 6.0          # но не ниже этого (защита от нулевого порога у дна)
+ OFF_FRAC = 0.4        # нижний порог = OFF_FRAC · ON(F) (гистерезис масштабирован)
+diff --git a/simulation_v2.py b/simulation_v2.py
+index b93e96a..a5773fe 100644
+--- a/simulation_v2.py
++++ b/simulation_v2.py
+@@ -1,3 +1,10 @@
++"""
++СТАТУС: АРХИТЕКТУРНО ОТВЕРГНУТЫЙ ПРОТОТИП (сохранён для истории идей).
++Нейтральная онтология IDEA/CAPITAL/FORCE, переменные capital/resistance и
++профили сущностей были отвергнуты автором проекта как избыточные: всё, что они
++описывают, выводится из IPO-архитектуры и двух метрик (энергия/сила).
++Каноническая модель — simulation.py. Не использовать как основу развития.
++"""
+ import math
+ import random
+ import statistics
+-- 
+2.39.5
+
