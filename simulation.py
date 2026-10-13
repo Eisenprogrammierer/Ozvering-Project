@@ -651,8 +651,33 @@ class Environment(Agent):
         выбор равномерен по TYPES — прежнее поведение среды, код не дублируется.
 
         Иерархия: если среда объят другой суперсистемой (её members непусты),
-        погода членов ротируется в их собственном такте — здесь только своё."""
+        погода членов ротируется в их собственном такте — здесь только своё.
+        Исключение: автономные члены-среды (super().__init__ не вызывался — см.
+        __init__) собственного такта вне партии не имеют, поэтому их «погода»
+        ротируется здесь, на ярус выше; кодекс тот же (унаследованный выбор)."""
         super().rotate_defense(rng)
+        for m in self.members:
+            if isinstance(m, Environment):
+                Agent.rotate_defense(m, rng)   # без профильных искажений CANON-среды
+
+    def snapshot(self):
+        """Снимок IPO-состояния суперсистемы для наблюдения за иерархией.
+
+        Только ЧТЕНИЕ существующих полей — новых переменных состояния не вводится.
+        Рекурсивен: включает снимки объятых членов-сред, поэтому многоуровневая
+        композиция наблюдаема целиком (нужно экспериментам раздела 14 MODEL.md).
+        last_work/last_act среды отражают её входной труд за такт (агрегат)."""
+        return {
+            "force": self.force,
+            "energy_pool": self.energy_pool,
+            "w_adopt": round(self.w_adopt, 2),
+            "in_open": self.in_open,
+            "defense": self.defense,
+            "last_act": self.last_act,
+            "last_work": self.last_work,
+            "members": [m.snapshot() for m in self.members
+                        if isinstance(m, Environment)],
+        }
 
     def member_output(self):
         """Эмерджентный выход нижнего яруса: суммарная работа членов за такт.
@@ -695,7 +720,18 @@ class Environment(Agent):
         силу потолка ПОЛОЖИТЕЛЬНЫМ приростом, из-за чего среда не могла бы
         опуститься ниже L и окно конъюнктуры переставало бы захлопываться
         (дегенерация гистерезиса). Прежняя средовая форма do_rest была
-        эквивалентна именно этому вызову."""
+        эквивалентна именно этому вызову.
+
+        Иерархия (рекурсия ярусов): если среди members есть нижестоящие
+        суперсистемы (Environment), они тактуются ЗДЕСЬ — тот же протокол
+        на ярус ниже (их собственные члены агрегируются их же tick). Так
+        многоуровневая композиция живёт без расширения онтологии: порядок
+        обхода — снизу вверх (сначала труд членов, затем вход яруса), что
+        соответствует причинности партии (передачи персонажей бьют по входу
+        среды уже в resolve_attack)."""
+        for m in self.members:                   # рекурсивный такт нижних ярусов
+            if isinstance(m, Environment):       # автономные подсреды «дышат» сами
+                m.tick()                         # агенты-члены вне дуэли такта не имеют
         if self.members:                         # вход суперсистемы: суммарный труд членов
             w_members = self.member_output()
             if w_members:
@@ -826,7 +862,8 @@ _dom_rl = 0
 _dom_ai = 0
 
 
-def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
+def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
+              env_members=None):
     """Одна партия; RL сохраняет Q-таблицу между партиями (перенос обучения).
 
     Args:
@@ -837,11 +874,19 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
             существующему скаляру ``Agent.p`` — новых переменных не появляется.
         with_env: участвовать ли среде-автомату (Environment) в партии.
             Среда как всеобъемлющий IPO-автомат — утверждённое архитектурное
-            решение (раздел 12 MODEL.md), поэтому по умолчанию True: вход
+            решение (раздел 13 MODEL.md), поэтому по умолчанию True: вход
             среды нагружается всякой передачей, а открытое окно даёт адресанту
             надбавку ENV_BONUS к отдаче и среда несёт автономный доход
             ENV_INCOME. False оставлен лишь для сравнения с прежним каноном
             («среда-пространство» удалена из кода вместе с гипотезой A).
+        env_members: список нижестоящих автоматов, объятых средой партии
+            (суперсистема, раздел 14 MODEL.md). Принято передавать саму среду
+            ([rl, ai] либо [rl, ai, подсреда]) — тогда персонажи одновременно
+            члены дуэли и объятые структуры, а их суммарный труд образует
+            эмерджентный вход яруса (Environment.tick -> member_output).
+            Ветки members, не участвующие в дуэли (автономные подсреды),
+            тактуются рекурсивно внутри env.tick(). Новых переменных нет:
+            members — контейнер существующих автоматов того же кодекса.
 
     Протокол такта (фиксированный порядок, стороны зеркальны):
       1. Взаимное наблюдение (sense) — частичная наблюдаемость.
@@ -849,7 +894,10 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
       3. Поддержание структуры (upkeep), пополнение пулов (tick_energy),
          тактовка состояний входов (tick_input_state, пороги Шмитта с
          профильным decay/OFF). При with_env тем же шагом тактуется
-         и среда (Environment.tick — тот же протокол для суперсистемы).
+         и среда (Environment.tick — тот же протокол для суперсистемы);
+         если заданы env_members, её вход дополнительно нагружается
+         суммарным трудом объятых автоматов (эмерджентность яруса), а
+         автономные подсреды тактуются в ней рекурсивно.
       4. Намерения: RL epsilon-greedy (eps annealing до 0.05 за 300 шагов),
          Utility — argmax U(action); рефлекс голода имеет приоритет над обоими.
       5. Разрешение передач по единому закону (resolve_attack) в обе стороны;
@@ -867,7 +915,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
         for agent, prof in ((rl, p_rl), (ai, p_ai)):
             agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
             agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
-    env = Environment() if with_env else None
+    env = Environment(members=env_members) if with_env else None
     _dom_rl = _dom_ai = 0
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
@@ -919,12 +967,17 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
     return None, rl_hist, ai_hist, steps
 
 
-def run_batch(n_games=10, steps=1000, quiet=False, with_env=True):
+def run_batch(n_games=10, steps=1000, quiet=False, with_env=True,
+              env_members_fn=None):
     """Пакет партий со сквозным обучением RL (общая Q-таблица через все партии).
 
     Args:
         with_env: участвовать ли среде-автомату в партиях (см. play_game;
-            по умолчанию True — утверждённая онтология раздела 12 MODEL.md).
+            по умолчанию True — утверждённая онтология раздела 13 MODEL.md).
+        env_members_fn: None — плоская среда (канон); вызываемый объект
+            fn(rl, ai) -> list — состав members среды каждой партии
+            (суперсистема, раздел 14 MODEL.md), напр. lambda rl, ai: [rl, ai].
+            Вызывается после создания оппонента, до старта тактов.
 
     Returns:
         (rl_agent, last_game_tuple, results_dict) — results_dict считает победы
@@ -935,8 +988,10 @@ def run_batch(n_games=10, steps=1000, quiet=False, with_env=True):
     finals = {"RL": [], "UtilityAI": [], None: []}
     last = None
     for g in range(n_games):
+        ai = UtilityAI()
+        members = env_members_fn(rl, ai) if env_members_fn else None
         winner, rl_hist, ai_hist, end_step = play_game(
-            rl, UtilityAI(), steps, seed=g, with_env=with_env)
+            rl, ai, steps, seed=g, with_env=with_env, env_members=members)
         results[winner] += 1
         finals[winner].append(rl.force)
         last = (winner, rl_hist, ai_hist, end_step)
