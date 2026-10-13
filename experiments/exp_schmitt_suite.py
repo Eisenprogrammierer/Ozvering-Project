@@ -5,6 +5,8 @@
 Э2. RL vs UtilityAI после сквозного обучения.
 Э3. Проверка гистерезиса: нет дребезга контакта при колебаниях около OFF/ON.
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import random
 import statistics
 import simulation as S
@@ -23,7 +25,7 @@ def scripted(kind, me, opp, rng):
             counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
             t = rng.choice(counters) if counters else rng.choice(S.TYPES)
             return (t, int(me.energy_pool * 0.7))
-        if me.beliefs["opp_w_adopt"] >= 0.6 * S.ON_THRESHOLD and me.force > 30:
+        if me.beliefs["opp_w_adopt"] >= 0.6 * max(S.ON_MIN, S.ON_FRAC * me.beliefs["opp_force"]) and me.force > 30:
             return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
         return ("REST", 0)
     raise ValueError(kind)
@@ -71,7 +73,7 @@ for i in range(40):
     trace.append((i + 1, round(d.w_adopt, 1), d.in_open))
 opens = [t for t in trace if t[2]]
 first_open = opens[0][0] if opens else None
-print(f"Окно открылось на такте {first_open} (порог ON={S.ON_THRESHOLD}); "
+print(f"Окно открылось на такте {first_open} (порог ON(F)=max(ON_MIN, ON_FRAC*F)); "
       f"до него {first_open-1 if first_open else '-'} тактов почти бесплодного напора.")
 # закрытие по TTL без подкрепления:
 if first_open:

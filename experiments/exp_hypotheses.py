@@ -20,6 +20,8 @@ H3 «Локальный оптимум Q-таблицы / ранняя смер�
    Тест: (a) фиксация eps=0 после pre-train vs обучение с нуля; (b) трассировка
    первых 30 шагов партии — где именно утекает сила.
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import random
 import statistics
 import matplotlib
@@ -40,7 +42,7 @@ def make_scripted(kind):
                 counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
                 t = rng.choice(counters) if counters else rng.choice(S.TYPES)
                 return (t, int(me.energy_pool * 0.7))
-            if me.beliefs["opp_w_adopt"] >= 0.6 * S.ON_THRESHOLD and me.force > 30:
+            if me.beliefs["opp_w_adopt"] >= 0.6 * max(S.ON_MIN, S.ON_FRAC * me.beliefs["opp_force"]) and me.force > 30:
                 return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
             return ("REST", 0)
         raise ValueError(kind)
