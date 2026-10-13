@@ -35,6 +35,6 @@ H-C: ЗНАК ОБМЕНА ПО СЛОЯМ (давление по закрыто
   F0=10  TIMING vs PASSIVE: A=0 B=0 ничья=5 | медиана ΔF=+0
   F0=10 PRESSER vs PASSIVE: A=5 B=0 ничья=0 | медиана ΔF=+30
   F0=10  TIMING vs PRESSER: A=0 B=5 ничья=0 | медиана ΔF=-29
-  F0=30  TIMING vs PASSIVE: A=3 B=2 ничья=0 | медиана ΔF=+94
+  F0=30  TIMING vs PASSIVE: A=4 B=1 ничья=0 | медиана ΔF=+165
   F0=30 PRESSER vs PASSIVE: A=5 B=0 ничья=0 | медиана ΔF=+197
   F0=30  TIMING vs PRESSER: A=2 B=3 ничья=0 | медиана ΔF=-55
