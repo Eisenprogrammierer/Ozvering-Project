@@ -1,0 +1,31 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+t= 0 RL F  9.0->  9.0 E 6-> 5 act=EARTH   w=1 | AI F  10.6 w=0
+t= 1 RL F  8.0->  8.0 E 4-> 3 act=FIRE    w=1 | AI F  11.2 w=0
+t= 2 RL F  7.0->  1.0 E 4-> 0 act=EARTH   w=2 | AI F  14.2 w=4
+t= 3 RL F  1.0->  1.0 E 1-> 0 act=WATER   w=0 | AI F  16.2 w=3
+t= 4 RL F  1.0->  1.0 E 1-> 0 act=EARTH   w=0 | AI F  18.2 w=3
+t= 5 RL F  1.0->  1.0 E 1-> 0 act=EARTH   w=0 | AI F  21.2 w=4
+t= 6 RL F  1.0->  2.0 E 1-> 2 act=FIRE    w=0 | AI F  20.2 w=4
+t= 7 RL F  1.0->  2.0 E 2-> 2 act=REST    w=0 | AI F  19.2 w=4
+t= 8 RL F  1.0->  2.0 E 2-> 2 act=WATER   w=0 | AI F  18.2 w=4
+t= 9 RL F  1.0->  2.0 E 2-> 2 act=WATER   w=0 | AI F  17.2 w=4
+t=10 RL F  1.0->  1.0 E 2-> 0 act=FIRE    w=0 | AI F  20.2 w=4
+t=11 RL F  1.0->  1.0 E 1-> 0 act=FIRE    w=0 | AI F  23.2 w=4
+t=12 RL F  1.0->  1.0 E 1-> 0 act=FIRE    w=0 | AI F  26.2 w=4
+t=13 RL F  1.0->  1.0 E 1-> 0 act=FIRE    w=0 | AI F  29.2 w=4
+t=14 RL F  1.0->  1.0 E 1-> 0 act=WATER   w=0 | AI F  42.2 w=5
+t=15 RL F  1.0->  1.0 E 1-> 0 act=REST    w=0 | AI F  58.2 w=6
+t=16 RL F  1.0->  2.0 E 1-> 2 act=FIRE    w=0 | AI F  56.2 w=7
+t=17 RL F  1.0->  2.0 E 2-> 2 act=FIRE    w=0 | AI F  54.2 w=7
+t=18 RL F  1.0->  1.0 E 2-> 0 act=EARTH   w=0 | AI F  59.2 w=7
+t=19 RL F  1.0->  2.0 E 1-> 2 act=WATER   w=0 | AI F  57.2 w=7
+t=20 RL F  1.0->  1.0 E 2-> 0 act=WATER   w=0 | AI F  62.2 w=7
+t=21 RL F  1.0->  2.0 E 1-> 2 act=REST    w=0 | AI F  60.2 w=7
+t=22 RL F  1.0->  2.0 E 2-> 2 act=WATER   w=0 | AI F  58.2 w=7
+t=23 RL F  1.0->  1.0 E 2-> 0 act=FIRE    w=0 | AI F  63.2 w=7
+t=24 RL F  1.0->  1.0 E 1-> 0 act=FIRE    w=0 | AI F  68.2 w=7
+t=25 RL F  1.0->  2.0 E 1-> 2 act=FIRE    w=0 | AI F  66.2 w=7
+t=26 RL F  1.0->  2.0 E 2-> 2 act=FIRE    w=0 | AI F  64.2 w=8
+t=27 RL F  1.0->  1.0 E 2-> 0 act=FIRE    w=0 | AI F  69.2 w=7
+t=28 RL F  1.0->  2.0 E 1-> 2 act=EARTH   w=0 | AI F  67.2 w=8
+t=29 RL F  1.0->  1.0 E 2-> 0 act=REST    w=0 | AI F  73.2 w=8

@@ -1,0 +1,43 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+B(r) после починки:
+  r=0.5: B=1.000
+  r=0.9: B=1.000
+  r=0.99: B=1.000
+  r=1.0: B=2.000
+  r=1.1: B=2.364
+  r=1.5: B=2.925
+  r=2.0: B=2.992
+try_retreat: F=10, opp=40 -> True
+F=10, opp=12 -> False (ожидаем False: рубеж ещё держится)
+
+=== Э11: отступление vs стоять до конца (обе починки в файле), n=20 ===
+отступление РАЗРЕШЕНО: жертва 7/20, агрессор 4/20, ничьи 9/20 | всего отступлений=0 | медиана финала жертвы=1
+СТОЯТЬ ДО КОНЦА      : жертва 7/20, агрессор 4/20, ничьи 9/20 | всего отступлений=0 | медиана финала жертвы=1
+
+=== Э12: RL vs UtilityAI (полный файл), n=10 ===
+G1: UtilityAI @ 21 | F_RL=1 F_AI=65
+G2: UtilityAI @ 79 | F_RL=1 F_AI=63
+G3: no-cap @ 1000 | F_RL=1 F_AI=1
+G4: UtilityAI @ 23 | F_RL=1 F_AI=70
+G5: UtilityAI @ 27 | F_RL=1 F_AI=107
+G6: no-cap @ 1000 | F_RL=1 F_AI=1
+G7: no-cap @ 1000 | F_RL=1 F_AI=1
+G8: UtilityAI @ 42 | F_RL=1 F_AI=73
+G9: no-cap @ 1000 | F_RL=1 F_AI=1
+G10: UtilityAI @ 19 | F_RL=1 F_AI=65
+Итог: {'RL': 0, 'UtilityAI': 6, None: 4}
+
+=== Э13: трассировка фаз последней партии ===
+t=   0 F_RL=    1.0 F_AI=   13.0 B(RL->AI)=1.00
+t=   2 F_RL=    1.0 F_AI=   17.0 B(RL->AI)=1.00
+t=   4 F_RL=    1.0 F_AI=   23.0 B(RL->AI)=1.00
+t=   6 F_RL=    1.0 F_AI=   25.0 B(RL->AI)=1.00
+t=   8 F_RL=    1.0 F_AI=   27.0 B(RL->AI)=1.00
+t=  10 F_RL=    1.0 F_AI=   44.0 B(RL->AI)=1.00
+t=  12 F_RL=    1.0 F_AI=   52.0 B(RL->AI)=1.00
+t=  14 F_RL=    1.0 F_AI=   48.0 B(RL->AI)=1.00
+t=  16 F_RL=    1.0 F_AI=   50.0 B(RL->AI)=1.00
+t=  18 F_RL=    1.0 F_AI=   60.0 B(RL->AI)=1.00
+
+=== Э14: зеркальные дуэли UtilityAI vs UtilityAI, n=20 (честность?) ===
+A:12 B:5 ничьи:3

@@ -1,0 +1,5 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+t=  0 F_aggr=    8.0 F_vic=  10.6 vic.belief_opp=10 триггер_отступления=False did=False
+t= 10 F_aggr=    1.0 F_vic=  28.2 vic.belief_opp=1 триггер_отступления=False did=False
+t= 20 F_aggr=    1.0 F_vic=  53.2 vic.belief_opp=1 триггер_отступления=False did=False
+ПОРЕШЕНИЕ на t= 26

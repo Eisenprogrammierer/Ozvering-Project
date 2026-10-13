@@ -1,0 +1,14 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+=== Э17: RL vs UtilityAI (отдых под рубежом), n=20 ===
+G1: RL @ 27 | F_RL=46 F_AI=1
+G6: RL @ 19 | F_RL=655 F_AI=1
+G11: RL @ 19 | F_RL=2217 F_AI=1
+G16: RL @ 19 | F_RL=5599 F_AI=1
+G18: RL @ 19 | F_RL=7772 F_AI=1
+G19: RL @ 19 | F_RL=8268 F_AI=1
+G20: RL @ 19 | F_RL=10304 F_AI=1
+Итог: {'RL': 20, 'UtilityAI': 0, None: 0}
+
+=== Э18: фазовые потери в живых партиях (до/после прорыва) ===
+ШТУРМ рубежа: потери наступающего=1.95/удар
+ПОСЛЕ прорыва: потери наступающего=0.78/удар, обороняемого=0.26/удар -> нет лавины (!?)
