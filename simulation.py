@@ -45,8 +45,13 @@ PARAMETERS = {
     "CAPTURE_RATIO": 1.5,
     "CAPTURE_STREAK": 20,
     "CAPTURE_FRAC": 0.10,
+    "PROFILE_RNG": [0.7, 1.0],
 }
-"""Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8."""
+"""Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8.
+
+PROFILE_RNG — интервал случайного профиля по умолчанию (см. PROFILES ниже):
+партия с seed=None или прогоны без явного профиля получают профиль равномерно
+из этого интервала. Значение 1.0 соответствует прежней канонической механике."""
 
 globals().update(PARAMETERS)
 
@@ -54,8 +59,40 @@ MULT = {("WATER", "FIRE"): 3.0, ("FIRE", "EARTH"): 3.0, ("EARTH", "WATER"): 3.0}
 """Круговой контр-множитель типов: WATER > FIRE > EARTH > WATER (x3). Цикл симметричен,
 ни один тип не доминирует архитектурно; защита ротируется (Agent.rotate_defense)."""
 
+PROFILES = {
+    # p — профильный параметр «догматичности» входа: множитель при DECAY_ADOPT.
+    # p < 1: давление остывает быстрее (DECAY*p), нижний порог OFF(F) выше
+    #        (OFF_FRAC/p) — окно открывается реже и живёт меньше; вход «догматичен»,
+    #        устойчив к чужому напору, но сам требует большего собственного напора
+    #        для вскрытия чужого окна через тот же закон.
+    # p = 1: каноническая механика (прежние значения калибровки без изменений).
+    "ZEALOT": 0.7,   # догматик: медленная ротация защиты, быстрое «заживление» входа
+    "ORTHODOX": 0.85,
+    "CANON": 1.0,    # базовый профиль == прежняя модель
+    "PRAGMATIST": 1.15,
+    "OPPORTUNIST": 1.3,  # оппортунист: быстрая ротация, вязкое давление (окна чаще/дольше)
+}
+"""Профильные классы автоматов: ОДИН параметр p, умножающий существующие константы
+входа (DECAY_ADOPT и OFF_FRAC) — новых переменных состояния или метрик не вводится.
+Смысл и обоснование достаточности IPO-архитектуры — docs/MODEL.md, раздел 2а."""
+
 ACTIONS = [("REST", 0)] + [(t, w) for t in TYPES for w in [0.3, 0.7]]
 """Пространство действий автомата: покой либо передача типом с долей пула 0.3/0.7."""
+
+
+def _profile_from_seed(seed):
+    """Детерминированный выбор профиля по seed партии (для воспроизводимости прогонов).
+
+    Используется только когда профиль явно не передан: profile=None означает
+    «случайный профиль из PROFILE_RNG». При seed=None возвращается середина
+    интервала PROFILE_RNG (нейтральное ожидание); при seed>=0 — детерминированное
+    значение из того же интервала. В run_batch партии получают seed=g, поэтому
+    профили сторон чередуются детерминированно, а не случайно между запусками."""
+    lo, hi = PROFILE_RNG[0], PROFILE_RNG[1]
+    if seed is None:
+        return 0.5 * (lo + hi)
+    rnd = random.Random(hash(("profile", seed)) & 0xFFFFFFFF)
+    return rnd.uniform(lo, hi)
 
 
 def p_success(att_type, att_work, dfn_type, dfn_work):
@@ -81,7 +118,17 @@ class Agent:
     новых сущностей не вводится.
     """
 
-    def __init__(self, defense=None):
+    def __init__(self, defense=None, profile="CANON"):
+        """profile — имя из PROFILES или вещественный p (см. docs/MODEL.md, раздел 2а).
+
+        Профиль НЕ вводит новых переменных состояния: это единственный скаляр ``p``,
+        модифицирующий ОБРАБОТКУ существующих IPO-компонентов — вход (пороги Шмитта:
+        decay и нижний порог) и выход (тяжесть поражения при доминировании).
+        Метрики force/energy_pool, их динамика и состав beliefs остаются прежними;
+        профиль не наблюдается противником напрямую (частичная наблюдаемость).
+        """
+        self.profile = profile if isinstance(profile, str) else round(float(profile), 4)
+        self.p = PROFILES[profile] if isinstance(profile, str) else float(profile)
         self.force = 10
         self.energy_pool = 3
         self.rest_units = 0.0
@@ -154,6 +201,14 @@ class Agent:
         Исторический абсолютный порог ON=40 создавал catch-22 дна (см. H-A)."""
         return max(ON_MIN, ON_FRAC * self.force)
 
+    def effective_decay(self):
+        """Профильная скорость остывания давления: DECAY_ADOPT * p.
+
+        Вынесено в метод, чтобы обработчики (вход — tick_input_state и модель
+        планирования UtilityAI) использовали одну и ту же формулу; новых
+        переменных не появляется — это функция от уже существующих p и DECAY_ADOPT."""
+        return DECAY_ADOPT * self.p
+
     def receive_pressure(self, w):
         """Input-обработка входящей работы: накопление давления на вход.
 
@@ -169,20 +224,27 @@ class Agent:
     def tick_input_state(self):
         """Тактовка состояния входа адресата (пороги Шмитта с гистерезисом).
 
+        Профильный множитель ``p`` входит в обработку ДВУХ существующих величин
+        (см. docs/MODEL.md, раздел 2а): скорость остывания давления и положение
+        нижнего порога гистерезиса. Верхний порог ON(F) остаётся инвариантом
+        автомата — «конституция» по сути, но не по значению: новые переменные
+        не введены, изменена только обработка.
+
         Три перехода за один такт:
-          1. ``w_adopt *= DECAY_ADOPT`` — «заживление»: накопленное давление
-             остывает, если напор не поддерживается;
+          1. ``w_adopt *= DECAY_ADOPT * p`` — «заживление»: накопленное давление
+             остывает, если напор не поддерживается; при p<1 (догматик) — быстрее;
           2. при открытом окне уменьшается ``open_timer`` (окно конечно);
           3. окно захлопывается по истечении ``OPEN_TTL`` **или** когда
-             давление упало ниже ``OFF(F) = OFF_FRAC * ON(F)``.
+             давление упало ниже ``OFF(F) = (OFF_FRAC / p) * ON(F)`` — у догматика
+             нижний порог выше relative ON, окно захлопывается раньше.
 
         Нижний порог строго выше нуля и меньше верхнего (гистерезис ON > OFF),
         поэтому шум наблюдения и мелкая работа не «дёргают» контакт: вход
         открывается только устойчивым напором и так же устойчиво закрывается."""
-        self.w_adopt *= DECAY_ADOPT
+        self.w_adopt *= self.effective_decay()
         if self.in_open:
             self.open_timer -= 1
-            off_now = OFF_FRAC * self.schmitt_on()
+            off_now = (OFF_FRAC / self.p) * self.schmitt_on()
             if self.open_timer <= 0 or self.w_adopt < off_now:
                 self.in_open = False
 
@@ -199,15 +261,34 @@ class Agent:
             входа противника (накопленное давление и положение окна);
           * ``opp_defense_guess`` — тип защиты НЕ наблюдается вовсе; оценка
             строится скользющим большинством последних 5 действий противника;
-          * ``opp_last_act`` / ``opp_last_work`` — его прошлый ход.
+          * ``opp_last_act`` / ``opp_last_work`` — его прошлый ход;
+          * ``opp_decay_guess`` — КОСВЕННАЯ оценка профильной скорости остывания
+            чужого входа. Профиль не наблюдается напрямую (частичная
+            наблюдаемость); он выводится из уже наблюдаемой траектории
+            ``w_adopt``: если давление не пополнялось, w_adopt за такт умножилось
+            на DECAY_ADOPT·p — отсюда p = decay_obs / DECAY_ADOPT. Скользящее
+            среднее по последним 8 наблюдениям. Новых истинных переменных нет:
+            это производная величина от уже существующих наблюдений.
 
         Args:
             opp: наблюдаемый противник.
             rng: генератор случайных чисел партии (шум наблюдения детерминирован seed'ом)."""
+        prev_w = self.beliefs.get("opp_w_adopt_prev")
         self.beliefs["opp_energy"] = max(1, opp.energy_pool + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
         self.beliefs["opp_force"] = max(1, int(round(opp.force, -1)))
         self.beliefs["opp_w_adopt"] = max(0.0, opp.w_adopt)
         self.beliefs["opp_in_open"] = opp.in_open
+        if prev_w is not None and prev_w > 1e-6 and opp.w_adopt <= prev_w:
+            # В текущем такте вход ещё не пополнялся (resolve_attack идёт после
+            # sense), поэтому изменение w_adopt от прошлого наблюдения — чистое
+            # «заживление»: наблюдаем эффективный decay входа противника.
+            obs_decay = min(0.999, max(0.5, opp.w_adopt / prev_w))
+            dq = self.beliefs.setdefault("opp_decay_hist", [])
+            dq.append(obs_decay)
+            if len(dq) > 8:
+                dq.pop(0)
+            self.beliefs["opp_decay_guess"] = sum(dq) / len(dq)
+        self.beliefs["opp_w_adopt_prev"] = opp.w_adopt
         hist = self.beliefs.setdefault("opp_act_hist", [])
         hist.append(opp.last_act)
         if len(hist) > 5:
@@ -218,16 +299,24 @@ class Agent:
         self.beliefs["opp_last_work"] = opp.last_work
 
     def rotate_defense(self, rng):
-        """Ротация защиты в начале такта (свойство среды, симметричное для всех).
+        """Ротация защиты в начале такта (свойство среды + профильная обработка).
 
         Из множества типов исключаются те, которые контрят последний тип атаки
         противника (наблюдаемое ограничение), и защита выбирается равномерно из
         оставшихся. Фиксированная защита делала исход предопределённым
         (архитектурный контр-тип); ротация снимает гарантию, но оставляет место
         для стратегии: наблюдательный агент эксплуатирует ограничение ротации,
-        предугадывая узкий набор возможных защит."""
+        предугадывая узкий набор возможных защит.
+
+        Профильная дифференциация на выходе автомата: вероятность сменить защиту
+        равна ``min(1.0, p)`` — «догматик» (p<1) держит позицию дольше,
+        оппортунист (p>=1) ротируется каждый такт. Новых переменных не вводится:
+        используется уже существующий скаляр профиля p и штатный rng партии;
+        состояние ``defense`` было в модели всегда."""
         counters = [t for t in TYPES if not MULT.get((self.beliefs["opp_last_act"], t))]
-        self.defense = rng.choice(counters) if counters else rng.choice(TYPES)
+        pool = counters if counters else TYPES
+        if self.p >= 1.0 or rng.random() < self.p:
+            self.defense = rng.choice(pool)
         self.state = {"energy": self.energy_pool, "defense": self.defense,
                       "last_act": self.last_act}
 
@@ -304,10 +393,18 @@ class UtilityAI(Agent):
 
     Не обучается — следует аналитической модели того же закона, что и среда
     (включая положение входа противника по порогам Шмитта). Авантюры — работу
-    по закрытому входу — отвергает сама утилита: U(action) = delta + gamma*reward(t)."""
+    по закрытому входу — отвергает сама утилита: U(action) = delta + gamma*reward(t).
 
-    def __init__(self):
-        super().__init__()
+    Профильная осведомлённость (параметр ``profile_aware``, по умолчанию False —
+    прежние значения калибровки и поведение без изменений): при True модель
+    накопления чужого входа использует косвенную оценку остывания давления
+    ``opp_decay_guess`` вместо глобального DECAY_ADOPT. Демонстрация того, что
+    «характер» автомата различим существующими IPO-каналами
+    (наблюдение → beliefs → расчёт) без введения новых переменных мира."""
+
+    def __init__(self, profile="CANON", profile_aware=False):
+        super().__init__(profile=profile)
+        self.profile_aware = profile_aware
 
     def gain_model(self, m, p):
         """Ожидаемая отдача единицы работы при гипотезе о защите (множитель m)
@@ -327,7 +424,19 @@ class UtilityAI(Agent):
         base = Y_SMALL * p * m
         on_opp = max(ON_MIN, ON_FRAC * self.beliefs["opp_force"])
         progress = min(1.0, self.beliefs["opp_w_adopt"] / on_opp)
-        option = OPTION_VALUE * progress
+        # Профильно-осведомлённая модель опциона: давление на чужой вход остывает
+        # со скоростью DECAY_ADOPT*p_opp; при p<1 (догматик) накопленное быстрее
+        # утекает, и опцион «покупки окна» дешевле; при p>1 — дороже и вероятнее.
+        # Оценка p_opp берётся из beliefs (opp_decay_guess); без profile_aware или
+        # без достаточных наблюдений — канонический DECAY_ADOPT (прежнее поведение).
+        eff_decay = DECAY_ADOPT
+        if self.profile_aware:
+            dg = self.beliefs.get("opp_decay_guess")
+            if dg is not None:
+                eff_decay = dg
+        k = 3  # горизонт планирования опциона (в тактах), вынесен локально
+        retained = sum(eff_decay ** i for i in range(1, k + 1)) / k
+        option = OPTION_VALUE * progress * (retained / (sum(DECAY_ADOPT ** i for i in range(1, k + 1)) / k))
         return base + option
 
     def expected_retaliation(self, work):
@@ -389,8 +498,8 @@ class RLAgent(Agent):
     (O/C) и степень его наполнения давлением: Q различает «давить бесполезно»
     и «окно открыто — бей». Q-таблица общая между партиями (run_batch)."""
 
-    def __init__(self, q=None):
-        super().__init__()
+    def __init__(self, q=None, profile="CANON"):
+        super().__init__(profile=profile)
         self.Q = q if q is not None else {}
 
     def discretize(self, e):
@@ -525,6 +634,10 @@ def check_capture(rl, ai):
         _dom_rl = _dom_ai = 0
         sev = 2.0 if ai.in_open else 1.0
         cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
+        # Профильная обработка выхода: догматик (p<1) встречает разгром стойче —
+        # тяжесть потери масштабируется его скаляром профиля; оппортунист (p>1)
+        # платит больше за «продажность» позиции. Никаких новых переменных.
+        cap = int(cap * max(0.5, min(1.0, ai.p)))
         ai.force = max(1, ai.force - cap)
         ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
@@ -533,6 +646,7 @@ def check_capture(rl, ai):
         _dom_ai = _dom_rl = 0
         sev = 2.0 if rl.in_open else 1.0
         cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
+        cap = int(cap * max(0.5, min(1.0, rl.p)))
         rl.force = max(1, rl.force - cap)
         rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
         ai.gain(cap)
@@ -544,24 +658,38 @@ _dom_rl = 0
 _dom_ai = 0
 
 
-def play_game(rl, ai, steps=1000, seed=0):
+def play_game(rl, ai, steps=1000, seed=0, profiles=None):
     """Одна партия; RL сохраняет Q-таблицу между партиями (перенос обучения).
+
+    Args:
+        profiles: None — профили сторон берутся из уже заданных при создании
+            агентов (по умолчанию "CANON" == прежняя каноническая механика);
+            пара (p_rl, p_ai) — применить профили сторонам перед партией
+            (имя из PROFILES или вещественный p). Профиль присваивается
+            существующему скаляру ``Agent.p`` — новых переменных не появляется.
 
     Протокол такта (фиксированный порядок, стороны зеркальны):
       1. Взаимное наблюдение (sense) — частичная наблюдаемость.
-      2. Ротация защит обеих сторон.
+      2. Ротация защит обеих сторон (профильно-модулируемая: см. rotate_defense).
       3. Поддержание структуры (upkeep), пополнение пулов (tick_energy),
-         тактовка состояний входов (tick_input_state, пороги Шмитта).
+         тактовка состояний входов (tick_input_state, пороги Шмитта с
+         профильным decay/OFF).
       4. Намерения: RL epsilon-greedy (eps annealing до 0.05 за 300 шагов),
          Utility — argmax U(action); рефлекс голода имеет приоритет над обоими.
       5. Разрешение передач по единому закону (resolve_attack) в обе стороны.
       6. TD-обучение RL на корректном переходе s -> s' с наградой delta F.
-      7. Проверка устойчивого доминирования (check_capture).
+      7. Проверка устойчивого доминирования (check_capture; тяжесть поражения
+         масштабируется профилем проигравшего).
 
     Returns:
         (winner | None, rl_hist, ai_hist, end_step)
     """
     global _dom_rl, _dom_ai
+    if profiles is not None:
+        p_rl, p_ai = profiles
+        for agent, prof in ((rl, p_rl), (ai, p_ai)):
+            agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
+            agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
     _dom_rl = _dom_ai = 0
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
