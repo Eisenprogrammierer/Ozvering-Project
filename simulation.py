@@ -6,6 +6,9 @@
 взаимодействие — передача работы; восприимчивость входа адресата описывается
 порогами Шмитта с гистерезисом ON(F)/OFF(F); прибыль покоя логистическая с
 потолком, растущим только от труда; поражение — по устойчивому доминированию.
+Среда — всеобъемлющий IPO-автомат (суперсистема того же кодекса, см. раздел 12
+docs/MODEL.md): её вход нагружается всякой передачей, открытое окно даёт
+надбавку к отдаче адресанта, автономный доход ENV_INCOME поддерживает динамику.
 Терминология нейтральна: один закон покрывает физическую, информационную и
 экономическую конкуренцию и мирное сосуществование (работа = 0).
 """
@@ -46,6 +49,8 @@ PARAMETERS = {
     "CAPTURE_STREAK": 20,
     "CAPTURE_FRAC": 0.10,
     "PROFILE_RNG": [0.7, 1.0],
+    "ENV_BONUS": 0.25,
+    "ENV_INCOME": 2,
 }
 """Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8.
 
@@ -556,7 +561,98 @@ class RLAgent(Agent):
         self.Q[st][a_idx] += alpha * td
 
 
-def resolve_attack(att, dfn, work, rng):
+class Environment(Agent):
+    """Среда как всеобъемлющий IPO-автомат (суперсистема над автоматами).
+
+    Утверждённое архитектурное решение (раздел 12 MODEL.md; бывший эксперимент —
+    «гипотеза B», гипотеза A удалена из кода): среда — не пустое пространство
+    между автоматами, а автомат того же кодекса. Среда наследует ``Agent``,
+    поэтому весь кодекс Шмитта и логистика покоя реализованы обработчиками
+    базового автомата один-в-один: повторения кода нет и новых переменных
+    состояния не вводится (набор полей среды — точное подмножество полей Agent).
+
+      INPUT   : входящие работы всех автоматов такта (каждая передача нагружает
+                вход среды через resolve_attack -> receive_pressure) плюс
+                автономный доход ENV_INCOME;
+      PROCESS : накопление w_adopt и гистерезис ON(F)/OFF(F) — восприимчивость
+                среды = «конъюнктура»; ротация типа «погоды» (defense); upkeep,
+                пополнение пула, покой — всё обработчиками Agent при профиле
+                CANON (p=1), т.е. без профильных искажений суперсистемы;
+      OUTPUT  : состояние входа транслируется в правила для автоматов одним
+                скаляром: при открытом входе среды отдача адресанта увеличивается
+                на ENV_BONUS («окно возможностей»), при закрытом — прежний канон.
+
+    Тактовый протокол tick() повторяет протокол автомата, т.е. среда подчинена
+    той же IPO-архитектуре — иерархия автоматов (закрыт разделом 12 открытый
+    вопрос 4 MODEL.md) получает первый ярус без расширения онтологии.
+
+    Отличие от автомата-персонажа одно и состоит из уже существующих состояний:
+    у среды нет оппонента, поэтому beliefs фиксированы («противник REST с
+    нулевой работой»), а её собственный выход наружу — не передача силы, а
+    окно конъюнктуры (ENV_BONUS) и автономный доход (ENV_INCOME).
+
+    Альтернативная онтология («среда как отдельное пространство», гипотеза A)
+    удалена из кода по итогам сравнения (раздел 12 MODEL.md): она не имела ни
+    метрик, ни состояний и была вырожденным случаем настоящей среды (env=None).
+    """
+
+    def __init__(self, start_force=10):
+        # Профиль CANON (p=1): среда применяет кодекс без профильных искажений.
+        super().__init__(defense=TYPES[0], profile="CANON")
+        self.force = float(start_force)          # сила среды (капитал конъюнктуры)
+        # Среде некого наблюдать: beliefs нейтральны, тогда унаследованная
+        # rotate_defense выбирает «погоду» равномерно из TYPES — прежнее поведение.
+        self.beliefs.update({"opp_last_act": "REST", "opp_last_work": 0,
+                             "opp_energy": 0, "opp_force": 1,
+                             "opp_w_adopt": 0.0, "opp_in_open": False})
+
+    def receive_pressure(self, w):
+        """Input-обработка Agent + рост потолка покоя от труда автоматов.
+
+        Наследует накопление давления и открытие окна по Шмитту у Agent;
+        добавляет единственное средовое следствие нагрузки: rest_units среды
+        растёт от входящей работы (w * 0.01), расширяя потолок покоя
+        суперсистемы. Новых переменных нет — rest_units есть поле Agent."""
+        super().receive_pressure(w)
+        self.rest_units += w * 0.01              # труд автоматов расширяет потолок среды
+
+    def rotate_defense(self, rng):
+        """Ротация «погоды» среды — тот же обработчик, что у Agent.
+
+        Фиксированная защита среды делала бы контр-цикл предопределённым;
+        ротация оставляет место для стратегии (наблюдательный агент
+        эксплуатирует распределение). При нейтральных beliefs унаследованный
+        выбор равномерен по TYPES — прежнее поведение среды, код не дублируется."""
+        super().rotate_defense(rng)
+
+    def tick(self):
+        """Один такт среды: тот же протокол Process, что у автомата.
+
+        Ротация типа вынесена в шаг 2 такта партии (env.rotate_defense(rng) —
+        там же, где у автоматов); здесь — энергия, состояния входа, автономный
+        доход и покой/upkeep. Все фазы — унаследованные обработчики Agent.
+
+        Автономный доход ENV_INCOME — единственный элемент, отсутствовавший в
+        прежней модели «среды-пространства»: среда-автомат воспроизводит
+        закрытый разделом 12 открытый вопрос 3 MODEL.md (внешняя среда с
+        автономным доходом) без новых переменных — доход есть работа самой
+        среды, порождаемая её состоянием покоя.
+
+        Покой применяется как НЕвыбранный (do_rest(chosen=False), половина
+        прибыли и малое пополнение пула): осознанный отдых Agent ограничивает
+        силу потолка ПОЛОЖИТЕЛЬНЫМ приростом, из-за чего среда не могла бы
+        опуститься ниже L и окно конъюнктуры переставало бы захлопываться
+        (дегенерация гистерезиса). Прежняя средовая форма do_rest была
+        эквивалентна именно этому вызову."""
+        self.tick_energy()                       # пополнение пула потоком regen (Agent)
+        self.tick_input_state()                  # гистерезис Шмитта входа (Agent)
+        self.force += ENV_INCOME                 # выход Process: среда производит сама
+        if self.force < self.rest_ceiling:       # логистический покой (Agent)
+            self.do_rest(chosen=False)
+        self.upkeep()                            # содержание структуры (Agent)
+
+
+def resolve_attack(att, dfn, work, rng, env=None):
     """Единый закон передачи — общий для конкуренции любой природы
     (физической, информационной, экономической; мирное сосуществование = работа 0).
 
@@ -577,17 +673,26 @@ def resolve_attack(att, dfn, work, rng):
 
     Окупаемость давления НЕ гарантирована архитектурой: нужен накопленный напор,
     угаданный тип (m=3), попадание броска и резерв сил в такт конечного окна.
-    Просчитанные кампании гибнут — это свойство стратегии, а не случайности."""
+    Просчитанные кампании гибнут — это свойство стратегии, а не случайности.
+
+    Опциональный env (среда-автомат, см. Environment): работа одновременно нагружает
+    вход среды; если вход среды открыт, адресант получает надбавку ENV_BONUS к
+    отдаче — среда-автомат транслирует накопленное давление в выход для автоматов."""
     if not work:
         return
     att.force = max(1, att.force - int(COST_FRACTION * work))
     open_now = dfn.in_open
     dfn.receive_pressure(work)
+    if env is not None:
+        env.receive_pressure(work)
     hit = rng.random() < p_success(att.last_act, work, dfn.defense, dfn.last_work)
     gained = 0
     if hit:
         m = MULT.get((att.last_act, dfn.defense), 1.0)
-        gained = int(work * m * (GAIN_MAX if open_now else Y_SMALL))
+        gain_frac = GAIN_MAX if open_now else Y_SMALL
+        if env is not None and env.in_open:
+            gain_frac *= (1.0 + ENV_BONUS)
+        gained = int(work * m * gain_frac)
         if gained:
             att.gain(gained)
             att.rest_units += gained
@@ -658,7 +763,7 @@ _dom_rl = 0
 _dom_ai = 0
 
 
-def play_game(rl, ai, steps=1000, seed=0, profiles=None):
+def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True):
     """Одна партия; RL сохраняет Q-таблицу между партиями (перенос обучения).
 
     Args:
@@ -667,16 +772,25 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
             пара (p_rl, p_ai) — применить профили сторонам перед партией
             (имя из PROFILES или вещественный p). Профиль присваивается
             существующему скаляру ``Agent.p`` — новых переменных не появляется.
+        with_env: участвовать ли среде-автомату (Environment) в партии.
+            Среда как всеобъемлющий IPO-автомат — утверждённое архитектурное
+            решение (раздел 12 MODEL.md), поэтому по умолчанию True: вход
+            среды нагружается всякой передачей, а открытое окно даёт адресанту
+            надбавку ENV_BONUS к отдаче и среда несёт автономный доход
+            ENV_INCOME. False оставлен лишь для сравнения с прежним каноном
+            («среда-пространство» удалена из кода вместе с гипотезой A).
 
     Протокол такта (фиксированный порядок, стороны зеркальны):
       1. Взаимное наблюдение (sense) — частичная наблюдаемость.
       2. Ротация защит обеих сторон (профильно-модулируемая: см. rotate_defense).
       3. Поддержание структуры (upkeep), пополнение пулов (tick_energy),
          тактовка состояний входов (tick_input_state, пороги Шмитта с
-         профильным decay/OFF).
+         профильным decay/OFF). При with_env тем же шагом тактуется
+         и среда (Environment.tick — тот же протокол для суперсистемы).
       4. Намерения: RL epsilon-greedy (eps annealing до 0.05 за 300 шагов),
          Utility — argmax U(action); рефлекс голода имеет приоритет над обоими.
-      5. Разрешение передач по единому закону (resolve_attack) в обе стороны.
+      5. Разрешение передач по единому закону (resolve_attack) в обе стороны;
+         при with_env передачи одновременно нагружают вход среды.
       6. TD-обучение RL на корректном переходе s -> s' с наградой delta F.
       7. Проверка устойчивого доминирования (check_capture; тяжесть поражения
          масштабируется профилем проигравшего).
@@ -690,6 +804,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
         for agent, prof in ((rl, p_rl), (ai, p_ai)):
             agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
             agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
+    env = Environment() if with_env else None
     _dom_rl = _dom_ai = 0
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
@@ -699,6 +814,8 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
 
         rl.rotate_defense(rng)
         ai.rotate_defense(rng)
+        if env is not None:
+            env.rotate_defense(rng)      # «погода» среды ротируется тем же обработчиком
 
         rl.upkeep()
         ai.upkeep()
@@ -706,6 +823,8 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
         ai.tick_energy()
         rl.tick_input_state()
         ai.tick_input_state()
+        if env is not None:
+            env.tick()
 
         eps = max(0.05, 1.0 - step / 300)
         a_idx = rl.form_intention(eps)
@@ -724,8 +843,8 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
         else:
             w_ai = ai.commit(ai_act, ai_work)
 
-        resolve_attack(rl, ai, w_rl, rng)
-        resolve_attack(ai, rl, w_ai, rng)
+        resolve_attack(rl, ai, w_rl, rng, env)
+        resolve_attack(ai, rl, w_ai, rng, env)
 
         rl_hist.append(rl.force)
         ai_hist.append(ai.force)
@@ -737,8 +856,12 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None):
     return None, rl_hist, ai_hist, steps
 
 
-def run_batch(n_games=10, steps=1000, quiet=False):
+def run_batch(n_games=10, steps=1000, quiet=False, with_env=True):
     """Пакет партий со сквозным обучением RL (общая Q-таблица через все партии).
+
+    Args:
+        with_env: участвовать ли среде-автомату в партиях (см. play_game;
+            по умолчанию True — утверждённая онтология раздела 12 MODEL.md).
 
     Returns:
         (rl_agent, last_game_tuple, results_dict) — results_dict считает победы
@@ -749,7 +872,8 @@ def run_batch(n_games=10, steps=1000, quiet=False):
     finals = {"RL": [], "UtilityAI": [], None: []}
     last = None
     for g in range(n_games):
-        winner, rl_hist, ai_hist, end_step = play_game(rl, UtilityAI(), steps, seed=g)
+        winner, rl_hist, ai_hist, end_step = play_game(
+            rl, UtilityAI(), steps, seed=g, with_env=with_env)
         results[winner] += 1
         finals[winner].append(rl.force)
         last = (winner, rl_hist, ai_hist, end_step)
