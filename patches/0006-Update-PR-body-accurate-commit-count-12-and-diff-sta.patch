@@ -1,0 +1,28 @@
+From fc86ffb45c85d157c2ba4436b1620dc630b0a317 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Tue, 13 Oct 2026 11:11:05 +0000
+Subject: [PATCH 6/7] Update PR body: accurate commit count (12) and diff stats
+ (45 files, +5656/-285)
+
+---
+ docs/PR_schmitt_hysteresis.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/docs/PR_schmitt_hysteresis.md b/docs/PR_schmitt_hysteresis.md
+index b23e631..632f6f7 100644
+--- a/docs/PR_schmitt_hysteresis.md
++++ b/docs/PR_schmitt_hysteresis.md
+@@ -1,8 +1,8 @@
+ # Pull Request: Гистерезис Шмитта вместо S-кривой, чистая IPO-метрика, масштабный порог проницаемости
+ 
+ **Ветка:** `qwen-code-5a306cb0-7433-4192-9c32-73b726fb4cd8` → `main`
+-**Коммиты:** 8 (от `63803c1` до `e7595a1`), из них содержательных — 5 рабочих + 2 служебных
+-**Дифф:** 44 файла, +5583 / −285 (основная масса — экспериментальные скрипты и логи; ядро изменений — `simulation.py`, +~340 строк нетто)
++**Коммиты:** 12 (от `52d9f30` до `51bfe44`): 4 исторических итерационных слоя (Клаузевиц → ideas/v2 → Шмитт → фикс H-A) + 2 служебных (чистка `.pyc`, документация PR)
++**Дифф:** 45 файлов, +5656 / −285 (основная масса — экспериментальные скрипты и логи; ядро изменений — `simulation.py`, +626/−285)
+ 
+ ---
+ 
+-- 
+2.39.5
+
