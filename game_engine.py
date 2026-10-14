@@ -243,6 +243,33 @@ except Exception as e:
 # Константы оформления
 # ---------------------------------------------------------------------------
 
+def compute_window_size():
+    """Автоподбор размера окна под разрешение экрана (соотношение 12:9).
+
+    Берём текущий дисплей pygame; если headless/dummy или размеры недоступны -
+    откат на базовые 1024x640. Из доступной области вырезается рамка окна и
+    панели задач (запас ~8%), затем вписывается прямоугольник 12:9.
+    Результат округляется до чётных чисел и не превышает дисплей.
+    """
+    base_w, base_h = 1024, 640
+    dw = dh = 0
+    try:
+        info = pygame.display.Info()
+        dw, dh = int(info.current_w), int(info.current_h)
+    except Exception as exc:                      # pragma: no cover - fallback
+        LOG.warn("compute_window_size: display.Info() недоступен (%s)" % exc)
+    if dw < base_w or dh < base_h:                # dummy/headless/малый экран
+        return base_w, base_h
+    avail_w = int(dw * 0.92)
+    avail_h = int(dh * 0.90)
+    w = min(avail_w, int(avail_h * 12 / 9))
+    h = int(w * 9 / 12)
+    w -= w % 2
+    h -= h % 2
+    return max(base_w, w), max(base_h, h)
+
+
+# Фактический размер окна определяется при старте (после pygame.init()).
 SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
@@ -261,12 +288,8 @@ COL_DIM = (140, 140, 140)
 COL_PANEL = (24, 26, 32)
 COL_BG_BASE = (16, 18, 24)
 
-# Позиции автоматов на "арене"
-ARENA_X0 = PANEL_W
-ARENA_CX = PANEL_W + (SCREEN_W - PANEL_W) // 2
-RL_POS = (ARENA_CX - 170, SCREEN_H // 2 - 30)
-AI_POS = (ARENA_CX + 170, SCREEN_H // 2 - 30)
-ENV_LABEL_POS = (ARENA_CX, 46)
+# Позиции автоматов на "арене" вычисляются в Layout (см. ниже) - они зависят
+# от фактического размера окна, которое определяется при старте.
 
 
 def agent_radius(force):
@@ -281,6 +304,64 @@ def env_bg_color(env_force):
     g = COL_BG_BASE[1] + int(10 * t)
     b = COL_BG_BASE[2] + int(4 * t)
     return (r, g, b)
+
+
+class Layout:
+    """Геометрия HUD под фактический размер окна.
+
+    Все элементы привязаны к краям и не пересекаются:
+      - нижний ряд (y = H-BAR_H..H): слева кнопка HELP, по центру кликабельные
+        плитки действий, справа - панель кнопок;
+      - над правым краем панели кнопок - строка текущего темпа;
+      - над всем рядом - график истории силы.
+    Константы модуля SCREEN_W/SCREEN_H при этом остаются базовыми (1024x640),
+    чтобы дефолтные вызовы вне окна (тесты) работали детерминированно.
+    """
+
+    BAR_H = 38            # высота нижней кнопки/плитки
+    PAD = 10              # внешний отступ снизу/по краям
+    GAP = 8               # зазор между элементами ряда
+
+    def __init__(self, w, h, n_actions):
+        self.w, self.h = w, h
+        self.arena_cx = PANEL_W + (w - PANEL_W) // 2
+        sep = max(90, int((w - PANEL_W) * 0.17))
+        self.rl_pos = (self.arena_cx - sep, h // 2 - 40)
+        self.ai_pos = (self.arena_cx + sep, h // 2 - 40)
+        self.env_label_pos = (self.arena_cx, 46)
+
+        yb = h - self.PAD - self.BAR_H
+        self.btn_y = yb
+
+        tw = max(64, min(104, int((w - PANEL_W) * 0.085)))
+        total_t = n_actions * tw + (n_actions - 1) * 4
+        tx0 = PANEL_W + (w - PANEL_W - total_t) // 2
+        self.tile_rects = [pygame.Rect(tx0 + i * (tw + 4), yb, tw, self.BAR_H)
+                           for i in range(n_actions)]
+
+        bw, bh = 118, self.BAR_H
+        panel_w = 6 * bw + 5 * self.GAP
+        px = w - self.PAD - panel_w
+        names = ["START", "STEP", "SLOWER", "FASTER", "MODE", "RESET"]
+        labels = ["START / PAUSE", "STEP 1", "< SPEED", "SPEED >", "MODE M", "RESET R"]
+        self.buttons = [(names[i], labels[i],
+                         pygame.Rect(px + i * (bw + self.GAP), yb, bw, bh))
+                        for i in range(6)]
+        self.help_btn = pygame.Rect(self.PAD, yb, 84, bh)
+
+        sp = self.buttons[3][2]
+        self.speed_txt_pos = (sp.centerx - 24, yb - 20)
+
+        self.hist_h = min(120, max(80, int(h * 0.15)))
+        self.hist_gx = PANEL_W + 12
+        self.hist_gy = yb - self.GAP - self.hist_h
+        self.hist_gw = w - PANEL_W - 24
+
+        self.transfer_lbl_y = h - 150 - self.BAR_H
+        self.finish_dy = -140
+        self.streak_pos = (w - 176, 16)
+        LOG.debug("Layout %dx%d: плитки x=%d..%d, кнопки x=%d..%d"
+                  % (w, h, tx0, tx0 + total_t, px, px + panel_w))
 
 
 # ---------------------------------------------------------------------------
@@ -867,7 +948,21 @@ class GameApp:
         pygame.init()
         LOG.debug("pygame.init выполнен; подсистемы display=%s" %
                   (pygame.display.get_init(),))
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        # Автоподбор размера окна под экран (соотношение 12:9).
+        global SCREEN_W, SCREEN_H
+        SCREEN_W, SCREEN_H = compute_window_size()
+        flags = 0
+        if "--fullscreen" in sys.argv or "-f" in sys.argv:
+            flags = pygame.FULLSCREEN
+            LOG.info("полноэкранный режим запрошен флагом %s"
+                     % ("--fullscreen" if "--fullscreen" in sys.argv else "-f"))
+        try:
+            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
+        except Exception as exc:
+            LOG.warn("set_mode(%s,%s,flags=%s) не удался (%s) - оконный режим 12:9"
+                     % (SCREEN_W, SCREEN_H, flags, exc))
+            SCREEN_W, SCREEN_H = compute_window_size()
+            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
         LOG.info("окно создано: %sx%s driver=%s"
                  % (SCREEN_W, SCREEN_H, pygame.display.get_driver()))
@@ -900,18 +995,10 @@ class GameApp:
         self._flash_until = 0.0        # до какого момента мигает кнопка START
         self._btn_flash = ""           # текст последней нажатой кнопки (для флеша)
 
-        # Кликабельные кнопки HUD (прямоугольники вычисляются один раз;
-        # мышь работает даже когда pygame.font сломан - виден fallback-шрифт).
-        bw, bh = 118, 30
-        x0, yb = PANEL_W + 12, SCREEN_H - 56
-        self.buttons = [
-            ("START", "START / PAUSE", pygame.Rect(x0, yb, bw, bh)),
-            ("STEP",  "STEP 1",        pygame.Rect(x0 + 1 * (bw + 8), yb, bw, bh)),
-            ("SLOWER", "< SPEED",      pygame.Rect(x0 + 2 * (bw + 8), yb, bw, bh)),
-            ("FASTER", "SPEED >",      pygame.Rect(x0 + 3 * (bw + 8), yb, bw, bh)),
-            ("MODE",  "MODE M",        pygame.Rect(x0 + 4 * (bw + 8), yb, bw, bh)),
-            ("RESET", "RESET R",       pygame.Rect(x0 + 5 * (bw + 8), yb, bw, bh)),
-        ]
+        # Геометрия HUD под фактический размер окна: кнопки, плитки, график -
+        # всё в одном непересекающемся нижнем ряду (HELP | плитки | панель).
+        self.layout = Layout(SCREEN_W, SCREEN_H, len(ACTIONS))
+        self.buttons = self.layout.buttons
 
         # Общая Q-таблица - перенос обучения между партиями (как run_batch).
         self.q_table = {}
@@ -1051,16 +1138,7 @@ class GameApp:
         return None
 
     def _action_tiles(self):
-        rects = []
-        n = len(ACTIONS)
-        tw, th = 96, 34
-        gap = 6
-        total_w = n * tw + (n - 1) * gap
-        x0 = PANEL_W + (SCREEN_W - PANEL_W - total_w) // 2
-        y0 = SCREEN_H - th - 12
-        for i in range(n):
-            rects.append(pygame.Rect(x0 + i * (tw + gap), y0, tw, th))
-        return rects
+        return self.layout.tile_rects
 
     def new_match(self):
         """Новая партия: свежие автоматы и среда; Q-таблица RL сохраняется."""
@@ -1179,7 +1257,8 @@ class GameApp:
 
     def draw_agents(self, s, m):
         """Круги-автоматы: радиус от силы, рамка от типа защиты, кольцо Шмитта."""
-        for pos, ag, acc in ((RL_POS, m.rl, COL_RL), (AI_POS, m.ai, COL_AI)):
+        for pos, ag, acc in ((self.layout.rl_pos, m.rl, COL_RL),
+                             (self.layout.ai_pos, m.ai, COL_AI)):
             r = agent_radius(ag.force)
             # Тело
             body = pygame.Surface((2 * r + 8, 2 * r + 8), pygame.SRCALPHA)
@@ -1222,23 +1301,27 @@ class GameApp:
             pick = f"PICK: {ACTIONS[self.action_idx][0]}" \
                    f" {int(ACTIONS[self.action_idx][1]*100)}%"
             pt_ = self.font_s.render(pick, True, COL_OPEN)
-            s.blit(pt_, (RL_POS[0] - pt_.get_width() // 2, RL_POS[1] - 96))
+            s.blit(pt_, (self.layout.rl_pos[0] - pt_.get_width() // 2,
+                         self.layout.rl_pos[1] - 96))
             hint = self.L("вы управляете RL", "you control RL")
             ht = self.font_s.render(hint, True, COL_DIM)
-            s.blit(ht, (RL_POS[0] - ht.get_width() // 2, RL_POS[1] - 82))
+            s.blit(ht, (self.layout.rl_pos[0] - ht.get_width() // 2,
+                        self.layout.rl_pos[1] - 82))
         # Явный индикатор паузы - чтобы реакция на SPACE/START была заметна
         if self.paused and not self.match.finished:
             msg = self.L("ПАУЗА: SPACE или START - пуск, STEP - один такт",
                          "PAUSED: SPACE or START to run, STEP for one tick")
             t = self.font.render(msg, True, COL_OPEN)
-            s.blit(t, (ARENA_CX - t.get_width() // 2, SCREEN_H - 176))
+            s.blit(t, (self.layout.arena_cx - t.get_width() // 2,
+                       self.layout.transfer_lbl_y))
 
     def draw_transfers(self, s, m):
         """Стрелки передач последнего такта: толщина = работа, вспышка = hit."""
+        rl_pos, ai_pos = self.layout.rl_pos, self.layout.ai_pos
         for ev in m.events:
             if ev["kind"] != "transfer":
                 continue
-            frm, to = (RL_POS, AI_POS) if ev["frm"] == "rl" else (AI_POS, RL_POS)
+            frm, to = (rl_pos, ai_pos) if ev["frm"] == "rl" else (ai_pos, rl_pos)
             col = TYPE_COLORS.get(ev["type"], COL_TEXT)
             wdt = int(max(2, min(14, float(ev["work"]) // 3 + 2)))
             dx = to[0] - frm[0]
@@ -1272,8 +1355,8 @@ class GameApp:
                                f"weather[{env.defense}]"
                                f"  {'CONJUNCTURE WINDOW OPEN' if env.in_open else ''}",
                                True, col)
-        s.blit(txt, (ENV_LABEL_POS[0] - txt.get_width() // 2,
-                     ENV_LABEL_POS[1]))
+        s.blit(txt, (self.layout.env_label_pos[0] - txt.get_width() // 2,
+                     self.layout.env_label_pos[1]))
 
     def draw_history(self, s, m):
         """Мини-график силы обеих сторон (лог-шкала) внизу арены."""
@@ -1282,8 +1365,8 @@ class GameApp:
         ai_h = m.ai_hist[-n:]
         if len(rl_h) < 2:
             return
-        gw, gh = SCREEN_W - PANEL_W - 24, 90
-        gx, gy = PANEL_W + 12, SCREEN_H - gh - 54   # над постоянной полосой плиток
+        gw, gh = self.layout.hist_gw, self.layout.hist_h
+        gx, gy = self.layout.hist_gx, self.layout.hist_gy
         pygame.draw.rect(s, (20, 22, 28), (gx, gy, gw, gh))
         pygame.draw.rect(s, (60, 64, 74), (gx, gy, gw, gh), 1)
 
