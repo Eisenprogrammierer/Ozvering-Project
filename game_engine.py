@@ -37,6 +37,100 @@ import os
 import random
 import subprocess
 import sys
+import time as _time_mod
+import traceback
+
+# ---------------------------------------------------------------------------
+# Подробное консольное логирование (для отладки). НИКАКОЙ записи в лог-файлы:
+# все сообщения идут только в stderr.
+#
+#   GAME_LOG=0     - только ошибки/предупреждения и аварийные дампы (по умолчанию)
+#   GAME_LOG=1     - + ключевые события (запуск, партии, такты боя, команды ввода)
+#   GAME_LOG=2/v   - + детали каждого такта (состояния агентов, исходы передач)
+#   GAME_LOG=3/vv  - + каждый обработанный системный вызов pygame (события, кадры)
+#
+# Любое неперехваченное исключение печатается с полным стеком и движок завершается
+# управляемо (код возврата 1), а не молча обрывается.
+# ---------------------------------------------------------------------------
+
+
+class _Logger:
+    """Минималистичный level-based логгер в stderr с таймстампом и префиксом."""
+
+    LEVELS = {"ERROR": 0, "WARN": 1, "INFO": 2, "DEBUG": 3}
+    _TAGS = {0: "ERROR", 1: "WARN ", 2: "INFO ", 3: "DEBUG"}
+
+    def __init__(self):
+        try:
+            raw = os.environ.get("GAME_LOG", "0").strip().lower()
+        except Exception:
+            raw = "0"
+        if raw in ("v", "verbose"):
+            lvl = 2
+        elif raw in ("vv", "very_verbose", "all"):
+            lvl = 3
+        else:
+            try:
+                lvl = int(raw)
+            except ValueError:
+                lvl = 0
+        self.level = max(0, min(3, lvl))
+        self._t0 = _time_mod.perf_counter()
+        self._sim_t = 0.0            # вещественное время игрового цикла
+        self._last_err = {}          # дебаунс частых ошибок одного места
+        self._stream = None
+
+    @property
+    def stream(self):
+        if self._stream is None:
+            self._stream = sys.stderr
+        return self._stream
+
+    def set_sim_time(self, t):
+        self._sim_t = t
+
+    def log(self, level, msg, key=None, throttle=5.0):
+        if level < self.level:
+            return
+        if key is not None and level == 0:
+            now = _time_mod.perf_counter()
+            if now - self._last_err.get(key, -1e9) < throttle:
+                return
+            self._last_err[key] = now
+        try:
+            line = "[game_engine %s] t=%7.3f | %s" % (
+                self._TAGS[level], _time_mod.perf_counter() - self._t0, msg)
+            self.stream.write(line + "\n")
+            self.stream.flush()
+        except Exception:
+            pass
+
+    def error(self, msg, key=None, throttle=5.0):
+        self.log(0, msg, key, throttle)
+
+    def warn(self, msg):
+        self.log(1, msg)
+
+    def info(self, msg):
+        self.log(2, msg)
+
+    def debug(self, msg):
+        self.log(3, msg)
+
+    def exc(self, where, err, key=None):
+        """Печатает тип/сообщение исключения + полный стек в дамп-формате."""
+        tb = "".join(traceback.format_exception(type(err), err,
+                                                err.__traceback__)).rstrip()
+        self.error("%s: %s: %s\n%s" % (where, type(err).__name__, err, tb),
+                   key=key, throttle=0.0)
+
+
+LOG = _Logger()
+
+
+def _dump_stack(where="current stack"):
+    LOG.debug("%s:\n%s" % (where, "".join(
+        traceback.format_stack()[:-1]).rstrip()))
 
 # ---------------------------------------------------------------------------
 # Защита от "сломанного шрифта" в pygame 2.6.x на Python 3.14 (и не только).
@@ -64,6 +158,7 @@ def _probe_font():
     pygame недетектируемый 'font not initialized' ложно включал бы fallback.
     """
     global _FONT_OK, _FONT_NOTE
+    LOG.debug("_probe_font(): проба подсистемы pygame.font")
     try:
         import pygame.font as _pf
         _pf.init()                            # идемпотентно; не тянет весь pygame.init
@@ -72,16 +167,22 @@ def _probe_font():
         # (есть в pygame-ce; в обычном pygame просто отсутствует - молча пропускаем).
         try:
             _pf.set_sdl_ttf_default(True)
-        except Exception:
-            pass
+            LOG.debug("set_sdl_ttf_default(True) применён (pygame-ce)")
+        except Exception as e:
+            LOG.debug("set_sdl_ttf_default недоступен: %s" % e)
         f = _pf.Font(None, 17)                # реальный тест создания
-        if f.size("A")[0] <= 0:
+        sz = f.size("A")
+        LOG.debug("Font(None,17) создан, size('A')=%s" % (sz,))
+        if sz[0] <= 0:
             raise RuntimeError("default font renders nothing")
         _FONT_OK = True
+        LOG.info("шрифт OK: pygame.font рабочий (кириллица будет позже)")
         return f
     except Exception as e:                    # noqa: BLE001
         _FONT_NOTE = str(e) or e.__class__.__name__
         _FONT_OK = False
+        LOG.warn("шрифт НЕДОСТУПЕН: %s: %s" % (type(e).__name__, _FONT_NOTE))
+        LOG.debug("стек пробы шрифта:\n%s" % "".join(traceback.format_stack()[:-1]).rstrip())
         return None
 
 
@@ -93,22 +194,31 @@ def _try_fix_freetype():
     try:
         import importlib.util
         if importlib.util.find_spec("pygame_ce") is not None:
-            print("[game_engine] Найден pygame-ce. Для его использования "
-                  "удалите обычный pygame: pip uninstall -y pygame")
+            LOG.warn("Найден pygame-ce. Для его использования "
+                     "удалите обычный pygame: pip uninstall -y pygame")
             return
-    except Exception:
-        pass
+        LOG.debug("pygame-ce в окружении не найден")
+    except Exception as e:
+        LOG.debug("поиск pygame-ce не удался: %s" % e)
     try:
         code = ("import pygame.freetype, shutil; "
                 "shutil.copy(pygame.freetype.get_default_font(), '.')")
-        subprocess.run([sys.executable, "-c", code], capture_output=True, timeout=5)
-    except Exception:
-        pass
+        LOG.debug("проба копирования шрифта из pygame.freetype...")
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, timeout=5)
+        LOG.debug("проба freetype: rc=%s stderr=%r" % (r.returncode,
+                                                       r.stderr[:200]))
+    except Exception as e:
+        LOG.debug("проба freetype не удалась: %s" % e)
 
 
 try:
+    LOG.info("запуск game_engine.py, python=%s, GAME_LOG=%s"
+             % (sys.version.split()[0], os.environ.get("GAME_LOG", "0")))
     import pygame
+    LOG.info("pygame импортирован: версия=%s SDL=%s"
+             % (pygame.version.ver, pygame.get_sdl_version()))
 except ImportError:
+    LOG.error("PyGame НЕ установлен - импорт не удался")
     sys.stderr.write(
         "PyGame не установлен. Установите исправленную сборку:\n"
         "    pip uninstall -y pygame && pip install pygame-ce\n"
@@ -117,11 +227,17 @@ except ImportError:
     raise
 
 # --- Импорт публичного API модели (никаких правок simulation.py) -------------
-from simulation import (
-    PARAMETERS, PROFILES, MULT, TYPES, ACTIONS,
-    Agent, RLAgent, UtilityAI, Environment,
-    resolve_attack, check_capture, p_success,
-)
+try:
+    from simulation import (
+        PARAMETERS, PROFILES, MULT, TYPES, ACTIONS,
+        Agent, RLAgent, UtilityAI, Environment,
+        resolve_attack, check_capture, p_success,
+    )
+    LOG.info("simulation импортирован: ACTIONS=%s profiles=%s"
+             % ([a[0] for a in ACTIONS], list(PROFILES)))
+except Exception as e:
+    LOG.exc("ИМПОРТ SIMULATION НЕ УДАЛСЯ", e)
+    raise
 
 # ---------------------------------------------------------------------------
 # Константы оформления
@@ -186,6 +302,8 @@ class MatchEngine:
 
     def __init__(self, seed=0, steps=2000, with_env=True, q_table=None,
                  profile_rl="CANON", profile_ai="CANON"):
+        LOG.info("MatchEngine: новая партия seed=%s steps=%s env=%s "
+                 "profiles=%s/%s" % (seed, steps, with_env, profile_rl, profile_ai))
         self.seed = seed
         self.rng = random.Random(seed)
         # Собственный rng для epsilon-greedy разведки RL: simulation.RLAgent.form_intention
@@ -253,8 +371,13 @@ class MatchEngine:
             forced_rl_action: None - RL выбирает сам (epsilon-greedy);
                 индекс действия из ACTIONS - игрок управляет RL-агентом
                 (обучение при этом продолжается на выбранном действии).
+
+        Все исключения внутри такта логируются с полным стеком и ПЕРЕДАЮТСЯ
+        вызывающему коду (игровой цикл перехватит их, не роняя окно).
         """
         if self.finished:
+            LOG.debug("step_tick: пропуск - партия уже завершена "
+                      "(winner=%s step=%s)" % (self.winner, self.step))
             return
         rl, ai, env = self.rl, self.ai, self.env
         rng = self.rng
@@ -283,8 +406,12 @@ class MatchEngine:
         # 4. Намерения. RL: epsilon-greedy (annealing до 0.05 за 300 шагов)
         #    или действие игрока; Utility: argmax U; рефлекс голода - выше обоих.
         eps = max(0.05, 1.0 - self.step / 300)
+        LOG.debug("tick %s: фаза намерений eps=%.3f forced=%s"
+                  % (self.step, eps, forced_rl_action))
         if forced_rl_action is not None:
             a_idx = int(forced_rl_action) % len(ACTIONS)
+            LOG.debug("tick %s: RL действует по команде игрока: idx=%s"
+                      % (self.step, a_idx))
             # В ручном режиме состояние всё равно должно существовать в Q -
             # иначе TD-обновление на неинициализированной строке дало бы KeyError.
             st_probe = rl.skey()
@@ -309,6 +436,7 @@ class MatchEngine:
         if rl.rest_if_starving():
             w_rl = 0
             act_name = "REST"
+            LOG.debug("tick %s: RL рефлекс голода -> REST" % self.step)
         else:
             w_rl = rl.commit(act_name, rl.energy_pool * frac)
         self.last_rl_action = (act_name, w_rl)
@@ -317,9 +445,12 @@ class MatchEngine:
         if ai.rest_if_starving():
             w_ai = 0
             ai_act = "REST"
+            LOG.debug("tick %s: AI рефлекс голода -> REST" % self.step)
         else:
             w_ai = ai.commit(ai_act, ai_work)
         self.last_ai_action = (ai_act, w_ai)
+        LOG.debug("tick %s: RL act=%s work=%s | AI act=%s work=%s"
+                  % (self.step, act_name, w_rl, ai_act, w_ai))
 
         # 5. Разрешение передач по единому закону (нагружают и вход среды).
         #    Оборачиваем resolve_attack, чтобы зафиксировать исходы для анимации:
@@ -336,6 +467,8 @@ class MatchEngine:
         # 7. Устойчивое доминирование.
         winner, cap = self._check_capture()
         if winner:
+            LOG.info("tick %s: CAPTURE - победитель %s (cap=%s)"
+                     % (self.step, winner, cap))
             self.events.append({"kind": "capture", "winner": winner, "cap": cap})
             self.winner = winner
             self.finished = True
@@ -348,7 +481,16 @@ class MatchEngine:
             self.ai_rest_ticks += 1
         self.step += 1
         if not self.finished and self.step >= self.steps_total:
+            LOG.info("tick %s: лимит шагов (%s) - партия без решения"
+                     % (self.step, self.steps_total))
             self.finished = True   # без решения за steps тактов
+        LOG.debug("tick %s -> F(RL)=%.1f F(AI)=%.1f E(RL)=%s E(AI)=%s "
+                  "env.F=%.1f env.open=%s RL.open=%s AI.open=%s finished=%s"
+                  % (self.step, rl.force, ai.force, rl.energy_pool,
+                     ai.energy_pool,
+                     env.force if env else -1,
+                     env.in_open if env else False,
+                     rl.in_open, ai.in_open, self.finished))
 
     def _resolve_with_events(self, att, dfn, work, who):
         """Вызов канонического resolve_attack + фиксация исхода для отрисовки.
@@ -394,6 +536,9 @@ class MatchEngine:
         cost = int(PARAMETERS["COST_FRACTION"] * work)
         if res["hit"]:
             res["gained"] = max(0, int(delta + cost))
+        LOG.debug("transfer %s: type=%s work=%s p=%.2f roll=%s hit=%s gained=%s"
+                  % (who, res["type"], work, p,
+                     captured.get("hit_roll"), res["hit"], res["gained"]))
         return res
 
 
@@ -680,9 +825,14 @@ class FontSet:
 
 class GameApp:
     def __init__(self, fonts=None):
+        LOG.info("GameApp: pygame.init()...")
         pygame.init()
+        LOG.debug("pygame.init выполнен; подсистемы display=%s" %
+                  (pygame.display.get_init(),))
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
+        LOG.info("окно создано: %sx%s driver=%s"
+                 % (SCREEN_W, SCREEN_H, pygame.display.get_driver()))
         self.clock = pygame.time.Clock()
         # Шрифты: если pygame.font работает - используем его (кириллица возможна);
         # если нет (битый freetype в pygame 2.6.x / Python 3.14) - встроенный
@@ -691,6 +841,9 @@ class GameApp:
         if self.fonts.pygame_font is None and not self.fonts.note:
             self.fonts.setup(_probe_font())
         self.cyrillic_ok = self.fonts.cyrillic_ok
+        LOG.info("шрифты: режим=%s кириллица=%s note=%r"
+                 % ("bitmap-fallback" if self.fonts.is_bitmap else "pygame.font",
+                    self.cyrillic_ok, self.fonts.note))
         self.font = self.fonts.font
         self.font_s = self.fonts.font_s
         self.font_b = self.fonts.font_b
@@ -733,43 +886,68 @@ class GameApp:
         # Скользящие графики силы (последние N тактов).
         self.history_len = 240
 
+        # Счётчики диагностических кадров и защита от "шквала" одинаковых ошибок.
+        self._draw_count = 0
+        self._err_counts = {}
+        LOG.info("GameApp: инициализация завершена (seed=%s, кнопок=%s)"
+                 % (self.game_seed, len(self.buttons)))
+
     # ---------------- ввод ----------------
     def _press(self, name):
         """Единая точка отклика на команду (клавиша или клик). Возвращает
         False только для выхода."""
+        LOG.info("команда: %s (источник: клавиша/клик)" % name)
         if name == "QUIT":
             return False
         if name == "START":
             self.paused = not self.paused
+            LOG.info("START/PAUSE -> paused=%s" % self.paused)
             self._btn_flash, self._flash_until = "START", self.time + 0.35
         elif name == "STEP":
             if not self.match.finished:
                 forced = self.action_idx if self.manual_mode else None
+                LOG.debug("STEP: tick %s forced=%s manual=%s"
+                          % (self.match.step, forced, self.manual_mode))
                 self.match.step_tick(forced_rl_action=forced)
                 self._btn_flash, self._flash_until = "STEP", self.time + 0.35
+            else:
+                LOG.warn("STEP проигнорирован: партия завершена "
+                         "(winner=%s) - нажмите RESET" % self.match.winner)
         elif name == "SLOWER":
             self.ticks_per_sec = max(0.5, self.ticks_per_sec / 1.5)
+            LOG.info("SPEED -> %.1f тик/с" % self.ticks_per_sec)
             self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
         elif name == "FASTER":
             self.ticks_per_sec = min(60.0, self.ticks_per_sec * 1.5)
+            LOG.info("SPEED -> %.1f тик/с" % self.ticks_per_sec)
             self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
         elif name == "MODE":
             self.manual_mode = not self.manual_mode
+            LOG.info("MODE -> %s" % ("MANUAL (игрок->RL)" if self.manual_mode
+                                     else "OBSERVE"))
             self._btn_flash, self._flash_until = "MODE", self.time + 0.35
         elif name == "RESET":
             self.new_match()
             self._btn_flash, self._flash_until = "RESET", self.time + 0.35
         elif name == "HELP":
             self.show_help = not self.show_help
+            LOG.info("HELP -> %s" % self.show_help)
         return True
 
     def handle_events(self):
         for e in pygame.event.get():
+            LOG.debug("событие: type=%s(%s) key=%s button=%s pos=%s"
+                      % (e.type, pygame.event.event_name(e.type),
+                         getattr(e, "key", "-"), getattr(e, "button", "-"),
+                         getattr(e, "pos", "-")))
             if e.type == pygame.QUIT:
+                LOG.info("получено SDL QUIT - закрытие окна")
                 return False
             if e.type == pygame.KEYDOWN:
                 k = e.key
+                LOG.debug("KEYDOWN keycode=%s mod=%s" % (k, e.mod))
                 if k in (pygame.K_ESCAPE, pygame.K_q):
+                    LOG.info("клавиша ESC/Q -> выход")
                     return False
                 elif k == pygame.K_SPACE:
                     if not self._press("START"):
@@ -792,6 +970,10 @@ class GameApp:
                     # Цифры выбирают действие ВСЕГДА (не только в ручном режиме и
                     # не только на ходу) - выбор подсвечивается на плитках.
                     self.action_idx = (k - pygame.K_1) % len(ACTIONS)
+                    LOG.info("выбор действия клавишей: idx=%s act=%s%s"
+                             % (self.action_idx, ACTIONS[self.action_idx][0],
+                                " (включён РУЧНОЙ режим)"
+                                if not self.manual_mode else ""))
                     if not self.manual_mode:
                         self.manual_mode = True   # цифра = игрок берёт управление
             if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
@@ -799,15 +981,23 @@ class GameApp:
                 for name, _label, rect in self.buttons:
                     if rect.collidepoint(e.pos):
                         hit = True
+                        LOG.debug("клик (%s,%s) -> кнопка %s"
+                                  % (e.pos[0], e.pos[1], name))
                         if not self._press(name):
                             return False
                         break
                 if not hit:
                     idx = self._action_at_mouse(e.pos)
                     if idx is not None:
+                        LOG.debug("клик (%s,%s) -> плитка действия idx=%s act=%s"
+                                  % (e.pos[0], e.pos[1], idx, ACTIONS[idx][0]))
                         self.action_idx = idx
                         if not self.manual_mode:
+                            LOG.info("клик по плитке -> включён РУЧНОЙ режим")
                             self.manual_mode = True
+                    else:
+                        LOG.debug("клик (%s,%s) мимо кнопок/плиток - бездействие"
+                                  % (e.pos[0], e.pos[1]))
         return True
 
     def _action_at_mouse(self, pos):
@@ -832,22 +1022,33 @@ class GameApp:
 
     def new_match(self):
         """Новая партия: свежие автоматы и среда; Q-таблица RL сохраняется."""
+        old = self.match
+        LOG.info("RESET: старая партия seed=%s step=%s finished=%s winner=%s -> "
+                 "новая партия" % (old.seed, old.step, old.finished, old.winner))
         self.game_seed += 1
         self.match = MatchEngine(seed=self.game_seed, q_table=self.q_table)
         self.paused = True
+        LOG.info("RESET завершён: paused=True seed=%s (Q-таблица перенесена, "
+                 "%s состояний)" % (self.game_seed, len(self.q_table)))
 
     # ---------------- логика ----------------
     def update(self, dt):
         self.time += dt
+        LOG.set_sim_time(self.time)
         if self.paused or self.match.finished:
             return
         self.acc += dt * self.ticks_per_sec
+        n = 0
         while self.acc >= 1.0:
             self.acc -= 1.0
             forced = self.action_idx if self.manual_mode else None
             self.match.step_tick(forced_rl_action=forced)
+            n += 1
             if self.match.finished:
                 break
+        if n and LOG.level >= 3:
+            LOG.debug("update: тактов за кадр=%s tick=%s acc=%.2f"
+                      % (n, self.match.step, self.acc))
 
     # ---------------- отрисовка ----------------
     def draw(self):
@@ -1161,16 +1362,55 @@ class GameApp:
 
     # ---------------- цикл ----------------
     def run(self):
+        LOG.info("главный цикл запущен (fps=%s, темп=%s тик/с, paused=%s)"
+                 % (FPS, self.ticks_per_sec, self.paused))
         running = True
+        frame = 0
         while running:
             dt = self.clock.tick(FPS) / 1000.0
-            running = self.handle_events()
-            self.update(dt)
-            self.draw()
+            frame += 1
+            if frame == 1 or frame % 300 == 0:
+                LOG.debug("кадр %s: dt=%.1fms fps=%.1f tick=%s paused=%s "
+                          "manual=%s finished=%s"
+                          % (frame, dt * 1000, self.clock.get_fps(),
+                             self.match.step, self.paused,
+                             self.manual_mode, self.match.finished))
+            try:
+                running = self.handle_events()
+            except Exception as e:
+                LOG.exc("handle_events", e, key="events")
+                LOG.warn("ошибка обработки ввода - цикл продолжается")
+            try:
+                self.update(dt)
+            except Exception as e:
+                LOG.exc("update (шаг симуляции)", e, key="update")
+                self.paused = True
+                LOG.warn("симуляция остановлена (paused=True) из-за ошибки выше; "
+                         "партия: tick=%s step_finished=%s"
+                         % (self.match.step, self.match.finished))
+            try:
+                self.draw()
+            except Exception as e:
+                LOG.exc("draw (отрисовка кадра)", e, key="draw")
+                LOG.warn("кадр не отрисован - цикл продолжается")
+        LOG.info("главный цикл завершён (кадров=%s, финальный tick=%s)"
+                 % (frame, self.match.step))
         pygame.quit()
+        LOG.info("pygame.quit() выполнен - чистое завершение")
 
 
 def main():
+    LOG.info("main(): старт. Аргументы: %s" % sys.argv)
+    LOG.info("Окружение: python=%s executable=%s cwd=%s"
+             % (sys.version.split()[0], sys.executable, os.getcwd()))
+    try:
+        import simulation
+        LOG.info("simulation.py: файл=%s mtime=%s" % (
+            getattr(simulation, "__file__", "?"),
+            _time_mod.strftime("%Y-%m-%d %H:%M:%S", _time_mod.localtime(
+                os.path.getmtime(getattr(simulation, "__file__", "."))))))
+    except Exception as e:
+        LOG.debug("диагностика simulation недоступна: %s" % e)
     # Сначала проверяем шрифты ДО создания окна (pygame.init не обязателен для
     # Font(None, ...), но безопаснее после); при нерабочем pygame.font -
     # подсказываем пользователю, как починить окружение "раз и навсегда".
@@ -1179,6 +1419,7 @@ def main():
     probe = _probe_font()
     fonts.setup(probe)
     if fonts.is_bitmap:
+        LOG.warn("FontSet в режиме bitmap-fallback: %s" % fonts.note)
         sys.stderr.write(
             "[game_engine] ВНИМАНИЕ: pygame.font недоступен "
             f"({fonts.note}).\n"
@@ -1186,9 +1427,24 @@ def main():
             "  Движок продолжит работу со встроенным растровым шрифтом.\n"
             "  Чтобы вернуть нормальные шрифты (и кириллицу в HUD):\n"
             "      pip uninstall -y pygame && pip install pygame-ce\n")
-    GameApp(fonts=fonts).run()
+    else:
+        LOG.info("FontSet готов: native pygame.font, кириллица=%s"
+                 % fonts.cyrillic_ok)
+    app = GameApp(fonts=fonts)
+    app.run()
+    LOG.info("main(): штатное завершение, rc=0")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as e:                     # noqa: BLE001
+        LOG.error("ФАТАЛЬНАЯ ОШИБКА (неперехваченное исключение): "
+                  "%s: %s" % (type(e).__name__, e))
+        sys.stderr.write("".join(traceback.format_exception(
+            type(e), e, e.__traceback__)))
+        sys.stderr.flush()
+        sys.exit(1)
