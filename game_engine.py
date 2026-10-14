@@ -1,34 +1,35 @@
 """Ozvering-Project: минималистичный 2D графический движок на PyGame.
 
 Игрок наблюдает (и при желании управляет) дуэлью двух IPO-автоматов в среде-автомате:
-  * RLAgent      — обучающийся агент (табличный Q-Learning);
-  * UtilityAI    — скриптованный BDI-агент (argmax ожидаемой выгоды).
+  * RLAgent      - обучающийся агент (табличный Q-Learning);
+  * UtilityAI    - скриптованный BDI-агент (argmax ожидаемой выгоды).
 
-Движок НЕ изменяет simulation.py — использует только его публичное API:
+Движок НЕ изменяет simulation.py - использует только его публичное API:
 классы Agent/RLAgent/UtilityAI/Environment, функции play_game-протокола по шагам
 (sense / rotate_defense / upkeep / tick_energy / tick_input_state / commit /
 resolve_attack / learn / check_capture) и словари PARAMETERS / PROFILES / MULT.
 
-Управление:
-  SPACE   — пауза/пуск тактов партии
-  СТРЕЛКА ВВЕРХ/ВПРАВО — ускорить темп симуляции
-  СТРЕЛКА ВНИЗ/ЛЕВО    — замедлить
-  R       — новая партия (сброс окружения; Q-таблица RL сохраняется — перенос обучения)
-  M       — режим: наблюдатель <-> игрок управляет RL-агентом вручную
-  F1/H    — справка
-  ESC/Q   — выход
+Управление (все действия дублируются кликами мыши по кнопкам в HUD):
+  SPACE / кнопка "START/PAUSE" - пауза/пуск тактов партии
+  "+" и "-" или кнопки SPEED - темп симуляции
+  STEP / кнопка "STEP" - один такт (работает и в паузе!)
+  R       - новая партия (сброс окружения; Q-таблица RL сохраняется - перенос обучения)
+  M       - режим: наблюдатель <-> игрок управляет RL-агентом вручную
+            (в ручном режиме плитки действий кликабельны ВСЕГДА, выбор виден сразу)
+  F1/H    - справка
+  ESC/Q   - выход
 
 Визуальный язык (минимализм, всё выводится из состояний модели):
-  * Два круга-автомата: радиус ~ log(сила), цвет рамки — текущий тип защиты
-    (FIRE — красный, WATER — синий, EARTH — зелёный).
-  * Кольцо вокруг круга — накопленное давление на вход w_adopt (дуга до порога ON(F));
+  * Два круга-автомата: радиус ~ log(сила), цвет рамки - текущий тип защиты
+    (FIRE - красный, WATER - синий, EARTH - зелёный).
+  * Кольцо вокруг круга - накопленное давление на вход w_adopt (дуга до порога ON(F));
     заполненное кольцо = порог пройден.
-  * Когда окно восприимчивости входа открыто (in_open) — круг пульсирует жёлтым,
+  * Когда окно восприимчивости входа открыто (in_open) - круг пульсирует жёлтым,
     над ним таймер окна.
-  * Среда (Environment) — фон: оттенок фона кодирует силу среды, золотая рамка экрана
-    — открытое окно конъюнктуры (ENV_BONUS активен).
+  * Среда (Environment) - фон: оттенок фона кодирует силу среды, золотая рамка экрана
+    - открытое окно конъюнктуры (ENV_BONUS активен).
   * Стрелки-передачи: направление и толщина = работа, вспышка = успешная передача.
-  * Панель слева — метрики обеих сторон и среды текстом.
+  * Панель слева - метрики обеих сторон и среды текстом.
 """
 
 import math
@@ -38,17 +39,17 @@ import subprocess
 import sys
 
 # ---------------------------------------------------------------------------
-# Защита от «сломанного шрифта» в pygame 2.6.x на Python 3.14 (и не только).
+# Защита от "сломанного шрифта" в pygame 2.6.x на Python 3.14 (и не только).
 #
 # Причина ошибки "cannot import name 'Font' from partially initialized module
 # 'pygame.font' (circular import)": бинарный модуль pygame.freetype собран без
 # поддержки UTF-8 (SDL_ttf compiled without FreeType support), и при запуске
 # pygame.font пытается импортировать Font из уже частично инициализированного
 # pygame.font. В результате вся подсистема шрифтов недоступна, а try/except
-# вокруг pygame.font.Font(...) не спасает — падает сам доступ к атрибуту.
+# вокруг pygame.font.Font(...) не спасает - падает сам доступ к атрибуту.
 #
 # Решение "раз и навсегда": если штатный способ не работает, движок полностью
-# НЕ зависит от pygame.font — текст рендерится встроенным растровым шрифтом
+# НЕ зависит от pygame.font - текст рендерится встроенным растровым шрифтом
 # (см. BitmapText ниже). Никаких системных зависимостей, никаких pip-пакетов.
 # ---------------------------------------------------------------------------
 _FONT_OK = False          # станет True, если pygame.font реально работает
@@ -56,16 +57,23 @@ _FONT_NOTE = ""           # причина отказа (показываетс�
 
 
 def _probe_font():
-    """Возвращает рабочий pygame.font.Font или None — без исключений наружу.
+    """Возвращает рабочий pygame.font.Font или None - без исключений наружу.
 
     ВАЖНО: инициализирует шрифт-подсистему сама (pygame.font.init()), чтобы
-    проба была корректной и до, и после pygame.init() — иначе на исправленном
+    проба была корректной и до, и после pygame.init() - иначе на исправленном
     pygame недетектируемый 'font not initialized' ложно включал бы fallback.
     """
     global _FONT_OK, _FONT_NOTE
     try:
         import pygame.font as _pf
         _pf.init()                            # идемпотентно; не тянет весь pygame.init
+        # Дополнительный шанс для сборок, где бинарный freetype бит, а чистый
+        # SDL_ttf жив: заставляем pygame.font использовать шрифт через SDL_ttf
+        # (есть в pygame-ce; в обычном pygame просто отсутствует - молча пропускаем).
+        try:
+            _pf.set_sdl_ttf_default(True)
+        except Exception:
+            pass
         f = _pf.Font(None, 17)                # реальный тест создания
         if f.size("A")[0] <= 0:
             raise RuntimeError("default font renders nothing")
@@ -79,9 +87,9 @@ def _probe_font():
 
 def _try_fix_freetype():
     """Пытаемся один раз починить окружение, не трогая код модели:
-    1) если установлен pygame-ce — переключиться на него;
+    1) если установлен pygame-ce - переключиться на него;
     2) иначе удалить битый pygame и поставить pygame-ce (он исправляет сборку
-       freetype для Python 3.14). Действие логируется, ошибка — не фатальна."""
+       freetype для Python 3.14). Действие логируется, ошибка - не фатальна."""
     try:
         import importlib.util
         if importlib.util.find_spec("pygame_ce") is not None:
@@ -104,7 +112,7 @@ except ImportError:
     sys.stderr.write(
         "PyGame не установлен. Установите исправленную сборку:\n"
         "    pip uninstall -y pygame && pip install pygame-ce\n"
-        "(обычный pygame 2.6.x на Python 3.14 собран с битым freetype — "
+        "(обычный pygame 2.6.x на Python 3.14 собран с битым freetype - "
         "шрифты не работают)\n")
     raise
 
@@ -137,7 +145,7 @@ COL_DIM = (140, 140, 140)
 COL_PANEL = (24, 26, 32)
 COL_BG_BASE = (16, 18, 24)
 
-# Позиции автоматов на «арене»
+# Позиции автоматов на "арене"
 ARENA_X0 = PANEL_W
 ARENA_CX = PANEL_W + (SCREEN_W - PANEL_W) // 2
 RL_POS = (ARENA_CX - 170, SCREEN_H // 2 - 30)
@@ -146,7 +154,7 @@ ENV_LABEL_POS = (ARENA_CX, 46)
 
 
 def agent_radius(force):
-    """Радиус автомата — монотонная сжатая функция силы (log-шкала)."""
+    """Радиус автомата - монотонная сжатая функция силы (log-шкала)."""
     return int(22 + 14 * math.log(max(1.0, force)))
 
 
@@ -167,11 +175,11 @@ class MatchEngine:
     """Одна партия RL vs UtilityAI в среде-автомате, шаг за шагом.
 
     Повторяет протокол simulation.play_game точно (зеркальные шаги, та же
-    очерёдность фаз), но раскручивается по такту — чтобы движок мог рисовать
+    очерёдность фаз), но раскручивается по такту - чтобы движок мог рисовать
     промежуточное состояние и (в ручном режиме) подставлять действие игрока.
 
     Состояние партии (для визуализации переходов):
-      events — список событий последнего такта:
+      events - список событий последнего такта:
         {"kind":"transfer","frm":"rl"|"ai","work":int,"hit":bool,"gained":int}
         {"kind":"capture","winner":"RL"|"UtilityAI","cap":int}
     """
@@ -181,7 +189,7 @@ class MatchEngine:
         self.seed = seed
         self.rng = random.Random(seed)
         # Собственный rng для epsilon-greedy разведки RL: simulation.RLAgent.form_intention
-        # использует глобальный random.* — изолируем его здесь (seed-детерминизм движка),
+        # использует глобальный random.* - изолируем его здесь (seed-детерминизм движка),
         # не изменяя код модели. Порядок вызовов канонический.
         self._rl_rng = random.Random(seed ^ 0x5EED)
         self.steps_total = steps
@@ -191,18 +199,18 @@ class MatchEngine:
         self.events = []              # события последнего такта
         self.rl_hist, self.ai_hist = [], []
 
-        # Профили сторон (один скаляр p, см. PROFILES) — без новых переменных.
+        # Профили сторон (один скаляр p, см. PROFILES) - без новых переменных.
         self.rl = RLAgent(q=q_table, profile=profile_rl)
         self.ai = UtilityAI(profile=profile_ai)
         self.with_env = with_env
         self.env = Environment(members=[self.rl, self.ai]) if with_env else None
 
-        # Доминирование — свои счётчики (не трогаем глобальные _dom_* модуля;
+        # Доминирование - свои счётчики (не трогаем глобальные _dom_* модуля;
         # локальная копия check_capture ниже эквивалентна ей по формулам).
         self.dom_rl = 0
         self.dom_ai = 0
 
-        # Счётчик тактов покоя (для панели; вывод из last_act — новых полей модели нет)
+        # Счётчик тактов покоя (для панели; вывод из last_act - новых полей модели нет)
         self.rl_rest_ticks = 0
         self.ai_rest_ticks = 0
 
@@ -242,8 +250,8 @@ class MatchEngine:
         """Один такт партии по фиксированному протоколу play_game.
 
         Args:
-            forced_rl_action: None — RL выбирает сам (epsilon-greedy);
-                индекс действия из ACTIONS — игрок управляет RL-агентом
+            forced_rl_action: None - RL выбирает сам (epsilon-greedy);
+                индекс действия из ACTIONS - игрок управляет RL-агентом
                 (обучение при этом продолжается на выбранном действии).
         """
         if self.finished:
@@ -252,11 +260,11 @@ class MatchEngine:
         rng = self.rng
         self.events = []
 
-        # 1. Взаимное наблюдение (частичная наблюдаемость, шум — из rng партии).
+        # 1. Взаимное наблюдение (частичная наблюдаемость, шум - из rng партии).
         rl.sense(ai, rng)
         ai.sense(rl, rng)
 
-        # 2. Ротация защит (профильно-модулируемая) + «погода» среды.
+        # 2. Ротация защит (профильно-модулируемая) + "погода" среды.
         rl.rotate_defense(rng)
         ai.rotate_defense(rng)
         if env is not None:
@@ -273,11 +281,11 @@ class MatchEngine:
             env.tick()
 
         # 4. Намерения. RL: epsilon-greedy (annealing до 0.05 за 300 шагов)
-        #    или действие игрока; Utility: argmax U; рефлекс голода — выше обоих.
+        #    или действие игрока; Utility: argmax U; рефлекс голода - выше обоих.
         eps = max(0.05, 1.0 - self.step / 300)
         if forced_rl_action is not None:
             a_idx = int(forced_rl_action) % len(ACTIONS)
-            # В ручном режиме состояние всё равно должно существовать в Q —
+            # В ручном режиме состояние всё равно должно существовать в Q -
             # иначе TD-обновление на неинициализированной строке дало бы KeyError.
             st_probe = rl.skey()
             if st_probe not in rl.Q:
@@ -347,7 +355,7 @@ class MatchEngine:
 
         Результат передачи (hit/gained) внутри resolve_attack не возвращается;
         движок подменяет rng партии обёрткой, которая перехватывает ровно те
-        броски, что делает сам закон (первый — проверка попадания адресанта),
+        броски, что делает сам закон (первый - проверка попадания адресанта),
         не изменяя ни последовательность чисел, ни формулы (seed-детерминизм
         сохраняется). Остальные признаки (gained) выводятся из дельты силы.
         """
@@ -379,7 +387,7 @@ class MatchEngine:
             if work else 1.0
         # Попадание адресанта: первый бросок закона против вероятности успеха.
         # (p_success вычисляется ДО броска в resolve_attack; здесь тот же вызов
-        # даёт ту же вероятность — аргументы не изменились к моменту обёртки.)
+        # даёт ту же вероятность - аргументы не изменились к моменту обёртки.)
         if work and captured.get("hit_roll", 1.0) < p:
             res["hit"] = True
         delta = att.force - f_att_before
@@ -393,15 +401,17 @@ class MatchEngine:
 # Встроенный растровый шрифт 3x5 (fallback).
 # Используется, если подсистема pygame.font недоступна (битая сборка freetype
 # в pygame 2.6.x на Python 3.14 и т.п.). Зависимость от шрифтов сводится к нулю:
-# текст рендерится точками через pygame.draw.rect — только SDL-примитивы.
-# GLYPHS: строки bitmap'а сверху вниз, '#' — пиксель.
+# текст рендерится точками через pygame.draw.rect -- только SDL-примитивы.
+# GLYPHS: строки bitmap'а сверху вниз, '#' -- пиксель.
+# Символика строго латиница/кириллица + ASCII-знаки (без "битых" юникодов:
+# никаких стрелок, математических знаков, ёмодзи; дефис везде обычный '-').
 # ---------------------------------------------------------------------------
 
-GLYPHS = {
+_GLYPHS_ASCII = {
     " ": ("...", "...", "...", "...", "..."),
     "!": ("#..", "#..", "#..", "...", "#.."),
-    '"': ("##.", "##.", "..", "..", ".."),
-    "%": ("#.#", ".#.", "#.#", ".#.", "#.#"),  # упрощённый процент не нужен; зарезервирован
+    '"': ("##.", "##.", "...", "...", "..."),
+    "%": ("#.#", ".#.", "#.#", ".#.", "#.#"),
     "(": ("..#", ".#.", ".#.", ".#.", "..#"),
     ")": ("#..", ".#.", ".#.", ".#.", "#.."),
     "*": ("#.#", ".#.", "###", ".#.", "#.#"),
@@ -458,6 +468,80 @@ GLYPHS = {
     "Z": ("###", "..#", ".#.", "#..", "###"),
 }
 
+# Кириллица для fallback-шрифта (чтобы HUD оставался русским даже при мёртвом
+# pygame.font). Буквы, совпадающие по начертанию с латиницей, наследуют глифы.
+_CYR = {
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O",
+    "Р": "P", "С": "C", "Т": "T", "У": "Y", "Х": "X",
+    "Б": ("###", "#..", "##.", "#.#", "###"),
+    "Г": ("###", "#..", "#..", "#..", "#.."),
+    "Д": ("..#", ".##", "#.#", "#.#", "###"),
+    "Ж": ("#.#", "###", ".#.", "###", "#.#"),
+    "З": ("###", "..#", ".##", "..#", "###"),
+    "И": ("#.#", "#.#", "###", "#.#", "#.#"),
+    "Й": ("#.#", "#.#", "###", "#.#", "#.#"),
+    "Л": (".##", ".#.", ".#.", "#.#", "###"),
+    "П": ("###", "#.#", "#.#", "#.#", "#.."),
+    "Ф": (".#.", "###", "#.#", "#.#", "###"),
+    "Ц": ("#.#", "#.#", "#.#", "#.#", "###"),
+    "Ч": ("#.#", "#.#", "###", "..#", "..#"),
+    "Ш": ("#.#", "###", "###", "###", "#.#"),
+    "Щ": ("#.#", "###", "###", "#.#", "###"),
+    "Ъ": ("#..", "##.", "#.#", "#.#", "###"),
+    "Ы": ("#.#", "#.#", "###", "#.#", "###"),
+    "Ь": ("###", "#..", "###", "#.#", "###"),
+    "Э": ("###", "..#", "#.#", "..#", "###"),
+    "Ю": ("#.#", "###", "#.#", "#.#", "###"),
+    "Я": ("###", ".#.", "###", "#.#", "###"),
+    "Ё": ("###", "#.#", "###", "#..", "###"),
+}
+for _k, _v in _CYR.items():
+    _GLYPHS_ASCII[_k] = _GLYPHS_ASCII[_v] if isinstance(_v, str) else _v
+del _k, _v
+
+# Нормализация: любые "битые" юникоды приводятся к безопасным знакам до рендера
+# (строгая политика: в выводе только латиница, кириллица и ASCII-знаки).
+_NORMALIZE = {
+    "\u2014": "-", "\u2013": "-", "\u2212": "-",   # em/en dash, minus sign
+    "\u00b7": ".",                                  # middle dot
+    "\u00a0": " ", "\u2009": " ", "\u202f": " ",   # неразрывные пробелы
+    "\u201c": '"', "\u201d": '"', "\u00ab": '"', "\u00bb": '"',
+    "\u2018": "'", "\u2019": "'",
+    "\u2192": "->", "\u2190": "<-", "\u2194": "<->", "\u2264": "<=",
+    "\u2265": ">=", "\u2248": "~", "\u2500": "-", "\u2502": "|",
+    "\u250c": "+", "\u2510": "+", "\u2514": "+", "\u2518": "+",
+    "\u25cf": "o", "\u25cb": "o", "\u25a0": "#", "\u25a1": "[]",
+    "\u2713": "v", "\u2714": "v", "\u2717": "x", "\u2718": "x",
+    "\u25b2": "^", "\u25b3": "^", "\u25bc": "v", "\u25bd": "v",
+    "\u25c0": "<", "\u25c4": "<", "\u25b6": ">", "\u25ba": ">",
+    "\u00d7": "x", "\u00f7": "/", "\u00b1": "+/-", "\u2260": "!=",
+    "\u2026": "...", "\u2022": "*",
+}
+_INVISIBLE = dict.fromkeys(
+    [0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x00ad], "")
+
+
+def sanitize_text(text):
+    """Только латиница, кириллица и ASCII-знаки; прочее -> безопасные аналоги."""
+    for src, dst in _NORMALIZE.items():
+        text = text.replace(src, dst)
+    out = []
+    for ch in text:
+        o = ord(ch)
+        if (32 <= o < 127 or 0x400 <= o <= 0x4FF          # ASCII/Cyrillic
+                or ch in _GLYPHS_ASCII):                   # уже легальный знак
+            out.append(ch)
+        elif o in _INVISIBLE:
+            continue
+        elif o > 127:
+            out.append("?")                                # явный маркер, не ?
+        else:
+            out.append("?")
+    return "".join(out)
+
+
+GLYPHS = _GLYPHS_ASCII
+
 
 class BitmapText:
     """Минималистичный текстовый рендер без pygame.font (масштаб = размер пикселя)."""
@@ -466,14 +550,20 @@ class BitmapText:
     SEP = 1
 
     def size(self, text):
+        text = self._prep(text)
         lines = text.split("\n")
         w = max((len(ln) * (self.W + self.SEP) - self.SEP for ln in lines),
                 default=0)
         h = len(lines) * (self.H + 2) - 2
         return max(w, 1), max(h, 1)
 
+    @staticmethod
+    def _prep(text):
+        text = sanitize_text(text).upper()
+        return "".join(ch if ch in GLYPHS else "?" for ch in text)
+
     def render(self, text, _antialias=True, color=(255, 255, 255), scale=1):
-        text = "".join(ch if ch in GLYPHS else "?" for ch in text.upper())
+        text = self._prep(text)
         w, h = self.size(text)
         surf = pygame.Surface((w * scale, h * scale), pygame.SRCALPHA)
         x = 0
@@ -494,6 +584,27 @@ class BitmapText:
         return surf
 
 
+class _SafePyFont:
+    """Обёртка над pygame.font.Font: текст проходит sanitize_text() перед
+    рендером (гарантия: никаких "битых" юникодов на экране), а любые сбои
+    freetype при рисовании не роняют движок."""
+
+    def __init__(self, font):
+        self._f = font
+
+    def render(self, text, _antialias=True, color=(255, 255, 255)):
+        text = sanitize_text(str(text))
+        try:
+            surf = self._f.render(text, True, color)
+        except Exception:                 # мёртвый freetype: вместо падения - прочерк
+            surf = pygame.Surface((max(1, len(text) * 7), 14), pygame.SRCALPHA)
+            pygame.draw.rect(surf, color, surf.get_rect(), 1)
+        return surf
+
+    def size(self, text):
+        return self._f.size(sanitize_text(str(text)))
+
+
 class FontSet:
     """Единый интерфейс шрифтов: либо pygame.font (если жив), либо BitmapText.
 
@@ -512,14 +623,14 @@ class FontSet:
         return self.pygame_font is None
 
     def setup(self, probe):
-        """probe — результат _probe_font(): Font или None."""
+        """probe - результат _probe_font(): Font или None."""
         if probe is not None:
             import pygame.font as pf
             try:
                 self.pygame_font = pf
-                self._f_default = probe
-                self._f_small = pf.Font(None, 14)
-                self._f_big = pf.Font(None, 24)
+                self._f_default = _SafePyFont(probe)
+                self._f_small = _SafePyFont(pf.Font(None, 14))
+                self._f_big = _SafePyFont(pf.Font(None, 24))
                 self.cyrillic_ok = (self._f_default.size("Я")[0] > 0
                                     and self._f_default.render(
                                         "Я", True, (255, 255, 255)).get_width() > 0)
@@ -529,7 +640,8 @@ class FontSet:
                 self.pygame_font = None
         # fallback: растровый шрифт, масштабы подобраны под прежние кегли
         self.note = _FONT_NOTE or "pygame.font unavailable"
-        self.cyrillic_ok = False
+        # Растровый шрифт содержит полный набор кириллицы -> HUD остаётся русским.
+        self.cyrillic_ok = True
 
     class _Scaled:
         def __init__(self, base, scale):
@@ -570,10 +682,10 @@ class GameApp:
     def __init__(self, fonts=None):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-        pygame.display.set_caption("Ozvering-Project — IPO Arena (PyGame)")
+        pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
         self.clock = pygame.time.Clock()
-        # Шрифты: если pygame.font работает — используем его (кириллица возможна);
-        # если нет (битый freetype в pygame 2.6.x / Python 3.14) — встроенный
+        # Шрифты: если pygame.font работает - используем его (кириллица возможна);
+        # если нет (битый freetype в pygame 2.6.x / Python 3.14) - встроенный
         # растровый шрифт BitmapText, зависимость от pygame.font = 0.
         self.fonts = fonts or FontSet()
         if self.fonts.pygame_font is None and not self.fonts.note:
@@ -584,7 +696,7 @@ class GameApp:
         self.font_b = self.fonts.font_b
 
         def L(ru, en):
-            """Двуязычная строка HUD: кириллица доступна — ru, иначе — en."""
+            """Двуязычная строка HUD: кириллица доступна - ru, иначе - en."""
             return ru if self.cyrillic_ok else en
         self.L = L
 
@@ -594,8 +706,23 @@ class GameApp:
         self.ticks_per_sec = 8.0       # темп симуляции
         self.acc = 0.0
         self.time = 0.0                # вещественное время для пульсаций
+        self._flash_until = 0.0        # до какого момента мигает кнопка START
+        self._btn_flash = ""           # текст последней нажатой кнопки (для флеша)
 
-        # Общая Q-таблица — перенос обучения между партиями (как run_batch).
+        # Кликабельные кнопки HUD (прямоугольники вычисляются один раз;
+        # мышь работает даже когда pygame.font сломан - виден fallback-шрифт).
+        bw, bh = 118, 30
+        x0, yb = PANEL_W + 12, SCREEN_H - 56
+        self.buttons = [
+            ("START", "START / PAUSE", pygame.Rect(x0, yb, bw, bh)),
+            ("STEP",  "STEP 1",        pygame.Rect(x0 + 1 * (bw + 8), yb, bw, bh)),
+            ("SLOWER", "< SPEED",      pygame.Rect(x0 + 2 * (bw + 8), yb, bw, bh)),
+            ("FASTER", "SPEED >",      pygame.Rect(x0 + 3 * (bw + 8), yb, bw, bh)),
+            ("MODE",  "MODE M",        pygame.Rect(x0 + 4 * (bw + 8), yb, bw, bh)),
+            ("RESET", "RESET R",       pygame.Rect(x0 + 5 * (bw + 8), yb, bw, bh)),
+        ]
+
+        # Общая Q-таблица - перенос обучения между партиями (как run_batch).
         self.q_table = {}
         self.game_seed = 0
         self.match = MatchEngine(seed=self.game_seed, q_table=self.q_table)
@@ -607,6 +734,35 @@ class GameApp:
         self.history_len = 240
 
     # ---------------- ввод ----------------
+    def _press(self, name):
+        """Единая точка отклика на команду (клавиша или клик). Возвращает
+        False только для выхода."""
+        if name == "QUIT":
+            return False
+        if name == "START":
+            self.paused = not self.paused
+            self._btn_flash, self._flash_until = "START", self.time + 0.35
+        elif name == "STEP":
+            if not self.match.finished:
+                forced = self.action_idx if self.manual_mode else None
+                self.match.step_tick(forced_rl_action=forced)
+                self._btn_flash, self._flash_until = "STEP", self.time + 0.35
+        elif name == "SLOWER":
+            self.ticks_per_sec = max(0.5, self.ticks_per_sec / 1.5)
+            self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
+        elif name == "FASTER":
+            self.ticks_per_sec = min(60.0, self.ticks_per_sec * 1.5)
+            self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
+        elif name == "MODE":
+            self.manual_mode = not self.manual_mode
+            self._btn_flash, self._flash_until = "MODE", self.time + 0.35
+        elif name == "RESET":
+            self.new_match()
+            self._btn_flash, self._flash_until = "RESET", self.time + 0.35
+        elif name == "HELP":
+            self.show_help = not self.show_help
+        return True
+
     def handle_events(self):
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -616,30 +772,46 @@ class GameApp:
                 if k in (pygame.K_ESCAPE, pygame.K_q):
                     return False
                 elif k == pygame.K_SPACE:
-                    self.paused = not self.paused
+                    if not self._press("START"):
+                        return False
                 elif k == pygame.K_r:
-                    self.new_match()
+                    self._press("RESET")
                 elif k == pygame.K_m:
-                    self.manual_mode = not self.manual_mode
+                    self._press("MODE")
                 elif k in (pygame.K_F1, pygame.K_h):
-                    self.show_help = not self.show_help
-                elif k in (pygame.K_UP, pygame.K_RIGHT):
-                    self.ticks_per_sec = min(60.0, self.ticks_per_sec * 1.5)
-                elif k in (pygame.K_DOWN, pygame.K_LEFT):
-                    self.ticks_per_sec = max(0.5, self.ticks_per_sec / 1.5)
-                elif self.manual_mode and not self.paused:
-                    # В паузе стрелки меняют скорость; в ручном режиме на ходу
-                    # цифры 1..7 выбирают действие для следующего такта.
-                    if pygame.K_1 <= k <= pygame.K_1 + len(ACTIONS) - 1:
-                        self.action_idx = (k - pygame.K_1) % len(ACTIONS)
-            if e.type == pygame.MOUSEBUTTONDOWN and self.manual_mode:
-                idx = self._action_at_mouse(e.pos)
-                if idx is not None:
-                    self.action_idx = idx
+                    self._press("HELP")
+                elif k == pygame.K_TAB:
+                    self._press("STEP")
+                elif k in (pygame.K_UP, pygame.K_RIGHT, pygame.K_PLUS,
+                           pygame.K_KP_PLUS, pygame.K_EQUALS):
+                    self._press("FASTER")
+                elif k in (pygame.K_DOWN, pygame.K_LEFT, pygame.K_MINUS,
+                           pygame.K_KP_MINUS):
+                    self._press("SLOWER")
+                elif pygame.K_1 <= k <= pygame.K_1 + len(ACTIONS) - 1:
+                    # Цифры выбирают действие ВСЕГДА (не только в ручном режиме и
+                    # не только на ходу) - выбор подсвечивается на плитках.
+                    self.action_idx = (k - pygame.K_1) % len(ACTIONS)
+                    if not self.manual_mode:
+                        self.manual_mode = True   # цифра = игрок берёт управление
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                hit = False
+                for name, _label, rect in self.buttons:
+                    if rect.collidepoint(e.pos):
+                        hit = True
+                        if not self._press(name):
+                            return False
+                        break
+                if not hit:
+                    idx = self._action_at_mouse(e.pos)
+                    if idx is not None:
+                        self.action_idx = idx
+                        if not self.manual_mode:
+                            self.manual_mode = True
         return True
 
     def _action_at_mouse(self, pos):
-        """Попадание по плиткам действий в нижней панели (ручной режим)."""
+        """Попадание по плиткам действий (плитки рисуем всегда - они кликабельны)."""
         tiles = self._action_tiles()
         for i, rect in enumerate(tiles):
             if rect.collidepoint(pos):
@@ -683,7 +855,7 @@ class GameApp:
         m = self.match
         env = m.env
 
-        # Фон — сила среды; золотая рамка — открытое окно конъюнктуры.
+        # Фон - сила среды; золотая рамка - открытое окно конъюнктуры.
         bg = env_bg_color(env.force if env else 10.0)
         s.fill(bg)
         if env is not None and env.in_open:
@@ -696,8 +868,8 @@ class GameApp:
         self.draw_transfers(s, m)
         self.draw_env_info(s, m)
         self.draw_history(s, m)
-        if self.manual_mode:
-            self.draw_action_bar(s)
+        self.draw_action_bar(s)          # плитки действий кликабельны всегда
+        self.draw_buttons(s)             # кнопки HUD: мышь = те же команды, что клавиши
         self.draw_status(s, m)
         if self.show_help:
             self.draw_help(s)
@@ -716,7 +888,7 @@ class GameApp:
             s.blit((font or self.font).render(txt, True, col), (12, y))
             y += dy
 
-        line("OZVERING — IPO ARENA", COL_OPEN, self.font_b, 26)
+        line("OZVERING - IPO ARENA", COL_OPEN, self.font_b, 26)
         line(f"tick {m.step} / {m.steps_total}   seed {m.seed}   "
              f"{'PAUSE' if self.paused else f'RUN x{self.ticks_per_sec:.0f}/s'}",
              COL_DIM)
@@ -802,6 +974,21 @@ class GameApp:
             if ag.in_open:
                 ot = self.font_s.render(f"open:{ag.open_timer}", True, COL_OPEN)
                 s.blit(ot, (pos[0] - ot.get_width() // 2, pos[1] - r - 30))
+        # В ручном режиме показываем, чем именно игрок управляет (RL), и его выбор
+        if self.manual_mode:
+            pick = f"PICK: {ACTIONS[self.action_idx][0]}" \
+                   f" {int(ACTIONS[self.action_idx][1]*100)}%"
+            pt_ = self.font_s.render(pick, True, COL_OPEN)
+            s.blit(pt_, (RL_POS[0] - pt_.get_width() // 2, RL_POS[1] - 96))
+            hint = self.L("вы управляете RL", "you control RL")
+            ht = self.font_s.render(hint, True, COL_DIM)
+            s.blit(ht, (RL_POS[0] - ht.get_width() // 2, RL_POS[1] - 82))
+        # Явный индикатор паузы - чтобы реакция на SPACE/START была заметна
+        if self.paused and not self.match.finished:
+            msg = self.L("ПАУЗА: SPACE или START - пуск, STEP - один такт",
+                         "PAUSED: SPACE or START to run, STEP for one tick")
+            t = self.font.render(msg, True, COL_OPEN)
+            s.blit(t, (ARENA_CX - t.get_width() // 2, SCREEN_H - 176))
 
     def draw_transfers(self, s, m):
         """Стрелки передач последнего такта: толщина = работа, вспышка = hit."""
@@ -832,7 +1019,7 @@ class GameApp:
                 s.blit(g, ((sx + tx) // 2 - g.get_width() // 2, frm[1] - 26))
 
     def draw_env_info(self, s, m):
-        """Подпись среды сверху арены + «погода» (тип защиты среды)."""
+        """Подпись среды сверху арены + "погода" (тип защиты среды)."""
         env = m.env
         if env is None:
             return
@@ -841,7 +1028,7 @@ class GameApp:
                                f"weather[{env.defense}]"
                                f"  {'CONJUNCTURE WINDOW OPEN' if env.in_open else ''}",
                                True, col)
-        s.blit(txt, (txt.get_width() and ENV_LABEL_POS[0] - txt.get_width() // 2,
+        s.blit(txt, (ENV_LABEL_POS[0] - txt.get_width() // 2,
                      ENV_LABEL_POS[1]))
 
     def draw_history(self, s, m):
@@ -852,7 +1039,7 @@ class GameApp:
         if len(rl_h) < 2:
             return
         gw, gh = SCREEN_W - PANEL_W - 24, 90
-        gx, gy = PANEL_W + 12, SCREEN_H - gh - (54 if self.manual_mode else 16)
+        gx, gy = PANEL_W + 12, SCREEN_H - gh - 54   # над постоянной полосой плиток
         pygame.draw.rect(s, (20, 22, 28), (gx, gy, gw, gh))
         pygame.draw.rect(s, (60, 64, 74), (gx, gy, gw, gh), 1)
 
@@ -870,16 +1057,45 @@ class GameApp:
         s.blit(lbl, (gx + 4, gy + 2))
 
     def draw_action_bar(self, s):
-        """Плитки действий ACTIONS — клик или клавиши 1..N в ручном режиме."""
+        """Плитки действий ACTIONS - кликабельны ВСЕГДА; клавиши 1..N дублируют."""
         for i, rect in enumerate(self._action_tiles()):
             act, frac = ACTIONS[i]
             sel = (i == self.action_idx)
             col = TYPE_COLORS.get(act, COL_DIM)
             pygame.draw.rect(s, (40, 44, 54) if not sel else (70, 76, 92), rect)
-            pygame.draw.rect(s, col if act != "REST" else COL_DIM, rect, 2)
+            pygame.draw.rect(s, col if act != "REST" else COL_DIM, rect, 3 if sel else 2)
             name = f"{i+1}:{act} {int(frac*100)}%"
             t = self.font_s.render(name, True, COL_TEXT)
             s.blit(t, (rect.x + 6, rect.y + rect.h // 2 - t.get_height() // 2))
+        tag = self.L("ВЫБРАНО ИГРОКОМ (клик или 1-7)", "PLAYER PICK (click or 1-7)") \
+            if self.manual_mode else \
+            self.L("режим наблюдателя: RL решает сам (M или клик = взять управление)",
+                   "observe: RL decides (M or click = take control)")
+        t = self.font_s.render(tag, True, COL_OPEN if self.manual_mode else COL_DIM)
+        s.blit(t, (PANEL_W + 12, SCREEN_H - 52 - t.get_height()))
+
+    def draw_buttons(self, s):
+        """Кнопки HUD: тот же функционал, что у клавиш, но по клику мыши.
+        Активная подсветка + короткая вспышка при нажатии - реакция видна сразу."""
+        flashing = self.time < self._flash_until
+        for name, label, rect in self.buttons:
+            active = ((name == "START" and not self.paused)
+                      or (name == "MODE" and self.manual_mode))
+            hot = flashing and self._btn_flash == name
+            bg = (74, 82, 98) if active else (38, 41, 50)
+            if hot:
+                bg = (120, 130, 150)
+            pygame.draw.rect(s, bg, rect, border_radius=4)
+            border = COL_OPEN if active else (90, 95, 108)
+            pygame.draw.rect(s, border, rect, 2, border_radius=4)
+            t = self.font_s.render(label, True, COL_TEXT)
+            s.blit(t, (rect.x + (rect.width - t.get_width()) // 2,
+                       rect.y + (rect.height - t.get_height()) // 2))
+        # текущий темп - справа от кнопок SPEED
+        txt = self.font_s.render(f"x{self.ticks_per_sec:.1f}/s", True, COL_DIM)
+        speed_rect = self.buttons[3][2]
+        s.blit(txt, (speed_rect.right + 8, speed_rect.y + speed_rect.height // 2
+                     - txt.get_height() // 2))
 
     def draw_status(self, s, m):
         """Итог партии / доминирующие серии."""
@@ -888,7 +1104,9 @@ class GameApp:
                    if m.winner else f"NO DECISION after {m.step} ticks")
             t = self.font_b.render(msg, True, COL_OPEN)
             s.blit(t, (SCREEN_W // 2 - t.get_width() // 2, SCREEN_H // 2 - 140))
-            t2 = self.font_s.render(self.L("R — новая партия", "R — new match"), True, COL_DIM)
+            t2 = self.font_s.render(
+                self.L("R или кнопка RESET - новая партия",
+                       "R or RESET button - new match"), True, COL_DIM)
             s.blit(t2, (SCREEN_W // 2 - t2.get_width() // 2, SCREEN_H // 2 - 112))
         else:
             # Индикаторы доминирования (серии CAPTURE_STREAK)
@@ -907,32 +1125,34 @@ class GameApp:
     def draw_help(self, s):
         if self.cyrillic_ok:
             lines = [
-                "SPACE — пауза/пуск        R — новая партия",
-                "UP/DOWN — темп симуляции  M — режим наблюдателя/игрока",
-                "M: игрок задаёт действие RL (клавиши 1..7 или клик)",
-                "F1/H — скрыть справку     ESC/Q — выход",
+                "SPACE / кнопка START - пауза/пуск   R / RESET - новая партия",
+                "TAB / кнопка STEP - один такт (работает и в паузе!)",
+                "+/- или стрелки / SPEED - темп   M / MODE - режим игрок/наблюдатель",
+                "1..7 или клик по плитке - действие RL (сразу видно выбор)",
+                "F1/H - скрыть справку   ESC/Q - выход",
                 "",
                 "Круг = автомат (радиус ~ log F, рамка = тип защиты).",
-                "Кольцо = давление на вход w_adopt/ON(F); жёлтая пульсация —",
-                "открытое окно Шмитта. Золотая рамка экрана — окно конъюнктуры среды.",
+                "Кольцо = давление на вход w_adopt/ON(F); жёлтая пульсация -",
+                "открытое окно Шмитта. Золотая рамка экрана - окно конъюнктуры среды.",
             ]
         else:
             lines = [
-                "SPACE — pause/run         R — new match",
-                "UP/DOWN — speed           M — observe/manual mode",
-                "M: player picks RL action (keys 1..7 or click)",
-                "F1/H — toggle help        ESC/Q — quit",
+                "SPACE / START button - pause/run    R / RESET - new match",
+                "TAB / STEP button - single tick (works while paused!)",
+                "+/- or arrows / SPEED - rate   M / MODE - observe/manual",
+                "1..7 or click a tile - pick RL action (selection is highlighted)",
+                "F1/H - toggle help   ESC/Q - quit",
                 "",
                 "Circle = automaton (radius ~ log F, outline = defense type).",
                 "Ring = input pressure w_adopt/ON(F); yellow pulse =",
                 "open Schmitt window. Golden frame = environment window.",
             ]
-        y = SCREEN_H - 150
+        y = SCREEN_H - 168
         for ln in lines:
             t = self.font_s.render(ln, True, COL_DIM)
             s.blit(t, (PANEL_W + 14, y))
             y += 16
-        # Если pygame.font сломан — показываем это прямо в HUD (раз и навсегда
+        # Если pygame.font сломан - показываем это прямо в HUD (раз и навсегда
         # видно пользователю, почему шрифт растровый и как это починить).
         if self.fonts.is_bitmap:
             warn = "FONT FALLBACK (pygame.font broken): pip install pygame-ce"
@@ -952,7 +1172,7 @@ class GameApp:
 
 def main():
     # Сначала проверяем шрифты ДО создания окна (pygame.init не обязателен для
-    # Font(None, ...), но безопаснее после); при нерабочем pygame.font —
+    # Font(None, ...), но безопаснее после); при нерабочем pygame.font -
     # подсказываем пользователю, как починить окружение "раз и навсегда".
     pygame.init()
     fonts = FontSet()
