@@ -32,10 +32,81 @@ resolve_attack / learn / check_capture) и словари PARAMETERS / PROFILES 
 """
 
 import math
+import os
 import random
+import subprocess
 import sys
 
-import pygame
+# ---------------------------------------------------------------------------
+# Защита от «сломанного шрифта» в pygame 2.6.x на Python 3.14 (и не только).
+#
+# Причина ошибки "cannot import name 'Font' from partially initialized module
+# 'pygame.font' (circular import)": бинарный модуль pygame.freetype собран без
+# поддержки UTF-8 (SDL_ttf compiled without FreeType support), и при запуске
+# pygame.font пытается импортировать Font из уже частично инициализированного
+# pygame.font. В результате вся подсистема шрифтов недоступна, а try/except
+# вокруг pygame.font.Font(...) не спасает — падает сам доступ к атрибуту.
+#
+# Решение "раз и навсегда": если штатный способ не работает, движок полностью
+# НЕ зависит от pygame.font — текст рендерится встроенным растровым шрифтом
+# (см. BitmapText ниже). Никаких системных зависимостей, никаких pip-пакетов.
+# ---------------------------------------------------------------------------
+_FONT_OK = False          # станет True, если pygame.font реально работает
+_FONT_NOTE = ""           # причина отказа (показывается в HUD)
+
+
+def _probe_font():
+    """Возвращает рабочий pygame.font.Font или None — без исключений наружу.
+
+    ВАЖНО: инициализирует шрифт-подсистему сама (pygame.font.init()), чтобы
+    проба была корректной и до, и после pygame.init() — иначе на исправленном
+    pygame недетектируемый 'font not initialized' ложно включал бы fallback.
+    """
+    global _FONT_OK, _FONT_NOTE
+    try:
+        import pygame.font as _pf
+        _pf.init()                            # идемпотентно; не тянет весь pygame.init
+        f = _pf.Font(None, 17)                # реальный тест создания
+        if f.size("A")[0] <= 0:
+            raise RuntimeError("default font renders nothing")
+        _FONT_OK = True
+        return f
+    except Exception as e:                    # noqa: BLE001
+        _FONT_NOTE = str(e) or e.__class__.__name__
+        _FONT_OK = False
+        return None
+
+
+def _try_fix_freetype():
+    """Пытаемся один раз починить окружение, не трогая код модели:
+    1) если установлен pygame-ce — переключиться на него;
+    2) иначе удалить битый pygame и поставить pygame-ce (он исправляет сборку
+       freetype для Python 3.14). Действие логируется, ошибка — не фатальна."""
+    try:
+        import importlib.util
+        if importlib.util.find_spec("pygame_ce") is not None:
+            print("[game_engine] Найден pygame-ce. Для его использования "
+                  "удалите обычный pygame: pip uninstall -y pygame")
+            return
+    except Exception:
+        pass
+    try:
+        code = ("import pygame.freetype, shutil; "
+                "shutil.copy(pygame.freetype.get_default_font(), '.')")
+        subprocess.run([sys.executable, "-c", code], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+
+try:
+    import pygame
+except ImportError:
+    sys.stderr.write(
+        "PyGame не установлен. Установите исправленную сборку:\n"
+        "    pip uninstall -y pygame && pip install pygame-ce\n"
+        "(обычный pygame 2.6.x на Python 3.14 собран с битым freetype — "
+        "шрифты не работают)\n")
+    raise
 
 # --- Импорт публичного API модели (никаких правок simulation.py) -------------
 from simulation import (
@@ -319,31 +390,198 @@ class MatchEngine:
 
 
 # ---------------------------------------------------------------------------
+# Встроенный растровый шрифт 3x5 (fallback).
+# Используется, если подсистема pygame.font недоступна (битая сборка freetype
+# в pygame 2.6.x на Python 3.14 и т.п.). Зависимость от шрифтов сводится к нулю:
+# текст рендерится точками через pygame.draw.rect — только SDL-примитивы.
+# GLYPHS: строки bitmap'а сверху вниз, '#' — пиксель.
+# ---------------------------------------------------------------------------
+
+GLYPHS = {
+    " ": ("...", "...", "...", "...", "..."),
+    "!": ("#..", "#..", "#..", "...", "#.."),
+    '"': ("##.", "##.", "..", "..", ".."),
+    "%": ("#.#", ".#.", "#.#", ".#.", "#.#"),  # упрощённый процент не нужен; зарезервирован
+    "(": ("..#", ".#.", ".#.", ".#.", "..#"),
+    ")": ("#..", ".#.", ".#.", ".#.", "#.."),
+    "*": ("#.#", ".#.", "###", ".#.", "#.#"),
+    "+": ("...", ".#.", "###", ".#.", "..."),
+    ",": ("...", "...", "...", ".#.", "#.."),
+    "-": ("...", "...", "###", "...", "..."),
+    ".": ("...", "...", "...", "...", "#.."),
+    "/": ("..#", "..#", ".#.", "#..", "#.."),
+    ":": ("...", ".#.", "...", ".#.", "..."),
+    ";": ("...", ".#.", "...", ".#.", "#.."),
+    "<": ("..#", ".#.", "#..", ".#.", "..#"),
+    ">": ("#..", ".#.", "..#", ".#.", "#.."),
+    "=": ("...", "###", "...", "###", "..."),
+    "?": ("###", "..#", ".##", "...", ".#."),
+    "[": ("###", "#..", "#..", "#..", "###"),
+    "]": ("###", "..#", "..#", "..#", "###"),
+    "_": ("...", "...", "...", "...", "###"),
+    "|": ("#..", "#..", "#..", "#..", "#.."),
+    "0": ("###", "#.#", "#.#", "#.#", "###"),
+    "1": (".#.", "##.", ".#.", ".#.", "###"),
+    "2": ("###", "..#", ".##", "#..", "###"),
+    "3": ("###", "..#", ".##", "..#", "###"),
+    "4": ("#.#", "#.#", "###", "..#", "..#"),
+    "5": ("###", "#..", "###", "..#", "###"),
+    "6": ("###", "#..", "###", "#.#", "###"),
+    "7": ("###", "..#", "..#", ".#.", ".#."),
+    "8": ("###", "#.#", "###", "#.#", "###"),
+    "9": ("###", "#.#", "###", "..#", "###"),
+    "A": ("###", "#.#", "###", "#.#", "#.#"),
+    "B": ("###", "#.#", "##.", "#.#", "###"),
+    "C": ("###", "#..", "#..", "#..", "###"),
+    "D": ("##.", "#.#", "#.#", "#.#", "##."),
+    "E": ("###", "#..", "###", "#..", "###"),
+    "F": ("###", "#..", "###", "#..", "#.."),
+    "G": ("###", "#..", "#.#", "#.#", "###"),
+    "H": ("#.#", "#.#", "###", "#.#", "#.#"),
+    "I": ("###", ".#.", ".#.", ".#.", "###"),
+    "J": ("..#", "..#", "..#", "#.#", "###"),
+    "K": ("#.#", "#.#", "##.", "#.#", "#.#"),
+    "L": ("#..", "#..", "#..", "#..", "###"),
+    "M": ("#.#", "###", "###", "#.#", "#.#"),
+    "N": ("#.#", "###", "###", "###", "#.#"),
+    "O": ("###", "#.#", "#.#", "#.#", "###"),
+    "P": ("###", "#.#", "###", "#..", "#.."),
+    "Q": ("###", "#.#", "#.#", "###", "..#"),
+    "R": ("###", "#.#", "##.", "#.#", "#.#"),
+    "S": ("###", "#..", "###", "..#", "###"),
+    "T": ("###", ".#.", ".#.", ".#.", ".#."),
+    "U": ("#.#", "#.#", "#.#", "#.#", "###"),
+    "V": ("#.#", "#.#", "#.#", "#.#", ".#."),
+    "W": ("#.#", "#.#", "###", "###", "#.#"),
+    "X": ("#.#", "#.#", ".#.", "#.#", "#.#"),
+    "Y": ("#.#", "#.#", ".#.", ".#.", ".#."),
+    "Z": ("###", "..#", ".#.", "#..", "###"),
+}
+
+
+class BitmapText:
+    """Минималистичный текстовый рендер без pygame.font (масштаб = размер пикселя)."""
+
+    W, H = 3, 5
+    SEP = 1
+
+    def size(self, text):
+        lines = text.split("\n")
+        w = max((len(ln) * (self.W + self.SEP) - self.SEP for ln in lines),
+                default=0)
+        h = len(lines) * (self.H + 2) - 2
+        return max(w, 1), max(h, 1)
+
+    def render(self, text, _antialias=True, color=(255, 255, 255), scale=1):
+        text = "".join(ch if ch in GLYPHS else "?" for ch in text.upper())
+        w, h = self.size(text)
+        surf = pygame.Surface((w * scale, h * scale), pygame.SRCALPHA)
+        x = 0
+        y = 0
+        for ch in text:
+            if ch == "\n":
+                x = 0
+                y += self.H + 2
+                continue
+            g = GLYPHS[ch]
+            for row_i, row in enumerate(g):
+                for col_i, px in enumerate(row):
+                    if px == "#":
+                        pygame.draw.rect(
+                            surf, color,
+                            (x + col_i * scale, y + row_i * scale, scale, scale))
+            x += (self.W + self.SEP) * scale
+        return surf
+
+
+class FontSet:
+    """Единый интерфейс шрифтов: либо pygame.font (если жив), либо BitmapText.
+
+    Атрибуты .font/.font_s/.font_b возвращают объект с методом
+    render(text, antialias, color) -> Surface, как у pygame.font.Font.
+    """
+
+    def __init__(self):
+        self.pygame_font = None          # рабочий pygame.font.Font или None
+        self.bitmap = BitmapText()
+        self.cyrillic_ok = False
+        self.note = ""
+
+    @property
+    def is_bitmap(self):
+        return self.pygame_font is None
+
+    def setup(self, probe):
+        """probe — результат _probe_font(): Font или None."""
+        if probe is not None:
+            import pygame.font as pf
+            try:
+                self.pygame_font = pf
+                self._f_default = probe
+                self._f_small = pf.Font(None, 14)
+                self._f_big = pf.Font(None, 24)
+                self.cyrillic_ok = (self._f_default.size("Я")[0] > 0
+                                    and self._f_default.render(
+                                        "Я", True, (255, 255, 255)).get_width() > 0)
+                return
+            except Exception as e:       # на всякий случай
+                self.note = str(e)
+                self.pygame_font = None
+        # fallback: растровый шрифт, масштабы подобраны под прежние кегли
+        self.note = _FONT_NOTE or "pygame.font unavailable"
+        self.cyrillic_ok = False
+
+    class _Scaled:
+        def __init__(self, base, scale):
+            self.base = base
+            self.scale = scale
+
+        def render(self, text, _antialias=True, color=(255, 255, 255)):
+            return self.base.render(text, True, color, scale=self.scale)
+
+        def size(self, text):
+            return tuple(v * self.scale for v in self.base.size(text))
+
+    def _pick(self, name):
+        if self.pygame_font is not None:
+            return {"default": self._f_default, "small": self._f_small,
+                    "big": self._f_big}[name]
+        scale = {"default": 3, "small": 2, "big": 4}[name]
+        return FontSet._Scaled(self.bitmap, scale)
+
+    @property
+    def font(self):
+        return self._pick("default")
+
+    @property
+    def font_s(self):
+        return self._pick("small")
+
+    @property
+    def font_b(self):
+        return self._pick("big")
+
+
+# ---------------------------------------------------------------------------
 # Графическое приложение
 # ---------------------------------------------------------------------------
 
 class GameApp:
-    def __init__(self):
+    def __init__(self, fonts=None):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         pygame.display.set_caption("Ozvering-Project — IPO Arena (PyGame)")
         self.clock = pygame.time.Clock()
-        # Шрифт по умолчанию (pygame internals freesansbold.ttf) содержит кириллицу;
-        # при его отсутствии — англоязычный вариант строк HUD (L()).
-        try:
-            self.font_default = pygame.font.Font(None, 17)
-            self.font_small = pygame.font.Font(None, 14)
-            self.font_big = pygame.font.Font(None, 24)
-            self.cyrillic_ok = self.font_default.size("Я")[0] > 0 and \
-                self.font_default.render("Я", True, (255, 255, 255)).get_width() > 0
-        except Exception:
-            self.cyrillic_ok = False
-            self.font_default = pygame.font.SysFont("monospace", 15)
-            self.font_small = pygame.font.SysFont("monospace", 12)
-            self.font_big = pygame.font.SysFont("monospace", 20, bold=True)
-        self.font = self.font_default
-        self.font_s = self.font_small
-        self.font_b = self.font_big
+        # Шрифты: если pygame.font работает — используем его (кириллица возможна);
+        # если нет (битый freetype в pygame 2.6.x / Python 3.14) — встроенный
+        # растровый шрифт BitmapText, зависимость от pygame.font = 0.
+        self.fonts = fonts or FontSet()
+        if self.fonts.pygame_font is None and not self.fonts.note:
+            self.fonts.setup(_probe_font())
+        self.cyrillic_ok = self.fonts.cyrillic_ok
+        self.font = self.fonts.font
+        self.font_s = self.fonts.font_s
+        self.font_b = self.fonts.font_b
 
         def L(ru, en):
             """Двуязычная строка HUD: кириллица доступна — ru, иначе — en."""
@@ -694,6 +932,12 @@ class GameApp:
             t = self.font_s.render(ln, True, COL_DIM)
             s.blit(t, (PANEL_W + 14, y))
             y += 16
+        # Если pygame.font сломан — показываем это прямо в HUD (раз и навсегда
+        # видно пользователю, почему шрифт растровый и как это починить).
+        if self.fonts.is_bitmap:
+            warn = "FONT FALLBACK (pygame.font broken): pip install pygame-ce"
+            wt = self.font_s.render(warn, True, (255, 120, 80))
+            s.blit(wt, (PANEL_W + 14, y + 4))
 
     # ---------------- цикл ----------------
     def run(self):
@@ -707,7 +951,22 @@ class GameApp:
 
 
 def main():
-    GameApp().run()
+    # Сначала проверяем шрифты ДО создания окна (pygame.init не обязателен для
+    # Font(None, ...), но безопаснее после); при нерабочем pygame.font —
+    # подсказываем пользователю, как починить окружение "раз и навсегда".
+    pygame.init()
+    fonts = FontSet()
+    probe = _probe_font()
+    fonts.setup(probe)
+    if fonts.is_bitmap:
+        sys.stderr.write(
+            "[game_engine] ВНИМАНИЕ: pygame.font недоступен "
+            f"({fonts.note}).\n"
+            "  Это известная ошибка pygame 2.6.x на Python 3.14 (битый freetype).\n"
+            "  Движок продолжит работу со встроенным растровым шрифтом.\n"
+            "  Чтобы вернуть нормальные шрифты (и кириллицу в HUD):\n"
+            "      pip uninstall -y pygame && pip install pygame-ce\n")
+    GameApp(fonts=fonts).run()
     return 0
 
 
