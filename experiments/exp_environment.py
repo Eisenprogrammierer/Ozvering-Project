@@ -1,7 +1,7 @@
 """Среда как всеобъемлющий IPO-автомат: проверка утверждённого решения.
 
 История: ранее сравнивались две конкурентные гипотезы об онтологии среды
-(открытый вопрос 3 MODEL.md):
+(бывший открытый вопрос 3 MODEL.md):
   A — «среда как отдельное от автоматов пространство» (только константы
       PARAMETERS, ноль состояний; в коде — env=None / SpaceEnvironment);
   B — «среда как всеобъемлющий IPO-автомат» (суперсистема того же кодекса).
@@ -56,11 +56,15 @@ def main():
 
     print("\n=== Утверждённая онтология: среда-автомат (Environment, with_env=True) ===")
     env = Environment()
-    state_vars = [k for k in vars(env)]
     agent_fields = set(vars(Agent()))
-    new_vs_agent = sorted(state_vars - agent_fields)
-    print(f"  Переменных состояния среды: {len(state_vars)}")
-    print(f"  Из них НОВЫХ по отношению к Agent: {new_vs_agent or 'нет'}")
+    env_fields = set(vars(env))
+    # members — контейнер уже существующих автоматов, а не скалярная переменная
+    # состояния; новых переменных состояния среда не вводит (см. §13 MODEL.md).
+    new_scalars = sorted(env_fields - agent_fields - {"members"})
+    print(f"  Компонент state среды: {sorted(env.state)}")
+    print(f"  Поля экземпляра сверх Agent: {sorted(env_fields - agent_fields)} "
+          "(members — контейнер, не скаляр состояния)")
+    print(f"  Из них НОВЫХ скалярных переменных состояния: {new_scalars or 'нет'}")
     print(f"  isinstance(env, Agent) == {isinstance(env, Agent)} "
           f"(среда наследует кодекс автомата — повторения кода нет)")
     wins_b, frl_b, fai_b = run_arm(True)

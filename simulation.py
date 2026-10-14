@@ -118,13 +118,28 @@ def p_success(att_type, att_work, dfn_type, dfn_work):
 class Agent:
     """Базовый автомат на IPO-архитектуре (+BDI у персонажей).
 
-    Символьный ``state`` — единственный источник истины автомата. Метрики:
-    ``force`` (сила, целевая функция, вещественная) и ``energy_pool``
-    (энергия — расходуемый запас; пополняется потоком ``regen = floor(sqrt(F))``,
-    ограниченным потолком ``E_MAX_MULT * regen``). Вход адресата несёт
-    скалярное состояние восприимчивости (пороги Шмитта): ``w_adopt``,
-    ``in_open``, ``open_timer`` — всё выводится из принятых передач,
-    новых сущностей не вводится.
+    Компоненты IPO представлены единообразно, как части одного автомата:
+
+      * ВХОД — ``beliefs`` (BDI-слой): оценки противника, собираемые ``sense()``;
+        восприимчивость собственного входа адресата (пороги Шмитта) — поля
+        ``w_adopt``, ``in_open``, ``open_timer``;
+      * СОСТОЯНИЕ — ``state``: единственное хранилище внутреннего состояния
+        автомата. В нём лежат обе метрики (``force`` — сила, целевая функция;
+        ``energy_pool`` — энергия, расходуемый запас) и управляющие переменные
+        (``defense``, ``last_act``, ``last_work``, ``w_adopt``, ``in_open``,
+        ``open_timer``, ``rest_units``). Не объемлющая характеристика, а один
+        из компонентов наравне с входом/выходом/обработчиками;
+      * ОБРАБОТКА/ВЫХОД — методы-обработчики (``commit``, ``do_rest``,
+        ``rotate_defense``, ``gain``, ``process_hit``, ``sense`` и т.д.).
+
+    Обработчики читают и записывают ``state`` напрямую — Мили-подобная
+    зависимость, но шире: состояние определяет не только выход, но и
+    переходы и вид обработки. Именованные атрибуты (``force``, ``in_open``,
+    ``last_act``, …) — представления полей ``state`` через ``@property``,
+    поэтому внешний код и обработчики обращаются к ним как к обычным полям,
+    а единым хранилищем остаётся ``state``. Метрики при этом не теряют
+    статуса метрик: ``energy_pool`` пополняется потоком
+    ``regen = floor(sqrt(F))`` с потолком ``E_MAX_MULT * regen``.
     """
 
     def __init__(self, defense=None, profile="CANON"):
@@ -138,19 +153,107 @@ class Agent:
         """
         self.profile = profile if isinstance(profile, str) else round(float(profile), 4)
         self.p = PROFILES[profile] if isinstance(profile, str) else float(profile)
-        self.force = 10
-        self.energy_pool = 3
-        self.rest_units = 0.0
-        self.defense = defense if defense is not None else random.choice(TYPES)
-        self.last_act = "REST"
-        self.last_work = 0
-        self.w_adopt = 0.0
-        self.in_open = False
-        self.open_timer = 0
-        self.state = {"energy": 3, "defense": self.defense, "last_act": "REST"}
+        # Единое хранилище внутреннего состояния автомата (IPO-компонент
+        # «состояние»): обе метрики и управляющие переменные. Обработчики
+        # читают/пишут поля напрямую через представления-свойства ниже.
+        self.state = {
+            "force": 10,
+            "energy_pool": 3,
+            "rest_units": 0.0,
+            "defense": defense if defense is not None else random.choice(TYPES),
+            "last_act": "REST",
+            "last_work": 0,
+            "w_adopt": 0.0,
+            "in_open": False,
+            "open_timer": 0,
+        }
         self.beliefs = {"opp_energy": 3, "opp_defense": None,
                         "opp_last_act": "REST", "opp_last_work": 0,
                         "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False}
+
+    # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
+    # Позволяют обработчикам и внешнему коду работать с полями как с обычными
+    # атрибутами, тогда как источником истины остаётся ``state``.
+    @property
+    def force(self):
+        """Сила — метрика (целевая функция автомата)."""
+        return self.state["force"]
+
+    @force.setter
+    def force(self, value):
+        self.state["force"] = value
+
+    @property
+    def energy_pool(self):
+        """Энергия — метрика (расходуемый запас)."""
+        return self.state["energy_pool"]
+
+    @energy_pool.setter
+    def energy_pool(self, value):
+        self.state["energy_pool"] = value
+
+    @property
+    def rest_units(self):
+        """Труд, накопленный отдыхом (расширяет потолок покоя)."""
+        return self.state["rest_units"]
+
+    @rest_units.setter
+    def rest_units(self, value):
+        self.state["rest_units"] = value
+
+    @property
+    def defense(self):
+        """Текущий тип защиты (выход ротации)."""
+        return self.state["defense"]
+
+    @defense.setter
+    def defense(self, value):
+        self.state["defense"] = value
+
+    @property
+    def last_act(self):
+        """Последнее совершённое действие (для расчёта p_success)."""
+        return self.state["last_act"]
+
+    @last_act.setter
+    def last_act(self, value):
+        self.state["last_act"] = value
+
+    @property
+    def last_work(self):
+        """Работа последнего действия (для расчёта p_success)."""
+        return self.state["last_work"]
+
+    @last_work.setter
+    def last_work(self, value):
+        self.state["last_work"] = value
+
+    @property
+    def w_adopt(self):
+        """Накопленное давление на входе (пороги Шмитта)."""
+        return self.state["w_adopt"]
+
+    @w_adopt.setter
+    def w_adopt(self, value):
+        self.state["w_adopt"] = value
+
+    @property
+    def in_open(self):
+        """Признак открытого окна восприимчивости входа."""
+        return self.state["in_open"]
+
+    @in_open.setter
+    def in_open(self, value):
+        self.state["in_open"] = value
+
+    @property
+    def open_timer(self):
+        """Остаток времени жизни открытого окна (такты)."""
+        return self.state["open_timer"]
+
+    @open_timer.setter
+    def open_timer(self, value):
+        self.state["open_timer"] = value
 
     @property
     def rest_ceiling(self):
@@ -326,8 +429,6 @@ class Agent:
         pool = counters if counters else TYPES
         if self.p >= 1.0 or rng.random() < self.p:
             self.defense = rng.choice(pool)
-        self.state = {"energy": self.energy_pool, "defense": self.defense,
-                      "last_act": self.last_act}
 
     def upkeep(self):
         """Пассивное поддержание структуры: сила тратится на себя каждый такт."""
@@ -387,14 +488,10 @@ class Agent:
         ``resolve_attack`` — безвозвратны лишь ``(1 - K_EFFECT) * tr``."""
         self.force = max(1, self.force - tr)
         self.energy_pool = max(0, self.energy_pool - int(HOCK_FRACTION * tr))
-        self.state = {"energy": self.energy_pool, "defense": self.defense,
-                      "last_act": self.last_act}
 
     def gain(self, tr):
-        """Приращение силы (Output-эффект успешной передачи) с обновлением state."""
+        """Приращение силы (Output-эффект успешной передачи)."""
         self.force += tr
-        self.state = {"energy": self.energy_pool, "defense": self.defense,
-                      "last_act": self.last_act}
 
 
 class UtilityAI(Agent):
@@ -459,6 +556,12 @@ class UtilityAI(Agent):
         ev_loss = 0.0
         for hypo_def in TYPES:
             mr = MULT.get((hypo_def, self.defense), 1.0)
+            # ИЗВЕСТНОЕ ОТКЛОНЕНИЕ (осознанно не исправляется в этой итерации):
+            # штраф за контр-тип берётся по наблюдённому последнему действию
+            # противника (opp_last_act), тогда как фактический resolve_attack
+            # считает его по НАШЕЙ защите: MULT[(self.defense, hypo_def)].
+            # Оценка возмездия — приближение; смена поведения партий отложена
+            # (см. docs/MODEL.md, §7 «Известные отклонения»).
             pr = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((self.beliefs["opp_last_act"], hypo_def)) else P_BASE
             g = self.gain_model_rev(mr, pr)
             ev_loss += r_w * g / 3.0
@@ -813,8 +916,6 @@ def resolve_attack(att, dfn, work, rng, env=None):
                 dfn.rest_units += rg
             att.process_hit(r_w)
             att.force = max(1, att.force + int(K_EFFECT * r_w))
-            att.state = {"energy": att.energy_pool, "defense": att.defense,
-                         "last_act": att.last_act}
 
 
 def check_capture(rl, ai):

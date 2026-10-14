@@ -24,7 +24,6 @@
 """
 import os
 import sys
-import ast
 import statistics
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,36 +35,12 @@ N_GAMES = 6
 STEPS = 400
 
 
-def state_fields(cls):
-    """Имена переменных состояния автомата — из исходника (AST), без запуска.
+def state_component(obj):
+    """Ключи компонента IPO «состояние» автомата (единое хранилище полей).
 
-    Собираются присваивания self.X в методах класса-автомата И всех его
-    предков (полное состояние экземпляра); для Environment это 13 полей
-    Agent плюс контейнер members."""
-    src = open(os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), "simulation.py")).read()
-    tree = ast.parse(src)
-    by_name = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)}
-    names = set()
-    stack = [cls.__name__]
-    while stack:
-        cname = stack.pop()
-        node = by_name.get(cname)
-        if node is None:
-            continue
-        for item in node.body:                    # только тело этого класса
-            if not isinstance(item, ast.FunctionDef):
-                continue
-            for sub in ast.walk(item):
-                if (isinstance(sub, ast.Assign) and len(sub.targets) == 1
-                        and isinstance(sub.targets[0], ast.Attribute)
-                        and isinstance(sub.targets[0].value, ast.Name)
-                        and sub.targets[0].value.id == "self"):
-                    names.add(sub.targets[0].attr)
-        for base in node.bases:                   # обход наследования
-            if isinstance(base, ast.Name):
-                stack.append(base.id)
-    return names
+    У всех ярусов состав один и тот же — свойство самоподобия: Environment
+    наследует кодекс Agent и не вводит новых переменных состояния."""
+    return set(obj.state)
 
 
 def corr(xs, ys):
@@ -246,13 +221,16 @@ print()
 print("=" * 72)
 print("3. САМОПОДОБИЕ: проверка онтологии по исходнику")
 print("=" * 72)
-af, ef = state_fields(Agent), state_fields(Environment)
-new = ef - af
+env_obj = Environment()
+af, ef = state_component(Agent()), state_component(env_obj)
+new_state = ef - af
+env_fields = set(vars(env_obj)) - set(vars(Agent()))
 print(f"Environment наследует Agent: {issubclass(Environment, Agent)}")
-print(f"Полное состояние Agent: {len(af)} полей; среды: {len(ef)}; "
-      f"НОВЫХ имён: {sorted(new) if new else 'нет'}")
-print("members — не скалярная переменная состояния, а контейнер существующих")
-print("автоматов (их поля описываются тем же Agent); snapshot — только чтение.")
+print(f"Компонент state: Agent={sorted(af)}; среда={sorted(ef)}; "
+      f"НОВЫХ переменных: {sorted(new_state) if new_state else 'нет'}")
+print(f"Поля экземпляра сверх Agent: {sorted(env_fields)} "
+      "(members — контейнер существующих автоматов, не скаляр состояния)")
+print("snapshot — только чтение; композиция новых состояний не вводит.")
 
 print()
 print("=" * 72)
@@ -264,10 +242,10 @@ print("  открывается суммарным напором когерен
 print("  изолированный член (w < ON(F)) не открывает его никогда —")
 print("  свойство агрегата, отсутствующее у любого члена в отдельности.")
 print("- Самоподобие подтверждено структурно (один кодекс Agent для всех")
-print("  ярусов; из 14 полей среды 13 — поля Agent, новое имя только у")
-print("  контейнера members) и эмпирически: инерция темпа dF одинакова на")
-print("  ярусах (~0.97-0.99), каденция окон дуэлянтов и среды одного")
-print("  порядка, F верха положительно связан с суммарным трудом членов.")
+print("  ярусов: компонент state у среды тот же, что у автомата; новое имя")
+print("  только у контейнера members) и эмпирически: инерция темпа dF")
+print("  одинакова на ярусах (~0.97-0.99), каденция окон дуэлянтов и среды")
+print("  одного порядка, F верха положительно связан с трудом членов.")
 print(f"- Воспроизводимость контроля: разница доли окон плоского плеча между")
 print(f"  повторами = {d_flat:.3f} (N={N_GAMES} партий, общая Q-таблица — малая выборка).")
 print("- Влияние иерархии на дуэль заметно, но статистически НЕ обосновано:")
