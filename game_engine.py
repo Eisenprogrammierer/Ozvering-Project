@@ -307,61 +307,262 @@ def env_bg_color(env_force):
 
 
 class Layout:
-    """Геометрия HUD под фактический размер окна.
+    """Геометрия HUD под фактический размер окна: ТРИ изолированных пространства.
 
-    Все элементы привязаны к краям и не пересекаются:
-      - нижний ряд (y = H-BAR_H..H): слева кнопка HELP, по центру кликабельные
-        плитки действий, справа - панель кнопок;
-      - над правым краем панели кнопок - строка текущего темпа;
-      - над всем рядом - график истории силы.
-    Константы модуля SCREEN_W/SCREEN_H при этом остаются базовыми (1024x640),
-    чтобы дефолтные вызовы вне окна (тесты) работали детерминированно.
+    Пользовательская раскладка v2: экран режется ДВУМЯ вертикальными линиями
+    на три mutually exclusive колонки; каждая колонка дополнительно разрезана
+    горизонтальными линиями на секции с гарантированным зазором GAP между
+    ними. Внутри секний элементы расставляются сеткой (rows x cols), поэтому
+    два кликабельных объекта физически не могут пересечься - их прямоугольники
+    строятся из одного и того же Rect секции без общих пикселей:
+
+      КОЛОНКА A (левая, width_a ~ 26% w) - МЕТРИКИ:
+        A1 карточка RL, A2 карточка UtilityAI, A3 карточка СРЕДЫ,
+        A4 СТАТУС партии (серия захвата, режим, профили).
+      КОЛОНКА B (центр, остальная ширина минус C) - АРЕНА + ДЕЙСТВИЯ:
+        B1 арена (подпись среды сверху, автоматы RL/AI, стрелки передач,
+           сообщения паузы/итога) - вся оставшаяся высота;
+        B2 внизу - сетка 2x4 кликабельных плиток действий (последняя клетка
+           - индикатор выбранного PICK; в режиме справки клетки заняты
+           первыми строками HELP, остальные молча пустуют).
+      КОЛОНКА C (правая, width_c ~ 24% w) - УПРАВЛЕНИЕ + ГРАФИК:
+        C1 кнопки управления - сетка 4x2 (START|STEP / SLOWER|FASTER /
+           MODE|RESET / HELP|индикатор темпа), ячейки равные, зазор фикс.;
+        C2 ниже - подпись состояния (tick/seed/PAUSE-RUN);
+        C3 остаток - график force history (лог-шкала) во всю высоту колонки,
+           legend внутри рамки справа сверху.
+
+    Порядок секций фиксирован (A сверху вниз, B: арена->действия,
+    C: кнопки->подпись->график), размеры секций считаются ДОЛЬШЕЙ меркой от
+    краёв колонки, а содержимое (тексты, плитки, кнопки) всегда вписывается в
+    свою секцию усечением/масштабированием при отрисовке. Поэтому:
+      - кнопки не перекрывают друг друга (сетка 4x2 с фиксированным зазором);
+      - плитки не перекрывают кнопки (разные колонки);
+      - график не перекрывает ничего (своя секция C3, отделённая зазором).
+    Все координаты зависят только от (w, h, n_actions) и масштаба sc -
+    пересчёт целиком при любом размере окна.
     """
 
-    BAR_H = 38            # высота нижней кнопки/плитки
-    PAD = 10              # внешний отступ снизу/по краям
-    GAP = 8               # зазор между элементами ряда
+    EDGE = 10            # внешний отступ колонок от краёв окна
+    GAP = 12             # зазор между секциями ВНУТРИ колонки (>= EDGE)
+    VGAP = 14            # горизонтальный зазор между колонками
+    BTN_ROWS, BTN_COLS = 4, 2      # сетка кнопок в C1
+    TILE_ROWS, TILE_COLS = 2, 4    # сетка плиток в B2 (7 действий + PICK)
+    CELL_GAP = 8                   # зазор между ячейками любой сетки
 
     def __init__(self, w, h, n_actions):
         self.w, self.h = w, h
-        self.arena_cx = PANEL_W + (w - PANEL_W) // 2
-        sep = max(90, int((w - PANEL_W) * 0.17))
-        self.rl_pos = (self.arena_cx - sep, h // 2 - 40)
-        self.ai_pos = (self.arena_cx + sep, h // 2 - 40)
-        self.env_label_pos = (self.arena_cx, 46)
 
-        yb = h - self.PAD - self.BAR_H
-        self.btn_y = yb
+        # --- масштаб для больших окон --------------------------------------
+        sc = max(1.0, min(1.6, w / 1440.0))
+        self.sc = sc
+        self.line_h = int(16 * max(1.0, sc * 0.85))    # мелкий текст
+        self.cell_gap = max(6, int(self.CELL_GAP * min(1.2, sc)))
 
-        tw = max(64, min(104, int((w - PANEL_W) * 0.085)))
-        total_t = n_actions * tw + (n_actions - 1) * 4
-        tx0 = PANEL_W + (w - PANEL_W - total_t) // 2
-        self.tile_rects = [pygame.Rect(tx0 + i * (tw + 4), yb, tw, self.BAR_H)
-                           for i in range(n_actions)]
+        E, G, VG = self.EDGE, self.GAP, self.VGAP
 
-        bw, bh = 118, self.BAR_H
-        panel_w = 6 * bw + 5 * self.GAP
-        px = w - self.PAD - panel_w
-        names = ["START", "STEP", "SLOWER", "FASTER", "MODE", "RESET"]
-        labels = ["START / PAUSE", "STEP 1", "< SPEED", "SPEED >", "MODE M", "RESET R"]
-        self.buttons = [(names[i], labels[i],
-                         pygame.Rect(px + i * (bw + self.GAP), yb, bw, bh))
-                        for i in range(6)]
-        self.help_btn = pygame.Rect(self.PAD, yb, 84, bh)
+        # ================= горизонтальный разрез: колонки A | B | C ========
+        width_a = int(max(PANEL_W, min(w * 0.26, PANEL_W * sc)))
+        width_c = int(max(240, min(w * 0.24, 300 * sc)))
+        # На очень узких окнах колонку C сужаем, но не ниже 220px (2 кнопки).
+        if width_a + width_c + 3 * VG + 2 * E > w:
+            width_c = max(220, w - width_a - 3 * VG - 2 * E)
+        ax0 = E
+        bx0 = ax0 + width_a + VG
+        cx0 = bx0 + (w - 2 * E - 3 * VG - width_a - width_c) + VG
+        col_b_w = cx0 - VG - bx0
+        col_c_w = w - E - cx0
+        self.width_a, self.width_c = width_a, col_c_w
 
-        sp = self.buttons[3][2]
-        self.speed_txt_pos = (sp.centerx - 24, yb - 20)
+        top = E
+        bottom = h - E
 
-        self.hist_h = min(120, max(80, int(h * 0.15)))
-        self.hist_gx = PANEL_W + 12
-        self.hist_gy = yb - self.GAP - self.hist_h
-        self.hist_gw = w - PANEL_W - 24
+        # ================= КОЛОНКА C: кнопки -> подпись -> график ==========
+        # Размеры нижних секций меряем "дольней" меркой от низа колонки,
+        # кнопкам достаётся весь остаток сверху - они никогда не съезжаются
+        # с графиком (между секциями всегда зазор G).
+        btn_area_h = int(max(44, 4 * (34 * max(1.0, sc * 0.9))
+                             + 3 * self.cell_gap))
+        graph_h = int(max(110, min(h * 0.42, 260 * max(1.0, sc * 0.8))))
+        cap_h = int(self.line_h * 2 + 10)               # подпись tick/seed/state
+        c_avail = bottom - top
+        # если колонка мала - пропорционально ужимаем график и подпись
+        scale_dn = min(1.0, (c_avail - 3 * G) / float(btn_area_h + graph_h + cap_h))
+        btn_area_h = max(44, int(btn_area_h * scale_dn))
+        graph_h = max(90, int(graph_h * scale_dn))
+        cap_h = max(self.line_h * 2 + 6, int(cap_h * scale_dn))
 
-        self.transfer_lbl_y = h - 150 - self.BAR_H
-        self.finish_dy = -140
-        self.streak_pos = (w - 176, 16)
-        LOG.debug("Layout %dx%d: плитки x=%d..%d, кнопки x=%d..%d"
-                  % (w, h, tx0, tx0 + total_t, px, px + panel_w))
+        graph_rect = pygame.Rect(cx0, bottom - graph_h, col_c_w, graph_h)
+        caption_rect = pygame.Rect(cx0, graph_rect.top - G - cap_h,
+                                   col_c_w, cap_h)
+        btn_rect = pygame.Rect(cx0, top, col_c_w,
+                               max(44, caption_rect.top - G - top))
+        self.ctrl_rect = btn_rect
+        self.hist_rect = graph_rect
+        self.caption_rect = caption_rect
+
+        # --- сетка кнопок 4x2 внутри btn_rect ------------------------------
+        # Ячейки НЕ растягиваются на весь прямоугольник: высота ограничена
+        # базовой (btn_area_h), лишняя высота колонки уходит в чистый воздух
+        # под сеткой - кнопки остаются компактными и никогда не сливаются.
+        names = ["START", "STEP", "SLOWER", "FASTER", "MODE", "RESET", "HELP"]
+        labels = ["START / PAUSE", "STEP 1 TICK", "SPEED <", "SPEED >",
+                  "MODE: OBS/MANUAL", "RESET MATCH", "HELP F1"]
+        rows, cols = self.BTN_ROWS, self.BTN_COLS
+        cg = self.cell_gap
+        cw = (btn_rect.width - (cols - 1) * cg) // cols
+        ch_max = int(34 * max(1.0, sc * 0.9))
+        ch = max(24, min(ch_max,
+                         (btn_rect.height - (rows - 1) * cg) // rows))
+        rects = []
+        order = [("START", 0, 0), ("STEP", 0, 1), ("SLOWER", 1, 0),
+                 ("FASTER", 1, 1), ("MODE", 2, 0), ("RESET", 2, 1),
+                 ("HELP", 3, 0)]
+        by_name = {}
+        for nm, rr, cc in order:
+            r = pygame.Rect(btn_rect.x + cc * (cw + cg),
+                            btn_rect.y + rr * (ch + cg), cw, ch)
+            rects.append(r)
+            by_name[nm] = r
+        self.buttons = list(zip(names, labels, rects))
+        (self.start_btn, self.step_btn, self.slow_btn, self.fast_btn,
+         self.mode_btn, self.reset_btn, self.help_btn) = rects
+        # Ячейка (3,1) - индикатор темпа: отдельныйRect в том же коридоре.
+        self.speed_rect = pygame.Rect(btn_rect.x + 1 * (cw + cg),
+                                      btn_rect.y + 3 * (ch + cg), cw, ch)
+        self.btn_cell_w, self.btn_cell_h = cw, ch
+
+        # ================= КОЛОНКА B: арена сверху, действия снизу =========
+        tile_area_h = int(2 * (36 * max(1.0, sc * 0.9)) + self.cell_gap + 24)
+        b_avail = bottom - top
+        if b_avail - tile_area_h - G < 160:            # арене нужен минимум
+            tile_area_h = max(80, b_avail - 160 - G)
+        actions_rect = pygame.Rect(bx0, bottom - tile_area_h,
+                                   col_b_w, tile_area_h)
+        arena_rect = pygame.Rect(bx0, top, col_b_w,
+                                 max(60, actions_rect.top - G - top))
+        self.actions_rect = actions_rect
+        self.arena_rect = arena_rect
+
+        # --- сетка плиток 2x4 (7 ACTIONS + PICK-индикатор) -----------------
+        trows, tcols = self.TILE_ROWS, self.TILE_COLS
+        tcw = (actions_rect.width - (tcols - 1) * cg) // tcols
+        tch = max(26, min(int(40 * max(1.0, sc * 0.9)),
+                          (actions_rect.height - 20 - (trows - 1) * cg) // trows))
+        tile_top = actions_rect.y + 18
+        # Горизонтальное центрирование сетки в секции: если ячейки шире, чем
+        # нужно подписям - сужаем их до базовой ширины и ставим по центру.
+        tw_max = int(150 * max(1.0, sc * 0.9))
+        if tcw > tw_max:
+            total_w = tcols * tw_max + (tcols - 1) * cg
+            ox = actions_rect.x + max(0, (actions_rect.width - total_w) // 2)
+            cw_ = tw_max
+        else:
+            ox, cw_ = actions_rect.x, tcw
+        self.tile_rects = []
+        for i in range(n_actions):
+            rr, cc = divmod(i, tcols)
+            self.tile_rects.append(
+                pygame.Rect(ox + cc * (cw_ + cg),
+                            tile_top + rr * (tch + cg), cw_, tch))
+        # PICK-плашка занимает последнюю свободную клетку сетки.
+        pick_row, pick_col = divmod(n_actions, tcols)
+        self.pick_rect = pygame.Rect(ox + pick_col * (cw_ + cg),
+                                     tile_top + pick_row * (tch + cg),
+                                     cw_, tch)
+        self.tiles_label_y = actions_rect.y + 2
+        self.tiles_bottom = tile_top + trows * tch + (trows - 1) * cg
+        self.tile_cell_w, self.tile_cell_h = cw_, tch
+        self.actions_grid_rows = trows
+        # Справка (F1) занимает ту же секцию B2 (текст обрезается по ней).
+        self.help_x = actions_rect.x + 6
+        self.help_y = actions_rect.y + 20
+        self.help_rect = actions_rect
+        self.help_line_dy = self.line_h
+
+        # ================= КОЛОНКА A: карточки метрик ======================
+        # Секции: RL, AI, ENV, STATUS. Минимальные высоты закладываются в
+        # расчёт; STATUS получает остаток. Если колонка короткая - секции
+        # ужимаются равномерно (карточки рисуются с внутренним clipping).
+        a_avail = bottom - top
+        card_min = int(84 * max(1.0, sc * 0.85))
+        env_min = int(72 * max(1.0, sc * 0.85))
+        status_min = int(64 * max(1.0, sc * 0.85))
+        head_h = 46                        # заголовок OZVERING + tick/seed
+        body_top = top + head_h
+        body_h = max(120, bottom - body_top)
+        need = 2 * card_min + env_min + status_min + 3 * G
+        k = min(1.0, body_h / float(need))
+        card_h = max(60, int(card_min * k))
+        env_h = max(56, int(env_min * k))
+        st_h = max(56, int(status_min * k))
+        y_ = body_top
+        self.rl_card = pygame.Rect(ax0, y_, width_a, card_h)
+        y_ += card_h + G
+        self.ai_card = pygame.Rect(ax0, y_, width_a, card_h)
+        y_ += card_h + G
+        self.env_card = pygame.Rect(ax0, y_, width_a, env_h)
+        y_ += env_h + G
+        self.status_zone = pygame.Rect(ax0, y_, width_a,
+                                       max(40, bottom - y_))
+        self.panel_rect = pygame.Rect(ax0 - 4, top - 4,
+                                      width_a + 8, bottom - top + 8)
+        self.head_rect = pygame.Rect(ax0, top, width_a, head_h - 6)
+        self.card_h, self.env_h = card_h, env_h
+
+        # ================= производные точки арены ==========================
+        self.arena_cx = arena_rect.centerx
+        self.arena_cy = arena_rect.centery
+        sep = max(90, int(col_b_w * 0.19))
+        self.rl_pos = (self.arena_cx - sep, self.arena_cy)
+        self.ai_pos = (self.arena_cx + sep, self.arena_cy)
+        self.env_label_pos = (self.arena_cx, arena_rect.y + 2)
+        self.transfer_lbl_y = arena_rect.bottom - 46
+        self.finish_dy = -int(arena_rect.height * 0.35)
+
+        # ================= гарантии целостности =============================
+        problems = []
+        # колонки по X
+        if not (self.panel_rect.right <= bx0 - VG + 4):
+            problems.append("A->B")
+        if not (cx0 - VG >= actions_rect.right - 4):
+            problems.append("B->C")
+        # секции C по Y
+        if btn_rect.bottom + 2 > caption_rect.top:
+            problems.append("C1->C2")
+        if caption_rect.bottom + 2 > graph_rect.top:
+            problems.append("C2->C3")
+        # секции B по Y
+        if actions_rect.top < arena_rect.bottom - 4:
+            problems.append("B1->B2")
+        # сетки элементов против своих секций (с запасом 2px на рамку)
+        for tr in self.tile_rects + [self.pick_rect]:
+            pad = pygame.Rect(tr.x - 2, tr.y - 2, tr.w + 4, tr.h + 4)
+            if pad.clamp(actions_rect) != pad:
+                problems.append("tile-out-of-B2")
+                break
+        for br in rects + [self.speed_rect]:
+            pad = pygame.Rect(br.x - 2, br.y - 2, br.w + 4, br.h + 4)
+            if pad.clamp(btn_rect) != pad:
+                problems.append("btn-out-of-C1")
+                break
+        if problems:
+            LOG.warn("Layout %dx%d: геометрические нарушения %s"
+                     % (w, h, set(problems)))
+
+        LOG.debug("Layout %dx%d: A(metrik) x=%d..%d cards=%d/%d/%d/%d | "
+                  "B arena y=%d..%d actions y=%d..%d tiles=%dx%d cell=%dx%d | "
+                  "C btns y=%d..%d grid %dx%d cell=%dx%d caption y=%d..%d "
+                  "graph y=%d..%d"
+                  % (w, h, ax0, ax0 + width_a,
+                     self.rl_card.height, self.ai_card.height,
+                     self.env_card.height, self.status_zone.height,
+                     arena_rect.top, arena_rect.bottom,
+                     actions_rect.top, actions_rect.bottom,
+                     trows, tcols, tcw, tch,
+                     btn_rect.top, btn_rect.bottom, rows, cols, cw, ch,
+                     caption_rect.top, caption_rect.bottom,
+                     graph_rect.top, graph_rect.bottom))
 
 
 # ---------------------------------------------------------------------------
@@ -951,9 +1152,12 @@ class GameApp:
         # Автоподбор размера окна под экран (соотношение 12:9).
         global SCREEN_W, SCREEN_H
         SCREEN_W, SCREEN_H = compute_window_size()
-        flags = 0
+        flags = pygame.RESIZABLE          # пользователь может тянуть окно -
+        #                           геометрия HUD пересчитается на VIDEORESIZE
+        self._fullscreen = False
         if "--fullscreen" in sys.argv or "-f" in sys.argv:
             flags = pygame.FULLSCREEN
+            self._fullscreen = True
             LOG.info("полноэкранный режим запрошен флагом %s"
                      % ("--fullscreen" if "--fullscreen" in sys.argv else "-f"))
         try:
@@ -962,7 +1166,8 @@ class GameApp:
             LOG.warn("set_mode(%s,%s,flags=%s) не удался (%s) - оконный режим 12:9"
                      % (SCREEN_W, SCREEN_H, flags, exc))
             SCREEN_W, SCREEN_H = compute_window_size()
-            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H),
+                                                  pygame.RESIZABLE)
         pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
         LOG.info("окно создано: %sx%s driver=%s"
                  % (SCREEN_W, SCREEN_H, pygame.display.get_driver()))
@@ -995,8 +1200,8 @@ class GameApp:
         self._flash_until = 0.0        # до какого момента мигает кнопка START
         self._btn_flash = ""           # текст последней нажатой кнопки (для флеша)
 
-        # Геометрия HUD под фактический размер окна: кнопки, плитки, график -
-        # всё в одном непересекающемся нижнем ряду (HELP | плитки | панель).
+        # Геометрия HUD под фактический размер окна: пять изолированных зон
+        # (метрики | арена | график | действия | кнопки) - см. Layout.
         self.layout = Layout(SCREEN_W, SCREEN_H, len(ACTIONS))
         self.buttons = self.layout.buttons
 
@@ -1072,6 +1277,24 @@ class GameApp:
             if e.type == pygame.QUIT:
                 LOG.info("получено SDL QUIT - закрытие окна")
                 return False
+            if e.type == pygame.VIDEORESIZE and not self._fullscreen:
+                # Пользователь потянул окно за край: пересоздаём surface и
+                # ПОЛНОСТЬЮ пересчитываем геометрию HUD (Layout гарантирует
+                # непересекающиеся зоны при любом размере).
+                global SCREEN_W, SCREEN_H
+                nw, nh = int(e.w), int(e.h)
+                if (nw, nh) != (SCREEN_W, SCREEN_H):
+                    SCREEN_W, SCREEN_H = nw, nh
+                    self.screen = pygame.display.set_mode(
+                        (SCREEN_W, SCREEN_H), pygame.RESIZABLE)
+                    try:
+                        self.layout = Layout(SCREEN_W, SCREEN_H, len(ACTIONS))
+                        self.buttons = self.layout.buttons
+                        LOG.info("VIDEORESIZE -> %dx%d: Layout пересобран"
+                                 % (SCREEN_W, SCREEN_H))
+                    except Exception as exc:
+                        LOG.exc("Layout после resize", exc, key="resize")
+                continue
             if e.type == pygame.KEYDOWN:
                 k = e.key
                 LOG.debug("KEYDOWN keycode=%s mod=%s" % (k, e.mod))
@@ -1184,76 +1407,196 @@ class GameApp:
             pygame.draw.rect(s, (int(glow), int(glow * 0.78), 40),
                              s.get_rect(), width=4)
 
-        self.draw_panel(s, m)
-        self.draw_agents(s, m)
-        self.draw_transfers(s, m)
-        self.draw_env_info(s, m)
-        self.draw_history(s, m)
-        self.draw_action_bar(s)          # плитки действий кликабельны всегда
-        self.draw_buttons(s)             # кнопки HUD: мышь = те же команды, что клавиши
-        self.draw_status(s, m)
+        self.draw_panel(s, m)               # колонка A - метрики
+        self._draw_zone_separators(s)       # границы колонок A|B|C и секций
+        self.draw_agents(s, m)              # B1 - арена
+        self.draw_transfers(s, m)           # B1 - стрелки передач
+        self.draw_env_info(s, m)            # B1 - подпись среды сверху арены
+        self.draw_history(s, m)             # C3 - график в своей рамке
+        self.draw_caption(s, m)             # C2 - подпись PAUSE/RUN + pick
         if self.show_help:
-            self.draw_help(s)
+            self.draw_help(s)              # справка занимает секцию B2...
+        else:
+            self.draw_action_bar(s)        # ...иначе там же - плитки действий
+        self.draw_buttons(s)               # C1 - кнопки HUD (мышь = клавиши)
+        self.draw_status(s, m)
 
         pygame.display.flip()
 
+    def _draw_zone_separators(self, s):
+        """Тонкие разделители между колонками A|B|C и секциями внутри них.
+
+        Линии рисуются точно посередине зазоров и не задевают ни одну секцию -
+        они лишь визуально подтверждают границы трёх пространств.
+        """
+        L_ = self.layout
+        col = (58, 62, 72)
+        top, bottom = L_.EDGE, L_.h - L_.EDGE
+        # вертикальные границы колонок (посередине VGAP)
+        x_ab = (L_.panel_rect.right + L_.arena_rect.left) // 2
+        x_bc = (L_.actions_rect.right + L_.ctrl_rect.left) // 2
+        pygame.draw.line(s, col, (x_ab, top), (x_ab, bottom))
+        pygame.draw.line(s, col, (x_bc, top), (x_bc, bottom))
+        # горизонтальные: арена/действия в B, кнопки/подпись/график в C
+        y_ba = (L_.arena_rect.bottom + L_.actions_rect.top) // 2
+        pygame.draw.line(s, col, (L_.arena_rect.x, y_ba),
+                         (L_.actions_rect.right, y_ba))
+        y_bc1 = (L_.ctrl_rect.bottom + L_.caption_rect.top) // 2
+        pygame.draw.line(s, col, (L_.ctrl_rect.x, y_bc1),
+                         (L_.ctrl_rect.right, y_bc1))
+        y_bc2 = (L_.caption_rect.bottom + L_.hist_rect.top) // 2
+        pygame.draw.line(s, col, (L_.caption_rect.x, y_bc2),
+                         (L_.caption_rect.right, y_bc2))
+
     def draw_panel(self, s, m):
-        """Левая панель: текстовые метрики сторон и среды (только поля state)."""
-        panel = pygame.Rect(0, 0, PANEL_W, SCREEN_H)
-        pygame.draw.rect(s, COL_PANEL, panel)
-        pygame.draw.line(s, (60, 64, 74), (PANEL_W - 1, 0), (PANEL_W - 1, SCREEN_H))
+        """Колонка A: заголовок + карточки RL/AI/СРЕДА/СТАТУС (метрики)."""
+        L_ = self.layout
+        pw = L_.width_a
+        # Подложка всей колонки A + внешняя рамка.
+        pygame.draw.rect(s, COL_PANEL, L_.panel_rect)
+        pygame.draw.rect(s, (60, 64, 74), L_.panel_rect.inflate(-2, -2), 1)
 
-        y = 12
-        def line(txt, col=COL_TEXT, font=None, dy=18):
-            nonlocal y
-            s.blit((font or self.font).render(txt, True, col), (12, y))
-            y += dy
+        # Заголовок сверху; секции начинаются строго под ним (head_rect).
+        t = self.font_b.render("OZVERING - IPO ARENA", True, COL_OPEN)
+        if t.get_width() > pw - 8:
+            t = self.font_s.render("OZVERING - IPO ARENA", True, COL_OPEN)
+        s.blit(t, (L_.panel_rect.x + 6, L_.head_rect.y + 2))
+        t2 = self.font_s.render(
+            f"tick {m.step}/{m.steps_total}  seed {m.seed}", True, COL_DIM)
+        s.blit(t2, (L_.panel_rect.x + 6, L_.head_rect.y + 24))
 
-        line("OZVERING - IPO ARENA", COL_OPEN, self.font_b, 26)
-        line(f"tick {m.step} / {m.steps_total}   seed {m.seed}   "
-             f"{'PAUSE' if self.paused else f'RUN x{self.ticks_per_sec:.0f}/s'}",
-             COL_DIM)
-        y += 8
+        def card(rect, border=(52, 56, 66)):
+            r = rect
+            pygame.draw.rect(s, (28, 31, 38), r, border_radius=5)
+            pygame.draw.rect(s, border, r, 1, border_radius=5)
+            return r
 
+        # --- секции RL / AI колонки A ---------------------------------------
         sides = ((self.L("RL AGENT (обучающийся)", "RL AGENT (learning)"),
-                  m.rl, COL_RL, m.last_rl_action, m.rl_rest_ticks),
+                  m.rl, COL_RL, m.last_rl_action, m.rl_rest_ticks, L_.rl_card),
                  (self.L("UTILITY AI (скрипт)", "UTILITY AI (scripted)"),
-                  m.ai, COL_AI, m.last_ai_action, m.ai_rest_ticks))
-        for title, ag, acc, last_act, rest_ticks in sides:
-            line(title, acc)
-            line(f"  F={ag.force:6.1f}  E={ag.energy_pool:4.0f}  regen={ag.regen}")
-            line(f"  def [{ag.defense}]  L={ag.rest_ceiling:.0f}"
-                 f"  RU={ag.rest_units:.0f}")
+                  m.ai, COL_AI, m.last_ai_action, m.ai_rest_ticks, L_.ai_card))
+        for title, ag, acc, last_act, rest_ticks, crect in sides:
+            r = card(crect, border=(acc[0] // 2, acc[1] // 2, acc[2] // 2))
+            x, y = r.x + 8, r.y + 5
+            small = self.font_s
+            dy = max(12, min(int(15 * self.layout.sc),
+                             (r.height - 10) // 6))
+            rows = [
+                (title, acc),
+                (f"F={ag.force:6.1f} E={ag.energy_pool:4.0f} reg={ag.regen}",
+                 COL_TEXT),
+                (f"def [{ag.defense}] L={ag.rest_ceiling:.0f}"
+                 f" RU={ag.rest_units:.0f}", COL_TEXT),
+            ]
             on = ag.schmitt_on()
-            line(f"  w_adopt={ag.w_adopt:6.1f}/{on:5.1f}"
-                 f"  {'OPEN '+str(ag.open_timer) if ag.in_open else 'closed'}",
-                 COL_OPEN if ag.in_open else COL_TEXT)
+            win = ("OPEN " + str(ag.open_timer)) if ag.in_open else "closed"
+            rows.append((f"w_adopt={ag.w_adopt:6.1f}/{on:5.1f}",
+                         COL_OPEN if ag.in_open else COL_TEXT))
+            bw = r.width - 16
+            for txt, col in rows:
+                t_ = small.render(txt, True, col)
+                if t_.get_width() > bw:      # строка шире карточки - режем
+                    while t_.get_width() > bw and len(txt) > 8:
+                        txt = txt[:max(8, len(txt) - 4)] + ".."
+                        t_ = small.render(txt, True, col)
+                if y + t_.get_height() <= r.bottom - 3:   # клиппинг по секции
+                    s.blit(t_, (x, y))
+                y += dy
+            # строка окна Шмитта справа от полосы давления - в пределах карточки
+            wt = small.render(win, True, COL_OPEN if ag.in_open else COL_DIM)
+            if wt.get_width() <= bw:
+                s.blit(wt, (max(x, r.right - wt.get_width() - 8),
+                            y - dy + max(0, (dy - wt.get_height()) // 2)))
+            # полоса давления входа - внутри карточки
             bar_col = TYPE_COLORS[ag.defense]
             frac = min(1.0, ag.w_adopt / max(1e-9, on))
-            pygame.draw.rect(s, (50, 52, 60), (14, y, PANEL_W - 30, 7))
-            pygame.draw.rect(s, bar_col, (14, y, int((PANEL_W - 30) * frac), 7))
-            y += 12
-            line(f"  act: {last_act[0]}  work: {last_act[1]}  rest:{rest_ticks}",
-                 COL_DIM)
-            y += 6
+            pygame.draw.rect(s, (50, 52, 60), (x, y + 1, bw, 6))
+            pygame.draw.rect(s, bar_col, (x, y + 1, int(bw * frac), 6))
+            y += 10
+            act_line = (f"act {last_act[0]} w:{float(last_act[1]):.0f}"
+                        f" rest:{rest_ticks}")
+            at = small.render(act_line, True, COL_DIM)
+            # если строка не влезает по ширине карточки - режем хвост
+            while (at.get_width() > bw and len(act_line) > 12):
+                act_line = act_line[:-6] + ".."
+                at = small.render(act_line, True, COL_DIM)
+            if y + at.get_height() <= r.bottom - 2:
+                s.blit(at, (x, y))
 
+        # --- секция СРЕДА колонки A ------------------------------------------
         if m.env is not None:
             e = m.env
-            line(self.L("ENVIRONMENT (среда-автомат)", "ENVIRONMENT (agent)"), COL_ENV_OPEN)
-            line(f"  F={e.force:7.1f}  E={e.energy_pool:4.0f}"
-                 f"  weather [{e.defense}]", TYPE_COLORS[e.defense])
-            line(f"  w_adopt={e.w_adopt:6.1f}/{e.schmitt_on():5.1f}"
-                 f"  {'WINDOW OPEN' if e.in_open else 'closed'}",
-                 COL_ENV_OPEN if e.in_open else COL_TEXT)
-            line(f"  members: {len(e.members)}  bonus: "
-                 f"{PARAMETERS['ENV_BONUS'] if e.in_open else 0:+.2f}", COL_DIM)
+            r = card(L_.env_card, border=(110, 95, 40))
+            x, y = r.x + 8, r.y + 5
+            small = self.font_s
+            dy = max(12, (r.height - 10) // 4)
+            bw = r.width - 16
 
-        y += 10
-        line(f"Q-state size: {len(m.rl.Q)}", COL_DIM)
-        line(f"profiles: RL p={m.rl.p}  AI p={m.ai.p}", COL_DIM)
-        line("MODE: " + (self.L("РУЧНОЙ (игрок->RL)", "MANUAL (player->RL)")
-                         if self.manual_mode else "OBSERVE"),
-             COL_OPEN if self.manual_mode else COL_DIM)
+            def blit_row(txt, col, right_txt=None):
+                nonlocal y
+                t_ = small.render(txt, True, col)
+                if t_.get_width() > bw:
+                    while t_.get_width() > bw and len(txt) > 8:
+                        txt = txt[:max(8, len(txt) - 4)] + ".."
+                        t_ = small.render(txt, True, col)
+                if y + t_.get_height() <= r.bottom - 2:
+                    s.blit(t_, (x, y))
+                if right_txt:
+                    wt_ = small.render(right_txt[0], True, right_txt[1])
+                    if wt_.get_width() + t_.get_width() < bw:
+                        s.blit(wt_, (max(x, r.right - wt_.get_width() - 8), y))
+                y += dy
+
+            blit_row(self.L("СРЕДА-АВТОМАТ", "ENVIRONMENT"), COL_ENV_OPEN)
+            blit_row(f"F={e.force:7.1f} E={e.energy_pool:4.0f}",
+                     TYPE_COLORS[e.defense],
+                     (f"weather[{e.defense}]", TYPE_COLORS[e.defense]))
+            blit_row(f"w_adopt={e.w_adopt:6.1f}/{e.schmitt_on():5.1f}",
+                     COL_TEXT,
+                     ("WINDOW OPEN" if e.in_open else "closed",
+                      COL_ENV_OPEN if e.in_open else COL_DIM))
+            blit_row(f"members: {len(e.members)} bonus: "
+                     f"{PARAMETERS['ENV_BONUS'] if e.in_open else 0:+.2f}",
+                     COL_DIM)
+
+        # --- секция СТАТУС колонки A -----------------------------------------
+        r = card(L_.status_zone, border=(60, 64, 74))
+        x, y = r.x + 8, r.y + 5
+        small = self.font_s
+        dy = max(12, (r.height - 10) // 4)
+        bw = r.width - 16
+        mode_txt = ("MODE: " + (self.L("РУЧНОЙ (игрок->RL)", "MANUAL (player->RL)")
+                               if self.manual_mode else "OBSERVE"))
+        t_ = small.render(mode_txt, True,
+                          COL_OPEN if self.manual_mode else COL_DIM)
+        if y + t_.get_height() <= r.bottom - 2:
+            s.blit(t_, (x, y))
+        y += dy
+        t_ = small.render(f"Q-states: {len(m.rl.Q)}", True, COL_DIM)
+        if y + t_.get_height() <= r.bottom - 2:
+            s.blit(t_, (x, y))
+        y += dy
+        t_ = small.render(f"profiles: RL p={m.rl.p} AI p={m.ai.p}",
+                          True, COL_DIM)
+        if t_.get_width() > bw:
+            t_ = small.render(f"p: RL={m.rl.p} AI={m.ai.p}", True, COL_DIM)
+        if y + t_.get_height() <= r.bottom - 2:
+            s.blit(t_, (x, y))
+        y += dy
+        streak = max(m.dom_rl, m.dom_ai)
+        if streak:
+            who = "RL dominates" if m.dom_rl else "AI dominates"
+            frac = streak / PARAMETERS["CAPTURE_STREAK"]
+            if y + 20 <= r.bottom - 2:
+                pygame.draw.rect(s, (50, 52, 60), (x, y + 2, bw, 7))
+                pygame.draw.rect(s, COL_OPEN, (x, y + 2, int(bw * frac), 7))
+                s.blit(small.render(who, True, COL_OPEN), (x, y + 12))
+        else:
+            t_ = small.render(self.L("серия захвата: нет",
+                                     "capture streak: none"), True, COL_DIM)
+            if y + 2 + t_.get_height() <= r.bottom - 2:
+                s.blit(t_, (x, y + 2))
 
     def draw_agents(self, s, m):
         """Круги-автоматы: радиус от силы, рамка от типа защиты, кольцо Шмитта."""
@@ -1359,51 +1702,122 @@ class GameApp:
                      self.layout.env_label_pos[1]))
 
     def draw_history(self, s, m):
-        """Мини-график силы обеих сторон (лог-шкала) внизу арены."""
+        """Секция C3: график force history (лог-шкала) в своей рамке.
+
+        Подписи конечных значений и легенда размещаются ВНУТРИ рамки графика
+        в правом верхнем углу столбцом - они не выходят за границы секции.
+        """
         n = self.history_len
         rl_h = m.rl_hist[-n:]
         ai_h = m.ai_hist[-n:]
+        L_ = self.layout
+        r = L_.hist_rect
+        pygame.draw.rect(s, (20, 22, 28), r)
+        pygame.draw.rect(s, (60, 64, 74), r, 1)
+        lbl = self.font_s.render("force history (log)", True, COL_DIM)
+        if lbl.get_width() <= r.width - 8:
+            s.blit(lbl, (r.x + 4, r.y + 2))
         if len(rl_h) < 2:
             return
-        gw, gh = self.layout.hist_gw, self.layout.hist_h
-        gx, gy = self.layout.hist_gx, self.layout.hist_gy
-        pygame.draw.rect(s, (20, 22, 28), (gx, gy, gw, gh))
-        pygame.draw.rect(s, (60, 64, 74), (gx, gy, gw, gh), 1)
+        gx, gy, gw, gh = r.x, r.y, r.w, r.h
 
         def pt(hist, i):
             v = math.log(max(1.0, hist[i]))
             x = gx + i * gw / max(1, len(hist) - 1)
             ymax = math.log(max(2.0, max(max(rl_h), max(ai_h))))
             y = gy + gh - (v / ymax) * (gh - 6) - 3
-            return x, y
+            return int(round(x)), int(round(y))
 
         for hist, col in ((rl_h, COL_RL), (ai_h, COL_AI)):
             pts = [pt(hist, i) for i in range(len(hist))]
             pygame.draw.lines(s, col, False, pts, 2)
-        lbl = self.font_s.render("force history (log)", True, COL_DIM)
-        s.blit(lbl, (gx + 4, gy + 2))
+        # Легенда + конечные значения - столбцом внутри рамки справа сверху;
+        # каждая строка проверяется на влезание (по высоте и ширине).
+        ly = r.y + 2
+        lh = self.font_s.size("Ag")[1]
+        for hist, col, tag in ((rl_h, COL_RL, "RL"), (ai_h, COL_AI, "AI")):
+            t = self.font_s.render(f"{tag} {hist[-1]:.0f}", True, col)
+            if ly + lh > r.bottom - 2 or t.get_width() > r.width - 8:
+                break
+            s.blit(t, (r.right - t.get_width() - 4, ly))
+            ly += lh + 1
+
+    def draw_caption(self, s, m):
+        """Секция C2: подпись состояния партии (PAUSE/RUN, темп, pick)."""
+        L_ = self.layout
+        r = L_.caption_rect
+        st = ("PAUSE" if self.paused else f"RUN {self.ticks_per_sec:.1f}/s")
+        if m.finished:
+            st = "FINISHED"
+        t = self.font_s.render(st, True,
+                               COL_DIM if self.paused else COL_OPEN)
+        if t.get_width() <= r.width - 4:
+            s.blit(t, (r.x + 2, r.y + 1))
+        pick = f"PICK {ACTIONS[self.action_idx][0]}"
+        t2 = self.font_s.render(pick, True, COL_TEXT)
+        if (t2.get_width() <= r.right - t.get_width() - 8
+                and t2.get_width() <= r.width - 4):
+            s.blit(t2, (max(r.x + 2, r.right - t2.get_width() - 2), r.y + 1))
 
     def draw_action_bar(self, s):
-        """Плитки действий ACTIONS - кликабельны ВСЕГДА; клавиши 1..N дублируют."""
+        """Секция B2: плитки действий ACTIONS (сетка 2x4) + PICK-плашка.
+
+        Плитки кликабельны ВСЕГДА; клавиши 1..N дублируют. Подпись режима
+        усекается по ширине секции; текст каждой плитки центрируется в своей
+        ячейке и обрезается, если не влезает - перекрытия невозможны.
+        """
+        L_ = self.layout
+        # подложка секции
+        pygame.draw.rect(s, COL_PANEL, L_.actions_rect)
+        pygame.draw.rect(s, (52, 56, 66), L_.actions_rect, 1)
         for i, rect in enumerate(self._action_tiles()):
             act, frac = ACTIONS[i]
             sel = (i == self.action_idx)
             col = TYPE_COLORS.get(act, COL_DIM)
             pygame.draw.rect(s, (40, 44, 54) if not sel else (70, 76, 92), rect)
-            pygame.draw.rect(s, col if act != "REST" else COL_DIM, rect, 3 if sel else 2)
+            pygame.draw.rect(s, col if act != "REST" else COL_DIM,
+                             rect, 3 if sel else 2)
             name = f"{i+1}:{act} {int(frac*100)}%"
             t = self.font_s.render(name, True, COL_TEXT)
-            s.blit(t, (rect.x + 6, rect.y + rect.h // 2 - t.get_height() // 2))
+            while t.get_width() > rect.width - 6 and len(name) > 4:
+                name = name[:len(name) - 3] + ".."
+                t = self.font_s.render(name, True, COL_TEXT)
+            s.blit(t, (rect.x + rect.w // 2 - t.get_width() // 2,
+                       rect.y + rect.h // 2 - t.get_height() // 2))
+        # PICK-плашка в последней клетке сетки - текущий выбор игрока.
+        pr = L_.pick_rect
+        pygame.draw.rect(s, (30, 33, 40), pr, border_radius=4)
+        pygame.draw.rect(s, COL_OPEN, pr, 1, border_radius=4)
+        pk = f"PICK: {ACTIONS[self.action_idx][0]}"
+        t = self.font_s.render(pk, True, COL_OPEN)
+        while t.get_width() > pr.width - 6 and len(pk) > 5:
+            pk = pk[:len(pk) - 3] + ".."
+            t = self.font_s.render(pk, True, COL_OPEN)
+        s.blit(t, (pr.x + pr.w // 2 - t.get_width() // 2,
+                   pr.y + pr.h // 2 - t.get_height() // 2))
         tag = self.L("ВЫБРАНО ИГРОКОМ (клик или 1-7)", "PLAYER PICK (click or 1-7)") \
             if self.manual_mode else \
             self.L("режим наблюдателя: RL решает сам (M или клик = взять управление)",
                    "observe: RL decides (M or click = take control)")
+        # Усечение подписи строго по внутренней ширине секции B2.
+        max_w = L_.actions_rect.width - 16
         t = self.font_s.render(tag, True, COL_OPEN if self.manual_mode else COL_DIM)
-        s.blit(t, (PANEL_W + 12, SCREEN_H - 52 - t.get_height()))
+        while t.get_width() > max_w and len(tag) > 6:
+            cut = max(6, len(tag) - max(4, int(len(tag) * (t.get_width() - max_w)
+                                               / max(1, t.get_width()))))
+            tag = tag[:cut] + ".."
+            t = self.font_s.render(tag, True, COL_OPEN if self.manual_mode else COL_DIM)
+        s.blit(t, (L_.actions_rect.x + 8, L_.tiles_label_y))
 
     def draw_buttons(self, s):
-        """Кнопки HUD: тот же функционал, что у клавиш, но по клику мыши.
-        Активная подсветка + короткая вспышка при нажатии - реакция видна сразу."""
+        """Секция C1: кнопки HUD (сетка 4x2) - тот же функционал, что у клавиш.
+
+        Активная подсветка + короткая вспышка при нажатии - реакция видна
+        сразу. Каждая кнопка занимает свою ячейку сетки Layout; индикатор
+        темпа - отдельная ячейка (3,1). Перекрытие кнопок невозможно по
+        построению (ячейки не пересекаются), текст вписывается усечением."""
+        L_ = self.layout
+        pygame.draw.rect(s, COL_PANEL, L_.ctrl_rect)
         flashing = self.time < self._flash_until
         for name, label, rect in self.buttons:
             active = ((name == "START" and not self.paused)
@@ -1416,40 +1830,41 @@ class GameApp:
             border = COL_OPEN if active else (90, 95, 108)
             pygame.draw.rect(s, border, rect, 2, border_radius=4)
             t = self.font_s.render(label, True, COL_TEXT)
+            if t.get_width() > rect.width - 6:      # текст не влезает - режем
+                t = self.font_s.render(label[:max(3, rect.width // 8)],
+                                       True, COL_TEXT)
+            if t.get_height() > rect.height - 4:    # и по высоте тоже
+                continue
             s.blit(t, (rect.x + (rect.width - t.get_width()) // 2,
                        rect.y + (rect.height - t.get_height()) // 2))
-        # текущий темп - справа от кнопок SPEED
-        txt = self.font_s.render(f"x{self.ticks_per_sec:.1f}/s", True, COL_DIM)
-        speed_rect = self.buttons[3][2]
-        s.blit(txt, (speed_rect.right + 8, speed_rect.y + speed_rect.height // 2
-                     - txt.get_height() // 2))
+        # Индикатор темпа - собственная ячейка сетки (3,1), никогда не
+        # пересекается с кнопками.
+        sr = L_.speed_rect
+        pygame.draw.rect(s, (30, 33, 40), sr, border_radius=4)
+        sp_txt = "%.1f т/с" % self.ticks_per_sec if self.cyrillic_ok \
+            else "%.1f t/s" % self.ticks_per_sec
+        sp = self.font_s.render(sp_txt, True, COL_DIM)
+        if (sp.get_width() <= sr.width - 4
+                and sp.get_height() <= sr.height - 4):
+            s.blit(sp, (sr.x + (sr.width - sp.get_width()) // 2,
+                        sr.y + (sr.height - sp.get_height()) // 2))
 
     def draw_status(self, s, m):
-        """Итог партии / доминирующие серии."""
+        """Итог партии - в верхней части арены (секция B1); серии - в СТАТУСе."""
         if m.finished:
             msg = (f"CAPTURE: {m.winner} wins at tick {m.step}"
                    if m.winner else f"NO DECISION after {m.step} ticks")
             t = self.font_b.render(msg, True, COL_OPEN)
-            s.blit(t, (SCREEN_W // 2 - t.get_width() // 2, SCREEN_H // 2 - 140))
+            cx = self.layout.arena_cx
+            cy = self.layout.arena_cy + self.layout.finish_dy
+            s.blit(t, (cx - t.get_width() // 2, cy))
             t2 = self.font_s.render(
                 self.L("R или кнопка RESET - новая партия",
                        "R or RESET button - new match"), True, COL_DIM)
-            s.blit(t2, (SCREEN_W // 2 - t2.get_width() // 2, SCREEN_H // 2 - 112))
-        else:
-            # Индикаторы доминирования (серии CAPTURE_STREAK)
-            streak = max(m.dom_rl, m.dom_ai)
-            if streak:
-                who = "RL dominates" if m.dom_rl else "AI dominates"
-                frac = streak / PARAMETERS["CAPTURE_STREAK"]
-                w = 160
-                x = SCREEN_W - w - 16
-                y = 16
-                pygame.draw.rect(s, (50, 52, 60), (x, y, w, 8))
-                pygame.draw.rect(s, COL_OPEN, (x, y, int(w * frac), 8))
-                t = self.font_s.render(who, True, COL_OPEN)
-                s.blit(t, (x + w - t.get_width(), y + 12))
+            s.blit(t2, (cx - t2.get_width() // 2, cy + 26))
 
     def draw_help(self, s):
+        """Справка занимает зону P3 вместо плиток (F1/H переключает)."""
         if self.cyrillic_ok:
             lines = [
                 "SPACE / кнопка START - пауза/пуск   R / RESET - новая партия",
@@ -1461,6 +1876,7 @@ class GameApp:
                 "Круг = автомат (радиус ~ log F, рамка = тип защиты).",
                 "Кольцо = давление на вход w_adopt/ON(F); жёлтая пульсация -",
                 "открытое окно Шмитта. Золотая рамка экрана - окно конъюнктуры среды.",
+                "Три колонки HUD: метрики | арена+действия | кнопки+график.",
             ]
         else:
             lines = [
@@ -1473,18 +1889,38 @@ class GameApp:
                 "Circle = automaton (radius ~ log F, outline = defense type).",
                 "Ring = input pressure w_adopt/ON(F); yellow pulse =",
                 "open Schmitt window. Golden frame = environment window.",
+                "Three columns: metrics | arena+actions | buttons+graph.",
             ]
-        y = SCREEN_H - 168
+        L_ = self.layout
+        # Подложка + рамка секции B2 - те же границы, что у полоски действий.
+        pygame.draw.rect(s, COL_PANEL, L_.actions_rect)
+        pygame.draw.rect(s, (52, 56, 66), L_.actions_rect, 1)
+        hdr = self.font_s.render(
+            self.L("СПРАВКА (F1 - скрыть)", "HELP (F1 to hide)"),
+            True, COL_OPEN)
+        s.blit(hdr, (L_.help_x + 4, L_.tiles_label_y))
+        y = L_.help_y + L_.line_h + 4          # заголовок + отступ до текста
+        max_w = L_.actions_rect.width - 12     # строки не должны вылезать за зону
         for ln in lines:
-            t = self.font_s.render(ln, True, COL_DIM)
-            s.blit(t, (PANEL_W + 14, y))
-            y += 16
+            hgt = self.font_s.size(ln)[1] if ln else L_.line_h // 2
+            if y + hgt > L_.actions_rect.bottom - 2:
+                break                          # не выходим за нижнюю границу зоны
+            if ln:
+                t = self.font_s.render(ln, True, COL_DIM)
+                while t.get_width() > max_w and len(ln) > 8:
+                    cut = max(8, len(ln) - max(2, int(len(ln) *
+                           (t.get_width() - max_w) / max(1, t.get_width()))))
+                    ln = ln[:cut] + ".."
+                    t = self.font_s.render(ln, True, COL_DIM)
+                s.blit(t, (L_.help_x + 4, y))
+            y += L_.help_line_dy
         # Если pygame.font сломан - показываем это прямо в HUD (раз и навсегда
         # видно пользователю, почему шрифт растровый и как это починить).
-        if self.fonts.is_bitmap:
+        if self.fonts.is_bitmap and y + 14 < L_.actions_rect.bottom:
             warn = "FONT FALLBACK (pygame.font broken): pip install pygame-ce"
             wt = self.font_s.render(warn, True, (255, 120, 80))
-            s.blit(wt, (PANEL_W + 14, y + 4))
+            if wt.get_width() <= max_w:
+                s.blit(wt, (L_.help_x + 4, y))
 
     # ---------------- цикл ----------------
     def run(self):
