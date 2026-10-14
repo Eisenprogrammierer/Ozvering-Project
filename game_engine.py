@@ -287,6 +287,31 @@ def env_bg_color(env_force):
 # Тактовый движок партии: пошаговая обёртка над протоколом play_game
 # ---------------------------------------------------------------------------
 
+def _detect_form_intention_arity(cls):
+    """Число позиционных аргументов RLAgent.form_intention (включая self).
+
+    Возвращает 2 для form_intention(self, eps) и 3 для form_intention(self, eps, rng).
+    Используется для совместного запуска с разными ревизиями simulation.py:
+    в одной разведка epsilon-greedy идёт через глобальный random.*, в другой -
+    через явный параметр rng. Ошибки интроспекции не роняют движок: при любом
+    сбое считаем арность 2 (историческая сигнатура) и логируем предупреждение.
+    """
+    import inspect
+    try:
+        sig = inspect.signature(cls.form_intention)
+        n = 0
+        for prm in sig.parameters.values():
+            if prm.kind in (prm.POSITIONAL_ONLY, prm.POSITIONAL_OR_KEYWORD):
+                n += 1
+        LOG.debug("_detect_form_intention_arity(%s): параметры=%s -> арность=%s"
+                  % (cls.__name__, list(sig.parameters), n))
+        return n
+    except Exception as exc:
+        LOG.warn("_detect_form_intention_arity: интроспекция не удалась (%r); "
+                 "использую сигнатуру по умолчанию form_intention(eps)" % exc)
+        return 2
+
+
 class MatchEngine:
     """Одна партия RL vs UtilityAI в среде-автомате, шаг за шагом.
 
@@ -310,6 +335,11 @@ class MatchEngine:
         # использует глобальный random.* - изолируем его здесь (seed-детерминизм движка),
         # не изменяя код модели. Порядок вызовов канонический.
         self._rl_rng = random.Random(seed ^ 0x5EED)
+        # Детект сигнатуры RLAgent.form_intention (совместимость с разными
+        # ревизиями simulation.py): 2 - form_intention(eps), 3 - form_intention(eps, rng).
+        self._fi_arity = _detect_form_intention_arity(RLAgent)
+        LOG.debug("MatchEngine: сигнатура RLAgent.form_intention: "
+                  "арность=%s (3 - принимает rng параметром)" % self._fi_arity)
         self.steps_total = steps
         self.step = 0
         self.winner = None            # "RL" | "UtilityAI" | None (идёт партия)
@@ -418,17 +448,25 @@ class MatchEngine:
             if st_probe not in rl.Q:
                 rl.Q[st_probe] = [0.0] * len(ACTIONS)
         else:
-            # Разведка epsilon-greedy идёт через собственный rng движка: метод
-            # RLAgent.form_intention обращается к глобальному random.* (известное
-            # отклонение модели); временная подмена модуля random сохраняет
-            # семантику выбора и делает партию детерминированной по seed.
-            import simulation as _sim
-            _saved = _sim.random
-            _sim.random = self._rl_rng
-            try:
-                a_idx = rl.form_intention(eps)
-            finally:
-                _sim.random = _saved
+            # Совместимость с API: в разных ревизиях simulation.py метод имеет
+            # сигнатуру form_intention(self, eps) [глобальный random.*] либо
+            # form_intention(self, eps, rng). Определяем её один раз при старте
+            # (_detect_form_intention_arity) и вызываем корректно.
+            #
+            # Разведка epsilon-greedy всегда идёт через собственный rng движка:
+            # если модель использует глобальный random.*, временно подменяем его
+            # (сохраняя семантику выбора и seed-детерминизм партии); если модель
+            # принимает rng параметром - передаём тот же rng напрямую.
+            if self._fi_arity == 3:
+                a_idx = rl.form_intention(eps, self._rl_rng)
+            else:
+                import simulation as _sim
+                _saved = _sim.random
+                _sim.random = self._rl_rng
+                try:
+                    a_idx = rl.form_intention(eps)
+                finally:
+                    _sim.random = _saved
         act_name, frac = ACTIONS[a_idx]
         st_before = rl.skey()
         f_before = rl.force
@@ -936,10 +974,14 @@ class GameApp:
 
     def handle_events(self):
         for e in pygame.event.get():
-            LOG.debug("событие: type=%s(%s) key=%s button=%s pos=%s"
-                      % (e.type, pygame.event.event_name(e.type),
-                         getattr(e, "key", "-"), getattr(e, "button", "-"),
-                         getattr(e, "pos", "-")))
+            # MouseMotion и прочие «фоновые» события не логируем - они забивают
+            # консоль (десятки строк на движение мыши). Логируем только значимые:
+            # нажатия клавиш, клики мыши, QUIT/оконные события.
+            if e.type not in (pygame.MOUSEMOTION,):
+                LOG.debug("событие: type=%s(%s) key=%s button=%s pos=%s"
+                          % (e.type, pygame.event.event_name(e.type),
+                             getattr(e, "key", "-"), getattr(e, "button", "-"),
+                             getattr(e, "pos", "-")))
             if e.type == pygame.QUIT:
                 LOG.info("получено SDL QUIT - закрытие окна")
                 return False
