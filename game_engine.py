@@ -1143,7 +1143,7 @@ class GameApp:
                   m.ai, COL_AI, m.last_ai_action, m.ai_rest_ticks))
         for title, ag, acc, last_act, rest_ticks in sides:
             line(title, acc)
-            line(f"  F={ag.force:6.1f}  E={ag.energy_pool:4d}  regen={ag.regen}")
+            line(f"  F={ag.force:6.1f}  E={ag.energy_pool:4.0f}  regen={ag.regen}")
             line(f"  def [{ag.defense}]  L={ag.rest_ceiling:.0f}"
                  f"  RU={ag.rest_units:.0f}")
             on = ag.schmitt_on()
@@ -1162,7 +1162,7 @@ class GameApp:
         if m.env is not None:
             e = m.env
             line(self.L("ENVIRONMENT (среда-автомат)", "ENVIRONMENT (agent)"), COL_ENV_OPEN)
-            line(f"  F={e.force:7.1f}  E={e.energy_pool:4d}"
+            line(f"  F={e.force:7.1f}  E={e.energy_pool:4.0f}"
                  f"  weather [{e.defense}]", TYPE_COLORS[e.defense])
             line(f"  w_adopt={e.w_adopt:6.1f}/{e.schmitt_on():5.1f}"
                  f"  {'WINDOW OPEN' if e.in_open else 'closed'}",
@@ -1240,20 +1240,21 @@ class GameApp:
                 continue
             frm, to = (RL_POS, AI_POS) if ev["frm"] == "rl" else (AI_POS, RL_POS)
             col = TYPE_COLORS.get(ev["type"], COL_TEXT)
-            wdt = max(2, min(14, ev["work"] // 3 + 2))
-            start = (frm[0] + (40 if to[0] > frm[0] else -40) * 0, frm[1])
+            wdt = int(max(2, min(14, float(ev["work"]) // 3 + 2)))
             dx = to[0] - frm[0]
-            ux = dx / max(1, abs(dx))
+            ux = dx / max(1.0, abs(dx))
             sx = frm[0] + ux * (agent_radius(m.rl.force if ev["frm"] == "rl"
                                              else m.ai.force) + 12)
             tx = to[0] - ux * (agent_radius(m.ai.force if ev["frm"] == "rl"
                                             else m.rl.force) + 12)
-            pygame.draw.line(s, col, (sx, frm[1]), (tx, to[1]), wdt)
+            # PyGame CE требует целочисленные координаты (float -> TypeError)
+            sx, sy, tx, ty = int(round(sx)), int(frm[1]), int(round(tx)), int(to[1])
+            pygame.draw.line(s, col, (sx, sy), (tx, ty), wdt)
             # наконечник
             ah = 12 + wdt
-            pygame.draw.polygon(s, col, [(tx, to[1]),
-                                         (tx - ux * ah, to[1] - 8),
-                                         (tx - ux * ah, to[1] + 8)])
+            pygame.draw.polygon(s, col, [(tx, ty),
+                                         (int(round(tx - ux * ah)), ty - 8),
+                                         (int(round(tx - ux * ah)), ty + 8)])
             if ev["hit"]:
                 flash = pygame.Surface((60, 60), pygame.SRCALPHA)
                 pygame.draw.circle(flash, (*COL_OPEN, 150), (30, 30), 14)
