@@ -34,11 +34,14 @@ def timing(me, opp, rng):
 
     Пока чужой вход закрыт и напор ещё не близок к порогу — отдыхает;
     на подходе к ``ON(F)`` начинает продавливать; при открытом окне бьёт
-    контр-типом по оценке защиты противника.
+    контр-типом по оценке РЕЦЕПТИВНОГО типа противника. Тип теперь КОНТЕКСТЕН
+    и наблюдаем: ``beliefs['opp_type_guess']`` выводится тем же законом, что
+    ``Agent.defense`` (из наблюдаемых пула/силы/напора/окна), поэтому вместо
+    угадывания скрытой защиты берётся контекстная оценка.
     """
     b = me.beliefs
     if b["opp_in_open"]:
-        guess = b["opp_defense_guess"]
+        guess = b.get("opp_type_guess") or b.get("opp_defense_guess")
         counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
         return (rng.choice(counters) if counters else rng.choice(S.TYPES),
                 int(me.energy_pool * 0.7))
@@ -57,9 +60,10 @@ POLICY_SIGNATURE = "(me, opp, rng) -> (act, work)"
 def duel(policy_a, policy_b, steps=400, seed=0, f0=10, env=None, capture_streak=20):
     """Одна дуэль двух политик на симметричных автоматах.
 
-    Порядок такта повторяет ``simulation.play_game`` (sense → ротация защит →
-    upkeep → энергия → состояния входов → намерения → ``resolve_attack`` в обе
-    стороны → проверка устойчивого доминирования).
+    Порядок такта повторяет ``simulation.play_game`` (sense → (ротация защит —
+    упразднена, ``rotate_defense`` вызывается no-op ради совместимости
+    протокола) → upkeep → энергия → состояния входов → намерения →
+    ``resolve_attack`` в обе стороны → проверка устойчивого доминирования).
 
     Args:
         policy_a, policy_b: политики сторон A и B.

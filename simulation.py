@@ -135,6 +135,10 @@ class Agent:
         decay и нижний порог) и выход (тяжесть поражения при доминировании).
         Метрики force/energy_pool, их динамика и состав beliefs остаются прежними;
         профиль не наблюдается противником напрямую (частичная наблюдаемость).
+
+        Аргумент ``defense`` сохранён ради обратной совместимости и игнорируется:
+        тип входа больше не хранится, а выводится из контекста (см. property
+        ``defense``): конверсия типов энергии не нужна.
         """
         self.profile = profile if isinstance(profile, str) else round(float(profile), 4)
         self.p = PROFILES[profile] if isinstance(profile, str) else float(profile)
@@ -145,12 +149,10 @@ class Agent:
             "force": 10,
             "energy_pool": 3,
             "rest_units": 0.0,
-            # Стартовая защита детерминирована (TYPES[0]), а не random.choice:
-            # при профилях p<1 ротация срабатывает вероятностно и в «нерабочие»
-            # такты сохраняла бы недетерминированное значение, ломая
-            # воспроизводимость по seed между процессами. При CANON (p=1)
-            # ротация на первом такте всё равно перезаписывает это значение.
-            "defense": defense if defense is not None else TYPES[0],
+            # Поля "defense" в составе состояния НЕТ: рецептивный тип входа —
+            # не хранимая/ротируемая метка, а функция контекста (см. property
+            # ``defense``). Тип энергии определяется контекстом её сообщения
+            # между автоматами, поэтому конвертировать типы не требуется.
             "last_act": "REST",
             "last_work": 0,
             "w_adopt": 0.0,
@@ -159,7 +161,8 @@ class Agent:
         }
         self.beliefs = {"opp_energy": 3, "opp_defense": None,
                         "opp_last_act": "REST", "opp_last_work": 0,
-                        "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False}
+                        "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
+                        "opp_type_guess": None}
 
     # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
     # Позволяют обработчикам и внешнему коду работать с полями как с обычными
@@ -193,12 +196,30 @@ class Agent:
 
     @property
     def defense(self):
-        """Текущий тип защиты (выход ротации)."""
-        return self.state["defense"]
+        """Рецептивный тип входа — КОНТЕКСТ обмена, а не хранимая метка.
 
-    @defense.setter
-    def defense(self, value):
-        self.state["defense"] = value
+        Тип энергии не является «валютой» автомата, которую нужно конвертировать:
+        это фаза самого автомата в его цикле, выводимая из его состояния —
+        напора на входе (``w_adopt``), состояния окна (``in_open``) и
+        наполненности пула. Так «тип» определяется выходом адресанта (выбранным
+        действием), входом адресата (этим свойством), обработчиками
+        (``p_success``/``_apply_transfer``) и состояниями — как того требует
+        архитектура. Ротация защиты как независимой метки упразднена
+        (``rotate_defense`` оставлен no-op ради совместимости API).
+        """
+        return self.receptive_type(self.energy_pool, self.w_adopt,
+                                   self.in_open, self.force)
+
+    @staticmethod
+    def receptive_type(energy_pool, w_adopt, in_open, force):
+        """Единый закон вывода рецептивного типа из контекста (см. ``defense``)."""
+        full = energy_pool / max(1.0, E_MAX_MULT * max(1, math.floor(math.sqrt(max(1, force)))))
+        press = w_adopt / max(1.0, max(ON_MIN, ON_FRAC * force))
+        if in_open or press >= 1.0:
+            return TYPES[2]
+        if full >= 0.5:
+            return TYPES[1]
+        return TYPES[0]
 
     @property
     def last_act(self):
@@ -404,29 +425,29 @@ class Agent:
         self.beliefs["opp_defense_guess"] = (
             max(TYPES, key=non_rest.count) if non_rest else None
         )
+        # Оценка рецептивного типа противника из НАБЛЮДАЕМЫХ величин — тем же
+        # законом, что и свойство ``defense``: тип теперь контекстен и НАБЛЮДАЕМ
+        # (в отличие от прежней скрытой ротируемой метки), поэтому конверсия
+        # между типами не нужна. Строится из уже наблюдаемых beliefs, новых
+        # истинных переменных состояния не вводится.
+        self.beliefs["opp_type_guess"] = self.receptive_type(
+            self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
+            self.beliefs["opp_in_open"], self.beliefs["opp_force"])
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
     def rotate_defense(self, rng):
-        """Ротация защиты в начале такта (свойство среды + профильная обработка).
+        """Ротация защиты упразднена: тип входа выводится из контекста.
 
-        Из множества типов исключаются те, которые проигрывают последнему типу
-        атаки противника (т.е. которые его атака контрит — MULT[(opp_last_act, t)]
-        истинно), и защита выбирается равномерно из оставшихся. Фиксированная
-        защита делала исход предопределённым
-        (архитектурный контр-тип); ротация снимает гарантию, но оставляет место
-        для стратегии: наблюдательный агент эксплуатирует ограничение ротации,
-        предугадывая узкий набор возможных защит.
-
-        Профильная дифференциация на выходе автомата: вероятность сменить защиту
-        равна ``min(1.0, p)`` — «догматик» (p<1) держит позицию дольше,
-        оппортунист (p>=1) ротируется каждый такт. Новых переменных не вводится:
-        используется уже существующий скаляр профиля p и штатный rng партии;
-        состояние ``defense`` было в модели всегда."""
-        counters = [t for t in TYPES if not MULT.get((self.beliefs["opp_last_act"], t))]
-        pool = counters if counters else TYPES
-        if self.p >= 1.0 or rng.random() < self.p:
-            self.defense = rng.choice(pool)
+        Раньше защита была хранимой меткой, которую приходилось ротировать,
+        чтобы исход не был предопределён архитектурным контр-типом. Теперь
+        «тип» — не валюта автомата, а фаза его состояния (property ``defense``),
+        поэтому отдельной ротации не требуется (по ТРИЗ: лучшая функция — та,
+        которой нет; здесь функция растворена в сущности контекста). Метод
+        оставлен no-op ради совместимости API с внешним кодом (game_engine,
+        эксперименты).
+        """
+        return None
 
     def upkeep(self):
         """Пассивное поддержание структуры: сила тратится на себя каждый такт."""
@@ -546,24 +567,28 @@ class UtilityAI(Agent):
     def expected_retaliation(self, work):
         """Оценка возмездия: адресат бьёт в ответ долей RETALIATE_FRACTION*w.
 
-        Защита ответа неизвестна — среднее по трём гипотезам; вероятность
-        успеха ответки штрафуются контр-типом к нашей последней атаке."""
+        Рецептивный тип ответчика теперь КОНТЕКСТЕН и наблюдаем (beliefs
+        ``opp_type_guess``), поэтому гипотезы о скрытой защите не нужны: оценка
+        строится ровно по тому же закону, что и фактический ответ в
+        ``resolve_attack`` (``_apply_transfer(dfn, att, r_w, dfn.defense, …)``):
+        тип выхода ответчика — его контекстный тип, тип входа — наш. Тем самым
+        устранено прежнее отклонение (штраф брался по ``opp_last_act`` вместо
+        нашего входа); см. docs/MODEL.md §7."""
         r_w = int(RETALIATE_FRACTION * work)
         if r_w <= 0:
             return 0.0
-        ev_loss = 0.0
-        for hypo_def in TYPES:
-            mr = MULT.get((hypo_def, self.defense), 1.0)
-            # ИЗВЕСТНОЕ ОТКЛОНЕНИЕ (осознанно не исправляется в этой итерации):
-            # штраф за контр-тип берётся по наблюдённому последнему действию
-            # противника (opp_last_act), тогда как фактический resolve_attack
-            # считает его по НАШЕЙ защите: MULT[(self.defense, hypo_def)].
-            # Оценка возмездия — приближение; смена поведения партий отложена
-            # (см. docs/MODEL.md, §7 «Известные отклонения»).
-            pr = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((self.beliefs["opp_last_act"], hypo_def)) else P_BASE
-            g = self.gain_model_rev(mr, pr)
-            ev_loss += r_w * g / 3.0
-        return ev_loss
+        opp_t = self.beliefs.get("opp_type_guess")
+        if opp_t is None:
+            # Наблюдений ещё нет — честная неопределённость: среднее по TYPES.
+            ev = 0.0
+            for t in TYPES:
+                mr = MULT.get((t, self.defense), 1.0)
+                pr = p_success(t, r_w, self.defense, self.last_work)
+                ev += r_w * self.gain_model_rev(mr, pr) / 3.0
+            return ev
+        mr = MULT.get((opp_t, self.defense), 1.0)
+        pr = p_success(opp_t, r_w, self.defense, self.last_work)
+        return r_w * self.gain_model_rev(mr, pr)
 
     def gain_model_rev(self, m, p):
         """Отдача ответного удара по НАШЕМУ входу (наше состояние нам точно известно)."""
@@ -578,15 +603,27 @@ class UtilityAI(Agent):
         return COST_FRACTION * work + HOCK_FRACTION * r_w
 
     def expected_gain(self, act, work):
-        """U(action): средняя ожидаемая отдача по гипотезам о защите минус цена
-        работы и минус ожидание возмездия. Покой оценивается логистикой rest_gain."""
+        """U(action): средняя ожидаемая отдача минус цена работы и минус
+        ожидание возмездия. Покой оценивается логистикой rest_gain.
+
+        Рецептивный тип адресата КОНТЕКСТЕН и наблюдаем (``opp_type_guess``):
+        вместо усреднения по гипотезам о скрытой защите берётся единственная
+        оценка, а вероятность успеха считается фактическим законом ``p_success``
+        (мощность и контр-тип) — тем же, что в ``resolve_attack``. Пока
+        наблюдений нет (оценка ``None``), сохраняется прежнее усреднение."""
         if act == "REST" or work <= 0:
             return self.rest_gain()
-        ev = 0.0
-        for hypo in TYPES:
-            m = MULT.get((act, hypo), 1.0)
-            p = P_BASE / (1.0 + math.exp(-K_TYPE)) if MULT.get((hypo, act)) else P_BASE
-            ev += work * self.gain_model(m, p) / 3.0
+        opp_t = self.beliefs.get("opp_type_guess")
+        if opp_t is None:
+            ev = 0.0
+            for hypo in TYPES:
+                m = MULT.get((act, hypo), 1.0)
+                p = p_success(act, work, hypo, self.beliefs["opp_last_work"])
+                ev += work * self.gain_model(m, p) / 3.0
+        else:
+            m = MULT.get((act, opp_t), 1.0)
+            p = p_success(act, work, opp_t, self.beliefs["opp_last_work"])
+            ev = work * self.gain_model(m, p)
         return ev - self.retaliation_penalty(work) - self.expected_retaliation(work)
 
     def form_intention(self):
@@ -623,24 +660,30 @@ class RLAgent(Agent):
     def skey(self):
         """Ключ символического состояния RL-агента (дискретизированные beliefs).
 
-        Шесть компонент — всё наблюдаемое, никаких скрытых истинных переменных:
+        Семь компонент — всё наблюдаемое, никаких скрытых истинных переменных:
           1. собственный пул (``energy_pool``, дискретизация ``discretize``);
           2. пул противника (оценка с шумом наблюдения);
           3. последний тип атаки противника;
           4. признак угрозы ``T/-``: контрит ли его последняя атака нашу защиту;
           5. уровень давления на его вход (накопленный ``w_adopt``) — степень
              близости чужого окна восприимчивости;
-          6. положение его входа ``O/C`` (Open/Closed).
+          6. положение его входа ``O/C`` (Open/Closed);
+          7. рецептивный тип противника ``opp_type_guess`` — контекстная фаза
+             его входа (наблюдаема тем же законом, что и ``Agent.defense``).
 
-        Компоненты 5 и 6 дают Q-функции различать «давить бесполезно» и
-        «окно открыто — бей», не вводя новых состояний среды."""
+        Компонента 7 добавлена вместе с переходом к контекстному типу: тип стал
+        наблюдаемым (выводится из уже наблюдаемых величин), поэтому агент может
+        учиться выбирать контр-тип, а не только реагировать на угрозу. Компоненты
+        5–6 дают Q-функции различать «давить бесполезно» и «окно открыто — бей»,
+        не вводя новых состояний среды."""
         threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
         adopt = self.discretize(int(self.beliefs["opp_w_adopt"]))
         openg = "O" if self.beliefs["opp_in_open"] else "C"
         return (self.discretize(self.energy_pool),
                 self.discretize(self.beliefs["opp_energy"]),
                 self.beliefs["opp_last_act"],
-                threat, adopt, openg)
+                threat, adopt, openg,
+                self.beliefs.get("opp_type_guess"))
 
     def form_intention(self, eps, rng):
         """Выбор действия epsilon-greedy по Q-таблице текущего состояния.
