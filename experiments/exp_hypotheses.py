@@ -167,7 +167,7 @@ for step in range(30):
     rl.tick_energy(); ai.tick_energy()
     rl.tick_input_state(); ai.tick_input_state()
     eps = max(0.05, 1.0 - step / 300)
-    a_idx = rl.form_intention(eps)
+    a_idx = rl.form_intention(eps, rng)
     act_name, frac = S.ACTIONS[a_idx]
     st_before = rl.skey(); f_before = rl.force
     w_rl = 0 if rl.rest_if_starving() else rl.commit(act_name, rl.energy_pool * frac)
@@ -199,7 +199,7 @@ def run_mode(mode, n=10):
         # патчим form_intention для фиксации eps
         if eps_fixed is not None:
             orig = rl.form_intention
-            rl.form_intention = lambda eps, _o=orig, _e=eps_fixed: _o(_e)
+            rl.form_intention = lambda eps, rng, _o=orig, _e=eps_fixed: _o(_e, rng)
         w, _, _, st = S.play_game(rl, S.UtilityAI(), 1000, seed=g)
         if eps_fixed is not None:
             del rl.form_intention

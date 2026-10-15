@@ -128,7 +128,7 @@ def run_arm(members_fn):
         # повторяем протокол партии, сохраняя снимки ярусов (только чтение)
         import simulation as sim
         env_inst = sim.Environment(members=members)
-        sim._dom_rl = sim._dom_ai = 0
+        dom_rl = dom_ai = 0                       # серии доминирования — локальны для партии
         rng = __import__("random").Random(1000 + g)
         top_hist, sub_hist, sum_work = [], [], []
         open_top, open_rl, open_ai = [], [], []
@@ -153,7 +153,7 @@ def run_arm(members_fn):
                 sub_hist.append(msub["force"])
             sum_work.append(env_inst.member_output())
             eps = max(0.05, 1.0 - step / 300)
-            a_idx = rl.form_intention(eps)
+            a_idx = rl.form_intention(eps, rng)
             act_name, frac = sim.ACTIONS[a_idx]
             st_before = rl.skey(); f_before = rl.force
             w_rl = 0 if rl.rest_if_starving() else rl.commit(act_name, rl.energy_pool * frac)
@@ -162,7 +162,7 @@ def run_arm(members_fn):
             sim.resolve_attack(rl, ai, w_rl, rng, env_inst)
             sim.resolve_attack(ai, rl, w_ai, rng, env_inst)
             rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
-            winner = sim.check_capture(rl, ai)
+            winner, dom_rl, dom_ai = sim.check_capture(rl, ai, dom_rl, dom_ai)
             if winner:
                 end = step
                 break
@@ -241,13 +241,23 @@ print("- Эмерджентность подтверждена конструк�
 print("  открывается суммарным напором когерентных членов, тогда как")
 print("  изолированный член (w < ON(F)) не открывает его никогда —")
 print("  свойство агрегата, отсутствующее у любого члена в отдельности.")
+
+ac_flat = statistics.mean(flat['ac_top']) if flat['ac_top'] else float('nan')
+ac_hier_top = statistics.mean(hier['ac_top']) if hier['ac_top'] else float('nan')
+ac_hier_sub = statistics.mean(hier['ac_sub']) if hier['ac_sub'] else float('nan')
+corr_hier = statistics.mean(hier['corr_sum']) if hier['corr_sum'] else float('nan')
+sub_line = f", автономная подсреда {ac_hier_sub:+.3f}" if hier['ac_sub'] else ""
 print("- Самоподобие подтверждено структурно (один кодекс Agent для всех")
 print("  ярусов: компонент state у среды тот же, что у автомата; новое имя")
-print("  только у контейнера members) и эмпирически: инерция темпа dF")
-print("  одинакова на ярусах (~0.97-0.99), каденция окон дуэлянтов и среды")
-print("  одного порядка, F верха положительно связан с трудом членов.")
+print("  только у контейнера members). Эмпирически (по фактическому выводу,")
+print("  а не по априорным значениям): автокорреляция dF(лаг 1) у верхней")
+print(f"  среды плоской/иерархии = {ac_flat:+.3f}/{ac_hier_top:+.3f}{sub_line};")
+print("  каденция окон дуэлянтов и среды одного порядка; корреляция F")
+print(f"  верхней среды с суммарным трудом членов = {corr_hier:+.3f}.")
 print(f"- Воспроизводимость контроля: разница доли окон плоского плеча между")
-print(f"  повторами = {d_flat:.3f} (N={N_GAMES} партий, общая Q-таблица — малая выборка).")
+print(f"  повторами = {d_flat:.3f} (N={N_GAMES} партий; при детерминизме")
+print("  одинаковые плечи обязаны совпадать — расхождение означало бы утечку")
+print("  случайности).")
 print("- Влияние иерархии на дуэль заметно, но статистически НЕ обосновано:")
 print("  доли побед и финальные силы различаются сильнее, чем два повтора")
 print("  одного плеча, однако при N=6 вывод о балансе отложен до прогона")

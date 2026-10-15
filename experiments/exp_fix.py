@@ -8,8 +8,10 @@
   (c) rest_gain на дне ~ +0.02 net против upkeep -1 => покой убыточен внизу.
 
 Конкурирующие гипотезы о ЛЕЧЕНИИ:
-H-A: проблема в достижимости порога ON (калибровка DECAY_ADOPT/ON_THRESHOLD).
-     Тест: сетка ON x DECAY, замер времени до первого окна при старте F=10.
+H-A: проблема в достижимости порога ON (калибровка DECAY_ADOPT/ON_FRAC).
+     Тест: сетка ON_FRAC x DECAY_ADOPT (порог масштабный: ON(F)=max(ON_MIN,
+     ON_FRAC*F), поэтому крутизна — ON_FRAC, а не абсолютный порог), замер
+     времени до первого окна при старте F=10.
 H-B: проблема в кривой покоя (логистика убывает К нулю у ОБОИХ концов; вершина
      далеко от дна). Тест: чистый рост от отдыха с нуля при разных L_BASE/MAX_RD.
 H-C: проблема в цене давления на дне (COST+RETALIATION+FATIGUE > любого выигрыша).
@@ -97,14 +99,17 @@ for lbase, mrd in ((60, 8), (60, 4), (120, 8)):
 
 print()
 print("="*78)
-print("H-A: ДОСТИЖИМОСТЬ ОКНА ПРИ СТАРТЕ С ДНА. Сетка ON x DECAY.")
+print("H-A: ДОСТИЖИМОСТЬ ОКНА ПРИ СТАРТЕ С ДНА. Сетка ON_FRAC x DECAY_ADOPT.")
 print("     Одиночный PRESSER против пассива-мишени; фиксируем первый такт,")
 print("     когда вход мишени открылся, старт F=10 у обоих.")
 print("="*78)
-# ON теперь масштабный: ON(F)=max(ON_MIN, ON_FRAC*F). Сетка лечится через ON_FRAC.
+# ON масштабный: ON(F)=max(ON_MIN, ON_FRAC*F), OFF(F)=(OFF_FRAC/p)*ON(F).
+# Сетка — по фактическим параметрам модели: ON_FRAC есть КРУТИЗНА порога, а не
+# абсолютное значение (прежняя сетка {40,25,15} трактовала её как абсолют и
+# после перехода на масштабный ON(F) была бессмысленна).
 base_on, base_off, base_decay = S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT
-for decay in (0.95, 0.90, 0.80):
-    for on in (40.0, 25.0, 15.0):
+for decay in (0.98, 0.95, 0.90):
+    for on in (0.40, 0.25, 0.15):
         S.DECAY_ADOPT = decay; S.ON_FRAC = on; S.OFF_FRAC = 0.4
         res = []
         for sd in range(3):
@@ -117,7 +122,7 @@ for decay in (0.95, 0.90, 0.80):
                 if b.in_open and first_open is None:
                     first_open = t
             res.append(first_open)
-        print(f"  DECAY={decay}, ON={on}: первые окна {res}")
+        print(f"  DECAY_ADOPT={decay}, ON_FRAC={on}: первые окна {res}")
 S.ON_FRAC, S.OFF_FRAC, S.DECAY_ADOPT = base_on, base_off, base_decay
 
 print()

@@ -10,25 +10,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import random
 import statistics
 import simulation as S
+import strategies as ST
 
 
 def scripted(kind, me, opp, rng):
-    """Возвращает (act, work_wanted) для скриптового агента."""
-    if kind == "PASSIVE":
-        return ("REST", 0)
-    if kind == "PRESSER":            # вечно давит, игнорируя состояние входа
-        t = rng.choice(S.TYPES)
-        return (t, int(me.energy_pool * 0.7))
-    if kind == "TIMING":             # копит давление малыми ударами, бьёт в открытое окно
-        if me.beliefs["opp_in_open"]:
-            guess = me.beliefs["opp_defense_guess"]
-            counters = [t for t in S.TYPES if S.MULT.get((t, guess))]
-            t = rng.choice(counters) if counters else rng.choice(S.TYPES)
-            return (t, int(me.energy_pool * 0.7))
-        if me.beliefs["opp_w_adopt"] >= 0.6 * max(S.ON_MIN, S.ON_FRAC * me.beliefs["opp_force"]) and me.force > 30:
-            return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
-        return ("REST", 0)
-    raise ValueError(kind)
+    """Возвращает (act, work_wanted) для скриптового агента.
+
+    Единый источник стратегий — ``experiments/strategies.py``: раньше определение
+    дублировалось в нескольких скриптах и расходилось, из-за чего выводы о
+    балансе противоречили друг другу. Здесь — делегирование."""
+    return ST.STRATEGIES[kind](me, opp, rng)
 
 
 def duel(kind_a, kind_b, steps=400, seed=0):

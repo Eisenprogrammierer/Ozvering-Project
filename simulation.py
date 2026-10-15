@@ -20,7 +20,6 @@ Environment из нижестоящих автоматов (members) без но
 import math
 import random
 import statistics
-import matplotlib.pyplot as plt
 
 
 PARAMETERS = {
@@ -52,15 +51,16 @@ PARAMETERS = {
     "CAPTURE_RATIO": 1.5,
     "CAPTURE_STREAK": 20,
     "CAPTURE_FRAC": 0.10,
-    "PROFILE_RNG": [0.7, 1.0],
     "ENV_BONUS": 0.25,
     "ENV_INCOME": 2,
+    "ENV_REST_CAP": 10.0,
 }
 """Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8.
 
-PROFILE_RNG — интервал случайного профиля по умолчанию (см. PROFILES ниже):
-партия с seed=None или прогоны без явного профиля получают профиль равномерно
-из этого интервала. Значение 1.0 соответствует прежней канонической механике."""
+ENV_REST_CAP — предохранитель от долгого дрейфа среды: потолок покоя суперсистемы
+растёт от чужого труда (Environment.receive_pressure), и без капа `rest_units`
+уползал бы неограниченно, уводя порог Шмитта ON(F) вверх. Кап держит потолок
+конечным (см. docs/MODEL.md, разделы 8 и 13)."""
 
 globals().update(PARAMETERS)
 
@@ -87,21 +87,6 @@ PROFILES = {
 
 ACTIONS = [("REST", 0)] + [(t, w) for t in TYPES for w in [0.3, 0.7]]
 """Пространство действий автомата: покой либо передача типом с долей пула 0.3/0.7."""
-
-
-def _profile_from_seed(seed):
-    """Детерминированный выбор профиля по seed партии (для воспроизводимости прогонов).
-
-    Используется только когда профиль явно не передан: profile=None означает
-    «случайный профиль из PROFILE_RNG». При seed=None возвращается середина
-    интервала PROFILE_RNG (нейтральное ожидание); при seed>=0 — детерминированное
-    значение из того же интервала. В run_batch партии получают seed=g, поэтому
-    профили сторон чередуются детерминированно, а не случайно между запусками."""
-    lo, hi = PROFILE_RNG[0], PROFILE_RNG[1]
-    if seed is None:
-        return 0.5 * (lo + hi)
-    rnd = random.Random(hash(("profile", seed)) & 0xFFFFFFFF)
-    return rnd.uniform(lo, hi)
 
 
 def p_success(att_type, att_work, dfn_type, dfn_work):
@@ -406,16 +391,24 @@ class Agent:
         if len(hist) > 5:
             hist.pop(0)
         non_rest = [a for a in hist if a != "REST"]
-        self.beliefs["opp_defense_guess"] = max(set(non_rest), key=non_rest.count) if non_rest else None
+        # Оценка защиты противника — мода последних наблюдённых действий, но
+        # перебор строго по TYPES, а НЕ по set(): порядок обхода set зависит от
+        # рандомизации хэшей строк между процессами (PYTHONHASHSEED), из-за чего
+        # при равных частотах результат «плавал» и партии/тесты были невоспроизводимы
+        # (детерминизм по seed нарушался). При ничьей выигрывает первый тип в TYPES.
+        self.beliefs["opp_defense_guess"] = (
+            max(TYPES, key=non_rest.count) if non_rest else None
+        )
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
     def rotate_defense(self, rng):
         """Ротация защиты в начале такта (свойство среды + профильная обработка).
 
-        Из множества типов исключаются те, которые контрят последний тип атаки
-        противника (наблюдаемое ограничение), и защита выбирается равномерно из
-        оставшихся. Фиксированная защита делала исход предопределённым
+        Из множества типов исключаются те, которые проигрывают последнему типу
+        атаки противника (т.е. которые его атака контрит — MULT[(opp_last_act, t)]
+        истинно), и защита выбирается равномерно из оставшихся. Фиксированная
+        защита делала исход предопределённым
         (архитектурный контр-тип); ротация снимает гарантию, но оставляет место
         для стратегии: наблюдательный агент эксплуатирует ограничение ротации,
         предугадывая узкий набор возможных защит.
@@ -644,13 +637,19 @@ class RLAgent(Agent):
                 self.beliefs["opp_last_act"],
                 threat, adopt, openg)
 
-    def form_intention(self, eps):
-        """Выбор действия epsilon-greedy по Q-таблице текущего состояния."""
+    def form_intention(self, eps, rng):
+        """Выбор действия epsilon-greedy по Q-таблице текущего состояния.
+
+        Args:
+            eps: вероятность разведки (epsilon-greedy).
+            rng: генератор случайных чисел партии — разведка берёт случайность
+                из него, а НЕ из глобального ``random``, поэтому прогоны
+                воспроизводимы по seed (см. play_game)."""
         st = self.skey()
         if st not in self.Q:
             self.Q[st] = [0.0] * len(ACTIONS)
-        if random.random() < eps:
-            return random.randint(0, len(ACTIONS) - 1)
+        if rng.random() < eps:
+            return rng.randint(0, len(ACTIONS) - 1)
         return self.Q[st].index(max(self.Q[st]))
 
     def learn(self, st, a_idx, reward, nst, alpha=0.3, gamma=0.9):
@@ -741,9 +740,13 @@ class Environment(Agent):
         Наследует накопление давления и открытие окна по Шмитту у Agent;
         добавляет единственное средовое следствие нагрузки: rest_units среды
         растёт от входящей работы (w * 0.01), расширяя потолок покоя
-        суперсистемы. Новых переменных нет — rest_units есть поле Agent."""
+        суперсистемы. Новых переменных нет — rest_units есть поле Agent.
+
+        Рост ограничен ENV_REST_CAP (предохранитель): иначе на длинных партиях
+        потолок покоя среды уползал бы неограниченно, а с ним и порог Шмитта
+        ON(F), из-за чего окно конъюнктуры в итоге перестало бы открываться."""
         super().receive_pressure(w)
-        self.rest_units += w * 0.01              # труд автоматов расширяет потолок среды
+        self.rest_units = min(self.rest_units + w * 0.01, ENV_REST_CAP)  # труд расширяет потолок (с капом)
 
     def rotate_defense(self, rng):
         """Ротация «погоды» среды — тот же обработчик, что у Agent.
@@ -816,7 +819,11 @@ class Environment(Agent):
         среды, порождаемая её состоянием покоя. Замечание: потолок покоя среды
         растёт только от чужого труда (receive_pressure), сам доход rest_units
         не увеличивает — принцип §5 («потолок недоступен бездельнику»)
-        сохранён и для суперсистемы.
+        сохранён и для суперсистемы. Автономный доход ограничен этим же
+        потолком покоя (``min(force + ENV_INCOME, rest_ceiling)``): без
+        ограничения сила среды растёт безгранично (ENV_INCOME > upkeep), а с ней
+        и порог Шмитта ON(F), из-за чего окно конъюнктуры закрывается навсегда —
+        среда переставала быть источником окон.
 
         Покой применяется как НЕвыбранный (do_rest(chosen=False), половина
         прибыли и малое пополнение пула): осознанный отдых Agent ограничивает
@@ -841,10 +848,53 @@ class Environment(Agent):
                 self.receive_pressure(w_members) # тот же кодекс Шмитта — самоподобие
         self.tick_energy()                       # пополнение пула потоком regen (Agent)
         self.tick_input_state()                  # гистерезис Шмитта входа (Agent)
-        self.force += ENV_INCOME                 # выход Process: среда производит сама
+        # Автономный доход НЕ обходит потолок покоя: иначе сила среды растёт
+        # безгранично (ENV_INCOME > upkeep), а вместе с ней и порог Шмитта
+        # ON(F)=max(ON_MIN, ON_FRAC*F) — окно конъюнктуры закрывается навсегда
+        # (замер: force 10→1030 при потолке ~76, ON→258). Доход ограничен тем же
+        # логистическим потолком, что и покой любого автомата, поэтому среда
+        # остаётся рабочей «конъюнктурой», а не бесконечным накопителем.
+        self.force = min(self.force + ENV_INCOME, self.rest_ceiling)
         if self.force < self.rest_ceiling:       # логистический покой (Agent)
             self.do_rest(chosen=False)
         self.upkeep()                            # содержание структуры (Agent)
+
+
+def _apply_transfer(att, dfn, work, att_type, rng, env=None):
+    """Ядро единого закона передачи: шаги 2–5 протокола ``resolve_attack``.
+
+    Выделено, чтобы ОБА направления — основной удар и ответный — проходили один
+    и тот же закон, но ответный не порождал собственного контр-возмездия (иначе
+    бесконечная рекурсия). Отличие от прежней версии принципиально: тип энергии
+    адресанта передаётся ЯВНЫМ аргументом ``att_type`` и НЕ читается из
+    ``att.last_act``, поэтому ответный удар не искажает намерение адресанта
+    (раньше возмездие перезаписывало ``last_act``/``last_work`` адресата, и
+    вторая атака такта уходила чужим типом — защитой вместо выбранного действия).
+
+    Args:
+        att, dfn: адресант и адресат передачи.
+        work: мощность передачи (единиц работы).
+        att_type: тип энергии адресанта (его выбранное действие или защита
+            при возмездии) — определяет контр-множитель ``MULT``.
+        rng: генератор случайных чисел партии.
+        env: необязательная среда-автомат; её вход нагружается всякой передачей,
+            открытое окно даёт надбавку ENV_BONUS к отдаче адресанта.
+    """
+    open_now = dfn.in_open
+    dfn.receive_pressure(work)
+    if env is not None:
+        env.receive_pressure(work)
+    if rng.random() < p_success(att_type, work, dfn.defense, dfn.last_work):
+        m = MULT.get((att_type, dfn.defense), 1.0)
+        gain_frac = GAIN_MAX if open_now else Y_SMALL
+        if env is not None and env.in_open:
+            gain_frac *= (1.0 + ENV_BONUS)
+        gained = int(work * m * gain_frac)
+        if gained:
+            att.gain(gained)
+            att.rest_units += gained
+        dfn.process_hit(work)
+        dfn.force = max(1, dfn.force + int(K_EFFECT * work))
 
 
 def resolve_attack(att, dfn, work, rng, env=None):
@@ -863,8 +913,12 @@ def resolve_attack(att, dfn, work, rng, env=None):
          Труд адресанта порождает rest_units (рост потолка покоя).
       5. Промах: цена уплачена, отдачи нет, но износ входа накоплен — завтра
          окно может открыться. Система «трескается» от любого напора.
-      6. Возмездие: адресат отвечает долей RETALIATE_FRACTION*w по тому же закону
-         (своим типом защиты, с учётом положения НАШЕГО входа и шока пула).
+      6. Возмездие: адресат отвечает долей RETALIATE_FRACTION*w ПО ТОМУ ЖЕ закону
+         (шаги 1–5 ниже через ``_apply_transfer``: цена работы, накопление
+         давления на входе обидчика, шок его пула, трение, окно среды), но без
+         собственного контр-возмездия. Тип ответа — тип защиты адресата.
+         ``last_act``/``last_work`` адресата не перезаписываются, поэтому
+         запланированное им действие такта не искажается ответным ударом.
 
     Окупаемость давления НЕ гарантирована архитектурой: нужен накопленный напор,
     угаданный тип (m=3), попадание броска и резерв сил в такт конечного окна.
@@ -883,42 +937,23 @@ def resolve_attack(att, dfn, work, rng, env=None):
     if not work:
         return
     att.force = max(1, att.force - int(COST_FRACTION * work))
-    open_now = dfn.in_open
-    dfn.receive_pressure(work)
-    if env is not None:
-        env.receive_pressure(work)
-    hit = rng.random() < p_success(att.last_act, work, dfn.defense, dfn.last_work)
-    gained = 0
-    if hit:
-        m = MULT.get((att.last_act, dfn.defense), 1.0)
-        gain_frac = GAIN_MAX if open_now else Y_SMALL
-        if env is not None and env.in_open:
-            gain_frac *= (1.0 + ENV_BONUS)
-        gained = int(work * m * gain_frac)
-        if gained:
-            att.gain(gained)
-            att.rest_units += gained
-        dfn.process_hit(work)
-        dfn.force = max(1, dfn.force + int(K_EFFECT * work))
+    _apply_transfer(att, dfn, work, att.last_act, rng, env)
 
+    # Возмездие (шаг 6 протокола): доля принятой работы возвращается адресатом
+    # по ТОМУ ЖЕ закону — с ценой работы, накоплением давления на входе обидчика,
+    # шоком его пула, трением и модуляцией окном среды, — но без собственного
+    # контр-возмездия (иначе рекурсия). Тип ответа — тип защиты адресата.
+    # ``last_act``/``last_work`` при этом НЕ перезаписываются: они принадлежат
+    # запланированному действию адресата в этом такте и не должны искажаться.
     r_w = int(RETALIATE_FRACTION * work)
     if r_w > 0 and dfn.energy_pool >= 1:
         r_w = min(r_w, dfn.energy_pool, MAX_WORK)
         dfn.energy_pool -= r_w
-        dfn.last_act = dfn.defense
-        dfn.last_work = r_w
-        rt = rng.random() < p_success(dfn.last_act, r_w, att.defense, att.last_work)
-        if rt:
-            mr = MULT.get((dfn.last_act, att.defense), 1.0)
-            rg = int(r_w * mr * (GAIN_MAX if att.in_open else Y_SMALL))
-            if rg:
-                dfn.gain(rg)
-                dfn.rest_units += rg
-            att.process_hit(r_w)
-            att.force = max(1, att.force + int(K_EFFECT * r_w))
+        dfn.force = max(1, dfn.force - int(COST_FRACTION * r_w))
+        _apply_transfer(dfn, att, r_w, dfn.defense, rng, env)
 
 
-def check_capture(rl, ai):
+def check_capture(rl, ai, dom_rl=0, dom_ai=0):
     """Решение о поражении по устойчивому доминированию, а не по одному удачному ходу.
 
     Доминирование фиксируется серией из CAPTURE_STREAK тактов, в течение которых
@@ -929,14 +964,21 @@ def check_capture(rl, ai):
     Формулировка нейтральна: описывает вытеснение с рынка, подавление канала
     в инфо-среде и физическое давление одинаково.
 
+    Серии доминирования — состояние ПАРТИИ, а не автомата: передаются и
+    возвращаются явно (``dom_rl``/``dom_ai``), поэтому функция реентерабельна и
+    не держит модульных глобалов (несколько партий могут сосуществовать).
+
+    Args:
+        rl, ai: стороны.
+        dom_rl, dom_ai: текущие серии доминирования сторон (такты).
+
     Returns:
-        "RL" | "UtilityAI" | None — None означает «партия продолжается».
+        (winner, dom_rl, dom_ai): winner — "RL" | "UtilityAI" | None
+        (None означает «партия продолжается»); серии сбрасываются при решении.
     """
-    global _dom_rl, _dom_ai
-    _dom_rl = _dom_rl + 1 if (rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool and rl.force > ai.force) else 0
-    _dom_ai = _dom_ai + 1 if (ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool and ai.force > rl.force) else 0
-    if _dom_rl >= CAPTURE_STREAK:
-        _dom_rl = _dom_ai = 0
+    dom_rl = dom_rl + 1 if (rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool and rl.force > ai.force) else 0
+    dom_ai = dom_ai + 1 if (ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool and ai.force > rl.force) else 0
+    if dom_rl >= CAPTURE_STREAK:
         sev = 2.0 if ai.in_open else 1.0
         cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
         # Профильная обработка выхода: догматик (p<1) встречает разгром стойче —
@@ -946,21 +988,16 @@ def check_capture(rl, ai):
         ai.force = max(1, ai.force - cap)
         ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
-        return "RL"
-    if _dom_ai >= CAPTURE_STREAK:
-        _dom_ai = _dom_rl = 0
+        return "RL", 0, 0
+    if dom_ai >= CAPTURE_STREAK:
         sev = 2.0 if rl.in_open else 1.0
         cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
         cap = int(cap * max(0.5, min(1.0, rl.p)))
         rl.force = max(1, rl.force - cap)
         rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
         ai.gain(cap)
-        return "UtilityAI"
-    return None
-
-
-_dom_rl = 0
-_dom_ai = 0
+        return "UtilityAI", 0, 0
+    return None, dom_rl, dom_ai
 
 
 def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
@@ -1010,14 +1047,13 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
     Returns:
         (winner | None, rl_hist, ai_hist, end_step)
     """
-    global _dom_rl, _dom_ai
     if profiles is not None:
         p_rl, p_ai = profiles
         for agent, prof in ((rl, p_rl), (ai, p_ai)):
             agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
             agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
     env = Environment(members=env_members) if with_env else None
-    _dom_rl = _dom_ai = 0
+    dom_rl = dom_ai = 0                     # серии доминирования — локальны для партии
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
     for step in range(steps):
@@ -1039,7 +1075,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
             env.tick()
 
         eps = max(0.05, 1.0 - step / 300)
-        a_idx = rl.form_intention(eps)
+        a_idx = rl.form_intention(eps, rng)
         act_name, frac = ACTIONS[a_idx]
         st_before = rl.skey()
         f_before = rl.force
@@ -1062,7 +1098,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
         ai_hist.append(ai.force)
         rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
 
-        winner = check_capture(rl, ai)
+        winner, dom_rl, dom_ai = check_capture(rl, ai, dom_rl, dom_ai)
         if winner:
             return winner, rl_hist, ai_hist, step
     return None, rl_hist, ai_hist, steps
@@ -1114,12 +1150,16 @@ def main():
     """Точка входа: пакет из 10 партий со сквозным обучением RL, сводка и график.
 
     График — динамика силы обеих сторон за последнюю партию (лог-шкала),
-    наглядно показывающая фазы накопления, окон восприимчивости и доминирования."""
+    наглядно показывающая фазы накопления, окон восприимчивости и доминирования.
+
+    ``matplotlib`` импортируется лениво: ядро модели (и все эксперименты/тесты,
+    которым график не нужен) не зависят от графической библиотеки."""
     rl, (winner, rl_hist, ai_hist, end_step), results = run_batch(n_games=10)
 
     print(f"\nПоследняя партия: winner={winner or 'no-capture'}, шагов={end_step}")
     print(f"Q-состояний изучено: {len(rl.Q)}")
 
+    import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
     plt.plot(rl_hist, label="RL Agent", color='blue', linewidth=2)
     plt.plot(ai_hist, label="Utility AI", color='red', linewidth=2)

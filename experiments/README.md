@@ -7,13 +7,21 @@
 Актуальные проверки текущей модели `simulation.py`:
 
 ```bash
+python3 experiments/exp_balance_ci.py      # CI-тест баланса: доминирование/симметрия (код 0/1)
 python3 experiments/exp_schmitt_suite.py   # пороги Шмитта, матрица дуэлей, дребезг
 python3 experiments/exp_hypotheses.py      # конкурентные гипотезы H1-H3 о провалах RL
-python3 experiments/exp_fix.py             # проверка лечения H-A (сетка ON x DECAY)
+python3 experiments/exp_fix.py             # проверка лечения H-A (сетка ON_FRAC x DECAY_ADOPT)
 python3 experiments/exp_environment.py     # среда как IPO-автомат (гипотеза B, §12-13 MODEL.md)
 python3 experiments/exp_hierarchy.py       # суперсистемы: эмерджентность и самоподобие (§14)
 ```
 
+- `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий
+  (PASSIVE/PRESSER/TIMING) и протокола дуэли; подключён в `exp_schmitt_suite.py`
+  и `exp_balance_ci.py`, чтобы определения стратегий не расходились между
+  скриптами (раньше это давало противоречивые выводы о балансе).
+- `exp_balance_ci.py` — CI-тест критерия «ни одна активная стратегия не
+  доминирует, зеркальные роли симметричны»; красный код возврата — цель
+  калибровки. Актуальные числа — в [`docs/BASELINE.md`](../docs/BASELINE.md).
 - `treatments/` — замороженные изолированные копии модели для проверки гипотезы H-A
   (не актуальная модель; история эксперимента).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
