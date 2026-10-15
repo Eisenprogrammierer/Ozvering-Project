@@ -163,7 +163,7 @@ class Agent:
         self.beliefs = {"opp_energy": 3, "opp_defense": None,
                         "opp_last_act": "REST", "opp_last_work": 0,
                         "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
-                        "opp_type_guess": None}
+                        "opp_type_guess": None, "opp_ctx_base": None}
 
     # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
     # Позволяют обработчикам и внешнему коду работать с полями как с обычными
@@ -200,27 +200,46 @@ class Agent:
         """Рецептивный тип входа — КОНТЕКСТ обмена, а не хранимая метка.
 
         Тип энергии не является «валютой» автомата, которую нужно конвертировать:
-        это фаза самого автомата в его цикле, выводимая из его состояния —
-        напора на входе (``w_adopt``), состояния окна (``in_open``) и
-        наполненности пула. Так «тип» определяется выходом адресанта (выбранным
-        действием), входом адресата (этим свойством), обработчиками
-        (``p_success``/``_apply_transfer``) и состояниями — как того требует
-        архитектура. Ротация защиты как независимой метки упразднена
-        (``rotate_defense`` оставлен no-op ради совместимости API).
+        это фаза самого автомата в его цикле, выводимая из контекста —
+        напора на входе (``w_adopt``), состояния окна (``in_open``),
+        наполненности пула и **выходной фазы** данного такта (текущее действие
+        ``last_act``). Так «тип» определяется выходом и входом адресата,
+        обработчиками (``p_success``/``_apply_transfer``) и состояниями — как
+        того требует архитектура. Выходная фаза адресата одновременна нашему
+        ходу и потому противнику не наблюдается: это и есть остаточная
+        неопределённость типа (``context_base`` видна, ``hidden`` — нет).
+        Ротация защиты как независимой метки упразднена (``rotate_defense``
+        оставлен no-op ради совместимости API).
         """
+        hidden = TYPES.index(self.last_act) if self.last_act in TYPES else 0
         return self.receptive_type(self.energy_pool, self.w_adopt,
-                                   self.in_open, self.force)
+                                   self.in_open, self.force, hidden)
 
     @staticmethod
-    def receptive_type(energy_pool, w_adopt, in_open, force):
-        """Единый закон вывода рецептивного типа из контекста (см. ``defense``)."""
+    def context_base(energy_pool, w_adopt, in_open, force):
+        """Наблюдаемая часть контекста входа: 0/1/2 (истощён/наполнен/на порогe).
+
+        Из неё выводится рецептивный тип вместе со скрытой выходной фазой
+        (``hidden``). Именно эта часть известна противнику (по его наблюдениям).
+        """
         full = energy_pool / max(1.0, E_MAX_MULT * max(1, math.floor(math.sqrt(max(1, force)))))
         press = w_adopt / max(1.0, max(ON_MIN, ON_FRAC * force))
         if in_open or press >= 1.0:
-            return TYPES[2]
+            return 2
         if full >= 0.5:
-            return TYPES[1]
-        return TYPES[0]
+            return 1
+        return 0
+
+    @staticmethod
+    def receptive_type(energy_pool, w_adopt, in_open, force, hidden=0):
+        """Единый закон вывода рецептивного типа из контекста (см. ``defense``).
+
+        ``context_base`` (наблюдаемо) + ``hidden`` (выходная фаза адресата,
+        не наблюдаема противником при одновременных ходах) по модулю 3.
+        """
+        base = Agent.context_base(energy_pool, w_adopt, in_open, force)
+        return TYPES[(base + int(hidden)) % 3]
+
 
     @property
     def last_act(self):
@@ -427,13 +446,16 @@ class Agent:
             max(TYPES, key=non_rest.count) if non_rest else None
         )
         # Оценка рецептивного типа противника из НАБЛЮДАЕМЫХ величин — тем же
-        # законом, что и свойство ``defense``: тип теперь контекстен и НАБЛЮДАЕМ
-        # (в отличие от прежней скрытой ротируемой метки), поэтому конверсия
-        # между типами не нужна. Строится из уже наблюдаемых beliefs, новых
-        # истинных переменных состояния не вводится.
-        self.beliefs["opp_type_guess"] = self.receptive_type(
+        # законом, что и свойство ``defense``. Наблюдаема лишь базовая часть
+        # контекста (``context_base``); скрытая выходная фаза текущего такта
+        # противнику неизвестна, поэтому обработчики маргинализуют по трём
+        # возможным типам (см. ``UtilityAI``), а здесь хранится база и базовая
+        # оценка при hidden=0. Новых истинных переменных состояния не вводится.
+        base = self.context_base(
             self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
             self.beliefs["opp_in_open"], self.beliefs["opp_force"])
+        self.beliefs["opp_ctx_base"] = base
+        self.beliefs["opp_type_guess"] = TYPES[base]
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
@@ -568,28 +590,21 @@ class UtilityAI(Agent):
     def expected_retaliation(self, work):
         """Оценка возмездия: адресат бьёт в ответ долей RETALIATE_FRACTION*w.
 
-        Рецептивный тип ответчика теперь КОНТЕКСТЕН и наблюдаем (beliefs
-        ``opp_type_guess``), поэтому гипотезы о скрытой защите не нужны: оценка
-        строится ровно по тому же закону, что и фактический ответ в
-        ``resolve_attack`` (``_apply_transfer(dfn, att, r_w, dfn.defense, …)``):
-        тип выхода ответчика — его контекстный тип, тип входа — наш. Тем самым
-        устранено прежнее отклонение (штраф брался по ``opp_last_act`` вместо
-        нашего входа); см. docs/MODEL.md §7."""
+        Рецептивный тип ответчика складывается из наблюдаемой базы контекста и
+        СКРЫТОЙ выходной фазы данного такта (см. §2); противнику скрытая фаза
+        неизвестна, поэтому её маргинал равномерен и оценка — среднее по трём
+        возможным типам. Вероятность успеха и множитель считаются фактическим
+        законом ``p_success``/``MULT`` (тем же, что в ``resolve_attack``), поэтому
+        прежнее отклонение (штраф по ``opp_last_act``) устранено."""
         r_w = int(RETALIATE_FRACTION * work)
         if r_w <= 0:
             return 0.0
-        opp_t = self.beliefs.get("opp_type_guess")
-        if opp_t is None:
-            # Наблюдений ещё нет — честная неопределённость: среднее по TYPES.
-            ev = 0.0
-            for t in TYPES:
-                mr = MULT.get((t, self.defense), 1.0)
-                pr = p_success(t, r_w, self.defense, self.last_work)
-                ev += r_w * self.gain_model_rev(mr, pr) / 3.0
-            return ev
-        mr = MULT.get((opp_t, self.defense), 1.0)
-        pr = p_success(opp_t, r_w, self.defense, self.last_work)
-        return r_w * self.gain_model_rev(mr, pr)
+        ev = 0.0
+        for t in TYPES:
+            mr = MULT.get((t, self.defense), 1.0)
+            pr = p_success(t, r_w, self.defense, self.last_work)
+            ev += r_w * self.gain_model_rev(mr, pr) / 3.0
+        return ev
 
     def gain_model_rev(self, m, p):
         """Отдача ответного удара по НАШЕМУ входу (наше состояние нам точно известно)."""
@@ -604,27 +619,21 @@ class UtilityAI(Agent):
         return COST_FRACTION * work + HOCK_FRACTION * r_w
 
     def expected_gain(self, act, work):
-        """U(action): средняя ожидаемая отдача минус цена работы и минус
-        ожидание возмездия. Покой оценивается логистикой rest_gain.
+        """U(action): ожидаемая отдача минус цена работы и минус ожидание
+        возмездия. Покой оценивается логистикой rest_gain.
 
-        Рецептивный тип адресата КОНТЕКСТЕН и наблюдаем (``opp_type_guess``):
-        вместо усреднения по гипотезам о скрытой защите берётся единственная
-        оценка, а вероятность успеха считается фактическим законом ``p_success``
-        (мощность и контр-тип) — тем же, что в ``resolve_attack``. Пока
-        наблюдений нет (оценка ``None``), сохраняется прежнее усреднение."""
+        Рецептивный тип адресата = наблюдаемая база контекста + СКРЫТАЯ выходная
+        фаза данного такта (§2). Скрытая фаза противнику неизвестна, поэтому её
+        маргинал равномерен и отдача оценивается средним по трём возможным типам;
+        вероятность успеха — фактическим законом ``p_success`` (мощность и
+        контр-тип), тем же, что в ``resolve_attack``."""
         if act == "REST" or work <= 0:
             return self.rest_gain()
-        opp_t = self.beliefs.get("opp_type_guess")
-        if opp_t is None:
-            ev = 0.0
-            for hypo in TYPES:
-                m = MULT.get((act, hypo), 1.0)
-                p = p_success(act, work, hypo, self.beliefs["opp_last_work"])
-                ev += work * self.gain_model(m, p) / 3.0
-        else:
-            m = MULT.get((act, opp_t), 1.0)
-            p = p_success(act, work, opp_t, self.beliefs["opp_last_work"])
-            ev = work * self.gain_model(m, p)
+        ev = 0.0
+        for hypo in TYPES:
+            m = MULT.get((act, hypo), 1.0)
+            p = p_success(act, work, hypo, self.beliefs["opp_last_work"])
+            ev += work * self.gain_model(m, p) / 3.0
         return ev - self.retaliation_penalty(work) - self.expected_retaliation(work)
 
     def form_intention(self):
@@ -669,14 +678,13 @@ class RLAgent(Agent):
           5. уровень давления на его вход (накопленный ``w_adopt``) — степень
              близости чужого окна восприимчивости;
           6. положение его входа ``O/C`` (Open/Closed);
-          7. рецептивный тип противника ``opp_type_guess`` — контекстная фаза
-             его входа (наблюдаема тем же законом, что и ``Agent.defense``).
+          7. наблюдаемая база рецептивного контекста противника ``opp_ctx_base``
+             (0/1/2): истощён / наполнен / на пороге.
 
-        Компонента 7 добавлена вместе с переходом к контекстному типу: тип стал
-        наблюдаемым (выводится из уже наблюдаемых величин), поэтому агент может
-        учиться выбирать контр-тип, а не только реагировать на угрозу. Компоненты
-        5–6 дают Q-функции различать «давить бесполезно» и «окно открыто — бей»,
-        не вводя новых состояний среды."""
+        Компонента 7 несёт наблюдаемую часть рецептивного типа (§2); его СКРЫТАЯ
+        выходная фаза (текущее действие противника) агенту недоступна — это и есть
+        остаточная неопределённость типа. Компоненты 5–6 дают Q-функции различать
+        «давить бесполезно» и «окно открыто — бей», не вводя новых состояний среды."""
         threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
         adopt = self.discretize(int(self.beliefs["opp_w_adopt"]))
         openg = "O" if self.beliefs["opp_in_open"] else "C"
@@ -684,7 +692,7 @@ class RLAgent(Agent):
                 self.discretize(self.beliefs["opp_energy"]),
                 self.beliefs["opp_last_act"],
                 threat, adopt, openg,
-                self.beliefs.get("opp_type_guess"))
+                self.beliefs.get("opp_ctx_base"))
 
     def form_intention(self, eps, rng):
         """Выбор действия epsilon-greedy по Q-таблице текущего состояния.
