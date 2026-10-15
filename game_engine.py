@@ -715,9 +715,11 @@ class MatchEngine:
         if env is not None:
             env.tick()
 
-        # 4. Намерения. RL: epsilon-greedy (annealing до 0.05 за 300 шагов)
-        #    или действие игрока; Utility: argmax U; рефлекс голода - выше обоих.
-        eps = max(0.05, 1.0 - self.step / 300)
+        # 4. Намерения. RL: epsilon-greedy (annealing по общему опыту агента,
+        #    RLAgent.epsilon; иначе - прежняя схема по такту партии) или действие
+        #    игрока; Utility: argmax U; рефлекс голода - выше обоих.
+        eps = (rl.epsilon() if hasattr(rl, "epsilon")
+               else max(0.05, 1.0 - self.step / 300))
         LOG.debug("tick %s: фаза намерений eps=%.3f forced=%s"
                   % (self.step, eps, forced_rl_action))
         if forced_rl_action is not None:

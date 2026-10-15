@@ -13,16 +13,53 @@ python3 experiments/exp_hypotheses.py      # конкурентные гипот
 python3 experiments/exp_fix.py             # проверка лечения H-A (сетка ON_FRAC x DECAY_ADOPT)
 python3 experiments/exp_environment.py     # среда как IPO-автомат (гипотеза B, §12-13 MODEL.md)
 python3 experiments/exp_hierarchy.py       # суперсистемы: эмерджентность и самоподобие (§14)
+python3 experiments/exp_hierarchy_depth.py # автотест ГЛУБИНЫ Environment (код 0/1)
+python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против UtilityAI (диагноз winner-take-all)
+python3 experiments/exp_keffect_regime.py  # P0 №2: режим K_EFFECT (нож-лезвие, устойчивость баланса)
+python3 experiments/exp_profile_constitution.py # P1: профиль как «скрытая конституция» (наблюдаемость)
 ```
 
-- `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий
-  (PASSIVE/PRESSER/TIMING) и протокола дуэли; подключён в `exp_schmitt_suite.py`
-  и `exp_balance_ci.py`, чтобы определения стратегий не расходились между
-  скриптами (раньше это давало противоречивые выводы о балансе).
-- `exp_balance_ci.py` — CI-тест критерия «ни одна активная стратегия не
-  доминирует, зеркальные роли симметричны»; красный код возврата — цель
-  калибровки. Актуальные числа — в [`docs/BASELINE.md`](../docs/BASELINE.md).
+- `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
+  дуэли. Набор разделён по роли: конкурентное ядро `COMPETITIVE`
+  (PRESSER/TIMING/EAGER) и контроли `CONTROLS` (PASSIVE/MIXED). Подключён в
+  `exp_schmitt_suite.py` и `exp_balance_ci.py`, чтобы определения стратегий не
+  расходились между скриптами (раньше это давало противоречивые выводы о балансе).
+- `exp_balance_ci.py` — CI-тест критерия «конкурентные стратегии не доминируют,
+  контроли не обыгрывают конкурентных, зеркальные роли симметричны»; красный код
+  возврата — цель калибровки. Актуальные числа — в
+  [`docs/BASELINE.md`](../docs/BASELINE.md).
+- `exp_rl_strength.py` — диагноз прежнего winner-take-all канона RL-vs-UtilityAI и
+  замер усиления (сброс физического состояния между партиями + annealing разведки
+  по общему опыту). Показывает также не-доминантность UtilityAI (PRESSER его
+  обыгрывает, PASSIVE/TIMING сводят вничью).
+- `exp_keffect_regime.py` — переизмерение ножа-лезвия `K_EFFECT` (P0 №2): контроль
+  без среды не стагнирует на `K>0`, канон устойчив при `K∈[0.4,0.9]`; остаётся
+  чувствительность скриптового баланса к `K` на плато (окно `0.6–0.7`), прототип
+  `W0` её надёжно не лечит — фикс не добавляется.
+- `exp_profile_constitution.py` — протокол «профиль как скрытая конституция»
+  (P1): измеряет наблюдаемость профиля (восстановление `p` из `opp_decay_guess`),
+  решительность и вырожденность. Вердикт: при `p ≤ 1` профиль наблюдаем (не
+  скрытая конституция), при `p > 1` — вырожден и слеп; ветвь `p > 1` удалена из
+  `PROFILES` (допустимый диапазон `p ≤ 1`).
+- `exp_hierarchy_depth.py` — автотест глубины `Environment` (утверждения, код 0/1):
+  онтология не расширяется на глубине 0–3, единый закон типа, рекурсия такта и
+  агрегации до глубины ≥2, рекурсивный `snapshot`.
 - `treatments/` — замороженные изолированные копии модели для проверки гипотезы H-A
   (не актуальная модель; история эксперимента).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
   (ссылаются на удалённые API); сохранены как артефакты обсуждения.
+
+Скрипты ревью кода/документации (эксперименты над задачами `docs/TODO.md`;
+работают через monkeypatch глобальных констант модели, файл не меняют):
+
+```bash
+python3 experiments/exp_review_p0_keffect.py              # P0: «нож-лезвие» K_EFFECT (дно/плато, канон/контроль)
+python3 experiments/exp_review_p0_structfix.py            # P0: структурные кандидаты фикса (ограниченная/сглаженная отдача)
+python3 experiments/exp_review_p0_criterion.py            # P0: полный критерий CI (N=20) для порога W0
+python3 experiments/exp_review_p0_robust.py               # P0: устойчивость W0 на N=30
+python3 experiments/exp_review_p1_rotation_retaliation.py # P1: рекурсия ротации, режим p>1, expected_retaliation
+python3 experiments/exp_review_p1_profile.py              # P1: профили (ранавей p>1, исходы, состав state)
+```
+
+- Результаты и выводы ревью — в обсуждении задач `docs/TODO.md`; краткая сводка
+  зафиксирована в `docs/TODO.md` (раздел «Закрыто»).

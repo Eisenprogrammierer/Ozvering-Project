@@ -122,6 +122,8 @@ def run_arm(members_fn):
     sub_alive = []
     for g in range(N_GAMES):
         ai = UtilityAI()
+        # Канонический сброс физического состояния партии (переносится только Q).
+        rl.reset_state(); ai.reset_state()
         sub = Environment(start_force=8)          # автономная подсреда (нет оппонента)
         members = members_fn(rl, ai, sub)
         # инструментальная среда поверх канонического пути play_game:
@@ -152,7 +154,7 @@ def run_arm(members_fn):
             if msub:
                 sub_hist.append(msub["force"])
             sum_work.append(env_inst.member_output())
-            eps = max(0.05, 1.0 - step / 300)
+            eps = rl.epsilon()
             a_idx = rl.form_intention(eps, rng)
             act_name, frac = sim.ACTIONS[a_idx]
             st_before = rl.skey(); f_before = rl.force
