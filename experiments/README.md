@@ -15,6 +15,7 @@ python3 experiments/exp_environment.py     # среда как IPO-автома�
 python3 experiments/exp_hierarchy.py       # суперсистемы: эмерджентность и самоподобие (§14)
 python3 experiments/exp_hierarchy_depth.py # автотест ГЛУБИНЫ Environment (код 0/1)
 python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против UtilityAI (диагноз winner-take-all)
+python3 experiments/exp_keffect_regime.py  # P0 №2: режим K_EFFECT (нож-лезвие, устойчивость баланса)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -30,6 +31,10 @@ python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против U
   замер усиления (сброс физического состояния между партиями + annealing разведки
   по общему опыту). Показывает также не-доминантность UtilityAI (PRESSER его
   обыгрывает, PASSIVE/TIMING сводят вничью).
+- `exp_keffect_regime.py` — переизмерение ножа-лезвия `K_EFFECT` (P0 №2): контроль
+  без среды не стагнирует на `K>0`, канон устойчив при `K∈[0.4,0.9]`; остаётся
+  чувствительность скриптового баланса к `K` на плато (окно `0.6–0.7`), прототип
+  `W0` её надёжно не лечит — фикс не добавляется.
 - `exp_hierarchy_depth.py` — автотест глубины `Environment` (утверждения, код 0/1):
   онтология не расширяется на глубине 0–3, единый закон типа, рекурсия такта и
   агрегации до глубины ≥2, рекурсивный `snapshot`.
