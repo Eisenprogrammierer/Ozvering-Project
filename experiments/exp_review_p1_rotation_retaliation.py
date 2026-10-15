@@ -36,10 +36,11 @@ print()
 print("="*70)
 print("P1-3. ПРОФИЛЬ: эффективный decay и режим p>1")
 print("="*70)
-for prof in ("ZEALOT","ORTHODOX","CANON","PRAGMATIST","OPPORTUNIST"):
-    p=S.PROFILES[prof]; eff=DECAY_ADOPT*p
+for label, p in (("ZEALOT",S.PROFILES["ZEALOT"]),("ORTHODOX",S.PROFILES["ORTHODOX"]),
+                 ("CANON",S.PROFILES["CANON"]),("p=1.15",1.15),("p=1.30",1.30)):
+    eff=DECAY_ADOPT*p
     flag=" <-- RUNAWAY (рост давления без напора!)" if eff>1.0 else ""
-    print(f"  {prof:12} p={p:.2f}  eff_decay=DECAY*p={eff:.3f}{flag}")
+    print(f"  {label:12} p={p:.2f}  eff_decay=DECAY*p={eff:.3f}{flag}")
 print("  Наблюдаемость decay-канала (guess -> истина), где применимо:")
 for prof in ("ZEALOT","CANON"):
     obs=Agent(); tgt=Agent(profile=prof); tgt.w_adopt=100.0
@@ -48,13 +49,13 @@ for prof in ("ZEALOT","CANON"):
     g=obs.beliefs.get("opp_decay_guess")
     print(f"    {prof:10} истина={DECAY_ADOPT*tgt.p:.3f} оценка={None if g is None else round(g,3)}")
 
-# демонстрация runaway у OPPORTUNIST: вход открывается сам без напора
-tgt=Agent(profile="OPPORTUNIST"); tgt.w_adopt=0.0
+# демонстрация runaway при p>1 (удалён из PROFILES): вход «открывается» сам без напора
+tgt=Agent(profile=1.30); tgt.w_adopt=1.0
 first_open=None
 for t in range(120):
     tgt.tick_input_state(); tgt.receive_pressure(0.0)
     if tgt.in_open and first_open is None: first_open=t
-print(f"  OPPORTUNIST: окно открылось БЕЗ внешнего напора на такте {first_open} "
+print(f"  p=1.30: окно открылось БЕЗ внешнего напора на такте {first_open} "
       f"(w_adopt={tgt.w_adopt:.1f} при ON={tgt.schmitt_on():.1f})")
 
 print()
