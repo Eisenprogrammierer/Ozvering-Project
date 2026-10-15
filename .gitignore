@@ -1,1 +1,6 @@
 __pycache__/
+*.py[cod]
+*.bundle
+*.log
+venv/
+.venv/

@@ -145,7 +145,12 @@ class Agent:
             "force": 10,
             "energy_pool": 3,
             "rest_units": 0.0,
-            "defense": defense if defense is not None else random.choice(TYPES),
+            # Стартовая защита детерминирована (TYPES[0]), а не random.choice:
+            # при профилях p<1 ротация срабатывает вероятностно и в «нерабочие»
+            # такты сохраняла бы недетерминированное значение, ломая
+            # воспроизводимость по seed между процессами. При CANON (p=1)
+            # ротация на первом такте всё равно перезаписывает это значение.
+            "defense": defense if defense is not None else TYPES[0],
             "last_act": "REST",
             "last_work": 0,
             "w_adopt": 0.0,

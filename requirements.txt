@@ -1,0 +1,9 @@
+# Зависимости Ozvering-Project.
+#
+# Ядро модели (simulation.py) и эксперименты (experiments/*) исполняются
+# стандартной библиотекой Python; графики и часть проверок требуют
+# matplotlib/numpy. game_engine.py — отдельное PyGame-приложение (рекомендуется
+# pygame-ce: корректные шрифты и кириллица).
+matplotlib>=3.5
+numpy>=1.21
+pygame-ce>=2.5

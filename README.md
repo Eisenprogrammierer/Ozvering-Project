@@ -58,6 +58,8 @@ python3 simulation.py            # канон: пакет из 10 партий +
 python3 experiments/exp_balance_ci.py   # CI-тест баланса (код возврата 0/1; см. docs/BASELINE.md)
 ```
 
+Зависимости (графики, эксперименты, графический движок): `pip install -r requirements.txt`.
+
 # Графический движок (наблюдение за партией)
 
 `game_engine.py` — отдельное **PyGame-приложение** для наблюдения за той же дуэлью
