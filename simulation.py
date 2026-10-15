@@ -143,6 +143,18 @@ class Agent:
         """
         self.profile = profile if isinstance(profile, str) else round(float(profile), 4)
         self.p = PROFILES[profile] if isinstance(profile, str) else float(profile)
+        self.reset_state()
+
+    def reset_state(self):
+        """Сброс физического состояния к началу партии (метрики и наблюдения).
+
+        Физическое состояние (сила, пул, вход Шмитта, ``beliefs``) — состояние
+        ПАРТИИ, а не ресурс, переносимый между партиями. Сброс гарантирует
+        равные стартовые условия каждой партии: иначе проигравший начинал бы
+        следующую партию ослабленным (сила у дна), а победитель — усиленным,
+        и исход зависел бы от ПОРЯДКА партий, а не от стратегии. Обучение
+        (Q-таблица ``RLAgent``) сюда не входит и переносится отдельно.
+        """
         # Единое хранилище внутреннего состояния автомата (IPO-компонент
         # «состояние»): обе метрики и управляющие переменные. Обработчики
         # читают/пишут поля напрямую через представления-свойства ниже.
@@ -653,11 +665,33 @@ class RLAgent(Agent):
 
     Состояние — дискретизированные beliefs, включая положение входа противника
     (O/C) и степень его наполнения давлением: Q различает «давить бесполезно»
-    и «окно открыто — бей». Q-таблица общая между партиями (run_batch)."""
+    и «окно открыто — бей». Между партиями переносится ТОЛЬКО Q-таблица; физическое
+    состояние сбрасывается ``reset_state`` в начале каждой партии (иначе порядок
+    партий влиял бы на исход). Разведка anneal'ится по ОБЩЕМУ опыту (``epsilon``),
+    а не по номеру такта внутри партии."""
+
+    # Горизонт annealing разведки — в тактах ОБЩЕГО опыта агента за все партии
+    # (не по такту партии: короткие партии иначе целиком проходят «в разведке»).
+    EPS_START = 1.0
+    EPS_MIN = 0.05
+    EPS_DECAY_STEPS = 3000
 
     def __init__(self, q=None, profile="CANON"):
         super().__init__(profile=profile)
         self.Q = q if q is not None else {}
+        self.steps_trained = 0
+
+    def epsilon(self):
+        """Текущая вероятность разведки по ОБЩЕМУ числу тактов обучения.
+
+        Прежде eps anneal'ился по номеру такта ВНУТРИ партии и сбрасывался
+        каждую партию. При коротких партиях (~20–60 тактов до захвата) агент
+        почти всю игру действовал случайно и НИКОГДА не эксплуатировал
+        выученное — отсюда его слабость. Здесь горизонт — суммарный опыт за все
+        партии, поэтому выученная политика успевает выразиться в игре."""
+        e = max(self.EPS_MIN, self.EPS_START - self.steps_trained / self.EPS_DECAY_STEPS)
+        self.steps_trained += 1
+        return e
 
     def discretize(self, e):
         """Многошкалильная дискретизация: точная до 8, шаг 4 до 32, далее log-баки."""
@@ -1073,7 +1107,11 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
 
 def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
               env_members=None):
-    """Одна партия; RL сохраняет Q-таблицу между партиями (перенос обучения).
+    """Одна партия; между партиями переносится только Q-таблица RL.
+
+    Физическое состояние сторон сбрасывается в начале партии (``reset_state``):
+    каждая партия стартует с равных условий (сила 10, пул 3, вход закрыт), а
+    обучение (Q) переносится. Без сброса порядок партий влиял бы на исход.
 
     Args:
         profiles: None — профили сторон берутся из уже заданных при создании
@@ -1107,8 +1145,9 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
          если заданы env_members, её вход дополнительно нагружается
          суммарным трудом объятых автоматов (эмерджентность яруса), а
          автономные подсреды тактуются в ней рекурсивно.
-      4. Намерения: RL epsilon-greedy (eps annealing до 0.05 за 300 шагов),
-         Utility — argmax U(action); рефлекс голода имеет приоритет над обоими.
+      4. Намерения: RL epsilon-greedy (eps annealing по ОБЩЕМУ опыту агента,
+         см. ``RLAgent.epsilon``); Utility — argmax U(action); рефлекс голода
+         имеет приоритет над обоими.
       5. Разрешение передач по единому закону (resolve_attack) в обе стороны;
          при with_env передачи одновременно нагружают вход среды.
       6. TD-обучение RL на корректном переходе s -> s' с наградой delta F.
@@ -1123,6 +1162,12 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
         for agent, prof in ((rl, p_rl), (ai, p_ai)):
             agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
             agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
+    # Партия начинается с равных стартовых условий: физическое состояние
+    # (метрики, вход, наблюдения) сбрасывается, переносится только обучение
+    # (Q-таблица RL). Иначе проигравший стартовал бы ослабленным, а победитель —
+    # усиленным, и исход зависел бы от порядка партий (см. Agent.reset_state).
+    rl.reset_state()
+    ai.reset_state()
     env = Environment(members=env_members) if with_env else None
     dom_rl = dom_ai = 0                     # серии доминирования — локальны для партии
     rng = random.Random(seed)
@@ -1145,8 +1190,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
         if env is not None:
             env.tick()
 
-        eps = max(0.05, 1.0 - step / 300)
-        a_idx = rl.form_intention(eps, rng)
+        a_idx = rl.form_intention(rl.epsilon(), rng)
         act_name, frac = ACTIONS[a_idx]
         st_before = rl.skey()
         f_before = rl.force

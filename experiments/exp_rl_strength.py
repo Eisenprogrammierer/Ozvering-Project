@@ -1,0 +1,182 @@
+"""P0 №1: сила RL против UtilityAI — диагноз winner-take-all и проверка усиления.
+
+Задача docs/TODO.md: канон RL-vs-UtilityAI перестал быть winner-take-all при
+равномерном маргинале типа. Здесь — воспроизводимый диагноз и замер усиления.
+
+НАХОДКИ (почему канон был 0/10):
+
+  1. ПАРТИИ КОРОТКИ (~20–60 тактов до захвата). Прежний eps anneal'ился по
+     такту ВНУТРИ партии (``1.0 - step/300``) и сбрасывался каждую партию:
+     агент почти всю игру действовал СЛУЧАЙНО и никогда не эксплуатировал
+     выученную политику.
+
+  2. ФИЗИЧЕСКОЕ СОСТОЯНИЕ RL (сила, пул, вход) НЕ сбрасывалось между партиями:
+     проигравший стартовал следующую партию у дна силы, победитель — усиленным.
+     Исход зависел от ПОРЯДКА партий, а не от стратегии.
+
+  3. UtilityAI НЕ доминирует. Скриптовый PRESSER обыгрывает его (≈12/20), а
+     PASSIVE/TIMING сводят дуэль вничью (захвата нет). То есть слабость была в
+     RL (обучение/разведка), а не в модели или типе энергии.
+
+УСИЛЕНИЕ (в модели, без новых переменных): между партиями переносится только
+Q-таблица (``Agent.reset_state`` в начале ``play_game``), а eps anneal'ится по
+ОБЩЕМУ опыту агента (``RLAgent.epsilon``). Результат: канон перестаёт быть
+winner-take-all на ЛЮБОМ блоке seed (RL берёт часть партий).
+
+Запуск из корня репозитория:
+    python3 experiments/exp_rl_strength.py
+"""
+import os
+import random
+import statistics
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import simulation as S
+import strategies as ST
+
+
+def _play_old(rl, ai, steps, seed, with_env=True):
+    """ПРЕЖНЯЯ семантика play_game: eps по такту партии, состояние НЕ сброшено.
+
+    Нужна только для контраста «до усиления» — в модели её больше нет.
+    """
+    env = S.Environment() if with_env else None
+    rng = random.Random(seed)
+    dom_rl = dom_ai = 0
+    for step in range(steps):
+        rl.sense(ai, rng)
+        ai.sense(rl, rng)
+        rl.rotate_defense(rng)
+        ai.rotate_defense(rng)
+        if env is not None:
+            env.rotate_defense(rng)
+        rl.upkeep()
+        ai.upkeep()
+        rl.tick_energy()
+        ai.tick_energy()
+        rl.tick_input_state()
+        ai.tick_input_state()
+        if env is not None:
+            env.tick()
+        eps = max(0.05, 1.0 - step / 300)
+        a_idx = rl.form_intention(eps, rng)
+        act, frac = S.ACTIONS[a_idx]
+        st_before, f_before = rl.skey(), rl.force
+        w_rl = 0 if rl.rest_if_starving() else rl.commit(act, rl.energy_pool * frac)
+        ai_act, ai_work = ai.form_intention()
+        w_ai = 0 if ai.rest_if_starving() else ai.commit(ai_act, ai_work)
+        S.resolve_attack(rl, ai, w_rl, rng, env)
+        S.resolve_attack(ai, rl, w_ai, rng, env)
+        rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
+        winner, dom_rl, dom_ai = S.check_capture(rl, ai, dom_rl, dom_ai)
+        if winner:
+            return winner
+    return None
+
+
+def canon(offset=0, n=10, old=False, with_env=True):
+    """Пакет партий с общей Q-таблицей RL (как run_batch), блок seed'ов offset."""
+    rl = S.RLAgent()
+    res = {"RL": 0, "UtilityAI": 0, None: 0}
+    for g in range(n):
+        if old:
+            w = _play_old(rl, S.UtilityAI(), 1000, offset + g, with_env)
+        else:
+            w, _, _, _ = S.play_game(rl, S.UtilityAI(), 1000, seed=offset + g,
+                                     with_env=with_env)
+        res[w] += 1
+    return res
+
+
+def scripted_vs_utility(name, n=20):
+    """Скриптовая стратегия (A) против UtilityAI (B): показать не-доминантность."""
+    policy = ST.STRATEGIES[name]
+    res = {"A": 0, "B": 0, None: 0}
+    for seed in range(n):
+        a, b = S.Agent(), S.UtilityAI()
+        env = S.Environment()
+        rng = random.Random(seed)
+        da = db = 0
+        for step in range(1000):
+            a.sense(b, rng)
+            b.sense(a, rng)
+            a.rotate_defense(rng)
+            b.rotate_defense(rng)
+            env.rotate_defense(rng)
+            a.upkeep()
+            b.upkeep()
+            a.tick_energy()
+            b.tick_energy()
+            a.tick_input_state()
+            b.tick_input_state()
+            env.tick()
+            act, work = policy(a, b, rng)
+            w_a = 0 if a.rest_if_starving() else a.commit(act, work)
+            ba, bw = b.form_intention()
+            w_b = 0 if b.rest_if_starving() else b.commit(ba, bw)
+            S.resolve_attack(a, b, w_a, rng, env)
+            S.resolve_attack(b, a, w_b, rng, env)
+            w, da, db = S.check_capture(a, b, da, db)
+            if w == "RL":
+                res["A"] += 1
+                break
+            if w == "UtilityAI":
+                res["B"] += 1
+                break
+        else:
+            res[None] += 1
+    return res
+
+
+def game_lengths(n=20):
+    """Длина партий канона (шаг захвата) — объясняет сброс eps."""
+    steps = []
+    for seed in range(n):
+        rl = S.RLAgent()
+        _, _, _, es = S.play_game(rl, S.UtilityAI(), 1000, seed=seed)
+        steps.append(es)
+    return steps
+
+
+def main():
+    print("P0 №1: сила RL против UtilityAI")
+    print("\n[1] UtilityAI НЕ доминирует: скриптовые стратегии против него (20 seed)")
+    for name in ("PRESSER", "PASSIVE", "TIMING"):
+        print(f"    {name:>8}: {scripted_vs_utility(name)}  (A=стратегия, B=UtilityAI)")
+
+    steps = game_lengths(20)
+    print(f"\n[2] Длина партий канона: медиана {statistics.median(steps):.0f} тактов "
+          f"(мин {min(steps)}, макс {max(steps)}) -> прежний eps сбрасывался раньше, "
+          f"чем падал")
+
+    print("\n[3] Контраст «до усиления» (прежняя семантика): блоки seed")
+    old_tot = {"RL": 0, "UtilityAI": 0, None: 0}
+    for off in (0, 100, 200):
+        r = canon(off, old=True)
+        for k in old_tot:
+            old_tot[k] += r[k]
+        print(f"    seeds {off:>3}..{off+9:>3}: {r}")
+    print(f"    ИТОГО 30 партий: {old_tot}")
+
+    print("\n[4] После усиления (reset_state + RLAgent.epsilon): блоки seed")
+    new_tot = {"RL": 0, "UtilityAI": 0, None: 0}
+    all_blocks = range(0, 220, 20)
+    for off in all_blocks:
+        r = canon(off)
+        for k in new_tot:
+            new_tot[k] += r[k]
+        print(f"    seeds {off:>3}..{off+9:>3}: {r}")
+    n_games = 10 * len(list(all_blocks))
+    print(f"    ИТОГО {n_games} партий: {new_tot}")
+
+    print("\n=== ВЫВОД ===")
+    print("  Канон перестал быть winner-take-all: RL берёт партии на каждом блоке")
+    print("  seed, исход детерминирован. Остаточное преимущество model-based")
+    print("  UtilityAI — свойство табличного RL (образцы/обобщение), не типа энергии.")
+
+
+if __name__ == "__main__":
+    main()

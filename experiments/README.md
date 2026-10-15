@@ -14,6 +14,7 @@ python3 experiments/exp_fix.py             # проверка лечения H-A
 python3 experiments/exp_environment.py     # среда как IPO-автомат (гипотеза B, §12-13 MODEL.md)
 python3 experiments/exp_hierarchy.py       # суперсистемы: эмерджентность и самоподобие (§14)
 python3 experiments/exp_hierarchy_depth.py # автотест ГЛУБИНЫ Environment (код 0/1)
+python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против UtilityAI (диагноз winner-take-all)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -25,6 +26,10 @@ python3 experiments/exp_hierarchy_depth.py # автотест ГЛУБИНЫ Env
   контроли не обыгрывают конкурентных, зеркальные роли симметричны»; красный код
   возврата — цель калибровки. Актуальные числа — в
   [`docs/BASELINE.md`](../docs/BASELINE.md).
+- `exp_rl_strength.py` — диагноз прежнего winner-take-all канона RL-vs-UtilityAI и
+  замер усиления (сброс физического состояния между партиями + annealing разведки
+  по общему опыту). Показывает также не-доминантность UtilityAI (PRESSER его
+  обыгрывает, PASSIVE/TIMING сводят вничью).
 - `exp_hierarchy_depth.py` — автотест глубины `Environment` (утверждения, код 0/1):
   онтология не расширяется на глубине 0–3, единый закон типа, рекурсия такта и
   агрегации до глубины ≥2, рекурсивный `snapshot`.
