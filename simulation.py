@@ -849,8 +849,22 @@ class Environment(Agent):
         это и есть вход суперсистемы от объятых ею структур. Новых переменных
         нет: сумма берётся из уже существующих полей членов; свойство
         самоподобия — та же величина, что нагружает вход среды в партии
-        (resolve_attack -> receive_pressure), здесь агрегируется явно."""
-        return sum(m.last_work for m in self.members if m.last_act != "REST")
+        (resolve_attack -> receive_pressure), здесь агрегируется явно.
+
+        Агрегация РЕКУРСИВНА: если член — сам среда-суперсистема, в сумму
+        входит её собственный ``member_output`` (а не её ``last_work``: среда
+        наружу даёт окно конъюнктуры, а не передачу силы, и в покое её
+        ``last_act`` = REST). Иначе труд членов второго и более ярусов не
+        доходил бы до верхнего входа — глубина ≥2 была бы разорвана. Тот же
+        кодекс на всех ярусах (docs/MODEL.md, раздел 14; автотест —
+        experiments/exp_hierarchy_depth.py)."""
+        total = 0.0
+        for m in self.members:
+            if isinstance(m, Environment):
+                total += m.member_output()          # рекурсия вниз по ярусам
+            elif m.last_act != "REST":
+                total += m.last_work
+        return total
 
     def tick(self):
         """Один такт среды: тот же протокол Process, что у автомата.

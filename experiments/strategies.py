@@ -50,8 +50,49 @@ def timing(me, opp, rng):
     return ("REST", 0)
 
 
-STRATEGIES = {"PASSIVE": passive, "PRESSER": presser, "TIMING": timing}
-"""Референсные стратегии: имя -> политика ``(me, opp, rng) -> (act, work)``."""
+def eager(me, opp, rng):
+    """Нетерпеливый тайминг: как ``timing``, но продавливает раньше.
+
+    Порог перехода к давлению ниже (``0.4·ON`` против ``0.6·ON`` у ``timing``),
+    поэтому копит меньше и чаще бьёт по ещё закрытому входу. Относится к
+    конкурентному ядру набора: формально совпадает по закону с ``timing``, но
+    иная жадность даёт другой профиль против ``presser`` (см. ``exp_balance_ci``).
+    Тип — случайный (скрытая выходная фаза делает контр-тип безразличным, §2).
+    """
+    b = me.beliefs
+    if b["opp_in_open"]:
+        return (rng.choice(S.TYPES), int(me.energy_pool * 0.7))
+    on_opp = max(S.ON_MIN, S.ON_FRAC * b["opp_force"])
+    if b["opp_w_adopt"] >= 0.4 * on_opp and me.force > 30:
+        return (rng.choice(S.TYPES), int(me.energy_pool * 0.5))
+    return ("REST", 0)
+
+
+def mixed(me, opp, rng):
+    """Смешанная (резервная): стохастически чередует давление и покой.
+
+    С вероятностью 0.5 давит случайным типом так же крупно, как ``presser``
+    (0.7 пула), иначе отдыхает; тип случайный. Служит КОНТРОЛЕМ наравне с
+    ``passive``: не должна обыгрывать конкурентные стратегии, но задаёт
+    смешанный профиль в матрице дуэлей. Крупный удар (а не дробное 0.5) нужен,
+    чтобы не возникало преимущества первого хода: у дробного варианта пары
+    TIMING/MIXED и EAGER/MIXED теряли симметрию ролей на плато.
+    """
+    if rng.random() < 0.5:
+        return (rng.choice(S.TYPES), max(1, int(me.energy_pool * 0.7)))
+    return ("REST", 0)
+
+
+STRATEGIES = {"PASSIVE": passive, "PRESSER": presser, "TIMING": timing,
+              "EAGER": eager, "MIXED": mixed}
+"""Референсные стратегии: имя -> политика ``(me, opp, rng) -> (act, work)``.
+
+Конкурентное ядро (друг друга не доминируют): ``PRESSER``, ``TIMING``, ``EAGER``.
+Контроли (ожидаемо проигрывают конкурентам): ``PASSIVE``, ``MIXED``."""
+
+# Разделение множества стратегий по роли (см. exp_balance_ci):
+COMPETITIVE = ("PRESSER", "TIMING", "EAGER")   # между ними не должно быть доминирования
+CONTROLS = ("PASSIVE", "MIXED")                # не должны обыгрывать конкурентных
 
 POLICY_SIGNATURE = "(me, opp, rng) -> (act, work)"
 
