@@ -26,3 +26,18 @@ python3 experiments/exp_hierarchy.py       # суперсистемы: эмер�
   (не актуальная модель; история эксперимента).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
   (ссылаются на удалённые API); сохранены как артефакты обсуждения.
+
+Скрипты ревью кода/документации (эксперименты над задачами `docs/TODO.md`;
+работают через monkeypatch глобальных констант модели, файл не меняют):
+
+```bash
+python3 experiments/exp_review_p0_keffect.py              # P0: «нож-лезвие» K_EFFECT (дно/плато, канон/контроль)
+python3 experiments/exp_review_p0_structfix.py            # P0: структурные кандидаты фикса (ограниченная/сглаженная отдача)
+python3 experiments/exp_review_p0_criterion.py            # P0: полный критерий CI (N=20) для порога W0
+python3 experiments/exp_review_p0_robust.py               # P0: устойчивость W0 на N=30
+python3 experiments/exp_review_p1_rotation_retaliation.py # P1: рекурсия ротации, режим p>1, expected_retaliation
+python3 experiments/exp_review_p1_profile.py              # P1: профили (ранавей p>1, исходы, состав state)
+```
+
+- Результаты и выводы ревью — в обсуждении задач `docs/TODO.md`; краткая сводка
+  зафиксирована в `docs/TODO.md` (раздел «Закрыто»).
