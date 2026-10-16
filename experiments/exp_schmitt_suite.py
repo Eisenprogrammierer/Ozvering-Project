@@ -59,8 +59,8 @@ if first_open:
         d.tick_input_state()
     print(f"Без подкрепления давлением окно закрылось само (TTL={S.OPEN_TTL}): in_open={d.in_open}")
 
-print("\n=== Э0b: кампания авантюриста против кампании с резервом ===")
-def campaign(reserve_mode, seed):
+print("\n=== Э0b: стратегия авантюриста против стратегии с резервом ===")
+def run_arm(reserve_mode, seed):
     """Атакующий давит на обороняющегося. reserve_mode=True: копит пул и бьёт
     только в открытое окно; False: жрёт весь пул в лоб с первого такта."""
     rng = random.Random(seed)
@@ -83,11 +83,11 @@ def campaign(reserve_mode, seed):
         S.resolve_attack(att, dfn, w, rng)
     return att.force - F0a
 
-r_adv = [campaign(False, s) for s in range(20)]
-r_res = [campaign(True, s) for s in range(20)]
+r_adv = [run_arm(False, s) for s in range(20)]
+r_res = [run_arm(True, s) for s in range(20)]
 print(f"Авантюрист (всё в лоб):     ΔF медиана={statistics.median(r_adv):+.0f}, "
       f"лучший={max(r_adv):+.0f}, худший={min(r_adv):+.0f}")
-print(f"Кампания с резервом (окно): ΔF медиана={statistics.median(r_res):+.0f}, "
+print(f"С резервом (окно):          ΔF медиана={statistics.median(r_res):+.0f}, "
       f"лучший={max(r_res):+.0f}, худший={min(r_res):+.0f}")
 
 print("\n=== Э1: матрица дуэлей скриптовых стратегий (10 сидов на пару) ===")
