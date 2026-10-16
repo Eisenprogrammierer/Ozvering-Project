@@ -568,6 +568,33 @@ class Agent:
         self.last_act, self.last_work = act, w
         return w
 
+    def committed_work(self, act, work):
+        """Работа, которую фактически зафиксирует ``commit`` — БЕЗ побочных эффектов.
+
+        Планировщик знает собственное будущее состояние, поэтому оценивает
+        намерение по реально выполнимой работе, а не по заявленной. Повторяет
+        верхнюю обрезку ``commit``: ``act='REST'`` → 0, иначе
+        ``min(work, energy_pool, MAX_WORK, max(MIN_OUTPUT, force // 4))``;
+        неположительный результат означает вынужденный покой → 0."""
+        if act == "REST":
+            return 0
+        w = min(int(work), self.energy_pool, MAX_WORK, max(MIN_OUTPUT, self.force // 4))
+        return w if w > 0 else 0
+
+    def defense_after(self, act, work):
+        """Рецептивный тип входа ПОСЛЕ ``commit(act, work)`` — БЕЗ побочных эффектов.
+
+        Фактический ``resolve_attack`` берёт тип защиты адресата уже после фиксации
+        его действия и списания пула. Планировщик может спроецировать ровно это
+        состояние (выходная фаза выбранного действия ``act`` и пул минус выполнимая
+        работа), чтобы оценка совпала с фактическим законом, а не брала «вчерашнее»
+        действие и несписанный пул. Модель подразумевает ПЕРЕДАЧУ (пул тратится);
+        для ``act='REST'`` проекция пула не действует (покой пул восполняет), поэтому
+        помощник применяется только к атакующим оценкам."""
+        hidden = TYPES.index(act) if act in TYPES else 0
+        pool = self.energy_pool - self.committed_work(act, work)
+        return self.receptive_type(pool, self.w_adopt, self.in_open, self.force, hidden)
+
     def rest_if_starving(self):
         """Рефлекс самосохранения (нижний ярус иерархии автомата).
 
@@ -648,24 +675,31 @@ class UtilityAI(Agent):
         option = OPTION_VALUE * progress * (retained / (sum(DECAY_ADOPT ** i for i in range(1, k + 1)) / k))
         return base + option
 
-    def expected_retaliation(self, work):
-        """Оценка возмездия: адресат бьёт в ответ долей RETALIATE_FRACTION*w.
+    def expected_retaliation(self, act, work):
+        """Оценка возмездия: адресат бьёт в ответ долей RETALIATE_FRACTION*W.
 
-        Рецептивный тип ответчика складывается из наблюдаемой базы контекста и
-        СКРЫТОЙ выходной фазы данного такта (см. §2); противнику скрытая фаза
-        неизвестна, поэтому оценка — среднее по трём возможным типам под
+        Здесь ``W`` — ВЫПОЛНИМАЯ работа планируемого действия (``committed_work``),
+        т.е. ровно та, что фактически уйдёт в ``resolve_attack`` после обрезки
+        ``commit``. Рецептивный тип ответчика складывается из наблюдаемой базы
+        контекста и СКРЫТОЙ выходной фазы ДАННОГО такта (см. §2); противнику скрытая
+        фаза неизвестна, поэтому оценка — среднее по трём возможным типам под
         равномерным (максимально-энтропийным) априором. Фактический маргинал фазы
         зависит от политики противника и не равномерен (``exp_hidden_marginal``).
         Вероятность успеха и множитель считаются фактическим законом
-        ``p_success``/``MULT`` (тем же, что в ``resolve_attack``), поэтому прежнее
-        отклонение (штраф по ``opp_last_act``) устранено."""
-        r_w = int(RETALIATE_FRACTION * work)
+        ``p_success``/``MULT`` (тем же, что в ``resolve_attack``), а наши вход и
+        работа берутся в состоянии ПОСЛЕ ``commit`` (``defense_after``/``W``), поэтому
+        оценка строится ровно по закону фактического возмездия (без учёта обрезки
+        ответной работы пулом противника — это остаточная неопределённость, как и
+        скрытая фаза)."""
+        w = self.committed_work(act, work)
+        r_w = int(RETALIATE_FRACTION * w)
         if r_w <= 0:
             return 0.0
+        dfn_type = self.defense_after(act, work)
         ev = 0.0
         for t in TYPES:
-            mr = MULT.get((t, self.defense), 1.0)
-            pr = p_success(t, r_w, self.defense, self.last_work)
+            mr = MULT.get((t, dfn_type), 1.0)
+            pr = p_success(t, r_w, dfn_type, w)
             ev += r_w * self.gain_model_rev(mr, pr) / 3.0
         return ev
 
@@ -675,11 +709,14 @@ class UtilityAI(Agent):
             return p * m * GAIN_MAX
         return Y_SMALL * p * m
 
-    def retaliation_penalty(self, work):
-        """Цена возмездия для нас: цена работы COST_FRACTION*w плюс шок пула
-        HOCK_FRACTION*r_w от ответного удара. Бить по открытому противнику дорого."""
-        r_w = int(RETALIATE_FRACTION * work)
-        return COST_FRACTION * work + HOCK_FRACTION * r_w
+    def retaliation_penalty(self, act, work):
+        """Цена возмездия для нас: цена работы COST_FRACTION*W плюс шок пула
+        HOCK_FRACTION*r_w от ответного удара, где ``W`` — выполнимая работа
+        (``committed_work``), а ``r_w = RETALIATE_FRACTION*W`` — как в
+        ``resolve_attack``. Бить по открытому противнику дорого."""
+        w = self.committed_work(act, work)
+        r_w = int(RETALIATE_FRACTION * w)
+        return COST_FRACTION * w + HOCK_FRACTION * r_w
 
     def expected_gain(self, act, work):
         """U(action): ожидаемая отдача минус цена работы и минус ожидание
@@ -691,7 +728,10 @@ class UtilityAI(Agent):
         энтропийным) априором (фактический маргинал — политика противника, не
         равномерен: ``exp_hidden_marginal``); вероятность успеха — фактическим
         законом ``p_success`` (мощность и контр-тип), тем же, что в
-        ``resolve_attack``."""
+        ``resolve_attack``. Отдача и отдача-стоимость считаются по ЗАЯВЛЕННОЙ работе
+        (абстракция «заявленное выполняется»); цена возмездия и шок пула — по
+        ВЫПОЛНИМОЙ работе (``committed_work``), т.к. фактическое возмездие идёт уже
+        после обрезки ``commit`` (п. A3 ревью)."""
         if act == "REST" or work <= 0:
             return self.rest_gain()
         ev = 0.0
@@ -699,7 +739,7 @@ class UtilityAI(Agent):
             m = MULT.get((act, hypo), 1.0)
             p = p_success(act, work, hypo, self.beliefs["opp_last_work"])
             ev += work * self.gain_model(m, p) / 3.0
-        return ev - self.retaliation_penalty(work) - self.expected_retaliation(work)
+        return ev - self.retaliation_penalty(act, work) - self.expected_retaliation(act, work)
 
     def form_intention(self):
         """Перебор действий (покой/3 типа x 2 доли пула), выбор максимума U."""

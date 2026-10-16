@@ -18,6 +18,7 @@ python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против U
 python3 experiments/exp_keffect_regime.py  # P0 №2: режим K_EFFECT (нож-лезвие, устойчивость баланса)
 python3 experiments/exp_profile_constitution.py # P1: профиль как «скрытая конституция» (наблюдаемость)
 python3 experiments/exp_hidden_marginal.py # A1: маргинал скрытой фазы hidden (априор наблюдателя)
+python3 experiments/exp_retaliation_faithful.py # A3: оценка возмездия == состояние после commit (код 0/1)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -49,6 +50,9 @@ python3 experiments/exp_hidden_marginal.py # A1: маргинал скрытой
   `hidden` (A1): показывает коллизию `REST→0 = FIRE→0` и зависимость маргинала от
   политики адресата. Обоснование трактовки равномерности как **априора наблюдателя**
   (см. `docs/MODEL.md` §2).
+- `exp_retaliation_faithful.py` — автотест верности оценки возмездия (A3, код 0/1):
+  `Agent.committed_work`/`Agent.defense_after` совпадают с фактическим результатом
+  `commit` на 100% атакующих тактов канона (см. `docs/MODEL.md` §7).
 - `treatments/` — замороженные изолированные копии модели для проверки гипотезы H-A
   (не актуальная модель; история эксперимента).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели

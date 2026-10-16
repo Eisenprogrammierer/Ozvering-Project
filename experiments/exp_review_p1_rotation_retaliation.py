@@ -64,21 +64,21 @@ print("P1-5. expected_retaliation: отклонение и влияние на �
 print("="*70)
 mism=0; tot=0
 orig_er = UtilityAI.expected_retaliation
-def patched(self, work):
+def patched(self, act, work):
     global mism, tot
     if int(S.RETALIATE_FRACTION*work)>0:
         for hypo in TYPES:
             tot+=1
             if bool(MULT.get((self.beliefs["opp_last_act"], hypo))) != bool(MULT.get((self.defense, hypo))):
                 mism+=1
-    return orig_er(self, work)
+    return orig_er(self, act, work)
 UtilityAI.expected_retaliation=patched
 rl=RLAgent()
 for g in range(5): play_game(rl, UtilityAI(), 400, seed=g, with_env=True)
 UtilityAI.expected_retaliation=orig_er
 print(f"  Вердиктов контр-типа: {tot}, расхождений old/new: {mism} ({100*mism/max(1,tot):.1f}%)")
 
-def er_fixed(self, work):
+def er_fixed(self, act, work):
     r_w=int(S.RETALIATE_FRACTION*work)
     if r_w<=0: return 0.0
     ev=0.0

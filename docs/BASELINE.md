@@ -243,7 +243,10 @@ TIMING/EAGER контрят PRESSER таймингом окна. Попутно:
    каждом блоке seed; остаточное преимущество model-based UtilityAI — свойство
    табличного RL (образцы/обобщение), а не типа (см. «Сила RL»).
 3. ~~Известное отклонение `UtilityAI.expected_retaliation`~~ — **устранено**
-   переходом к контекстному типу (§15.5 MODEL.md).
+   полностью (A3 ревью): контр-тип — по нашему входу; своя работа и рецептивный
+   тип — в состоянии ПОСЛЕ `commit` (`committed_work`/`defense_after`), тем же
+   законом `p_success`/`MULT`, что и `resolve_attack`. Автотест
+   `experiments/exp_retaliation_faithful.py` (см. §15.5 MODEL.md).
 
 ## Устранено на этапе 4 (былые ограничения)
 
