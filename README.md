@@ -56,7 +56,8 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 Реальный CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions): на
 каждый push/PR компилируются ядро/GUI/эксперименты и запускается `pytest`
 (см. ниже). Исторические документы обсуждения — в
-`docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта), помечены
+`docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта, PR-док
+ревью `REVIEW_OPEN_ISSUES.md`), помечены
 статус-шапками как частично/полностью отвергнутые; канонической является механика
 `simulation.py`.
 
