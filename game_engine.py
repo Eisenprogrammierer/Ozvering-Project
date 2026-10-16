@@ -269,35 +269,45 @@ def compute_window_size():
     return max(base_w, w), max(base_h, h)
 
 
-def disable_audio():
-    """Отключить аудио-подсистему pygame, если она была инициализирована.
+def init_pygame_minimal():
+    """Инициализировать ТОЛЬКО нужные подсистемы: видео и шрифт.
 
-    Движок звук пока не использует, а корректный teardown mixer на части
-    сборок ALSA/PulseAudio может подвиснуть — из-за чего процесс не завершается
-    («приходится убивать»). Освобождаем аудио сразу после pygame.init().
+    ``pygame.init()`` вдобавок автозапускает ``pygame.mixer`` (аудио). На части
+    систем открытие аудио-устройства (ALSA/PulseAudio) может **зависнуть**, а
+    уже инициализированный mixer делает хрупким и ``pygame.quit()`` — процесс
+    «ни запускается, ни завершается». Звук движку не нужен, поэтому аудио не
+    инициализируем вообще: нет init — нечего и завершать.
     """
     try:
-        if pygame.mixer.get_init():
-            pygame.mixer.quit()
-            LOG.debug("disable_audio: mixer освобождён")
+        pygame.display.init()
     except Exception as exc:                       # pragma: no cover
-        LOG.debug("disable_audio: %s" % exc)
+        LOG.warn("pygame.display.init(): %s" % exc)
+    try:
+        import pygame.font as _pf
+        _pf.init()
+    except Exception as exc:                       # pragma: no cover
+        LOG.debug("pygame.font.init(): %s" % exc)
 
 
 def quit_pygame():
-    """Штатно и безопасно закрыть pygame (аудио -> всё остальное).
+    """Штатно и безопасно закрыть pygame — БЕЗ обращения к аудио.
 
-    Обёртки try/except гарантируют, что даже сбойный teardown одной подсистемы
-    не помешает выходу из процесса.
+    Закрываем ровно те подсистемы, что открыл :func:`init_pygame_minimal`
+    (видео и шрифт). ``pygame.quit()`` не вызываем намеренно: он трогает
+    ``pygame.mixer`` и на части ALSA/PulseAudio-сборок подвисает.
     """
-    disable_audio()
     try:
-        pygame.quit()
+        pygame.display.quit()
     except Exception as exc:                       # pragma: no cover
-        LOG.warn("pygame.quit(): %s" % exc)
+        LOG.warn("pygame.display.quit(): %s" % exc)
+    try:
+        import pygame.font as _pf
+        _pf.quit()
+    except Exception as exc:                       # pragma: no cover
+        LOG.debug("pygame.font.quit(): %s" % exc)
 
 
-# Фактический размер окна определяется при старте (после pygame.init()).
+# Фактический размер окна определяется при старте (после init_pygame_minimal).
 SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
@@ -1184,11 +1194,10 @@ class GameApp:
     def __init__(self, fonts=None, screen=None, on_escape=None, seed=0,
                  steps=2000, with_env=True, profile_rl="CANON",
                  profile_ai="CANON"):
-        LOG.info("GameApp: pygame.init()...")
-        pygame.init()
-        disable_audio()          # звук не используется; убираем риск зависания teardown
-        LOG.debug("pygame.init выполнен; подсистемы display=%s" %
-                  (pygame.display.get_init(),))
+        LOG.info("GameApp: init_pygame_minimal() (video+font, без аудио)...")
+        init_pygame_minimal()
+        LOG.debug("pygame минимально инициализирован; display=%s mixer=%s"
+                  % (pygame.display.get_init(), pygame.mixer.get_init()))
         global SCREEN_W, SCREEN_H
         self._owns_window = screen is None
         self.on_escape = on_escape
@@ -2072,7 +2081,7 @@ class GameApp:
         LOG.info("главный цикл завершён (кадров=%s, финальный tick=%s)"
                  % (frame, self.match.step))
         quit_pygame()
-        LOG.info("pygame.quit() выполнен - чистое завершение")
+        LOG.info("подсистемы pygame закрыты - чистое завершение")
 
 
 def main():
@@ -2087,10 +2096,10 @@ def main():
                 os.path.getmtime(getattr(simulation, "__file__", "."))))))
     except Exception as e:
         LOG.debug("диагностика simulation недоступна: %s" % e)
-    # Сначала проверяем шрифты ДО создания окна (pygame.init не обязателен для
-    # Font(None, ...), но безопаснее после); при нерабочем pygame.font -
-    # подсказываем пользователю, как починить окружение "раз и навсегда".
-    pygame.init()
+    # Сначала проверяем шрифты ДО создания окна (pygame.font не требует видео);
+    # при нерабочем pygame.font - подсказываем пользователю, как починить
+    # окружение "раз и навсегда". Аудио НЕ инициализируем (см. minimal-init).
+    init_pygame_minimal()
     fonts = FontSet()
     probe = _probe_font()
     fonts.setup(probe)

@@ -27,8 +27,7 @@ class App:
 
     def __init__(self, fullscreen=None, seed=0):
         ge.LOG.info("ui.App: инициализация сценного слоя")
-        pygame.init()
-        ge.disable_audio()       # звук пока не используется (см. game_engine)
+        ge.init_pygame_minimal()   # видео+шрифт, аудио не трогаем (см. game_engine)
         self.save = SaveManager(log=ge.LOG)
         self.settings = self.save.settings
         self.seed = seed

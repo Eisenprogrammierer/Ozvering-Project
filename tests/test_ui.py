@@ -106,8 +106,8 @@ def app(tmp_path_factory):
     instance.save.dir = work
     instance.save.settings_path = work / "settings.json"
     yield instance
-    import pygame
-    pygame.quit()
+    import game_engine as ge
+    ge.quit_pygame()
 
 
 def _frame(app):
@@ -118,6 +118,12 @@ def _frame(app):
 def test_starts_at_main_menu(app):
     assert app.manager.current.name == "menu"
     _frame(app)
+
+
+def test_audio_never_initialized(app):
+    """Аудио-подсистема не инициализируется (иначе mixer может зависнуть)."""
+    import pygame
+    assert pygame.mixer.get_init() is None
 
 
 @pytest.mark.parametrize("name", ["menu", "settings", "saves", "about",
