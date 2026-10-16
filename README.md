@@ -86,7 +86,8 @@ python3 experiments/exp_retaliation_faithful.py  # верность оценки
 
 Зависимости: рантайм — `pip install -r requirements.txt` (графики, эксперименты,
 графический движок); тесты — `pip install -r requirements-dev.txt` (только `pytest`).
-Чек-лист ревью — в [`.github/pull_request_template.md`](.github/pull_request_template.md).
+Чек-лист ревью — в [`.github/pull_request_template.md`](.github/pull_request_template.md);
+процесс разработки (язык коммитов, ветки, CI, `CHANGELOG`) — в [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 # Графический движок (наблюдение за партией)
 
