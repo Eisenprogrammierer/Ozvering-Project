@@ -29,6 +29,10 @@ python3 experiments/exp_hypotheses.py       # гипотезы H1–H3
 (один и тот же код) совпадают точно. Результаты не зависят от `PYTHONHASHSEED`
 (после этапа 4, см. раздел «Баланс»).
 
+Сквозной тестовый набор (канон, скрипты-проверки, детерминизм по `PYTHONHASHSEED`,
+согласованность «доки ↔ код») — `pytest -q` (см. `tests/`, `requirements-dev.txt`;
+в CI — `.github/workflows/ci.yml`).
+
 ## Канон (`simulation.py` / `run_batch`)
 
 > **Актуально после усиления RL (см. раздел «Сила RL» ниже).**

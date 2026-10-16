@@ -1,9 +1,10 @@
 name: CI
 
 # Реальный CI (пункт B1 ревью): автоматическая проверка на push/PR.
-# Прогоняются проверки с кодом возврата (утверждения), без внешних зависимостей:
-# ядро и эти скрипты исполняются стандартной библиотекой Python (см.
-# requirements.txt — matplotlib/numpy нужны лишь графикам, pygame-ce — GUI).
+# Тесты (pytest, пункт B3) запускают скрипты-проверки с кодом возврата и
+# проверяют канон, детерминизм по PYTHONHASHSEED и согласованность «доки ↔ код»
+# (пункт B4). Ядру и тестам хватает стандартной библиотеки и pytest; matplotlib/
+# numpy нужны лишь графикам, pygame-ce — GUI (см. requirements.txt).
 on:
   push:
   pull_request:
@@ -21,22 +22,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Установка тестовых зависимостей
+        run: pip install -r requirements-dev.txt
+
       - name: Компиляция (ядро, GUI, эксперименты)
         run: python -m compileall -q simulation.py game_engine.py experiments
 
-      - name: Баланс — критерий недоминирования
-        run: python experiments/exp_balance_ci.py
-
-      - name: Глубина иерархии Environment
-        run: python experiments/exp_hierarchy_depth.py
-
-      - name: Верность оценки возмездия (A3)
-        run: python experiments/exp_retaliation_faithful.py
-
-      - name: Детерминизм канона (PYTHONHASHSEED)
-        run: |
-          A=$(PYTHONHASHSEED=0 python -c 'import simulation as S; print(S.run_batch(10, quiet=True)[2])')
-          B=$(PYTHONHASHSEED=12345 python -c 'import simulation as S; print(S.run_batch(10, quiet=True)[2])')
-          echo "seed=0     : $A"
-          echo "seed=12345 : $B"
-          test "$A" = "$B"
+      - name: Тесты (pytest)
+        run: pytest -q

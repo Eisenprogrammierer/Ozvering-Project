@@ -6,6 +6,9 @@
 
 Актуальные проверки текущей модели `simulation.py`:
 
+Скрипты с кодом возврата (`0`/`1`) прогоняются в CI через `pytest`
+(`tests/test_checks.py`); воспроизведение — `pytest -q` из корня репозитория.
+
 ```bash
 python3 experiments/exp_balance_ci.py      # CI-тест баланса: доминирование/симметрия (код 0/1)
 python3 experiments/exp_schmitt_suite.py   # пороги Шмитта, матрица дуэлей, дребезг

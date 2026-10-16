@@ -54,10 +54,8 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 хранятся — вывод воспроизводится запуском. Текущая воспроизводимая базовая линия
 (канонический прогон, матрица баланса, ограничения) — в [`docs/BASELINE.md`](docs/BASELINE.md).
 Реальный CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions): на
-каждый push/PR прогоняются проверки с кодом возврата (`exp_balance_ci.py`,
-`exp_hierarchy_depth.py`, `exp_retaliation_faithful.py`), компиляция и детерминизм
-канона по `PYTHONHASHSEED`; эти скрипты исполняются стандартной библиотекой Python.
-Исторические документы обсуждения — в
+каждый push/PR компилируются ядро/GUI/эксперименты и запускается `pytest`
+(см. ниже). Исторические документы обсуждения — в
 `docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта), помечены
 статус-шапками как частично/полностью отвергнутые; канонической является механика
 `simulation.py`.
@@ -66,14 +64,29 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 
 ```bash
 python3 simulation.py            # канон: пакет из 10 партий + график динамики силы
-python3 experiments/exp_balance_ci.py          # CI-тест баланса (код возврата 0/1)
-python3 experiments/exp_hierarchy_depth.py     # автотест глубины Environment (0/1)
-python3 experiments/exp_retaliation_faithful.py  # верность оценки возмездия (0/1)
+pytest -q                        # весь тестовый набор (см. ниже)
 ```
 
-Проверки с кодом возврата дублируют шаги CI (`.github/workflows/ci.yml`).
+Тесты ([`tests/`](tests/), фреймворк `pytest`):
 
-Зависимости (графики, эксперименты, графический движок): `pip install -r requirements.txt`.
+* канон и его воспроизводимость (`test_canon.py`);
+* скрипты-проверки с кодом возврата и детерминизм по `PYTHONHASHSEED`
+  (`test_checks.py` → `exp_balance_ci.py`, `exp_hierarchy_depth.py`,
+  `exp_retaliation_faithful.py`);
+* согласованность «доки ↔ код»: константы `docs/MODEL.md §2а` и ссылки на
+  эксперименты (`test_docs_sync.py`).
+
+Скрипты-проверки можно запускать и напрямую (код возврата `0`/`1`):
+
+```bash
+python3 experiments/exp_balance_ci.py            # баланс стратегий (недоминирование)
+python3 experiments/exp_hierarchy_depth.py       # самоподобие кодекса на всех ярусах
+python3 experiments/exp_retaliation_faithful.py  # верность оценки возмездия (A3)
+```
+
+Зависимости: рантайм — `pip install -r requirements.txt` (графики, эксперименты,
+графический движок); тесты — `pip install -r requirements-dev.txt` (только `pytest`).
+Чек-лист ревью — в [`.github/pull_request_template.md`](.github/pull_request_template.md).
 
 # Графический движок (наблюдение за партией)
 
