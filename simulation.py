@@ -153,8 +153,10 @@ class Agent:
         диапазон ``p ≤ 1`` обязателен.
 
         Профиль НЕ вводит новых переменных состояния: это единственный скаляр ``p``,
-        модифицирующий ОБРАБОТКУ существующих IPO-компонентов — вход (пороги Шмитта:
-        decay и нижний порог) и выход (тяжесть поражения при доминировании).
+        модифицирующий ОБРАБОТКУ единственного существующего IPO-компонента — вход
+        (пороги Шмитта: decay и нижний порог). Прежний выходной канал
+        (масштабирование тяжести поражения) удалён как инертный: партия завершается
+        первым же захватом (пункт A7 ревью).
         Метрики force/energy_pool, их динамика и состав beliefs остаются прежними;
         профиль не наблюдается противником напрямую (частичная наблюдаемость).
 
@@ -1196,10 +1198,6 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
     if dom_rl >= CAPTURE_STREAK:
         sev = 2.0 if ai.in_open else 1.0
         cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
-        # Профильная обработка выхода: догматик (p<1) встречает разгром стойче —
-        # тяжесть потери масштабируется его скаляром профиля. Диапазон p ≤ 1
-        # гарантирован валидацией профиля; clamp(0.5, 1.0) — предохранитель границ.
-        cap = int(cap * max(0.5, min(1.0, ai.p)))
         ai.force = max(1, ai.force - cap)
         ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
@@ -1207,7 +1205,6 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
     if dom_ai >= CAPTURE_STREAK:
         sev = 2.0 if rl.in_open else 1.0
         cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
-        cap = int(cap * max(0.5, min(1.0, rl.p)))
         rl.force = max(1, rl.force - cap)
         rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
         ai.gain(cap)
@@ -1310,8 +1307,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
       5. Разрешение передач по единому закону (resolve_attack) в обе стороны;
          при with_env передачи одновременно нагружают вход среды.
       6. TD-обучение RL на корректном переходе s -> s' с наградой delta F.
-      7. Проверка устойчивого доминирования (check_capture; тяжесть поражения
-         масштабируется профилем проигравшего).
+      7. Проверка устойчивого доминирования (check_capture).
 
     Returns:
         (winner | None, rl_hist, ai_hist, end_step)

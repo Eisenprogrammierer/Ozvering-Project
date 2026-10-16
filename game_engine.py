@@ -660,7 +660,6 @@ class MatchEngine:
             self.dom_rl = self.dom_ai = 0
             sev = 2.0 if ai.in_open else 1.0
             cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
-            cap = int(cap * max(0.5, min(1.0, ai.p)))
             ai.force = max(1, ai.force - cap)
             ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
             rl.gain(cap)
@@ -669,7 +668,6 @@ class MatchEngine:
             self.dom_ai = self.dom_rl = 0
             sev = 2.0 if rl.in_open else 1.0
             cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
-            cap = int(cap * max(0.5, min(1.0, rl.p)))
             rl.force = max(1, rl.force - cap)
             rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
             ai.gain(cap)
