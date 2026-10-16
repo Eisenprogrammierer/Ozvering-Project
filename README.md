@@ -56,8 +56,9 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 Реальный CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions): на
 каждый push/PR компилируются ядро/GUI/эксперименты и запускается `pytest`
 (см. ниже). Исторические документы обсуждения — в
-`docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта, PR-док
-ревью `REVIEW_OPEN_ISSUES.md`), помечены
+`docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта
+`PR_schmitt_hysteresis.md`, PR-док ревью `PR_review_code_and_documentation.md` и
+`REVIEW_OPEN_ISSUES.md`), помечены
 статус-шапками как частично/полностью отвергнутые; канонической является механика
 `simulation.py`.
 
@@ -79,9 +80,11 @@ pytest -q                        # весь тестовый набор (см. �
 * канон и его воспроизводимость (`test_canon.py`);
 * скрипты-проверки с кодом возврата и детерминизм по `PYTHONHASHSEED`
   (`test_checks.py` → `exp_balance_ci.py`, `exp_hierarchy_depth.py`,
-  `exp_retaliation_faithful.py`);
-* согласованность «доки ↔ код»: константы `docs/MODEL.md §2а` и ссылки на
+  `exp_retaliation_faithful.py`, `exp_domain_invariance.py`);
+* согласованность «доки ↔ код»: константы `docs/MODEL.md §8` и ссылки на
   эксперименты (`test_docs_sync.py`);
+* сторож доменной инвариантности ядра (F1): в ядре взаимодействия нет доменной
+  ветки (`test_domain_audit.py`);
 * сценный слой `ui/`: сохранения/настройки, навигация и отрисовка экранов
   (`test_ui.py`; графическая часть пропускается без `pygame`).
 
@@ -123,3 +126,5 @@ python3 main.py --arena       # арена отдельно (то же, что g
 [`docs/UI.md`](docs/UI.md), история движка — [`GAME_ENGINE_CHANGES.md`](GAME_ENGINE_CHANGES.md).
 
 Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). В коде сохранены только docstrings (что делает функция/метод); пространные пояснительные комментарии вынесены в документацию для читаемости.
+
+Краткая выжимка по всему проекту (онтология, законы, слои, статус) — [`docs/SUMMARY.md`](docs/SUMMARY.md).
