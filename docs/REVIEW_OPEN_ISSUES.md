@@ -85,7 +85,7 @@ UtilityAI **9** / none **0**; детерминизм при `PYTHONHASHSEED ∈ 
   больше»). На него переведены канон `check_capture`, дуэль `strategies.duel` и
   живой прогон баланса `exp_schmitt_suite.py`; локальные копии критерия удалены.
   Остались только исторические встроенные протоколы (`exp_fix.py`,
-  `exp_hypotheses.py`, `experiments/treatments/`, `experiments/history/`) — они
+  `exp_hypotheses.py`, `experiments/history/treatments/`, `experiments/history/`) — они
   заморожены как артефакты; `game_engine.py` уже использовал канонический критерий.
 - **Замер расхождения** (1600 дуэлей, канон vs прежний критерий дуэли «сила ≥ 1.5×
   И пул ≥ 1.5×»): исход отличается лишь в **13/1600 (0.8%)**; агрегатные доли
@@ -185,6 +185,14 @@ UtilityAI **9** / none **0**; детерминизм при `PYTHONHASHSEED ∈ 
 - **A4.3 — не планируется.** «Клаузевиц-слой» снят с рассмотрения (не дефект);
   отмечено в `docs/history/ideas.md`.
 - Новый раздел `TODO.md` → «Открыто. Баланс (G1/G2)».
+
+### Правка №13 (2026-10-16): D4 — `treatments/` перенесён в `history/`
+- **D4 — решено.** `experiments/treatments/` → `experiments/history/treatments/`
+  (`git mv`); файлы самодостаточны (stdlib + matplotlib, импортов из корня нет).
+- Ссылки обновлены: `experiments/README.md`, `experiments/history/README.md`,
+  `MODEL.md §10`, `docs/history/PR_schmitt_hysteresis.md` (и историческая ссылка
+  в Правке №5).
+- **Проверка:** `pytest -q` — 8 passed; `compileall` — ок.
 
 ---
 
@@ -438,10 +446,16 @@ hidden = TYPES.index(self.last_act) if self.last_act in TYPES else 0
 API, авто-детект арности). Файл — 2014 строк в одном модуле; **вопрос:**
 выносить ли визуализацию/раскладку в отдельные модули?
 
-### D4. [P2, подтверждено] `experiments/treatments/*` — замороженные копии
+### D4. [P2, подтверждено, РЕШЕНО] `experiments/treatments/*` — замороженные копии
 Содержат старый API (`max(set(...))`, поля `opp_defense`); помечены как история
 (`experiments/README.md`). **Вопрос:** не переносить ли в `experiments/history/`,
 чтобы не путать с актуальными?
+
+**РЕШЕНО (см. Правку №13).** Каталог перенесён в
+`experiments/history/treatments/` (`git mv`); ссылки обновлены в
+`experiments/README.md`, `experiments/history/README.md`, `MODEL.md §10`,
+`docs/history/PR_schmitt_hysteresis.md`. Копии самодостаточны (stdlib +
+matplotlib), импортов из корня нет — перенос безопасен.
 
 ### D5. [P2] Процесс
 История: 78 коммитов, 2026-10-12 → 2026-10-16, с ветками ИИ-агентов
@@ -497,7 +511,8 @@ API, авто-детект арности). Файл — 2014 строк в од
    конкурентоспособность RL — цель, `1/9` — дефект; замер).
 10. **A4** — ~~окно `K_EFFECT`, профили `p<1`, Клаузевиц-слой~~ **решено**
     (Правка №12: G1/G2 в `TODO.md`; Клаузевиц снят).
-11. **D3–D5, E** — по мере приоритета (D3 — вне правок: `game_engine.py`
+11. **D4** — ~~`experiments/treatments/*` → `history/`~~ **решено** (Правка №13).
+12. **D3, D5, E** — по мере приоритета (D3 — вне правок: `game_engine.py`
     в окружении не запускается).
 
 После закрытия — перенести пункты в `TODO.md`/`BASELINE.md` и удалить эту
