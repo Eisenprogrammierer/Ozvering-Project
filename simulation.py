@@ -90,11 +90,18 @@ PROFILES = {
 не вводится. Смысл и обоснование достаточности IPO-архитектуры, а также почему
 допустим только p ≤ 1 — docs/MODEL.md, раздел 2а."""
 
-# Защита от ошибочной правки словаря: диапазон 0 < p ≤ 1 — инвариант модели (§2а).
+# Схема PROFILES (инвариант модели, §2а): имя профиля — ключ словаря (перечень
+# приводится в сообщении ``set_profile`` при неизвестном имени), значение —
+# вещественное ``p`` в диапазоне ``0 < p ≤ 1``. Проверка выполняется при загрузке
+# модуля, чтобы ошибочная правка словаря падала сразу, а не всплывала в прогоне.
+_nonnum = {n: p for n, p in PROFILES.items()
+           if isinstance(p, bool) or not isinstance(p, (int, float))}
+if _nonnum:
+    raise TypeError(f"PROFILES: p должно быть числом: {_nonnum}")
 _bad_profiles = {n: p for n, p in PROFILES.items() if not (0.0 < p <= 1.0)}
 if _bad_profiles:
     raise ValueError(f"PROFILES вне диапазона 0 < p ≤ 1: {_bad_profiles}")
-del _bad_profiles
+del _nonnum, _bad_profiles
 
 ACTIONS = [("REST", 0)] + [(t, w) for t in TYPES for w in [0.3, 0.7]]
 """Пространство действий автомата: покой либо передача типом с долей пула 0.3/0.7."""
@@ -174,8 +181,11 @@ class Agent:
                 экспериментах («сырым» числом). Штатный код не использует.
 
         Raises:
-            ValueError: неизвестное имя профиля либо ``p`` вне ``(0, 1]``.
+            ValueError: неизвестное имя профиля, ``bool`` либо ``p`` вне ``(0, 1]``.
         """
+        if isinstance(profile, bool):
+            # bool — подкласс int: ``profile=True`` молча стал бы ``p=1.0``.
+            raise ValueError(f"profile не может быть bool: {profile!r}")
         if isinstance(profile, str):
             if profile not in PROFILES:
                 raise ValueError(
@@ -219,7 +229,7 @@ class Agent:
         self.beliefs = {"opp_energy": 3,
                         "opp_last_act": "REST", "opp_last_work": 0,
                         "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
-                        "opp_type_guess": None, "opp_ctx_base": None}
+                        "opp_ctx_base": None}
 
     # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
     # Позволяют обработчикам и внешнему коду работать с полями как с обычными
@@ -462,8 +472,10 @@ class Agent:
           * ``opp_force`` — сила, округлённая до десятков (грубая оценка);
           * ``opp_w_adopt`` / ``opp_in_open`` — косвенный сигнал о состоянии
             входа противника (накопленное давление и положение окна);
-          * ``opp_defense_guess`` — тип защиты НЕ наблюдается вовсе; оценка
-            строится скользющим большинством последних 5 действий противника;
+          * ``opp_defense_guess`` — ЛЕГАСИ-канал (в ядре не читается): вестигий
+            упразднённой ротации защиты. Тип входа как метка не наблюдается
+            вовсе; оценка строится скользящим большинством последних 5 действий
+            противника. Оставлен ради исторических ``exp_fix``/``exp_hypotheses``;
           * ``opp_last_act`` / ``opp_last_work`` — его прошлый ход;
           * ``opp_decay_guess`` — КОСВЕННАЯ оценка профильной скорости остывания
             чужого входа. Профиль не наблюдается напрямую (частичная
@@ -510,13 +522,12 @@ class Agent:
         # контекста (``context_base``); скрытая выходная фаза текущего такта
         # противнику неизвестна, поэтому обработчики маргинализуют по трём
         # возможным типам под равномерным (максимально-энтропийным) априором
-        # (см. ``UtilityAI``), а здесь хранится база и базовая оценка при hidden=0.
+        # (см. ``UtilityAI``); хранится только наблюдаемая база (0/1/2), а не
+        # «угаданный тип» — самого типа как метки в модели нет (§2).
         # Новых истинных переменных состояния не вводится.
-        base = self.context_base(
+        self.beliefs["opp_ctx_base"] = self.context_base(
             self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
             self.beliefs["opp_in_open"], self.beliefs["opp_force"])
-        self.beliefs["opp_ctx_base"] = base
-        self.beliefs["opp_type_guess"] = TYPES[base]
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
