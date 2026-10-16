@@ -46,8 +46,8 @@ def duel(kind_a, kind_b, steps=400, seed=0):
         S.resolve_attack(a, b, wa, rng)
         S.resolve_attack(b, a, wb, rng)
         ha.append(a.force); hb.append(b.force)
-        dom_a = dom_a + 1 if (a.force >= 1.5 * b.force and a.energy_pool >= 1.5 * b.energy_pool) else 0
-        dom_b = dom_b + 1 if (b.force >= 1.5 * a.force and b.energy_pool >= 1.5 * a.energy_pool) else 0
+        dom_a = dom_a + 1 if S.dominates(a, b) else 0
+        dom_b = dom_b + 1 if S.dominates(b, a) else 0
         if dom_a >= 20:
             return "A", step, ha, hb
         if dom_b >= 20:

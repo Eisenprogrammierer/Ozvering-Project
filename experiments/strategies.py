@@ -105,6 +105,8 @@ def duel(policy_a, policy_b, steps=400, seed=0, f0=10, env=None, capture_streak=
     упразднена, ``rotate_defense`` вызывается no-op ради совместимости
     протокола) → upkeep → энергия → состояния входов → намерения →
     ``resolve_attack`` в обе стороны → проверка устойчивого доминирования).
+    Доминирование проверяется ЕДИНЫМ предикатом ``simulation.dominates`` — тем же,
+    что и канонный ``check_capture`` (пункт A2 ревью), а не локальной копией.
 
     Args:
         policy_a, policy_b: политики сторон A и B.
@@ -136,8 +138,8 @@ def duel(policy_a, policy_b, steps=400, seed=0, f0=10, env=None, capture_streak=
         S.resolve_attack(a, b, wa, rng, env)
         S.resolve_attack(b, a, wb, rng, env)
         ha.append(a.force); hb.append(b.force)
-        dom_a = dom_a + 1 if (a.force >= 1.5 * b.force and a.energy_pool >= 1.5 * b.energy_pool) else 0
-        dom_b = dom_b + 1 if (b.force >= 1.5 * a.force and b.energy_pool >= 1.5 * a.energy_pool) else 0
+        dom_a = dom_a + 1 if S.dominates(a, b) else 0
+        dom_b = dom_b + 1 if S.dominates(b, a) else 0
         if dom_a >= capture_streak:
             return "A", step, ha, hb
         if dom_b >= capture_streak:

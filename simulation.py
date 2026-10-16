@@ -1146,6 +1146,17 @@ def resolve_attack(att, dfn, work, rng, env=None):
         _apply_transfer(dfn, att, r_w, dfn.defense, rng, env)
 
 
+def dominates(att, dfn):
+    """Устойчивое доминирование: пул ``att`` не меньше CAPTURE_RATIO-кратного пула
+    соперника И сила строго больше (``docs/MODEL.md`` §6).
+
+    ЕДИНЫЙ предикат победы: используется и каноном (``check_capture``), и
+    экспериментами (``experiments/strategies.duel``), чтобы CI-баланс проверялся под
+    тем же правилом, что и канон (пункт A2 ревью; ранее критерии расходились и по
+    метрике-якорю, и по строгости). Чистая функция — состояния сторон не меняет."""
+    return att.energy_pool >= CAPTURE_RATIO * dfn.energy_pool and att.force > dfn.force
+
+
 def check_capture(rl, ai, dom_rl=0, dom_ai=0):
     """Решение о поражении по устойчивому доминированию, а не по одному удачному ходу.
 
@@ -1169,8 +1180,8 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
         (winner, dom_rl, dom_ai): winner — "RL" | "UtilityAI" | None
         (None означает «партия продолжается»); серии сбрасываются при решении.
     """
-    dom_rl = dom_rl + 1 if (rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool and rl.force > ai.force) else 0
-    dom_ai = dom_ai + 1 if (ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool and ai.force > rl.force) else 0
+    dom_rl = dom_rl + 1 if dominates(rl, ai) else 0
+    dom_ai = dom_ai + 1 if dominates(ai, rl) else 0
     if dom_rl >= CAPTURE_STREAK:
         sev = 2.0 if ai.in_open else 1.0
         cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
