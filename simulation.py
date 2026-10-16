@@ -116,9 +116,11 @@ class Agent:
       * СОСТОЯНИЕ — ``state``: единственное хранилище внутреннего состояния
         автомата. В нём лежат обе метрики (``force`` — сила, целевая функция;
         ``energy_pool`` — энергия, расходуемый запас) и управляющие переменные
-        (``defense``, ``last_act``, ``last_work``, ``w_adopt``, ``in_open``,
-        ``open_timer``, ``rest_units``). Не объемлющая характеристика, а один
-        из компонентов наравне с входом/выходом/обработчиками;
+        (``last_act``, ``last_work``, ``w_adopt``, ``in_open``, ``open_timer``,
+        ``rest_units``). Рецептивного типа входа (``defense``) в составе
+        ``state`` НЕТ — это функция контекста (``@property``, см. MODEL.md §2).
+        Не объемлющая характеристика, а один из компонентов наравне с
+        входом/выходом/обработчиками;
       * ОБРАБОТКА/ВЫХОД — методы-обработчики (``commit``, ``do_rest``,
         ``rotate_defense``, ``gain``, ``process_hit``, ``sense`` и т.д.).
 
@@ -134,7 +136,8 @@ class Agent:
 
     def __init__(self, defense=None, profile="CANON"):
         """profile — имя из PROFILES (p ≤ 1) или вещественный p ≤ 1 (см.
-        docs/MODEL.md, раздел 2а).
+        docs/MODEL.md, раздел 2а). Значение проверяется ``set_profile``:
+        диапазон ``p ≤ 1`` обязателен.
 
         Профиль НЕ вводит новых переменных состояния: это единственный скаляр ``p``,
         модифицирующий ОБРАБОТКУ существующих IPO-компонентов — вход (пороги Шмитта:
@@ -146,9 +149,39 @@ class Agent:
         тип входа больше не хранится, а выводится из контекста (см. property
         ``defense``): конверсия типов энергии не нужна.
         """
-        self.profile = profile if isinstance(profile, str) else round(float(profile), 4)
-        self.p = PROFILES[profile] if isinstance(profile, str) else float(profile)
+        self.set_profile(profile)
         self.reset_state()
+
+    def set_profile(self, profile, allow_out_of_range=False):
+        """Задать профиль с проверкой допустимого диапазона ``0 < p ≤ 1``.
+
+        Принимает имя из ``PROFILES`` либо вещественный ``p``. Диапазон ``p ≤ 1``
+        обязателен: ветвь ``p > 1`` вырождена (``DECAY_ADOPT·p > 1`` — давление
+        растёт без напора) и не наблюдаема (канал оценки строится по убыванию
+        давления, которого нет), т.е. была бы скрытой конституцией, поэтому
+        удалена из ``PROFILES`` (docs/MODEL.md, раздел 2а).
+
+        Args:
+            profile: имя из ``PROFILES`` или вещественный ``p``.
+            allow_out_of_range: сознательный обход проверки диапазона — только
+                для воспроизведения УДАЛЁННОЙ ветви ``p > 1`` в исторических
+                экспериментах («сырым» числом). Штатный код не использует.
+
+        Raises:
+            ValueError: неизвестное имя профиля либо ``p`` вне ``(0, 1]``.
+        """
+        if isinstance(profile, str):
+            if profile not in PROFILES:
+                raise ValueError(
+                    f"неизвестный профиль {profile!r}; допустимы: {sorted(PROFILES)}")
+            p, norm = PROFILES[profile], profile
+        else:
+            p, norm = float(profile), round(float(profile), 4)
+        if not allow_out_of_range and not (0.0 < p <= 1.0):
+            raise ValueError(
+                f"профиль p={p} вне допустимого диапазона 0 < p ≤ 1 "
+                f"(docs/MODEL.md, раздел 2а)")
+        self.profile, self.p = norm, p
 
     def reset_state(self):
         """Сброс физического состояния к началу партии (метрики и наблюдения).
@@ -177,7 +210,7 @@ class Agent:
             "in_open": False,
             "open_timer": 0,
         }
-        self.beliefs = {"opp_energy": 3, "opp_defense": None,
+        self.beliefs = {"opp_energy": 3,
                         "opp_last_act": "REST", "opp_last_work": 0,
                         "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
                         "opp_type_guess": None, "opp_ctx_base": None}
@@ -781,9 +814,10 @@ class Environment(Agent):
                 (``members``, см. ниже и раздел 14 MODEL.md) вход дополнительно
                 нагружается суммарной работой членов нижнего яруса;
       PROCESS : накопление w_adopt и гистерезис ON(F)/OFF(F) — восприимчивость
-                среды = «конъюнктура»; ротация типа «погоды» (defense); upkeep,
-                пополнение пула, покой — всё обработчиками Agent при профиле
-                CANON (p=1), т.е. без профильных искажений суперсистемы;
+                среды = «конъюнктура»; рецептивный тип входа выводится из
+                контекста (property ``defense``), ротации нет (см. §2 MODEL.md);
+                upkeep, пополнение пула, покой — всё обработчиками Agent при
+                профиле CANON (p=1), т.е. без профильных искажений суперсистемы;
       OUTPUT  : состояние входа транслируется в правила для автоматов одним
                 скаляром: при открытом входе среды отдача адресанта увеличивается
                 на ENV_BONUS («окно возможностей»), при закрытом — прежний канон.
@@ -826,8 +860,8 @@ class Environment(Agent):
         # поведение). Новых переменных нет: members — контейнер существующих
         # автоматов, его содержимое описывается тем же кодексом Agent.
         self.members = list(members) if members else []
-        # Среде некого наблюдать: beliefs нейтральны, тогда унаследованная
-        # rotate_defense выбирает «погоду» равномерно из TYPES — прежнее поведение.
+        # Среде некого наблюдать: beliefs нейтральны. Ротации типа нет —
+        # рецептивный тип входа выводится из контекста (property ``defense``).
         self.beliefs.update({"opp_last_act": "REST", "opp_last_work": 0,
                              "opp_energy": 0, "opp_force": 1,
                              "opp_w_adopt": 0.0, "opp_in_open": False})
@@ -847,22 +881,16 @@ class Environment(Agent):
         self.rest_units = min(self.rest_units + w * 0.01, ENV_REST_CAP)  # труд расширяет потолок (с капом)
 
     def rotate_defense(self, rng):
-        """Ротация «погоды» среды — тот же обработчик, что у Agent.
+        """No-op ради совместимости API: ротация типа упразднена (см. §2 MODEL.md).
 
-        Фиксированная защита среды делала бы контр-цикл предопределённым;
-        ротация оставляет место для стратегии (наблюдательный агент
-        эксплуатирует распределение). При нейтральных beliefs унаследованный
-        выбор равномерен по TYPES — прежнее поведение среды, код не дублируется.
-
-        Иерархия: если среда объят другой суперсистемой (её members непусты),
-        погода членов ротируется в их собственном такте — здесь только своё.
-        Исключение: автономные члены-среды (super().__init__ не вызывался — см.
-        __init__) собственного такта вне партии не имеют, поэтому их «погода»
-        ротируется здесь, на ярус выше; кодекс тот же (унаследованный выбор)."""
+        Тип входа — контекстная фаза (property ``defense``), а не ротируемая
+        метка, поэтому ротации нет ни у автоматов, ни у суперсистем. Метод
+        сохранён для совместимости протокола такта; рекурсивный вызов на
+        членах-средах сохранён ради симметрии обхода (оба вызова инертны)."""
         super().rotate_defense(rng)
         for m in self.members:
             if isinstance(m, Environment):
-                Agent.rotate_defense(m, rng)   # без профильных искажений CANON-среды
+                Agent.rotate_defense(m, rng)   # инертно (тот же no-op)
 
     def snapshot(self):
         """Снимок IPO-состояния суперсистемы для наблюдения за иерархией.
@@ -910,9 +938,9 @@ class Environment(Agent):
     def tick(self):
         """Один такт среды: тот же протокол Process, что у автомата.
 
-        Ротация типа вынесена в шаг 2 такта партии (env.rotate_defense(rng) —
-        там же, где у автоматов); здесь — энергия, состояния входа, автономный
-        доход и покой/upkeep. Все фазы — унаследованные обработчики Agent.
+        Здесь — энергия, состояния входа, автономный доход и покой/upkeep.
+        Все фазы — унаследованные обработчики Agent; ротации типа нет
+        (``rotate_defense`` — no-op, тип выводится из контекста, §2 MODEL.md).
 
         Иерархия (members): перед собственной тактовкой входа среда принимает
         эмерджентный вход яруса — суммарную работу членов (member_output).
@@ -1144,7 +1172,8 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
 
     Протокол такта (фиксированный порядок, стороны зеркальны):
       1. Взаимное наблюдение (sense) — частичная наблюдаемость.
-      2. Ротация защит обеих сторон (профильно-модулируемая: см. rotate_defense).
+      2. Шаг совместимости: вызовы ``rotate_defense`` (no-op) обеих сторон и
+         среды; тип входа выводится из контекста, ротации нет (§2 MODEL.md).
       3. Поддержание структуры (upkeep), пополнение пулов (tick_energy),
          тактовка состояний входов (tick_input_state, пороги Шмитта с
          профильным decay/OFF). При with_env тем же шагом тактуется
@@ -1166,9 +1195,8 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
     """
     if profiles is not None:
         p_rl, p_ai = profiles
-        for agent, prof in ((rl, p_rl), (ai, p_ai)):
-            agent.profile = prof if isinstance(prof, str) else round(float(prof), 4)
-            agent.p = PROFILES[prof] if isinstance(prof, str) else float(prof)
+        rl.set_profile(p_rl)
+        ai.set_profile(p_ai)
     # Партия начинается с равных стартовых условий: физическое состояние
     # (метрики, вход, наблюдения) сбрасывается, переносится только обучение
     # (Q-таблица RL). Иначе проигравший стартовал бы ослабленным, а победитель —
@@ -1186,7 +1214,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
         rl.rotate_defense(rng)
         ai.rotate_defense(rng)
         if env is not None:
-            env.rotate_defense(rng)      # «погода» среды ротируется тем же обработчиком
+            env.rotate_defense(rng)      # no-op (тип — контекст, см. §2 MODEL.md)
 
         rl.upkeep()
         ai.upkeep()

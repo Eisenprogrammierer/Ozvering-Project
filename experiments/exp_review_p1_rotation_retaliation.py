@@ -50,7 +50,7 @@ for prof in ("ZEALOT","CANON"):
     print(f"    {prof:10} истина={DECAY_ADOPT*tgt.p:.3f} оценка={None if g is None else round(g,3)}")
 
 # демонстрация runaway при p>1 (удалён из PROFILES): вход «открывается» сам без напора
-tgt=Agent(profile=1.30); tgt.w_adopt=1.0
+tgt=Agent(); tgt.set_profile(1.30, allow_out_of_range=True); tgt.w_adopt=1.0
 first_open=None
 for t in range(120):
     tgt.tick_input_state(); tgt.receive_pressure(0.0)

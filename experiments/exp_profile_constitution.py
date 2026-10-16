@@ -63,6 +63,17 @@ def _p_of(arg):
     return S.PROFILES[arg] if isinstance(arg, str) else float(arg)
 
 
+def _make_agent(cls, profile_arg):
+    """Создать агента с профилем; «сырое» p > 1 (контроль УДАЛЁННОЙ ветви)
+    проводится в обход штатной проверки диапазона p ≤ 1."""
+    try:
+        return cls(profile=profile_arg)
+    except ValueError:
+        agent = cls()
+        agent.set_profile(profile_arg, allow_out_of_range=True)
+        return agent
+
+
 class _CountingRL(RLAgent):
     """Измерительная обёртка: считает, как часто противник восстанавливает p.
 
@@ -94,7 +105,7 @@ def observability_and_outcome(profile_arg):
     rl = _CountingRL()
     wins = {"RL": 0, "UtilityAI": 0, None: 0}
     for seed in range(N_GAMES):
-        winner, _, _, _ = play_game(rl, UtilityAI(profile=profile_arg), 1000,
+        winner, _, _, _ = play_game(rl, _make_agent(UtilityAI, profile_arg), 1000,
                                     seed=seed, with_env=True)
         wins[winner] += 1
     frac = rl.obs_filled / max(1, rl.obs_total)
@@ -104,7 +115,7 @@ def observability_and_outcome(profile_arg):
 
 def degeneracy(profile_arg):
     """Проверка входного закона на сжатие: рост ``w_adopt`` без напора."""
-    target = Agent(profile=profile_arg)
+    target = _make_agent(Agent, profile_arg)
     target.w_adopt = 1.0
     for _ in range(IDLE_TICKS):
         target.tick_input_state()
