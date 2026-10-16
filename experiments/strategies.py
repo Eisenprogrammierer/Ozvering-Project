@@ -101,12 +101,11 @@ POLICY_SIGNATURE = "(me, opp, rng) -> (act, work)"
 def duel(policy_a, policy_b, steps=400, seed=0, f0=10, env=None, capture_streak=20):
     """Одна дуэль двух политик на симметричных автоматах.
 
-    Порядок такта повторяет ``simulation.play_game`` (sense → (ротация защит —
-    упразднена, ``rotate_defense`` вызывается no-op ради совместимости
-    протокола) → upkeep → энергия → состояния входов → намерения →
-    ``resolve_attack`` в обе стороны → проверка устойчивого доминирования).
-    Доминирование проверяется ЕДИНЫМ предикатом ``simulation.dominates`` — тем же,
-    что и канонный ``check_capture`` (пункт A2 ревью), а не локальной копией.
+    Такт выполняется ЕДИНОЙ функцией ``simulation.run_tick`` — тем же порядком
+    шагов, что и канон ``simulation.play_game`` (пункт B2 ревью): сердце дуэли
+    больше не дублирует протокол. Доминирование проверяется ЕДИНЫМ предикатом
+    ``simulation.dominates`` — тем же, что и канонный ``check_capture``
+    (пункт A2 ревью), а не локальной копией.
 
     Args:
         policy_a, policy_b: политики сторон A и B.
@@ -126,17 +125,7 @@ def duel(policy_a, policy_b, steps=400, seed=0, f0=10, env=None, capture_streak=
     ha, hb = [], []
     dom_a = dom_b = 0
     for step in range(steps):
-        a.sense(b, rng); b.sense(a, rng)
-        a.rotate_defense(rng); b.rotate_defense(rng)
-        a.upkeep(); b.upkeep()
-        a.tick_energy(); b.tick_energy()
-        a.tick_input_state(); b.tick_input_state()
-        act, w = policy_a(a, b, rng)
-        wa = 0 if a.rest_if_starving() else a.commit(act, w)
-        act, w = policy_b(b, a, rng)
-        wb = 0 if b.rest_if_starving() else b.commit(act, w)
-        S.resolve_attack(a, b, wa, rng, env)
-        S.resolve_attack(b, a, wb, rng, env)
+        S.run_tick(a, b, policy_a, policy_b, rng, env)
         ha.append(a.force); hb.append(b.force)
         dom_a = dom_a + 1 if S.dominates(a, b) else 0
         dom_b = dom_b + 1 if S.dominates(b, a) else 0

@@ -28,23 +28,10 @@ def duel(kind_a, kind_b, steps=400, seed=0):
     ha, hb = [], []
     dom_a = dom_b = 0
     for step in range(steps):
-        a.sense(b, rng); b.sense(a, rng)
-        a.rotate_defense(rng); b.rotate_defense(rng)
-        a.upkeep(); b.upkeep()
-        a.tick_energy(); b.tick_energy()
-        a.tick_input_state(); b.tick_input_state()
-        act, w = scripted(kind_a, a, b, rng)
-        if not a.rest_if_starving():
-            wa = a.commit(act, w)
-        else:
-            wa = 0
-        act, w = scripted(kind_b, b, a, rng)
-        if not b.rest_if_starving():
-            wb = b.commit(act, w)
-        else:
-            wb = 0
-        S.resolve_attack(a, b, wa, rng)
-        S.resolve_attack(b, a, wb, rng)
+        S.run_tick(a, b,
+                   lambda me, opp, r: scripted(kind_a, me, opp, r),
+                   lambda me, opp, r: scripted(kind_b, me, opp, r),
+                   rng)
         ha.append(a.force); hb.append(b.force)
         dom_a = dom_a + 1 if S.dominates(a, b) else 0
         dom_b = dom_b + 1 if S.dominates(b, a) else 0

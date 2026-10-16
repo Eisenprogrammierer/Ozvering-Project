@@ -1204,6 +1204,54 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
     return None, dom_rl, dom_ai
 
 
+def run_tick(a, b, intent_a, intent_b, rng, env=None):
+    """Единый такт дуэли сторон ``a`` и ``b`` (шаги 1–5 протокола ``play_game``).
+
+    ЕДИНЫЙ источник порядка такта: и канон (``play_game``), и эксперименты
+    (``experiments/strategies.duel``, ``exp_schmitt_suite``) вызывают его, чтобы
+    порядок шагов не расходился между ними (пункт B2 ревью).
+
+    Что делает: 1) взаимное наблюдение ``sense``; 2) шаг совместимости
+    ``rotate_defense`` (no-op) обеих сторон и среды; 3) ``upkeep``,
+    ``tick_energy``, ``tick_input_state`` сторон и ``env.tick()`` (если среда
+    есть); 4) намерения сторон через ``intent_*`` (голодный рефлекс и ``commit``
+    применяются здесь одинаково для всех); 5) ``resolve_attack`` в обе стороны.
+
+    Намерение стороны — вызываемый ``intent_x(me, opp, rng) -> (act, work)``:
+    у RL это epsilon-greedy + захват состояния для TD-обучения, у Utility —
+    argmax ``U``, у скриптов — сама политика ``(me, opp, rng)``. Всё, что
+    специфично для стороны (обучение RL, учёт истории), остаётся у вызывающего.
+
+    Returns:
+        (work_a, work_b) — фактически выполненная работа сторон (после
+        ``rest_if_starving`` и ``commit``)."""
+    a.sense(b, rng)
+    b.sense(a, rng)
+
+    a.rotate_defense(rng)
+    b.rotate_defense(rng)
+    if env is not None:
+        env.rotate_defense(rng)          # no-op (тип — контекст, см. §2 MODEL.md)
+
+    a.upkeep()
+    b.upkeep()
+    a.tick_energy()
+    b.tick_energy()
+    a.tick_input_state()
+    b.tick_input_state()
+    if env is not None:
+        env.tick()
+
+    act_a, work_a = intent_a(a, b, rng)
+    work_a = 0 if a.rest_if_starving() else a.commit(act_a, work_a)
+    act_b, work_b = intent_b(b, a, rng)
+    work_b = 0 if b.rest_if_starving() else b.commit(act_b, work_b)
+
+    resolve_attack(a, b, work_a, rng, env)
+    resolve_attack(b, a, work_b, rng, env)
+    return work_a, work_b
+
+
 def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
               env_members=None):
     """Одна партия; между партиями переносится только Q-таблица RL.
@@ -1271,46 +1319,29 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
     dom_rl = dom_ai = 0                     # серии доминирования — локальны для партии
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
+    # Намерения сторон (шаг 4 протокола) и захват состояния для TD-обучения RL.
+    # ``trace`` выносит наружу индекс действия и силу до commit: обучение (шаг 6)
+    # RL-специфично, поэтому в общий ``run_tick`` не входит.
+    trace = {}
+
+    def rl_intent(me, opp, r):
+        idx = me.form_intention(me.epsilon(), r)
+        trace["idx"] = idx
+        trace["f_before"] = me.force
+        trace["st_before"] = me.skey()
+        name, frac = ACTIONS[idx]
+        return name, me.energy_pool * frac
+
+    def ai_intent(me, opp, r):
+        return me.form_intention()
+
     for step in range(steps):
-        rl.sense(ai, rng)
-        ai.sense(rl, rng)
-
-        rl.rotate_defense(rng)
-        ai.rotate_defense(rng)
-        if env is not None:
-            env.rotate_defense(rng)      # no-op (тип — контекст, см. §2 MODEL.md)
-
-        rl.upkeep()
-        ai.upkeep()
-        rl.tick_energy()
-        ai.tick_energy()
-        rl.tick_input_state()
-        ai.tick_input_state()
-        if env is not None:
-            env.tick()
-
-        a_idx = rl.form_intention(rl.epsilon(), rng)
-        act_name, frac = ACTIONS[a_idx]
-        st_before = rl.skey()
-        f_before = rl.force
-
-        if rl.rest_if_starving():
-            w_rl = 0
-        else:
-            w_rl = rl.commit(act_name, rl.energy_pool * frac)
-
-        ai_act, ai_work = ai.form_intention()
-        if ai.rest_if_starving():
-            w_ai = 0
-        else:
-            w_ai = ai.commit(ai_act, ai_work)
-
-        resolve_attack(rl, ai, w_rl, rng, env)
-        resolve_attack(ai, rl, w_ai, rng, env)
+        run_tick(rl, ai, rl_intent, ai_intent, rng, env)
 
         rl_hist.append(rl.force)
         ai_hist.append(ai.force)
-        rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
+        rl.learn(trace["st_before"], trace["idx"],
+                 rl.force - trace["f_before"], rl.skey())
 
         winner, dom_rl, dom_ai = check_capture(rl, ai, dom_rl, dom_ai)
         if winner:

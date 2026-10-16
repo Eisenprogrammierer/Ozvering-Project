@@ -52,8 +52,12 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 
 Эксперименты — в `experiments/` (запуск из корня репозитория); логи в репозитории не
 хранятся — вывод воспроизводится запуском. Текущая воспроизводимая базовая линия
-(канонический прогон, матрица баланса, ограничения) — в [`docs/BASELINE.md`](docs/BASELINE.md);
-CI-тест баланса — `python3 experiments/exp_balance_ci.py`. Исторические документы обсуждения — в
+(канонический прогон, матрица баланса, ограничения) — в [`docs/BASELINE.md`](docs/BASELINE.md).
+Реальный CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions): на
+каждый push/PR прогоняются проверки с кодом возврата (`exp_balance_ci.py`,
+`exp_hierarchy_depth.py`, `exp_retaliation_faithful.py`), компиляция и детерминизм
+канона по `PYTHONHASHSEED`; эти скрипты исполняются стандартной библиотекой Python.
+Исторические документы обсуждения — в
 `docs/history/` (`ideas.md`, `simulation_v2_prototype.py`, PR-док Шмитта), помечены
 статус-шапками как частично/полностью отвергнутые; канонической является механика
 `simulation.py`.
@@ -62,8 +66,12 @@ CI-тест баланса — `python3 experiments/exp_balance_ci.py`. Исто
 
 ```bash
 python3 simulation.py            # канон: пакет из 10 партий + график динамики силы
-python3 experiments/exp_balance_ci.py   # CI-тест баланса (код возврата 0/1; см. docs/BASELINE.md)
+python3 experiments/exp_balance_ci.py          # CI-тест баланса (код возврата 0/1)
+python3 experiments/exp_hierarchy_depth.py     # автотест глубины Environment (0/1)
+python3 experiments/exp_retaliation_faithful.py  # верность оценки возмездия (0/1)
 ```
+
+Проверки с кодом возврата дублируют шаги CI (`.github/workflows/ci.yml`).
 
 Зависимости (графики, эксперименты, графический движок): `pip install -r requirements.txt`.
 
