@@ -207,6 +207,41 @@ def test_button_click_navigates(app, tmp_path):
     assert app.manager.current.name == "about"
 
 
+def test_arena_quit_button_exits(app):
+    """В HUD арены есть кнопка QUIT; клик по ней завершает цикл (rc=False)."""
+    import pygame
+    import game_engine as ge
+    view = ge.GameApp(screen=app.screen, fonts=app.fonts)
+    names = [n for n, _label, _r in view.buttons]
+    assert "QUIT" in names
+    rect = next(r for n, _label, r in view.buttons if n == "QUIT")
+    pos = rect.center
+    running = view.handle_events([pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, button=1, pos=pos)])
+    assert running is False
+
+
+def test_entry_point_dispatches_to_ui(monkeypatch):
+    pytest.importorskip("pygame")
+    import main as entry
+    import ui.app as ui_app
+    monkeypatch.setattr(sys, "argv", list(sys.argv))     # восстановить после
+    seen = {}
+    monkeypatch.setattr(ui_app, "main",
+                        lambda argv=None: seen.__setitem__("argv", argv) or 0)
+    rc = entry.main(["--scene", "game"])
+    assert rc == 0 and seen["argv"] == ["--scene", "game"]
+
+
+def test_entry_point_dispatches_to_arena(monkeypatch):
+    pytest.importorskip("pygame")
+    import main as entry
+    import game_engine as ge
+    monkeypatch.setattr(sys, "argv", list(sys.argv))
+    monkeypatch.setattr(ge, "main", lambda: 42)
+    assert entry.main(["--arena"]) == 42
+
+
 def test_save_layer_is_pygame_free():
     """``ui.save`` (и контент) импортируются без pygame — доступны в CI."""
     import subprocess
@@ -217,3 +252,9 @@ def test_save_layer_is_pygame_free():
     r = subprocess.run([sys.executable, "-c", code], cwd=root,
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_entry_point_importable():
+    """Единая точка запуска ``main.py`` импортируется без графики."""
+    import main as entry
+    assert callable(entry.main)

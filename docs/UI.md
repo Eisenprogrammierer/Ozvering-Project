@@ -13,9 +13,10 @@
 
 ```bash
 pip install pygame-ce
-python3 -m ui                 # обычный запуск (старт — главное меню)
-python3 -m ui --fullscreen    # (или -f) полноэкранный режим
-python3 -m ui --scene game    # сразу открыть экран (отладка)
+python3 main.py               # единая точка входа: игра (старт — главное меню)
+python3 main.py --fullscreen  # (или -f) полноэкранный режим
+python3 main.py --arena       # арена отдельно (автономный game_engine)
+python3 -m ui --scene game    # сразу открыть экран игры (отладка)
 ```
 
 `game_engine.py` по-прежнему запускается автономно (`python3 game_engine.py`) —

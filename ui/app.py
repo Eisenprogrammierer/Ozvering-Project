@@ -28,6 +28,7 @@ class App:
     def __init__(self, fullscreen=None, seed=0):
         ge.LOG.info("ui.App: инициализация сценного слоя")
         pygame.init()
+        ge.disable_audio()       # звук пока не используется (см. game_engine)
         self.save = SaveManager(log=ge.LOG)
         self.settings = self.save.settings
         self.seed = seed
@@ -151,7 +152,7 @@ class App:
             except Exception as exc:
                 ge.LOG.exc("scene.draw", exc, key="ui-draw")
             pygame.display.flip()
-        pygame.quit()
+        ge.quit_pygame()
         ge.LOG.info("ui.App: завершение, rc=0")
         return 0
 

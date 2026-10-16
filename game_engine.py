@@ -17,7 +17,7 @@ resolve_attack / learn / check_capture) и словари PARAMETERS / PROFILES 
   M       - режим: наблюдатель <-> игрок управляет RL-агентом вручную
             (в ручном режиме плитки действий кликабельны ВСЕГДА, выбор виден сразу)
   F1/H    - справка
-  ESC/Q   - выход
+  ESC/Q   - выход (дублируется кнопкой "QUIT" в HUD - выход мышью всегда доступен)
 
 Визуальный язык (минимализм, всё выводится из состояний модели):
   * Два круга-автомата: радиус ~ log(сила), цвет рамки - текущий тип защиты
@@ -269,6 +269,34 @@ def compute_window_size():
     return max(base_w, w), max(base_h, h)
 
 
+def disable_audio():
+    """Отключить аудио-подсистему pygame, если она была инициализирована.
+
+    Движок звук пока не использует, а корректный teardown mixer на части
+    сборок ALSA/PulseAudio может подвиснуть — из-за чего процесс не завершается
+    («приходится убивать»). Освобождаем аудио сразу после pygame.init().
+    """
+    try:
+        if pygame.mixer.get_init():
+            pygame.mixer.quit()
+            LOG.debug("disable_audio: mixer освобождён")
+    except Exception as exc:                       # pragma: no cover
+        LOG.debug("disable_audio: %s" % exc)
+
+
+def quit_pygame():
+    """Штатно и безопасно закрыть pygame (аудио -> всё остальное).
+
+    Обёртки try/except гарантируют, что даже сбойный teardown одной подсистемы
+    не помешает выходу из процесса.
+    """
+    disable_audio()
+    try:
+        pygame.quit()
+    except Exception as exc:                       # pragma: no cover
+        LOG.warn("pygame.quit(): %s" % exc)
+
+
 # Фактический размер окна определяется при старте (после pygame.init()).
 SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
@@ -405,9 +433,10 @@ class Layout:
         # Ячейки НЕ растягиваются на весь прямоугольник: высота ограничена
         # базовой (btn_area_h), лишняя высота колонки уходит в чистый воздух
         # под сеткой - кнопки остаются компактными и никогда не сливаются.
-        names = ["START", "STEP", "SLOWER", "FASTER", "MODE", "RESET", "HELP"]
+        names = ["START", "STEP", "SLOWER", "FASTER", "MODE", "RESET",
+                 "HELP", "QUIT"]
         labels = ["START / PAUSE", "STEP 1 TICK", "SPEED <", "SPEED >",
-                  "MODE: OBS/MANUAL", "RESET MATCH", "HELP F1"]
+                  "MODE: OBS/MANUAL", "RESET MATCH", "HELP F1", "QUIT (ESC)"]
         rows, cols = self.BTN_ROWS, self.BTN_COLS
         cg = self.cell_gap
         cw = (btn_rect.width - (cols - 1) * cg) // cols
@@ -417,7 +446,7 @@ class Layout:
         rects = []
         order = [("START", 0, 0), ("STEP", 0, 1), ("SLOWER", 1, 0),
                  ("FASTER", 1, 1), ("MODE", 2, 0), ("RESET", 2, 1),
-                 ("HELP", 3, 0)]
+                 ("HELP", 3, 0), ("QUIT", 3, 1)]
         by_name = {}
         for nm, rr, cc in order:
             r = pygame.Rect(btn_rect.x + cc * (cw + cg),
@@ -426,10 +455,10 @@ class Layout:
             by_name[nm] = r
         self.buttons = list(zip(names, labels, rects))
         (self.start_btn, self.step_btn, self.slow_btn, self.fast_btn,
-         self.mode_btn, self.reset_btn, self.help_btn) = rects
-        # Ячейка (3,1) - индикатор темпа: отдельныйRect в том же коридоре.
-        self.speed_rect = pygame.Rect(btn_rect.x + 1 * (cw + cg),
-                                      btn_rect.y + 3 * (ch + cg), cw, ch)
+         self.mode_btn, self.reset_btn, self.help_btn,
+         self.quit_btn) = rects
+        # Сетка 4x2 полностью занята кнопками; последняя ячейка (3,1) - QUIT.
+        # Индикатор темпа переехал в подпись C2 (draw_caption).
         self.btn_cell_w, self.btn_cell_h = cw, ch
 
         # ================= КОЛОНКА B: арена сверху, действия снизу =========
@@ -541,7 +570,7 @@ class Layout:
             if pad.clamp(actions_rect) != pad:
                 problems.append("tile-out-of-B2")
                 break
-        for br in rects + [self.speed_rect]:
+        for br in rects:
             pad = pygame.Rect(br.x - 2, br.y - 2, br.w + 4, br.h + 4)
             if pad.clamp(btn_rect) != pad:
                 problems.append("btn-out-of-C1")
@@ -1157,6 +1186,7 @@ class GameApp:
                  profile_ai="CANON"):
         LOG.info("GameApp: pygame.init()...")
         pygame.init()
+        disable_audio()          # звук не используется; убираем риск зависания teardown
         LOG.debug("pygame.init выполнен; подсистемы display=%s" %
                   (pygame.display.get_init(),))
         global SCREEN_W, SCREEN_H
@@ -1901,9 +1931,10 @@ class GameApp:
         """Секция C1: кнопки HUD (сетка 4x2) - тот же функционал, что у клавиш.
 
         Активная подсветка + короткая вспышка при нажатии - реакция видна
-        сразу. Каждая кнопка занимает свою ячейку сетки Layout; индикатор
-        темпа - отдельная ячейка (3,1). Перекрытие кнопок невозможно по
-        построению (ячейки не пересекаются), текст вписывается усечением."""
+        сразу. Каждая кнопка занимает свою ячейку сетки Layout; перекрытие
+        кнопок невозможно по построению (ячейки не пересекаются), текст
+        вписывается усечением. Последняя ячейка - QUIT (выход мышью; дублирует
+        ESC/Q и штатное закрытие окна)."""
         L_ = self.layout
         pygame.draw.rect(s, COL_PANEL, L_.ctrl_rect)
         flashing = self.time < self._flash_until
@@ -1911,11 +1942,17 @@ class GameApp:
             active = ((name == "START" and not self.paused)
                       or (name == "MODE" and self.manual_mode))
             hot = flashing and self._btn_flash == name
-            bg = (74, 82, 98) if active else (38, 41, 50)
+            if name == "QUIT":
+                bg = (86, 48, 48)
+            elif active:
+                bg = (74, 82, 98)
+            else:
+                bg = (38, 41, 50)
             if hot:
                 bg = (120, 130, 150)
             pygame.draw.rect(s, bg, rect, border_radius=4)
-            border = COL_OPEN if active else (90, 95, 108)
+            border = (170, 90, 90) if name == "QUIT" else \
+                (COL_OPEN if active else (90, 95, 108))
             pygame.draw.rect(s, border, rect, 2, border_radius=4)
             t = self.font_s.render(label, True, COL_TEXT)
             if t.get_width() > rect.width - 6:      # текст не влезает - режем
@@ -1925,17 +1962,6 @@ class GameApp:
                 continue
             s.blit(t, (rect.x + (rect.width - t.get_width()) // 2,
                        rect.y + (rect.height - t.get_height()) // 2))
-        # Индикатор темпа - собственная ячейка сетки (3,1), никогда не
-        # пересекается с кнопками.
-        sr = L_.speed_rect
-        pygame.draw.rect(s, (30, 33, 40), sr, border_radius=4)
-        sp_txt = "%.1f т/с" % self.ticks_per_sec if self.cyrillic_ok \
-            else "%.1f t/s" % self.ticks_per_sec
-        sp = self.font_s.render(sp_txt, True, COL_DIM)
-        if (sp.get_width() <= sr.width - 4
-                and sp.get_height() <= sr.height - 4):
-            s.blit(sp, (sr.x + (sr.width - sp.get_width()) // 2,
-                        sr.y + (sr.height - sp.get_height()) // 2))
 
     def draw_status(self, s, m):
         """Итог партии - в верхней части арены (секция B1); серии - в СТАТУСе."""
@@ -1959,7 +1985,7 @@ class GameApp:
                 "TAB / кнопка STEP - один такт (работает и в паузе!)",
                 "+/- или стрелки / SPEED - темп   M / MODE - режим игрок/наблюдатель",
                 "1..7 или клик по плитке - действие RL (сразу видно выбор)",
-                "F1/H - скрыть справку   ESC/Q - выход",
+                "F1/H - скрыть справку   ESC/Q или кнопка QUIT - выход",
                 "",
                 "Круг = автомат (радиус ~ log F, рамка = тип защиты).",
                 "Кольцо = давление на вход w_adopt/ON(F); жёлтая пульсация -",
@@ -1972,7 +1998,7 @@ class GameApp:
                 "TAB / STEP button - single tick (works while paused!)",
                 "+/- or arrows / SPEED - rate   M / MODE - observe/manual",
                 "1..7 or click a tile - pick RL action (selection is highlighted)",
-                "F1/H - toggle help   ESC/Q - quit",
+                "F1/H - toggle help   ESC/Q or QUIT button - quit",
                 "",
                 "Circle = automaton (radius ~ log F, outline = defense type).",
                 "Ring = input pressure w_adopt/ON(F); yellow pulse =",
@@ -2045,7 +2071,7 @@ class GameApp:
                 LOG.warn("кадр не отрисован - цикл продолжается")
         LOG.info("главный цикл завершён (кадров=%s, финальный tick=%s)"
                  % (frame, self.match.step))
-        pygame.quit()
+        quit_pygame()
         LOG.info("pygame.quit() выполнен - чистое завершение")
 
 
