@@ -1144,33 +1144,52 @@ class FontSet:
 # ---------------------------------------------------------------------------
 
 class GameApp:
-    def __init__(self, fonts=None):
+    """Экран «основное игровое поле»: наблюдение/управление дуэлью.
+
+    Работает автономно (``GameApp().run()`` — как и раньше) или встраивается в
+    сценный слой (пакет ``ui``): если передан ``screen``, окно НЕ создаётся,
+    кадр рисуется в переданный surface (``draw(surface)``), ESC вызывает
+    ``on_escape`` вместо выхода, а геометрию окна задаёт владелец сцены.
+    """
+
+    def __init__(self, fonts=None, screen=None, on_escape=None, seed=0,
+                 steps=2000, with_env=True, profile_rl="CANON",
+                 profile_ai="CANON"):
         LOG.info("GameApp: pygame.init()...")
         pygame.init()
         LOG.debug("pygame.init выполнен; подсистемы display=%s" %
                   (pygame.display.get_init(),))
-        # Автоподбор размера окна под экран (соотношение 12:9).
         global SCREEN_W, SCREEN_H
-        SCREEN_W, SCREEN_H = compute_window_size()
-        flags = pygame.RESIZABLE          # пользователь может тянуть окно -
-        #                           геометрия HUD пересчитается на VIDEORESIZE
+        self._owns_window = screen is None
+        self.on_escape = on_escape
         self._fullscreen = False
-        if "--fullscreen" in sys.argv or "-f" in sys.argv:
-            flags = pygame.FULLSCREEN
-            self._fullscreen = True
-            LOG.info("полноэкранный режим запрошен флагом %s"
-                     % ("--fullscreen" if "--fullscreen" in sys.argv else "-f"))
-        try:
-            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
-        except Exception as exc:
-            LOG.warn("set_mode(%s,%s,flags=%s) не удался (%s) - оконный режим 12:9"
-                     % (SCREEN_W, SCREEN_H, flags, exc))
+        if self._owns_window:
+            # Автоподбор размера окна под экран (соотношение 12:9).
             SCREEN_W, SCREEN_H = compute_window_size()
-            self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H),
-                                                  pygame.RESIZABLE)
-        pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
-        LOG.info("окно создано: %sx%s driver=%s"
-                 % (SCREEN_W, SCREEN_H, pygame.display.get_driver()))
+            flags = pygame.RESIZABLE      # пользователь может тянуть окно -
+            #                       геометрия HUD пересчитается на VIDEORESIZE
+            if "--fullscreen" in sys.argv or "-f" in sys.argv:
+                flags = pygame.FULLSCREEN
+                self._fullscreen = True
+                LOG.info("полноэкранный режим запрошен флагом %s"
+                         % ("--fullscreen" if "--fullscreen" in sys.argv else "-f"))
+            try:
+                self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
+            except Exception as exc:
+                LOG.warn("set_mode(%s,%s,flags=%s) не удался (%s) - оконный режим 12:9"
+                         % (SCREEN_W, SCREEN_H, flags, exc))
+                SCREEN_W, SCREEN_H = compute_window_size()
+                self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H),
+                                                      pygame.RESIZABLE)
+            pygame.display.set_caption("Ozvering-Project - IPO Arena (PyGame)")
+            LOG.info("окно создано: %sx%s driver=%s"
+                     % (SCREEN_W, SCREEN_H, pygame.display.get_driver()))
+        else:
+            # Встроенный режим: окном владеет сценный слой (ui.App).
+            self.screen = screen
+            SCREEN_W, SCREEN_H = screen.get_size()
+            LOG.info("GameApp встроен в сценный слой: surface=%sx%s"
+                     % (SCREEN_W, SCREEN_H))
         self.clock = pygame.time.Clock()
         # Шрифты: если pygame.font работает - используем его (кириллица возможна);
         # если нет (битый freetype в pygame 2.6.x / Python 3.14) - встроенный
@@ -1207,8 +1226,14 @@ class GameApp:
 
         # Общая Q-таблица - перенос обучения между партиями (как run_batch).
         self.q_table = {}
-        self.game_seed = 0
-        self.match = MatchEngine(seed=self.game_seed, q_table=self.q_table)
+        self.game_seed = seed
+        self.steps = steps
+        self.with_env = with_env
+        self.profile_rl = profile_rl
+        self.profile_ai = profile_ai
+        self.match = MatchEngine(seed=self.game_seed, steps=steps,
+                                 with_env=with_env, q_table=self.q_table,
+                                 profile_rl=profile_rl, profile_ai=profile_ai)
 
         # Выбор действия в ручном режиме: индекс в ACTIONS.
         self.action_idx = 0
@@ -1264,8 +1289,13 @@ class GameApp:
             LOG.info("HELP -> %s" % self.show_help)
         return True
 
-    def handle_events(self):
-        for e in pygame.event.get():
+    def handle_events(self, events=None):
+        """Обработка событий кадра. ``events`` — список из внешнего цикла
+        (сценный слой); ``None`` — взять из очереди pygame (автономный режим).
+        Возвращает False только при выходе из приложения."""
+        if events is None:
+            events = list(pygame.event.get())
+        for e in events:
             # MouseMotion и прочие «фоновые» события не логируем - они забивают
             # консоль (десятки строк на движение мыши). Логируем только значимые:
             # нажатия клавиш, клики мыши, QUIT/оконные события.
@@ -1281,6 +1311,11 @@ class GameApp:
                 # Пользователь потянул окно за край: пересоздаём surface и
                 # ПОЛНОСТЬЮ пересчитываем геометрию HUD (Layout гарантирует
                 # непересекающиеся зоны при любом размере).
+                if not self._owns_window:
+                    # Окном владеет сценный слой: он уже вызвал set_mode и
+                    # сообщит новый размер через on_resize().
+                    self.on_resize(*self.screen.get_size())
+                    continue
                 global SCREEN_W, SCREEN_H
                 nw, nh = int(e.w), int(e.h)
                 if (nw, nh) != (SCREEN_W, SCREEN_H):
@@ -1299,6 +1334,10 @@ class GameApp:
                 k = e.key
                 LOG.debug("KEYDOWN keycode=%s mod=%s" % (k, e.mod))
                 if k in (pygame.K_ESCAPE, pygame.K_q):
+                    if self.on_escape is not None:
+                        LOG.info("клавиша ESC -> on_escape (сценный слой)")
+                        self.on_escape()
+                        return True
                     LOG.info("клавиша ESC/Q -> выход")
                     return False
                 elif k == pygame.K_SPACE:
@@ -1363,16 +1402,62 @@ class GameApp:
     def _action_tiles(self):
         return self.layout.tile_rects
 
-    def new_match(self):
-        """Новая партия: свежие автоматы и среда; Q-таблица RL сохраняется."""
+    def new_match(self, seed=None):
+        """Новая партия: свежие автоматы и среда; Q-таблица RL сохраняется.
+
+        ``seed`` — явный seed (сценный слой / загрузка сохранения); ``None`` —
+        инкремент текущего (поведение кнопки RESET).
+        """
         old = self.match
+        if seed is None:
+            self.game_seed += 1
+        else:
+            self.game_seed = int(seed)
         LOG.info("RESET: старая партия seed=%s step=%s finished=%s winner=%s -> "
-                 "новая партия" % (old.seed, old.step, old.finished, old.winner))
-        self.game_seed += 1
-        self.match = MatchEngine(seed=self.game_seed, q_table=self.q_table)
+                 "новая партия seed=%s"
+                 % (old.seed, old.step, old.finished, old.winner, self.game_seed))
+        self.match = MatchEngine(seed=self.game_seed, steps=self.steps,
+                                 with_env=self.with_env, q_table=self.q_table,
+                                 profile_rl=self.profile_rl,
+                                 profile_ai=self.profile_ai)
         self.paused = True
         LOG.info("RESET завершён: paused=True seed=%s (Q-таблица перенесена, "
                  "%s состояний)" % (self.game_seed, len(self.q_table)))
+
+    def start_match(self, seed=0, resume_tick=0):
+        """Начать партию с заданным seed.
+
+        При ``resume_tick > 0`` детерминированно доиграть до такта: движок
+        воспроизводим по seed, поэтому состояние партии не сериализуется, а
+        реконструируется повторным проигрыванием (сохранение хранит номер такта).
+        """
+        self.new_match(seed=seed)
+        n = 0
+        while n < int(resume_tick) and not self.match.finished:
+            self.match.step_tick()
+            n += 1
+        LOG.info("start_match: seed=%s -> tick=%s finished=%s winner=%s"
+                 % (seed, self.match.step, self.match.finished, self.match.winner))
+
+    def progress(self):
+        """Сериализуемое описание прогресса партии (для системы сохранений)."""
+        m = self.match
+        return {"seed": m.seed, "tick": m.step, "winner": m.winner,
+                "finished": bool(m.finished), "steps": self.steps,
+                "with_env": bool(self.with_env),
+                "profile_rl": self.profile_rl, "profile_ai": self.profile_ai}
+
+    def on_resize(self, w, h):
+        """Пересобрать геометрию HUD под новый размер (окном владеет сценный слой)."""
+        global SCREEN_W, SCREEN_H
+        SCREEN_W, SCREEN_H = int(w), int(h)
+        try:
+            self.layout = Layout(SCREEN_W, SCREEN_H, len(ACTIONS))
+            self.buttons = self.layout.buttons
+            LOG.info("on_resize -> %dx%d: Layout пересобран"
+                     % (SCREEN_W, SCREEN_H))
+        except Exception as exc:
+            LOG.exc("Layout после on_resize", exc, key="resize")
 
     # ---------------- логика ----------------
     def update(self, dt):
@@ -1394,8 +1479,10 @@ class GameApp:
                       % (n, self.match.step, self.acc))
 
     # ---------------- отрисовка ----------------
-    def draw(self):
-        s = self.screen
+    def draw(self, surface=None):
+        """Нарисовать кадр партии. ``surface`` — целевой surface сценного слоя
+        (flip делает вызывающий); ``None`` — автономный режим с flip."""
+        s = self.screen if surface is None else surface
         m = self.match
         env = m.env
 
@@ -1421,7 +1508,8 @@ class GameApp:
         self.draw_buttons(s)               # C1 - кнопки HUD (мышь = клавиши)
         self.draw_status(s, m)
 
-        pygame.display.flip()
+        if surface is None:
+            pygame.display.flip()
 
     def _draw_zone_separators(self, s):
         """Тонкие разделители между колонками A|B|C и секциями внутри них.

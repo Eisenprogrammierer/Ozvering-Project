@@ -22,6 +22,7 @@ CHECK_SCRIPTS = [
     "exp_balance_ci",            # критерий недоминирования (docs/BASELINE.md)
     "exp_hierarchy_depth",       # самоподобие кодекса на всех ярусах (§14)
     "exp_retaliation_faithful",  # верность оценки возмездия (§7, пункт A3)
+    "exp_domain_invariance",     # F1: доменная слепота при мощном различителе
 ]
 
 

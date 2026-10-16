@@ -25,8 +25,8 @@ jobs:
       - name: Установка тестовых зависимостей
         run: pip install -r requirements-dev.txt
 
-      - name: Компиляция (ядро, GUI, эксперименты)
-        run: python -m compileall -q simulation.py game_engine.py experiments
+      - name: Компиляция (ядро, GUI, сценный слой, эксперименты)
+        run: python -m compileall -q simulation.py game_engine.py ui experiments
 
       - name: Тесты (pytest)
         run: pytest -q

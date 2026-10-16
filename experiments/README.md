@@ -24,6 +24,7 @@ python3 experiments/exp_hidden_marginal.py # A1: маргинал скрытой
 python3 experiments/exp_retaliation_faithful.py # A3: оценка возмездия == состояние после commit (код 0/1)
 python3 experiments/exp_env_double_loading.py   # A6: двойное нагружение входа среды (замер)
 python3 experiments/exp_rl_sensitivity.py       # A5: чувствительность RL к гиперпараметрам (замер)
+python3 experiments/exp_domain_invariance.py    # F1: доменная слепота при мощном различителе (код 0/1)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -68,6 +69,13 @@ python3 experiments/exp_rl_sensitivity.py       # A5: чувствительно
   реагирует лишь на горизонт разведки `EPS_DECAY_STEPS` (3000 → 13%; 6000 → 27%);
   `EPS_MIN`/`alpha`/`gamma` почти не влияют. Конкурентоспособность RL — цель
   проекта, поэтому `1/9` — дефект (см. `docs/TODO.md` → P1).
+- `exp_domain_invariance.py` — операционализация F1 («единый закон для разных
+  областей»): доменный индекс как nuisance-параметр — **положительный контроль**
+  мощности различителя (заведомо нагруженный `K_EFFECT=1.0` и намеренно доменная
+  ветка ЗАМЕЧАЮТСЯ) плюс **слепота** модели (неиспользуемый индекс инертен).
+  Роль и границы — в докстроке скрипта: свидетельство здесь, определение и
+  сторож регрессий — `tests/test_domain_audit.py` (см. `docs/TODO.md` → F1,
+  `docs/BASELINE.md`).
 - `history/treatments/` — замороженные изолированные копии модели для проверки
   гипотезы H-A (не актуальная модель; перенесены из `experiments/treatments/`).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
