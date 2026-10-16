@@ -22,6 +22,7 @@ python3 experiments/exp_keffect_regime.py  # P0 №2: режим K_EFFECT (но�
 python3 experiments/exp_profile_constitution.py # P1: профиль как «скрытая конституция» (наблюдаемость)
 python3 experiments/exp_hidden_marginal.py # A1: маргинал скрытой фазы hidden (априор наблюдателя)
 python3 experiments/exp_retaliation_faithful.py # A3: оценка возмездия == состояние после commit (код 0/1)
+python3 experiments/exp_env_double_loading.py   # A6: двойное нагружение входа среды (замер)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -56,6 +57,11 @@ python3 experiments/exp_retaliation_faithful.py # A3: оценка возмез�
 - `exp_retaliation_faithful.py` — автотест верности оценки возмездия (A3, код 0/1):
   `Agent.committed_work`/`Agent.defense_after` совпадают с фактическим результатом
   `commit` на 100% атакующих тактов канона (см. `docs/MODEL.md` §7).
+- `exp_env_double_loading.py` — замер двойного нагружения входа среды-суперсистемы
+  (A6): при `members=[rl,ai]` прямой удар и агрегат `member_output` учитывают один
+  и тот же труд (агрегат ≈ 0.94 от суммы ударов), возмездие тоже нагружает вход
+  среды (≈22% прямого давления). Замер: вход среды +76%, окно 68%→77% тактов, но
+  исходы канона не меняются (см. `docs/MODEL.md` §14).
 - `treatments/` — замороженные изолированные копии модели для проверки гипотезы H-A
   (не актуальная модель; история эксперимента).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
