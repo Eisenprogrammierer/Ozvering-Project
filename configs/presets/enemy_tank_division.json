@@ -1,0 +1,39 @@
+{
+  "preset_id": "enemy_tank_division",
+  "class": "military_unit",
+  "label": "2-я танковая дивизия противника",
+  "segments": {
+    "condition": 3,
+    "order": 1,
+    "domain": 1,
+    "role": 3,
+    "experience": 5,
+    "status": 3,
+    "loyalty": 3,
+    "morale": 6,
+    "discipline": 3,
+    "size": 5,
+    "recruitment": 3,
+    "equipment_age": 0,
+    "equipment_qty": 3,
+    "supply": 2,
+    "fatigue": 1,
+    "professionalism": 4,
+    "cohesion": 3,
+    "initiative": 3,
+    "commander_quality": 3,
+    "health": 6
+  },
+  "voltages": {
+    "U_manpower": 8000.0,
+    "U_tanks": 180.0,
+    "U_sp_guns": 36.0,
+    "U_at_guns": 12.0,
+    "U_artillery": 24.0,
+    "U_mlrs": 0.0,
+    "U_otrk": 0.0,
+    "U_sam": 18.0,
+    "U_casualties": 0.0,
+    "U_experience_progress": 0.5
+  }
+}

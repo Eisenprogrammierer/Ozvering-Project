@@ -26,7 +26,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Компиляция (ядро, GUI, сценный слой, эксперименты)
-        run: python -m compileall -q simulation.py warfare.py game_engine.py main.py ui experiments
+        run: python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view experiments
 
       - name: Тесты (pytest)
         run: pytest -q

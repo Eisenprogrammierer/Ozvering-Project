@@ -1,0 +1,39 @@
+{
+  "preset_id": "enemy_motorized_division",
+  "class": "military_unit",
+  "label": "1-я мотострелковая дивизия противника",
+  "segments": {
+    "condition": 3,
+    "order": 7,
+    "domain": 0,
+    "role": 0,
+    "experience": 4,
+    "status": 3,
+    "loyalty": 3,
+    "morale": 5,
+    "discipline": 3,
+    "size": 5,
+    "recruitment": 3,
+    "equipment_age": 1,
+    "equipment_qty": 2,
+    "supply": 2,
+    "fatigue": 1,
+    "professionalism": 3,
+    "cohesion": 3,
+    "initiative": 2,
+    "commander_quality": 2,
+    "health": 5
+  },
+  "voltages": {
+    "U_manpower": 12000.0,
+    "U_tanks": 40.0,
+    "U_sp_guns": 24.0,
+    "U_at_guns": 36.0,
+    "U_artillery": 48.0,
+    "U_mlrs": 12.0,
+    "U_otrk": 0.0,
+    "U_sam": 12.0,
+    "U_casualties": 0.0,
+    "U_experience_progress": 0.4
+  }
+}

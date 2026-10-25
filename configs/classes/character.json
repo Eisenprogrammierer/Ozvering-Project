@@ -1,0 +1,66 @@
+{
+  "class": "character",
+  "label": "Персонаж",
+  "bitmask": {
+    "segments": {
+      "health": { "bits": [0, 1], "states": ["Мёртв", "Тяжело ранен", "Ранен", "Здоров"] },
+      "intention": { "bits": [2, 4], "states": ["Бездействие", "Работа", "Общение", "Отдых", "Медитация", "Поиск", "Бегство", "Бой"] },
+      "status": { "bits": [5, 6], "states": ["Вне строя", "На посту", "В пути", "Отдыхает"] },
+      "mood": { "bits": [7, 8], "states": ["Депрессия", "Тревога", "Спокойствие", "Воодушевление"] },
+      "loyalty": { "bits": [9, 10], "states": ["Враждебен", "Нейтрален", "Лоялен", "Предан"] },
+      "reserved": { "bits": [11, 63], "states": "unused" }
+    }
+  },
+  "voltage_channels": {
+    "U_health": { "label": "Здоровье", "initial": 1.0, "min": 0.0, "max": 1.0, "decay_alpha": 1.0 },
+    "U_need_hunger": { "label": "Голод", "initial": 0.8, "min": 0.0, "max": 1.0, "decay_alpha": 0.98 },
+    "U_need_thirst": { "label": "Жажда", "initial": 0.8, "min": 0.0, "max": 1.0, "decay_alpha": 0.97 },
+    "U_need_safety": { "label": "Безопасность", "initial": 0.7, "min": 0.0, "max": 1.0, "decay_alpha": 0.95 },
+    "U_need_calm": { "label": "Спокойствие", "initial": 0.8, "min": 0.0, "max": 1.0, "decay_alpha": 0.96 },
+    "U_need_social": { "label": "Социальное", "initial": 0.6, "min": 0.0, "max": 1.0, "decay_alpha": 0.98 },
+    "U_need_rest": { "label": "Отдых", "initial": 0.9, "min": 0.0, "max": 1.0, "decay_alpha": 0.95 },
+    "U_stress_accumulated": { "label": "Накопленный стресс", "initial": 0.1, "min": 0.0, "max": 1.0, "decay_alpha": 0.9 }
+  },
+  "bdi": {
+    "is_character": true,
+    "needs": {
+      "hunger": { "channel": "U_need_hunger", "label": "Голод", "critical": 0.25, "health_damage": 0.05 },
+      "thirst": { "channel": "U_need_thirst", "label": "Жажда", "critical": 0.20, "health_damage": 0.06 },
+      "safety": { "channel": "U_need_safety", "label": "Безопасность", "critical": 0.30, "health_damage": 0.02 },
+      "calm": { "channel": "U_need_calm", "label": "Спокойствие", "critical": 0.25, "health_damage": 0.01 },
+      "social": { "channel": "U_need_social", "label": "Общение", "critical": 0.15, "health_damage": 0.02 },
+      "rest": { "channel": "U_need_rest", "label": "Отдых", "critical": 0.20, "health_damage": 0.03 }
+    },
+    "need_coupling": {
+      "hunger": { "calm": 0.10, "social": 0.05 },
+      "thirst": { "calm": 0.12 },
+      "safety": { "calm": 0.15, "social": 0.08 },
+      "rest": { "calm": 0.10 }
+    },
+    "death_effect": {
+      "decay_segments": { "morale": 1, "cohesion": 1 },
+      "log": "Командующий погиб: подразделения фракции деморализованы."
+    }
+  },
+  "susceptibility_profile": {
+    "blast": 0.9,
+    "radiation": 0.5,
+    "toxins": 0.7,
+    "pathogen": 0.6,
+    "fog": 0.1,
+    "extreme_heat": 0.4,
+    "extreme_cold": 0.5
+  },
+  "influence_matrix": {
+    "blast": { "target_indicator": "health", "instant_threshold": 0.7, "accumulation_threshold": 0.4, "decay_beta": 0.85 },
+    "toxins": { "target_indicator": "health", "instant_threshold": 0.8, "accumulation_threshold": 0.5, "decay_beta": 0.9 }
+  },
+  "objective_weights": {
+    "U_health": 3.0,
+    "U_need_hunger": 1.5,
+    "U_need_thirst": 1.5,
+    "U_need_safety": 2.0,
+    "U_stress_accumulated": -1.0,
+    "U_need_calm": 1.0
+  }
+}

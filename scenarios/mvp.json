@@ -1,0 +1,38 @@
+{
+  "player_entity_id": "player_division",
+  "map": "valley_01",
+  "front": {
+    "from": [128, 4],
+    "to": [128, 252],
+    "normal": [-1, 0]
+  },
+  "placements": [
+    {
+      "entity_id": "player_division",
+      "preset": "player_division",
+      "faction": "player",
+      "role": "attacker",
+      "breakthrough": 0.3,
+      "x": 100,
+      "y": 128
+    },
+    {
+      "entity_id": "enemy_div_1",
+      "preset": "enemy_motorized_division",
+      "faction": "enemy",
+      "role": "defender",
+      "x": 150,
+      "y": 70
+    },
+    {
+      "entity_id": "enemy_div_2",
+      "preset": "enemy_tank_division",
+      "faction": "enemy",
+      "role": "defender",
+      "x": 150,
+      "y": 190
+    }
+  ],
+  "engagements": [],
+  "environment_events": []
+}

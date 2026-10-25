@@ -1,0 +1,19 @@
+{
+  "biome_defense": {
+    "1": 1.20,
+    "2": 1.00,
+    "3": 0.85,
+    "4": 0.70,
+    "5": 0.80,
+    "6": 1.05,
+    "7": 1.10,
+    "8": 1.05,
+    "9": 0.75,
+    "10": 0.90
+  },
+  "height_advantage_threshold": 0.15,
+  "height_advantage_modifier": 0.85,
+  "height_disadvantage_modifier": 1.10,
+  "terrain_modifier_min": 0.5,
+  "terrain_modifier_max": 1.5
+}

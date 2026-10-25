@@ -1,0 +1,8 @@
+{
+  "simulation_step_seconds": 300,
+  "bdi_substep_seconds": 300,
+  "bdi_interval_seconds": 3600,
+  "combat_interval_seconds": 3600,
+  "rules_interval_seconds": 3600,
+  "env_interval_seconds": 3600
+}

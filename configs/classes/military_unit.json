@@ -1,0 +1,94 @@
+{
+  "class": "military_unit",
+  "label": "Военное подразделение",
+  "bitmask": {
+    "segments": {
+      "condition":         { "bits": [0, 1],   "states": ["Уничтожен", "Частично боеспособен", "Боеспособен", "Полная готовность"] },
+      "order":             { "bits": [2, 5],   "states": ["attack", "defense", "move", "rest", "forced_march", "aggressive_attack", "cautious_attack", "holding_defense", "withdrawal", "recon", "patrol", "reserve", "march", "regroup", "entrench", "barrage"] },
+      "domain":            { "bits": [6, 7],   "states": ["infantry", "armor", "artillery", "air_defense"] },
+      "role":              { "bits": [8, 10],  "states": ["line", "recon", "support", "assault", "reserve", "hq", "logistics", "engineer"] },
+      "experience":        { "bits": [11, 13], "states": ["Новобранцы", "Резервисты", "Обученные", "Регулярные", "Опытные", "Ветераны", "Элита", "Гвардия"] },
+      "status":            { "bits": [14, 15], "states": ["low", "mid", "high", "max"] },
+      "loyalty":           { "bits": [16, 17], "states": ["Нелояльны", "Слабая", "Нормальная", "Высокая"] },
+      "morale":            { "bits": [18, 20], "states": ["Паника", "Низкое", "Слабое", "Нормальное", "Хорошее", "Высокое", "Фанатичное", "Эйфория"] },
+      "discipline":        { "bits": [21, 22], "states": ["Развал", "Слабая", "Нормальная", "Высокая"] },
+      "size":              { "bits": [23, 25], "states": ["Взвод", "Рота", "Батальон", "Полк", "Бригада", "Дивизия", "Корпус", "Армия"] },
+      "recruitment":       { "bits": [26, 27], "states": ["Истощён", "Слабый", "Нормальный", "Избыточный"] },
+      "equipment_age":     { "bits": [28, 29], "states": ["Новое", "Среднее", "Старое", "Утиль"] },
+      "equipment_qty":     { "bits": [30, 31], "states": ["Нет", "Дефицит", "Норма", "Избыток"] },
+      "supply":            { "bits": [32, 33], "states": ["Нет", "Голод", "Норма", "Избыток"] },
+      "fatigue":           { "bits": [34, 36], "states": ["Отдых", "Свежие", "Усталые", "Очень усталые", "Истощены", "На пределе", "Боевой шок", "Кататония"] },
+      "professionalism":   { "bits": [37, 38], "states": ["Низкий", "Средний", "Высокий", "Экспертный"] },
+      "cohesion":          { "bits": [39, 40], "states": ["Развален", "Слабая", "Нормальная", "Высокая"] },
+      "initiative":        { "bits": [41, 42], "states": ["Пассивные", "Реактивные", "Активные", "Инициативные"] },
+      "commander_quality": { "bits": [43, 44], "states": ["Плохой", "Средний", "Хороший", "Выдающийся"] },
+      "health":            { "bits": [45, 47], "states": ["Мёртв", "Тяжёлый", "Ранен", "Здоров", "Хорошо", "Отлично", "Закалён", "Несгибаем"] },
+      "reserved":          { "bits": [48, 63], "states": "unused" }
+    }
+  },
+  "voltage_channels": {
+    "U_manpower":             { "label": "Личный состав",       "initial": 1000.0, "min": 0.0, "max": 100000.0, "decay_alpha": 1.0 },
+    "U_casualties":           { "label": "Накопленные потери",  "initial": 0.0,    "min": 0.0, "max": 1.0,      "decay_alpha": 1.0 },
+    "U_experience_progress":  { "label": "Прогресс опыта",      "initial": 0.0,    "min": 0.0, "max": 1.0,      "decay_alpha": 1.0 },
+    "U_fatigue_accumulated":  { "label": "Накопленная усталость","initial": 0.0,   "min": 0.0, "max": 1.0,      "decay_alpha": 0.95, "threshold_low": 0.3, "threshold_high": 0.8, "target_segment": "fatigue", "direction": "degrade" },
+    "U_supply_flow":          { "label": "Поток снабжения",     "initial": 0.5,    "min": 0.0, "max": 1.0,      "decay_alpha": 0.9,  "threshold_low": 0.3, "threshold_high": 0.7, "target_segment": "supply", "direction": "improve" },
+    "U_tanks":                { "label": "Танки",               "initial": 0.0,    "min": 0.0, "max": 1000.0,   "decay_alpha": 1.0 },
+    "U_sp_guns":              { "label": "САУ",                 "initial": 0.0,    "min": 0.0, "max": 500.0,    "decay_alpha": 1.0 },
+    "U_at_guns":              { "label": "ПТ-САУ",              "initial": 0.0,    "min": 0.0, "max": 500.0,    "decay_alpha": 1.0 },
+    "U_artillery":            { "label": "Орудия",              "initial": 0.0,    "min": 0.0, "max": 500.0,    "decay_alpha": 1.0 },
+    "U_mlrs":                 { "label": "РСЗО",                "initial": 0.0,    "min": 0.0, "max": 200.0,    "decay_alpha": 1.0 },
+    "U_otrk":                 { "label": "ОТРК",                "initial": 0.0,    "min": 0.0, "max": 50.0,     "decay_alpha": 1.0 },
+    "U_sam":                  { "label": "ЗРК",                 "initial": 0.0,    "min": 0.0, "max": 200.0,    "decay_alpha": 1.0 }
+  },
+  "combat_model": {
+    "weapon_weights": {
+      "U_manpower": 1.0,
+      "U_tanks": 20.0,
+      "U_sp_guns": 15.0,
+      "U_at_guns": 12.0,
+      "U_artillery": 18.0,
+      "U_mlrs": 25.0,
+      "U_otrk": 50.0,
+      "U_sam": 10.0
+    },
+    "equipment_channels": ["U_tanks", "U_sp_guns", "U_at_guns", "U_artillery", "U_mlrs", "U_otrk", "U_sam"],
+    "loss_scale": 0.03,
+    "personnel_loss_share": 0.7,
+    "casualty_rate": 0.01,
+    "experience_gain_cap": 0.2,
+    "experience_gain_factor": 0.0002,
+    "equipment_loss_factor": 0.1,
+    "time_scaling_exponent": 0.75
+  },
+  "susceptibility_profile": {
+    "blast": 0.9,
+    "radiation": 0.3,
+    "fog": 0.2,
+    "extreme_cold": 0.4,
+    "extreme_heat": 0.3
+  },
+  "influence_matrix": {
+    "blast": {
+      "target_indicator": "condition",
+      "instant_threshold": 0.8,
+      "accumulation_threshold": 0.5,
+      "decay_beta": 0.9
+    }
+  },
+  "objective_weights": {
+    "U_manpower": 2.0,
+    "U_casualties": -1.0
+  },
+  "validation_rules": [
+    {
+      "id": "destroy_on_zero_manpower",
+      "trigger": "on_tick",
+      "condition": { "type": "voltage_below", "voltage": "U_manpower", "threshold": 1.0 },
+      "action": "set_segment",
+      "segment": "condition",
+      "value": 0,
+      "message": "Подразделение уничтожено — личный состав исчерпан"
+    }
+  ],
+  "metamorphosis_rules": []
+}

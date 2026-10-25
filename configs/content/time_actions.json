@@ -1,0 +1,26 @@
+{
+  "actions": [
+    { "id": "wait_5", "label": "Ждать 5 минут", "duration_seconds": 300, "category": "wait", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 1800 },
+    { "id": "wait_15", "label": "Ждать 15 минут", "duration_seconds": 900, "category": "wait", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 1800 },
+    { "id": "wait_30", "label": "Ждать 30 минут", "duration_seconds": 1800, "category": "wait", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 1800 },
+    { "id": "wait_60", "label": "Ждать 1 час", "duration_seconds": 3600, "category": "wait", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 1800 },
+    {
+      "id": "binoculars_recon",
+      "label": "Наблюдение в бинокль",
+      "duration_seconds": 900,
+      "category": "recon",
+      "interruptible": true,
+      "cancellable": true,
+      "repeatable": true,
+      "memory_seconds": 1800,
+      "thresholds": [
+        { "id": "recon_partial_1", "at_seconds": 300, "effect": { "log": "Разведка: частичные данные уровня 1." } },
+        { "id": "recon_partial_2", "at_seconds": 600, "effect": { "log": "Разведка: частичные данные уровня 2." } },
+        { "id": "recon_full", "at_seconds": 900, "effect": { "log": "Разведка: полный отчёт." } }
+      ]
+    },
+    { "id": "radio_contact", "label": "Связаться по рации", "duration_seconds": 300, "category": "command", "interruptible": false, "cancellable": false, "repeatable": true, "memory_seconds": 900 },
+    { "id": "plan_orders", "label": "Спланировать приказы", "duration_seconds": 600, "category": "command", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 2700 },
+    { "id": "dialogue_choice", "label": "Диалог", "duration_seconds": 60, "category": "dialogue", "interruptible": true, "cancellable": true, "repeatable": true, "memory_seconds": 900 }
+  ]
+}

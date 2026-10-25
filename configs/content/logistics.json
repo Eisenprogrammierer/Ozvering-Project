@@ -1,0 +1,45 @@
+{
+  "resource_classes": {
+    "I": {"label": "Продовольствие", "unit": "кг", "norm_per_manpower": 1.0, "passive_daily": true},
+    "II": {"label": "Боеприпасы", "unit": "кг", "norm_per_manpower": 0.01, "passive_daily": false},
+    "III": {"label": "Горючее", "unit": "л", "norm_per_equipment": 0.1, "passive_daily": "tech"},
+    "IV": {"label": "Медикаменты", "unit": "компл", "norm_per_manpower": 0.005, "passive_daily": false},
+    "V": {"label": "Инженерное имущество", "unit": "компл", "norm_per_manpower": 0.0, "passive_daily": false},
+    "VI": {"label": "Питьевая вода", "unit": "л", "norm_per_unit": 1.0, "passive_daily": "conditional"},
+    "VII": {"label": "Предметы морали", "unit": "компл", "norm_per_manpower": 0.0, "passive_daily": false}
+  },
+  "vehicle_types": {
+    "jeep": {"capacity": 4, "speed": {"highway": 3, "dirt": 2, "field": 1}, "fuel_per_trip": 5.0, "vulnerability": 0.8, "loss_salvage": 0.0},
+    "apc": {"capacity": 8, "speed": {"highway": 2, "dirt": 2, "field": 1}, "fuel_per_trip": 10.0, "vulnerability": 0.2, "loss_salvage": 0.5},
+    "truck": {"capacity": 16, "speed": {"highway": 2, "dirt": 1, "field": 0}, "fuel_per_trip": 15.0, "vulnerability": 0.8, "loss_salvage": 0.0}
+  },
+  "operations": {
+    "fortify": {"cost": {"V": 1}, "diminishing": [0.30, 0.15, 0.05], "effect_type": "defense", "duration_ticks": 24},
+    "fierce_attack": {"cost": {"II": 2, "III": 1}, "diminishing": [1.0, 0.4, 0.1], "effect_type": "offense", "duration_ticks": 12},
+    "active_defense": {"cost": {"II": 1, "V": 1}, "diminishing": [1.0, 0.4, 0.1], "effect_type": "active_defense", "duration_ticks": 24},
+    "medevac": {"cost": {"IV": 1, "III": 1}, "diminishing": [0.5, 0.2, 0.05], "effect_type": "medevac", "duration_ticks": 0},
+    "morale_boost": {"cost": {"VII": 1}, "diminishing": [0.2, 0.08, 0.02], "effect_type": "morale_boost", "duration_ticks": 0}
+  },
+  "uncertainty": {
+    "eta_jitter": [1.0, 1.5],
+    "spoilage_chance": 0.10,
+    "display_error": 0.15,
+    "deficit_report_hours": 24,
+    "riot_hours": 72,
+    "surplus_threshold": 1.5
+  },
+  "convoy_config": {
+    "base_trip_time": 10.0,
+    "base_loss_chance": 0.05,
+    "route_type_time_modifier": {"highway": 1.0, "dirt": 1.5, "field": 2.5}
+  },
+  "route_config": {
+    "wear_per_convoy": 0.02,
+    "vehicle_wear_per_trip": 0.01,
+    "vehicle_break_chance": 0.05,
+    "repair_ticks_per_wear": 10
+  },
+  "distribution_config": {
+    "default_supply_radius": 15.0
+  }
+}
