@@ -42,7 +42,7 @@
 ## Перед отправкой PR
 
 ```bash
-python -m compileall -q simulation.py game_engine.py main.py ui experiments tests
+python -m compileall -q simulation.py warfare.py game_engine.py main.py ui experiments tests
 pytest -q
 ```
 

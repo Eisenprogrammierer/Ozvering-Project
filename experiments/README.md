@@ -25,6 +25,7 @@ python3 experiments/exp_retaliation_faithful.py # A3: оценка возмез�
 python3 experiments/exp_env_double_loading.py   # A6: двойное нагружение входа среды (замер)
 python3 experiments/exp_rl_sensitivity.py       # A5: чувствительность RL к гиперпараметрам (замер)
 python3 experiments/exp_domain_invariance.py    # F1: доменная слепота при мощном различителе (код 0/1)
+python3 experiments/exp_warfare.py              # войсковые автоматы: персонажи/отделения/приказы (код 0/1)
 ```
 
 - `strategies.py` — ЕДИНЫЙ источник референсных скриптовых стратегий и протокола
@@ -76,6 +77,10 @@ python3 experiments/exp_domain_invariance.py    # F1: доменная слеп�
   Роль и границы — в докстроке скрипта: свидетельство здесь, определение и
   сторож регрессий — `tests/test_domain_audit.py` (см. `docs/TODO.md` → F1,
   `docs/BASELINE.md`).
+- `exp_warfare.py` — проверка войсковых автоматов (код 0/1): две стороны,
+  отделения из персонажей, паники/отходы, банзай-атаки, заградотряд, выход
+  резерва из стана и подкрепление с задержкой. Спецификация — `docs/WARFARE.md`,
+  контракты — `tests/test_warfare.py`.
 - `history/treatments/` — замороженные изолированные копии модели для проверки
   гипотезы H-A (не актуальная модель; перенесены из `experiments/treatments/`).
 - `history/` — скрипты ранних слоёв механики, не запускаемые против текущей модели
