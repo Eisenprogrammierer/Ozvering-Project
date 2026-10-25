@@ -16,6 +16,7 @@ import pygame
 from view.support.log_journal import get_logger
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
+from ..ui.text_layout import draw_fitted
 
 logger = get_logger("view.interrupt_modal")
 
@@ -167,15 +168,20 @@ class InterruptModal(BaseScreen):
         self.panel.draw(screen)
         if self.interrupt is None:
             return
-        title_surf = self.app.font_body.render(
-            self.interrupt.title, True, (255, 180, 100)
+        draw_fitted(
+            screen,
+            [self.app.font_body, self.app.font_small],
+            self.interrupt.title,
+            pygame.Rect(330, 205, 620, 55),
+            (255, 180, 100),
         )
-        screen.blit(title_surf, (330, 210))
-        y = 270
-        for line in self._wrap_text(self.interrupt.text, self.app.font_small, 620):
-            line_surf = self.app.font_small.render(line, True, (220, 220, 230))
-            screen.blit(line_surf, (330, y))
-            y += 24
+        draw_fitted(
+            screen,
+            [self.app.font_small, self.app.font_tiny],
+            self.interrupt.text,
+            pygame.Rect(330, 270, 620, 112),
+            (220, 220, 230),
+        )
         priority_text = f"Приоритет: {self.interrupt.priority}"
         priority_surf = self.app.font_small.render(
             priority_text, True, (160, 160, 180)

@@ -88,7 +88,7 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 ```bash
 python3 simulation.py            # канон: пакет из 10 партий + график динамики силы
 python3 main.py                  # ИГРА: сценный слой ui (меню -> нарратив -> партия)
-python3 main.py --view           # КАМПАНИЯ: интерфейс view (КП, карта, приказы)
+python3 main.py --view           # КАМПАНИЯ: интерфейс view (лагерь + RTS-карта)
 python3 main.py --scene battlefield  # сразу стратегическое поле (RTS)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
 python3 warfare.py               # войсковая симуляция: отделения, паника, банзай
@@ -122,8 +122,9 @@ pytest -q                        # весь тестовый набор (см. �
   пассивный приказ, отделение как единая единица, паника/банзай, заградотряд,
   стан, подкрепление с задержкой и детерминированный демо-сценарий;
 * кампанийный UI-каркас `view/` (`test_view.py`): адаптер `warfare`,
-  приказы/такт, движение к цели, эффекты и слоты `saves/campaign/`
-  (тесты без pygame; пропускаются без numpy).
+  приказы/такт, движение к цели, эффекты, потребности/лагерь и слоты
+  `saves/campaign/` (тесты без pygame; пропускаются без numpy);
+  дымовые тесты RTS — `test_view_rts.py` (нужен `pygame-ce`).
 
 Скрипты-проверки можно запускать и напрямую (код возврата `0`/`1`):
 
@@ -152,7 +153,7 @@ python3 experiments/exp_warfare.py               # войсковые автом
 ```bash
 pip install pygame-ce
 python3 main.py               # игра (старт — главное меню)
-python3 main.py --view        # кампанийный интерфейс view (КП, карта, приказы)
+python3 main.py --view        # кампанийный интерфейс view (лагерь + RTS-карта)
 python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
 ```

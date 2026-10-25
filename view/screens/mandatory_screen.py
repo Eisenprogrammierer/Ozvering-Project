@@ -7,8 +7,8 @@ view/screens/mandatory_screen.py
 при отсутствии файла или отдельных ключей используются встроенные
 фолбэки. Утренний осмотр выбирает фон по калькуляции потерь дивизии:
 меньше 10% — camp_fresh, 10–20% — camp_wounded, 21% и более —
-camp_critical. Вечерний осмотр использует фон hq_evening (командный
-пункт, отличный от дневного). Текст и кнопки выводятся в
+camp_critical. Вечерний осмотр использует фон лагеря camp_wounded
+с более сильным затемнением. Текст и кнопки выводятся в
 полупрозрачной панели внизу экрана, чтобы игрок видел лагерь и его
 детали; затемнение фона минимальное.
 
@@ -26,6 +26,7 @@ from view.support.log_journal import get_logger
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
+from ..ui.text_layout import draw_fitted
 
 logger = get_logger("view.mandatory_screen")
 
@@ -66,7 +67,7 @@ DEFAULT_SCENES = {
     },
     "evening_inspection": {
         "title": "Вечерний осмотр лагеря",
-        "background": "scenes/hq_evening",
+        "background": "scenes/camp_wounded",
         "text": (
             "День подходит к концу. Вы обходите позиции, проверяете "
             "раненых, уточняете потери. Нужно решить: ночное дежурство "
@@ -103,7 +104,7 @@ class MandatorySceneScreen(BaseScreen):
         scene_id (str): Идентификатор сцены.
         title (str): Заголовок сцены.
         text (str): Текст сцены с подставленными потерями.
-        bg (pygame.Surface): Фоновая сцена лагеря/КП.
+        bg (pygame.Surface): Фоновая сцена лагеря.
         camp_state (str | None): Состояние лагеря (fresh/wounded/
             critical) для утренней сцены.
         loss_percent (int): Округлённые потери дивизии в процентах.
@@ -154,7 +155,7 @@ class MandatorySceneScreen(BaseScreen):
             )
         else:
             bg_asset = cfg.get("background") or default.get(
-                "background", "scenes/hq_evening"
+                "background", "scenes/camp_wounded"
             )
             self.text = (cfg.get("text") or default.get("text", "")).replace(
                 "{losses}", losses_str
@@ -353,7 +354,7 @@ class MandatorySceneScreen(BaseScreen):
         """
         Отрисовывает экран обязательной сцены.
 
-        Порядок: фоновая сцена лагеря/КП, лёгкое затемнение,
+        Порядок: фоновая сцена лагеря, лёгкое затемнение,
         полупрозрачная панель внизу, заголовок, текст сцены с
         переносом по ширине, кнопки управления.
 
@@ -362,7 +363,8 @@ class MandatorySceneScreen(BaseScreen):
         """
         screen.blit(self.bg, (0, 0))
         dim = pygame.Surface((1280, 720), pygame.SRCALPHA)
-        dim.fill((0, 0, 0, DIM_ALPHA))
+        dim_alpha = 110 if self.scene_id == "evening_inspection" else DIM_ALPHA
+        dim.fill((0, 0, 0, dim_alpha))
         screen.blit(dim, (0, 0))
         panel = pygame.Surface((PANEL_RECT.width, PANEL_RECT.height), pygame.SRCALPHA)
         panel.fill((10, 10, 20, 185))
@@ -370,13 +372,13 @@ class MandatorySceneScreen(BaseScreen):
         pygame.draw.rect(screen, (90, 90, 120), PANEL_RECT, 2, border_radius=8)
         title_surf = self.app.font_body.render(self.title, True, (220, 200, 140))
         screen.blit(title_surf, TITLE_POS)
-        y = TEXT_RECT.top
-        for line in self._wrap_text(self.text, self.app.font_small, TEXT_RECT.width):
-            if y > TEXT_RECT.bottom - 18:
-                break
-            line_surf = self.app.font_small.render(line, True, (210, 210, 220))
-            screen.blit(line_surf, (TEXT_RECT.left, y))
-            y += 24
+        draw_fitted(
+            screen,
+            [self.app.font_small, self.app.font_tiny],
+            self.text,
+            TEXT_RECT,
+            (210, 210, 220),
+        )
         if self.btn_continue is not None:
             self.btn_continue.draw(screen)
         if self.btn_night_duty is not None:

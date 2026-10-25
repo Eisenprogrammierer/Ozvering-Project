@@ -1,7 +1,7 @@
 """Единая точка запуска Ozvering-Project.
 
     python3 main.py              # ИГРА: сценный слой ui (меню -> нарратив -> партия)
-    python3 main.py --view       # КАМПАНИЯ: интерфейс view (КП, карта, приказы)
+    python3 main.py --view       # КАМПАНИЯ: интерфейс view (лагерь + RTS-карта)
     python3 main.py --arena      # только АРЕНА: автономный game_engine (HUD партии)
 
 Флаги передаются выбранному режиму:

@@ -44,9 +44,13 @@ class CampaignTimeSystem:
         settings = load_json(ROOT / "configs/content/time_settings.json", {}) or {}
         self.day_start_seconds = int(settings.get("day_start_seconds", 25200))
         self.day_end_seconds = int(settings.get("day_end_seconds", 79200))
+        self.evening_start_seconds = int(settings.get(
+            "evening_start_seconds", self.day_end_seconds - 3600
+        ))
         self.day = 1
         self.seconds_of_day = self.day_start_seconds
         self.pending_mandatory_scene = None
+        self._evening_done = False
         self.active_action = None
         self.actions = {}
         self._load_actions()
@@ -99,9 +103,14 @@ class CampaignTimeSystem:
             self.seconds_of_day += step
             self._combat_accum += step
             remaining -= step
+            if (not self._evening_done and
+                    self.seconds_of_day >= self.evening_start_seconds):
+                self._evening_done = True
+                self.pending_mandatory_scene = "evening_inspection"
             if self.seconds_of_day >= self.day_end_seconds:
                 self.seconds_of_day = self.day_start_seconds
                 self.day += 1
+                self._evening_done = False
                 if self.app is not None and hasattr(
                         self.app, "check_storyline_end_of_day"):
                     self.app.check_storyline_end_of_day()
@@ -158,12 +167,23 @@ class CampaignTimeSystem:
                 self.state.player_idx,
                 "Обязательная сцена завершена: %s" % scene_id,
             )
+        if (scene_id == "morning_inspection" and
+                getattr(self.state, "needs", None) is not None):
+            self.state.needs.camp_morning()
 
     def choose_night_duty(self, value):
         self.state.log_event(
             self.state.player_idx,
             "Ночное дежурство: %s" % ("да" if value else "нет"),
         )
+        if getattr(self.state, "needs", None) is not None:
+            self.state.needs.camp_night(slept=not value)
+        # Ночь проходит до утра: следующий экран — утренний осмотр лагеря.
+        seconds_to_morning = max(
+            0, self.day_end_seconds - int(self.seconds_of_day)
+        )
+        if seconds_to_morning:
+            self.advance(seconds_to_morning)
 
     def accept_interrupt(self, interrupt_id):
         self.state.log_event(
@@ -181,6 +201,7 @@ class CampaignTimeSystem:
             "day": self.day,
             "seconds_of_day": self.seconds_of_day,
             "pending_mandatory_scene": self.pending_mandatory_scene,
+            "evening_done": self._evening_done,
             "order_actions": dict(self._order_actions),
         }
 
@@ -192,6 +213,13 @@ class CampaignTimeSystem:
             "seconds_of_day", self.seconds_of_day))
         self.pending_mandatory_scene = snapshot.get(
             "pending_mandatory_scene")
+        if "evening_done" in snapshot:
+            self._evening_done = bool(snapshot.get("evening_done"))
+        else:
+            # Старые сохранения: если уже вечер, повторный осмотр не нужен.
+            self._evening_done = (
+                self.seconds_of_day >= self.evening_start_seconds
+            )
         for planned, action_id in (snapshot.get("order_actions") or {}).items():
             self._order_actions[int(planned)] = action_id
             if action_id not in self.actions:

@@ -551,6 +551,44 @@ class Character(S.UtilityAI):
             self.fanatical = False
             self.mind = "steady"
 
+    # --- удовлетворение потребностей (RPG-слой UI) ---
+    def satisfy(self, effects, morale_bonus=0.0):
+        """Закрыть часть потребностей персонажа.
+
+        Args:
+            effects (dict): ``{need: amount}``, где ``amount`` — на сколько
+                уменьшить неудовлетворённость (0..1).
+            morale_bonus (float): Прибавка к морали за единицу закрытой
+                потребности. Помогает UI-действиям вроде «воодушевить»
+                давать ощутимый эффект.
+
+        Returns:
+            dict: Фактически закрытые значения по потребностям.
+        """
+        restored = {}
+        for need, amount in (effects or {}).items():
+            if need not in self.needs:
+                continue
+            try:
+                amount = max(0.0, float(amount))
+            except (TypeError, ValueError):
+                continue
+            before = self.needs[need]
+            self.needs[need] = max(0.0, before - amount)
+            restored[need] = before - self.needs[need]
+        total = sum(restored.values())
+        if total and morale_bonus:
+            self.morale = max(
+                0.0, min(100.0, self.morale + morale_bonus * total)
+            )
+        return restored
+
+    def needs_summary(self):
+        """Вернуть средние значения потребностей для панели UI."""
+        if not self.needs:
+            return {}
+        return {need: float(self.needs.get(need, 0.0)) for need in NEEDS}
+
     # --- BDI-снимок ---
     def snapshot(self):
         return {
@@ -699,6 +737,38 @@ class Detachment(S.Environment):
         self.refresh_psychology()
         self.engagements = 0
         self._update_retreat(rng)
+
+    def satisfy_needs(self, effects, morale_bonus=0.0):
+        """Закрыть потребности всех персонажей отделения.
+
+        Это вход RPG-действий UI (довольствие, отдых, медицина,
+        воодушевление). Модель не меняется: меняются только BDI-потребности
+        персонажей, после чего агрегаты отделения пересчитываются.
+
+        Args:
+            effects (dict): ``{need: amount}`` для каждого персонажа.
+            morale_bonus (float): Прибавка к морали за закрытую потребность.
+
+        Returns:
+            dict: Суммарно закрытые значения по отделению.
+        """
+        total = {need: 0.0 for need in NEEDS}
+        for character in self.characters:
+            for need, amount in character.satisfy(
+                    effects, morale_bonus=morale_bonus).items():
+                total[need] = total.get(need, 0.0) + amount
+        self.refresh_psychology()
+        return {need: value for need, value in total.items() if value}
+
+    def needs_summary(self):
+        """Средние потребности персонажей отделения (0..1)."""
+        if not self.characters:
+            return {}
+        return {
+            need: sum(c.needs.get(need, 0.0) for c in self.characters) /
+            len(self.characters)
+            for need in NEEDS
+        }
 
     def _update_retreat(self, rng):
         """Решение об отходе/банзай-атаке на уровне отделения."""

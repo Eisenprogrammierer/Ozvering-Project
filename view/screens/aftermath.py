@@ -170,19 +170,23 @@ class AftermathDecisionScreen(BaseScreen):
         self.unit_idx = unit_idx
         node = app.content.dialogues[node_id]
         self.choices = node.get("choices", [])
-        self.panel = Panel((140, 400, 1000, 300))
+        self.panel = Panel((140, 330, 1000, 370))
         self.buttons = []
-        y = 500
+        start_y = 400
+        available = self.panel.rect.bottom - 24 - start_y
+        step = min(46, max(28, available // max(1, len(self.choices))))
+        height = min(42, step - 4)
+        y = start_y
         for i, c in enumerate(self.choices):
             self.buttons.append(
                 Button(
-                    (200, y, 880, 42),
+                    (200, y, 880, height),
                     c["text"],
                     app.font_small,
                     lambda i=i: self.choose(i),
                 )
             )
-            y += 46
+            y += step
         logger.info(
             "Экран решений открыт: node=%s unit_idx=%s решений=%s",
             node_id,
@@ -247,8 +251,8 @@ class AftermathDecisionScreen(BaseScreen):
         Args:
             screen (pygame.Surface): Поверхность для отрисовки.
         """
-        Panel((140, 400, 1000, 300)).draw(screen)
+        self.panel.draw(screen)
         sp = self.app.font_body.render("Решения", True, (80, 140, 220))
-        screen.blit(sp, (180, 420))
+        screen.blit(sp, (180, 350))
         for b in self.buttons:
             b.draw(screen)

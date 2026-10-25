@@ -19,6 +19,7 @@ from view.support.log_journal import get_logger
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
+from ..ui.text_layout import draw_fitted
 
 logger = get_logger("view.visual_novel")
 
@@ -176,24 +177,25 @@ class VisualNovelScreen(BaseScreen):
             screen.blit(self.images[self.current_slide], (0, 0))
         else:
             screen.fill((0, 0, 0))
-        overlay = pygame.Surface((1280, 200), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        screen.blit(overlay, (0, 520))
+        overlay = pygame.Surface((1280, 280), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 195))
+        screen.blit(overlay, (0, 440))
         if self.current_slide < len(self.slides):
             text = self.slides[self.current_slide].get("text", "")
-            y = 540
-            for line in self._wrap_text(text, self.app.font_body, 1100):
-                surf = self.app.font_body.render(line, True, (230, 230, 230))
-                screen.blit(surf, (90, y))
-                y += 30
-                if y > 680:
-                    break
+            draw_fitted(
+                screen,
+                [self.app.font_body, self.app.font_small, self.app.font_tiny],
+                text,
+                pygame.Rect(70, 458, 1140, 168),
+                (230, 230, 230),
+                shadow=True,
+            )
         prog = self.app.font_small.render(
             f"{self.current_slide + 1} / {len(self.slides)}",
             True,
-            (150, 150, 150),
+            (170, 170, 170),
         )
-        screen.blit(prog, (600, 650))
+        screen.blit(prog, (640 - prog.get_width() // 2, 682))
         self.btn_next.draw(screen)
         self.btn_skip.draw(screen)
 

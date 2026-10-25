@@ -16,6 +16,7 @@ import numpy as np
 import warfare as W
 from .content import Content
 from .log_journal import get_logger
+from .needs import NeedsSystem
 
 logger = get_logger("view.world")
 
@@ -182,6 +183,13 @@ class CampaignState:
         self.logistics = CampaignLogistics(self)
         self.logistics_system = None
         self.engine = None
+        self.supplies = {
+            "food": 120,
+            "water": 140,
+            "medicine": 60,
+            "influence": 30,
+        }
+        self.needs = NeedsSystem(self, self.supplies)
         self._event_cursor = 0
         self._initial_forces = {}
         for det in self.sim.all_detachments:
@@ -457,6 +465,7 @@ class CampaignState:
                 "retreating": det.retreating,
                 "panicked": det.panicked,
                 "broken": det.broken,
+                "needs": [dict(c.needs) for c in det.characters],
             })
         return {
             "seed": self.sim.seed,
@@ -466,6 +475,9 @@ class CampaignState:
             "player_gender": self.player_gender,
             "detachments": dets,
             "event_log": self.event_log[-250:],
+            "supplies": dict(getattr(self, "supplies", {})),
+            "needs": (self.needs.get_save_snapshot()
+                      if getattr(self, "needs", None) else {}),
         }
 
     def apply_snapshot(self, snapshot):
@@ -489,9 +501,28 @@ class CampaignState:
             det.retreating = bool(item.get("retreating", det.retreating))
             det.panicked = bool(item.get("panicked", det.panicked))
             det.broken = bool(item.get("broken", det.broken))
+            for character, values in zip(
+                    det.characters, item.get("needs", [])):
+                if not isinstance(values, dict):
+                    continue
+                for need, value in values.items():
+                    if need in character.needs:
+                        character.needs[need] = max(
+                            0.0, min(1.0, float(value))
+                        )
+            det.refresh_psychology()
         self.event_log = list(snapshot.get("event_log", []))[-250:]
         self.tick_events = []
         self._event_cursor = len(getattr(self.sim, "events", []))
+        if getattr(self, "needs", None):
+            needs_snapshot = snapshot.get("needs")
+            if not needs_snapshot and "supplies" in snapshot:
+                # Совместимость с промежуточными сохранениями, где ресурсы
+                # лежали только на верхнем уровне.
+                needs_snapshot = {"supplies": snapshot.get("supplies") or {}}
+            # Старые сохранения без ресурсов сохраняют стартовые значения.
+            if needs_snapshot:
+                self.needs.load_from_snapshot(needs_snapshot)
 
 
 class CampaignEngine:
@@ -520,6 +551,13 @@ class CampaignEngine:
         self._advance_targets()
         state.sim.tick()
         self.tick_count = state.sim.turn
+        if getattr(state, "needs", None) is not None:
+            engaged = {
+                item.get("attacker") for item in self.engagements
+            } | {
+                item.get("defender") for item in self.engagements
+            }
+            state.needs.on_tick(1800, engaged)
         state.sync_events()
         if state.sim.finished:
             state.log_event(
@@ -560,6 +598,22 @@ class CampaignEngine:
         self._targets[det.name] = (
             max(0, min(CELL_SIZE, cell_x)),
             max(0, min(CELL_SIZE, cell_y)),
+        )
+        det.ui_order = "move"
+        return True
+
+    def set_cell_target(self, idx, target):
+        """Поставить цель движения в координатах боевой сетки 24x24."""
+        det = self.state.det_at(idx)
+        if det is None:
+            return False
+        try:
+            x, y = target
+        except Exception:                          # noqa: BLE001
+            return False
+        self._targets[det.name] = (
+            max(0, min(CELL_SIZE, int(round(float(x))))),
+            max(0, min(CELL_SIZE, int(round(float(y))))),
         )
         det.ui_order = "move"
         return True

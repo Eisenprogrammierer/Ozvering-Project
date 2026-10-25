@@ -38,14 +38,6 @@
       "scene_id": "morning_inspection"
     },
     {
-      "type": "hq_scene",
-      "variant_by": "gender",
-      "variants": {
-        "male": {"background": "scenes/hq_adjutant_female"},
-        "female": {"background": "scenes/hq_adjutant_male"}
-      }
-    },
-    {
       "type": "gameplay"
     }
   ]

@@ -15,6 +15,7 @@ import pygame
 
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
+from ..ui.text_layout import draw_fitted
 from view.support.log_journal import get_logger
 
 logger = get_logger("view.dialogue")
@@ -58,19 +59,23 @@ class DialogueScreen(BaseScreen):
         self.speaker = node.get("speaker", "")
         self.text = node.get("text", "")
         self.choices = node.get("choices", [{"text": "Продолжить"}])
-        self.panel = Panel((140, 400, 1000, 300))
+        self.panel = Panel((140, 360, 1000, 340))
         self.buttons = []
-        y = 560
+        start_y = 540
+        available = self.panel.rect.bottom - 20 - start_y
+        step = min(46, max(30, available // max(1, len(self.choices))))
+        height = min(42, step - 4)
+        y = start_y
         for i, c in enumerate(self.choices):
             self.buttons.append(
                 Button(
-                    (200, y, 880, 42),
+                    (200, y, 880, height),
                     c["text"],
                     app.font_small,
                     lambda i=i: self.choose(i),
                 )
             )
-            y += 46
+            y += step
         logger.info(
             "Диалог открыт: узел=%s, говорящий=%s, вариантов=%d",
             node_id,
@@ -168,15 +173,13 @@ class DialogueScreen(BaseScreen):
         sp = self.app.font_body.render(
             self.speaker, True, (80, 140, 220)
         )
-        screen.blit(sp, (180, 420))
-        y = 460
-        for line in self._wrap(self.text, self.app.font_small, 940)[:4]:
-            screen.blit(
-                self.app.font_small.render(
-                    line, True, (220, 220, 230)
-                ),
-                (180, y),
-            )
-            y += 22
+        screen.blit(sp, (180, 382))
+        draw_fitted(
+            screen,
+            [self.app.font_body, self.app.font_small, self.app.font_tiny],
+            self.text,
+            pygame.Rect(180, 416, 920, 104),
+            (220, 220, 230),
+        )
         for b in self.buttons:
             b.draw(screen)

@@ -86,6 +86,17 @@ class Button:
             screen.blit(surf, self.rect.topleft)
         pygame.draw.rect(screen, COLOR_BORDER, self.rect, 2, border_radius=6)
         surf = self.font.render(self.text, True, COLOR_TEXT)
+        # Длинная подпись не должна вылезать за кнопку и перекрывать соседние
+        # элементы. Если текста слишком много, аккуратно уменьшаем его.
+        max_w = max(1, self.rect.width - 12)
+        max_h = max(1, self.rect.height - 6)
+        if surf.get_width() > max_w or surf.get_height() > max_h:
+            scale = min(max_w / max(1, surf.get_width()),
+                        max_h / max(1, surf.get_height()), 1.0)
+            surf = pygame.transform.smoothscale(
+                surf, (max(1, int(surf.get_width() * scale)),
+                       max(1, int(surf.get_height() * scale)))
+            )
         screen.blit(surf, surf.get_rect(center=self.rect.center))
 
     def handle_event(self, event):

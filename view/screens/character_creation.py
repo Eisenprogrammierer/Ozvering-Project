@@ -23,6 +23,7 @@ import pygame
 
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
+from ..ui.text_layout import draw_fitted
 from view.support.effects import EffectInterpreter
 from view.support.log_journal import get_logger
 
@@ -371,11 +372,13 @@ class CharacterCreationScreen(BaseScreen):
             return
         step = self._resolve_variant(self.steps[self.current_step])
         text = step.get("text", "")
-        y = TEXT_START_Y
-        for line in self._get_text_lines(text):
-            surf = self.app.font_body.render(line, True, (220, 220, 230))
-            screen.blit(surf, (TEXT_X, y))
-            y += LINE_HEIGHT
+        draw_fitted(
+            screen,
+            [self.app.font_body, self.app.font_small, self.app.font_tiny],
+            text,
+            pygame.Rect(TEXT_X, TEXT_START_Y, TEXT_MAX_WIDTH, TEXT_MAX_HEIGHT),
+            (220, 220, 230),
+        )
         for b in self.buttons:
             b.draw(screen)
         visible_count = sum(

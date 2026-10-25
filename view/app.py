@@ -14,8 +14,8 @@ view/app.py
 поддерживают варианты по переменным сюжета на уровне отдельного
 слайда через variant_by/variants.
 HUD игрового времени отрисовывается только когда в стеке экранов
-присутствует экран с show_time_hud == True (HQSceneScreen); в меню,
-сюжетах и новеллах HUD скрыт.
+присутствует экран с show_time_hud == True (RTSScreen); на самом RTS-экране
+он скрыт, потому что время уже показано в его верхней панели.
 События инициализации, загрузки, сохранения и переходов между экранами
 записываются в журнал operation_ozverin.log в корне проекта и
 дублируются в консоль.
@@ -294,12 +294,6 @@ class App:
             if on_completed is not None:
                 on_completed()
 
-    def open_action_menu(self):
-        """Открывает меню действий игрока."""
-        from .screens.action_menu import ActionMenuOverlay
-        self.manager.push(ActionMenuOverlay(self))
-        logger.debug("Открыто меню действий")
-
     def new_game(self):
         """Открывает экран выбора сюжета."""
         from .screens.storyline_select import StorylineSelectScreen
@@ -390,8 +384,10 @@ class App:
             self._play_dialogue(scene)
         elif scene_type == "mandatory_scene":
             self._play_mandatory_scene(scene)
-        elif scene_type == "hq_scene":
-            self._play_hq_scene(scene)
+        elif scene_type in ("rts_scene", "hq_scene"):
+            # ``hq_scene`` оставлен синонимом для старых сохранений и
+            # сюжетных файлов: командный пункт заменён боевой картой.
+            self._play_gameplay(scene)
         elif scene_type == "gameplay":
             self._play_gameplay(scene)
         else:
@@ -499,29 +495,11 @@ class App:
             interp.advance()
             self._play_next_scene()
 
-    def _play_hq_scene(self, scene):
-        """
-        Запускает сцену командного пункта.
-        Args:
-            scene (dict): Конфигурация сцены (фон выбирается
-                внутри HQSceneScreen по полу игрока).
-        """
-        from .screens.hq_scene import HQSceneScreen
-        self.music.request_category("ambient")
-        self.manager.replace_all(HQSceneScreen(self))
-        interp = self.storyline_interpreter
-        if interp is not None:
-            interp.advance()
-
     def _play_gameplay(self, scene):
-        """
-        Запускает основной геймплей (КП).
-        Args:
-            scene (dict): Конфигурация сцены (не используется).
-        """
-        from .screens.hq_scene import HQSceneScreen
+        """Запускает интерактивную RTS-карту вместо командного пункта."""
+        from .screens.rts_screen import RTSScreen
         self.music.request_category("ambient")
-        self.manager.replace_all(HQSceneScreen(self))
+        self.manager.replace_all(RTSScreen(self))
 
     def _show_win_scene(self):
         """
@@ -651,7 +629,7 @@ class App:
         """
         Загружает игру из указанного слота.
         Мир пересобирается из сценария, поверх применяется снимок.
-        Стек экранов заменяется на HQSceneScreen.
+        Стек экранов заменяется на RTSScreen.
         Args:
             slot_name (str): Имя слота сохранения.
         Returns:
@@ -696,8 +674,8 @@ class App:
                     self.storyline_interpreter.load_from_snapshot(
                         storyline_snapshot
                     )
-        from .screens.hq_scene import HQSceneScreen
-        self.manager.replace_all(HQSceneScreen(self))
+        from .screens.rts_screen import RTSScreen
+        self.manager.replace_all(RTSScreen(self))
         self.music.request_category("ambient")
         logger.info("Загрузка выполнена: слот=%s", slot_name)
         return True
@@ -757,10 +735,6 @@ class App:
                 ):
                     self.open_turn_log()
                 elif (
-                    event.type == pygame.KEYDOWN and event.key == pygame.K_a
-                ):
-                    self.open_action_menu()
-                elif (
                     event.type == pygame.KEYDOWN and event.key == pygame.K_F5
                 ):
                     self.save_game("quicksave")
@@ -773,7 +747,9 @@ class App:
             self.process_pending_mandatory_scene()
             self.screen.fill(BG_COLOR)
             self.manager.draw(self.screen)
-            if self.manager.has_time_hud_screen():
+            if (self.manager.has_time_hud_screen() and
+                    not getattr(self.manager.current,
+                                "hide_time_hud", False)):
                 self.time_hud.draw(self.screen)
             pygame.display.flip()
         pygame.quit()
