@@ -21,6 +21,9 @@ import math
 import random
 import statistics
 
+import information
+import observability
+
 
 PARAMETERS = {
     "TYPES": ["FIRE", "WATER", "EARTH"],
@@ -54,6 +57,18 @@ PARAMETERS = {
     "ENV_BONUS": 0.25,
     "ENV_INCOME": 2,
     "ENV_REST_CAP": 10.0,
+    # --- Информационный слой (энтропия смысла, демпфер петель) ---
+    "ENTROPY_EMA": 0.25,
+    "ENTROPY_SIGMA": 0.15,
+    "ENTROPY_DF": 3.0,
+    "ENTROPY_DEADBAND": 0.15,
+    # --- Лоссовая наблюдаемость (информационная асимметрия) ---
+    "OBS_RESOLUTION": 1.0,
+    "OBS_DELAY": 1,
+    # --- LOD (ленивые вычисления) ---
+    "LOD_WORK_THRESHOLD": 20.0,
+    "LOD_HORIZON": 10,
+    "LOD_ERROR_TOL": 0.05,
 }
 """Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8.
 
@@ -164,6 +179,10 @@ class Agent:
         удалён как вестигиальный): он выводится из контекста — см. property
         ``defense``; конверсия типов энергии не нужна.
         """
+        self.entropy_enabled = False
+        self.info = information.BeliefEntropy(
+            ema=ENTROPY_EMA, sigma=ENTROPY_SIGMA,
+            df=ENTROPY_DF, deadband=ENTROPY_DEADBAND)
         self.set_profile(profile)
         self.reset_state()
 
@@ -211,6 +230,10 @@ class Agent:
         и исход зависел бы от ПОРЯДКА партий, а не от стратегии. Обучение
         (Q-таблица ``RLAgent``) сюда не входит и переносится отдельно.
         """
+        # Новая линия сигнала: локальный отсчёт энтропии начинается заново,
+        # но накопленный износ канала (H_cum) НЕ откатывается — см. information.py.
+        if hasattr(self, "info"):
+            self.info.new_lineage(reset_counts=True)
         # Единое хранилище внутреннего состояния автомата (IPO-компонент
         # «состояние»): обе метрики и управляющие переменные. Обработчики
         # читают/пишут поля напрямую через представления-свойства ниже.
@@ -231,7 +254,15 @@ class Agent:
         self.beliefs = {"opp_energy": 3,
                         "opp_last_act": "REST", "opp_last_work": 0,
                         "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
-                        "opp_ctx_base": None}
+                        "opp_ctx_base": None,
+                        # Информационный слой (производные величины, не метрики):
+                        # энтропия смысла и её необратимый износ. H_cum
+                        # переносится между линиями (эффект «нет обратного хода»).
+                        "entropy": 0.0,
+                        "entropy_cum": (self.info.H_cum if hasattr(self, "info") else 0.0),
+                        "entropy_lineage": (self.info.lineage if hasattr(self, "info") else 0),
+                        "noise_floor": (self.info.noise_floor if hasattr(self, "info") else 0.0),
+                        "belief_noise_factor": 1.0}
 
     # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
     # Позволяют обработчикам и внешнему коду работать с полями как с обычными
@@ -530,6 +561,22 @@ class Agent:
         self.beliefs["opp_ctx_base"] = self.context_base(
             self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
             self.beliefs["opp_in_open"], self.beliefs["opp_force"])
+        # Информационный слой: энтропия смысла и необратимый износ канала.
+        # Работает ТОЛЬКО на beliefs (вход), не на force/energy_pool: это
+        # демпфер самоусиливающихся петель через размывание информации.
+        if getattr(self, "entropy_enabled", False):
+            self.info.observe(self.beliefs["opp_ctx_base"],
+                              self.beliefs["opp_in_open"])
+            self.beliefs["entropy"] = self.info.H_local
+            self.beliefs["entropy_cum"] = self.info.H_cum
+            self.beliefs["entropy_lineage"] = self.info.lineage
+            self.beliefs["noise_floor"] = self.info.noise_floor
+            self.info.perturb(self.beliefs, rng)
+            # Пересчитать наблюдаемую базу уже по зашумлённым убеждениям:
+            # изношенный канал даёт более грубую картину мира.
+            self.beliefs["opp_ctx_base"] = self.context_base(
+                self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
+                self.beliefs["opp_in_open"], self.beliefs["opp_force"])
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
@@ -685,7 +732,12 @@ class UtilityAI(Agent):
                 eff_decay = dg
         k = 3  # горизонт планирования опциона (в тактах), вынесен локально
         retained = sum(eff_decay ** i for i in range(1, k + 1)) / k
-        option = OPTION_VALUE * progress * (retained / (sum(DECAY_ADOPT ** i for i in range(1, k + 1)) / k))
+        # Информационный демпфер: изношенный канал (noise_floor > 0) снижает
+        # ценность опциона «покупки окна» — это размывание СМЫСЛА, не энергии.
+        # При entropy=False noise_floor=0, поведение канона не меняется.
+        reliability = max(0.0, 1.0 - self.beliefs.get("noise_floor", 0.0))
+        option = (OPTION_VALUE * progress * reliability
+                  * (retained / (sum(DECAY_ADOPT ** i for i in range(1, k + 1)) / k)))
         return base + option
 
     def expected_retaliation(self, act, work):
@@ -917,7 +969,7 @@ class Environment(Agent):
     метрик, ни состояний и была вырожденным случаем настоящей среды (env=None).
     """
 
-    def __init__(self, start_force=10, members=None):
+    def __init__(self, start_force=10, members=None, lossy=False):
         # Профиль CANON (p=1): среда применяет кодекс без профильных искажений.
         super().__init__(profile="CANON")
         self.force = float(start_force)          # сила среды (капитал конъюнктуры)
@@ -926,6 +978,14 @@ class Environment(Agent):
         # поведение). Новых переменных нет: members — контейнер существующих
         # автоматов, его содержимое описывается тем же кодексом Agent.
         self.members = list(members) if members else []
+        # Лоссовая наблюдаемость (информационная асимметрия): суперсистема
+        # видит агрегат событий, а части — только публичное окно с задержкой.
+        # При lossy=False поведение канона не меняется.
+        self.lossy = bool(lossy)
+        self.channel = observability.LossyChannel(
+            resolution=OBS_RESOLUTION, delay=OBS_DELAY)
+        self._public_window = False
+        self._public_window_prev = False
         # Среде некого наблюдать: beliefs нейтральны. Ротации типа нет —
         # рецептивный тип входа выводится из контекста (property ``defense``).
         self.beliefs.update({"opp_last_act": "REST", "opp_last_work": 0,
@@ -945,6 +1005,27 @@ class Environment(Agent):
         ON(F), из-за чего окно конъюнктуры в итоге перестало бы открываться."""
         super().receive_pressure(w)
         self.rest_units = min(self.rest_units + w * 0.01, ENV_REST_CAP)  # труд расширяет потолок (с капом)
+
+    def ingest(self, work):
+        """Вход от части: при lossy — лоссовый агрегат вместо точного события.
+
+        Точная работа, identity, тип и тайминг события теряются; суперсистема
+        получает только квантованный агрегат за интервал. При lossy=False —
+        прежний прямой ``receive_pressure`` (канон).
+        """
+        if self.lossy:
+            self.channel.push(work)
+        else:
+            self.receive_pressure(work)
+
+    def public_window(self):
+        """Публичное окно конъюнктуры для частей.
+
+        При lossy части видят окно ПРОШЛОГО такта (информационная асимметрия:
+        суперсистема не отдаёт внутренности в реальном времени), иначе — как
+        раньше, текущее ``in_open``.
+        """
+        return self._public_window_prev if self.lossy else self.in_open
 
     def rotate_defense(self, rng):
         """No-op ради совместимости API: ротация типа упразднена (см. §2 MODEL.md).
@@ -1048,7 +1129,19 @@ class Environment(Agent):
         for m in self.members:                   # рекурсивный такт нижних ярусов
             if isinstance(m, Environment):       # автономные подсреды «дышат» сами
                 m.tick()                         # агенты-члены вне дуэли такта не имеют
-        if self.members:                         # вход суперсистемы: суммарный труд членов
+        if self.lossy:
+            # Лоссовый вход: только агрегат событий (identity/тип/тайминг
+            # потеряны) плюс автономные подсреды. Точные last_work участников
+            # дуэли уже прошли через channel в resolve_attack, поэтому
+            # member_output для них не дублируется — это снимает F5.
+            obs = self.channel.drain()
+            w_members = obs.work
+            for m in self.members:
+                if isinstance(m, Environment):
+                    w_members += m.member_output()
+            if w_members:
+                self.receive_pressure(w_members)
+        elif self.members:                       # вход суперсистемы: суммарный труд членов
             w_members = self.member_output()
             if w_members:
                 self.receive_pressure(w_members) # тот же кодекс Шмитта — самоподобие
@@ -1064,6 +1157,9 @@ class Environment(Agent):
         if self.force < self.rest_ceiling:       # логистический покой (Agent)
             self.do_rest(chosen=False)
         self.upkeep()                            # содержание структуры (Agent)
+        # Публичное окно для частей: при lossy они видят прошлый такт.
+        self._public_window_prev = self._public_window
+        self._public_window = self.in_open
 
 
 def _apply_transfer(att, dfn, work, att_type, rng, env=None):
@@ -1089,12 +1185,16 @@ def _apply_transfer(att, dfn, work, att_type, rng, env=None):
     open_now = dfn.in_open
     dfn.receive_pressure(work)
     if env is not None:
-        env.receive_pressure(work)
+        env.ingest(work)
     if rng.random() < p_success(att_type, work, dfn.defense, dfn.last_work):
         m = MULT.get((att_type, dfn.defense), 1.0)
         gain_frac = GAIN_MAX if open_now else Y_SMALL
-        if env is not None and env.in_open:
-            gain_frac *= (1.0 + ENV_BONUS)
+        if env is not None:
+            # При lossy часть видит только публичное окно (с задержкой), а не
+            # внутреннее in_open суперсистемы — информационная асимметрия.
+            env_window = env.public_window() if env.lossy else env.in_open
+            if env_window:
+                gain_frac *= (1.0 + ENV_BONUS)
         gained = int(work * m * gain_frac)
         if gained:
             att.gain(gained)
@@ -1261,7 +1361,7 @@ def run_tick(a, b, intent_a, intent_b, rng, env=None):
 
 
 def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
-              env_members=None):
+              env_members=None, entropy=False, lossy=False):
     """Одна партия; между партиями переносится только Q-таблица RL.
 
     Физическое состояние сторон сбрасывается в начале партии (``reset_state``):
@@ -1289,6 +1389,12 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
             Ветки members, не участвующие в дуэли (автономные подсреды),
             тактуются рекурсивно внутри env.tick(). Новых переменных нет:
             members — контейнер существующих автоматов того же кодекса.
+        entropy: включить информационный слой (энтропия смысла как демпфер
+            петель). По умолчанию False — канон не меняется. См.
+            ``information.py`` и docs/DESIGN_ADVANCED.md.
+        lossy: включить лоссовую наблюдаемость (информационная асимметрия
+            суперсистемы и частей). По умолчанию False — канон не меняется.
+            См. ``observability.py`` и docs/DESIGN_ADVANCED.md.
 
     Протокол такта (фиксированный порядок, стороны зеркальны):
       1. Взаимное наблюдение (sense) — частичная наблюдаемость.
@@ -1320,9 +1426,11 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
     # (метрики, вход, наблюдения) сбрасывается, переносится только обучение
     # (Q-таблица RL). Иначе проигравший стартовал бы ослабленным, а победитель —
     # усиленным, и исход зависел бы от порядка партий (см. Agent.reset_state).
+    rl.entropy_enabled = bool(entropy)
+    ai.entropy_enabled = bool(entropy)
     rl.reset_state()
     ai.reset_state()
-    env = Environment(members=env_members) if with_env else None
+    env = Environment(members=env_members, lossy=lossy) if with_env else None
     dom_rl = dom_ai = 0                     # серии доминирования — локальны для партии
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
@@ -1357,7 +1465,7 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
 
 
 def run_batch(n_games=10, steps=1000, quiet=False, with_env=True,
-              env_members_fn=None):
+              env_members_fn=None, entropy=False, lossy=False):
     """Пакет партий со сквозным обучением RL (общая Q-таблица через все партии).
 
     Args:
@@ -1380,7 +1488,8 @@ def run_batch(n_games=10, steps=1000, quiet=False, with_env=True,
         ai = UtilityAI()
         members = env_members_fn(rl, ai) if env_members_fn else None
         winner, rl_hist, ai_hist, end_step = play_game(
-            rl, ai, steps, seed=g, with_env=with_env, env_members=members)
+            rl, ai, steps, seed=g, with_env=with_env, env_members=members,
+            entropy=entropy, lossy=lossy)
         results[winner] += 1
         finals[winner].append(rl.force)
         last = (winner, rl_hist, ai_hist, end_step)
