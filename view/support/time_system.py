@@ -1,9 +1,9 @@
 """Игровое время UI-каркаса.
 
-Это упрощённая замена легаси-``GameTimeSystem``: она ведёт часы, выполняет
-действия из ``configs/content/time_actions.json`` и раз в 30 игровых минут
-продвигает войсковой такт ``warfare``. Никакой отдельной математической
-модели времени здесь нет.
+Это упрощённая замена легаси-``GameTimeSystem``: она ведёт часы по
+минутам, выполняет действия из ``configs/content/time_actions.json`` и раз в
+несколько игровых минут (по умолчанию 5) продвигает войсковой такт
+``warfare``. Никакой отдельной математической модели времени здесь нет.
 """
 
 from __future__ import annotations
@@ -16,7 +16,10 @@ from .log_journal import get_logger
 
 logger = get_logger("view.time")
 ROOT = Path(__file__).resolve().parents[2]
-TICK_SECONDS = 1800
+# Часы кампании идут по минутам; войсковой такт случается реже (по умолчанию
+# раз в 5 минут) и настраивается в configs/content/time_settings.json.
+TICK_SECONDS = 60
+COMBAT_TICK_SECONDS = 300
 
 
 @dataclass
@@ -47,6 +50,13 @@ class CampaignTimeSystem:
         self.evening_start_seconds = int(settings.get(
             "evening_start_seconds", self.day_end_seconds - 3600
         ))
+        self.combat_tick_seconds = max(
+            TICK_SECONDS, int(settings.get(
+                "combat_tick_seconds", COMBAT_TICK_SECONDS
+            ))
+        )
+        if getattr(self.engine, "combat_seconds", None) is not None:
+            self.engine.combat_seconds = self.combat_tick_seconds
         self.day = 1
         self.seconds_of_day = self.day_start_seconds
         self.pending_mandatory_scene = None
@@ -97,6 +107,12 @@ class CampaignTimeSystem:
         )
 
     def advance(self, seconds):
+        """Продвинуть часы по минутам и выполнить накопившиеся такты.
+
+        Войсковой такт выполняется не каждую минуту, а раз в
+        ``combat_tick_seconds`` (по умолчанию 5 минут). Это позволяет часам
+        идти по минутам, не превращая бой в 300-кратную прокрутку.
+        """
         remaining = max(0, int(seconds))
         while remaining > 0:
             step = min(remaining, TICK_SECONDS)
@@ -107,6 +123,8 @@ class CampaignTimeSystem:
                     self.seconds_of_day >= self.evening_start_seconds):
                 self._evening_done = True
                 self.pending_mandatory_scene = "evening_inspection"
+                # Дальше не идём: вечерний осмотр должен состояться до ночи.
+                break
             if self.seconds_of_day >= self.day_end_seconds:
                 self.seconds_of_day = self.day_start_seconds
                 self.day += 1
@@ -115,8 +133,9 @@ class CampaignTimeSystem:
                         self.app, "check_storyline_end_of_day"):
                     self.app.check_storyline_end_of_day()
                 self.pending_mandatory_scene = "morning_inspection"
-            if self._combat_accum >= TICK_SECONDS:
-                self._combat_accum = 0
+                break
+            if self._combat_accum >= self.combat_tick_seconds:
+                self._combat_accum -= self.combat_tick_seconds
                 if self.engine is not None:
                     self.engine.tick()
         return True

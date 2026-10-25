@@ -115,5 +115,18 @@
     "recovers": false,
     "color": [200, 120, 200],
     "dashed": true
+  },
+  {
+    "id": "withdrawal",
+    "label": "Отход",
+    "firepower": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+    "vulnerability": [1.1, 1.1, 1.1, 1.1, 1.1, 1.1],
+    "move_speed": 9.0,
+    "can_fight": false,
+    "can_barrage": false,
+    "retreat": "always",
+    "recovers": false,
+    "color": [190, 190, 120],
+    "dashed": true
   }
 ]

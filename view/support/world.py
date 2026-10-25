@@ -15,13 +15,20 @@ import numpy as np
 
 import warfare as W
 from .content import Content
+from .geometry import FrontGeometry
 from .log_journal import get_logger
+from .logistics import LogisticsSystem, UnitSupply
 from .needs import NeedsSystem
 
 logger = get_logger("view.world")
 
 MAP_SIZE = 256
 CELL_SIZE = 24
+
+
+def _distance(a, b):
+    """Манхэттенское расстояние между клетками поля."""
+    return abs(int(a[0]) - int(b[0])) + abs(int(a[1]) - int(b[1]))
 
 
 class SegmentLayout:
@@ -79,63 +86,6 @@ class ClassConfig:
         })
 
 
-class UnitSupply:
-    """Совместимый снимок снабжения одного отделения."""
-
-    def __init__(self, value):
-        value = max(0.0, min(1.5, float(value)))
-        self.norm = {k: 100.0 for k in ("I", "II", "III", "IV", "V", "VI", "VII")}
-        self.actual = {
-            "I": 100.0 * value, "II": 100.0 * value,
-            "III": 100.0 * value, "IV": 100.0 * value,
-            "V": 100.0 * value, "VI": 100.0 * value,
-            "VII": 100.0 * value,
-        }
-
-
-class CampaignLogistics:
-    """Презентационная логистика: ресурсы без отдельного симулятора."""
-
-    resource_defs = {
-        "I": {"label": "Боеприпасы"},
-        "II": {"label": "Продовольствие"},
-        "III": {"label": "Топливо"},
-        "IV": {"label": "Медикаменты"},
-        "V": {"label": "Инженерное имущество"},
-        "VI": {"label": "Транспорт"},
-        "VII": {"label": "Связь"},
-    }
-
-    def __init__(self, state):
-        self.state = state
-
-    @property
-    def unit_supply(self):
-        return {
-            i: UnitSupply(self.state.read_voltage(i, "U_supply"))
-            for i in range(self.state.count)
-        }
-
-
-class CampaignLogisticsSystem:
-    """Модификаторы снабжения, которые читает оверлей логистики."""
-
-    def __init__(self, state):
-        self.state = state
-
-    def _supply(self, idx):
-        return max(0.0, min(1.5, self.state.read_voltage(idx, "U_supply")))
-
-    def get_ammo_modifier(self, idx):
-        return max(0.1, min(1.3, self._supply(idx)))
-
-    def get_defense_modifier(self, idx):
-        return max(0.0, 0.2 * self._supply(idx))
-
-    def get_offense_modifier(self, idx):
-        return max(0.0, 0.15 * self._supply(idx))
-
-
 @dataclass
 class OrderType:
     """Совместимая запись таблицы приказов."""
@@ -180,29 +130,27 @@ class CampaignState:
         self.tick_events = []
         self.engagements = []
         self.class_configs = {3: ClassConfig()}
-        self.logistics = CampaignLogistics(self)
-        self.logistics_system = None
-        self.engine = None
-        self.supplies = {
-            "food": 120,
-            "water": 140,
-            "medicine": 60,
-            "influence": 30,
-        }
-        self.needs = NeedsSystem(self, self.supplies)
+        self.supplies = {}
         self._event_cursor = 0
         self._initial_forces = {}
+        self.logistics = LogisticsSystem(self)
+        self.logistics_system = self.logistics
+        self.engine = None
+        self.needs = NeedsSystem(self, self.supplies)
         for det in self.sim.all_detachments:
             self._remember_start(det)
-            if not hasattr(det, "ui_order"):
-                det.ui_order = "holding_defense"
-            if not hasattr(det, "ui_supply"):
-                det.ui_supply = 0.82
+        self.geometry = FrontGeometry(self)
+        # Шесть пользовательских групп рот. Храним имена, а не индексы:
+        # список отделений может меняться при выбытии подразделений.
+        self.groups = {i: [] for i in range(1, 7)}
 
     # --- базовые представления ------------------------------------------
     def _remember_start(self, det):
         if not hasattr(det, "ui_order"):
-            det.ui_order = "holding_defense"
+            det.ui_order = (
+                "holding_defense" if det.side == self.player_side
+                else "attack"
+            )
         if not hasattr(det, "ui_supply"):
             det.ui_supply = 0.82
         if det.name not in self._initial_forces:
@@ -301,6 +249,45 @@ class CampaignState:
         self._remember_start(det)
         return self._initial_forces.get(det.name, 16.0)
 
+    def sector_of(self, det):
+        geometry = getattr(self, "geometry", None)
+        if geometry is not None:
+            return geometry.sector_of(det)
+        return getattr(det, "sector", "front")
+
+    def projected_force(self, det):
+        """Сила роты с учётом проекции (фронт/фланг/тыл)."""
+        geometry = getattr(self, "geometry", None)
+        if geometry is not None:
+            return geometry.projected_force(det)
+        return max(0.0, float(getattr(det, "force", 0.0)))
+
+    def casualty_fraction(self, idx):
+        """Доля безвозвратных потерь отделения (0..1).
+
+        Считается по накопленному ``Detachment.losses``, а не по текущей
+        силе: сила может колебаться в бою, но понесённые потери не исчезают.
+        """
+        det = self.det_at(idx)
+        if det is None:
+            return 0.0
+        start = max(1.0, self._start_force(det))
+        losses = float(getattr(det, "losses", 0.0))
+        return max(0.0, min(1.0, losses / start))
+
+    def division_loss_percent(self):
+        """Потери дивизии игрока в процентах (все боевые подразделения)."""
+        total_start = 0.0
+        total_losses = 0.0
+        for idx, det in enumerate(self.units):
+            if det.side != self.player_side:
+                continue
+            total_start += max(1.0, self._start_force(det))
+            total_losses += max(0.0, float(getattr(det, "losses", 0.0)))
+        if total_start <= 0.0:
+            return 0.0
+        return round(100.0 * min(1.0, total_losses / total_start), 2)
+
     # --- сегменты и каналы ----------------------------------------------
     def read_segment(self, idx, name):
         det = self.det_at(idx)
@@ -391,10 +378,10 @@ class CampaignState:
         if det is None:
             return 0.0
         if channel == "U_manpower":
-            return max(0.0, det.force * 500.0)
+            force = min(float(det.force), self._start_force(det))
+            return max(0.0, force * 500.0)
         if channel == "U_casualties":
-            ratio = det.force / max(1.0, self._start_force(det))
-            return max(0.0, min(1.0, 1.0 - ratio))
+            return self.casualty_fraction(idx)
         if channel == "U_supply":
             return float(getattr(det, "ui_supply", 0.82))
         if channel == "U_experience_progress":
@@ -458,10 +445,13 @@ class CampaignState:
                 "force": det.force,
                 "morale": det.morale,
                 "position": list(det.position),
+                "sector": self.sector_of(det),
                 "role": det.role,
                 "doctrine": det.doctrine,
                 "ui_order": getattr(det, "ui_order", "holding_defense"),
                 "ui_supply": getattr(det, "ui_supply", 0.82),
+                "ui_fortification": getattr(det, "ui_fortification", 0.0),
+                "losses": float(getattr(det, "losses", 0.0)),
                 "retreating": det.retreating,
                 "panicked": det.panicked,
                 "broken": det.broken,
@@ -478,6 +468,14 @@ class CampaignState:
             "supplies": dict(getattr(self, "supplies", {})),
             "needs": (self.needs.get_save_snapshot()
                       if getattr(self, "needs", None) else {}),
+            "geometry": (self.geometry.snapshot()
+                         if getattr(self, "geometry", None) else {}),
+            "logistics": (self.logistics.get_save_snapshot()
+                          if getattr(self, "logistics", None) else {}),
+            "groups": {
+                str(key): list(names)
+                for key, names in getattr(self, "groups", {}).items()
+            },
         }
 
     def apply_snapshot(self, snapshot):
@@ -494,10 +492,16 @@ class CampaignState:
             det.force = float(item.get("force", det.force))
             det.morale = float(item.get("morale", det.morale))
             det.position = tuple(item.get("position", det.position))
+            if item.get("sector") in (
+                    "front", "left", "right", "rear"):
+                det.sector = item.get("sector")
             det.ui_order = item.get("ui_order", getattr(det, "ui_order",
                                                         "holding_defense"))
             det.ui_supply = float(item.get("ui_supply",
                                           getattr(det, "ui_supply", 0.82)))
+            det.ui_fortification = float(item.get(
+                "ui_fortification", getattr(det, "ui_fortification", 0.0)))
+            det.losses = float(item.get("losses", getattr(det, "losses", 0.0)))
             det.retreating = bool(item.get("retreating", det.retreating))
             det.panicked = bool(item.get("panicked", det.panicked))
             det.broken = bool(item.get("broken", det.broken))
@@ -523,6 +527,29 @@ class CampaignState:
             # Старые сохранения без ресурсов сохраняют стартовые значения.
             if needs_snapshot:
                 self.needs.load_from_snapshot(needs_snapshot)
+        if getattr(self, "logistics", None) is not None and snapshot.get(
+                "logistics"):
+            self.logistics.load_from_snapshot(snapshot.get("logistics"))
+        if getattr(self, "geometry", None) is not None:
+            self.geometry.load_snapshot(snapshot.get("geometry"))
+        groups = snapshot.get("groups")
+        if isinstance(groups, dict):
+            loaded = {i: [] for i in range(1, 7)}
+            alive = {
+                det.name for det in self.units
+                if not getattr(det, "broken", False)
+            }
+            for key, names in groups.items():
+                try:
+                    number = int(key)
+                except (TypeError, ValueError):
+                    continue
+                if number not in loaded or not isinstance(names, list):
+                    continue
+                loaded[number] = [
+                    str(name) for name in names if str(name) in alive
+                ]
+            self.groups = loaded
 
 
 class CampaignEngine:
@@ -535,21 +562,88 @@ class CampaignEngine:
         self.order_table = OrderTable(state.content)
         self.rng = state.sim.rng
         self.engagements = []
-        self.logistics = CampaignLogisticsSystem(state)
+        self.logistics = state.logistics
         state.logistics_system = self.logistics
         self.time_system = None
         self._targets = {}
         self._ui_orders = {}
+        # Явно выбранная цель для сосредоточенного огня: имя отделения ->
+        # имя противника. В отличие от обычной «атаки ближайшего», эта цель
+        # сохраняется, пока жива, и передаётся в сопоставление пар боя.
+        self._focus_targets = {}
+        self.state.sim.focus_targets = {}
+        # Один войсковой такт = 5 игровых минут. Часы при этом идут по
+        # минутам; интервал настраивается временем кампании.
+        self.combat_seconds = 300
 
-    def tick(self):
+    def tick(self, seconds=None):
         state = self.state
+        if seconds is None:
+            seconds = self.combat_seconds
         state.begin_tick()
+        self._sync_focus_targets()
+        self._advance_ai()
         pairs = state.sim._pair_engagements()
         self.engagements = [
             {"attacker": a.name, "defender": b.name} for a, b in pairs
         ]
         self._advance_targets()
+        force_before = {
+            det.name: det.force for det in state.sim.all_detachments
+        }
+        for det in state.sim.all_detachments:
+            det.needs_tick_seconds = seconds
         state.sim.tick()
+        # Ядро уже потратило силу на случайный обмен огнём. Кампанийный слой
+        # восстанавливает её к началу такта и начисляет потери по историческим
+        # суточным нормам через ``FrontGeometry``. Так бой не уничтожает
+        # дивизию за два часа и не зависит от случайной силы отдельного удара.
+        for det in state.sim.all_detachments:
+            before = force_before.get(det.name)
+            cap = float(getattr(det, "start_force", det.force))
+            if before is None:
+                # Резерв/подкрепление впервые появилось в этом такте. Его
+                # стартовая сила — штатная, а не «прирост» относительно нуля:
+                # иначе первый же такт после выхода даёт фиктивные потери и
+                # мгновенно приближает поражение по потерям дивизии.
+                det.force = min(cap, max(1.0, float(det.force)))
+                continue
+            det.force = min(cap, max(1.0, float(before)))
+
+        engaged_sides = {
+            item.get("attacker") for item in self.engagements
+        }
+        # В ``engagements`` лежат имена, а не стороны: восстановим стороны по
+        # актуальному списку отделений.
+        side_by_name = {
+            det.name: det.side for det in state.sim.all_detachments
+        }
+        engaged_sides = {
+            side_by_name[name] for name in engaged_sides
+            if name in side_by_name
+        }
+        engaged_sides |= {
+            side_by_name.get(item.get("defender"))
+            for item in self.engagements
+        }
+        engaged_sides.discard(None)
+        geometry = getattr(state, "geometry", None)
+        if geometry is not None:
+            geometry.update(engaged_sides=engaged_sides,
+                            tick=state.sim.turn)
+            geometry.apply_attrition(force_before, engaged_sides)
+        else:
+            # Совместимость с синтетическими состояниями без геометрии.
+            for det in state.sim.all_detachments:
+                before = force_before.get(det.name)
+                if before is None:
+                    continue
+                cap = float(getattr(det, "start_force", det.force))
+                det.force = min(cap, det.force)
+                det.losses = min(
+                    max(0.0, cap - 1.0),
+                    det.losses + max(0.0, before - det.force),
+                )
         self.tick_count = state.sim.turn
         if getattr(state, "needs", None) is not None:
             engaged = {
@@ -557,7 +651,14 @@ class CampaignEngine:
             } | {
                 item.get("defender") for item in self.engagements
             }
-            state.needs.on_tick(1800, engaged)
+            state.needs.on_tick(seconds, engaged)
+        if getattr(state, "logistics", None) is not None:
+            engaged = {
+                item.get("attacker") for item in self.engagements
+            } | {
+                item.get("defender") for item in self.engagements
+            }
+            state.logistics.on_tick(seconds, engaged)
         state.sync_events()
         if state.sim.finished:
             state.log_event(
@@ -566,23 +667,161 @@ class CampaignEngine:
             )
         return not state.sim.finished
 
-    def _advance_targets(self):
-        for name, target in list(self._targets.items()):
-            det = next((d for d in self.state.units if d.name == name), None)
-            if det is None or det.broken:
-                self._targets.pop(name, None)
-                continue
-            x, y = det.position
-            tx, ty = target
+    def _step_toward(self, det, target, steps=1):
+        x, y = det.position
+        tx, ty = target
+        for _ in range(max(1, int(steps))):
             if (x, y) == (tx, ty):
-                self._targets.pop(name, None)
-                continue
+                break
             if x != tx:
                 x += 1 if tx > x else -1
             elif y != ty:
                 y += 1 if ty > y else -1
-            det.position = (max(0, min(CELL_SIZE, x)),
-                            max(0, min(CELL_SIZE, y)))
+        det.position = (
+            max(0, min(CELL_SIZE, x)),
+            max(0, min(CELL_SIZE, y)),
+        )
+        return det.position
+
+    def _nearest_enemy(self, det):
+        enemies = [
+            other for other in self.state.units
+            if other.side != det.side and not getattr(other, "broken", False)
+        ]
+        if not enemies:
+            return None
+        return min(enemies, key=lambda other: (
+            _distance(det.position, other.position), other.name
+        ))
+
+    def _enemy_by_name(self, name):
+        if not name:
+            return None
+        return next((
+            det for det in self.state.units
+            if det.name == name and not getattr(det, "broken", False)
+        ), None)
+
+    def _sync_focus_targets(self):
+        """Передать UI-цели в боевое ядро для сосредоточенного огня."""
+        self.state.sim.focus_targets = dict(self._focus_targets)
+
+    def set_focus_target(self, idx, enemy):
+        """Явно назначить противника целью отделения.
+
+        ``enemy`` может быть индексом, именем или объектом отделения.
+        Возвращает True, если цель принята.
+        """
+        det = self.state.det_at(idx)
+        if det is None:
+            return False
+        if isinstance(enemy, int):
+            target = self.state.det_at(enemy)
+        elif isinstance(enemy, str):
+            target = self._enemy_by_name(enemy)
+        else:
+            target = enemy
+        if (target is None or target.side == det.side or
+                getattr(target, "broken", False)):
+            return False
+        self._focus_targets[det.name] = target.name
+        self._targets[det.name] = tuple(target.position)
+        self._sync_focus_targets()
+        return True
+
+    def clear_focus_target(self, idx_or_name=None):
+        """Снять явную цель (для одного отделения или для всех)."""
+        if idx_or_name is None:
+            self._focus_targets.clear()
+            self._sync_focus_targets()
+            return
+        if isinstance(idx_or_name, int):
+            det = self.state.det_at(idx_or_name)
+            name = det.name if det is not None else str(idx_or_name)
+        elif hasattr(idx_or_name, "name"):
+            name = idx_or_name.name
+        else:
+            name = str(idx_or_name)
+        self._focus_targets.pop(name, None)
+        self._sync_focus_targets()
+
+    def focus_target_name(self, idx_or_name):
+        if isinstance(idx_or_name, int):
+            det = self.state.det_at(idx_or_name)
+            name = det.name if det is not None else str(idx_or_name)
+        elif hasattr(idx_or_name, "name"):
+            name = idx_or_name.name
+        else:
+            name = str(idx_or_name)
+        return self._focus_targets.get(name)
+
+    def _advance_ai(self):
+        """Движение войск к противнику, если приказ этого требует.
+
+        Явно выбранная цель (``set_focus_target``) имеет приоритет над
+        ближайшим врагом. В зоне соприкосновения отделение не залезает на
+        клетку противника, а останавливается и ведёт огонь. Скорость зависит
+        от приказа: марш-бросок — 2 клетки, обычное движение — 1.
+        """
+        radius = getattr(self.state.sim, "engage_range", None)
+        attack_orders = ("aggressive_attack", "attack", "cautious_attack")
+        for det in self.state.units:
+            if getattr(det, "broken", False) or det.force <= 1:
+                continue
+            if getattr(det, "retreating", False):
+                continue
+            target = self._targets.get(det.name)
+            order = getattr(det, "ui_order", "holding_defense")
+            if target is not None:
+                if order in attack_orders or order == "forced_march":
+                    enemy = (self._enemy_by_name(
+                        self._focus_targets.get(det.name)
+                    ) or self._nearest_enemy(det))
+                    if enemy is not None:
+                        target = tuple(enemy.position)
+                        self._targets[det.name] = target
+                        distance = _distance(det.position, target)
+                        if (radius is not None and
+                                distance <= max(1, int(radius))):
+                            # Уже в зоне огня: держим дистанцию, не слипаемся.
+                            continue
+                steps = 2 if order == "forced_march" else 1
+                self._step_toward(det, target, steps)
+                if det.position == tuple(target):
+                    self._targets.pop(det.name, None)
+                    det.ui_order = "holding_defense"
+                continue
+            if order in attack_orders or order == "forced_march":
+                enemy = (self._enemy_by_name(
+                    self._focus_targets.get(det.name)
+                ) or self._nearest_enemy(det))
+                if enemy is None:
+                    continue
+                distance = _distance(det.position, enemy.position)
+                if radius is None or distance > max(1, int(radius)):
+                    steps = 2 if order == "forced_march" else 1
+                    self._step_toward(det, enemy.position, steps)
+
+    def _advance_targets(self):
+        for name in list(self._targets):
+            det = next((d for d in self.state.units if d.name == name), None)
+            if det is None or getattr(det, "broken", False):
+                self._targets.pop(name, None)
+                continue
+            focus_name = self._focus_targets.get(name)
+            if focus_name and self._enemy_by_name(focus_name) is None:
+                # Цель уничтожена: снимаем захват и возвращаем обычную атаку.
+                self._focus_targets.pop(name, None)
+                self._sync_focus_targets()
+                if det.ui_order in (
+                        "aggressive_attack", "attack", "cautious_attack"):
+                    enemy = self._nearest_enemy(det)
+                    if enemy is not None:
+                        self._targets[name] = tuple(enemy.position)
+                    else:
+                        self._targets.pop(name, None)
+                else:
+                    self._targets.pop(name, None)
 
     def set_move_target(self, idx, target):
         det = self.state.det_at(idx)
@@ -595,6 +834,8 @@ class CampaignEngine:
         # Экран карты работает в координатах 256x256, бой — в 24x24.
         cell_x = int(round(float(x) / MAP_SIZE * CELL_SIZE))
         cell_y = int(round(float(y) / MAP_SIZE * CELL_SIZE))
+        self._focus_targets.pop(det.name, None)
+        self._sync_focus_targets()
         self._targets[det.name] = (
             max(0, min(CELL_SIZE, cell_x)),
             max(0, min(CELL_SIZE, cell_y)),
@@ -611,6 +852,8 @@ class CampaignEngine:
             x, y = target
         except Exception:                          # noqa: BLE001
             return False
+        self._focus_targets.pop(det.name, None)
+        self._sync_focus_targets()
         self._targets[det.name] = (
             max(0, min(CELL_SIZE, int(round(float(x))))),
             max(0, min(CELL_SIZE, int(round(float(y))))),
@@ -642,7 +885,7 @@ class CampaignEngine:
                                  needs={"fatigue": 0.18}, label=order_id)
         if order_id in ("withdrawal", "movement"):
             return W.OrderSignal(aggression=-0.10, morale=-2.0, fear=0.05,
-                                 label=order_id)
+                                 retreat_allowed=False, label=order_id)
         if order_id == "move":
             return W.OrderSignal(aggression=-0.05, label=order_id)
         if order_id == "forced_march":
@@ -667,7 +910,36 @@ class CampaignEngine:
         self.state.sim.issue_order(order)
         self._ui_orders[idx] = order
         det.ui_order = order_id
+        attack_orders = ("aggressive_attack", "attack", "cautious_attack")
         if order_id in ("withdrawal", "movement"):
+            self._focus_targets.pop(det.name, None)
+            self._sync_focus_targets()
+            self._targets.pop(det.name, None)
             det.retreating = True
+            det.panicked = False
+            enemy = self._nearest_enemy(det)
+            if enemy is not None:
+                dx = 1 if det.position[0] <= enemy.position[0] else -1
+                dy = 1 if det.position[1] <= enemy.position[1] else -1
+                target = (
+                    max(0, min(CELL_SIZE, det.position[0] - 4 * dx)),
+                    max(0, min(CELL_SIZE, det.position[1] - 3 * dy)),
+                )
+                self._targets[det.name] = target
+        else:
+            det.retreating = False
+            det.panicked = False
+            if order_id in attack_orders or order_id == "forced_march":
+                # Явная цель сохраняется при повторной команде атаки.
+                enemy = (self._enemy_by_name(
+                    self._focus_targets.get(det.name)
+                ) or self._nearest_enemy(det))
+                if enemy is not None:
+                    self._targets[det.name] = tuple(enemy.position)
+            else:
+                self._focus_targets.pop(det.name, None)
+                self._sync_focus_targets()
+                if order_id not in ("move",):
+                    self._targets.pop(det.name, None)
         self.state.log_event(idx, "Приказ: %s" % label)
         return True

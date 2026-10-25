@@ -20,6 +20,10 @@
     "medevac": {"cost": {"IV": 1, "III": 1}, "diminishing": [0.5, 0.2, 0.05], "effect_type": "medevac", "duration_ticks": 0},
     "morale_boost": {"cost": {"VII": 1}, "diminishing": [0.2, 0.08, 0.02], "effect_type": "morale_boost", "duration_ticks": 0}
   },
+  "influence": {
+    "passive_per_hour": 4.0,
+    "free_convoy_minutes": 180
+  },
   "uncertainty": {
     "eta_jitter": [1.0, 1.5],
     "spoilage_chance": 0.10,

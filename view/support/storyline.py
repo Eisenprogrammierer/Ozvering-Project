@@ -216,17 +216,34 @@ def _all_enemies_destroyed(state):
     return True
 
 
+def _all_player_units_destroyed(state):
+    """Проверить, что у игрока не осталось живых боевых подразделений."""
+    if state is None or state.count <= 0:
+        return False
+    player_faction = state.factions[state.player_idx]
+    for i in range(state.count):
+        cfg = state.class_configs[state.class_ids[i]]
+        if cfg.class_name != "military_unit":
+            continue
+        if state.factions[i] != player_faction:
+            continue
+        if _unit_alive(state, i):
+            return False
+    return True
+
+
 def check_storyline_condition(condition, state, time_system, storyline_state):
     """
     Проверяет одно условие сюжета.
 
     Поддерживаемые типы: day_at_least, manpower_loss_above,
-    all_enemies_destroyed, all_of, any_of. Неизвестный тип
-    возвращает False. Пустое или None-условие возвращает False.
+    all_enemies_destroyed, all_player_units_destroyed, all_of, any_of.
+    Неизвестный тип возвращает False. Пустое или None-условие
+    возвращает False.
 
     Для manpower_loss_above требуется initial_manpower в
-    storyline_state. Если оно равно нулю или отсутствует,
-    условие возвращает False.
+    storyline_state (создание персонажа завершено). Порог считается по
+    накопленным потерям всей дивизии, а не по силе одного отделения.
 
     Args:
         condition: Словарь условия с полем type.
@@ -259,6 +276,9 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
         initial = float(storyline_state.get("initial_manpower", 0.0))
         if initial <= 0.0:
             result = False
+        elif hasattr(state, "division_loss_percent"):
+            threshold = 100.0 * float(condition.get("value", 0.0))
+            result = state.division_loss_percent() >= threshold
         else:
             idx = state.player_idx
             current = state.read_voltage(idx, "U_manpower")
@@ -266,6 +286,8 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
             result = current < threshold
     elif t == "all_enemies_destroyed":
         result = _all_enemies_destroyed(state)
+    elif t == "all_player_units_destroyed":
+        result = _all_player_units_destroyed(state)
     else:
         result = False
     logger.debug(

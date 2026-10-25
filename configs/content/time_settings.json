@@ -4,6 +4,7 @@
   "evening_start_seconds": 75600,
   "night_end_seconds": 21600,
   "default_action_memory_seconds": 1800,
+  "combat_tick_seconds": 300,
   "order_planning_seconds_per_order": 300,
   "mandatory_scenes": {
     "morning": "morning_inspection",

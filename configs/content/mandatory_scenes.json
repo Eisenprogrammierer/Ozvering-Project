@@ -14,7 +14,7 @@
   },
   "evening_inspection": {
     "title": "Вечерний осмотр лагеря",
-    "background": "scenes/camp_wounded",
+    "background": "scenes/hq_evening",
     "text": "День подходит к концу. Вы обходите позиции, проверяете раненых, уточняете потери. Нужно решить: ночное дежурство или сон. Потери дивизии: {losses}."
   }
 }

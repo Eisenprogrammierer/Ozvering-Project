@@ -31,14 +31,16 @@ import pygame
 from .screen_manager import BaseScreen
 from .widgets import Button, Panel
 from .asset_loader import AssetLoader
+from .text_layout import wrap_text
 from view.support.traits import get_report_noise_modifier
+from view.support.needs import SUPPLY_LABELS
 from view.support.log_journal import get_logger
 
 logger = get_logger("view.overlays")
 
-RADIO_OPEN_SIZE = (300, 380)
-RADIO_OPEN_POS = (670, 230)
-RADIO_LOG_RECT = pygame.Rect(320, 505, 320, 100)
+RADIO_OPEN_SIZE = (230, 292)
+RADIO_OPEN_POS = (735, 215)
+RADIO_LOG_RECT = pygame.Rect(310, 520, 650, 92)
 RADIO_PAGE_SIZE = 7
 
 NOTEBOOK_RECT = pygame.Rect(-60, -20, 1400, 760)
@@ -1128,104 +1130,205 @@ class BinocularsOverlay(BaseScreen):
 
 
 class LogisticsOverlay(OverlayScreen):
-    """
-    Оверлей логистики.
+    """Склад, суточный расход, готовность и операции снабжения."""
 
-    Отображает снабжение подразделения игрока и активные
-    модификаторы от логистических операций.
-
-    Attributes:
-        close_btn (Button): Кнопка закрытия.
-    """
+    OPERATION_LABELS = {
+        "fortify": "Укрепить позицию",
+        "fierce_attack": "Усилить натиск",
+        "active_defense": "Активная оборона",
+        "medevac": "Медицинская эвакуация",
+        "morale_boost": "Поднять дух",
+    }
 
     def __init__(self, app):
-        """
-        Инициализирует оверлей логистики.
+        super().__init__(app, (200, 40, 880, 640))
+        self.feedback = ""
+        self._op_buttons = []
+        self._convoy_buttons = []
+        self.rts = self._find_rts()
+        panel = self.panel.rect
+        x = panel.x + 500
+        y = panel.y + 150
+        for op_id in ("fortify", "fierce_attack", "active_defense",
+                      "medevac", "morale_boost"):
+            btn = Button(
+                (x, y, 350, 30), self.OPERATION_LABELS.get(op_id, op_id),
+                app.font_tiny, lambda oid=op_id: self.apply_operation(oid),
+            )
+            self._op_buttons.append((op_id, btn))
+            y += 46
+        y += 30
+        for kind, label in (
+            ("general", "Общий конвой"),
+            ("ammo", "Боеприпасы"),
+            ("medical", "Медикаменты"),
+            ("fuel", "Горючее"),
+        ):
+            btn = Button(
+                (x, y, 350, 28), label, app.font_tiny,
+                lambda k=kind: self.request_convoy(k),
+            )
+            self._convoy_buttons.append((kind, btn))
+            y += 34
 
-        Args:
-            app: Экземпляр приложения (App).
-        """
-        super().__init__(app, (240, 60, 800, 600))
-        self.close_btn = Button(
-            (240 + 800 - 46, 60 + 8, 38, 34),
-            "X",
-            app.font_body,
-            app.manager.pop,
+    def _find_rts(self):
+        for screen in reversed(getattr(self.app.manager, "stack", [])):
+            if hasattr(screen, "_selected_dets"):
+                return screen
+        return None
+
+    def _selected_idx(self):
+        if self.rts is not None and self.rts.selected:
+            return self.rts.selected[0]
+        return self.app.engine.state.player_idx
+
+    def apply_operation(self, op_id):
+        ls = self.app.engine.state.logistics
+        result = ls.apply_operation(op_id, self._selected_idx())
+        self.feedback = (
+            "Выполнено" if result.get("ok") else result.get("reason", "Нет")
+        )
+
+    def request_convoy(self, kind):
+        ls = self.app.engine.state.logistics
+        result = ls.request_convoy(kind)
+        self.feedback = (
+            "Конвой прибыл" if result.get("ok")
+            else result.get("reason", "Нет влияния")
         )
 
     def handle_event(self, event):
-        """
-        Обрабатывает события: только закрытие.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
+        for _oid, btn in self._op_buttons:
+            if btn.handle_event(event):
+                return
+        for _kind, btn in self._convoy_buttons:
+            if btn.handle_event(event):
+                return
         if self.close_btn.handle_event(event):
             return
 
     def draw(self, screen):
-        """
-        Рисует логистику.
-
-        Показывает запасы по классам ресурсов и активные
-        модификаторы боеприпасов, защиты и атаки.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
-        self.draw_base(screen, "Логистика")
+        self.draw_base(screen, "Логистика дивизии")
         st = self.app.engine.state
         ls = getattr(st, "logistics", None)
+        panel = self.panel.rect
         if ls is None:
-            msg = self.app.font_body.render(
-                "Логистическая система не активна.",
-                True,
-                (200, 100, 100),
-            )
-            screen.blit(msg, (300, 300))
+            screen.blit(self.app.font_body.render(
+                "Логистическая система не активна.", True, (200, 100, 100)
+            ), (panel.x + 20, panel.y + 80))
             self.close_btn.draw(screen)
             return
-        y = 120
-        idx = st.player_idx
-        supply = ls.unit_supply.get(idx)
-        if supply:
-            title = self.app.font_body.render(
-                "Снабжение подразделения:", True, (220, 220, 230)
+        idx = self._selected_idx()
+        det = st.det_at(idx)
+        screen.blit(self.app.font_tiny.render(
+            "Склад, расход и готовность. Конвои тратят влияние; редкие "
+            "автоколонны приходят сами.",
+            True, (150, 165, 180),
+        ), (panel.x + 20, panel.y + 44))
+
+        # Левая часть: склад.
+        y = panel.y + 78
+        screen.blit(self.app.font_small.render(
+            "СКЛАД", True, (205, 218, 230)
+        ), (panel.x + 20, y))
+        y += 24
+        header = ("Класс", "Запас", "В сутки", "Хватит")
+        for i, text in enumerate(header):
+            screen.blit(self.app.font_tiny.render(
+                text, True, (130, 145, 158)
+            ), (panel.x + 20 + i * 112, y))
+        y += 18
+        for row in ls.status_rows():
+            screen.blit(self.app.font_tiny.render(
+                row["label"][:18], True, (210, 220, 230)
+            ), (panel.x + 20, y))
+            screen.blit(self.app.font_tiny.render(
+                "%d" % round(row["stock"]), True, (220, 230, 238)
+            ), (panel.x + 132, y))
+            screen.blit(self.app.font_tiny.render(
+                "%.1f" % row["daily"], True, (165, 180, 192)
+            ), (panel.x + 244, y))
+            days = row["days"]
+            days_text = "—" if days is None else ("%.1f дн" % days)
+            color = (190, 110, 100) if days is not None and days < 2 else (
+                150, 195, 160
             )
-            screen.blit(title, (280, y))
-            y += 40
-            for cls in ["I", "II", "III", "IV", "V", "VI", "VII"]:
-                norm = supply.norm.get(cls, 0.0)
-                actual = supply.actual.get(cls, 0.0)
-                label = ls.resource_defs.get(cls, {}).get(
-                    "label", cls
-                )
-                text = f"{label}: {actual:.0f} / {norm:.0f}"
-                surf = self.app.font_small.render(
-                    text, True, (200, 200, 210)
-                )
-                screen.blit(surf, (300, y))
-                y += 25
-            y += 20
-        sys = getattr(self.app.engine, "logistics", None)
-        if sys:
-            ammo = sys.get_ammo_modifier(idx)
-            def_mod = sys.get_defense_modifier(idx)
-            off_mod = sys.get_offense_modifier(idx)
-            title2 = self.app.font_body.render(
-                "Активные модификаторы:", True, (220, 220, 230)
+            screen.blit(self.app.font_tiny.render(
+                days_text, True, color
+            ), (panel.x + 356, y))
+            y += 22
+
+        # Готовность подразделений.
+        y += 18
+        screen.blit(self.app.font_small.render(
+            "ГОТОВНОСТЬ", True, (205, 218, 230)
+        ), (panel.x + 20, y))
+        y += 24
+        for i, unit in enumerate(st.units):
+            if unit.side != st.player_side:
+                continue
+            value = ls.supply_of(i)
+            color = ((96, 190, 120) if value >= 0.7 else
+                     (224, 164, 74) if value >= 0.4 else (224, 88, 88))
+            screen.blit(self.app.font_tiny.render(
+                unit.name, True, (215, 225, 235)
+            ), (panel.x + 20, y))
+            bar = pygame.Rect(panel.x + 120, y + 4, 190, 6)
+            pygame.draw.rect(screen, (38, 46, 55), bar)
+            pygame.draw.rect(
+                screen, color,
+                (bar.x, bar.y, int(bar.width * min(1.0, value)), bar.height),
             )
-            screen.blit(title2, (280, y))
-            y += 40
-            mods_text = (
-                f"Боеприпасы: {ammo:.0%} | "
-                f"Защита: +{def_mod:.0%} | "
-                f"Атака: +{off_mod:.0%}"
+            screen.blit(self.app.font_tiny.render(
+                "%d%%" % round(value * 100), True, color
+            ), (panel.x + 320, y))
+            y += 18
+
+        # Правая часть: операции и конвои.
+        rx = panel.x + 500
+        screen.blit(self.app.font_small.render(
+            "ОПЕРАЦИИ", True, (205, 218, 230)
+        ), (rx, panel.y + 78))
+        for op_id, btn in self._op_buttons:
+            btn.draw(screen)
+            cost = ls.operation_cost(op_id)
+            cost_text = ", ".join(
+                "%s %d" % (SUPPLY_LABELS.get(k, k), v)
+                for k, v in cost.items()
             )
-            surf2 = self.app.font_small.render(
-                mods_text, True, (200, 200, 210)
+            ok, reason = ls.can_operation(op_id)
+            info = cost_text + ("" if ok else " · " + reason)
+            screen.blit(self.app.font_tiny.render(
+                info, True, (150, 165, 178) if ok else (190, 118, 118)
+            ), (btn.rect.x + 6, btn.rect.y + 32))
+        convoy_top = self._convoy_buttons[0][1].rect.y - 24
+        screen.blit(self.app.font_small.render(
+            "КОНВОИ (за влияние)", True, (205, 218, 230)
+        ), (rx, convoy_top))
+        for _kind, btn in self._convoy_buttons:
+            btn.draw(screen)
+        influence_text = (
+            "Влияние: %d (+%.1f/ч) · автоколонна через %d мин"
+            % (
+                int(ls.stock("influence")),
+                ls.influence_per_hour,
+                int(round(ls.next_free_convoy_minutes)),
             )
-            screen.blit(surf2, (300, y))
+        )
+        screen.blit(self.app.font_tiny.render(
+            influence_text, True, (224, 185, 95),
+        ), (rx, self._convoy_buttons[-1][1].rect.bottom + 6))
+        if det is not None:
+            screen.blit(self.app.font_tiny.render(
+                "Выбрано: %s · снабжение %d%%" % (
+                    det.name, round(ls.supply_of(idx) * 100)
+                ),
+                True, (175, 190, 202),
+            ), (rx, panel.bottom - 58))
+        if self.feedback:
+            screen.blit(self.app.font_tiny.render(
+                self.feedback, True, (224, 185, 95)
+            ), (rx, panel.bottom - 38))
         self.close_btn.draw(screen)
 
 
@@ -1267,6 +1370,8 @@ class RadioOverlay(OverlayScreen):
         self.selected = 0
         self.page = 0
         self.log = "Выберите подразделение."
+        self.log_scroll = 0
+        self.log_lines = []
         self.radio_img = AssetLoader.load(
             "items/radio_open", RADIO_OPEN_SIZE
         )
@@ -1380,30 +1485,38 @@ class RadioOverlay(OverlayScreen):
         idx, eid = self.units[self.selected]
         st = self.app.engine.state
         cfg = st.class_configs[st.class_ids[idx]]
-        parts = [self._display_name(st, idx)]
+        name = self._display_name(st, idx)
+        manpower = None
         if "U_manpower" in cfg.voltage_layout.channel_index:
-            parts.append(
-                f"л.с. {st.read_voltage(idx, 'U_manpower'):.0f}"
-            )
+            manpower = st.read_voltage(idx, "U_manpower")
+        casualties = None
         if "U_casualties" in cfg.voltage_layout.channel_index:
-            parts.append(
-                f"потери {st.read_voltage(idx, 'U_casualties'):.0%}"
-            )
-        for ch, name in EQUIPMENT_LABELS.items():
+            casualties = st.read_voltage(idx, "U_casualties")
+        equipment = []
+        for ch, label in EQUIPMENT_LABELS.items():
             if ch in cfg.voltage_layout.channel_index:
-                v = st.read_voltage(idx, ch)
-                if v > 0:
-                    parts.append(f"{name}: {v:.0f}")
-        if "order" in cfg.segment_layout.segments:
-            parts.append(f"приказ: {self._order_label(st, idx)}")
+                value = st.read_voltage(idx, ch)
+                if value > 0:
+                    equipment.append("%s %.0f" % (label, value))
+        lines = [name]
+        status = []
+        if manpower is not None:
+            status.append("л.с. %.0f" % manpower)
+        if casualties is not None:
+            status.append("потери %.0f%%" % (casualties * 100))
+        if status:
+            lines.append(" · ".join(status))
+        lines.append("Техника: %s" % (", ".join(equipment) or "—"))
+        lines.append("Приказ: %s" % self._order_label(st, idx))
         events = [
             e["message"]
             for e in st.event_log
             if e["entity_id"] == eid
-        ][:2]
-        self.log = ", ".join(parts)
+        ][-2:]
         if events:
-            self.log += " || " + " / ".join(events)
+            lines.append("Связь: " + " / ".join(events))
+        self.log = "\n".join(lines)
+        self.log_scroll = 0
 
     def _order_label(self, st, idx):
         """
@@ -1432,6 +1545,10 @@ class RadioOverlay(OverlayScreen):
         Args:
             event (pygame.event.Event): Событие pygame.
         """
+        if event.type == pygame.MOUSEWHEEL and RADIO_LOG_RECT.collidepoint(
+                pygame.mouse.get_pos()):
+            self.log_scroll = max(0, self.log_scroll - event.y)
+            return
         if self.close_btn.handle_event(event):
             return
         if self.btn_connect.handle_event(event):
@@ -1467,19 +1584,35 @@ class RadioOverlay(OverlayScreen):
         self.btn_connect.draw(screen)
         if self.radio_img:
             screen.blit(self.radio_img, RADIO_OPEN_POS)
-        y = RADIO_LOG_RECT.top
-        for line in _wrap_text(
-            self.log, self.app.font_small, RADIO_LOG_RECT.width
-        ):
-            if y > RADIO_LOG_RECT.bottom - 14:
-                break
-            screen.blit(
-                self.app.font_small.render(
-                    line, True, (140, 220, 140)
+        # Журнал связи: переносим каждую строку по ширине и даём прокрутку
+        # колесом, чтобы длинная сводка никогда не пропадала за границей.
+        font = self.app.font_tiny
+        lines = []
+        for paragraph in str(self.log).split("\n"):
+            lines.extend(wrap_text(
+                font, paragraph, RADIO_LOG_RECT.width - 10
+            ))
+        self.log_lines = lines
+        max_lines = max(1, (RADIO_LOG_RECT.height - 24) // 13)
+        max_scroll = max(0, len(lines) - max_lines)
+        self.log_scroll = max(0, min(self.log_scroll, max_scroll))
+        pygame.draw.rect(screen, (9, 18, 12), RADIO_LOG_RECT, border_radius=4)
+        pygame.draw.rect(screen, (50, 92, 58), RADIO_LOG_RECT, 1,
+                         border_radius=4)
+        y = RADIO_LOG_RECT.top + 4
+        for line in lines[self.log_scroll:self.log_scroll + max_lines]:
+            screen.blit(font.render(line, True, (140, 220, 140)),
+                        (RADIO_LOG_RECT.left + 5, y))
+            y += 13
+        if max_scroll:
+            hint = self.app.font_tiny.render(
+                "колесо — прокрутка (%d/%d)" % (
+                    self.log_scroll + 1, max_scroll + 1
                 ),
-                (RADIO_LOG_RECT.left, y),
+                True, (110, 150, 115),
             )
-            y += 18
+            screen.blit(hint, (RADIO_LOG_RECT.right - hint.get_width() - 6,
+                               RADIO_LOG_RECT.bottom - 13))
         self.close_btn.draw(screen)
 
 

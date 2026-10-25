@@ -7,14 +7,30 @@
   "scenes": "mvp_demo_scenes",
   "win_conditions": [
     {
-      "type": "day_at_least",
-      "value": 7
+      "type": "any_of",
+      "conditions": [
+        {
+          "type": "day_at_least",
+          "value": 7
+        },
+        {
+          "type": "all_enemies_destroyed"
+        }
+      ]
     }
   ],
   "lose_conditions": [
     {
-      "type": "manpower_loss_above",
-      "value": 0.2
+      "type": "any_of",
+      "conditions": [
+        {
+          "type": "manpower_loss_above",
+          "value": 0.45
+        },
+        {
+          "type": "all_player_units_destroyed"
+        }
+      ]
     }
   ],
   "win_scene": {
@@ -37,8 +53,7 @@
   "lose_scene": {
     "slides": [
       {
-        "image": "scenes/outtro_6",
-        "text": "Потери превысили 45% личного состава. Дивизия утратила боеспособность и спешно отступает. Вы не справились. Борьба продолжается."
+        "text": "ПОРАЖЕНИЕ. Дивизия утратила боеспособность. Эта сцена — плейсхолдер; художественные материалы и текст поражения будут добавлены позже."
       }
     ]
   },

@@ -67,7 +67,7 @@ DEFAULT_SCENES = {
     },
     "evening_inspection": {
         "title": "Вечерний осмотр лагеря",
-        "background": "scenes/camp_wounded",
+        "background": "scenes/hq_evening",
         "text": (
             "День подходит к концу. Вы обходите позиции, проверяете "
             "раненых, уточняете потери. Нужно решить: ночное дежурство "
@@ -211,49 +211,17 @@ class MandatorySceneScreen(BaseScreen):
         )
 
     def _player_loss_percent(self):
-        """
-        Вычисляет округлённые потери дивизии игрока в процентах.
+        """Потери дивизии игрока в процентах.
 
-        Считает по ротам (size == 1): отношение суммарной текущей
-        численности к начальной (state.initial_manpower). Если начальные
-        численности недоступны, использует канал U_casualties дивизии.
-
-        Returns:
-            int: Потери в процентах, кламп [0, 100].
+        Использует накопленный счётчик ``Detachment.losses``: текущая сила
+        может колебаться в бою, поэтому она не годится для отчёта о
+        безвозвратных потерях.
         """
         st = self.app.engine.state
-        total_init = 0.0
-        total_cur = 0.0
-        has_init = hasattr(st, "initial_manpower")
-        for i in range(st.count):
-            cfg = st.class_configs[st.class_ids[i]]
-            if cfg.class_name != "military_unit":
-                continue
-            if st.factions[i] != st.factions[st.player_idx]:
-                continue
-            if "size" in cfg.segment_layout.segments:
-                if st.read_segment(i, "size") != 1:
-                    continue
-            ch = cfg.voltage_layout.channel_index.get("U_manpower")
-            cur = float(st.read_voltage(i, "U_manpower")) if ch is not None else 0.0
-            init = (
-                float(st.initial_manpower[i])
-                if has_init and i < len(st.initial_manpower)
-                else 0.0
-            )
-            if init > 0.0:
-                total_init += init
-                total_cur += min(cur, init)
-        if total_init > 0.0:
-            fraction = max(0.0, min(1.0, 1.0 - total_cur / total_init))
-            return int(round(100.0 * fraction))
+        if hasattr(st, "division_loss_percent"):
+            return int(st.division_loss_percent())
         p = st.player_idx
-        cfg = st.class_configs[st.class_ids[p]]
-        ch_cas = cfg.voltage_layout.channel_index.get("U_casualties")
-        if ch_cas is not None:
-            fraction = max(0.0, min(1.0, float(st.read_voltage(p, "U_casualties"))))
-            return int(round(100.0 * fraction))
-        return 0
+        return int(round(100.0 * float(st.read_voltage(p, "U_casualties"))))
 
     def _autosave(self):
         """

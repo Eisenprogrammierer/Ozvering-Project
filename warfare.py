@@ -418,20 +418,25 @@ class Character(S.UtilityAI):
         return total
 
     def tick_needs(self, in_combat=False, under_fire=0.0, supported=0.0,
-                   rested=False, rng=None):
-        """Обработка потребностей и морали за такт.
+                   rested=False, rng=None, seconds=1800):
+        """Обработка потребностей и морали за интервал времени.
 
         Потребности растут по базовым темпам и от боя; личность модулирует
         скорость (смелый меньше боится, выносливый меньше устаёт, духовный
         меньше страдает от тревоги). Приказы добавляют сигнал (например,
         ``fear``/``discipline``), а поддержка отделения закрывает социальные
         потребности. Мораль — производная потребностей и приказов, не метрика.
+
+        ``seconds`` — длительность интервала. Историческая норма — 1800 секунд
+        (30 игровых минут); при более частом войсковом такте UI передаёт 300,
+        чтобы потребности не росли в шесть раз быстрее.
         """
         rng = rng or self.rng
         p = self.personality
         mod = self.modulation()
         uf = max(0.0, min(1.0, float(under_fire)))
         support = max(0.0, min(1.0, float(supported)))
+        scale = max(0.0, float(seconds)) / 1800.0
 
         rates = dict(_NEED_RATES)
         rates["fatigue"] *= 0.70 + 0.6 * (1.0 - p["endurance"])
@@ -451,28 +456,45 @@ class Character(S.UtilityAI):
                 delta += 0.020 * uf
             if need == "boredom" and not in_combat:
                 delta += 0.006
-            self.needs[need] = min(1.0, self.needs[need] + delta)
-            self.needs[need] = max(0.0, self.needs[need] - mod.needs.get(need, 0.0))
+            self.needs[need] = min(1.0, self.needs[need] + delta * scale)
+            self.needs[need] = max(
+                0.0,
+                self.needs[need] - mod.needs.get(need, 0.0) * scale,
+            )
 
         # Поддержка отделения закрывает социальные и «смысловые» потребности.
         if support > 0:
             for need in ("loneliness", "friendship", "love", "fear", "anxiety"):
-                self.needs[need] = max(0.0, self.needs[need] - 0.020 * support)
+                self.needs[need] = max(
+                    0.0, self.needs[need] - 0.020 * support * scale
+                )
         if rested:
             for need in ("fatigue", "hunger", "thirst", "boredom"):
-                self.needs[need] = max(0.0, self.needs[need] - 0.035)
+                self.needs[need] = max(
+                    0.0, self.needs[need] - 0.035 * scale
+                )
         if in_combat:
             # Бой одновременно изнашивает и «закрывает» статус/умение: солдат
             # чувствует себя нужным, даже если устал.
-            self.needs["skill"] = max(0.0, self.needs["skill"] - 0.012)
-            self.needs["status"] = max(0.0, self.needs["status"] - 0.006)
+            self.needs["skill"] = max(
+                0.0, self.needs["skill"] - 0.012 * scale
+            )
+            self.needs["status"] = max(
+                0.0, self.needs["status"] - 0.006 * scale
+            )
 
         # Приказы могут целенаправленно снижать/повышать потребности.
         if mod.fear:
-            self.needs["fear"] = min(1.0, self.needs["fear"] + mod.fear)
+            self.needs["fear"] = min(
+                1.0, self.needs["fear"] + mod.fear * scale
+            )
         if mod.discipline:
-            self.needs["anxiety"] = max(0.0, self.needs["anxiety"] - 0.02 * mod.discipline)
-            self.needs["fear"] = max(0.0, self.needs["fear"] - 0.01 * mod.discipline)
+            self.needs["anxiety"] = max(
+                0.0, self.needs["anxiety"] - 0.02 * mod.discipline * scale
+            )
+            self.needs["fear"] = max(
+                0.0, self.needs["fear"] - 0.01 * mod.discipline * scale
+            )
 
         # Мораль: медленно тянется к «безопасному» уровню, но бой и потребности
         # тянут вниз; приказ и поддержка — вверх.
@@ -481,11 +503,13 @@ class Character(S.UtilityAI):
                   self.needs["loneliness"] * 0.10)
         baseline = 55.0 + 20.0 * p["discipline"] + 10.0 * p["courage"]
         drift = 0.10 * (baseline - self.morale)
-        self.morale += drift - 7.0 * stress - 10.0 * uf
-        self.morale += 2.5 * mod.morale + 1.5 * support + 2.0 * mod.discipline
+        self.morale += scale * (
+            drift - 7.0 * stress - 10.0 * uf
+            + 2.5 * mod.morale + 1.5 * support + 2.0 * mod.discipline
+        )
         self.morale = max(0.0, min(100.0, self.morale))
         self.under_fire = uf
-        self.casualties = max(0.0, self.casualties + uf * 0.1)
+        self.casualties = max(0.0, self.casualties + uf * 0.1 * scale)
 
         self._update_mind(rng)
         self.deliberate()
@@ -645,6 +669,21 @@ class Detachment(S.Environment):
         self.last_under_fire = 0.0
         self.last_intent = None
         self.engagements = 0
+        # Накопленные безвозвратные потери отделения (в единицах силы).
+        # Текущая сила может колебаться в бою, поэтому «сила / старт» не
+        # годится как показатель потерь: нужен отдельный счётчик.
+        self.losses = 0.0
+        # Доля «грязного» боевого урона, которую оставляет ядро. Канонический
+        # демо-сценарий использует 1.0 (поведение не меняется). Кампанийный
+        # UI выставляет 0.0: истощение начисляет ``FrontGeometry`` по суточным
+        # нормам, а не случайный обмен ударами.
+        self.combat_loss_scale = 1.0
+        # Штатная численность (потолок силы для UI): пополнение не должно
+        # показывать больше людей, чем было в отделении.
+        self.start_force = float(start_force)
+        # Длительность интервала потребностей для этого отделения. UI с
+        # пятиминутным тактом выставляет 300, канонический демо-прогон — 1800.
+        self.needs_tick_seconds = 1800
         self._reported_banzai = False
         self._reported_retreat = False
         self._retreat_ticks = 0
@@ -697,6 +736,29 @@ class Detachment(S.Environment):
             c.receive_order(order)
         self.refresh_psychology()
 
+    def process_hit(self, tr):
+        """Учесть полученный удар.
+
+        Безвозвратные потери дивизии считаются не здесь, а по дельте силы за
+        войсковой такт в ``CampaignEngine.tick``: ядро возвращает адресату
+        часть удара через ``K_EFFECT``, поэтому «грязный» урон в этом методе
+        завышал бы отчёт о потерях.
+
+        ``combat_loss_scale`` позволяет кампанийному слою почти полностью
+        погасить случайный боевой урон. Ядро после этого метода вернёт
+        ``K_EFFECT * tr``; чтобы чистая потеря составила ``scale * tr``,
+        списываем ``(K_EFFECT + scale) * tr``. При ``scale == 1`` сохраняется
+        исходное каноническое поведение.
+        """
+        scale = max(0.0, min(1.0, float(getattr(
+            self, "combat_loss_scale", 1.0
+        ))))
+        if scale >= 1.0:
+            super().process_hit(tr)
+            return
+        gross = int(round(float(tr) * (S.K_EFFECT + scale)))
+        super().process_hit(gross)
+
     def modulation(self):
         total = OrderSignal()
         for order in list(self.orders):
@@ -731,8 +793,11 @@ class Detachment(S.Environment):
         uf = max(0.0, min(1.0, float(under_fire)))
         support = self.cohesion * min(1.0, 0.3 + 0.7 * (self.morale / 100.0))
         for c in self.characters:
-            c.tick_needs(in_combat=self.engagements > 0, under_fire=uf,
-                         supported=support, rng=rng)
+            c.tick_needs(
+                in_combat=self.engagements > 0, under_fire=uf,
+                supported=support, rng=rng,
+                seconds=getattr(self, "needs_tick_seconds", 1800),
+            )
         self.last_under_fire = uf
         self.refresh_psychology()
         self.engagements = 0
@@ -915,6 +980,7 @@ class Detachment(S.Environment):
         return {
             "name": self.name, "side": self.side, "role": self.role,
             "force": round(self.force, 1), "energy": self.energy_pool,
+            "losses": round(self.losses, 1),
             "morale": round(self.morale, 1), "position": self.position,
             "retreating": self.retreating, "panicked": self.panicked,
             "fanatical": self.fanatical, "coerced_by": self.coerced_by,
@@ -1125,6 +1191,14 @@ class WarfareSimulation:
         self.finished = False
         self.winner = None
         self._log_turn = 0
+        # Радиус соприкосновения для тактического слоя. ``None`` сохраняет
+        # каноническое поведение демо-симуляции (пары по всей карте); UI
+        # выставляет конечный радиус, чтобы движение и приказы имели смысл.
+        self.engage_range = None
+        # Явно назначенные цели для сосредоточенного огня:
+        # имя атакующего -> имя защитника. Обычная пара выбирает ближайшего,
+        # а здесь несколько отделений могут бить одну и ту же цель.
+        self.focus_targets = {}
 
     # --- регистрация ---
     def add_detachment(self, det):
@@ -1280,13 +1354,49 @@ class WarfareSimulation:
             attackers = active
         used = set()
         pairs = []
+        focus_targets = getattr(self, "focus_targets", {}) or {}
         # Детерминированный порядок: сначала более слабые (им нужнее бой), затем
         # по имени. Случайность партии остаётся только в бросках p_success.
         for det in sorted(attackers, key=lambda d: (d.force, d.side, d.name)):
             if id(det) in used:
                 continue
+            focus_name = focus_targets.get(det.name)
+            if focus_name:
+                # Явная цель ищется и среди уже занятых защитников. Именно
+                # это позволяет нескольким отделениям бить одного врага.
+                focused_enemies = [
+                    e for e in self._detachments(
+                        side=self._other_side(det.side)
+                    )
+                    if (not e.retreating or e.fanatical)
+                ]
+                if self.engage_range is not None:
+                    radius = max(1, int(self.engage_range))
+                    focused_enemies = [
+                        e for e in focused_enemies
+                        if (abs(e.position[0] - det.position[0]) +
+                            abs(e.position[1] - det.position[1])) <= radius
+                    ]
+                line = [e for e in focused_enemies if e.role != "barrier"]
+                if line:
+                    focused_enemies = line
+                focus_enemy = next(
+                    (e for e in focused_enemies if e.name == focus_name),
+                    None,
+                )
+                if focus_enemy is not None:
+                    used.add(id(det))
+                    used.add(id(focus_enemy))
+                    pairs.append((det, focus_enemy))
+                    continue
+            # Обычное сопоставление: ровно одна пара на бойца, как в каноне.
             enemies = [e for e in self._detachments(side=self._other_side(det.side))
                        if id(e) not in used and (not e.retreating or e.fanatical)]
+            if self.engage_range is not None:
+                radius = max(1, int(self.engage_range))
+                enemies = [e for e in enemies
+                           if (abs(e.position[0] - det.position[0]) +
+                               abs(e.position[1] - det.position[1])) <= radius]
             line_enemies = [e for e in enemies if e.role != "barrier"]
             if line_enemies:
                 enemies = line_enemies

@@ -191,10 +191,29 @@ class App:
         self.music.request_category("overture")
         logger.info("Приложение инициализировано")
 
+    def finish_storyline_outcome(self, outcome):
+        """Зафиксировать победу/поражение и отдать сцену главному циклу.
+
+        Метод не переключает экраны сам: ``process_pending_storyline_outcome``
+        сделает это на ближайшем кадре. Повторные вызовы идемпотентны.
+        """
+        if outcome not in ("win", "lose"):
+            return False
+        if self.storyline_interpreter is None:
+            return False
+        if (self.pending_storyline_outcome is not None or
+                getattr(self.storyline_interpreter, "finished", False)):
+            return False
+        self.pending_storyline_outcome = outcome
+        self.storyline_interpreter.finished = True
+        return True
+
     def check_storyline_end_of_day(self):
         """
-        Ежедневная проверка исходов сюжета. Idempotent.
-        Вызывается из GameTimeSystem при пересечении вечерней границы.
+        Проверка исходов сюжета по пороговым условиям. Idempotent.
+
+        Вызывается на вечерней границе и после каждого войскового такта,
+        поэтому потеря 90% дивизии завершает операцию сразу, а не ждёт ночи.
         Ставит флаг pending_storyline_outcome, но не переключает экраны;
         финальная сцена показывается в главном цикле через
         process_pending_storyline_outcome().
@@ -210,11 +229,9 @@ class App:
         if hasattr(self.storyline_interpreter, "check_win_conditions"):
             win = self.storyline_interpreter.check_win_conditions()
         if lose:
-            self.pending_storyline_outcome = "lose"
-            self.storyline_interpreter.finished = True
+            self.finish_storyline_outcome("lose")
         elif win:
-            self.pending_storyline_outcome = "win"
-            self.storyline_interpreter.finished = True
+            self.finish_storyline_outcome("win")
 
     def apply_to_player(self, channel, delta):
         """
