@@ -67,6 +67,7 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 ```bash
 python3 simulation.py            # канон: пакет из 10 партий + график динамики силы
 python3 main.py                  # ИГРА: сценный слой ui (меню -> нарратив -> партия)
+python3 main.py --scene battlefield  # сразу стратегическое поле (RTS)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
 pytest -q                        # весь тестовый набор (см. ниже)
 ```
@@ -89,7 +90,8 @@ pytest -q                        # весь тестовый набор (см. �
   (`test_advanced.py`: детерминизм, монотонность `H`, «нет отката», гистерезис,
   квантование/задержка, LOD-эквивалентность, флаги off = канон);
 * сценный слой `ui/`: сохранения/настройки, навигация и отрисовка экранов
-  (`test_ui.py`; графическая часть пропускается без `pygame`).
+  (`test_ui.py`; графическая часть пропускается без `pygame`); чистая логика
+  стратегического поля — `test_battlefield.py` (изометрия, приказы, диалоги).
 
 Скрипты-проверки можно запускать и напрямую (код возврата `0`/`1`):
 
@@ -97,6 +99,10 @@ pytest -q                        # весь тестовый набор (см. �
 python3 experiments/exp_balance_ci.py            # баланс стратегий (недоминирование)
 python3 experiments/exp_hierarchy_depth.py       # самоподобие кодекса на всех ярусах
 python3 experiments/exp_retaliation_faithful.py  # верность оценки возмездия (A3)
+python3 experiments/exp_sensitivity_f2_f3.py     # F2/F3/C1: чувствительность констант
+python3 experiments/exp_g1_keffect_window.py     # G1: окно K_EFFECT (N=12 + N=40)
+python3 experiments/exp_g2_profiles.py           # G2: профили p<1 и их компенсации
+python3 experiments/exp_p1_rl_boost.py           # P1: потолок табличного RL
 ```
 
 Зависимости: рантайм — `pip install -r requirements.txt` (графики, эксперименты,
@@ -121,6 +127,13 @@ python3 main.py --arena       # арена отдельно (то же, что g
 `UtilityAI` в среде-автомате, ручной режим управления RL-агентом), используемый сценным
 слоем как экран `game`; запускается и автономно (`python3 game_engine.py`). Выход из
 арены: клавиши `ESC`/`Q` **или клик по кнопке `QUIT` в HUD** (мышью — всегда).
+
+Сценный слой также содержит **пошаговое стратегическое поле (RTS)**: изометрическая сетка
+11×9, выбор юнита, приказы движения/давления, контакт, очки команд, высота и
+ролевые диалоги командира. Логика — `ui/battlefield.py` (без pygame), экран —
+`ui/scenes/battlefield.py`; бой считается `simulation.run_tick`, поэтому канон
+не меняется. Запуск: «Поле боя (RTS)» в меню или `python3 main.py --scene
+battlefield`. Ассеты пока — плейсхолдеры `[ IMG: ... ]` / `[ PORTRAIT: ... ]`.
 
 Оба слоя используют **только публичное API** `simulation.py` (модель не изменяется);
 арность `RLAgent.form_intention` определяется авто-детектом, поэтому движок совместим

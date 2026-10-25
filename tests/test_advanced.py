@@ -160,3 +160,88 @@ def test_lod_runner_deterministic():
     c, d = S.Agent(), S.Agent()
     hc, hd, lv2 = lod.run_duel_lod(c, d, rest, rest, random.Random(0), None, 20)
     assert (ha, hb, lv) == (hc, hd, lv2)
+
+
+# --- F4: захват масштабирует силу и потолок одинаково -----------------------
+
+def test_capture_scales_force_and_rest_ceiling_together():
+    """F4: ``rest_units -= cap / L_STEP`` — не эвристика, а инвариант.
+
+    ``L = L_BASE + L_STEP * rest_units``, поэтому вычитание ``cap / L_STEP``
+    уменьшает потолок ровно на ``cap`` — столько же, сколько силы потерял
+    проигравший. Дефицит ``L - F`` (запас до потолка) сохраняется.
+    """
+    rl, ai = S.Agent(), S.Agent()
+    rl.force, rl.energy_pool, rl.rest_units = 50, 5, 10
+    ai.force, ai.energy_pool = 100, 50
+    before_ceiling = rl.rest_ceiling
+    before_deficit = before_ceiling - rl.force
+
+    winner, _, _ = S.check_capture(rl, ai, dom_rl=0,
+                                   dom_ai=S.CAPTURE_STREAK - 1)
+    assert winner == "UtilityAI"
+    cap = before_ceiling - rl.rest_ceiling
+    assert cap > 0
+    assert rl.force == max(1, 50 - cap)
+    assert rl.rest_ceiling - rl.force == pytest.approx(before_deficit)
+
+
+# --- E1: захват начинает новую линию, H_cum сохраняется -------------------
+
+def test_capture_starts_new_entropy_lineage_without_resetting_cum():
+    rl, ai = S.Agent(), S.Agent()
+    for _ in range(30):
+        rl.info.observe(0, False)
+    for i in range(30):
+        rl.info.observe(3 if i % 2 else 0, i % 2 == 1)
+    cum, lineage = rl.info.H_cum, rl.info.lineage
+    assert cum > 0.0
+
+    rl.force, rl.energy_pool = 50, 5
+    ai.force, ai.energy_pool = 100, 50
+    winner, _, _ = S.check_capture(rl, ai, dom_rl=0,
+                                   dom_ai=S.CAPTURE_STREAK - 1)
+    assert winner == "UtilityAI"
+    assert rl.info.lineage == lineage + 1
+    assert rl.info.H_cum == pytest.approx(cum)
+    assert rl.info.H_local == pytest.approx(information.H_MAX)
+
+
+# --- L1: оценка ошибки интервала и fallback --------------------------------
+
+def test_integrate_time_reports_discrete_window_close():
+    a = S.Agent()
+    a.w_adopt = 100.0
+    a.in_open = True
+    a.open_timer = 1
+    assert lod.integrate_time(a, 5) is False
+    assert not a.in_open
+
+
+def test_integrate_time_accepts_smooth_interval():
+    a = S.Agent()
+    a.force = 5
+    a.w_adopt = 0.0
+    assert lod.integrate_time(a, 3) is True
+
+
+def test_work_threshold_controls_lod2_interval():
+    a, b = S.Agent(), S.Agent()
+    low = lod.LodController(work_threshold=10, horizon=20)
+    high = lod.LodController(work_threshold=60, horizon=20)
+    assert low.work_interval(a, b) <= high.work_interval(a, b)
+    assert high.work_interval(a, b) <= 20
+
+
+# --- O1: публичный снимок не раскрывает внутренности ----------------------
+
+def test_public_snapshot_hides_internals():
+    env = S.Environment(lossy=True)
+    env.force, env.energy_pool, env.w_adopt = 100, 50, 10.0
+    snap = env.public_snapshot()
+    assert set(snap) == {"window", "pressure_band", "force_band",
+                         "member_count", "lossy"}
+    for hidden in ("force", "energy_pool", "w_adopt", "last_work",
+                   "last_act", "defense", "members"):
+        assert hidden not in snap
+    assert isinstance(snap["member_count"], int)

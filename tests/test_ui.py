@@ -127,11 +127,24 @@ def test_audio_never_initialized(app):
 
 
 @pytest.mark.parametrize("name", ["menu", "settings", "saves", "about",
-                                  "narrative", "game", "pause"])
+                                  "narrative", "game", "battlefield", "pause"])
 def test_every_scene_draws(app, name):
     app.go(name)
     assert app.manager.current.name == name
     _frame(app)
+
+
+def test_battlefield_layout_fits_window(app):
+    app.go("battlefield", new=True)
+    scene = app.manager.current
+    for size in ((640, 480), (1024, 640), (1920, 1080)):
+        scene.on_resize(*size)
+        w, h = size
+        for wdg in scene.widgets:
+            assert wdg.rect.left >= 0 and wdg.rect.top >= 0, (size, wdg.rect)
+            assert wdg.rect.right <= w and wdg.rect.bottom <= h, \
+                (size, wdg.rect)
+        _frame(app)
 
 
 @pytest.mark.parametrize("name", ["menu", "settings", "saves", "about",

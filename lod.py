@@ -35,10 +35,18 @@ def integrate_time(agent, dt, resting=True):
 
     Гистерезис окна обрабатывается по числу тактов: окно закрывается, если
     ``open_timer`` истёк или давление упало ниже ``OFF``.
+
+    Returns:
+        ``True`` — интервал прошёл без дискретных событий; ``False`` — внутри
+        интервала окно закрылось или сила упёрлась в гарантию жизни, поэтому
+        вызывающий обязан откатиться на LOD-1 (оценка ошибки L1).
     """
     dt = max(0, int(dt))
     if dt == 0:
-        return
+        return True
+
+    was_open = agent.in_open
+    was_force = agent.force
 
     # 1. upkeep — линейно, с гарантией жизни (сила >= 1).
     agent.force = max(1.0, agent.force - S.UPKEEP * dt)
@@ -69,6 +77,16 @@ def integrate_time(agent, dt, resting=True):
         agent.energy_pool = min(agent.energy_pool + add * dt, cap)
         agent.last_act, agent.last_work = "REST", 0
 
+    # Оценка ошибки интервала: если внутри него случилось дискретное событие
+    # (окно закрылось) или упёрлись в гарантию жизни, аналитический шаг
+    # недействителен — вызывающий обязан откатиться на LOD-1.
+    ok = True
+    if was_open and not agent.in_open:
+        ok = False
+    if was_force > 1.0 and agent.force <= 1.0:
+        ok = False
+    return ok
+
 
 class LodController:
     """Выбор уровня детализации по близости к границам и стационарности."""
@@ -95,6 +113,19 @@ class LodController:
                 and agent.energy_pool > 0
                 and agent.w_adopt < 0.75 * agent.schmitt_on())
 
+    def work_interval(self, *agents):
+        """Длина LOD-2-интервала по накопленной работе, а не по времени.
+
+        Оценка темпа — максимально доступная работа стороны за такт (пул,
+        предел структуры, regen). Интервал подбирается так, чтобы суммарная
+        работа за него была около ``LOD_WORK_THRESHOLD``; это и есть порог
+        события из дизайна (docs/DESIGN_ADVANCED.md), а не фиксированный шаг.
+        """
+        rate = sum(max(1, int(a.energy_pool), a.force // 4, a.regen)
+                   for a in agents)
+        return max(1, min(self.horizon,
+                          max(1, int(self.work_threshold // max(1, rate)))))
+
     def level(self, *agents):
         """LOD-1 при близости к границе, иначе LOD-3 в стационаре, иначе LOD-2."""
         if any(self.near_boundary(a) for a in agents):
@@ -113,8 +144,7 @@ def mean_field_step(agent, dt, controller=None):
     controller = controller or LodController()
     if not controller.stationary(agent):
         return False
-    integrate_time(agent, dt)
-    return True
+    return integrate_time(agent, dt)
 
 
 def run_duel_lod(a, b, policy_a, policy_b, rng, env, ticks, controller=None):
@@ -128,23 +158,34 @@ def run_duel_lod(a, b, policy_a, policy_b, rng, env, ticks, controller=None):
     tick = 0
     while tick < ticks:
         lvl = controller.level(a, b)
-        dt = 1 if lvl == LOD1 else min(controller.horizon, ticks - tick)
+        if lvl == LOD1:
+            dt = 1
+        elif lvl == LOD2:
+            dt = controller.work_interval(a, b)
+        else:
+            dt = min(controller.horizon, ticks - tick)
         if lvl == LOD1:
             S.run_tick(a, b, policy_a, policy_b, rng, env)
         elif lvl == LOD2:
             # Интервал: время интегрируется аналитически, событие — одним тактом.
-            integrate_time(a, dt - 1)
-            integrate_time(b, dt - 1)
+            # Если внутри интервала случилось дискретное событие (окно закрылось,
+            # упёрлись в дно), интеграл недействителен: откат и LOD-1 на один такт.
+            snap_a, snap_b = dict(a.state), dict(b.state)
+            ok_a = integrate_time(a, dt - 1)
+            ok_b = integrate_time(b, dt - 1)
+            if not (ok_a and ok_b):
+                a.state, b.state = snap_a, snap_b
+                dt = 1
             S.run_tick(a, b, policy_a, policy_b, rng, env)
         else:
             # LOD-3: mean-field; при выходе за область валидности — fallback
-            # на LOD-2 (dt-1 тактов аналитики + один событийный такт).
-            if controller.stationary(a) and controller.stationary(b):
-                integrate_time(a, dt)
-                integrate_time(b, dt)
-            else:
-                integrate_time(a, dt - 1)
-                integrate_time(b, dt - 1)
+            # на LOD-1 (откат состояния, один событийный такт).
+            snap_a, snap_b = dict(a.state), dict(b.state)
+            ok_a = mean_field_step(a, dt, controller)
+            ok_b = mean_field_step(b, dt, controller)
+            if not (ok_a and ok_b):
+                a.state, b.state = snap_a, snap_b
+                dt = 1
                 S.run_tick(a, b, policy_a, policy_b, rng, env)
         tick += dt
         ha.append(a.force)

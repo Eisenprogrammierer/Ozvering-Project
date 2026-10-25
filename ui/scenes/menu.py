@@ -19,6 +19,7 @@ class MainMenuScene(MenuScene):
     def build_buttons(self):
         t = self.app.t
         return [
+            (t("Поле боя (RTS)", "Battlefield (RTS)"), self._battlefield, True),
             (t("Новая партия", "New game"), self._new_game, True),
             (t("Продолжить", "Continue"), self._continue, self.has_save),
             (t("Загрузить", "Load"), lambda: self.app.go("saves", mode="load"),
@@ -27,6 +28,9 @@ class MainMenuScene(MenuScene):
             (t("Об игре", "About"), lambda: self.app.go("about"), True),
             (t("Выход", "Quit"), self.app.quit, True),
         ]
+
+    def _battlefield(self):
+        self.app.go("battlefield", new=True)
 
     def _new_game(self):
         self.app.go("narrative", pages=content.INTRO_PAGES, next_scene="game",

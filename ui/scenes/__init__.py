@@ -6,6 +6,7 @@
 """
 
 from .about import AboutScene
+from .battlefield import BattlefieldScene
 from .game import GameScene
 from .menu import MainMenuScene
 from .narrative import NarrativeScene
@@ -14,6 +15,6 @@ from .saves import SavesScene
 from .settings import SettingsScene
 
 __all__ = [
-    "AboutScene", "GameScene", "MainMenuScene", "NarrativeScene",
-    "PauseScene", "SavesScene", "SettingsScene",
+    "AboutScene", "BattlefieldScene", "GameScene", "MainMenuScene",
+    "NarrativeScene", "PauseScene", "SavesScene", "SettingsScene",
 ]

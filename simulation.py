@@ -233,7 +233,7 @@ class Agent:
         # Новая линия сигнала: локальный отсчёт энтропии начинается заново,
         # но накопленный износ канала (H_cum) НЕ откатывается — см. information.py.
         if hasattr(self, "info"):
-            self.info.new_lineage(reset_counts=True)
+            self.new_entropy_lineage()
         # Единое хранилище внутреннего состояния автомата (IPO-компонент
         # «состояние»): обе метрики и управляющие переменные. Обработчики
         # читают/пишут поля напрямую через представления-свойства ниже.
@@ -263,6 +263,17 @@ class Agent:
                         "entropy_lineage": (self.info.lineage if hasattr(self, "info") else 0),
                         "noise_floor": (self.info.noise_floor if hasattr(self, "info") else 0.0),
                         "belief_noise_factor": 1.0}
+
+    def new_entropy_lineage(self):
+        """Начать новую линию сигнала (партия/захват/фаза).
+
+        Локальный отсчёт энтропии начинается заново, но накопленный износ
+        ``H_cum`` сохраняется — «похожий сигнал — это новый сигнал, а не возврат
+        прежнего» (см. ``information.py``). Вызывается из ``reset_state`` и
+        ``check_capture``; при выключенном entropy слой инертен.
+        """
+        if hasattr(self, "info"):
+            self.info.new_lineage(reset_counts=True)
 
     # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
     # Позволяют обработчикам и внешнему коду работать с полями как с обычными
@@ -1058,6 +1069,28 @@ class Environment(Agent):
                         if isinstance(m, Environment)],
         }
 
+    def public_snapshot(self):
+        """Публичный снимок суперсистемы для частей: только агрегаты.
+
+        Контракт лоссовой наблюдаемости (docs/MODEL.md §16, docs/TODO.md O1):
+        часть не должна получать identity членов, точные ``last_work``/``defense``
+        и внутренние метрики суперсистемы. Возвращаются только грубые полосы и
+        публичное окно; для отладки остаётся ``snapshot()`` (ground truth).
+        """
+        on = max(ON_MIN, ON_FRAC * self.force)
+        pressure = self.w_adopt / on if on > 0 else 0.0
+        pressure_band = 0 if pressure < 0.5 else (1 if pressure < 1.0 else 2)
+        ceiling = max(1.0, self.rest_ceiling)
+        force_band = 0 if self.force < ceiling / 3.0 else (
+            1 if self.force < 2.0 * ceiling / 3.0 else 2)
+        return {
+            "window": self.public_window(),
+            "pressure_band": pressure_band,
+            "force_band": force_band,
+            "member_count": len(self.members),
+            "lossy": self.lossy,
+        }
+
     def member_output(self):
         """Эмерджентный выход нижнего яруса: суммарная работа членов за такт.
 
@@ -1301,6 +1334,10 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
         ai.force = max(1, ai.force - cap)
         ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
+        # Захват — граница линии сигнала: локальная энтропия начинается заново,
+        # H_cum (необратимый износ) сохраняется (E1, information.py).
+        rl.new_entropy_lineage()
+        ai.new_entropy_lineage()
         return "RL", 0, 0
     if dom_ai >= CAPTURE_STREAK:
         sev = 2.0 if rl.in_open else 1.0
@@ -1308,6 +1345,8 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
         rl.force = max(1, rl.force - cap)
         rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
         ai.gain(cap)
+        rl.new_entropy_lineage()
+        ai.new_entropy_lineage()
         return "UtilityAI", 0, 0
     return None, dom_rl, dom_ai
 
