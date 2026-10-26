@@ -28,28 +28,38 @@ class MenuScene(Scene):
     def layout(self, w, h):
         self.widgets = []
         self.placeholders = []
+        items = self.build_buttons()
+        n = len(items)
+        footer_h = 26 if self.footer else 0
+        bottom = h - theme.EDGE - footer_h
         if self.hero_key is not None:
             hw = min(int(w * 0.56), 640)
             hh = int(h * self.hero_h_frac)
             rect = pygame.Rect((w - hw) // 2, int(h * self.hero_top_frac), hw, hh)
-            self.placeholders.append(widgets.Placeholder(self.hero_key, rect))
             top = rect.bottom + theme.GAP * 2
+            # Если кнопок стало больше, баннер ужимается, чтобы меню целиком
+            # оставалось в окне. Это важно для маленьких окон (640x480).
+            if n:
+                min_btn = 24
+                min_gap = 4
+                needed = n * min_btn + (n - 1) * min_gap
+                avail = max(1, bottom - top)
+                if avail < needed:
+                    rect.height = max(24, rect.height - (needed - avail))
+                    top = rect.bottom + theme.GAP * 2
+            self.placeholders.append(widgets.Placeholder(self.hero_key, rect))
         else:
             top = int(h * self.btn_top_frac)
-        items = self.build_buttons()
         # Кнопки вписываются в оставшуюся высоту: при нехватке места зазор и
         # высота кнопки уменьшаются (меню не «уезжает» за край окна).
-        footer_h = 26 if self.footer else 0
-        bottom = h - theme.EDGE - footer_h
         gap = theme.GAP
         btn_h = theme.BTN_H
-        n = len(items)
         if n:
             need = n * btn_h + (n - 1) * gap
             avail = max(1, bottom - top)
             if need > avail:
                 gap = 6
-                btn_h = max(26, (avail - (n - 1) * gap) // n)
+                btn_h = max(20, (avail - (n - 1) * gap) // n)
         btn_w = min(440, w - 2 * theme.EDGE)
         x = (w - btn_w) // 2
         y = top

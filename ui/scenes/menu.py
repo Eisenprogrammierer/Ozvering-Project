@@ -20,6 +20,7 @@ class MainMenuScene(MenuScene):
         t = self.app.t
         return [
             (t("Поле боя (RTS)", "Battlefield (RTS)"), self._battlefield, True),
+            (t("Взаимодействие", "Interaction"), self._interaction, True),
             (t("Новая партия", "New game"), self._new_game, True),
             (t("Продолжить", "Continue"), self._continue, self.has_save),
             (t("Загрузить", "Load"), lambda: self.app.go("saves", mode="load"),
@@ -31,6 +32,9 @@ class MainMenuScene(MenuScene):
 
     def _battlefield(self):
         self.app.go("battlefield", new=True)
+
+    def _interaction(self):
+        self.app.go("interaction")
 
     def _new_game(self):
         self.app.go("narrative", pages=content.INTRO_PAGES, next_scene="game",

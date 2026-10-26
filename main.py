@@ -4,11 +4,13 @@
     python3 main.py --view       # КАМПАНИЯ: интерфейс view (лагерь + RTS-карта)
     python3 main.py --automata   # РЕДАКТОР: графовый редактор автоматов (JSON)
     python3 main.py --arena      # только АРЕНА: автономный game_engine (HUD партии)
+    python3 main.py --interaction  # сразу экран взаимодействий
 
 Флаги передаются выбранному режиму:
     --fullscreen / -f   полноэкранный режим (все режимы);
     --scene NAME        сразу открыть экран игры (только режим игры),
                         напр. --scene game, --scene settings (см. docs/UI.md);
+    --interaction       сразу открыть экран взаимодействий;
     --open SLUG         редактор: сразу открыть configs/automata/SLUG.json;
     --new               редактор: начать новый автомат.
 
@@ -25,9 +27,12 @@ def main(argv=None):
     automata = ("--automata" in argv) or ("--editor" in argv)
     view = ("--view" in argv) or ("--campaign" in argv)
     arena = ("--arena" in argv) or ("--engine" in argv)
+    interaction = "--interaction" in argv
     argv = [a for a in argv if a not in (
         "--automata", "--editor", "--view", "--campaign",
-        "--arena", "--engine")]
+        "--arena", "--engine", "--interaction")]
+    if interaction and "--scene" not in argv:
+        argv.extend(["--scene", "interaction"])
     sys.argv = [sys.argv[0]] + argv
     if arena:
         import game_engine

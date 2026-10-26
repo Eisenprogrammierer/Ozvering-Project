@@ -69,6 +69,7 @@ class App:
         m.register("narrative", scene_pkg.NarrativeScene)
         m.register("game", scene_pkg.GameScene)
         m.register("battlefield", scene_pkg.BattlefieldScene)
+        m.register("interaction", scene_pkg.InteractionScene)
         m.register("pause", scene_pkg.PauseScene)
         m.register("about", scene_pkg.AboutScene)
 

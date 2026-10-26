@@ -127,7 +127,8 @@ def test_audio_never_initialized(app):
 
 
 @pytest.mark.parametrize("name", ["menu", "settings", "saves", "about",
-                                  "narrative", "game", "battlefield", "pause"])
+                                  "narrative", "game", "battlefield",
+                                  "interaction", "pause"])
 def test_every_scene_draws(app, name):
     app.go(name)
     assert app.manager.current.name == name
@@ -147,8 +148,54 @@ def test_battlefield_layout_fits_window(app):
         _frame(app)
 
 
+def test_interaction_scene_accepts_custom_model(app):
+    from interaction import demo_model
+    model = demo_model(seed=99)
+    app.go("interaction", model=model)
+    assert app.manager.current.model is model
+
+
+def test_interaction_scene_reveals_actions_and_outcomes(app):
+    """Действия появляются после выбора объекта, исходы — после действия."""
+    app.go("interaction")
+    scene = app.manager.current
+    assert scene.name == "interaction"
+    assert scene.model.available_targets()
+    assert scene.action_rows == []
+    assert scene.outcome_rows == []
+
+    target = scene.model.available_targets()[0]
+    assert scene._select_target(target.id) is True
+    assert scene.action_rows
+    assert scene.outcome_rows == []
+    _frame(app)
+
+    action = scene.model.actions_for()[0]
+    assert scene._select_action(action.id) is True
+    assert scene.outcome_rows
+    assert scene.model.forecasts()
+    _frame(app)
+
+    assert scene._execute() is True
+    assert scene.model.last_result is not None
+    assert scene.model.last_result.action_id == action.id
+    _frame(app)
+
+    for size in ((640, 480), (1024, 640), (1920, 1080)):
+        scene.on_resize(*size)
+        for wdg in scene.widgets:
+            assert wdg.rect.left >= 0 and wdg.rect.top >= 0, (size, wdg.rect)
+            assert wdg.rect.right <= size[0] and wdg.rect.bottom <= size[1], \
+                (size, wdg.rect)
+        _frame(app)
+
+    assert scene._reset() is None
+    assert scene.model.selected_target_id is None
+    assert scene.model.selected_action_id is None
+
+
 @pytest.mark.parametrize("name", ["menu", "settings", "saves", "about",
-                                  "narrative"])
+                                  "narrative", "interaction"])
 @pytest.mark.parametrize("size", [(640, 480), (1024, 640), (1920, 1080)])
 def test_layout_fits_window(app, name, size):
     app.go(name)
@@ -250,6 +297,18 @@ def test_entry_point_dispatches_to_ui(monkeypatch):
                         lambda argv=None: seen.__setitem__("argv", argv) or 0)
     rc = entry.main(["--scene", "game"])
     assert rc == 0 and seen["argv"] == ["--scene", "game"]
+
+
+def test_entry_point_interaction_shortcut(monkeypatch):
+    pytest.importorskip("pygame")
+    import main as entry
+    import ui.app as ui_app
+    monkeypatch.setattr(sys, "argv", list(sys.argv))
+    seen = {}
+    monkeypatch.setattr(ui_app, "main",
+                        lambda argv=None: seen.__setitem__("argv", argv) or 0)
+    rc = entry.main(["--interaction"])
+    assert rc == 0 and seen["argv"] == ["--scene", "interaction"]
 
 
 def test_entry_point_dispatches_to_arena(monkeypatch):

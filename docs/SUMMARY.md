@@ -136,10 +136,13 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `view/` | кампанийный UI: лагерь, RTS-карта, логистика, потребности, сюжет |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
 | `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
+| `interaction/` | **доменно-нейтральный фреймворк взаимодействий**: объекты, действия, шумные/скрытые/неизвестные исходы (без pygame) |
+| `ui/scenes/interaction.py` | экран из трёх панелей: объекты → действия → прогноз/фактический исход |
 | `organizations/` | **аналитические организации-суперсистемы**: 16 потребностей, масштаб/уровни, экономика участия, генератор JSON |
 | `organizations/runtime.py` | runtime-слой: Population из живых персонажей, эффекты на потребности/мораль, фазы, односторонний выход и распад; опционален для `WarfareSimulation` |
 | `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
 | `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
+| `docs/INTERACTION.md` | доменно-нейтральный фреймворк взаимодействий: объекты, действия, шумные/скрытые исходы |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
 | `docs/MODEL.md` | спецификация механики (§1–19) — источник истины |
@@ -160,6 +163,7 @@ python3 -m organizations         # генератор аналитических
 python3 -m organizations --write # записать примеры в configs/automata/
 python3 -m organizations --runtime --turns 12  # runtime-демо с warfare
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
+python3 main.py --interaction    # экран взаимодействий (объекты/действия/исходы)
 python3 main.py --arena          # автономная арена
 python3 warfare.py               # войсковая симуляция: отделения/паника/банзай
 pytest -q                        # весь набор (канон, проверки, доки↔код, UI)
@@ -174,6 +178,9 @@ pytest -q                        # весь набор (канон, провер
 `python3 -m organizations` и пишет JSON в `configs/automata/` по `--write`.
 `WarfareSimulation.add_organization` подключает `OrganizationRuntime` после боя;
 без организаций `summary()["organizations"]` пуст.
+Доменно-нейтральный фреймворк взаимодействий проверяется
+`tests/test_interaction.py` (без pygame), сцена — headless-тестами
+`tests/test_ui.py`; описание — [`INTERACTION.md`](INTERACTION.md).
 Зависимости: рантайм — `requirements.txt`, тесты — `requirements-dev.txt`.
 
 ## 9. Статус и открытые задачи
