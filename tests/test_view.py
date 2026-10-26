@@ -242,6 +242,41 @@ def test_logistics_operation_and_convoy_change_stocks():
     assert ls.stock("ammo") > before_ammo
 
 
+def test_logistics_operation_can_target_several_units_at_once():
+    state, _, _ = _world()
+    ls = state.logistics
+    player_indices = [
+        i for i, det in enumerate(state.units)
+        if det.side == state.player_side
+    ][:3]
+    untouched = state.det_at(player_indices[2] + 1)
+    before = ls.stock("engineering")
+    result = ls.apply_operation("fortify", player_indices)
+    assert result["ok"]
+    assert result["count"] == 3
+    # Цена умножается на число рот; четвёртая рота остаётся без эффекта.
+    assert ls.stock("engineering") == pytest.approx(before - 3)
+    for idx in player_indices:
+        assert state.det_at(idx).ui_fortification > 0
+    assert untouched.ui_fortification == 0
+
+
+def test_multi_target_logistics_is_all_or_nothing():
+    state, _, _ = _world()
+    ls = state.logistics
+    player_indices = [
+        i for i, det in enumerate(state.units)
+        if det.side == state.player_side
+    ][:3]
+    ls.supplies["engineering"] = 2.0
+    result = ls.apply_operation("fortify", player_indices)
+    assert not result["ok"]
+    assert ls.stock("engineering") == pytest.approx(2.0)
+    assert all(
+        state.det_at(idx).ui_fortification == 0 for idx in player_indices
+    )
+
+
 def test_passive_influence_and_free_convoy():
     state, _, _ = _world()
     ls = state.logistics
@@ -356,6 +391,25 @@ def test_manpower_loss_condition_uses_division_losses():
         {"type": "manpower_loss_above", "value": 0.2},
         state, None, {"initial_manpower": 1.0},
     )
+
+
+def test_player_death_is_a_storyline_defeat_condition():
+    from view.support.storyline import check_storyline_condition
+
+    state, _, _ = _world()
+    assert not check_storyline_condition(
+        {"type": "player_dead"}, state, None, {}
+    )
+    state.needs.commander.needs["health"] = 1.0
+    assert state.needs.player_dead
+    assert check_storyline_condition(
+        {"type": "player_dead"}, state, None, {}
+    )
+    snapshot = state.to_snapshot()
+    state.needs.commander.needs["health"] = 0.0
+    state.needs.commander.dead = False
+    state.apply_snapshot(snapshot)
+    assert state.needs.player_dead
 
 
 def test_mvp_win_scene_uses_existing_outtro_assets():

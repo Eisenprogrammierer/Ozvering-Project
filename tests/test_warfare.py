@@ -195,6 +195,37 @@ def test_reinforcement_arrives_only_after_delay():
 
 # --- демонстрационный сценарий --------------------------------------------
 
+def test_other_needs_multiply_health_degradation():
+    """Критические нужды ускоряют рост health, закрытые — замедляют."""
+    low = _char("low", seed=1)
+    high = _char("high", seed=1)
+    for need in W.HEALTH_NEED_WEIGHTS:
+        low.needs[need] = 0.0
+        high.needs[need] = 1.0
+    assert high.health_degradation_multiplier() > 1.0
+    assert low.health_degradation_multiplier() < 1.0
+    after_low = low.needs["health"]
+    after_high = high.needs["health"]
+    low.tick_needs(seconds=1800, rng=random.Random(0))
+    high.tick_needs(seconds=1800, rng=random.Random(0))
+    assert (
+        high.needs["health"] - after_high >
+        low.needs["health"] - after_low
+    )
+
+
+def test_character_dies_when_health_reaches_critical_value():
+    c = _char("doomed", seed=3)
+    c.needs["health"] = 0.999
+    c.tick_needs(seconds=1800, rng=random.Random(0))
+    assert c.dead
+    assert c.is_dead
+    assert c.needs["health"] == W.HEALTH_DEATH_THRESHOLD
+    # Смерть необратима: обычное лечение не воскрешает.
+    assert c.satisfy({"health": 0.5}) == {}
+    assert c.is_dead
+
+
 def test_demo_scenario_is_deterministic_and_has_war_events():
     first = W.build_demo_scenario(seed=7, turns=140).run()
     second = W.build_demo_scenario(seed=7, turns=140).run()

@@ -492,9 +492,9 @@ class CampaignState:
             det.force = float(item.get("force", det.force))
             det.morale = float(item.get("morale", det.morale))
             det.position = tuple(item.get("position", det.position))
-            if item.get("sector") in (
-                    "front", "left", "right", "rear"):
-                det.sector = item.get("sector")
+            # Поле ``sector`` в старых снимках оставлено для совместимости,
+            # но больше не восстанавливается как истина: проекция производна
+            # от позиции и фронта и будет пересчитана ниже.
             det.ui_order = item.get("ui_order", getattr(det, "ui_order",
                                                         "holding_defense"))
             det.ui_supply = float(item.get("ui_supply",
@@ -532,6 +532,10 @@ class CampaignState:
             self.logistics.load_from_snapshot(snapshot.get("logistics"))
         if getattr(self, "geometry", None) is not None:
             self.geometry.load_snapshot(snapshot.get("geometry"))
+            # Загрузка могла не содержать геометрию (старое сохранение), но
+            # позиции уже восстановлены — проекции всё равно производны.
+            self.geometry.refresh_sectors()
+            self.geometry.recompute()
         groups = snapshot.get("groups")
         if isinstance(groups, dict):
             loaded = {i: [] for i in range(1, 7)}

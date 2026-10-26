@@ -124,7 +124,8 @@ def _make_company(side, index, sector, position, seed):
     det = W.Detachment(
         prefix, side, chars, position=position, doctrine=doctrine,
     )
-    det.sector = sector
+    # ``sector`` здесь — только роль для подбора архетипов. Боевую проекцию
+    # всегда вычисляет ``FrontGeometry`` из позиции роты и фронта армии.
     # Кампанийное истощение считает ``FrontGeometry``; случайный обмен
     # ударами не должен дублировать суточные потери.
     det.combat_loss_scale = 0.0
@@ -178,8 +179,7 @@ def build_brigade_scenario(seed=7, turns=CAMPAIGN_TURNS):
         "(%.0f силы), секторы=%s",
         len(reds), sum(d.force for d in reds),
         len(blues), sum(d.force for d in blues),
-        {sector: sum(1 for d in reds if d.sector == sector)
-         for sector in SECTORS},
+        {sector: PLAYER_SECTORS.count(sector) for sector in SECTORS},
     )
     return sim
 

@@ -233,6 +233,12 @@ class NeedsSystem:
             seed=90210, archetype="veteran",
         )
         self.player_cooldowns = {}
+        self._death_logged = False
+
+    @property
+    def player_dead(self):
+        """Погиб ли персонаж игрока (здоровье достигло критического)."""
+        return bool(getattr(self.commander, "is_dead", False))
 
     # --- ресурсы и действия ---------------------------------------------
     def _key(self, idx, action_id):
@@ -382,6 +388,8 @@ class NeedsSystem:
 
     def _tick_player(self, seconds, engaged_names):
         """Прокрутить личные потребности командира за прошедший интервал."""
+        if self.player_dead:
+            return
         player_side = getattr(self.state, "player_side", "red")
         engaged = set(engaged_names or [])
         under_fire = 0.0
@@ -397,6 +405,13 @@ class NeedsSystem:
             supported=0.45,
             seconds=seconds,
         )
+        if self.player_dead and not self._death_logged:
+            self._death_logged = True
+            self.state.log_event(
+                self.state.player_idx,
+                "Командир погиб: здоровье достигло критического значения.",
+            )
+            logger.warning("Потребности: персонаж игрока погиб")
 
     def _satisfy_player(self, effects, morale_bonus=0.0):
         self.commander.satisfy(effects, morale_bonus=morale_bonus)
@@ -515,6 +530,7 @@ class NeedsSystem:
             "player": {
                 "needs": dict(self.commander.needs),
                 "morale": float(self.commander.morale),
+                "dead": bool(self.commander.dead),
             },
             "player_cooldowns": dict(self.player_cooldowns),
         }
@@ -547,3 +563,7 @@ class NeedsSystem:
             self.commander.morale = max(
                 0.0, min(100.0, float(player["morale"]))
             )
+        self.commander.dead = bool(
+            player.get("dead", self.commander.is_dead)
+        )
+        self._death_logged = bool(self.commander.dead)

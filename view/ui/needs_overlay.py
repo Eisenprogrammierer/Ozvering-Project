@@ -118,6 +118,10 @@ class NeedsOverlay(OverlayScreen):
             "Подразделения обеспечивают себя сами.",
             True, (150, 165, 180),
         ), (panel.x + 20, panel.y + 64))
+        if getattr(needs_system, "player_dead", False):
+            screen.blit(self.app.font_body.render(
+                "КОМАНДИР ПОГИБ", True, (224, 88, 88)
+            ), (panel.x + 440, panel.y + 42))
 
         # Левая колонка: 16 личных потребностей в две колонки.
         x0 = panel.x + 18

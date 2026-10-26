@@ -232,11 +232,32 @@ def _all_player_units_destroyed(state):
     return True
 
 
+def _player_dead(state):
+    """Погиб ли персонаж игрока (командир).
+
+    Смерть наступает, когда потребность ``health`` доходит до критического
+    значения (``1.0``; в интерфейсе — 100). Состояние хранится в
+    ``NeedsSystem.commander`` и переживает сохранение/загрузку.
+    """
+    if state is None:
+        return False
+    needs_system = getattr(state, "needs", None)
+    if needs_system is None:
+        return False
+    dead = getattr(needs_system, "player_dead", None)
+    if dead is not None:
+        return bool(dead)
+    commander = getattr(needs_system, "commander", None)
+    if commander is None:
+        return False
+    return bool(getattr(commander, "is_dead", False))
+
+
 def check_storyline_condition(condition, state, time_system, storyline_state):
     """
     Проверяет одно условие сюжета.
 
-    Поддерживаемые типы: day_at_least, manpower_loss_above,
+    Поддерживаемые типы: day_at_least, manpower_loss_above, player_dead,
     all_enemies_destroyed, all_player_units_destroyed, all_of, any_of.
     Неизвестный тип возвращает False. Пустое или None-условие
     возвращает False.
@@ -284,6 +305,8 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
             current = state.read_voltage(idx, "U_manpower")
             threshold = initial * (1.0 - float(condition.get("value", 0.0)))
             result = current < threshold
+    elif t == "player_dead":
+        result = _player_dead(state)
     elif t == "all_enemies_destroyed":
         result = _all_enemies_destroyed(state)
     elif t == "all_player_units_destroyed":

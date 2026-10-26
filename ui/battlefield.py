@@ -31,7 +31,10 @@ TILE_W, TILE_H = 68, 34
 MOVE_RANGE = 2
 START_CP = 4
 MAX_CP = 9
-ATTACK_ORDERS = ("FIRE", "WATER", "EARTH")
+# Единый приказ атаки. Легаси-типы FIRE/WATER/EARTH убраны из игры: они
+# относились к старой «стихийной» модели и не отражали войсковой слой.
+ATTACK = "ATTACK"
+ATTACK_ORDERS = (ATTACK,)
 ORDERS = ATTACK_ORDERS + ("REST", "HOLD")
 
 
@@ -480,7 +483,7 @@ class BattlefieldModel:
                 self._after_player_action("REST", duel=False)
         elif order == "HOLD":
             if self.contact:
-                self._duel("FIRE", 0.2, "HOLD", finish=True)
+                self._duel(ATTACK, 0.2, "HOLD", finish=True)
             else:
                 self._duel("REST", 0.0, "HOLD", finish=False,
                            enemy_rest=True)

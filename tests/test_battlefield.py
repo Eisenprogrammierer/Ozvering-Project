@@ -42,13 +42,13 @@ def test_move_is_bounded_by_range_and_cp():
 
 def test_attack_requires_contact_and_resolves_model_tick():
     m = B.BattlefieldModel(seed=0)
-    ok, _, _ = m.issue_order("FIRE")
+    ok, _, _ = m.issue_order("ATTACK")
     assert not ok
     m.player_unit.col, m.player_unit.row = 5, 4
     m.enemy_unit.col, m.enemy_unit.row = 6, 4
     m.command_points = 3
     before = (m.player.force, m.enemy.force)
-    ok, _, _ = m.issue_order("FIRE")
+    ok, _, _ = m.issue_order("ATTACK")
     assert ok
     after = (m.player.force, m.enemy.force)
     assert after != before

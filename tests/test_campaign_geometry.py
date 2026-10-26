@@ -105,17 +105,111 @@ def test_historical_attrition_is_slow_and_attackers_lose_more():
     assert state.geometry.breached == set()
 
 
+def _place_red_cross(state):
+    """Поставить красных крестом: север/юг/восток/запад от центра (10, 12)."""
+    reds = _player_units(state)
+    positions = (
+        [(10, 8)] * 4 + [(10, 16)] * 4 + [(14, 12)] * 4 + [(6, 12)] * 4
+    )
+    for det, position in zip(reds, positions):
+        det.position = position
+    return reds
+
+
+def test_sector_is_derived_from_facing_not_frozen_on_detachment():
+    """Армия смотрит на север, а масса врага — на востоке: это фланг."""
+    state, _ = _world()
+    reds = _place_red_cross(state)
+    # Противник сосредоточен восточнее красных.
+    for det in state.units:
+        if det.side != state.player_side:
+            det.position = (22, 12)
+    state.geometry.set_facing("red", (0, -1))
+    state.geometry.recompute()
+
+    north = next(d for d in reds if d.position == (10, 8))
+    south = next(d for d in reds if d.position == (10, 16))
+    east = next(d for d in reds if d.position == (14, 12))
+    west = next(d for d in reds if d.position == (6, 12))
+
+    assert north.sector == "front"
+    assert south.sector == "rear"
+    assert east.sector == "right"      # восточный фланг
+    assert west.sector == "left"
+    # Смена фронта пересчитывает проекции: та же рота уже не «тыл».
+    state.geometry.set_facing("red", (1, 0))
+    state.geometry.recompute()
+    assert east.sector == "front"
+    assert north.sector == "left"
+    assert south.sector == "right"
+
+
+def test_surrounded_army_has_front_on_outer_ring_and_rear_in_the_centre():
+    state, _ = _world()
+    reds = _player_units(state)
+    # Четыре роты на внешнем кольце, остальные — в центре строя.
+    outer_positions = [(14, 12), (6, 12), (10, 16), (10, 8)]
+    for det in reds[4:]:
+        det.position = (10, 12)
+    for det, position in zip(reds[:4], outer_positions):
+        det.position = position
+    # Синие охватывают красных по всему кругу.
+    import math
+    enemies = [d for d in state.units if d.side != state.player_side]
+    for index, det in enumerate(enemies):
+        angle = 2.0 * math.pi * index / len(enemies)
+        det.position = (
+            10 + 5 * math.cos(angle),
+            12 + 5 * math.sin(angle),
+        )
+    state.geometry.recompute()
+    frame = state.geometry._compute_frame("red")
+    assert frame["surrounded"]
+    assert all(det.sector == "front" for det in reds[:4])
+    assert all(det.sector == "rear" for det in reds[4:])
+
+
+def test_army_facing_follows_centre_of_mass_movement():
+    state, _ = _world()
+    reds = _player_units(state)
+    before = state.geometry.facing_of("red")
+    for det in reds:
+        det.position = (det.position[0], det.position[1] - 3)
+    state.geometry.recompute()
+    after = state.geometry.facing_of("red")
+    assert after[1] < 0.0
+    assert abs(after[1]) > abs(before[1])
+
+
+def test_loaded_facing_is_initial_direction_not_permanent_lock():
+    state, _ = _world()
+    reds = _player_units(state)
+    state.geometry.set_facing("red", (0, -1))
+    snapshot = state.geometry.snapshot()
+    for det in reds:
+        det.position = (det.position[0], det.position[1] - 3)
+    state.geometry.load_snapshot(snapshot)
+    assert state.geometry.facing_of("red") == pytest.approx((0.0, -1.0))
+    # После загрузки армия снова может повернуть вслед за движением.
+    for det in reds:
+        det.position = (det.position[0] + 3, det.position[1])
+    state.geometry.recompute()
+    assert state.geometry.facing_of("red")[0] > 0.0
+
+
 def test_breach_after_sustained_local_superiority_raises_loss_rate():
     state, _ = _world()
-    left = [d for d in _player_units(state) if d.sector == "left"]
-    # Игрок оголил фланг: две роты из трёх ушли на фронт.
-    for det in left[1:]:
-        det.sector = "front"
+    # Игрок вытянул все роты в одну линию вдоль фронта: фланги остались
+    # без защитников. Проекции вычисляются из позиций, поэтому просто
+    # «переставить метку» уже нельзя — двигаем сами роты.
+    for index, det in enumerate(_player_units(state)):
+        det.position = (2 + index, 12)
+    state.geometry.recompute()
     for tick in range(BREACH_PRESSURE_TICKS):
         state.geometry.update(
             engaged_sides={"red", "blue"}, tick=state.current_tick + tick
         )
-    assert "left" in state.geometry.breached
+    assert {"left", "right"} <= state.geometry.breached
     assert state.geometry.daily_rate("red") == pytest.approx(0.13)
     assert state.geometry.daily_rate("blue") == pytest.approx(0.08)
     assert state.geometry.statuses()[1].breached

@@ -347,33 +347,86 @@ class LogisticsSystem:
         )
 
     # --- операции и подвоз ----------------------------------------------
-    def operation_cost(self, operation_id):
+    def operation_cost(self, operation_id, count=1):
+        """Стоимость операции на ``count`` выбранных подразделений.
+
+        Базовая цена в конфиге задана за одну роту; при действии на несколько
+        рот расход умножается на их число. Это не даёт «бесплатно» снабдить
+        всю дивизию одной операцией и оставляет выбор, кого снабжать.
+        """
         op = self.operations.get(operation_id) or {}
         cost = op.get("cost") or {}
+        multiplier = max(1, int(count))
         return {
-            CLASS_TO_KEY.get(cls, cls): float(amount)
+            CLASS_TO_KEY.get(cls, cls): float(amount) * multiplier
             for cls, amount in cost.items()
         }
 
-    def can_operation(self, operation_id):
+    def can_operation(self, operation_id, count=1):
         if operation_id not in self.operations:
             return False, "операция недоступна"
-        for key, amount in self.operation_cost(operation_id).items():
+        for key, amount in self.operation_cost(operation_id, count).items():
             if self.stock(key) < amount:
                 return False, "нет: %s" % SUPPLY_LABELS.get(key, key)
         return True, ""
 
-    def apply_operation(self, operation_id, idx=None):
-        ok, reason = self.can_operation(operation_id)
+    def _resolve_targets(self, targets=None):
+        """Привести индексы/имена/объекты к живым ротам игрока.
+
+        ``None`` означает «все живые роты игрока» (совместимость со старым
+        вызовом). Пустой список — сознательный отказ от целей: игрок может
+        не снабжать никого и тем самым лишить конкретные роты помощи.
+        """
+        if targets is None:
+            return self._player_units()
+        if (isinstance(targets, (int, str)) or
+                hasattr(targets, "side")):
+            targets = [targets]
+        player_side = getattr(self.state, "player_side", "red")
+        resolved = []
+        seen = set()
+        for target in targets:
+            det = None
+            if isinstance(target, int) and not isinstance(target, bool):
+                det = self.state.det_at(target)
+            elif isinstance(target, str):
+                det = next((
+                    item for item in self.state.units
+                    if item.name == target
+                ), None)
+            elif hasattr(target, "side"):
+                det = target
+            if det is None or det.side != player_side:
+                continue
+            if getattr(det, "broken", False) or det.force <= 1:
+                continue
+            if det.name in seen:
+                continue
+            seen.add(det.name)
+            resolved.append(det)
+        return resolved
+
+    def apply_operation(self, operation_id, targets=None):
+        """Выполнить операцию для одной или нескольких рот.
+
+        ``targets`` может быть индексом, именем, объектом-отделением или
+        списком таких значений. Стоимость умножается на число целей, а
+        проверка запасов — общая (all-or-nothing): нельзя оплатить половину
+        и оставить остальные роты без эффекта.
+        """
+        if operation_id not in self.operations:
+            return {"ok": False, "reason": "операция недоступна"}
+        resolved = self._resolve_targets(targets)
+        if not resolved:
+            return {"ok": False, "reason": "нет подразделений"}
+        count = len(resolved)
+        ok, reason = self.can_operation(operation_id, count)
         if not ok:
             return {"ok": False, "reason": reason}
         op = self.operations[operation_id]
-        for key, amount in self.operation_cost(operation_id).items():
+        for key, amount in self.operation_cost(operation_id, count).items():
             self.supplies[key] = max(0.0, self.stock(key) - amount)
-        targets = [self.state.det_at(idx)] if idx is not None else []
-        targets = [det for det in targets if det is not None]
-        if not targets:
-            targets = self._player_units()
+        targets = resolved
         effect = op.get("effect_type", operation_id)
         for det in targets:
             if effect == "fortify" or operation_id == "fortify":
@@ -408,14 +461,21 @@ class LogisticsSystem:
                     {"boredom": 0.20, "loneliness": 0.18, "status": 0.10},
                     morale_bonus=0.9,
                 )
-        label = operation_id
         self.state.log_event(
             self.state.player_idx,
-            "Логистическая операция: %s" % label,
+            "Логистическая операция: %s (%d %s)" % (
+                operation_id, count,
+                "рота" if count == 1 else "рот",
+            ),
         )
-        logger.info("Логистика: операция %s, остатки=%s",
-                    operation_id, short_supplies(self.supplies))
-        return {"ok": True, "stocks": dict(self.supplies)}
+        logger.info("Логистика: операция %s для %d рот, остатки=%s",
+                    operation_id, count, short_supplies(self.supplies))
+        return {
+            "ok": True,
+            "count": count,
+            "targets": [det.name for det in targets],
+            "stocks": dict(self.supplies),
+        }
 
     def request_convoy(self, kind="general"):
         """Запросить конвой. Стоимость — влияние, приход — сразу (MVP)."""

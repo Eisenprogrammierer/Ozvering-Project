@@ -20,8 +20,8 @@ resolve_attack / learn / check_capture) и словари PARAMETERS / PROFILES 
   ESC/Q   - выход (дублируется кнопкой "QUIT" в HUD - выход мышью всегда доступен)
 
 Визуальный язык (минимализм, всё выводится из состояний модели):
-  * Два круга-автомата: радиус ~ log(сила), цвет рамки - текущий тип защиты
-    (FIRE - красный, WATER - синий, EARTH - зелёный).
+  * Два круга-автомата: радиус ~ log(сила), цвет рамки - текущая фаза защиты
+    (A - тёплый, B - холодный, C - нейтральный).
   * Кольцо вокруг круга - накопленное давление на вход w_adopt (дуга до порога ON(F));
     заполненное кольцо = порог пройден.
   * Когда окно восприимчивости входа открыто (in_open) - круг пульсирует жёлтым,
@@ -312,11 +312,30 @@ SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
 
-TYPE_COLORS = {
+# Цвета фаз защиты. Легаси-названия стихий остались только ключами
+# внутренней модели simulation.py; в интерфейсе они не показываются.
+DEFENSE_COLORS = {
     "FIRE": (220, 80, 50),
     "WATER": (70, 130, 220),
     "EARTH": (90, 170, 90),
 }
+ACTION_LABELS = {
+    "FIRE": "АТАКА-1", "WATER": "АТАКА-2", "EARTH": "АТАКА-3",
+    "REST": "ПОКОЙ",
+}
+DEFENSE_LABELS = {
+    "FIRE": "A", "WATER": "B", "EARTH": "C",
+}
+
+
+def action_label(action):
+    """Нейтральная подпись действия вместо легаси-стихии."""
+    return ACTION_LABELS.get(action, str(action))
+
+
+def defense_label(defense):
+    """Нейтральная подпись фазы защиты вместо легаси-стихии."""
+    return DEFENSE_LABELS.get(defense, "—")
 COL_RL = (240, 240, 240)          # акцент обучающегося агента
 COL_AI = (200, 160, 255)          # акцент скриптованного агента
 COL_OPEN = (255, 220, 90)         # открытое окно восприимчивости
@@ -1636,7 +1655,7 @@ class GameApp:
                 s.blit(wt, (max(x, r.right - wt.get_width() - 8),
                             y - dy + max(0, (dy - wt.get_height()) // 2)))
             # полоса давления входа - внутри карточки
-            bar_col = TYPE_COLORS[ag.defense]
+            bar_col = DEFENSE_COLORS[ag.defense]
             frac = min(1.0, ag.w_adopt / max(1e-9, on))
             pygame.draw.rect(s, (50, 52, 60), (x, y + 1, bw, 6))
             pygame.draw.rect(s, bar_col, (x, y + 1, int(bw * frac), 6))
@@ -1677,8 +1696,9 @@ class GameApp:
 
             blit_row(self.L("СРЕДА-АВТОМАТ", "ENVIRONMENT"), COL_ENV_OPEN)
             blit_row(f"F={e.force:7.1f} E={e.energy_pool:4.0f}",
-                     TYPE_COLORS[e.defense],
-                     (f"weather[{e.defense}]", TYPE_COLORS[e.defense]))
+                     DEFENSE_COLORS[e.defense],
+                     (f"phase[{defense_label(e.defense)}]",
+                      DEFENSE_COLORS[e.defense]))
             blit_row(f"w_adopt={e.w_adopt:6.1f}/{e.schmitt_on():5.1f}",
                      COL_TEXT,
                      ("WINDOW OPEN" if e.in_open else "closed",
@@ -1735,7 +1755,7 @@ class GameApp:
             pygame.draw.circle(body, (*acc[:3], 28), (r + 4, r + 4), r + 3)
             s.blit(body, (pos[0] - r - 4, pos[1] - r - 4))
             # Пульсация при открытом окне входа
-            outline = TYPE_COLORS[ag.defense]
+            outline = DEFENSE_COLORS[ag.defense]
             width = 3
             if ag.in_open:
                 pulse = 0.5 + 0.5 * math.sin(self.time * 10.0)
@@ -1768,7 +1788,7 @@ class GameApp:
                 s.blit(ot, (pos[0] - ot.get_width() // 2, pos[1] - r - 30))
         # В ручном режиме показываем, чем именно игрок управляет (RL), и его выбор
         if self.manual_mode:
-            pick = f"PICK: {ACTIONS[self.action_idx][0]}" \
+            pick = f"PICK: {action_label(ACTIONS[self.action_idx][0])}" \
                    f" {int(ACTIONS[self.action_idx][1]*100)}%"
             pt_ = self.font_s.render(pick, True, COL_OPEN)
             s.blit(pt_, (self.layout.rl_pos[0] - pt_.get_width() // 2,
@@ -1792,7 +1812,7 @@ class GameApp:
             if ev["kind"] != "transfer":
                 continue
             frm, to = (rl_pos, ai_pos) if ev["frm"] == "rl" else (ai_pos, rl_pos)
-            col = TYPE_COLORS.get(ev["type"], COL_TEXT)
+            col = DEFENSE_COLORS.get(ev["type"], COL_TEXT)
             wdt = int(max(2, min(14, float(ev["work"]) // 3 + 2)))
             dx = to[0] - frm[0]
             ux = dx / max(1.0, abs(dx))
@@ -1820,9 +1840,9 @@ class GameApp:
         env = m.env
         if env is None:
             return
-        col = TYPE_COLORS[env.defense]
+        col = DEFENSE_COLORS[env.defense]
         txt = self.font.render(f"ENVIRONMENT  F={env.force:.0f}  "
-                               f"weather[{env.defense}]"
+                               f"phase[{defense_label(env.defense)}]"
                                f"  {'CONJUNCTURE WINDOW OPEN' if env.in_open else ''}",
                                True, col)
         s.blit(txt, (self.layout.env_label_pos[0] - txt.get_width() // 2,
@@ -1880,7 +1900,7 @@ class GameApp:
                                COL_DIM if self.paused else COL_OPEN)
         if t.get_width() <= r.width - 4:
             s.blit(t, (r.x + 2, r.y + 1))
-        pick = f"PICK {ACTIONS[self.action_idx][0]}"
+        pick = f"PICK {action_label(ACTIONS[self.action_idx][0])}"
         t2 = self.font_s.render(pick, True, COL_TEXT)
         if (t2.get_width() <= r.right - t.get_width() - 8
                 and t2.get_width() <= r.width - 4):
@@ -1900,11 +1920,11 @@ class GameApp:
         for i, rect in enumerate(self._action_tiles()):
             act, frac = ACTIONS[i]
             sel = (i == self.action_idx)
-            col = TYPE_COLORS.get(act, COL_DIM)
+            col = DEFENSE_COLORS.get(act, COL_DIM)
             pygame.draw.rect(s, (40, 44, 54) if not sel else (70, 76, 92), rect)
             pygame.draw.rect(s, col if act != "REST" else COL_DIM,
                              rect, 3 if sel else 2)
-            name = f"{i+1}:{act} {int(frac*100)}%"
+            name = f"{i+1}:{action_label(act)} {int(frac*100)}%"
             t = self.font_s.render(name, True, COL_TEXT)
             while t.get_width() > rect.width - 6 and len(name) > 4:
                 name = name[:len(name) - 3] + ".."
@@ -1915,7 +1935,7 @@ class GameApp:
         pr = L_.pick_rect
         pygame.draw.rect(s, (30, 33, 40), pr, border_radius=4)
         pygame.draw.rect(s, COL_OPEN, pr, 1, border_radius=4)
-        pk = f"PICK: {ACTIONS[self.action_idx][0]}"
+        pk = f"PICK: {action_label(ACTIONS[self.action_idx][0])}"
         t = self.font_s.render(pk, True, COL_OPEN)
         while t.get_width() > pr.width - 6 and len(pk) > 5:
             pk = pk[:len(pk) - 3] + ".."

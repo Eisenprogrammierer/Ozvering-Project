@@ -101,15 +101,9 @@ class BattlefieldScene(Scene):
         gap = 8
         y = self.side_rect.top + 196
         bw = (width - 2 * gap) // 3
-        labels = (
-            (t("ОГОНЬ", "FIRE"), "FIRE"),
-            (t("ВОДА", "WATER"), "WATER"),
-            (t("ЗЕМЛЯ", "EARTH"), "EARTH"),
-        )
         enabled = (not m.winner) and m.contact and m.command_points >= 1
-        for i, (label, order) in enumerate(labels):
-            self._button(label, (lambda o=order: self._order(o)),
-                         (x + i * (bw + gap), y, bw, 36), enabled=enabled)
+        self._button(t("АТАКА", "ATTACK"), lambda: self._order("ATTACK"),
+                     (x, y, width, 36), enabled=enabled)
         y += 44
         self._button(t("ПОКОЙ", "REST"), lambda: self._order("REST"),
                      (x, y, bw, 36), enabled=not m.winner)
@@ -219,8 +213,8 @@ class BattlefieldScene(Scene):
             if e.key == pygame.K_SPACE:
                 self._end_turn()
                 return True
-            if e.key in (pygame.K_1, pygame.K_2, pygame.K_3):
-                self._order(ATTACK_ORDERS[e.key - pygame.K_1])
+            if e.key == pygame.K_1:
+                self._order(ATTACK_ORDERS[0])
                 return True
             if e.key == pygame.K_r:
                 self._order("REST")
@@ -501,8 +495,8 @@ class BattlefieldScene(Scene):
         lines = [
             t("ЛКМ — выбрать юнит / клетку; ПКМ — приказ движения",
               "LMB - select unit/tile; RMB - move order"),
-            t("1/2/3 — огонь/вода/земля; R — покой; H — держать",
-              "1/2/3 - fire/water/earth; R - rest; H - hold"),
+            t("1 — атака; R — покой; H — держать",
+              "1 - attack; R - rest; H - hold"),
             t("M — режим движения; Space — завершить ход; Tab — выбор стороны",
               "M - move mode; Space - end turn; Tab - switch side"),
             t("ESC — пауза; F1 — эта справка",

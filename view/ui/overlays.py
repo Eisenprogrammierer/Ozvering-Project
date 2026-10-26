@@ -1130,7 +1130,13 @@ class BinocularsOverlay(BaseScreen):
 
 
 class LogisticsOverlay(OverlayScreen):
-    """Склад, суточный расход, готовность и операции снабжения."""
+    """Склад, суточный расход, готовность и операции снабжения.
+
+    Операции можно применять сразу к нескольким ротам: слева у каждой роты
+    есть переключатель цели. Игрок может нажать «Все», «Никого» и вручную
+    оставить без снабжения конкретные подразделения. Стоимость операции
+    умножается на число выбранных целей.
+    """
 
     OPERATION_LABELS = {
         "fortify": "Укрепить позицию",
@@ -1145,7 +1151,9 @@ class LogisticsOverlay(OverlayScreen):
         self.feedback = ""
         self._op_buttons = []
         self._convoy_buttons = []
+        self._target_buttons = []
         self.rts = self._find_rts()
+        self._targets = set()
         panel = self.panel.rect
         x = panel.x + 500
         y = panel.y + 150
@@ -1170,6 +1178,8 @@ class LogisticsOverlay(OverlayScreen):
             )
             self._convoy_buttons.append((kind, btn))
             y += 34
+        self._init_targets()
+        self._build_target_buttons()
 
     def _find_rts(self):
         for screen in reversed(getattr(self.app.manager, "stack", [])):
@@ -1177,17 +1187,93 @@ class LogisticsOverlay(OverlayScreen):
                 return screen
         return None
 
+    def _player_units(self):
+        """Живые роты игрока — те же, что принимает логистика."""
+        state = self.app.engine.state
+        return [
+            det for det in state.units
+            if det.side == state.player_side
+            and not getattr(det, "broken", False)
+            and det.force > 1
+        ]
+
+    def _init_targets(self):
+        """По умолчанию — выделенные в RTS роты, иначе все роты игрока."""
+        selected = []
+        if self.rts is not None and hasattr(self.rts, "_selected_dets"):
+            selected = [
+                det.name for det in self.rts._selected_dets()
+                if det.side == self.app.engine.state.player_side
+            ]
+        if selected:
+            self._targets = set(selected)
+        else:
+            self._targets = {det.name for det in self._player_units()}
+
+    def _build_target_buttons(self):
+        panel = self.panel.rect
+        x = panel.x + 16
+        y = panel.y + 356
+        for det in self._player_units():
+            btn = Button(
+                (x, y, 360, 16), "[ ] %s" % det.name,
+                self.app.font_tiny,
+                lambda name=det.name: self.toggle_target(name),
+                alpha=120,
+            )
+            self._target_buttons.append((det.name, btn))
+            y += 16
+        button_y = panel.y + 616
+        self.btn_all = Button(
+            (x, button_y, 174, 22), "Все", self.app.font_tiny,
+            self.select_all_targets,
+        )
+        self.btn_none = Button(
+            (x + 186, button_y, 174, 22), "Никого", self.app.font_tiny,
+            self.clear_targets,
+        )
+
     def _selected_idx(self):
+        state = self.app.engine.state
+        for index, det in enumerate(state.units):
+            if det.name in self._targets:
+                return index
         if self.rts is not None and self.rts.selected:
             return self.rts.selected[0]
-        return self.app.engine.state.player_idx
+        return state.player_idx
+
+    def toggle_target(self, name):
+        if name in self._targets:
+            self._targets.discard(name)
+        else:
+            self._targets.add(name)
+        self.feedback = "Целей: %d" % len(self._targets)
+
+    def select_all_targets(self):
+        self._targets = {name for name, _btn in self._target_buttons}
+        self.feedback = "Выбраны все роты"
+
+    def clear_targets(self):
+        self._targets.clear()
+        self.feedback = "Цели не выбраны"
 
     def apply_operation(self, op_id):
         ls = self.app.engine.state.logistics
-        result = ls.apply_operation(op_id, self._selected_idx())
-        self.feedback = (
-            "Выполнено" if result.get("ok") else result.get("reason", "Нет")
-        )
+        targets = [
+            name for name, _btn in self._target_buttons
+            if name in self._targets
+        ]
+        if not targets:
+            self.feedback = "Выберите хотя бы одну роту"
+            return
+        result = ls.apply_operation(op_id, targets)
+        if result.get("ok"):
+            self.feedback = "Выполнено для %d %s" % (
+                result.get("count", len(targets)),
+                "роты" if result.get("count", len(targets)) == 1 else "рот",
+            )
+        else:
+            self.feedback = result.get("reason", "Нет")
 
     def request_convoy(self, kind):
         ls = self.app.engine.state.logistics
@@ -1204,8 +1290,20 @@ class LogisticsOverlay(OverlayScreen):
         for _kind, btn in self._convoy_buttons:
             if btn.handle_event(event):
                 return
+        for _name, btn in self._target_buttons:
+            if btn.handle_event(event):
+                return
+        if self.btn_all.handle_event(event):
+            return
+        if self.btn_none.handle_event(event):
+            return
         if self.close_btn.handle_event(event):
             return
+
+    def _alive_target_names(self):
+        alive = {det.name for det in self._player_units()}
+        self._targets &= alive
+        return alive
 
     def draw(self, screen):
         self.draw_base(screen, "Логистика дивизии")
@@ -1218,11 +1316,13 @@ class LogisticsOverlay(OverlayScreen):
             ), (panel.x + 20, panel.y + 80))
             self.close_btn.draw(screen)
             return
+        self._alive_target_names()
+        count = len(self._targets)
         idx = self._selected_idx()
         det = st.det_at(idx)
         screen.blit(self.app.font_tiny.render(
-            "Склад, расход и готовность. Конвои тратят влияние; редкие "
-            "автоколонны приходят сами.",
+            "Склад, расход и готовность. Отметьте цели слева; стоимость "
+            "операции растёт с числом рот.",
             True, (150, 165, 180),
         ), (panel.x + 20, panel.y + 44))
 
@@ -1258,22 +1358,25 @@ class LogisticsOverlay(OverlayScreen):
             ), (panel.x + 356, y))
             y += 22
 
-        # Готовность подразделений.
+        # Готовность и выбор целей.
         y += 18
         screen.blit(self.app.font_small.render(
-            "ГОТОВНОСТЬ", True, (205, 218, 230)
+            "ГОТОВНОСТЬ · ЦЕЛИ ОПЕРАЦИЙ", True, (205, 218, 230)
         ), (panel.x + 20, y))
         y += 24
-        for i, unit in enumerate(st.units):
-            if unit.side != st.player_side:
+        by_name = {unit.name: (i, unit) for i, unit in enumerate(st.units)}
+        for name, btn in self._target_buttons:
+            entry = by_name.get(name)
+            if entry is None:
                 continue
+            i, unit = entry
             value = ls.supply_of(i)
             color = ((96, 190, 120) if value >= 0.7 else
                      (224, 164, 74) if value >= 0.4 else (224, 88, 88))
-            screen.blit(self.app.font_tiny.render(
-                unit.name, True, (215, 225, 235)
-            ), (panel.x + 20, y))
-            bar = pygame.Rect(panel.x + 120, y + 4, 190, 6)
+            selected = name in self._targets
+            btn.text = ("[x] " if selected else "[ ] ") + unit.name
+            btn.draw(screen)
+            bar = pygame.Rect(panel.x + 386, y + 4, 120, 6)
             pygame.draw.rect(screen, (38, 46, 55), bar)
             pygame.draw.rect(
                 screen, color,
@@ -1281,22 +1384,29 @@ class LogisticsOverlay(OverlayScreen):
             )
             screen.blit(self.app.font_tiny.render(
                 "%d%%" % round(value * 100), True, color
-            ), (panel.x + 320, y))
-            y += 18
+            ), (panel.x + 512, y - 1))
+            y += 16
+        self.btn_all.draw(screen)
+        self.btn_none.draw(screen)
 
         # Правая часть: операции и конвои.
         rx = panel.x + 500
         screen.blit(self.app.font_small.render(
             "ОПЕРАЦИИ", True, (205, 218, 230)
         ), (rx, panel.y + 78))
+        screen.blit(self.app.font_tiny.render(
+            "Целей: %d · цена за каждую роту" % count,
+            True, (175, 190, 202) if count else (190, 118, 118),
+        ), (rx, panel.y + 100))
         for op_id, btn in self._op_buttons:
             btn.draw(screen)
-            cost = ls.operation_cost(op_id)
+            effective = max(1, count)
+            cost = ls.operation_cost(op_id, effective)
             cost_text = ", ".join(
                 "%s %d" % (SUPPLY_LABELS.get(k, k), v)
                 for k, v in cost.items()
             )
-            ok, reason = ls.can_operation(op_id)
+            ok, reason = ls.can_operation(op_id, effective)
             info = cost_text + ("" if ok else " · " + reason)
             screen.blit(self.app.font_tiny.render(
                 info, True, (150, 165, 178) if ok else (190, 118, 118)
@@ -1320,7 +1430,7 @@ class LogisticsOverlay(OverlayScreen):
         ), (rx, self._convoy_buttons[-1][1].rect.bottom + 6))
         if det is not None:
             screen.blit(self.app.font_tiny.render(
-                "Выбрано: %s · снабжение %d%%" % (
+                "Открыто на: %s · снабжение %d%%" % (
                     det.name, round(ls.supply_of(idx) * 100)
                 ),
                 True, (175, 190, 202),

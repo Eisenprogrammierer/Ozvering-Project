@@ -84,6 +84,35 @@ _NEED_RATES = {
     "skill": 0.002, "love": 0.002, "friendship": 0.002,
 }
 
+# Здоровье — единственная потребность, достижение критического значения
+# которой означает смерть персонажа игрока (``health >= 1.0``, в интерфейсе
+# это 100). Остальные потребности не убивают напрямую, но **умножают**
+# скорость роста здоровья:
+#   * при 0 (потребность закрыта) множитель < 1 — здоровье ухудшается медленнее;
+#   * при 1 (критическая потребность) множитель > 1 — здоровье ухудшается быстрее.
+# Множители перемножаются, поэтому несколько запущенных потребностей дают
+# кумулятивный эффект; итог ограничен, чтобы смерть не наступала за один такт.
+HEALTH_DEATH_THRESHOLD = 1.0
+HEALTH_NEED_WEIGHTS = {
+    "hunger": 0.10,
+    "thirst": 0.14,
+    "fatigue": 0.12,
+    "fear": 0.08,
+    "anxiety": 0.07,
+    "loneliness": 0.04,
+    "reproduction": 0.02,
+    "knowledge": 0.02,
+    "creativity": 0.02,
+    "boredom": 0.03,
+    "status": 0.03,
+    "spirituality": 0.02,
+    "skill": 0.02,
+    "love": 0.03,
+    "friendship": 0.03,
+}
+HEALTH_MULTIPLIER_MIN = 0.35
+HEALTH_MULTIPLIER_MAX = 3.00
+
 # --- личностные черты (зачин) ---------------------------------------------
 
 TRAITS = (
@@ -334,6 +363,28 @@ class Character(S.UtilityAI):
         self.orders = []
         self.under_fire = 0.0
         self.casualties = 0
+        # Смерть необратима: здоровье, дошедшее до критического значения,
+        # больше не «лечится» обычными действиями.
+        self.dead = False
+
+    @property
+    def is_dead(self):
+        """Персонаж мёртв, если здоровье достигло критического значения."""
+        return bool(
+            self.dead or
+            float(self.needs.get("health", 0.0)) >= HEALTH_DEATH_THRESHOLD
+        )
+
+    def health_degradation_multiplier(self):
+        """Множитель роста потребности ``health`` от остальных потребностей."""
+        multiplier = 1.0
+        for need, weight in HEALTH_NEED_WEIGHTS.items():
+            value = max(0.0, min(1.0, float(self.needs.get(need, 0.0))))
+            multiplier *= 1.0 + float(weight) * (2.0 * value - 1.0)
+        return max(
+            HEALTH_MULTIPLIER_MIN,
+            min(HEALTH_MULTIPLIER_MAX, multiplier),
+        )
 
     # --- BDI: желания и намерения ---
     def weighted_urgency(self):
@@ -432,11 +483,18 @@ class Character(S.UtilityAI):
         чтобы потребности не росли в шесть раз быстрее.
         """
         rng = rng or self.rng
+        if self.is_dead:
+            self.dead = True
+            self.needs["health"] = HEALTH_DEATH_THRESHOLD
+            self.mind = "dead"
+            self.morale = 0.0
+            return
         p = self.personality
         mod = self.modulation()
         uf = max(0.0, min(1.0, float(under_fire)))
         support = max(0.0, min(1.0, float(supported)))
         scale = max(0.0, float(seconds)) / 1800.0
+        health_multiplier = self.health_degradation_multiplier()
 
         rates = dict(_NEED_RATES)
         rates["fatigue"] *= 0.70 + 0.6 * (1.0 - p["endurance"])
@@ -456,6 +514,11 @@ class Character(S.UtilityAI):
                 delta += 0.020 * uf
             if need == "boredom" and not in_combat:
                 delta += 0.006
+            if need == "health":
+                # Все прочие потребности мультипликативно ускоряют или
+                # замедляют ухудшение здоровья. Считаем множитель один раз
+                # до цикла, чтобы порядок обхода NEEDS не влиял на результат.
+                delta *= health_multiplier
             self.needs[need] = min(1.0, self.needs[need] + delta * scale)
             self.needs[need] = max(
                 0.0,
@@ -482,6 +545,13 @@ class Character(S.UtilityAI):
             self.needs["status"] = max(
                 0.0, self.needs["status"] - 0.006 * scale
             )
+
+        if self.needs["health"] >= HEALTH_DEATH_THRESHOLD:
+            self.needs["health"] = HEALTH_DEATH_THRESHOLD
+            self.dead = True
+            self.mind = "dead"
+            self.morale = 0.0
+            return
 
         # Приказы могут целенаправленно снижать/повышать потребности.
         if mod.fear:
@@ -590,6 +660,8 @@ class Character(S.UtilityAI):
             dict: Фактически закрытые значения по потребностям.
         """
         restored = {}
+        if self.is_dead:
+            return restored
         for need, amount in (effects or {}).items():
             if need not in self.needs:
                 continue

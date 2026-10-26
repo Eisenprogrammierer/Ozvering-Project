@@ -29,6 +29,9 @@
         },
         {
           "type": "all_player_units_destroyed"
+        },
+        {
+          "type": "player_dead"
         }
       ]
     }
