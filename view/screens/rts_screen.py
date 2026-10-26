@@ -28,7 +28,7 @@ import pygame
 
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
-from ..ui.text_layout import draw_fitted
+from ..ui.text_layout import draw_fitted, wrap_text
 from ..support.needs import SUPPLY_LABELS
 from ..support.geometry import (
     BREACH_PRESSURE_TICKS, SECTOR_LABELS, SECTOR_SHORT,
@@ -350,33 +350,47 @@ class RTSScreen(BaseScreen):
             (1218, 9, 24, 36), "8x", self.app.font_tiny,
             lambda: self.set_speed(8)
         )
+        # Автоплан — полоса над обычными приказами. Он действует на всю
+        # армию, а приказы ниже по-прежнему работают с выделением.
+        self.btn_plan_hold = Button(
+            (12, 314, 66, 22), "Оборона", self.app.font_tiny,
+            self.command_plan_hold
+        )
+        self.btn_plan_advance = Button(
+            (80, 314, 72, 22), "Наступление", self.app.font_tiny,
+            self.command_plan_advance
+        )
+        self.btn_plan_off = Button(
+            (154, 314, 66, 22), "Снять", self.app.font_tiny,
+            self.command_plan_off
+        )
         # Кнопки скорости рисуются вручную, но Button даёт единый hover/click.
         self.btn_hold = Button(
-            (12, 322, 208, 28), "Держать позиции", self.app.font_small,
+            (12, 382, 208, 22), "Держать позиции", self.app.font_tiny,
             self.command_hold
         )
         self.btn_attack = Button(
-            (12, 354, 208, 28), "Атака ближайшего", self.app.font_small,
+            (12, 407, 208, 22), "Атака ближайшего", self.app.font_tiny,
             self.command_attack_nearest
         )
         self.btn_cautious = Button(
-            (12, 386, 208, 28), "Осторожная атака", self.app.font_small,
+            (12, 432, 208, 22), "Осторожная атака", self.app.font_tiny,
             self.command_cautious_attack
         )
         self.btn_withdraw = Button(
-            (12, 418, 208, 28), "Отход / отступить", self.app.font_small,
+            (12, 457, 208, 22), "Отход / отступить", self.app.font_tiny,
             self.command_withdraw
         )
         self.btn_march = Button(
-            (12, 450, 208, 28), "Марш-бросок к цели", self.app.font_small,
+            (12, 482, 208, 22), "Марш-бросок к цели", self.app.font_tiny,
             self.command_force_march
         )
         self.btn_rest = Button(
-            (12, 482, 208, 28), "Отдых", self.app.font_small,
+            (12, 507, 208, 22), "Отдых", self.app.font_tiny,
             self.command_rest
         )
         self.btn_stop = Button(
-            (12, 514, 208, 28), "Стоп / занять оборону", self.app.font_small,
+            (12, 532, 208, 22), "Стоп / занять оборону", self.app.font_tiny,
             self.command_stop
         )
         self.btn_orders = Button(
@@ -563,6 +577,52 @@ class RTSScreen(BaseScreen):
             key=lambda d: abs(d.position[0] - det.position[0]) +
             abs(d.position[1] - det.position[1]),
         )
+
+    def command_plan_hold(self):
+        """Армейский план: занять и держать рубеж."""
+        if not self.engine.set_auto_plan("hold"):
+            self._feedback("Нет живых рот для плана", 1.4)
+            return
+        self._feedback(
+            "Автоплан: оборона — Shift+ПКМ задаёт рубеж", 2.2
+        )
+
+    def command_plan_advance(self):
+        """Армейский план: наступать на выбранную цель."""
+        target_det = self._target_enemy_det()
+        target = tuple(target_det.position) if target_det is not None else None
+        if not self.engine.set_auto_plan("advance", target=target):
+            self._feedback("Нет живых рот для плана", 1.4)
+            return
+        where = ("на %s" % target_det.name if target_det is not None
+                 else "к противнику")
+        self._feedback(
+            "Автоплан: наступление %s — Shift+ПКМ меняет направление" %
+            where, 2.2,
+        )
+
+    def command_plan_off(self):
+        self.engine.clear_auto_plan()
+        self._feedback("Автоплан снят", 1.4)
+
+    def _issue_plan_target(self, cell):
+        """Shift+ПКМ: перенести рубеж или направление плана."""
+        plan = self.engine.plan_for()
+        if not plan.active:
+            self._feedback(
+                "Сначала включите автоплан: G — оборона, T — наступление",
+                2.0,
+            )
+            return
+        mode = plan.mode
+        if not self.engine.set_auto_plan(
+                mode, target=cell, keep_exemptions=True):
+            self._feedback("Не удалось изменить план", 1.4)
+            return
+        if mode == "hold":
+            self._feedback("Рубеж плана: %d:%d" % cell, 1.6)
+        else:
+            self._feedback("Направление плана: %d:%d" % cell, 1.6)
 
     def command_hold(self):
         for det in self._selected_dets():
@@ -980,8 +1040,12 @@ class RTSScreen(BaseScreen):
                     elif b_moving:
                         wa, wb = 0.0, 1.0
                     else:
-                        # Два покоящихся жетона разводим один раз; как только
-                        # они перестали пересекаться, дальнейшего движения нет.
+                        # В анимированном кадре два покоящихся жетона не
+                        # трогаем: их экранная точка не должна «плыть» из-за
+                        # соседей. При принудительной пересборке (dt=0, смена
+                        # масштаба/загрузка) разводим и их.
+                        if dt > 0.0:
+                            continue
                         wa, wb = 0.5, 0.5
                     entries[a][1] -= ux * overlap * wa
                     entries[a][2] -= uy * overlap * wa
@@ -1011,10 +1075,12 @@ class RTSScreen(BaseScreen):
     def handle_event(self, event):
         for b in (
             self.btn_pause, self.btn_speed1, self.btn_speed2,
-            self.btn_speed4, self.btn_speed8, self.btn_hold, self.btn_attack,
-            self.btn_cautious, self.btn_withdraw, self.btn_march,
-            self.btn_rest, self.btn_stop, self.btn_orders, self.btn_needs,
-            self.btn_journal, self.btn_logistics, self.btn_radio,
+            self.btn_speed4, self.btn_speed8, self.btn_plan_hold,
+            self.btn_plan_advance, self.btn_plan_off, self.btn_hold,
+            self.btn_attack, self.btn_cautious, self.btn_withdraw,
+            self.btn_march, self.btn_rest, self.btn_stop, self.btn_orders,
+            self.btn_needs, self.btn_journal, self.btn_logistics,
+            self.btn_radio,
         ):
             if b.handle_event(event):
                 return
@@ -1043,6 +1109,12 @@ class RTSScreen(BaseScreen):
                 self.set_speed(8)
             elif event.key == pygame.K_h:
                 self.command_hold()
+            elif event.key == pygame.K_g:
+                self.command_plan_hold()
+            elif event.key == pygame.K_t:
+                self.command_plan_advance()
+            elif event.key == pygame.K_y:
+                self.command_plan_off()
             elif event.key == pygame.K_r:
                 self.command_rest()
             elif event.key == pygame.K_a:
@@ -1122,6 +1194,13 @@ class RTSScreen(BaseScreen):
                         self.assign_group(number)
                         return
                 if MAP_RECT.collidepoint(event.pos):
+                    mods = (getattr(event, "mod", 0) or
+                            pygame.key.get_mods())
+                    if mods & pygame.KMOD_SHIFT:
+                        self._issue_plan_target(
+                            self._cell_from_mouse(event.pos)
+                        )
+                        return
                     hit = self._unit_at(event.pos)
                     if hit is not None and hit not in self._player_indices():
                         self._issue_attack(hit)
@@ -1386,7 +1465,31 @@ class RTSScreen(BaseScreen):
             screen.blit(mini, (rect.x + 67, rect.y + 9))
         self._draw_groups(screen)
         screen.blit(self.app.font_small.render(
-            "ПРИКАЗЫ", True, DAY_COLORS["muted"]), (14, 302)
+            "АВТОПЛАН", True, DAY_COLORS["muted"]), (14, 298)
+        )
+        plan = self.engine.plan_for()
+        for b, mode in (
+            (self.btn_plan_hold, "hold"),
+            (self.btn_plan_advance, "advance"),
+            (self.btn_plan_off, "off"),
+        ):
+            b.draw(screen)
+            active = ((mode == plan.mode and plan.active) or
+                      (mode == "off" and not plan.active))
+            if active:
+                pygame.draw.rect(screen, DAY_COLORS["gold"], b.rect, 2,
+                                 border_radius=6)
+        status = self.engine.plan_status_text()
+        status_lines = wrap_text(
+            self.app.font_tiny, status, 204
+        )[:2]
+        for offset, text in enumerate(status_lines):
+            screen.blit(self.app.font_tiny.render(
+                text, True,
+                DAY_COLORS["gold"] if plan.active else DAY_COLORS["muted"],
+            ), (14, 340 + offset * 12))
+        screen.blit(self.app.font_small.render(
+            "ПРИКАЗЫ", True, DAY_COLORS["muted"]), (14, 366)
         )
         target = self._target_enemy_det()
         self.btn_attack.text = (
@@ -1398,16 +1501,16 @@ class RTSScreen(BaseScreen):
                   self.btn_stop):
             b.draw(screen)
         screen.blit(self.app.font_small.render(
-            "ШТАБ", True, DAY_COLORS["muted"]), (14, 552)
+            "ШТАБ", True, DAY_COLORS["muted"]), (14, 560)
         )
         for b in (self.btn_orders, self.btn_needs, self.btn_journal,
                   self.btn_logistics, self.btn_radio):
             b.draw(screen)
         hint = self.app.font_tiny.render(
-            "ПКМ — движение/атака; ЛКМ — выбор\n"
+            "ПКМ — приказ; Shift+ПКМ — план\n"
+            "G/T/Y — план; A…S — приказы\n"
             "Ctrl+A — все; Shift+1…6 — группа\n"
-            "Ctrl+1…6 — записать; F — огонь\n"
-            "A,C,W,M,H,R,S — приказы; +/− — масштаб",
+            "F — огонь; +/− — масштаб",
             True, DAY_COLORS["muted"],
         )
         screen.blit(hint, (14, 660))
@@ -1418,6 +1521,7 @@ class RTSScreen(BaseScreen):
         terrain, offset = self._scaled_terrain()
         screen.blit(terrain, offset)
         pygame.draw.rect(screen, DAY_COLORS["line"], MAP_RECT, 1)
+        self._draw_plan_overlay(screen)
         # Линии приказов выбранных юнитов. Явная цель рисуется красной
         # линией и перекрестием, обычное движение — золотой.
         for det in self._selected_dets():
@@ -1469,6 +1573,99 @@ class RTSScreen(BaseScreen):
         self._draw_event_ticker(screen)
         if self._hover_idx is not None:
             self._draw_tooltip(screen, self._hover_idx)
+
+    def _draw_plan_overlay(self, screen):
+        """Показать рубеж или стрелу наступления на карте."""
+        plan = self.engine.plan_for()
+        if not plan.active:
+            return
+        overlay = pygame.Surface(MAP_RECT.size, pygame.SRCALPHA)
+
+        def local(point):
+            return (
+                int(round(point[0] - MAP_RECT.x)),
+                int(round(point[1] - MAP_RECT.y)),
+            )
+
+        color = ((232, 194, 98) if plan.mode == "hold"
+                 else (92, 176, 242))
+        if plan.mode == "hold" and plan.line is not None:
+            first = local(self._project(plan.line[0]))
+            second = local(self._project(plan.line[1]))
+            dx = second[0] - first[0]
+            dy = second[1] - first[1]
+            length = max(0.01, math.hypot(dx, dy))
+            ux, uy = dx / length, dy / length
+            start = 0.0
+            while start < length:
+                end = min(length, start + 10.0)
+                pygame.draw.line(
+                    overlay, color + (190,),
+                    (int(first[0] + ux * start),
+                     int(first[1] + uy * start)),
+                    (int(first[0] + ux * end),
+                     int(first[1] + uy * end)),
+                    3,
+                )
+                start += 17.0
+            for point in (first, second):
+                pygame.draw.circle(overlay, color + (220,), point, 5, 2)
+            mid = (
+                int((first[0] + second[0]) / 2),
+                int((first[1] + second[1]) / 2),
+            )
+            label = "РУБЕЖ"
+        else:
+            units = self.engine._plan_units(
+                getattr(self.state, "player_side", "red"),
+                include_exempt=True,
+            )
+            center = self.engine._center_of(units)
+            if center is None:
+                return
+            target = plan.target
+            if target is None:
+                target = (
+                    center[0] + plan.axis[0] * 7.0,
+                    center[1] + plan.axis[1] * 7.0,
+                )
+            first = local(self._project(center))
+            second = local(self._project(target))
+            dx = second[0] - first[0]
+            dy = second[1] - first[1]
+            length = max(0.01, math.hypot(dx, dy))
+            ux, uy = dx / length, dy / length
+            pygame.draw.line(overlay, color + (35,), first, second, 9)
+            pygame.draw.line(overlay, color + (190,), first, second, 3)
+            head = (int(second[0] - ux * 4), int(second[1] - uy * 4))
+            left = (
+                int(head[0] - ux * 12 - uy * 8),
+                int(head[1] - uy * 12 + ux * 8),
+            )
+            right = (
+                int(head[0] - ux * 12 + uy * 8),
+                int(head[1] - uy * 12 - ux * 8),
+            )
+            pygame.draw.polygon(
+                overlay, color + (220,), [second, left, right]
+            )
+            mid = (
+                int((first[0] + second[0]) / 2),
+                int((first[1] + second[1]) / 2),
+            )
+            label = "НАСТУПЛЕНИЕ"
+        text = self.app.font_tiny.render(label, True, color)
+        pad = pygame.Rect(
+            mid[0] - text.get_width() // 2 - 4,
+            mid[1] - text.get_height() // 2 - 2,
+            text.get_width() + 8, text.get_height() + 4,
+        )
+        pygame.draw.rect(overlay, (12, 16, 22, 165), pad, border_radius=3)
+        overlay.blit(
+            text,
+            (pad.x + 4, pad.y + 2),
+        )
+        screen.blit(overlay, MAP_RECT.topleft)
 
     def _contact_frontline_points(self):
         """Средние точки боёв: по ним рисуется линия соприкосновения."""

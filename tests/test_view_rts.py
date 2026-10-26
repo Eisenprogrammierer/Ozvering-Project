@@ -364,3 +364,53 @@ def test_battle_outcome_dispatches_win_and_lose():
     screen.state.sim.winner = enemy_side
     screen._trigger_battle_outcome()
     assert app.pending_storyline_outcome == "lose"
+
+
+def test_rts_auto_plan_buttons_hotkeys_and_shift_rmb():
+    from view.screens.rts_screen import RTSScreen
+
+    app = _app()
+    screen = RTSScreen(app)
+    app.manager.replace_all(screen)
+
+    screen.handle_event(pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_g, mod=0,
+    ))
+    assert screen.engine.plan_for().mode == "hold"
+
+    screen.handle_event(pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_t, mod=0,
+    ))
+    assert screen.engine.plan_for().mode == "advance"
+
+    screen.handle_event(pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_y, mod=0,
+    ))
+    assert not screen.engine.plan_for().active
+
+    screen.handle_event(pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_g, mod=0,
+    ))
+    cell = (14, 10)
+    screen.handle_event(pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, button=3,
+        pos=screen._project(cell), mod=pygame.KMOD_SHIFT,
+    ))
+    plan = screen.engine.plan_for()
+    assert plan.mode == "hold"
+    assert plan.target == cell
+    assert screen.btn_plan_hold.rect.collidepoint((20, 320))
+
+
+def test_rts_draws_active_plan_overlay():
+    from view.screens.rts_screen import RTSScreen
+
+    app = _app()
+    screen = RTSScreen(app)
+    app.manager.replace_all(screen)
+    screen.engine.set_auto_plan("advance", target=(18, 12))
+    surface = pygame.Surface((1280, 720))
+    screen.draw(surface)
+    screen.engine.set_auto_plan("hold", target=(12, 12))
+    screen.draw(surface)
+    assert screen.engine.plan_for().mode == "hold"

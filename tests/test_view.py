@@ -606,3 +606,126 @@ def test_main_dispatches_view_flag(monkeypatch):
     monkeypatch.setitem(sys.modules, "view.app", fake)
     assert entry.main(["--view", "-f"]) == 17
     assert calls["argv"] == ["-f"]
+
+
+def _center_of(units):
+    alive = [det for det in units if not getattr(det, "broken", False)]
+    return (
+        sum(det.position[0] for det in alive) / max(1, len(alive)),
+        sum(det.position[1] for det in alive) / max(1, len(alive)),
+    )
+
+
+def test_enemy_default_plan_advances_without_player_orders():
+    state, engine, _ = _world()
+    blue = [det for det in state.units if det.side == "blue"]
+    before = _center_of(blue)
+    assert engine.plan_for("blue").mode == "advance"
+    for _ in range(8):
+        engine.tick()
+    after = _center_of(blue)
+    assert after[0] < before[0] - 0.5
+
+
+def test_hold_plan_assigns_line_and_moves_army_to_it():
+    state, engine, _ = _world()
+    red = [det for det in state.units if det.side == state.player_side]
+    before = _center_of(red)
+    assert engine.set_auto_plan("hold", target=(14, 12))
+    plan = engine.plan_for()
+    assert plan.active and plan.mode == "hold"
+    assert plan.line is not None
+    assert plan.line[0][0] >= 13
+    assert any(engine._plan_goals.get(det.name) is not None for det in red)
+    for _ in range(4):
+        engine.tick()
+    after = _center_of(red)
+    assert after[0] > before[0] + 0.2
+
+
+def test_advance_plan_moves_all_player_companies():
+    state, engine, _ = _world()
+    red = [det for det in state.units if det.side == state.player_side]
+    before = _center_of(red)
+    assert engine.set_auto_plan("advance", target=(20, 12))
+    assert engine.plan_for().mode == "advance"
+    assert all(det.ui_order == "attack" for det in red)
+    for _ in range(6):
+        engine.tick()
+    after = _center_of(red)
+    assert after[0] > before[0] + 0.4
+
+
+def test_manual_order_exempts_company_until_plan_reactivated():
+    state, engine, _ = _world()
+    assert engine.set_auto_plan("advance", target=(20, 12))
+    det = state.units[0]
+    idx = state.units.index(det)
+    assert engine.assign_order(idx, "holding_defense")
+    assert det.name in state.plan_exempt
+    assert det.name not in engine._plan_goals
+    assert det.name not in engine._targets
+    engine.tick()
+    assert det.name not in engine._plan_goals
+    manual_order = engine._ui_orders.get(idx)
+    assert engine.set_auto_plan(
+        "hold", target=(12, 12), keep_exemptions=True
+    )
+    assert det.name in state.plan_exempt
+    assert manual_order is not None and manual_order.active
+    assert idx in engine._ui_orders
+    assert engine.set_auto_plan("hold")
+    assert det.name not in state.plan_exempt
+    assert engine.plan_for().mode == "hold"
+    assert manual_order is not None and not manual_order.active
+    assert idx not in engine._ui_orders
+
+
+def test_contact_produces_more_than_static_attrition():
+    state, engine, _ = _world()
+    for _ in range(25):
+        engine.tick()
+    red_before = _center_of(
+        [det for det in state.units if det.side == state.player_side]
+    )
+    blue_before = _center_of(
+        [det for det in state.units if det.side != state.player_side]
+    )
+    positions = {det.name: det.position for det in state.units}
+    for _ in range(20):
+        engine.tick()
+    moved = sum(
+        1 for det in state.units
+        if det.position != positions.get(det.name)
+    )
+    assert moved > 0
+    red_after = _center_of(
+        [det for det in state.units if det.side == state.player_side]
+    )
+    blue_after = _center_of(
+        [det for det in state.units if det.side != state.player_side]
+    )
+    front_shift = (
+        abs(red_after[0] - red_before[0]) +
+        abs(blue_after[0] - blue_before[0])
+    )
+    assert front_shift > 0.2
+
+
+def test_auto_plan_survives_snapshot_round_trip():
+    state, engine, _ = _world()
+    assert engine.set_auto_plan("hold", target=(13, 11))
+    det = state.units[0]
+    engine.assign_order(state.units.index(det), "rest")
+    snapshot = state.to_snapshot()
+
+    loaded = build_world()
+    loaded.apply_snapshot(snapshot)
+    assert loaded.auto_plans["red"].mode == "hold"
+    assert loaded.auto_plans["red"].line is not None
+    assert det.name in loaded.plan_exempt
+
+    loaded_engine = CampaignEngine(loaded)
+    assert loaded_engine.plan_for().mode == "hold"
+    assert loaded_engine.plan_for().line is not None
+    assert loaded_engine._plan_orders.get("red") is not None
