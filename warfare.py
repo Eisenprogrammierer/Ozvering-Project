@@ -1265,7 +1265,12 @@ class WarfareSimulation:
       6. активные отделения разбиваются на пары по ближайшему противнику;
       7. каждая пара делает один ``simulation.run_tick`` — единый закон,
          затем персонажи обновляют потребности/мораль (паника/банзай);
-      8. проверяется победа.
+      8. необязательные организации (``organizations.runtime``) делают
+         социальный такт над живыми персонажами;
+      9. проверяется победа.
+
+    Организации не входят в канонический закон боя и по умолчанию отсутствуют:
+    без ``add_organization`` симуляция ведёт себя ровно как раньше.
     """
 
     def __init__(self, seed=0, turns=120):
@@ -1277,6 +1282,7 @@ class WarfareSimulation:
         self.all_detachments = []
         self.stans = []
         self.reinforcements = []
+        self.organizations = []
         self.orders = []
         self.events = []
         self.scheduled_orders = []
@@ -1306,6 +1312,12 @@ class WarfareSimulation:
     def add_reinforcement(self, reinforcement):
         self.reinforcements.append(reinforcement)
         return reinforcement
+
+    def add_organization(self, organization):
+        """Подключить необязательную организацию-суперсистему."""
+        if organization not in self.organizations:
+            self.organizations.append(organization)
+        return organization
 
     def issue_order(self, order):
         """Ввести приказ в силу: активировать и поставить в обработку.
@@ -1353,6 +1365,7 @@ class WarfareSimulation:
         self._retreat_moves()
         self._fight()
         self._after_fight()
+        self._tick_organizations()
         self._check_victory()
         return not self.finished
 
@@ -1555,6 +1568,26 @@ class WarfareSimulation:
         self.detachments = [d for d in self.detachments if not d.broken]
         # Приказы, касавшиеся выбывших, естественно истекут.
 
+    def _tick_organizations(self):
+        """Социальный такт после боя; по умолчанию список пуст."""
+        for organization in list(self.organizations):
+            if (getattr(organization, "active", True) is False
+                    and getattr(organization, "phase", "") == "dissolved"
+                    and not getattr(organization, "allow_rejoin", False)):
+                continue
+            tick = getattr(organization, "tick", None)
+            if not callable(tick):
+                continue
+            update = tick(rng=self.rng, turn=self.turn)
+            events = update.get("events", []) if isinstance(update, dict) else []
+            for event in events:
+                self.log_event(
+                    event.get("kind", "organization"),
+                    event.get("text", str(organization)),
+                    side=event.get("side", getattr(organization, "side", None)),
+                    actor=event.get("actor",
+                                    getattr(organization, "name", None)))
+
     def _check_victory(self):
         red = self._detachments(side="red")
         blue = self._detachments(side="blue")
@@ -1597,6 +1630,11 @@ class WarfareSimulation:
                 "blue": [d.snapshot() for d in self._detachments(side="blue",
                                                                active_only=False)],
             },
+            "organizations": [
+                organization.snapshot()
+                for organization in self.organizations
+                if callable(getattr(organization, "snapshot", None))
+            ],
             "events": list(self.events),
         }
 

@@ -137,6 +137,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
 | `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
 | `organizations/` | **аналитические организации-суперсистемы**: 16 потребностей, масштаб/уровни, экономика участия, генератор JSON |
+| `organizations/runtime.py` | runtime-слой: Population из живых персонажей, эффекты на потребности/мораль, фазы, односторонний выход и распад; опционален для `WarfareSimulation` |
 | `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
 | `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
@@ -167,8 +168,11 @@ pytest -q                        # весь набор (канон, провер
 (верность возмездия), `exp_domain_invariance.py` (F1), `exp_warfare.py`
 (войсковые автоматы). CI —
 `.github/workflows/ci.yml` (compileall + pytest). Аналитические организации
-проверяются `tests/test_organizations.py`; генератор запускается
+проверяются `tests/test_organizations.py`, runtime-интеграция —
+`tests/test_organization_runtime.py`; генератор запускается
 `python3 -m organizations` и пишет JSON в `configs/automata/` по `--write`.
+`WarfareSimulation.add_organization` подключает `OrganizationRuntime` после боя;
+без организаций `summary()["organizations"]` пуст.
 Зависимости: рантайм — `requirements.txt`, тесты — `requirements-dev.txt`.
 
 ## 9. Статус и открытые задачи

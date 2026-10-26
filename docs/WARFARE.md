@@ -213,7 +213,9 @@ OrderSignal(aggression=0.10, discipline=0.18, morale=−2.0,
 6. активные отделения разбиваются на пары (каждый — не более одной) и делают
    `simulation.run_tick`;
 7. персонажи обновляют потребности/мораль, возникают паника/банзай;
-8. проверяется победа (нет отделений у стороны или лимит тактов).
+8. если добавлены организации (`add_organization`), выполняется их
+   социальный такт — тот же `OrganizationSolver`, но над живым срезом;
+9. проверяется победа (нет отделений у стороны или лимит тактов).
 
 `build_demo_scenario(seed=7, turns=140)` — две стороны:
 
@@ -228,6 +230,30 @@ OrderSignal(aggression=0.10, discipline=0.18, morale=−2.0,
 Демонстрационный прогон (`seed=7`, 140 тактов) даёт паники/отходы, банзай-атаки,
 остановки заградотрядом, выход резервов, подход подкреплений и события
 `support`. События детерминированы по seed.
+
+### 7.1. Необязательные организации
+
+`WarfareSimulation.add_organization` подключает runtime-слой из
+[`organizations/`](../organizations). Организация не входит в пары и не
+участвует в `simulation.run_tick`: после боя она собирает срез персонажей,
+применяет социальные эффекты к их существующим потребностям/морали и пишет
+события `organization*`. В `summary()` появляется ключ `organizations`.
+
+```python
+import warfare as W
+from organizations import OrganizationRuntime
+
+det = W.Detachment("линия", "red", [...])
+sim = W.WarfareSimulation(seed=7)
+sim.add_detachment(det)
+sim.add_organization(OrganizationRuntime("государство", "red",
+                                         detachments=[det]))
+sim.run()
+print(sim.summary()["organizations"])
+```
+
+Без `add_organization` список пуст, и симуляция ведёт себя как раньше.
+Подробности формул и фаз — в [`ORGANIZATIONS.md`](ORGANIZATIONS.md).
 
 Запуск:
 
