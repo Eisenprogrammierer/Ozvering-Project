@@ -129,14 +129,16 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `lod.py` | LOD-1/2/3: аналитическая интеграция времени, mean-field, экспериментальный раннер |
 | `warfare.py` | войсковые автоматы: персонажи (BDI, 16 потребностей, черты), отделения, станы, приказы, заградотряды, подкрепления |
 | `game_engine.py` | арена + HUD (PyGame), использует только публичное API модели |
-| `main.py` | единая точка входа: игра (`ui`) или `--arena` |
+| `main.py` | единая точка входа: игра (`ui`), кампания (`--view`), редактор автоматов (`--automata`) или арена (`--arena`) |
 | `ui/` | сценный слой: меню/настройки/сохранения/нарратив/поле/пауза |
 | `ui/battlefield.py` | чистая логика RTS: изометрия, приказы, CP, ролевые диалоги (без pygame) |
 | `ui/scenes/battlefield.py` | изометрический экран поля боя + HUD/диалоги (плейсхолдеры) |
 | `view/` | кампанийный UI: лагерь, RTS-карта, логистика, потребности, сюжет |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
-| `realm/` | **отдельная игра «Престол»**: номинальный лидер, совет, аудиенции (без карты/приказов) |
-| `configs/realm/`, `docs/REALM.md` | контент и спецификация «Престола» |
+| `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
+| `organizations/` | **аналитические организации-суперсистемы**: 16 потребностей, масштаб/уровни, экономика участия, генератор JSON |
+| `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
+| `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
 | `docs/MODEL.md` | спецификация механики (§1–19) — источник истины |
@@ -152,7 +154,9 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 ```bash
 python3 simulation.py            # канон: 10 партий + график силы
 python3 main.py                  # игра (сценный слой ui)
-python3 main.py --realm          # другая игра: «Престол» (совет/аудиенции)
+python3 main.py --automata       # редактор автоматов (JSON-граф)
+python3 -m organizations         # генератор аналитических организаций (JSON)
+python3 -m organizations --write # записать примеры в configs/automata/
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --arena          # автономная арена
 python3 warfare.py               # войсковая симуляция: отделения/паника/банзай
@@ -162,8 +166,10 @@ pytest -q                        # весь набор (канон, провер
 (баланс), `exp_hierarchy_depth.py` (глубина), `exp_retaliation_faithful.py`
 (верность возмездия), `exp_domain_invariance.py` (F1), `exp_warfare.py`
 (войсковые автоматы). CI —
-`.github/workflows/ci.yml` (compileall + pytest). Зависимости: рантайм —
-`requirements.txt`, тесты — `requirements-dev.txt`.
+`.github/workflows/ci.yml` (compileall + pytest). Аналитические организации
+проверяются `tests/test_organizations.py`; генератор запускается
+`python3 -m organizations` и пишет JSON в `configs/automata/` по `--write`.
+Зависимости: рантайм — `requirements.txt`, тесты — `requirements-dev.txt`.
 
 ## 9. Статус и открытые задачи
 

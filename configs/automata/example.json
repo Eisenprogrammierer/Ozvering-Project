@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "name": "Простой цикл",
+  "description": "Демонстрационный автомат: ожидание, работа, пауза и завершение. Предметной спецификации нет — только состояния и переходы.",
+  "states": [
+    {
+      "id": "s1",
+      "name": "Ожидание",
+      "x": 120,
+      "y": 160,
+      "initial": true,
+      "final": false
+    },
+    {
+      "id": "s2",
+      "name": "Работа",
+      "x": 420,
+      "y": 160,
+      "initial": false,
+      "final": false
+    },
+    {
+      "id": "s3",
+      "name": "Пауза",
+      "x": 420,
+      "y": 360,
+      "initial": false,
+      "final": false
+    },
+    {
+      "id": "s4",
+      "name": "Завершено",
+      "x": 740,
+      "y": 360,
+      "initial": false,
+      "final": true
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t1",
+      "source": "s1",
+      "target": "s2",
+      "event": "старт",
+      "guard": ""
+    },
+    {
+      "id": "t2",
+      "source": "s2",
+      "target": "s3",
+      "event": "пауза",
+      "guard": ""
+    },
+    {
+      "id": "t3",
+      "source": "s3",
+      "target": "s2",
+      "event": "продолжить",
+      "guard": ""
+    },
+    {
+      "id": "t4",
+      "source": "s2",
+      "target": "s4",
+      "event": "готово",
+      "guard": ""
+    },
+    {
+      "id": "t5",
+      "source": "s4",
+      "target": "s2",
+      "event": "сброс",
+      "guard": ""
+    },
+    {
+      "id": "t6",
+      "source": "s2",
+      "target": "s2",
+      "event": "ошибка",
+      "guard": "если таймаут"
+    }
+  ]
+}

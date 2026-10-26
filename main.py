@@ -2,17 +2,19 @@
 
     python3 main.py              # ИГРА: сценный слой ui (меню -> нарратив -> партия)
     python3 main.py --view       # КАМПАНИЯ: интерфейс view (лагерь + RTS-карта)
-    python3 main.py --realm      # ДРУГАЯ ИГРА: «Престол» (совет, аудиенции)
+    python3 main.py --automata   # РЕДАКТОР: графовый редактор автоматов (JSON)
     python3 main.py --arena      # только АРЕНА: автономный game_engine (HUD партии)
 
 Флаги передаются выбранному режиму:
     --fullscreen / -f   полноэкранный режим (все режимы);
     --scene NAME        сразу открыть экран игры (только режим игры),
                         напр. --scene game, --scene settings (см. docs/UI.md);
-    --seed N            seed новой партии «Престола».
+    --open SLUG         редактор: сразу открыть configs/automata/SLUG.json;
+    --new               редактор: начать новый автомат.
 
 Отдельные точки входа сохраняются: ``python3 -m ui`` (игра),
-``python3 -m realm`` («Престол») и ``python3 game_engine.py`` (арена).
+``python3 -m automata`` (редактор автоматов) и ``python3 game_engine.py``
+(арена).
 """
 
 import sys
@@ -20,11 +22,12 @@ import sys
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    realm = ("--realm" in argv) or ("--throne" in argv)
+    automata = ("--automata" in argv) or ("--editor" in argv)
     view = ("--view" in argv) or ("--campaign" in argv)
     arena = ("--arena" in argv) or ("--engine" in argv)
     argv = [a for a in argv if a not in (
-        "--realm", "--throne", "--view", "--campaign", "--arena", "--engine")]
+        "--automata", "--editor", "--view", "--campaign",
+        "--arena", "--engine")]
     sys.argv = [sys.argv[0]] + argv
     if arena:
         import game_engine
@@ -32,9 +35,9 @@ def main(argv=None):
     if view:
         from view.app import main as view_main
         return view_main(argv)
-    if realm:
-        from realm.app import main as realm_main
-        return realm_main(argv)
+    if automata:
+        from automata.app import main as automata_main
+        return automata_main(argv)
     from ui.app import main as ui_main
     return ui_main(argv)
 
