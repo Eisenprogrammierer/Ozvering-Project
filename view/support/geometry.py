@@ -16,6 +16,8 @@
 
 * оборона не прорвана — до 4% потерь дивизии в сутки;
 * оборона прорвана — 12–15% в сутки;
+* после прорыва рота, у которой противник уже в фланге/тылу, теряет
+  значительно больше, а организованный отход ограничивает потери;
 * пока оборона держится, атакующий теряет больше обороняющегося;
 * разные проекции несут разные потери и дают разный вклад силы.
 """
@@ -99,6 +101,26 @@ HOLD_ATTACKER_DAILY = 0.06
 BREACH_DEFENDER_DAILY = 0.13
 BREACH_ATTACKER_DAILY = 0.08
 
+# --- контекст прорыва -------------------------------------------------
+# Пока линия цела, соседний бой сам по себе не считается охватом: роты
+# могут стоять вплотную, но фланги и тыл прикрыты строем. После прорыва
+# важна уже не номинальная проекция, а то, где находятся враги относительно
+# конкретной роты. Это не новый закон боя, а уточнение контекста, в котором
+# канонический автомат отделения несёт потери.
+FLANK_THREAT_RADIUS = 3.0       # после прорыва: враг в фланге
+REAR_THREAT_RADIUS = 3.5        # после прорыва: враг в тылу
+OVERRUN_RADIUS = 2.0            # после прорыва: позиция физически смята
+OVERRUN_REAR_RADIUS = 1.5       # до формального прорыва: враг уже за спиной
+OVERRUN_FLANK_RADIUS = 1.75     # после прорыва: враг вплотную с фланга
+BREACH_HOLD_MULTIPLIER = 2.5    # оставаться на потерянном рубеже
+FLANK_LOSS_MULTIPLIER = 3.0
+REAR_LOSS_MULTIPLIER = 4.0
+OVERRUN_LOSS_MULTIPLIER = 5.5
+ORDERLY_RETREAT_MULTIPLIER = 0.55
+ORDERLY_RETREAT_DAILY_CAP = 0.10
+MAX_UNIT_DAILY_RATE = 0.65
+ORDERLY_RETREAT_ORDERS = ("withdrawal", "movement")
+
 # Прорыв: локальное превосходство и время нажима. 1.8 — это уже больше
 # «двукратного», но всё ещё меньше классических 3:1; подготовленная оборона
 # держится, пока игрок не оголит участок.
@@ -132,6 +154,37 @@ class SectorStatus:
     @property
     def short(self):
         return SECTOR_SHORT.get(self.sector, "?")
+
+
+@dataclass(frozen=True)
+class CombatContext:
+    """Локальный контекст роты на прорванном участке.
+
+    Это «сообщение» между геометрией суперсистемы (фронт/проекции/прорыв)
+    и автоматом отделения: насколько близко противник подошёл к его флангу
+    или тылу и сохраняет ли рота боевой порядок при отходе. Потери начисляет
+    по-прежнему ``FrontGeometry``, канонические ``simulation``/``warfare``
+    не меняются.
+    """
+
+    side: str
+    sector: str
+    kind: str
+    label: str
+    breached: bool
+    sector_breached: bool
+    overrun: bool
+    ordered_retreat: bool
+    flank_force: float
+    rear_force: float
+    local_force: float
+    multiplier: float
+    daily_rate: float
+
+    @property
+    def routed(self):
+        """Позиция смята, а организованного отхода нет."""
+        return self.overrun and not self.ordered_retreat
 
 
 class FrontGeometry:
@@ -215,6 +268,151 @@ class FrontGeometry:
         average = weighted_start / total_start if total_start else 1.0
         weight = table.get(sector, 1.0)
         return self.daily_rate(side) * weight / max(0.01, average)
+
+    # --- локальный контекст прорыва -------------------------------------
+    @staticmethod
+    def _ordered_retreat(det):
+        """Отход с сохранением порядка, а не паническое бегство."""
+        return (
+            getattr(det, "ui_order", None) in ORDERLY_RETREAT_ORDERS
+            and not bool(getattr(det, "panicked", False))
+        )
+
+    @staticmethod
+    def _threat_multiplier(max_multiplier, threat_force, local_force):
+        """Смягчить множитель, если в охват попала лишь малая часть сил."""
+        ratio = float(threat_force) / max(1.0, float(local_force))
+        severity = max(0.25, min(1.0, ratio))
+        return 1.0 + (max_multiplier - 1.0) * severity
+
+    def _bearing(self, det, enemy, facing):
+        """Вернуть проекцию врага относительно роты и дистанцию."""
+        dx = float(enemy.position[0]) - float(det.position[0])
+        dy = float(enemy.position[1]) - float(det.position[1])
+        distance = math.hypot(dx, dy)
+        if distance < 1e-6:
+            return "rear", 0.0
+        right = (-facing[1], facing[0])
+        forward = dx * facing[0] + dy * facing[1]
+        lateral = dx * right[0] + dy * right[1]
+        angle = abs(math.degrees(math.atan2(lateral, forward)))
+        if angle <= FLANK_ANGLE:
+            return "front", distance
+        if angle <= REAR_ANGLE:
+            return "flank", distance
+        return "rear", distance
+
+    def combat_context(self, det):
+        """Оценить, чем для роты обернулся прорыв.
+
+        До формального прорыва действует только один локальный сигнал:
+        враг уже вплотную за спиной (``OVERRUN_REAR_RADIUS``). После
+        прорыва учитываются фланг и тыл в более широком радиусе. Если рота
+        отходит по приказу ``withdrawal``, её потери ограничиваются, даже
+        когда позиция уже потеряна: она сохраняет боевые порядки, а не
+        остаётся на разгром.
+        """
+        sector = self.sector_of(det)
+        base = self.sector_daily_rate(det.side, sector)
+        if not self.is_player(det.side):
+            return CombatContext(
+                side=det.side, sector=sector, kind="attacker",
+                label="наступление", breached=bool(self.breached),
+                sector_breached=sector in self.breached, overrun=False,
+                ordered_retreat=False, flank_force=0.0, rear_force=0.0,
+                local_force=max(1.0, self.projected_force(det)),
+                multiplier=1.0, daily_rate=base,
+            )
+
+        local_force = max(1.0, self.projected_force(det))
+        facing = self.facing_of(det.side)
+        flank_force = 0.0
+        rear_force = 0.0
+        overrun_force = 0.0
+        flank_radius = FLANK_THREAT_RADIUS if self.breached else 0.0
+        rear_radius = (REAR_THREAT_RADIUS if self.breached
+                       else OVERRUN_REAR_RADIUS)
+        for enemy in self._enemy_units(det.side):
+            if float(getattr(enemy, "force", 0.0)) <= 1.0:
+                continue
+            bearing, distance = self._bearing(det, enemy, facing)
+            if bearing == "front":
+                continue
+            force = max(0.0, float(getattr(enemy, "force", 0.0)))
+            if bearing == "rear" and distance <= rear_radius:
+                rear_force += force
+            elif bearing == "flank" and distance <= flank_radius:
+                flank_force += force
+            if bearing == "rear" and distance <= (
+                    OVERRUN_RADIUS if self.breached
+                    else OVERRUN_REAR_RADIUS):
+                overrun_force += force
+            elif (self.breached and bearing == "flank"
+                  and distance <= OVERRUN_FLANK_RADIUS):
+                overrun_force += force
+
+        side_breached = bool(self.breached)
+        sector_breached = sector in self.breached
+        overrun = overrun_force > 0.0
+        ordered = self._ordered_retreat(det)
+
+        if overrun:
+            kind, label = "overrun", "РАЗГРОМ: позиция смята"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = self._threat_multiplier(
+                OVERRUN_LOSS_MULTIPLIER, overrun_force, local_force
+            )
+        elif rear_force > 0.0:
+            kind, label = "rear", "удар в тыл"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = self._threat_multiplier(
+                REAR_LOSS_MULTIPLIER, rear_force, local_force
+            )
+        elif flank_force > 0.0:
+            kind, label = "flank", "охват фланга"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = self._threat_multiplier(
+                FLANK_LOSS_MULTIPLIER, flank_force, local_force
+            )
+        elif side_breached and sector_breached:
+            kind, label = "breach_hold", "прорыв: рубеж потерян"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = BREACH_HOLD_MULTIPLIER
+        elif side_breached:
+            kind, label = "breach_nearby", "прорыв рядом"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = 1.0
+        else:
+            kind, label = "intact", "фронт цел"
+            raw_base = base
+            multiplier = 1.0
+
+        raw_rate = raw_base * multiplier
+        if ordered:
+            # Отход — не неуязвимость: арьергардные бои стоят потерь, но
+            # не превращаются в разгром окружённой позиции.
+            daily = min(
+                ORDERLY_RETREAT_DAILY_CAP,
+                raw_rate * ORDERLY_RETREAT_MULTIPLIER,
+            )
+            label = "организованный отход"
+            kind = "withdrawal"
+        else:
+            daily = min(MAX_UNIT_DAILY_RATE, raw_rate)
+
+        return CombatContext(
+            side=det.side, sector=sector, kind=kind, label=label,
+            breached=side_breached, sector_breached=sector_breached,
+            overrun=overrun, ordered_retreat=ordered,
+            flank_force=flank_force, rear_force=rear_force,
+            local_force=local_force,
+            multiplier=(daily / base) if base > 0.0 else 0.0,
+            daily_rate=daily,
+        )
+
+    def unit_daily_rate(self, det):
+        """Суточная потеря конкретной роты с учётом контекста прорыва."""
+        return self.combat_context(det).daily_rate
 
     # --- назначение секторов --------------------------------------------
     def _all_units(self):
@@ -607,32 +805,29 @@ class FrontGeometry:
             if not units:
                 continue
 
-            total_start = sum(
-                max(1.0, float(getattr(det, "start_force", det.force)))
-                for det in units
-            )
-            target = total_start * self.daily_rate(side) / ticks
-            weights = [
-                max(1.0, float(getattr(det, "start_force", det.force))) *
-                self.loss_weight(det)
-                for det in units
-            ]
-            total_weight = sum(weights) or 1.0
-
-            for det, weight in zip(units, weights):
+            for det in units:
                 before = force_before.get(det.name)
                 if before is None:
                     continue
+                # ``sector_daily_rate`` уже нормирует потери по проекциям так,
+                # что при целом фронте сумма по стороне равна 4%/6% в сутки.
+                # Контекст прорыва меняет норму только для тех рот, чьи
+                # фланги/тыл действительно оказались под ударом, и не
+                # переписывает канонический обмен огнём.
+                rate = self.combat_context(det).daily_rate
+                if rate <= 0.0:
+                    continue
+                start = max(1.0, float(getattr(
+                    det, "start_force", det.force
+                )))
                 # Не даём модели «съесть» последнюю единицу силы: подразделение
                 # рассеивается, когда сила доходит до единицы.
                 available = max(0.0, float(det.force) - 1.0)
-                loss = min(available, target * weight / total_weight)
+                loss = min(available, start * rate / ticks)
                 if loss <= 0.0:
                     continue
                 det.force = max(1.0, float(det.force) - loss)
-                cap = max(0.0, float(getattr(
-                    det, "start_force", det.force
-                )) - 1.0)
+                cap = max(0.0, start - 1.0)
                 det.losses = min(
                     cap, float(getattr(det, "losses", 0.0)) + loss
                 )

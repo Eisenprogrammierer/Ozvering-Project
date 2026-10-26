@@ -1970,14 +1970,16 @@ class RTSScreen(BaseScreen):
         sector = self.state.sector_of(det)
         projected = self.state.projected_force(det)
         geometry = getattr(self.state, "geometry", None)
-        daily = (geometry.sector_daily_rate(det.side, sector) * 100.0
-                 if geometry else 0.0)
+        context = geometry.combat_context(det) if geometry else None
+        daily = (context.daily_rate * 100.0 if context else 0.0)
+        context_label = context.label if context else "—"
         info = (
             "Сила %.1f / %.0f · проекция %.1f\n"
-            "%s · %s · %.1f%%/сут"
+            "%s · %s · %s · %.1f%%/сут"
         ) % (
             det.force, self.state._start_force(det), projected,
-            SECTOR_LABELS.get(sector, sector), order_label, daily,
+            SECTOR_LABELS.get(sector, sector), order_label,
+            context_label, daily,
         )
         draw_fitted(
             screen, [self.app.font_tiny],
@@ -2102,6 +2104,8 @@ class RTSScreen(BaseScreen):
         side = getattr(self.state, "player_side", "red")
         side_text = "ВАШ" if det.side == side else "ПРОТИВНИК"
         sector = self.state.sector_of(det)
+        geometry = getattr(self.state, "geometry", None)
+        context = geometry.combat_context(det) if geometry else None
         lines = [
             det.name,
             side_text,
@@ -2110,6 +2114,7 @@ class RTSScreen(BaseScreen):
                 self.state.projected_force(det),
             ),
             "сектор: %s" % SECTOR_LABELS.get(sector, sector),
+            "обстановка: %s" % (context.label if context else "—"),
             "мораль %.0f" % det.morale,
             "приказ: %s" % self.state.get_segment_label(idx, "order"),
         ]

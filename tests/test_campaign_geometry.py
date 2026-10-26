@@ -3,7 +3,7 @@
 import pytest
 
 from view.support.geometry import (
-    BREACH_PRESSURE_TICKS, HOLD_DEFENDER_DAILY,
+    BREACH_PRESSURE_TICKS, HOLD_DEFENDER_DAILY, ORDERLY_RETREAT_DAILY_CAP,
 )
 from view.support.scenario import build_world
 from view.support.world import CampaignEngine
@@ -16,6 +16,26 @@ def _world():
 
 def _player_units(state):
     return [d for d in state.units if d.side == state.player_side]
+
+
+def _front_player(state):
+    """Живая рота на фронте при явном фронте на восток."""
+    state.geometry.set_facing(state.player_side, (1, 0))
+    state.geometry.recompute()
+    return next(
+        d for d in _player_units(state) if d.sector == "front"
+    )
+
+
+def _enemy(state):
+    return next(d for d in state.units if d.side != state.player_side)
+
+
+def _park_enemies(state):
+    """Убрать случайных врагов подальше, чтобы контекст был однозначным."""
+    for det in state.units:
+        if det.side != state.player_side:
+            det.position = (23, 23)
 
 
 def test_brigade_has_sixteen_player_and_thirty_two_enemy_companies():
@@ -213,3 +233,119 @@ def test_breach_after_sustained_local_superiority_raises_loss_rate():
     assert state.geometry.daily_rate("red") == pytest.approx(0.13)
     assert state.geometry.daily_rate("blue") == pytest.approx(0.08)
     assert state.geometry.statuses()[1].breached
+
+
+def test_intact_front_does_not_treat_close_flank_melee_as_rout():
+    """Пока линия цела, бой вплотную сам по себе не даёт «разгром»."""
+    state, _ = _world()
+    target = _front_player(state)
+    _park_enemies(state)
+    enemy = _enemy(state)
+    # Враг в двух клетках сбоку: обычный бой за стык, а не прорыв.
+    enemy.position = (target.position[0], target.position[1] - 2)
+    state.geometry.recompute()
+    context = state.geometry.combat_context(target)
+    assert not state.geometry.breached
+    assert context.kind == "intact"
+    assert context.daily_rate == pytest.approx(
+        state.geometry.sector_daily_rate(target.side, target.sector)
+    )
+
+
+def test_enemy_in_rear_before_formal_breach_is_a_local_overrun():
+    """Враг уже за спиной — позиция смята даже без общего прорыва."""
+    state, _ = _world()
+    target = _front_player(state)
+    _park_enemies(state)
+    enemy = _enemy(state)
+    enemy.position = (target.position[0] - 1, target.position[1])
+    state.geometry.recompute()
+    context = state.geometry.combat_context(target)
+    assert not state.geometry.breached
+    assert context.kind == "overrun"
+    assert context.overrun and context.routed
+    assert context.daily_rate > 0.5
+
+
+def test_breach_makes_holding_the_lost_line_much_costlier():
+    """После прорыва оставаться на потерянном рубеже невыгодно."""
+    state, _ = _world()
+    target = _front_player(state)
+    _park_enemies(state)
+    state.geometry.breached = {target.sector}
+    state.geometry.recompute()
+
+    holding = state.geometry.combat_context(target)
+    assert holding.kind == "breach_hold"
+    assert holding.sector_breached
+    assert holding.daily_rate > 0.20
+
+    target.ui_order = "withdrawal"
+    target.retreating = True
+    target.panicked = False
+    withdrawing = state.geometry.combat_context(target)
+    assert withdrawing.kind == "withdrawal"
+    assert withdrawing.ordered_retreat
+    assert withdrawing.daily_rate <= ORDERLY_RETREAT_DAILY_CAP
+    assert withdrawing.daily_rate < holding.daily_rate
+
+
+def test_flank_and_rear_attacks_after_breach_scale_losses():
+    state, _ = _world()
+    target = _front_player(state)
+    _park_enemies(state)
+    enemy = _enemy(state)
+    state.geometry.breached = {target.sector}
+    state.geometry.recompute()
+
+    enemy.position = (target.position[0], target.position[1] - 2)
+    state.geometry.recompute()
+    flank = state.geometry.combat_context(target)
+    assert flank.kind == "flank"
+    assert flank.flank_force > 0
+
+    enemy.position = (target.position[0] - 3, target.position[1])
+    state.geometry.recompute()
+    rear = state.geometry.combat_context(target)
+    assert rear.kind == "rear"
+    assert rear.rear_force > 0
+    assert rear.daily_rate > flank.daily_rate
+
+
+def test_orderly_withdrawal_avoids_rout_losses_under_overrun():
+    """Один и тот же охват: остаться — разгром, отойти — сохранить роту."""
+    holding_state, _ = _world()
+    withdraw_state, _ = _world()
+    holding_target = _front_player(holding_state)
+    withdraw_target = _front_player(withdraw_state)
+
+    for state, target in (
+        (holding_state, holding_target),
+        (withdraw_state, withdraw_target),
+    ):
+        _park_enemies(state)
+        enemy = _enemy(state)
+        enemy.position = (target.position[0] - 1, target.position[1])
+        state.geometry.breached = {target.sector}
+        state.geometry.ticks_per_day = 1
+        state.geometry.recompute()
+
+    holding_target.ui_order = "holding_defense"
+    holding_target.retreating = False
+    holding_target.panicked = False
+    withdraw_target.ui_order = "withdrawal"
+    withdraw_target.retreating = True
+    withdraw_target.panicked = False
+
+    holding = holding_state.geometry.combat_context(holding_target)
+    withdrawing = withdraw_state.geometry.combat_context(withdraw_target)
+    assert holding.routed and not withdrawing.routed
+    assert withdrawing.daily_rate <= ORDERLY_RETREAT_DAILY_CAP
+    assert withdrawing.daily_rate < 0.25 * holding.daily_rate
+
+    for state in (holding_state, withdraw_state):
+        before = {det.name: det.force for det in state.units}
+        state.geometry.apply_attrition(before, {state.player_side})
+    assert withdraw_target.losses < 0.3 * holding_target.losses
+    assert holding_target.losses > 5.0
+    assert not withdraw_target.broken
