@@ -5,12 +5,13 @@ view/screens/mandatory_screen.py
 
 Фоновые ассеты и тексты берутся из configs/content/mandatory_scenes.json;
 при отсутствии файла или отдельных ключей используются встроенные
-фолбэки. Утренний осмотр выбирает фон по калькуляции потерь дивизии:
-меньше 10% — camp_fresh, 10–20% — camp_wounded, 21% и более —
-camp_critical. Вечерний осмотр использует фон лагеря camp_wounded
-с более сильным затемнением. Текст и кнопки выводятся в
-полупрозрачной панели внизу экрана, чтобы игрок видел лагерь и его
-детали; затемнение фона минимальное.
+фолбэки. Утренний осмотр выбирает фон по калькуляции потерь дивизии
+относительно порога поражения из сюжета: до 40% лимита — camp_fresh,
+до 80% — camp_wounded, дальше — camp_critical. Поэтому все три варианта
+остаются достижимыми и при лимите 20%, и при 25%, и при 45%. Вечерний
+осмотр использует фон hq_evening с более сильным затемнением. Текст и
+кнопки выводятся в полупрозрачной панели внизу экрана, чтобы игрок видел
+лагерь и его детали; затемнение фона минимальное.
 
 ESC игнорируется (escape_action = "none").
 При открытии создаётся автосейв в слот autosave.
@@ -21,8 +22,10 @@ ESC игнорируется (escape_action = "none").
 
 import pygame
 
+from view.support.camp_state import camp_state_for_loss
 from view.support.config_loader import load_json
 from view.support.log_journal import get_logger
+from view.support.storyline import loss_limit_percent
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
@@ -35,8 +38,6 @@ TEXT_RECT = pygame.Rect(130, 528, 1020, 96)
 TITLE_POS = (130, 486)
 BUTTON_Y = 634
 DIM_ALPHA = 70
-LOSS_FRESH_MAX = 10
-LOSS_WOUNDED_MAX = 20
 
 DEFAULT_SCENES = {
     "morning_inspection": {
@@ -136,15 +137,13 @@ class MandatorySceneScreen(BaseScreen):
         )
         self.title = cfg.get("title") or default.get("title", scene_id)
         self.loss_percent = self._player_loss_percent()
+        self.loss_limit_percent = self._loss_limit_percent()
         losses_str = f"{self.loss_percent}%"
         self.camp_state = None
         if scene_id == "morning_inspection":
-            if self.loss_percent < LOSS_FRESH_MAX:
-                self.camp_state = "fresh"
-            elif self.loss_percent <= LOSS_WOUNDED_MAX:
-                self.camp_state = "wounded"
-            else:
-                self.camp_state = "critical"
+            self.camp_state = camp_state_for_loss(
+                self.loss_percent, self.loss_limit_percent
+            )
             backgrounds = dict(default.get("backgrounds", {}))
             backgrounds.update(cfg.get("backgrounds", {}) or {})
             texts = dict(default.get("texts", {}))
@@ -202,11 +201,12 @@ class MandatorySceneScreen(BaseScreen):
             )
         self._autosave()
         logger.info(
-            "Открыта обязательная сцена: %s, фон=%s, потери=%d%%, "
-            "принудительный сон=%s",
+            "Открыта обязательная сцена: %s, фон=%s, потери=%d%% "
+            "(лимит %d%%), принудительный сон=%s",
             scene_id,
             bg_asset,
             self.loss_percent,
+            self.loss_limit_percent,
             self.forced_sleep,
         )
 
@@ -219,9 +219,15 @@ class MandatorySceneScreen(BaseScreen):
         """
         st = self.app.engine.state
         if hasattr(st, "division_loss_percent"):
-            return int(st.division_loss_percent())
+            return int(round(float(st.division_loss_percent())))
         p = st.player_idx
         return int(round(100.0 * float(st.read_voltage(p, "U_casualties"))))
+
+    def _loss_limit_percent(self):
+        """Порог поражения дивизии в процентах из сюжетного конфига."""
+        interp = getattr(self.app, "storyline_interpreter", None)
+        storyline = getattr(interp, "storyline", {}) if interp else {}
+        return loss_limit_percent(storyline)
 
     def _autosave(self):
         """

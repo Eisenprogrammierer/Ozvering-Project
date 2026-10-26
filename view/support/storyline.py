@@ -73,6 +73,40 @@ def _build_logger():
 
 logger = _build_logger()
 
+DEFAULT_LOSS_LIMIT_PERCENT = 45
+
+
+def loss_limit_percent(storyline, default=DEFAULT_LOSS_LIMIT_PERCENT):
+    """Порог поражения дивизии в процентах из конфига сюжета.
+
+    Ищет ``manpower_loss_above`` в ``lose_conditions``, включая вложенные
+    ``all_of``/``any_of``. Значение в конфиге хранится долей (0.25), а
+    интерфейсу нужен целый процент (25). Если условие не найдено или
+    повреждено, возвращается ``default``.
+    """
+    def find(condition):
+        if not isinstance(condition, dict):
+            return None
+        if condition.get("type") == "manpower_loss_above":
+            value = condition.get("value")
+            if value is None:
+                return None
+            try:
+                return max(1, int(round(100.0 * float(value))))
+            except (TypeError, ValueError):
+                return None
+        for child in condition.get("conditions", []) or []:
+            found = find(child)
+            if found is not None:
+                return found
+        return None
+
+    for condition in (storyline or {}).get("lose_conditions", []) or []:
+        found = find(condition)
+        if found is not None:
+            return found
+    return max(1, int(round(float(default))))
+
 
 def list_storylines():
     """

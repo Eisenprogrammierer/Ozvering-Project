@@ -34,6 +34,7 @@ from ..support.geometry import (
     BREACH_PRESSURE_TICKS, SECTOR_LABELS, SECTOR_SHORT,
 )
 from view.support.log_journal import get_logger
+from view.support.storyline import loss_limit_percent
 
 logger = get_logger("view.rts")
 
@@ -435,29 +436,9 @@ class RTSScreen(BaseScreen):
 
     def _loss_limit_percent(self):
         """Порог поражения по потерям дивизии из сюжетного конфига."""
-        def find(condition):
-            if not isinstance(condition, dict):
-                return None
-            if condition.get("type") == "manpower_loss_above":
-                try:
-                    return max(1, int(round(
-                        100.0 * float(condition.get("value", 0.2))
-                    )))
-                except (TypeError, ValueError):
-                    return None
-            for child in condition.get("conditions", []) or []:
-                found = find(child)
-                if found is not None:
-                    return found
-            return None
-
         interp = getattr(self.app, "storyline_interpreter", None)
         storyline = getattr(interp, "storyline", {}) if interp else {}
-        for condition in (storyline or {}).get("lose_conditions", []) or []:
-            found = find(condition)
-            if found is not None:
-                return found
-        return 45
+        return loss_limit_percent(storyline)
 
     def select_all_units(self):
         """Выделить все живые подразделения игрока (Ctrl+A / клик по «ВСЕ»)."""

@@ -414,3 +414,37 @@ def test_rts_draws_active_plan_overlay():
     screen.engine.set_auto_plan("hold", target=(12, 12))
     screen.draw(surface)
     assert screen.engine.plan_for().mode == "hold"
+
+
+def test_mandatory_screen_uses_each_camp_variant(monkeypatch):
+    """Утренний экран реально проходит fresh -> wounded -> critical."""
+    from types import SimpleNamespace
+
+    from view.screens.mandatory_screen import MandatorySceneScreen
+
+    app = _app()
+    app.storyline_interpreter = SimpleNamespace(
+        storyline={
+            "lose_conditions": [{
+                "type": "any_of",
+                "conditions": [
+                    {"type": "manpower_loss_above", "value": 0.25},
+                    {"type": "all_player_units_destroyed"},
+                ],
+            }],
+        }
+    )
+    monkeypatch.setattr(MandatorySceneScreen, "_autosave", lambda self: None)
+    seen = set()
+    for loss in (0, 10, 21):
+        monkeypatch.setattr(
+            MandatorySceneScreen,
+            "_player_loss_percent",
+            lambda self, value=loss: value,
+        )
+        screen = MandatorySceneScreen(app, "morning_inspection")
+        assert screen.loss_limit_percent == 25
+        assert screen.camp_state in {"fresh", "wounded", "critical"}
+        assert screen.bg is not None
+        seen.add(screen.camp_state)
+    assert seen == {"fresh", "wounded", "critical"}

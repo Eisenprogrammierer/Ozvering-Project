@@ -4,7 +4,9 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
+from view.support.camp_state import camp_state_for_loss
 from view.support.scenario import build_world
+from view.support.storyline import loss_limit_percent
 from view.support.time_system import CampaignTimeSystem
 from view.support.world import CampaignEngine
 from view.support import save_system
@@ -729,3 +731,65 @@ def test_auto_plan_survives_snapshot_round_trip():
     assert loaded_engine.plan_for().mode == "hold"
     assert loaded_engine.plan_for().line is not None
     assert loaded_engine._plan_orders.get("red") is not None
+
+
+def test_loss_limit_percent_reads_nested_storyline_condition():
+    storyline = {
+        "lose_conditions": [{
+            "type": "any_of",
+            "conditions": [
+                {"type": "manpower_loss_above", "value": 0.25},
+                {"type": "all_player_units_destroyed"},
+            ],
+        }],
+    }
+    assert loss_limit_percent(storyline) == 25
+    assert loss_limit_percent({
+        "lose_conditions": [{"type": "manpower_loss_above", "value": 0.2}]
+    }) == 20
+    assert loss_limit_percent({
+        "lose_conditions": [{"type": "manpower_loss_above", "value": 0.45}]
+    }) == 45
+    # Нет валидного условия — безопасный запасной лимит.
+    assert loss_limit_percent({"lose_conditions": []}) == 45
+
+
+@pytest.mark.parametrize("limit", [20, 25, 45])
+def test_camp_stages_use_whole_loss_limit_range(limit):
+    """Все три фона достижимы при старом, текущем и запасном лимите."""
+    fresh_end = int(limit * 0.40) - 1
+    wounded_start = int(limit * 0.40)
+    wounded_end = int(limit * 0.80)
+    critical_start = wounded_end + 1
+
+    assert camp_state_for_loss(0, limit) == "fresh"
+    assert camp_state_for_loss(fresh_end, limit) == "fresh"
+    assert camp_state_for_loss(wounded_start, limit) == "wounded"
+    assert camp_state_for_loss(wounded_end, limit) == "wounded"
+    assert camp_state_for_loss(critical_start, limit) == "critical"
+    assert camp_state_for_loss(limit - 1, limit) == "critical"
+    assert camp_state_for_loss(limit, limit) == "critical"
+    assert {
+        camp_state_for_loss(0, limit),
+        camp_state_for_loss(wounded_start, limit),
+        camp_state_for_loss(critical_start, limit),
+    } == {"fresh", "wounded", "critical"}
+
+
+def test_morning_camp_content_has_distinct_texts_and_existing_assets():
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    data = json.loads(
+        (root / "configs/content/mandatory_scenes.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    morning = data["morning_inspection"]
+    expected = {"fresh", "wounded", "critical"}
+    assert set(morning["backgrounds"]) == expected
+    assert set(morning["texts"]) == expected
+    assert len(set(morning["backgrounds"].values())) == 3
+    for asset in morning["backgrounds"].values():
+        assert list((root / "assets/images").glob(asset + ".*")), asset
