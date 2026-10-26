@@ -558,6 +558,7 @@ class CampaignState:
                 "retreating": det.retreating,
                 "panicked": det.panicked,
                 "broken": det.broken,
+                "surrendered": bool(getattr(det, "surrendered", False)),
                 "needs": [dict(c.needs) for c in det.characters],
             })
         return {
@@ -620,6 +621,9 @@ class CampaignState:
             det.retreating = bool(item.get("retreating", det.retreating))
             det.panicked = bool(item.get("panicked", det.panicked))
             det.broken = bool(item.get("broken", det.broken))
+            det.surrendered = bool(item.get(
+                "surrendered", getattr(det, "surrendered", False)
+            ))
             for character, values in zip(
                     det.characters, item.get("needs", [])):
                 if not isinstance(values, dict):

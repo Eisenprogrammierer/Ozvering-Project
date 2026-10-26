@@ -2115,6 +2115,10 @@ class RTSScreen(BaseScreen):
             ),
             "сектор: %s" % SECTOR_LABELS.get(sector, sector),
             "обстановка: %s" % (context.label if context else "—"),
+            *(
+                ["капитуляция через %d тактов" % context.surrender_in]
+                if context is not None and context.encircled else []
+            ),
             "мораль %.0f" % det.morale,
             "приказ: %s" % self.state.get_segment_label(idx, "order"),
         ]

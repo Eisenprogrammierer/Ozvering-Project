@@ -121,6 +121,20 @@ ORDERLY_RETREAT_DAILY_CAP = 0.10
 MAX_UNIT_DAILY_RATE = 0.65
 ORDERLY_RETREAT_ORDERS = ("withdrawal", "movement")
 
+# Полное локальное окружение — не просто фланговый охват. Если враг
+# окружает роту со всех сторон и имеет перевес, у неё нет коридора отхода:
+# суточная норма становится заведомо смертельной, а через час непрерывного
+# окружения остатки сдаются. Это не отменяет канонический ``broken``: рота
+# снимается с поля тем же флагом, но получает полные потери и признак сдачи.
+ENCIRCLE_RADIUS = 2.5
+ENCIRCLE_MAX_GAP = 135.0
+ENCIRCLE_MIN_ENEMIES = 4
+ENCIRCLE_MIN_FORCE_RATIO = 1.25
+ENCIRCLE_LOSS_MULTIPLIER = 8.0
+MAX_ENCIRCLED_DAILY_RATE = 1.20
+ENCIRCLE_SURRENDER_TICKS = 12
+ENCIRCLE_COLLAPSE_FRACTION = 0.35
+
 # Прорыв: локальное превосходство и время нажима. 1.8 — это уже больше
 # «двукратного», но всё ещё меньше классических 3:1; подготовленная оборона
 # держится, пока игрок не оголит участок.
@@ -180,11 +194,20 @@ class CombatContext:
     local_force: float
     multiplier: float
     daily_rate: float
+    encircled: bool = False
+    encircle_force: float = 0.0
+    encircle_gap: float = 360.0
+    encircle_ticks: int = 0
+    surrender_in: int = 0
 
     @property
     def routed(self):
-        """Позиция смята, а организованного отхода нет."""
-        return self.overrun and not self.ordered_retreat
+        """Позиция смята, а организованного отхода нет.
+
+        Полное окружение считается разгромом даже при приказе на отход:
+        коридора для сохранения порядка уже нет.
+        """
+        return self.overrun and (not self.ordered_retreat or self.encircled)
 
 
 class FrontGeometry:
@@ -202,6 +225,9 @@ class FrontGeometry:
         self.ticks_per_day = DEFAULT_COMBAT_TICKS_PER_DAY
         self._groups = {}
         self._last_tick = -1
+        # Непрерывные такты полного окружения по имени роты. Счётчик
+        # сбрасывается, как только коридор открылся или рота выбыла.
+        self.encircle_ticks = {}
         # Текущий фронт каждой стороны (единичный вектор) и центры строя на
         # прошлом такте. Секторы выводятся из этих данных, а не из ``det.sector``.
         self.facing = {self.player_side: None, self.enemy_side: None}
@@ -302,6 +328,45 @@ class FrontGeometry:
             return "flank", distance
         return "rear", distance
 
+    def _encirclement(self, det):
+        """Измерить, замкнут ли вокруг роты коридор.
+
+        Окружение — это не «много врагов рядом», а отсутствие свободного
+        направления: угловые разрывы между ближайшими врагами не должны
+        превышать ``ENCIRCLE_MAX_GAP``. Четыре роты с одной стороны фронта
+        такой замер не проходят.
+        """
+        vectors = []
+        for enemy in self._enemy_units(det.side):
+            force = float(getattr(enemy, "force", 0.0))
+            if force <= 1.0:
+                continue
+            dx = float(enemy.position[0]) - float(det.position[0])
+            dy = float(enemy.position[1]) - float(det.position[1])
+            distance = math.hypot(dx, dy)
+            if distance > ENCIRCLE_RADIUS:
+                continue
+            angle = (math.degrees(math.atan2(dy, dx)) % 360.0
+                     if distance > 1e-6 else 0.0)
+            vectors.append((angle, force))
+        if len(vectors) < ENCIRCLE_MIN_ENEMIES:
+            return False, sum(force for _, force in vectors), 360.0
+
+        vectors.sort(key=lambda item: item[0])
+        angles = [angle for angle, _ in vectors]
+        gaps = [
+            angles[i + 1] - angles[i] for i in range(len(angles) - 1)
+        ]
+        gaps.append(angles[0] + 360.0 - angles[-1])
+        max_gap = max(gaps)
+        encircle_force = sum(force for _, force in vectors)
+        ratio = encircle_force / max(1.0, self.projected_force(det))
+        encircled = (
+            max_gap <= ENCIRCLE_MAX_GAP
+            and ratio >= ENCIRCLE_MIN_FORCE_RATIO
+        )
+        return encircled, encircle_force, max_gap
+
     def combat_context(self, det):
         """Оценить, чем для роты обернулся прорыв.
 
@@ -310,7 +375,8 @@ class FrontGeometry:
         прорыва учитываются фланг и тыл в более широком радиусе. Если рота
         отходит по приказу ``withdrawal``, её потери ограничиваются, даже
         когда позиция уже потеряна: она сохраняет боевые порядки, а не
-        остаётся на разгром.
+        остаётся на разгром. Исключение — полное локальное окружение: там
+        коридора нет, поэтому отход не отменяет капитуляцию.
         """
         sector = self.sector_of(det)
         base = self.sector_daily_rate(det.side, sector)
@@ -326,6 +392,8 @@ class FrontGeometry:
 
         local_force = max(1.0, self.projected_force(det))
         facing = self.facing_of(det.side)
+        encircled, encircle_force, encircle_gap = self._encirclement(det)
+        encircle_ticks = int(self.encircle_ticks.get(det.name, 0))
         flank_force = 0.0
         rear_force = 0.0
         overrun_force = 0.0
@@ -353,10 +421,16 @@ class FrontGeometry:
 
         side_breached = bool(self.breached)
         sector_breached = sector in self.breached
-        overrun = overrun_force > 0.0
+        overrun = overrun_force > 0.0 or encircled
         ordered = self._ordered_retreat(det)
 
-        if overrun:
+        if encircled:
+            kind, label = "overrun", "ОКРУЖЕНИЕ: разгром"
+            raw_base = max(base, BREACH_DEFENDER_DAILY)
+            multiplier = self._threat_multiplier(
+                ENCIRCLE_LOSS_MULTIPLIER, encircle_force, local_force
+            )
+        elif overrun:
             kind, label = "overrun", "РАЗГРОМ: позиция смята"
             raw_base = max(base, BREACH_DEFENDER_DAILY)
             multiplier = self._threat_multiplier(
@@ -388,18 +462,26 @@ class FrontGeometry:
             multiplier = 1.0
 
         raw_rate = raw_base * multiplier
-        if ordered:
+        if ordered and not encircled:
             # Отход — не неуязвимость: арьергардные бои стоят потерь, но
-            # не превращаются в разгром окружённой позиции.
+            # не превращаются в разгром окружённой позиции. В полном
+            # окружении коридора нет, поэтому этот спасательный множитель
+            # не применяется.
             daily = min(
                 ORDERLY_RETREAT_DAILY_CAP,
                 raw_rate * ORDERLY_RETREAT_MULTIPLIER,
             )
             label = "организованный отход"
             kind = "withdrawal"
+        elif encircled:
+            daily = min(MAX_ENCIRCLED_DAILY_RATE, raw_rate)
         else:
             daily = min(MAX_UNIT_DAILY_RATE, raw_rate)
 
+        surrender_in = (
+            max(0, ENCIRCLE_SURRENDER_TICKS - encircle_ticks)
+            if encircled else 0
+        )
         return CombatContext(
             side=det.side, sector=sector, kind=kind, label=label,
             breached=side_breached, sector_breached=sector_breached,
@@ -408,6 +490,9 @@ class FrontGeometry:
             local_force=local_force,
             multiplier=(daily / base) if base > 0.0 else 0.0,
             daily_rate=daily,
+            encircled=encircled, encircle_force=encircle_force,
+            encircle_gap=encircle_gap, encircle_ticks=encircle_ticks,
+            surrender_in=surrender_in,
         )
 
     def unit_daily_rate(self, det):
@@ -779,6 +864,60 @@ class FrontGeometry:
             except Exception:                      # noqa: BLE001
                 logger.debug("Не удалось записать событие геометрии", exc_info=True)
 
+    # --- капитуляция окружённых -----------------------------------------
+    def _update_encirclement_clocks(self):
+        """Продвинуть часовой механизм полного окружения.
+
+        Счётчик живёт только пока рота активна и кольцо действительно
+        замкнуто. Как только появился коридор, значение снимается: это не
+        накопительный «штраф за нахождение рядом с врагом».
+        """
+        if self.player_side not in self.engaged_sides:
+            return
+        active_names = set()
+        for det in self._side_units(self.player_side):
+            active_names.add(det.name)
+            context = self.combat_context(det)
+            if context.encircled:
+                self.encircle_ticks[det.name] = (
+                    int(self.encircle_ticks.get(det.name, 0)) + 1
+                )
+            else:
+                self.encircle_ticks.pop(det.name, None)
+        for name in list(self.encircle_ticks):
+            if name not in active_names:
+                self.encircle_ticks.pop(name, None)
+
+    def _surrender(self, det, reason):
+        """Сдать окружённую роту: полные потери, ``broken`` и флаг сдачи.
+
+        Каноническое ядро не знает о кампанийном окружении, поэтому здесь
+        выставляется тот же ``broken``, который оно использует для выбывших
+        отделений. Остаток силы переводится в безвозвратные потери, иначе
+        сдавшаяся рота выглядела бы в сводке как «живая».
+        """
+        if getattr(det, "broken", False):
+            return False
+        start = max(1.0, float(getattr(det, "start_force", det.force)))
+        remaining = max(0.0, float(getattr(det, "force", 1.0)) - 1.0)
+        cap = max(0.0, start - 1.0)
+        det.losses = min(
+            cap, float(getattr(det, "losses", 0.0)) + remaining
+        )
+        det.force = 1.0
+        det.broken = True
+        det.surrendered = True
+        det.retreating = False
+        det.panicked = True
+        det.morale = min(float(getattr(det, "morale", 0.0)), 5.0)
+        self.encircle_ticks.pop(det.name, None)
+        lost_percent = 100.0 * det.losses / start
+        self._log(
+            "%s: окружена и капитулировала (%s, потери %.1f%%)" %
+            (det.name, reason, lost_percent)
+        )
+        return True
+
     # --- суточные потери --------------------------------------------------
     def apply_attrition(self, force_before, engaged_sides=None):
         """Начислить потери за прошедший такт по историческим нормам.
@@ -794,6 +933,7 @@ class FrontGeometry:
             return
 
         self.recompute()
+        self._update_encirclement_clocks()
         ticks = max(1, int(self.ticks_per_day))
         for side in (self.player_side, self.enemy_side):
             if side not in self.engaged_sides:
@@ -809,22 +949,45 @@ class FrontGeometry:
                 before = force_before.get(det.name)
                 if before is None:
                     continue
+                start = max(1.0, float(getattr(
+                    det, "start_force", det.force
+                )))
                 # ``sector_daily_rate`` уже нормирует потери по проекциям так,
                 # что при целом фронте сумма по стороне равна 4%/6% в сутки.
                 # Контекст прорыва меняет норму только для тех рот, чьи
                 # фланги/тыл действительно оказались под ударом, и не
                 # переписывает канонический обмен огнём.
-                rate = self.combat_context(det).daily_rate
+                context = self.combat_context(det)
+                if side == self.player_side and context.encircled:
+                    ticks_inside = int(self.encircle_ticks.get(det.name, 0))
+                    if (
+                        ticks_inside >= ENCIRCLE_SURRENDER_TICKS
+                        or float(det.force) / start
+                        <= ENCIRCLE_COLLAPSE_FRACTION
+                    ):
+                        self._surrender(
+                            det,
+                            "кольцо замкнуто %d тактов" % ticks_inside,
+                        )
+                        continue
+                rate = context.daily_rate
                 if rate <= 0.0:
                     continue
-                start = max(1.0, float(getattr(
-                    det, "start_force", det.force
-                )))
                 # Не даём модели «съесть» последнюю единицу силы: подразделение
                 # рассеивается, когда сила доходит до единицы.
                 available = max(0.0, float(det.force) - 1.0)
                 loss = min(available, start * rate / ticks)
                 if loss <= 0.0:
+                    continue
+                if (
+                    side == self.player_side
+                    and context.encircled
+                    and float(det.force) - loss <= 1.001
+                ):
+                    # Даже при одношаговом расчёте (например, ``ticks_per_day
+                    # = 1``) окружённая рота не должна «тихо рассеяться» без
+                    # события о капитуляции и флага сдачи.
+                    self._surrender(det, "остаток разбит")
                     continue
                 det.force = max(1.0, float(det.force) - loss)
                 cap = max(0.0, start - 1.0)
@@ -841,6 +1004,10 @@ class FrontGeometry:
             "pressure": dict(self.pressure),
             "recover": dict(self.recover),
             "breached": sorted(self.breached),
+            "encircle_ticks": {
+                name: int(value)
+                for name, value in self.encircle_ticks.items()
+            },
             # Фронт сохраняется, чтобы после загрузки армия не «забыла», куда
             # была развёрнута. Сами секторы не сохраняются как истина: они
             # пересчитываются из позиций и фронта.
@@ -867,6 +1034,10 @@ class FrontGeometry:
         self.breached = {
             sector for sector in snapshot.get("breached", [])
             if sector in SECTORS
+        }
+        self.encircle_ticks = {
+            str(name): int(value)
+            for name, value in (snapshot.get("encircle_ticks") or {}).items()
         }
         facing = snapshot.get("facing") or {}
         for side, vector in facing.items():
