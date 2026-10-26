@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "template_id": "test_skirmish",
+  "title": "Тестовая кампания «Двойная переправа»",
+  "description": "Детерминированный полигон для проверки роли лидера фракции, именованных персонажей, организаций-автоматов, среды, событий и драматурга. Бригадное соотношение сохранено: 16 рот игрока против 32 рот противника.",
+  "default_seed": 7,
+  "player_side": "red",
+  "enemy_side": "blue",
+  "faction_slots": {
+    "player": "red",
+    "enemy": "blue"
+  },
+  "scenario": {
+    "turns": 2016,
+    "map_name": "valley_01",
+    "companies": {
+      "red": 16,
+      "blue": 32
+    },
+    "characters_per_company": 4
+  },
+  "factions": {
+    "red": {
+      "id": "faction_red",
+      "name": "Северный союз",
+      "kind": "automaton",
+      "culture": "russian",
+      "role_title": "номинальный лидер",
+      "priority_needs": [
+        "fear",
+        "anxiety",
+        "status"
+      ],
+      "goals": [
+        "удержать переправу и не допустить прорыва",
+        "сохранить легитимность совета после первых потерь",
+        "не отдать инициативу внутренней оппозиции"
+      ],
+      "assets": {
+        "supply": 0.72,
+        "influence": 0.58,
+        "morale": 0.61,
+        "legitimacy": 0.54
+      },
+      "archetypes": {
+        "front": ["rifleman", "veteran", "machinegunner", "conscript"],
+        "left": ["rifleman", "scout", "machinegunner", "medic"],
+        "right": ["rifleman", "scout", "machinegunner", "medic"],
+        "rear": ["conscript", "rifleman", "medic", "commissar"]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Номинальный лидер",
+          "archetype": "veteran",
+          "force": 26.0
+        },
+        {
+          "id": "chief_of_staff",
+          "title": "Начальник штаба",
+          "archetype": "veteran",
+          "force": 13.0
+        },
+        {
+          "id": "quartermaster",
+          "title": "Квартирмейстер",
+          "archetype": "rifleman",
+          "force": 8.0
+        },
+        {
+          "id": "commissar",
+          "title": "Комиссар фракции",
+          "archetype": "commissar",
+          "force": 7.0
+        },
+        {
+          "id": "scout",
+          "title": "Начальник разведки",
+          "archetype": "scout",
+          "force": 5.0
+        },
+        {
+          "id": "medic",
+          "title": "Старший врач",
+          "archetype": "medic",
+          "force": 4.0
+        },
+        {
+          "id": "engineer",
+          "title": "Инженер укреплений",
+          "archetype": "machinegunner",
+          "force": 3.0
+        },
+        {
+          "id": "liaison",
+          "title": "Связной совета",
+          "archetype": "rifleman",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Боец",
+        "Стрелок",
+        "Специалист",
+        "Связной"
+      ],
+      "organization": {
+        "id": "org_red",
+        "name": "Совет Севера",
+        "complete_weight": 0.84,
+        "leader_title": "номинальный председатель"
+      }
+    },
+    "blue": {
+      "id": "faction_blue",
+      "name": "Агорский консорциум",
+      "kind": "automaton",
+      "culture": "germanic",
+      "role_title": "номинальный лидер",
+      "priority_needs": [
+        "status",
+        "fear",
+        "anxiety"
+      ],
+      "goals": [
+        "прорвать оборону и выйти к переправе",
+        "удержать контроль над союзными контрактами",
+        "не допустить раскола директории"
+      ],
+      "assets": {
+        "supply": 0.81,
+        "influence": 0.67,
+        "morale": 0.58,
+        "legitimacy": 0.62
+      },
+      "archetypes": {
+        "front": ["veteran", "rifleman", "scout", "machinegunner"],
+        "left": ["veteran", "rifleman", "scout", "conscript"],
+        "right": ["veteran", "rifleman", "scout", "conscript"],
+        "rear": ["veteran", "commissar", "scout", "conscript"]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Номинальный лидер",
+          "archetype": "veteran",
+          "force": 26.0
+        },
+        {
+          "id": "director",
+          "title": "Директор операций",
+          "archetype": "veteran",
+          "force": 13.0
+        },
+        {
+          "id": "security",
+          "title": "Начальник безопасности",
+          "archetype": "commissar",
+          "force": 8.0
+        },
+        {
+          "id": "intendant",
+          "title": "Интендант",
+          "archetype": "rifleman",
+          "force": 7.0
+        },
+        {
+          "id": "analyst",
+          "title": "Аналитик",
+          "archetype": "scout",
+          "force": 5.0
+        },
+        {
+          "id": "medic",
+          "title": "Старший врач",
+          "archetype": "medic",
+          "force": 4.0
+        },
+        {
+          "id": "engineer",
+          "title": "Инженер",
+          "archetype": "machinegunner",
+          "force": 3.0
+        },
+        {
+          "id": "envoy",
+          "title": "Посланник",
+          "archetype": "rifleman",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Боец",
+        "Стрелок",
+        "Специалист",
+        "Связной"
+      ],
+      "organization": {
+        "id": "org_blue",
+        "name": "Директория Агоры",
+        "complete_weight": 0.84,
+        "leader_title": "номинальный председатель"
+      }
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "forest",
+      "storm",
+      "ruins",
+      "crossroads"
+    ],
+    "drift_chance": 0.18
+  },
+  "events": {
+    "categories": [
+      "war",
+      "politics",
+      "society",
+      "economy",
+      "disaster"
+    ],
+    "count": 8
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}

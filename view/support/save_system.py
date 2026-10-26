@@ -38,8 +38,19 @@ def _path(slot_name):
     return SAVES_DIR / _safe_slot(slot_name)
 
 
+def _jsonable(value):
+    if value is None:
+        return None
+    if hasattr(value, "as_dict"):
+        return value.as_dict()
+    if isinstance(value, dict):
+        return dict(value)
+    return value
+
+
 def save_game(state, time_system, slot_name, scenario_path=None,
-              storyline_snapshot=None):
+              storyline_snapshot=None, campaign_role=None,
+              campaign_preset=None):
     """Записать снимок кампании. Вернуть путь к файлу."""
     _ensure_dir()
     payload = {
@@ -50,6 +61,11 @@ def save_game(state, time_system, slot_name, scenario_path=None,
         "time_system": time_system.get_save_snapshot()
         if time_system is not None else {},
         "storyline": storyline_snapshot,
+        # Роль и пресет — часть кампании, а не сюжета. Храним их рядом со
+        # снимком, чтобы старые сохранения без этих полей открывались как
+        # раньше.
+        "campaign_role": _jsonable(campaign_role),
+        "campaign_preset": _jsonable(campaign_preset),
     }
     path = _path(slot_name)
     tmp = path.with_name(path.name + ".tmp")

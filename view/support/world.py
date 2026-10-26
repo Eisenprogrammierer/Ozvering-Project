@@ -225,6 +225,18 @@ class CampaignState:
         self.map_name = map_name
         self.player_gender = "male"
         self.commander_trait = None
+        # Кампанийная роль и пресет. В снимок кладём только идентификаторы и
+        # метаданные роли; полный пресет передаётся отдельно при сохранении,
+        # чтобы не раздувать каждый снимок на сотни килобайт.
+        self.campaign_preset = None
+        self.campaign_preset_id = ""
+        self.campaign_role = None
+        self.campaign_role_id = ""
+        self.player_faction_id = ""
+        self.campaign_factions = {}
+        self.campaign_organizations = {}
+        self.campaign_automata = {}
+        self.organization_runtimes = []
         self.event_log = []
         self.tick_events = []
         self.engagements = []
@@ -568,6 +580,10 @@ class CampaignState:
             "player_side": self.player_side,
             "player_gender": self.player_gender,
             "commander_trait": self.commander_trait,
+            "campaign_preset_id": self.campaign_preset_id,
+            "campaign_role_id": self.campaign_role_id,
+            "campaign_role": self.campaign_role,
+            "player_faction_id": self.player_faction_id,
             "detachments": dets,
             "event_log": self.event_log[-250:],
             "supplies": dict(getattr(self, "supplies", {})),
@@ -596,6 +612,18 @@ class CampaignState:
         self.player_gender = snapshot.get("player_gender", self.player_gender)
         self.commander_trait = snapshot.get(
             "commander_trait", self.commander_trait
+        )
+        self.campaign_preset_id = snapshot.get(
+            "campaign_preset_id", self.campaign_preset_id
+        )
+        self.campaign_role_id = snapshot.get(
+            "campaign_role_id", self.campaign_role_id
+        )
+        self.campaign_role = snapshot.get(
+            "campaign_role", self.campaign_role
+        )
+        self.player_faction_id = snapshot.get(
+            "player_faction_id", self.player_faction_id
         )
         if getattr(self, "needs", None) is not None:
             self.needs.set_commander_trait(self.commander_trait)

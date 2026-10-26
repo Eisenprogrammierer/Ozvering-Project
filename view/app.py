@@ -4,8 +4,10 @@ view/app.py
 Инициализирует pygame, загружает контент, строит мир, запускает движок
 и управляет стеком экранов. Передаёт ссылку на себя в time_system
 и logistics для доступа к модификаторам черт персонажа.
-При запуске новой игры открывает экран выбора сюжета; после создания
-персонажа интерпретатор ведёт игрока по последовательности сцен.
+При запуске новой игры открывает экран выбора роли, затем — экран выбора
+сюжета; после создания персонажа интерпретатор ведёт игрока по
+последовательности сцен. Роль определяет генерируемый пресет кампании
+(персонажи, фракции-автоматы, организации, среда и события).
 Исход сюжета (победа/поражение) отложен: флаг ставится при пересечении
 вечерней границы дня, а финальная сцена показывается в главном цикле
 через process_pending_storyline_outcome(), чтобы не переключать экраны
@@ -165,6 +167,12 @@ class App:
         self.scenario_path = "scenarios/mvp.json"
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
+        # Роль и пресет выбираются до сюжета. Каталог ролей — обычный JSON,
+        # поэтому новые роли не требуют правок экрана или генератора.
+        from campaign import RoleCatalog
+        self.role_catalog = RoleCatalog.load()
+        self.selected_role = None
+        self.campaign_preset = None
         from .ui.music_manager import MusicManager
         self.music = MusicManager(
             os.path.normpath(os.path.join(BASE_DIR, "..", "music"))
@@ -312,10 +320,20 @@ class App:
                 on_completed()
 
     def new_game(self):
-        """Открывает экран выбора сюжета."""
-        from .screens.storyline_select import StorylineSelectScreen
-        self.manager.push(StorylineSelectScreen(self))
-        logger.info("Запрошена новая игра")
+        """Открывает выбор роли, затем выбор сюжета."""
+        from .screens.role_select import RoleSelectScreen
+        self.selected_role = None
+        self.campaign_preset = None
+        self.manager.push(RoleSelectScreen(self))
+        logger.info("Запрошена новая игра: выбор роли")
+
+    def _campaign_seed(self, storyline):
+        """Seed кампании из сюжета; по умолчанию 7 (как у бригады)."""
+        try:
+            return int(storyline.get(
+                "campaign_seed", storyline.get("seed", 7)))
+        except (TypeError, ValueError):
+            return 7
 
     def start_storyline(self, storyline):
         """
@@ -324,16 +342,29 @@ class App:
         Args:
             storyline (dict): Конфигурация сюжета из load_storyline().
         """
+        from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
+        role = self.selected_role or self.role_catalog.default_role()
+        self.selected_role = role
+        self.campaign_preset = CampaignPresetGenerator(
+            catalog=self.role_catalog
+        ).generate(
+            role_id=role.id,
+            seed=self._campaign_seed(storyline),
+        )
         self.scenario_path = storyline.get(
             "scenario_path", "scenarios/mvp.json"
         )
         self.pending_storyline_outcome = None
-        state = build_world(scenario_path=self.scenario_path,
-                            content=self.content)
+        state = build_world(
+            scenario_path=self.scenario_path,
+            content=self.content,
+            campaign_preset=self.campaign_preset,
+            campaign_role=role,
+        )
         self.state = state
         self.engine = CampaignEngine(state)
         self.engine.engagements = state.engagements
@@ -344,8 +375,33 @@ class App:
         from .ui.time_hud import TimeHUD
         self.time_hud = TimeHUD(self)
         self.storyline_interpreter = StorylineInterpreter(self, storyline)
+        interp = self.storyline_interpreter
+        for key, value in (role.grants or {}).items():
+            interp.set_variable(str(key), value)
+        interp.set_variable("player_role", role.id)
+        interp.set_variable("player_role_label", role.label)
+        interp.set_variable("player_faction_id",
+                            self.campaign_preset.player_faction_id)
+        interp.set_variable("campaign_preset_id",
+                            self.campaign_preset.preset_id)
+        player_character = self.campaign_preset.player_character or {}
+        if player_character:
+            interp.set_variable("player_character_id", player_character.get("id"))
+            interp.set_variable("player_character_name",
+                                player_character.get("name"))
+        if 0 <= state.player_idx < state.count:
+            state.log_event(
+                state.player_idx,
+                "Роль: %s" % role.label,
+            )
+            state.log_event(
+                state.player_idx,
+                "Кампания: %s" % self.campaign_preset.title,
+            )
         logger.info(
-            "Сюжет запущен: %s", storyline.get("storyline_id", "?")
+            "Сюжет запущен: %s; роль=%s; пресет=%s",
+            storyline.get("storyline_id", "?"), role.id,
+            self.campaign_preset.preset_id,
         )
         self._play_next_scene()
 
@@ -638,6 +694,8 @@ class App:
             slot_name,
             scenario_path=self.scenario_path,
             storyline_snapshot=storyline_snapshot,
+            campaign_role=self.selected_role,
+            campaign_preset=self.campaign_preset,
         )
         logger.info("Сохранение записано: слот=%s", slot_name)
         return path
@@ -663,10 +721,39 @@ class App:
         scenario_path = snapshot.get("scenario_path", "scenarios/mvp.json")
         self.scenario_path = scenario_path
         self.pending_storyline_outcome = None
+        from campaign.preset import CampaignPreset
+        from campaign.roles import RoleSpec
+        raw_preset = snapshot.get("campaign_preset")
+        preset = None
+        if raw_preset:
+            try:
+                preset = CampaignPreset.from_dict(raw_preset)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Пресет из сохранения не прочитан: %s", exc)
+        self.campaign_preset = preset
+        raw_role = snapshot.get("campaign_role")
+        if not raw_role and preset is not None:
+            raw_role = preset.role.as_dict()
+        if not raw_role:
+            raw_role = (snapshot.get("campaign") or {}).get("campaign_role")
+        self.selected_role = None
+        if raw_role:
+            try:
+                self.selected_role = RoleSpec.from_data(raw_role)
+            except Exception as exc:  # noqa: BLE001
+                try:
+                    role_id = (raw_role.get("id")
+                               if isinstance(raw_role, dict) else raw_role)
+                    self.selected_role = self.role_catalog.role(role_id)
+                except Exception:
+                    logger.warning(
+                        "Роль из сохранения не прочитана: %s", exc)
         state = build_world(
             scenario_path=scenario_path,
             campaign_snapshot=snapshot.get("campaign", {}),
             content=self.content,
+            campaign_preset=preset,
+            campaign_role=self.selected_role,
         )
         self.state = state
         self.engine = CampaignEngine(state)

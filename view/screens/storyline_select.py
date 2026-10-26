@@ -4,15 +4,14 @@ view/screens/storyline_select.py
 Экран выбора сюжета.
 
 Сканирует директорию configs/storylines/ через list_storylines,
-отображает список доступных сюжетов с названиями и кнопку «Назад».
-При выборе сюжета загружает его конфигурацию и запускает процесс
-создания персонажа через app.start_storyline.
+отображает выбранную роль, список доступных сюжетов с названиями и
+кнопку «Назад». При выборе сюжета загружает его конфигурацию и запускает
+процесс создания персонажа через app.start_storyline; тот же вызов
+генерирует кампанийный пресет по роли.
 
 События сканирования и выбора сюжета записываются в журнал
 operation_ozverin.log в корне проекта и дублируются в консоль.
 """
-
-import pygame
 
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
@@ -53,10 +52,12 @@ class StorylineSelectScreen(BaseScreen):
         self.buttons = []
         storylines = list_storylines()
         self.empty = not storylines
+        self.role = getattr(app, "selected_role", None)
         logger.info(
-            "Экран выбора сюжета: доступно сюжетов=%d", len(storylines)
+            "Экран выбора сюжета: доступно сюжетов=%d, роль=%s",
+            len(storylines), getattr(self.role, "id", "—"),
         )
-        y = 150
+        y = 170
         for entry in storylines[:MAX_VISIBLE_STORYLINES]:
             label = entry["title"]
             self.buttons.append(
@@ -131,6 +132,11 @@ class StorylineSelectScreen(BaseScreen):
             "Выбор сюжета", True, (220, 220, 230)
         )
         screen.blit(title, title.get_rect(center=(640, 110)))
+        if self.role is not None:
+            role_line = self.app.font_small.render(
+                "Роль: %s" % self.role.label, True, (130, 165, 215)
+            )
+            screen.blit(role_line, role_line.get_rect(center=(640, 142)))
         if self.empty:
             msg = self.app.font_small.render(
                 "Пока пусто", True, (150, 150, 160)

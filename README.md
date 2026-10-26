@@ -296,6 +296,8 @@ python3 main.py --view           # КАМПАНИЯ: интерфейс view (л
 python3 main.py --automata       # РЕДАКТОР: графовый редактор автоматов (JSON)
 python3 -m organizations         # ГЕНЕРАТОР: аналитические организации -> JSON
 python3 -m organizations --runtime  # runtime-демо организации в warfare
+python3 -m campaign              # РОЛИ/ПРЕСЕТЫ: каталог ролей и тестовая кампания
+python3 -m campaign --generate --seed 7  # пресет в campaigns/
 python3 main.py --scene battlefield  # сразу стратегическое поле (RTS)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
 python3 warfare.py               # войсковая симуляция: отделения, паника, банзай
@@ -309,7 +311,12 @@ pytest -q                        # весь тестовый набор (см. �
 `python3 -m view` (кампания), `python3 -m automata` (редактор) и
 `python3 game_engine.py` (арена).
 Кампанийный UI использует `warfare.py`; подробности —
-[`docs/CAMPAIGN_UI.md`](docs/CAMPAIGN_UI.md). Редактор использует собственные
+[`docs/CAMPAIGN_UI.md`](docs/CAMPAIGN_UI.md). Новая игра начинается с выбора
+роли (`configs/roles/roles.json`, сейчас только номинальный лидер
+фракции-автомата), затем сюжета; под сюжет детерминированно генерируется
+тестовый пресет с персонажами, организациями, средой, событиями и
+драматургом (`campaign/`, пример — `campaigns/test_campaign_seed7.json`).
+Редактор использует собственные
 `automata/model.py`, `automata/storage.py` и `configs/automata/*.json`;
 подробности — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
 
@@ -344,6 +351,10 @@ pytest -q                        # весь тестовый набор (см. �
   pygame; `test_organization_runtime.py` проверяет социальный такт по живым
   персонажам, односторонний выход, распад, фазы и опциональную интеграцию с
   `WarfareSimulation`;
+* роли и кампанийные пресеты (`test_campaign.py`): каталог ролей,
+  детерминированная генерация, персонажи/фракции/организации, среда,
+  события, драматург, роспись рот 16/32, snapshot и save/load, CLI; без
+  pygame;
 * кампанийный UI-каркас `view/` (`test_view.py`): адаптер `warfare`,
   накопление потерь, минутные часы и 5-минутный боевой такт, приказы и
   движение к цели, армейский автоплан (рубеж/наступление, ручные исключения,

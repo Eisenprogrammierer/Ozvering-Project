@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "roles": [
+    {
+      "id": "faction_leader",
+      "label": "Номинальный лидер фракции",
+      "short_label": "Лидер фракции",
+      "description": "Вы возглавляете фракцию-автомат номинально: ваш персонаж считается её лидером, но повседневная воля фракции остаётся за её автоматом и организацией. Роль даёт доступ к политическим целям, ресурсам и внутренним кризисам фракции.",
+      "leadership": "nominal",
+      "faction_kind": "automaton",
+      "faction_slot": "player",
+      "available": true,
+      "sort_order": 10,
+      "grants": {
+        "player_role": "faction_leader",
+        "leadership_mode": "nominal",
+        "faction_control": "automaton"
+      },
+      "tags": [
+        "leadership",
+        "faction",
+        "automaton",
+        "nominal"
+      ]
+    }
+  ]
+}
