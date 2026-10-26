@@ -298,6 +298,20 @@ print(sim.summary()["organizations"])
 устойчивый снимок для `WarfareSimulation.summary()`, `public_snapshot()` —
 срез без точных весов и identity вышедших.
 
+Быстрый прогон реального warfare-сценария с одной организацией:
+
+```bash
+python3 -m organizations --runtime --turns 12
+```
+
+```python
+from organizations import build_runtime_demo
+
+sim, org = build_runtime_demo(seed=7, turns=12)
+summary = sim.run()
+print(summary["organizations"][0])
+```
+
 `WarfareSimulation.add_organization(org)` вызывает социальный такт после
 `_after_fight()` и до проверки победы. События `organization`,
 `organization_exit`, `organization_crisis`, `organization_dissolved`
@@ -311,6 +325,7 @@ python3 -m organizations                 # таблица четырёх сце�
 python3 -m organizations --write         # записать JSON в configs/automata/
 python3 -m organizations --write --out /tmp/orgs
 python3 -m organizations --scenario state_fear --json
+python3 -m organizations --runtime --turns 12  # runtime-демо с warfare
 ```
 
 ```python

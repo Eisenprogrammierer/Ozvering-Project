@@ -30,7 +30,7 @@ from .model import (
     organization_level,
 )
 from .needs import NEEDS, NEEDS_RU
-from .runtime import OrganizationRuntime
+from .runtime import OrganizationRuntime, build_runtime_demo
 
 __all__ = [
     "Member",
@@ -46,6 +46,7 @@ __all__ = [
     "analyze_all",
     "analyze_scenario",
     "build_automaton",
+    "build_runtime_demo",
     "fear_state",
     "get_scenarios",
     "level_capacity",

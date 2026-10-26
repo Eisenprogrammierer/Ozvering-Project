@@ -2,7 +2,8 @@
 
 Без флагов печатает разбор четырёх эталонных сценариев. С ``--write`` пишет
 JSON-автоматы в ``configs/automata/`` (или в ``--out``) для редактора
-``automata``. С ``--json`` печатает один автомат целиком.
+``automata``. С ``--json`` печатает один автомат целиком. С ``--runtime``
+прогоняет эталонный warfare-сценарий с организацией и печатает её состояние.
 """
 
 from __future__ import annotations
@@ -19,6 +20,32 @@ from .generator import build_automaton, save_automaton
 
 def _default_out():
     return Path(__file__).resolve().parents[1] / "configs" / "automata"
+
+
+def _run_runtime(turns=12):
+    from .runtime import build_runtime_demo
+
+    sim, organization = build_runtime_demo(turns=turns)
+    summary = sim.run()
+    info = summary["organizations"][0]
+    analysis = organization.analysis
+    need = analysis.need_ru if analysis else "—"
+    print("runtime: %s (%s)" % (info["name"], info["side"]))
+    print(
+        "  фаза: %s; приоритет: %s; уровень: %d; активных: %d/%d (%.0f%%)"
+        % (info["phase"], need, info["level"],
+           info["active_count"], info["initial_count"],
+           100.0 * info["willing_share"]))
+    print(
+        "  такт: %d; тактов симуляции: %d; победитель: %s"
+        % (info["tick"], summary["turn"], summary["winner"] or "—"))
+    events = [
+        event for event in summary["events"]
+        if event["kind"].startswith("organization")
+    ]
+    for event in events:
+        print("  [%s] %s" % (event["kind"], event["text"]))
+    return 0
 
 
 def main(argv=None):
@@ -39,7 +66,18 @@ def main(argv=None):
     parser.add_argument(
         "--json", action="store_true",
         help="напечатать JSON одного автомата (требует --scenario)")
+    parser.add_argument(
+        "--runtime", action="store_true",
+        help="прогнать warfare-демо с OrganizationRuntime")
+    parser.add_argument(
+        "--turns", type=int, default=12,
+        help="длина runtime-демо в тактах (по умолчанию 12)")
     args = parser.parse_args(argv)
+
+    if args.runtime:
+        if args.write or args.json or args.scenario != "all":
+            parser.error("--runtime несовместим с --write/--json/--scenario")
+        return _run_runtime(args.turns)
 
     selected = [
         scenario for scenario in scenarios

@@ -164,3 +164,19 @@ def test_public_snapshot_hides_exact_weights_and_exits():
     assert "mode_weights" not in public
     assert "exited" not in public
     assert "last_effects" not in public
+
+
+def test_runtime_demo_builder_and_cli(capsys):
+    from organizations import build_runtime_demo
+    from organizations.__main__ import main
+
+    sim, organization = build_runtime_demo(seed=7, turns=3)
+    summary = sim.run()
+    assert summary["organizations"][0]["name"] == "фронт"
+    assert organization.tick_count == 3
+
+    assert main(["--runtime", "--turns", "3"]) == 0
+    output = capsys.readouterr().out
+    assert "runtime: фронт" in output
+    assert "фаза:" in output
+    assert "приоритет:" in output

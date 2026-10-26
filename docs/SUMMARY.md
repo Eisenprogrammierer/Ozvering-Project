@@ -158,6 +158,7 @@ python3 main.py                  # игра (сценный слой ui)
 python3 main.py --automata       # редактор автоматов (JSON-граф)
 python3 -m organizations         # генератор аналитических организаций (JSON)
 python3 -m organizations --write # записать примеры в configs/automata/
+python3 -m organizations --runtime --turns 12  # runtime-демо с warfare
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --arena          # автономная арена
 python3 warfare.py               # войсковая симуляция: отделения/паника/банзай

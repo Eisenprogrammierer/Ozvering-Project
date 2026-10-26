@@ -402,4 +402,25 @@ class OrganizationRuntime(S.Environment):
         self._last_crisis = False
 
 
-__all__ = ["MODE_EFFECTS", "OrganizationRuntime", "PHASE_ORDER"]
+def build_runtime_demo(seed=7, turns=12, side="red", name="фронт"):
+    """Собрать эталонный ``warfare``-сценарий с одной организацией.
+
+    Импорт ``warfare`` намеренно локальный: аналитическое ядро и генератор
+    остаются независимыми от войскового слоя, а runtime-демо доступно только
+    по явному вызову.
+    """
+    import warfare as W
+
+    sim = W.build_demo_scenario(seed=seed, turns=max(1, int(turns)))
+    detachments = [det for det in sim.detachments if det.side == side]
+    organization = OrganizationRuntime(name, side, detachments=detachments)
+    sim.add_organization(organization)
+    return sim, organization
+
+
+__all__ = [
+    "MODE_EFFECTS",
+    "OrganizationRuntime",
+    "PHASE_ORDER",
+    "build_runtime_demo",
+]

@@ -39,6 +39,7 @@ python3 main.py --automata --open example
 python3 -m organizations                 # разбор четырёх сценариев
 python3 -m organizations --write         # JSON в configs/automata/ для редактора
 python3 -m organizations --scenario state_fear --json
+python3 -m organizations --runtime --turns 12  # runtime-демо в warfare
 ```
 
 Примеры: страх + большой масштаб → государство; духовность → церковная
@@ -209,6 +210,7 @@ python3 main.py                  # ИГРА: сценный слой ui (мен�
 python3 main.py --view           # КАМПАНИЯ: интерфейс view (лагерь + RTS-карта)
 python3 main.py --automata       # РЕДАКТОР: графовый редактор автоматов (JSON)
 python3 -m organizations         # ГЕНЕРАТОР: аналитические организации -> JSON
+python3 -m organizations --runtime  # runtime-демо организации в warfare
 python3 main.py --scene battlefield  # сразу стратегическое поле (RTS)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
 python3 warfare.py               # войсковая симуляция: отделения, паника, банзай
