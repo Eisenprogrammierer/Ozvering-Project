@@ -1,0 +1,436 @@
+{
+  "schema": 1,
+  "type": "care",
+  "label": "Забота",
+  "description": "Отправитель отвечает на нужду получателя, предоставляя помощь, кров, лечение или поддержку.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "нужда и просьба",
+      "kind": "signal",
+      "keywords": [
+        "голод",
+        "холод",
+        "боль",
+        "страх",
+        "одиночество",
+        "слабость",
+        "просьба",
+        "молчание"
+      ]
+    },
+    "sender_output": {
+      "label": "помощь и забота",
+      "kind": "care",
+      "keywords": [
+        "тепло",
+        "внимание",
+        "слово",
+        "руки",
+        "приют",
+        "пища",
+        "лечение",
+        "надежда"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "опекун",
+          "kind": "nested_automaton",
+          "keywords": [
+            "рука",
+            "слово",
+            "терпение",
+            "тепло",
+            "наблюдение",
+            "питьё",
+            "сон",
+            "надежда"
+          ]
+        },
+        {
+          "label": "схема ухода",
+          "kind": "scheme",
+          "keywords": [
+            "шаг",
+            "время",
+            "питание",
+            "питьё",
+            "сон",
+            "чистота",
+            "наблюдение",
+            "порог"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "нуждающийся",
+          "kind": "nested_automaton",
+          "keywords": [
+            "боль",
+            "страх",
+            "надежда",
+            "слабость",
+            "слово",
+            "молчание",
+            "рука",
+            "сон"
+          ]
+        },
+        {
+          "label": "схема просьбы",
+          "kind": "scheme",
+          "keywords": [
+            "слово",
+            "жест",
+            "порог",
+            "очередь",
+            "срок",
+            "надежда",
+            "страх",
+            "молчание"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "готовность",
+          "kind": "state",
+          "keywords": [
+            "запас",
+            "тепло",
+            "чистота",
+            "руки",
+            "свет",
+            "дверь",
+            "список",
+            "тишина"
+          ]
+        },
+        {
+          "label": "приём",
+          "kind": "state",
+          "keywords": [
+            "дверь",
+            "вопрос",
+            "список",
+            "осмотр",
+            "тепло",
+            "место",
+            "слово",
+            "порог"
+          ]
+        },
+        {
+          "label": "уход",
+          "kind": "state",
+          "keywords": [
+            "руки",
+            "бинт",
+            "вода",
+            "тишина",
+            "тепло",
+            "сон",
+            "слово",
+            "внимание"
+          ]
+        },
+        {
+          "label": "исчерпание",
+          "kind": "state",
+          "keywords": [
+            "усталость",
+            "пустота",
+            "долг",
+            "холод",
+            "молчание",
+            "слеза",
+            "тень",
+            "порог"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "нужда",
+          "kind": "state",
+          "keywords": [
+            "пустота",
+            "холод",
+            "боль",
+            "страх",
+            "ожидание",
+            "слабость",
+            "молчание",
+            "просьба"
+          ]
+        },
+        {
+          "label": "доверие",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "взгляд",
+            "рука",
+            "тепло",
+            "тишина",
+            "надежда",
+            "страх",
+            "порог"
+          ]
+        },
+        {
+          "label": "выздоровление",
+          "kind": "state",
+          "keywords": [
+            "сон",
+            "свет",
+            "аппетит",
+            "шаг",
+            "улыбка",
+            "сила",
+            "надежда",
+            "возвращение"
+          ]
+        },
+        {
+          "label": "утрата",
+          "kind": "state",
+          "keywords": [
+            "тишина",
+            "свеча",
+            "память",
+            "пустота",
+            "слеза",
+            "имя",
+            "молчание",
+            "боль"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "семья",
+          "kind": "actor",
+          "keywords": [
+            "тепло",
+            "долг",
+            "память",
+            "страх",
+            "надежда",
+            "руки",
+            "молчание",
+            "дом"
+          ]
+        },
+        {
+          "label": "община",
+          "kind": "actor",
+          "keywords": [
+            "помощь",
+            "слух",
+            "поддержка",
+            "усталость",
+            "доля",
+            "сосед",
+            "доверие",
+            "граница"
+          ]
+        },
+        {
+          "label": "жертвователи",
+          "kind": "actor",
+          "keywords": [
+            "дар",
+            "условие",
+            "имя",
+            "слово",
+            "ожидание",
+            "хлеб",
+            "деньги",
+            "слава"
+          ]
+        },
+        {
+          "label": "эпидемия",
+          "kind": "environment",
+          "keywords": [
+            "жар",
+            "страх",
+            "слух",
+            "карантин",
+            "смерть",
+            "теснота",
+            "вода",
+            "граница"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "zabota",
+      "pomoshch",
+      "podderzhka",
+      "lechenie",
+      "ukhod",
+      "priyut",
+      "popechenie",
+      "miloserdie",
+      "zashchita",
+      "spasenie",
+      "meropriyatie",
+      "programma",
+      "operatsiya",
+      "aktsiya",
+      "fond",
+      "obshchina",
+      "bratstvo",
+      "sestrinstvo"
+    ],
+    "adjectives": [
+      "miloserdny",
+      "zabotlivy",
+      "dobry",
+      "teply",
+      "krotkiy",
+      "verny",
+      "blizhniy",
+      "semeyny",
+      "rodovoy",
+      "domashniy",
+      "meditsinskiy",
+      "sanitarny",
+      "spasatelny",
+      "priyutny",
+      "tikh",
+      "svetly",
+      "chistiy",
+      "nadezhny",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "materinskiy",
+      "otsovskiy",
+      "detskiy",
+      "starcheskiy",
+      "gumanitarny",
+      "vzaimny",
+      "besplatny",
+      "dostupny",
+      "kruglosutochny",
+      "sotsialnyy",
+      "psikhologicheskiy",
+      "fizicheskiy",
+      "kulturnyy",
+      "dukhovny",
+      "pravovoy",
+      "sluzhebnyy",
+      "yavnyy",
+      "tayny",
+      "lokalnyy",
+      "masshtabnyy",
+      "dlitelnyy"
+    ],
+    "dependents": [
+      "miloserdie",
+      "pomoshch",
+      "zabota",
+      "popechenie",
+      "zdorovye",
+      "lechenie",
+      "ukhod",
+      "pitanie",
+      "teplo",
+      "krov_priyut",
+      "nadezhda",
+      "semya",
+      "rod",
+      "dom",
+      "ochag",
+      "deti",
+      "stariki",
+      "bolnye",
+      "ranenye",
+      "sestry",
+      "bratya",
+      "obshchina",
+      "vzaimopomoshch",
+      "kassa",
+      "fond",
+      "priyut",
+      "spasenie",
+      "zhizn",
+      "zhertva",
+      "podderzhka",
+      "doverie",
+      "interes",
+      "strakh",
+      "rabota",
+      "sluzhba",
+      "semya",
+      "pamyat",
+      "traditsiya"
+    ],
+    "dependent_adjectives": [
+      "miloserdny",
+      "zabotlivy",
+      "dobry",
+      "teply",
+      "krotkiy",
+      "verny",
+      "blizhniy",
+      "semeyny",
+      "rodovoy",
+      "domashniy",
+      "meditsinskiy",
+      "sanitarny",
+      "spasatelny",
+      "priyutny",
+      "tikh",
+      "svetly",
+      "chistiy",
+      "nadezhny",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "materinskiy",
+      "otsovskiy",
+      "detskiy",
+      "starcheskiy",
+      "gumanitarny",
+      "vzaimny",
+      "besplatny",
+      "dostupny",
+      "kruglosutochny",
+      "sotsialnyy",
+      "psikhologicheskiy",
+      "fizicheskiy",
+      "kulturnyy",
+      "dukhovny",
+      "pravovoy",
+      "sluzhebnyy",
+      "yavnyy",
+      "tayny",
+      "lokalnyy",
+      "masshtabnyy",
+      "dlitelnyy"
+    ],
+    "extensions": [
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "bez_lishnikh_slov",
+      "po_zovu_dolga",
+      "v_chas_trevogi",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  }
+}

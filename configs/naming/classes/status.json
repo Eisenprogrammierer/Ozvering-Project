@@ -1,0 +1,875 @@
+{
+  "schema": 1,
+  "class": "status",
+  "label": "Статус",
+  "description": "Ранги, престиж, кланы и элиты; лексика банды, двора и сословной иерархии.",
+  "default_theme": "gang",
+  "need_themes": {
+    "status": "gang",
+    "fear": "gang",
+    "reproduction": "noble",
+    "love": "noble",
+    "spirituality": "noble",
+    "knowledge": "elite",
+    "skill": "elite",
+    "creativity": "elite",
+    "loneliness": "elite",
+    "friendship": "elite",
+    "health": "court",
+    "fatigue": "court",
+    "hunger": "gang",
+    "thirst": "gang",
+    "anxiety": "gang",
+    "boredom": "court"
+  },
+  "base": {
+    "heads": [
+      "banda",
+      "klan",
+      "bratstvo",
+      "syndikat",
+      "mafiya",
+      "kartel",
+      "gruppirovka",
+      "dinastiya",
+      "svita",
+      "druzhina",
+      "elita",
+      "kasta",
+      "ierarkhiya",
+      "znat",
+      "aristokratiya",
+      "soslovie",
+      "orden",
+      "lozha",
+      "klub",
+      "soviet",
+      "komitet",
+      "palata",
+      "dvorets",
+      "semya",
+      "rod",
+      "ulitsa",
+      "kvartal"
+    ],
+    "adjectives": [
+      "blagorodny",
+      "vysokiy",
+      "drevniy",
+      "gordy",
+      "surovy",
+      "zhelezny",
+      "cherny",
+      "zolotoy",
+      "serebryany",
+      "krasny",
+      "bely",
+      "tayny",
+      "kriminalny",
+      "derzkiy",
+      "smelyy",
+      "opasnyy",
+      "molodoy",
+      "stary",
+      "vybornyy",
+      "naslednyy",
+      "tsarskiy",
+      "knyazheskiy",
+      "boyarskiy",
+      "kupecheskiy",
+      "voenny",
+      "udarny",
+      "shturmovoy",
+      "nochnoy",
+      "gorodskoy",
+      "stolichny",
+      "loyalnyy",
+      "verny",
+      "zhestokiy",
+      "bezzhalostny",
+      "krovavyy",
+      "temnyy",
+      "skrytyy",
+      "dvoystvennyy",
+      "elitarnyy",
+      "zakrytyy",
+      "semeynyy",
+      "rodovoy",
+      "mogushchestvennyy",
+      "vliyatelnyy",
+      "bogatyy",
+      "bednyy"
+    ],
+    "dependents": [
+      "status",
+      "chest",
+      "slava",
+      "imya",
+      "reputatsiya",
+      "vlast",
+      "vliyanie",
+      "resurs",
+      "dan",
+      "dolg",
+      "kodeks",
+      "duel",
+      "klyatva",
+      "znak",
+      "gerb",
+      "korona",
+      "tron",
+      "titul",
+      "rang",
+      "zvanie",
+      "nagrada",
+      "semya",
+      "rod",
+      "dinastiya",
+      "svita",
+      "druzhina",
+      "ulitsa",
+      "kvartal",
+      "krov",
+      "tayna"
+    ],
+    "dependent_adjectives": [
+      "blagorodny",
+      "vysokiy",
+      "drevniy",
+      "gordy",
+      "surovy",
+      "zhelezny",
+      "cherny",
+      "zolotoy",
+      "serebryany",
+      "krasny",
+      "bely",
+      "tayny",
+      "kriminalny",
+      "derzkiy",
+      "smelyy",
+      "opasnyy",
+      "stary",
+      "tsarskiy",
+      "knyazheskiy",
+      "boyarskiy",
+      "kupecheskiy",
+      "voenny",
+      "nochnoy",
+      "gorodskoy",
+      "stolichny",
+      "verny",
+      "zhestokiy",
+      "krovavyy",
+      "temnyy",
+      "elitarnyy",
+      "rodovoy",
+      "bogatyy",
+      "vliyatelnyy"
+    ],
+    "extensions": [
+      "po_pravu_silnogo",
+      "v_teni_zakona",
+      "na_krayu_propasti",
+      "vo_slavu_predkov",
+      "radi_vechnosti",
+      "bez_lishnikh_slov",
+      "do_poslednego_rubezha",
+      "bez_prava_na_oshibku"
+    ]
+  },
+  "themes": {
+    "gang": {
+      "heads": [
+        "banda",
+        "klan",
+        "syndikat",
+        "mafiya",
+        "kartel",
+        "gruppirovka",
+        "ulitsa",
+        "kvartal",
+        "komanda",
+        "gruppa",
+        "druzhina",
+        "bratstvo"
+      ],
+      "adjectives": [
+        "kriminalny",
+        "derzkiy",
+        "smelyy",
+        "opasnyy",
+        "zhestokiy",
+        "bezzhalostny",
+        "krovavyy",
+        "temnyy",
+        "nochnoy",
+        "gorodskoy",
+        "cherny",
+        "zhelezny",
+        "molodoy",
+        "stary"
+      ],
+      "dependents": [
+        "ulitsa",
+        "kvartal",
+        "krov",
+        "tayna",
+        "resurs",
+        "dan",
+        "dolg",
+        "kodeks",
+        "klyatva",
+        "status",
+        "chest",
+        "slava",
+        "imya",
+        "reputatsiya"
+      ],
+      "dependent_adjectives": [
+        "kriminalny",
+        "derzkiy",
+        "smelyy",
+        "opasnyy",
+        "zhestokiy",
+        "bezzhalostny",
+        "krovavyy",
+        "temnyy",
+        "nochnoy",
+        "gorodskoy",
+        "cherny",
+        "zhelezny"
+      ]
+    },
+    "noble": {
+      "heads": [
+        "dinastiya",
+        "semya",
+        "rod",
+        "svita",
+        "druzhina",
+        "znat",
+        "aristokratiya",
+        "soslovie",
+        "elita",
+        "kasta",
+        "ierarkhiya",
+        "dvorets"
+      ],
+      "adjectives": [
+        "blagorodny",
+        "vysokiy",
+        "drevniy",
+        "tsarskiy",
+        "knyazheskiy",
+        "boyarskiy",
+        "zolotoy",
+        "serebryany",
+        "naslednyy",
+        "vybornyy",
+        "gordy",
+        "surovy"
+      ],
+      "dependents": [
+        "gerb",
+        "korona",
+        "tron",
+        "titul",
+        "rang",
+        "zvanie",
+        "nagrada",
+        "rod",
+        "semya",
+        "dinastiya",
+        "chest",
+        "slava",
+        "imya",
+        "reputatsiya",
+        "klyatva"
+      ],
+      "dependent_adjectives": [
+        "blagorodny",
+        "vysokiy",
+        "drevniy",
+        "tsarskiy",
+        "knyazheskiy",
+        "boyarskiy",
+        "zolotoy",
+        "serebryany",
+        "naslednyy",
+        "vybornyy",
+        "gordy",
+        "surovy"
+      ]
+    },
+    "elite": {
+      "heads": [
+        "elita",
+        "kasta",
+        "klub",
+        "orden",
+        "lozha",
+        "soviet",
+        "komitet",
+        "palata",
+        "svita",
+        "druzhina"
+      ],
+      "adjectives": [
+        "elitarnyy",
+        "zakrytyy",
+        "tayny",
+        "sekretny",
+        "vliyatelnyy",
+        "bogatyy",
+        "mogushchestvennyy",
+        "zolotoy",
+        "serebryany",
+        "drevniy",
+        "blagorodny",
+        "loyalnyy"
+      ],
+      "dependents": [
+        "vliyanie",
+        "status",
+        "resurs",
+        "vlast",
+        "reputatsiya",
+        "imya",
+        "kodeks",
+        "klyatva",
+        "znak",
+        "gerb",
+        "rang",
+        "titul"
+      ],
+      "dependent_adjectives": [
+        "elitarnyy",
+        "zakrytyy",
+        "tayny",
+        "sekretny",
+        "vliyatelnyy",
+        "bogatyy",
+        "mogushchestvennyy",
+        "zolotoy",
+        "serebryany",
+        "drevniy",
+        "blagorodny"
+      ]
+    },
+    "court": {
+      "heads": [
+        "dvorets",
+        "svita",
+        "dinastiya",
+        "semya",
+        "rod",
+        "znat",
+        "aristokratiya",
+        "soslovie",
+        "klan"
+      ],
+      "adjectives": [
+        "tsarskiy",
+        "knyazheskiy",
+        "boyarskiy",
+        "blagorodny",
+        "zolotoy",
+        "torzhestvenny",
+        "velichavy",
+        "surovy",
+        "gordy",
+        "drevniy",
+        "naslednyy",
+        "zolotoy"
+      ],
+      "dependents": [
+        "korona",
+        "tron",
+        "titul",
+        "gerb",
+        "rod",
+        "semya",
+        "dinastiya",
+        "slava",
+        "chest",
+        "imya",
+        "klyatva",
+        "nagrada"
+      ],
+      "dependent_adjectives": [
+        "tsarskiy",
+        "knyazheskiy",
+        "boyarskiy",
+        "blagorodny",
+        "zolotoy",
+        "torzhestvenny",
+        "velichavy",
+        "surovy",
+        "gordy",
+        "drevniy",
+        "naslednyy"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "banda",
+        "klan",
+        "gruppirovka",
+        "ulitsa",
+        "kvartal",
+        "druzhina",
+        "komanda",
+        "gruppa",
+        "semya",
+        "rod"
+      ],
+      "adjectives": [
+        "mestny",
+        "nochnoy",
+        "molodoy",
+        "derzkiy",
+        "smelyy",
+        "zhelezny",
+        "gordy"
+      ]
+    },
+    "2": {
+      "heads": [
+        "syndikat",
+        "mafiya",
+        "kartel",
+        "klan",
+        "bratstvo",
+        "druzhina",
+        "svita",
+        "elita",
+        "kasta",
+        "klub"
+      ],
+      "adjectives": [
+        "gorodskoy",
+        "stolichny",
+        "vliyatelnyy",
+        "bogatyy",
+        "kriminalny",
+        "zhelezny",
+        "blagorodny"
+      ]
+    },
+    "3": {
+      "heads": [
+        "dinastiya",
+        "aristokratiya",
+        "znat",
+        "soslovie",
+        "ierarkhiya",
+        "imperiya",
+        "gosudarstvo",
+        "dvorets",
+        "palata",
+        "soviet"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "tsarskiy",
+        "knyazheskiy",
+        "blagorodny",
+        "drevniy",
+        "zolotoy",
+        "mogushchestvennyy",
+        "vsemogushchiy",
+        "nepobedimy"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "tribute",
+        "label": "дань и подношение",
+        "kind": "resource",
+        "keywords": [
+          "дань",
+          "взнос",
+          "подарок",
+          "доля",
+          "золото",
+          "ресурс",
+          "долг",
+          "плата"
+        ]
+      },
+      {
+        "id": "oath",
+        "label": "присяга",
+        "kind": "ritual",
+        "keywords": [
+          "клятва",
+          "слово",
+          "честь",
+          "род",
+          "знак",
+          "кровь",
+          "свидетель",
+          "обет"
+        ]
+      },
+      {
+        "id": "reputation",
+        "label": "молва",
+        "kind": "information",
+        "keywords": [
+          "слух",
+          "слава",
+          "имя",
+          "позор",
+          "сплетня",
+          "легенда",
+          "уважение",
+          "страх"
+        ]
+      },
+      {
+        "id": "challenge",
+        "label": "вызов",
+        "kind": "threat",
+        "keywords": [
+          "дуэль",
+          "оскорбление",
+          "претензия",
+          "удар",
+          "заговор",
+          "измена",
+          "спор",
+          "дерзость"
+        ]
+      },
+      {
+        "id": "gift",
+        "label": "дар",
+        "kind": "social",
+        "keywords": [
+          "подарок",
+          "знак",
+          "милость",
+          "приглашение",
+          "союз",
+          "брак",
+          "покровительство",
+          "цена"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "status",
+        "label": "статус",
+        "kind": "status",
+        "keywords": [
+          "ранг",
+          "титул",
+          "место",
+          "право",
+          "честь",
+          "знак",
+          "признание",
+          "власть"
+        ]
+      },
+      {
+        "id": "protection",
+        "label": "покровительство",
+        "kind": "care",
+        "keywords": [
+          "защита",
+          "крыша",
+          "союз",
+          "милость",
+          "доля",
+          "доступ",
+          "тайна",
+          "слово"
+        ]
+      },
+      {
+        "id": "punishment",
+        "label": "расправа",
+        "kind": "force",
+        "keywords": [
+          "удар",
+          "кровь",
+          "изгнание",
+          "долг",
+          "страх",
+          "пример",
+          "месть",
+          "граница"
+        ]
+      },
+      {
+        "id": "symbol",
+        "label": "символ",
+        "kind": "meaning",
+        "keywords": [
+          "герб",
+          "знак",
+          "корона",
+          "цвет",
+          "кличка",
+          "легенда",
+          "память",
+          "ритуал"
+        ]
+      },
+      {
+        "id": "favor",
+        "label": "милость",
+        "kind": "social",
+        "keywords": [
+          "дар",
+          "доступ",
+          "слово",
+          "место",
+          "приглашение",
+          "союз",
+          "покровительство",
+          "награда"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "ascent",
+        "label": "восхождение",
+        "kind": "state",
+        "keywords": [
+          "претензия",
+          "дерзость",
+          "союз",
+          "удар",
+          "слава",
+          "ставка",
+          "риск",
+          "удача"
+        ]
+      },
+      {
+        "id": "dominance",
+        "label": "господство",
+        "kind": "state",
+        "keywords": [
+          "власть",
+          "страх",
+          "дань",
+          "порядок",
+          "знак",
+          "тишина",
+          "влияние",
+          "охрана"
+        ]
+      },
+      {
+        "id": "feud",
+        "label": "вражда",
+        "kind": "state",
+        "keywords": [
+          "кровь",
+          "месть",
+          "дуэль",
+          "оскорбление",
+          "граница",
+          "союзник",
+          "предательство",
+          "удар"
+        ]
+      },
+      {
+        "id": "challenge_state",
+        "label": "вызов",
+        "kind": "state",
+        "keywords": [
+          "дуэль",
+          "спор",
+          "претендент",
+          "слово",
+          "честь",
+          "риск",
+          "свидетель",
+          "исход"
+        ]
+      },
+      {
+        "id": "decline",
+        "label": "упадок",
+        "kind": "state",
+        "keywords": [
+          "потеря",
+          "позор",
+          "долг",
+          "измена",
+          "старость",
+          "раскол",
+          "молчание",
+          "конец"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "inner_circle",
+        "label": "ближний круг",
+        "kind": "nested_automaton",
+        "keywords": [
+          "свита",
+          "совет",
+          "доверие",
+          "тайна",
+          "доля",
+          "слово",
+          "ритуал",
+          "охрана"
+        ]
+      },
+      {
+        "id": "enforcer",
+        "label": "исполнитель",
+        "kind": "nested_automaton",
+        "keywords": [
+          "сила",
+          "долг",
+          "удар",
+          "страх",
+          "молчание",
+          "кровь",
+          "приказ",
+          "исчезновение"
+        ]
+      },
+      {
+        "id": "herald",
+        "label": "глашатай",
+        "kind": "nested_automaton",
+        "keywords": [
+          "слово",
+          "молва",
+          "знак",
+          "легенда",
+          "имя",
+          "слух",
+          "церемония",
+          "память"
+        ]
+      },
+      {
+        "id": "honor_code",
+        "label": "кодекс чести",
+        "kind": "scheme",
+        "keywords": [
+          "честь",
+          "долг",
+          "слово",
+          "дуэль",
+          "род",
+          "кровь",
+          "месть",
+          "граница"
+        ]
+      },
+      {
+        "id": "vendetta_scheme",
+        "label": "схема вражды",
+        "kind": "scheme",
+        "keywords": [
+          "обида",
+          "кровь",
+          "месть",
+          "счёт",
+          "союзник",
+          "пауза",
+          "удар",
+          "примирение"
+        ]
+      },
+      {
+        "id": "succession",
+        "label": "порядок наследования",
+        "kind": "scheme",
+        "keywords": [
+          "род",
+          "старшинство",
+          "титул",
+          "завещание",
+          "совет",
+          "кровь",
+          "выбор",
+          "изгнание"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "rivals",
+        "label": "соперники",
+        "keywords": [
+          "претендент",
+          "зависть",
+          "удар",
+          "союз",
+          "позор",
+          "ставка",
+          "граница",
+          "страх"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "patrons",
+        "label": "покровители",
+        "keywords": [
+          "милость",
+          "дар",
+          "защита",
+          "слово",
+          "доля",
+          "условие",
+          "долг",
+          "ожидание"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "clients",
+        "label": "клиенты",
+        "keywords": [
+          "просьба",
+          "служба",
+          "доля",
+          "верность",
+          "страх",
+          "надежда",
+          "плата",
+          "молчание"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "law",
+        "label": "закон и толпа",
+        "keywords": [
+          "запрет",
+          "свидетель",
+          "молва",
+          "позор",
+          "стража",
+          "суд",
+          "улица",
+          "граница"
+        ],
+        "kind": "environment"
+      }
+    ]
+  }
+}

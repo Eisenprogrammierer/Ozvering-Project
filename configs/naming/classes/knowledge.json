@@ -1,0 +1,829 @@
+{
+  "schema": 1,
+  "class": "knowledge",
+  "label": "Знание",
+  "description": "Обучение, исследование, архив и мастерство; лексика академии, лаборатории и летописи.",
+  "default_theme": "academy",
+  "need_themes": {
+    "knowledge": "academy",
+    "skill": "craft",
+    "creativity": "academy",
+    "boredom": "archive",
+    "status": "academy",
+    "spirituality": "archive",
+    "fear": "archive",
+    "anxiety": "archive",
+    "health": "academy",
+    "fatigue": "archive",
+    "loneliness": "craft",
+    "friendship": "craft",
+    "love": "craft",
+    "reproduction": "craft",
+    "hunger": "craft",
+    "thirst": "craft"
+  },
+  "base": {
+    "heads": [
+      "akademiya",
+      "universitet",
+      "shkola",
+      "uchebishche",
+      "litsey",
+      "gimnaziya",
+      "kollegium",
+      "kruzhok",
+      "seminar",
+      "laboratoriya",
+      "observatoriya",
+      "biblioteka",
+      "arkhiv",
+      "muzey",
+      "institut",
+      "fakultet",
+      "kafedra",
+      "ekspeditsiya",
+      "soviet",
+      "komissiya",
+      "kollegiya",
+      "palata"
+    ],
+    "adjectives": [
+      "nauchny",
+      "uchebny",
+      "arkhivny",
+      "bibliotechny",
+      "knizhny",
+      "pismenny",
+      "ustny",
+      "yazykovoy",
+      "matematicheskiy",
+      "astronomicheskiy",
+      "meditsinskiy",
+      "inzhenerny",
+      "masterskoy",
+      "uchenicheskiy",
+      "nastavnicheskiy",
+      "kollegialny",
+      "diskussionny",
+      "mudry",
+      "tochny",
+      "prikladnoy",
+      "teoreticheskiy",
+      "eksperimentalny",
+      "drevniy",
+      "tayny",
+      "sekretny",
+      "svetly",
+      "novy",
+      "peredovoy",
+      "strogi",
+      "nepreklonny",
+      "zolotoy",
+      "medny",
+      "serebryany"
+    ],
+    "dependents": [
+      "znanie",
+      "nauka",
+      "iskusstvo",
+      "remeslo",
+      "masterstvo",
+      "uchenie",
+      "opyt",
+      "istina",
+      "tayna",
+      "kniga",
+      "rukopis",
+      "letopis",
+      "arkhiv",
+      "biblioteka",
+      "yazyk",
+      "perevod",
+      "matematika",
+      "astronomiya",
+      "meditsina",
+      "mekhanika",
+      "zakon",
+      "priroda",
+      "mir",
+      "chelovek",
+      "budushchee",
+      "pamyat",
+      "traditsiya",
+      "metod",
+      "praktika",
+      "teoriya",
+      "gipoteza"
+    ],
+    "dependent_adjectives": [
+      "nauchny",
+      "uchebny",
+      "arkhivny",
+      "bibliotechny",
+      "knizhny",
+      "pismenny",
+      "ustny",
+      "yazykovoy",
+      "matematicheskiy",
+      "astronomicheskiy",
+      "meditsinskiy",
+      "inzhenerny",
+      "masterskoy",
+      "uchenicheskiy",
+      "nastavnicheskiy",
+      "kollegialny",
+      "diskussionny",
+      "mudry",
+      "tochny",
+      "prikladnoy",
+      "teoreticheskiy",
+      "eksperimentalny",
+      "drevniy",
+      "tayny",
+      "sekretny",
+      "svetly",
+      "novy",
+      "peredovoy"
+    ],
+    "extensions": [
+      "v_poiskakh_istiny",
+      "na_puti_k_znaniyu",
+      "bez_lishnikh_slov",
+      "radi_vechnosti",
+      "dlya_obshchego_blaga",
+      "v_teni_zakona",
+      "na_krayu_propasti"
+    ]
+  },
+  "themes": {
+    "academy": {
+      "heads": [
+        "akademiya",
+        "universitet",
+        "institut",
+        "fakultet",
+        "kafedra",
+        "shkola",
+        "litsey",
+        "gimnaziya",
+        "kollegium",
+        "seminar",
+        "laboratoriya",
+        "observatoriya",
+        "biblioteka",
+        "muzey"
+      ],
+      "adjectives": [
+        "nauchny",
+        "uchebny",
+        "teoreticheskiy",
+        "prikladnoy",
+        "eksperimentalny",
+        "mudry",
+        "tochny",
+        "svetly",
+        "novy",
+        "peredovoy",
+        "drevniy"
+      ],
+      "dependents": [
+        "znanie",
+        "nauka",
+        "istina",
+        "teoriya",
+        "gipoteza",
+        "metod",
+        "praktika",
+        "matematika",
+        "astronomiya",
+        "meditsina",
+        "mekhanika",
+        "yazyk",
+        "perevod",
+        "kniga",
+        "rukopis",
+        "budushchee"
+      ],
+      "dependent_adjectives": [
+        "nauchny",
+        "uchebny",
+        "teoreticheskiy",
+        "prikladnoy",
+        "eksperimentalny",
+        "mudry",
+        "tochny",
+        "matematicheskiy",
+        "astronomicheskiy",
+        "meditsinskiy",
+        "inzhenerny"
+      ]
+    },
+    "archive": {
+      "heads": [
+        "arkhiv",
+        "biblioteka",
+        "muzey",
+        "letopis",
+        "kafedra",
+        "kollegium",
+        "observatoriya"
+      ],
+      "adjectives": [
+        "arkhivny",
+        "bibliotechny",
+        "knizhny",
+        "pismenny",
+        "drevniy",
+        "tayny",
+        "sekretny",
+        "tochny",
+        "strogi",
+        "nepreklonny"
+      ],
+      "dependents": [
+        "letopis",
+        "kniga",
+        "rukopis",
+        "arkhiv",
+        "pamyat",
+        "traditsiya",
+        "yazyk",
+        "perevod",
+        "istina",
+        "tayna",
+        "zakon",
+        "priroda"
+      ],
+      "dependent_adjectives": [
+        "arkhivny",
+        "bibliotechny",
+        "knizhny",
+        "pismenny",
+        "drevniy",
+        "tayny",
+        "sekretny",
+        "tochny",
+        "strogi",
+        "nepreklonny"
+      ]
+    },
+    "craft": {
+      "heads": [
+        "masterskaya",
+        "kruzhok",
+        "artel",
+        "shkola",
+        "uchebishche",
+        "litsey",
+        "seminar",
+        "laboratoriya",
+        "institut"
+      ],
+      "adjectives": [
+        "masterskoy",
+        "uchenicheskiy",
+        "nastavnicheskiy",
+        "remeslenny",
+        "tochny",
+        "prikladnoy",
+        "krepkiy",
+        "nadezhny",
+        "bystry",
+        "mudry",
+        "strogi",
+        "nepreklonny"
+      ],
+      "dependents": [
+        "remeslo",
+        "masterstvo",
+        "uchenie",
+        "opyt",
+        "praktika",
+        "metod",
+        "iskusstvo",
+        "nauka",
+        "znanie",
+        "mekhanika",
+        "zakon"
+      ],
+      "dependent_adjectives": [
+        "masterskoy",
+        "uchenicheskiy",
+        "nastavnicheskiy",
+        "remeslenny",
+        "tochny",
+        "prikladnoy",
+        "krepkiy",
+        "nadezhny",
+        "bystry",
+        "mudry",
+        "strogi",
+        "nepreklonny"
+      ]
+    },
+    "school": {
+      "heads": [
+        "shkola",
+        "litsey",
+        "gimnaziya",
+        "uchebishche",
+        "kollegium",
+        "seminar",
+        "kruzhok",
+        "kafedra",
+        "universitet"
+      ],
+      "adjectives": [
+        "uchebny",
+        "uchenicheskiy",
+        "nastavnicheskiy",
+        "kollegialny",
+        "diskussionny",
+        "svetly",
+        "dobry",
+        "strogi",
+        "tochny"
+      ],
+      "dependents": [
+        "znanie",
+        "uchenie",
+        "yazyk",
+        "kniga",
+        "praktika",
+        "opyt",
+        "istina",
+        "pamyat",
+        "budushchee",
+        "chelovek"
+      ],
+      "dependent_adjectives": [
+        "uchebny",
+        "uchenicheskiy",
+        "nastavnicheskiy",
+        "kollegialny",
+        "diskussionny",
+        "svetly",
+        "dobry",
+        "strogi",
+        "tochny"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "kruzhok",
+        "shkola",
+        "litsey",
+        "gimnaziya",
+        "uchebishche",
+        "seminar",
+        "kafedra",
+        "kollegium"
+      ],
+      "adjectives": [
+        "mestny",
+        "maly",
+        "skromny",
+        "uchebny",
+        "uchenicheskiy",
+        "dobry",
+        "strogi"
+      ]
+    },
+    "2": {
+      "heads": [
+        "akademiya",
+        "universitet",
+        "institut",
+        "fakultet",
+        "laboratoriya",
+        "observatoriya",
+        "biblioteka",
+        "arkhiv",
+        "muzey",
+        "ekspeditsiya"
+      ],
+      "adjectives": [
+        "nauchny",
+        "gorodskoy",
+        "drevniy",
+        "tochny",
+        "prikladnoy",
+        "teoreticheskiy",
+        "eksperimentalny"
+      ]
+    },
+    "3": {
+      "heads": [
+        "akademiya",
+        "universitet",
+        "institut",
+        "soviet",
+        "komissiya",
+        "kollegiya",
+        "palata",
+        "arkhiv",
+        "biblioteka"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "glavny",
+        "tsentralny",
+        "nauchny",
+        "mudry",
+        "drevniy",
+        "vechny",
+        "nepreklonny",
+        "vsemogushchiy"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "question",
+        "label": "вопрос",
+        "kind": "information",
+        "keywords": [
+          "почему",
+          "как",
+          "зачем",
+          "граница",
+          "сомнение",
+          "задача",
+          "парадокс",
+          "проба"
+        ]
+      },
+      {
+        "id": "data",
+        "label": "данные",
+        "kind": "information",
+        "keywords": [
+          "наблюдение",
+          "измерение",
+          "запись",
+          "список",
+          "карта",
+          "шум",
+          "ошибка",
+          "след"
+        ]
+      },
+      {
+        "id": "text",
+        "label": "текст",
+        "kind": "information",
+        "keywords": [
+          "книга",
+          "рукопись",
+          "летопись",
+          "письмо",
+          "канон",
+          "перевод",
+          "словарь",
+          "архив"
+        ]
+      },
+      {
+        "id": "student",
+        "label": "ученик",
+        "kind": "social",
+        "keywords": [
+          "вопрос",
+          "ошибка",
+          "упражнение",
+          "усилие",
+          "склонность",
+          "страх",
+          "интерес",
+          "опыт"
+        ]
+      },
+      {
+        "id": "funding",
+        "label": "средства",
+        "kind": "resource",
+        "keywords": [
+          "бюджет",
+          "дар",
+          "заказ",
+          "стипендия",
+          "прибор",
+          "материал",
+          "время",
+          "место"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "knowledge",
+        "label": "знание",
+        "kind": "meaning",
+        "keywords": [
+          "истина",
+          "ответ",
+          "метод",
+          "закон",
+          "карта",
+          "описание",
+          "понимание",
+          "свет"
+        ]
+      },
+      {
+        "id": "theory",
+        "label": "теория",
+        "kind": "information",
+        "keywords": [
+          "гипотеза",
+          "модель",
+          "доказательство",
+          "граница",
+          "принцип",
+          "связь",
+          "прогноз",
+          "спор"
+        ]
+      },
+      {
+        "id": "publication",
+        "label": "публикация",
+        "kind": "information",
+        "keywords": [
+          "текст",
+          "книга",
+          "статья",
+          "лекция",
+          "доклад",
+          "архив",
+          "копия",
+          "печать"
+        ]
+      },
+      {
+        "id": "graduate",
+        "label": "выпускник",
+        "kind": "social",
+        "keywords": [
+          "навык",
+          "диплом",
+          "мастер",
+          "ученик",
+          "ошибка",
+          "опыт",
+          "имя",
+          "путь"
+        ]
+      },
+      {
+        "id": "discovery",
+        "label": "открытие",
+        "kind": "event",
+        "keywords": [
+          "находка",
+          "след",
+          "свет",
+          "чудо",
+          "ответ",
+          "граница",
+          "риск",
+          "прорыв"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "study",
+        "label": "изучение",
+        "kind": "state",
+        "keywords": [
+          "текст",
+          "вопрос",
+          "тишина",
+          "свет",
+          "стол",
+          "запись",
+          "повтор",
+          "усилие"
+        ]
+      },
+      {
+        "id": "experiment",
+        "label": "эксперимент",
+        "kind": "state",
+        "keywords": [
+          "прибор",
+          "проба",
+          "огонь",
+          "шум",
+          "ошибка",
+          "ожидание",
+          "результат",
+          "риск"
+        ]
+      },
+      {
+        "id": "discussion",
+        "label": "обсуждение",
+        "kind": "state",
+        "keywords": [
+          "голос",
+          "спор",
+          "вопрос",
+          "довод",
+          "тишина",
+          "согласие",
+          "граница",
+          "ошибка"
+        ]
+      },
+      {
+        "id": "discovery_state",
+        "label": "озарение",
+        "kind": "state",
+        "keywords": [
+          "свет",
+          "связь",
+          "ответ",
+          "тишина",
+          "дрожь",
+          "карта",
+          "прорыв",
+          "смысл"
+        ]
+      },
+      {
+        "id": "crisis",
+        "label": "кризис знания",
+        "kind": "state",
+        "keywords": [
+          "ошибка",
+          "сомнение",
+          "потеря",
+          "спор",
+          "тупик",
+          "тень",
+          "раскол",
+          "молчание"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "teacher",
+        "label": "наставник",
+        "kind": "nested_automaton",
+        "keywords": [
+          "слово",
+          "пример",
+          "вопрос",
+          "терпение",
+          "ошибка",
+          "опыт",
+          "путь",
+          "оценка"
+        ]
+      },
+      {
+        "id": "student",
+        "label": "ученик",
+        "kind": "nested_automaton",
+        "keywords": [
+          "вопрос",
+          "усилие",
+          "ошибка",
+          "повтор",
+          "интерес",
+          "страх",
+          "надежда",
+          "навык"
+        ]
+      },
+      {
+        "id": "laboratory",
+        "label": "лаборатория",
+        "kind": "nested_automaton",
+        "keywords": [
+          "прибор",
+          "проба",
+          "стол",
+          "свет",
+          "шум",
+          "запись",
+          "огонь",
+          "риск"
+        ]
+      },
+      {
+        "id": "review_scheme",
+        "label": "схема проверки",
+        "kind": "scheme",
+        "keywords": [
+          "критерий",
+          "ошибка",
+          "повтор",
+          "свидетель",
+          "граница",
+          "спор",
+          "вывод",
+          "печать"
+        ]
+      },
+      {
+        "id": "method_scheme",
+        "label": "схема метода",
+        "kind": "scheme",
+        "keywords": [
+          "шаг",
+          "правило",
+          "проба",
+          "контроль",
+          "исключение",
+          "повтор",
+          "результат",
+          "граница"
+        ]
+      },
+      {
+        "id": "curriculum",
+        "label": "учебный план",
+        "kind": "scheme",
+        "keywords": [
+          "урок",
+          "тема",
+          "срок",
+          "упражнение",
+          "экзамен",
+          "повтор",
+          "навык",
+          "оценка"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "academy",
+        "label": "академическая среда",
+        "kind": "actor",
+        "keywords": [
+          "кафедра",
+          "спор",
+          "традиция",
+          "власть",
+          "деньги",
+          "имя",
+          "зависть",
+          "поддержка"
+        ]
+      },
+      {
+        "id": "patrons",
+        "label": "покровители",
+        "kind": "actor",
+        "keywords": [
+          "заказ",
+          "деньги",
+          "защита",
+          "условие",
+          "слава",
+          "терпение",
+          "контроль",
+          "надежда"
+        ]
+      },
+      {
+        "id": "rivals",
+        "label": "соперники",
+        "kind": "actor",
+        "keywords": [
+          "приоритет",
+          "спор",
+          "критика",
+          "зависть",
+          "тайна",
+          "перехват",
+          "ошибка",
+          "удар"
+        ]
+      },
+      {
+        "id": "ignorance",
+        "label": "невежество",
+        "kind": "environment",
+        "keywords": [
+          "слух",
+          "страх",
+          "запрет",
+          "тьма",
+          "ошибка",
+          "предрассудок",
+          "молчание",
+          "хаос"
+        ]
+      }
+    ]
+  }
+}

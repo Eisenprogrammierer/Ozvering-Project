@@ -1,0 +1,390 @@
+{
+  "schema": 1,
+  "type": "reconnaissance",
+  "label": "Разведка",
+  "description": "Отправитель собирает скрытую информацию, получатель анализирует её и принимает решение.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "сигнал и тень",
+      "kind": "signal",
+      "keywords": [
+        "след",
+        "шум",
+        "тень",
+        "слух",
+        "свет",
+        "запись",
+        "карта",
+        "молчание"
+      ]
+    },
+    "sender_output": {
+      "label": "донесение и карта",
+      "kind": "information",
+      "keywords": [
+        "донесение",
+        "карта",
+        "запись",
+        "сводка",
+        "доклад",
+        "след",
+        "тайна",
+        "ошибка"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "разведчик",
+          "kind": "nested_automaton",
+          "keywords": [
+            "след",
+            "тень",
+            "взгляд",
+            "слух",
+            "тишина",
+            "дорога",
+            "риск",
+            "доклад"
+          ]
+        },
+        {
+          "label": "схема наблюдения",
+          "kind": "scheme",
+          "keywords": [
+            "точка",
+            "время",
+            "след",
+            "шум",
+            "свет",
+            "тень",
+            "запись",
+            "уход"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "аналитик",
+          "kind": "nested_automaton",
+          "keywords": [
+            "сводка",
+            "карта",
+            "вопрос",
+            "ошибка",
+            "вывод",
+            "риск",
+            "память",
+            "слово"
+          ]
+        },
+        {
+          "label": "схема проверки",
+          "kind": "scheme",
+          "keywords": [
+            "критерий",
+            "ответ",
+            "ошибка",
+            "свидетель",
+            "риск",
+            "повтор",
+            "вывод",
+            "печать"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "поиск",
+          "kind": "state",
+          "keywords": [
+            "след",
+            "тень",
+            "слух",
+            "дорога",
+            "взгляд",
+            "время",
+            "риск",
+            "тишина"
+          ]
+        },
+        {
+          "label": "слежка",
+          "kind": "state",
+          "keywords": [
+            "тень",
+            "шаг",
+            "пауза",
+            "взгляд",
+            "шум",
+            "риск",
+            "терпение",
+            "молчание"
+          ]
+        },
+        {
+          "label": "фиксация",
+          "kind": "state",
+          "keywords": [
+            "запись",
+            "карта",
+            "знак",
+            "свет",
+            "слух",
+            "точка",
+            "печать",
+            "тишина"
+          ]
+        },
+        {
+          "label": "уход",
+          "kind": "state",
+          "keywords": [
+            "тень",
+            "шаг",
+            "дорога",
+            "молчание",
+            "риск",
+            "след",
+            "ночь",
+            "граница"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "ожидание",
+          "kind": "state",
+          "keywords": [
+            "тишина",
+            "время",
+            "взгляд",
+            "слух",
+            "свет",
+            "надежда",
+            "страх",
+            "риск"
+          ]
+        },
+        {
+          "label": "анализ",
+          "kind": "state",
+          "keywords": [
+            "карта",
+            "сводка",
+            "вопрос",
+            "ошибка",
+            "вывод",
+            "риск",
+            "память",
+            "слово"
+          ]
+        },
+        {
+          "label": "сомнение",
+          "kind": "state",
+          "keywords": [
+            "ошибка",
+            "слух",
+            "тень",
+            "вопрос",
+            "риск",
+            "молчание",
+            "пауза",
+            "страх"
+          ]
+        },
+        {
+          "label": "решение",
+          "kind": "state",
+          "keywords": [
+            "вывод",
+            "печать",
+            "слово",
+            "приказ",
+            "риск",
+            "цель",
+            "рука",
+            "тишина"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "противник",
+          "kind": "actor",
+          "keywords": [
+            "охрана",
+            "патруль",
+            "след",
+            "шум",
+            "свет",
+            "обман",
+            "удар",
+            "тайна"
+          ]
+        },
+        {
+          "label": "погода",
+          "kind": "environment",
+          "keywords": [
+            "дождь",
+            "снег",
+            "туман",
+            "ночь",
+            "ветер",
+            "грязь",
+            "холод",
+            "свет"
+          ]
+        },
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "приказ",
+            "запрет",
+            "печать",
+            "срок",
+            "страх",
+            "награда",
+            "граница",
+            "суд"
+          ]
+        },
+        {
+          "label": "слух",
+          "kind": "environment",
+          "keywords": [
+            "молва",
+            "ложь",
+            "страх",
+            "имя",
+            "тень",
+            "шум",
+            "слово",
+            "хаос"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "razvedka",
+      "nablyudenie",
+      "vyslezhivanie",
+      "slezhka",
+      "perekhvat",
+      "donos",
+      "svodka",
+      "doklad",
+      "operatsiya",
+      "aktsiya",
+      "zadacha",
+      "programma",
+      "strategiya",
+      "taktika",
+      "model",
+      "protsedura",
+      "protokol",
+      "risk"
+    ],
+    "adjectives": [
+      "tayny",
+      "sekretny",
+      "yavnyy",
+      "skrytyy",
+      "vnezapnyy",
+      "bystry",
+      "kratkiy",
+      "dlitelnyy",
+      "lokalnyy",
+      "masshtabnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "politicheskiy",
+      "voenny",
+      "sluzhebnyy",
+      "riskovannyy",
+      "uspeshnyy",
+      "pokaznoy",
+      "zhestkiy",
+      "myagkiy",
+      "nochnoy"
+    ],
+    "dependents": [
+      "agent",
+      "informator",
+      "nablyudatel",
+      "sled",
+      "tayna",
+      "donos",
+      "svodka",
+      "doklad",
+      "protokol",
+      "zakladka",
+      "perekhvat",
+      "informatsiya",
+      "znanie",
+      "doverie",
+      "interes",
+      "risk",
+      "oshibka",
+      "proval",
+      "uspekh",
+      "granitsa",
+      "perimetr",
+      "okhrana",
+      "karavan",
+      "port",
+      "sklad",
+      "doroga",
+      "marshrut",
+      "tsel",
+      "zadacha",
+      "konflikt",
+      "storona",
+      "sluzhba"
+    ],
+    "dependent_adjectives": [
+      "tayny",
+      "sekretny",
+      "yavnyy",
+      "skrytyy",
+      "vnezapnyy",
+      "bystry",
+      "kratkiy",
+      "dlitelnyy",
+      "lokalnyy",
+      "masshtabnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "politicheskiy",
+      "voenny",
+      "sluzhebnyy",
+      "riskovannyy",
+      "uspeshnyy",
+      "pokaznoy",
+      "zhestkiy",
+      "myagkiy",
+      "nochnoy"
+    ],
+    "extensions": [
+      "v_teni_zakona",
+      "bez_lishnikh_slov",
+      "po_pervomu_trebovaniyu",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha",
+      "v_chas_trevogi",
+      "radi_obshchego_blaga"
+    ]
+  }
+}

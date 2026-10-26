@@ -281,8 +281,11 @@ def test_active_automaton_is_valid_and_reachable():
         analysis = OrganizationSolver().analyze(scenario.population)
         automaton = build_automaton(analysis)
 
-        assert automaton.name.startswith(
-            analysis.archetype[:1].upper() + analysis.archetype[1:])
+        assert automaton.name
+        assert automaton.name != "%s — %s" % (
+            analysis.archetype[:1].upper() + analysis.archetype[1:],
+            analysis.need_ru)
+        assert automaton.name == build_automaton(analysis).name
         assert automaton.validate() == []
         assert len(automaton.initial_states) == 1
         assert automaton.final_states
@@ -329,7 +332,8 @@ def test_save_automaton_and_cli_write(tmp_path):
     store = AutomataStore(tmp_path)
     slug = save_automaton(analysis, store, "test_gang")
     assert slug == "test_gang"
-    assert store.load(slug).name.startswith("Банда")
+    assert store.load(slug).name == build_automaton(analysis).name
+    assert not store.load(slug).name.startswith("Банда")
 
     from organizations.__main__ import main
 
@@ -354,6 +358,34 @@ def test_organizations_do_not_import_pygame():
         cwd=str(Path(__file__).resolve().parents[1]),
         capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_natural_name_can_be_overridden_by_name_and_seed():
+    analysis = OrganizationSolver().analyze(fear_state().population)
+
+    explicit = build_automaton(analysis, name="Свой разбор")
+    assert explicit.name == "Свой разбор"
+
+    first = build_automaton(analysis, seed=7)
+    second = build_automaton(analysis, seed=7)
+    assert first.name == second.name
+
+    names = {build_automaton(analysis, seed=seed).name for seed in range(12)}
+    assert len(names) > 1
+
+
+def test_cli_name_seed_is_reproducible(capsys):
+    from organizations.__main__ import main
+
+    assert main(["--scenario", "gang_status", "--json", "--name-seed",
+                 "7"]) == 0
+    first = capsys.readouterr().out
+    assert main(["--scenario", "gang_status", "--json", "--name-seed",
+                 "7"]) == 0
+    second = capsys.readouterr().out
+    assert first == second
+    payload = json.loads(first)
+    assert payload["name"]
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,839 @@
+{
+  "schema": 1,
+  "class": "care",
+  "label": "Забота",
+  "description": "Помощь, лечение, приют и община; лексика больницы, семьи, сестринства и богадельни.",
+  "default_theme": "heal",
+  "need_themes": {
+    "health": "heal",
+    "fatigue": "heal",
+    "hunger": "heal",
+    "thirst": "heal",
+    "loneliness": "community",
+    "friendship": "community",
+    "love": "family",
+    "reproduction": "family",
+    "fear": "shelter",
+    "anxiety": "shelter",
+    "status": "community",
+    "spirituality": "shelter",
+    "knowledge": "community",
+    "creativity": "community",
+    "skill": "community",
+    "boredom": "community"
+  },
+  "base": {
+    "heads": [
+      "obshchina",
+      "sestrinstvo",
+      "bratstvo",
+      "priyut",
+      "bolnitsa",
+      "lazaret",
+      "klinika",
+      "apteka",
+      "sanatoriy",
+      "bogadelnya",
+      "gospital",
+      "medpunkt",
+      "fond",
+      "kassa",
+      "semya",
+      "rod",
+      "dom",
+      "ochag",
+      "kolybel",
+      "obitel",
+      "monastyr",
+      "brigada",
+      "druzhina",
+      "komitet",
+      "punkt",
+      "tsentr",
+      "gruppa",
+      "komanda"
+    ],
+    "adjectives": [
+      "miloserdny",
+      "zabotlivy",
+      "dobry",
+      "teply",
+      "blagoy",
+      "krotkiy",
+      "verny",
+      "blizhniy",
+      "semeyny",
+      "rodovoy",
+      "domashniy",
+      "selskiy",
+      "gorodskoy",
+      "mestny",
+      "meditsinskiy",
+      "sanitarny",
+      "spasatelny",
+      "priyutny",
+      "tikh",
+      "svetly",
+      "chistiy",
+      "dobrotny",
+      "nadezhny",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "materinskiy",
+      "otsovskiy",
+      "detskiy",
+      "starcheskiy",
+      "gumanitarny",
+      "vzaimny",
+      "besplatny",
+      "dostupny",
+      "kruglosutochny"
+    ],
+    "dependents": [
+      "miloserdie",
+      "pomoshch",
+      "zabota",
+      "popechenie",
+      "zdorovye",
+      "lechenie",
+      "ukhod",
+      "pitanie",
+      "teplo",
+      "krov_priyut",
+      "nadezhda",
+      "semya",
+      "rod",
+      "dom",
+      "ochag",
+      "deti",
+      "stariki",
+      "bolnye",
+      "ranenye",
+      "sestry",
+      "bratya",
+      "obshchina",
+      "vzaimopomoshch",
+      "kassa",
+      "fond",
+      "priyut",
+      "spasenie",
+      "zhizn"
+    ],
+    "dependent_adjectives": [
+      "miloserdny",
+      "zabotlivy",
+      "dobry",
+      "teply",
+      "blagoy",
+      "krotkiy",
+      "verny",
+      "blizhniy",
+      "semeyny",
+      "rodovoy",
+      "domashniy",
+      "selskiy",
+      "mestny",
+      "meditsinskiy",
+      "sanitarny",
+      "spasatelny",
+      "priyutny",
+      "tikh",
+      "svetly",
+      "chistiy",
+      "dobrotny",
+      "nadezhny",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "materinskiy",
+      "otsovskiy",
+      "detskiy",
+      "starcheskiy",
+      "gumanitarny",
+      "vzaimny",
+      "besplatny",
+      "dostupny",
+      "kruglosutochny"
+    ],
+    "extensions": [
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "bez_lishnikh_slov",
+      "po_zovu_dolga",
+      "v_chas_trevogi",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  },
+  "themes": {
+    "heal": {
+      "heads": [
+        "bolnitsa",
+        "lazaret",
+        "klinika",
+        "apteka",
+        "sanatoriy",
+        "gospital",
+        "medpunkt",
+        "punkt",
+        "tsentr",
+        "brigada",
+        "gruppa",
+        "komanda"
+      ],
+      "adjectives": [
+        "meditsinskiy",
+        "sanitarny",
+        "spasatelny",
+        "chistiy",
+        "nadezhny",
+        "kruglosutochny",
+        "polevoy",
+        "mobilny",
+        "nochnoy",
+        "teply",
+        "dobry"
+      ],
+      "dependents": [
+        "zdorovye",
+        "lechenie",
+        "ukhod",
+        "pitanie",
+        "meditsina",
+        "pomoshch",
+        "bolnye",
+        "ranenye",
+        "voda",
+        "teplo"
+      ],
+      "dependent_adjectives": [
+        "meditsinskiy",
+        "sanitarny",
+        "spasatelny",
+        "chistiy",
+        "nadezhny",
+        "kruglosutochny",
+        "polevoy",
+        "mobilny",
+        "nochnoy",
+        "teply",
+        "dobry"
+      ]
+    },
+    "community": {
+      "heads": [
+        "obshchina",
+        "bratstvo",
+        "sestrinstvo",
+        "fond",
+        "kassa",
+        "komitet",
+        "soviet",
+        "dom",
+        "ochag",
+        "klub",
+        "druzhina"
+      ],
+      "adjectives": [
+        "obshchinny",
+        "bratskiy",
+        "sestrinskiy",
+        "vzaimny",
+        "dobry",
+        "besplatny",
+        "dostupny",
+        "gumanitarny",
+        "teply",
+        "svetly"
+      ],
+      "dependents": [
+        "vzaimopomoshch",
+        "pomoshch",
+        "zabota",
+        "popechenie",
+        "obshchina",
+        "semya",
+        "rod",
+        "dom",
+        "ochag",
+        "nadezhda",
+        "lyubov",
+        "bratya",
+        "sestry"
+      ],
+      "dependent_adjectives": [
+        "obshchinny",
+        "bratskiy",
+        "sestrinskiy",
+        "vzaimny",
+        "dobry",
+        "besplatny",
+        "dostupny",
+        "gumanitarny",
+        "teply",
+        "svetly"
+      ]
+    },
+    "family": {
+      "heads": [
+        "semya",
+        "rod",
+        "dom",
+        "ochag",
+        "kolybel",
+        "priyut",
+        "obshchina",
+        "brigada"
+      ],
+      "adjectives": [
+        "semeyny",
+        "rodovoy",
+        "domashniy",
+        "materinskiy",
+        "otsovskiy",
+        "detskiy",
+        "teply",
+        "dobry",
+        "krotkiy",
+        "blizhniy"
+      ],
+      "dependents": [
+        "semya",
+        "rod",
+        "dom",
+        "ochag",
+        "deti",
+        "stariki",
+        "kolybel",
+        "nadezhda",
+        "lyubov",
+        "zhizn",
+        "pamyat",
+        "traditsiya",
+        "teplo"
+      ],
+      "dependent_adjectives": [
+        "semeyny",
+        "rodovoy",
+        "domashniy",
+        "materinskiy",
+        "otsovskiy",
+        "detskiy",
+        "teply",
+        "dobry",
+        "krotkiy",
+        "blizhniy"
+      ]
+    },
+    "shelter": {
+      "heads": [
+        "priyut",
+        "bogadelnya",
+        "obitel",
+        "monastyr",
+        "obshchina",
+        "dom",
+        "lazaret",
+        "gospital",
+        "sanatoriy"
+      ],
+      "adjectives": [
+        "priyutny",
+        "tikh",
+        "teply",
+        "svetly",
+        "chistiy",
+        "dobry",
+        "nadezhny",
+        "miloserdny",
+        "kruglosutochny"
+      ],
+      "dependents": [
+        "krov_priyut",
+        "priyut",
+        "pitanie",
+        "teplo",
+        "ukhod",
+        "pomoshch",
+        "zabota",
+        "spasenie",
+        "zhizn",
+        "deti",
+        "stariki",
+        "bolnye",
+        "ranenye"
+      ],
+      "dependent_adjectives": [
+        "priyutny",
+        "tikh",
+        "teply",
+        "svetly",
+        "chistiy",
+        "dobry",
+        "nadezhny",
+        "miloserdny",
+        "kruglosutochny"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "priyut",
+        "ochag",
+        "kolybel",
+        "semya",
+        "rod",
+        "dom",
+        "gruppa",
+        "komanda",
+        "brigada",
+        "obshchina"
+      ],
+      "adjectives": [
+        "mestny",
+        "domashniy",
+        "semeyny",
+        "teply",
+        "dobry",
+        "skromny",
+        "tikh"
+      ]
+    },
+    "2": {
+      "heads": [
+        "bolnitsa",
+        "klinika",
+        "lazaret",
+        "gospital",
+        "sanatoriy",
+        "medpunkt",
+        "apteka",
+        "fond",
+        "obshchina",
+        "bratstvo",
+        "sestrinstvo",
+        "komitet"
+      ],
+      "adjectives": [
+        "gorodskoy",
+        "mestny",
+        "meditsinskiy",
+        "sanitarny",
+        "nadezhny",
+        "chistiy",
+        "kruglosutochny"
+      ]
+    },
+    "3": {
+      "heads": [
+        "obshchina",
+        "fond",
+        "komitet",
+        "soviet",
+        "gosudarstvo",
+        "obshchestvo",
+        "palata",
+        "kollegiya"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "glavny",
+        "tsentralny",
+        "gumanitarny",
+        "miloserdny",
+        "dobry",
+        "nadezhny",
+        "dostupny"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "need",
+        "label": "нужда",
+        "kind": "information",
+        "keywords": [
+          "голод",
+          "холод",
+          "боль",
+          "страх",
+          "одиночество",
+          "слабость",
+          "просьба",
+          "молчание"
+        ]
+      },
+      {
+        "id": "illness",
+        "label": "болезнь",
+        "kind": "event",
+        "keywords": [
+          "жар",
+          "раны",
+          "кашель",
+          "слабость",
+          "боль",
+          "инфекция",
+          "усталость",
+          "страх"
+        ]
+      },
+      {
+        "id": "donation",
+        "label": "пожертвование",
+        "kind": "resource",
+        "keywords": [
+          "хлеб",
+          "ткань",
+          "деньги",
+          "лекарство",
+          "кров",
+          "тепло",
+          "время",
+          "руки"
+        ]
+      },
+      {
+        "id": "request",
+        "label": "просьба",
+        "kind": "information",
+        "keywords": [
+          "слово",
+          "плач",
+          "жест",
+          "письмо",
+          "слух",
+          "мольба",
+          "вопрос",
+          "надежда"
+        ]
+      },
+      {
+        "id": "weather",
+        "label": "среда",
+        "kind": "environment",
+        "keywords": [
+          "зима",
+          "дождь",
+          "ночь",
+          "грязь",
+          "холод",
+          "теснота",
+          "дорога",
+          "тьма"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "care",
+        "label": "забота",
+        "kind": "care",
+        "keywords": [
+          "тепло",
+          "внимание",
+          "слово",
+          "руки",
+          "тишина",
+          "приют",
+          "пища",
+          "надежда"
+        ]
+      },
+      {
+        "id": "treatment",
+        "label": "лечение",
+        "kind": "care",
+        "keywords": [
+          "бинт",
+          "отвар",
+          "сон",
+          "чистота",
+          "покой",
+          "наблюдение",
+          "рана",
+          "выздоровление"
+        ]
+      },
+      {
+        "id": "shelter",
+        "label": "кров",
+        "kind": "resource",
+        "keywords": [
+          "крыша",
+          "стена",
+          "постель",
+          "огонь",
+          "тепло",
+          "место",
+          "тишина",
+          "дверь"
+        ]
+      },
+      {
+        "id": "food",
+        "label": "пища",
+        "kind": "resource",
+        "keywords": [
+          "хлеб",
+          "вода",
+          "каша",
+          "молоко",
+          "суп",
+          "соль",
+          "ложка",
+          "тепло"
+        ]
+      },
+      {
+        "id": "hope",
+        "label": "надежда",
+        "kind": "meaning",
+        "keywords": [
+          "слово",
+          "улыбка",
+          "свет",
+          "память",
+          "вера",
+          "будущее",
+          "рука",
+          "тишина"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "need_state",
+        "label": "нужда",
+        "kind": "state",
+        "keywords": [
+          "пустота",
+          "холод",
+          "боль",
+          "страх",
+          "ожидание",
+          "слабость",
+          "молчание",
+          "просьба"
+        ]
+      },
+      {
+        "id": "reception",
+        "label": "приём",
+        "kind": "state",
+        "keywords": [
+          "дверь",
+          "вопрос",
+          "список",
+          "осмотр",
+          "тепло",
+          "место",
+          "слово",
+          "порог"
+        ]
+      },
+      {
+        "id": "care_state",
+        "label": "уход",
+        "kind": "state",
+        "keywords": [
+          "руки",
+          "бинт",
+          "вода",
+          "тишина",
+          "тепло",
+          "сон",
+          "слово",
+          "внимание"
+        ]
+      },
+      {
+        "id": "recovery",
+        "label": "выздоровление",
+        "kind": "state",
+        "keywords": [
+          "сон",
+          "свет",
+          "аппетит",
+          "шаг",
+          "улыбка",
+          "сила",
+          "надежда",
+          "возвращение"
+        ]
+      },
+      {
+        "id": "loss",
+        "label": "утрата",
+        "kind": "state",
+        "keywords": [
+          "тишина",
+          "свеча",
+          "память",
+          "пустота",
+          "слеза",
+          "имя",
+          "молчание",
+          "боль"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "caregiver",
+        "label": "опекун",
+        "kind": "nested_automaton",
+        "keywords": [
+          "рука",
+          "слово",
+          "терпение",
+          "тепло",
+          "наблюдение",
+          "питьё",
+          "сон",
+          "надежда"
+        ]
+      },
+      {
+        "id": "nurse",
+        "label": "сестра",
+        "kind": "nested_automaton",
+        "keywords": [
+          "бинт",
+          "отвар",
+          "чистота",
+          "порядок",
+          "осмотр",
+          "запись",
+          "тепло",
+          "спокойствие"
+        ]
+      },
+      {
+        "id": "volunteer",
+        "label": "доброволец",
+        "kind": "nested_automaton",
+        "keywords": [
+          "желание",
+          "руки",
+          "время",
+          "хлеб",
+          "дорога",
+          "слово",
+          "усталость",
+          "улыбка"
+        ]
+      },
+      {
+        "id": "triage",
+        "label": "схема сортировки",
+        "kind": "scheme",
+        "keywords": [
+          "срочность",
+          "осмотр",
+          "очередь",
+          "порог",
+          "риск",
+          "место",
+          "время",
+          "решение"
+        ]
+      },
+      {
+        "id": "care_plan",
+        "label": "план ухода",
+        "kind": "scheme",
+        "keywords": [
+          "шаг",
+          "время",
+          "питание",
+          "питьё",
+          "сон",
+          "чистота",
+          "наблюдение",
+          "порог"
+        ]
+      },
+      {
+        "id": "supply_scheme",
+        "label": "схема снабжения",
+        "kind": "scheme",
+        "keywords": [
+          "запас",
+          "норма",
+          "склад",
+          "срок",
+          "вода",
+          "хлеб",
+          "тепло",
+          "дефицит"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "family",
+        "label": "семья",
+        "kind": "actor",
+        "keywords": [
+          "тепло",
+          "долг",
+          "память",
+          "страх",
+          "надежда",
+          "руки",
+          "молчание",
+          "дом"
+        ]
+      },
+      {
+        "id": "community",
+        "label": "община",
+        "kind": "actor",
+        "keywords": [
+          "помощь",
+          "слух",
+          "поддержка",
+          "усталость",
+          "доля",
+          "сосед",
+          "доверие",
+          "граница"
+        ]
+      },
+      {
+        "id": "donors",
+        "label": "жертвователи",
+        "kind": "actor",
+        "keywords": [
+          "дар",
+          "условие",
+          "имя",
+          "слово",
+          "ожидание",
+          "хлеб",
+          "деньги",
+          "слава"
+        ]
+      },
+      {
+        "id": "epidemic",
+        "label": "эпидемия",
+        "kind": "environment",
+        "keywords": [
+          "жар",
+          "страх",
+          "слух",
+          "карантин",
+          "смерть",
+          "теснота",
+          "вода",
+          "граница"
+        ]
+      }
+    ]
+  }
+}

@@ -8,7 +8,9 @@
 
 from __future__ import annotations
 
-from .model import OrganizationAnalysis
+import hashlib
+import json
+
 from .needs import MODE_RU
 
 
@@ -65,13 +67,48 @@ def _description(analysis):
     )
 
 
-def build_automaton(analysis, name=None):
-    """Собрать ``automata.model.Automaton`` из разбора."""
-    from automata.model import Automaton
+def _analysis_seed(analysis):
+    """Стабильный seed из разбора; не зависит от hash randomization."""
+    payload = analysis.to_dict()
+    payload.pop("assessments", None)
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                      separators=(",", ":"))
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
 
+
+def _natural_name(analysis, seed=None):
+    """Естественное название по функции, потребности и уровню."""
+    mode = analysis.top_mode
+    if not mode or analysis.dissolved:
+        return None
+    name_seed = _analysis_seed(analysis) if seed is None else int(seed)
+    try:
+        from naming import NameGenerator
+        from naming.catalog import NamingError
+
+        result = NameGenerator(seed=name_seed).automaton_name(
+            mode, need=analysis.priority_need, level=analysis.level,
+            seed=name_seed)
+        return result.text or None
+    except (NamingError, ValueError, KeyError):
+        return None
+
+
+def _legacy_title(analysis):
+    return "%s — %s" % (_capitalize(analysis.archetype), analysis.need_ru)
+
+
+def build_automaton(analysis, name=None, seed=None):
+    """Собрать ``automata.model.Automaton`` из разбора.
+
+    По умолчанию имя выводится генератором ``naming`` из доминирующей
+    функции, приоритетной потребности и уровня. ``name`` задаёт явное
+    переопределение, ``seed`` — воспроизводимый seed названия.
+    """
     if analysis.dissolved:
         return _build_dissolved(analysis, name=name)
-    return _build_active(analysis, name=name)
+    return _build_active(analysis, name=name, seed=seed)
 
 
 def _build_dissolved(analysis, name=None):
@@ -93,11 +130,10 @@ def _build_dissolved(analysis, name=None):
     return automaton
 
 
-def _build_active(analysis, name=None):
+def _build_active(analysis, name=None, seed=None):
     from automata.model import Automaton
 
-    title = name or "%s — %s" % (
-        _capitalize(analysis.archetype), analysis.need_ru)
+    title = name or _natural_name(analysis, seed=seed) or _legacy_title(analysis)
     automaton = Automaton(title, _description(analysis))
 
     latent = automaton.add_state(
@@ -175,9 +211,9 @@ def _build_active(analysis, name=None):
     return automaton
 
 
-def save_automaton(analysis, store, slug=None):
+def save_automaton(analysis, store, slug=None, name=None, seed=None):
     """Сгенерировать и записать автомат; вернуть slug."""
-    automaton = build_automaton(analysis)
+    automaton = build_automaton(analysis, name=name, seed=seed)
     if slug is None:
         slug = store.unique_slug(automaton.name)
     return store.save(automaton, slug)

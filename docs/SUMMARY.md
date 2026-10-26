@@ -140,9 +140,12 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `ui/scenes/interaction.py` | экран из трёх панелей: объекты → действия → прогноз/фактический исход |
 | `organizations/` | **аналитические организации-суперсистемы**: 16 потребностей, масштаб/уровни, экономика участия, генератор JSON |
 | `organizations/runtime.py` | runtime-слой: Population из живых персонажей, эффекты на потребности/мораль, фазы, односторонний выход и распад; опционален для `WarfareSimulation` |
+| `naming/` | **генератор естественных названий**: морфология, распределение длины, классовые профили и типы взаимодействий; без pygame |
+| `configs/naming/` | лексикон, 7 классов автоматов и 8 типов взаимодействий; декларативные онтологии и пятёрки |
 | `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
 | `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
 | `docs/INTERACTION.md` | доменно-нейтральный фреймворк взаимодействий: объекты, действия, шумные/скрытые исходы |
+| `docs/NAMING.md` | естественные названия: грамматика, морфология, классы, онтологии, пятёрки взаимодействий |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
 | `docs/MODEL.md` | спецификация механики (§1–19) — источник истины |
@@ -162,6 +165,8 @@ python3 main.py --automata       # редактор автоматов (JSON-г�
 python3 -m organizations         # генератор аналитических организаций (JSON)
 python3 -m organizations --write # записать примеры в configs/automata/
 python3 -m organizations --runtime --turns 12  # runtime-демо с warfare
+python3 -m naming --list                  # классы и типы взаимодействий
+python3 -m naming --mode order --need fear --level 3 --count 5 --seed 7
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --interaction    # экран взаимодействий (объекты/действия/исходы)
 python3 main.py --arena          # автономная арена

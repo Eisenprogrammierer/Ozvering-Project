@@ -1,0 +1,409 @@
+{
+  "schema": 1,
+  "type": "negotiation",
+  "label": "Переговоры",
+  "description": "Стороны обмениваются предложениями и уступками, чтобы достичь соглашения или зафиксировать разрыв.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "предложение и ультиматум",
+      "kind": "signal",
+      "keywords": [
+        "предложение",
+        "условие",
+        "цена",
+        "срок",
+        "угроза",
+        "уступка",
+        "слово",
+        "молчание"
+      ]
+    },
+    "sender_output": {
+      "label": "ответ и уступка",
+      "kind": "meaning",
+      "keywords": [
+        "ответ",
+        "уступка",
+        "согласие",
+        "отказ",
+        "обещание",
+        "договор",
+        "печать",
+        "слово"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "посредник",
+          "kind": "nested_automaton",
+          "keywords": [
+            "слово",
+            "пауза",
+            "цена",
+            "выгода",
+            "доверие",
+            "риск",
+            "слух",
+            "тайна"
+          ]
+        },
+        {
+          "label": "схема переговоров",
+          "kind": "scheme",
+          "keywords": [
+            "условие",
+            "уступка",
+            "срок",
+            "слово",
+            "пауза",
+            "риск",
+            "выгода",
+            "печать"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "делегат",
+          "kind": "nested_automaton",
+          "keywords": [
+            "слово",
+            "мандат",
+            "условие",
+            "уступка",
+            "страх",
+            "выгода",
+            "печать",
+            "молчание"
+          ]
+        },
+        {
+          "label": "схема согласования",
+          "kind": "scheme",
+          "keywords": [
+            "условие",
+            "срок",
+            "слово",
+            "уступка",
+            "риск",
+            "выгода",
+            "печать",
+            "граница"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "подготовка",
+          "kind": "state",
+          "keywords": [
+            "мандат",
+            "условие",
+            "срок",
+            "слово",
+            "карта",
+            "риск",
+            "цена",
+            "тишина"
+          ]
+        },
+        {
+          "label": "торг",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "пауза",
+            "уступка",
+            "цена",
+            "взгляд",
+            "риск",
+            "выгода",
+            "обман"
+          ]
+        },
+        {
+          "label": "уступка",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "цена",
+            "рука",
+            "пауза",
+            "выгода",
+            "риск",
+            "печать",
+            "облегчение"
+          ]
+        },
+        {
+          "label": "срыв",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "отказ",
+            "угроза",
+            "уход",
+            "потеря",
+            "тень",
+            "разрыв",
+            "гнев"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "оценка",
+          "kind": "state",
+          "keywords": [
+            "цена",
+            "условие",
+            "риск",
+            "слово",
+            "взгляд",
+            "расчёт",
+            "сомнение",
+            "выгода"
+          ]
+        },
+        {
+          "label": "торг",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "пауза",
+            "уступка",
+            "цена",
+            "взгляд",
+            "обман",
+            "выгода",
+            "рука"
+          ]
+        },
+        {
+          "label": "согласие",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "печать",
+            "рука",
+            "договор",
+            "доверие",
+            "срок",
+            "цена",
+            "облегчение"
+          ]
+        },
+        {
+          "label": "отказ",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "слово",
+            "цена",
+            "страх",
+            "гордость",
+            "риск",
+            "уход",
+            "тень"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "мандат",
+            "закон",
+            "приказ",
+            "печать",
+            "запрет",
+            "суд",
+            "страх",
+            "граница"
+          ]
+        },
+        {
+          "label": "союзники",
+          "kind": "actor",
+          "keywords": [
+            "поддержка",
+            "долг",
+            "слово",
+            "сила",
+            "страх",
+            "выгода",
+            "обещание",
+            "тень"
+          ]
+        },
+        {
+          "label": "соперники",
+          "kind": "actor",
+          "keywords": [
+            "цена",
+            "перехват",
+            "слух",
+            "удар",
+            "союз",
+            "тайна",
+            "зависть",
+            "риск"
+          ]
+        },
+        {
+          "label": "общественное мнение",
+          "kind": "environment",
+          "keywords": [
+            "слух",
+            "молва",
+            "улица",
+            "толпа",
+            "гнев",
+            "надежда",
+            "стыд",
+            "молчание"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "peregovory",
+      "soveshchanie",
+      "soglashenie",
+      "kompromiss",
+      "uslovie",
+      "ustupka",
+      "predlozhenie",
+      "otvet",
+      "obeshchanie",
+      "dogovor",
+      "kontrakt",
+      "protokol",
+      "reglament",
+      "protsedura",
+      "strategiya",
+      "taktika",
+      "model",
+      "mera"
+    ],
+    "adjectives": [
+      "peregovornyy",
+      "dobrovolny",
+      "ravnyy",
+      "vzaimny",
+      "otkryty",
+      "zakryty",
+      "chestny",
+      "khitriy",
+      "myagkiy",
+      "zhestkiy",
+      "yavnyy",
+      "tayny",
+      "sekretny",
+      "dlitelnyy",
+      "kratkiy",
+      "uspeshnyy",
+      "riskovannyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "politicheskiy",
+      "ekonomicheskiy",
+      "sotsialnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sluzhebnyy",
+      "kulturnyy",
+      "pravovoy",
+      "odnostoronniy",
+      "mnogostoronniy",
+      "vstrechnyy",
+      "otvetnyy"
+    ],
+    "dependents": [
+      "uslovie",
+      "ustupka",
+      "predlozhenie",
+      "otvet",
+      "obeshchanie",
+      "dogovor",
+      "kontrakt",
+      "soglashenie",
+      "kompromiss",
+      "interes",
+      "vygoda",
+      "doverie",
+      "garant",
+      "posrednik",
+      "svidetel",
+      "protokol",
+      "pechat",
+      "podpis",
+      "mandat",
+      "reglament",
+      "protsedura",
+      "tsel",
+      "risk",
+      "uspekh",
+      "proval",
+      "zhertva",
+      "storona",
+      "mir",
+      "konflikt",
+      "slovo",
+      "srok",
+      "tsena"
+    ],
+    "dependent_adjectives": [
+      "peregovornyy",
+      "dobrovolny",
+      "ravnyy",
+      "vzaimny",
+      "otkryty",
+      "zakryty",
+      "chestny",
+      "khitriy",
+      "myagkiy",
+      "zhestkiy",
+      "yavnyy",
+      "tayny",
+      "sekretny",
+      "dlitelnyy",
+      "kratkiy",
+      "uspeshnyy",
+      "riskovannyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "politicheskiy",
+      "ekonomicheskiy",
+      "sotsialnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sluzhebnyy",
+      "kulturnyy",
+      "pravovoy",
+      "odnostoronniy",
+      "mnogostoronniy",
+      "vstrechnyy",
+      "otvetnyy"
+    ],
+    "extensions": [
+      "po_pervomu_trebovaniyu",
+      "bez_lishnikh_slov",
+      "po_pravu_silnogo",
+      "v_teni_zakona",
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  }
+}

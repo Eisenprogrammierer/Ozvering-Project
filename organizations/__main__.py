@@ -67,6 +67,9 @@ def main(argv=None):
         "--json", action="store_true",
         help="напечатать JSON одного автомата (требует --scenario)")
     parser.add_argument(
+        "--name-seed", type=int, default=None,
+        help="seed естественного названия (по умолчанию — из разбора)")
+    parser.add_argument(
         "--runtime", action="store_true",
         help="прогнать warfare-демо с OrganizationRuntime")
     parser.add_argument(
@@ -89,14 +92,15 @@ def main(argv=None):
     store = AutomataStore(args.out) if args.write else None
     for scenario in selected:
         analysis = analyze_scenario(scenario)
-        automaton = build_automaton(analysis)
+        automaton = build_automaton(analysis, seed=args.name_seed)
         if args.json:
             print(json.dumps(
                 automaton.to_dict(), ensure_ascii=False, indent=2))
             continue
         slug = ""
         if store is not None:
-            slug = save_automaton(analysis, store, scenario.slug)
+            slug = save_automaton(analysis, store, scenario.slug,
+                                  seed=args.name_seed)
         print(
             "%-22s need=%-12s L=%d %-24s willing=%d/%d%s"
             % (scenario.slug, analysis.need_ru, analysis.level,

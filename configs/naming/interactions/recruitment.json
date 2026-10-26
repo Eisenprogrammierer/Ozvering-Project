@@ -1,0 +1,427 @@
+{
+  "schema": 1,
+  "type": "recruitment",
+  "label": "Вербовка",
+  "description": "Отправитель ищет и склоняет кандидата к сотрудничеству, обещая выгоду, защиту или принадлежность.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "предложение и искушение",
+      "kind": "signal",
+      "keywords": [
+        "выгода",
+        "защита",
+        "слово",
+        "обещание",
+        "угроза",
+        "слух",
+        "место",
+        "имя"
+      ]
+    },
+    "sender_output": {
+      "label": "вербовочное обещание",
+      "kind": "meaning",
+      "keywords": [
+        "выгода",
+        "защита",
+        "деньги",
+        "место",
+        "слово",
+        "присяга",
+        "тайна",
+        "надежда"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "вербовщик",
+          "kind": "nested_automaton",
+          "keywords": [
+            "слово",
+            "слух",
+            "выгода",
+            "страх",
+            "терпение",
+            "взгляд",
+            "тайна",
+            "обещание"
+          ]
+        },
+        {
+          "label": "схема проверки",
+          "kind": "scheme",
+          "keywords": [
+            "критерий",
+            "ответ",
+            "ошибка",
+            "свидетель",
+            "риск",
+            "повтор",
+            "вывод",
+            "печать"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "кандидат",
+          "kind": "nested_automaton",
+          "keywords": [
+            "интерес",
+            "страх",
+            "выгода",
+            "гордость",
+            "семья",
+            "надежда",
+            "сомнение",
+            "слово"
+          ]
+        },
+        {
+          "label": "схема колебания",
+          "kind": "scheme",
+          "keywords": [
+            "выгода",
+            "риск",
+            "слово",
+            "семья",
+            "страх",
+            "время",
+            "выбор",
+            "сомнение"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "поиск",
+          "kind": "state",
+          "keywords": [
+            "слух",
+            "список",
+            "взгляд",
+            "дорога",
+            "время",
+            "надежда",
+            "ошибка",
+            "тень"
+          ]
+        },
+        {
+          "label": "сближение",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "улыбка",
+            "пауза",
+            "взгляд",
+            "выгода",
+            "терпение",
+            "слух",
+            "риск"
+          ]
+        },
+        {
+          "label": "проверка",
+          "kind": "state",
+          "keywords": [
+            "вопрос",
+            "ответ",
+            "свидетель",
+            "ошибка",
+            "риск",
+            "повтор",
+            "печать",
+            "вывод"
+          ]
+        },
+        {
+          "label": "вербовка",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "обещание",
+            "присяга",
+            "печать",
+            "выгода",
+            "тайна",
+            "рука",
+            "молчание"
+          ]
+        },
+        {
+          "label": "провал",
+          "kind": "state",
+          "keywords": [
+            "отказ",
+            "слух",
+            "страх",
+            "потеря",
+            "тень",
+            "ошибка",
+            "уход",
+            "молчание"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "интерес",
+          "kind": "state",
+          "keywords": [
+            "выгода",
+            "слово",
+            "взгляд",
+            "надежда",
+            "любопытство",
+            "слух",
+            "пауза",
+            "риск"
+          ]
+        },
+        {
+          "label": "подозрение",
+          "kind": "state",
+          "keywords": [
+            "страх",
+            "вопрос",
+            "взгляд",
+            "слух",
+            "тайна",
+            "сомнение",
+            "пауза",
+            "тень"
+          ]
+        },
+        {
+          "label": "согласие",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "рука",
+            "присяга",
+            "выгода",
+            "надежда",
+            "печать",
+            "облегчение",
+            "риск"
+          ]
+        },
+        {
+          "label": "отказ",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "слово",
+            "гордость",
+            "страх",
+            "уход",
+            "отказ",
+            "тень",
+            "граница"
+          ]
+        },
+        {
+          "label": "двойная игра",
+          "kind": "state",
+          "keywords": [
+            "тайна",
+            "улыбка",
+            "слово",
+            "риск",
+            "выгода",
+            "страх",
+            "маска",
+            "тень"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "закон",
+            "приказ",
+            "проверка",
+            "печать",
+            "запрет",
+            "срок",
+            "страх",
+            "награда"
+          ]
+        },
+        {
+          "label": "конкуренты",
+          "kind": "actor",
+          "keywords": [
+            "перехват",
+            "слух",
+            "цена",
+            "удар",
+            "союз",
+            "тайна",
+            "зависть",
+            "риск"
+          ]
+        },
+        {
+          "label": "семья",
+          "kind": "actor",
+          "keywords": [
+            "долг",
+            "страх",
+            "надежда",
+            "слово",
+            "тепло",
+            "граница",
+            "молчание",
+            "дом"
+          ]
+        },
+        {
+          "label": "закон",
+          "kind": "environment",
+          "keywords": [
+            "норма",
+            "запрет",
+            "суд",
+            "печать",
+            "срок",
+            "страх",
+            "граница",
+            "наказание"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "verbovka",
+      "nabor",
+      "prisyaga",
+      "programma",
+      "operatsiya",
+      "aktsiya",
+      "kampaniya",
+      "meropriyatie",
+      "protsedura",
+      "model",
+      "strategiya",
+      "taktika",
+      "zadacha"
+    ],
+    "adjectives": [
+      "tayny",
+      "sekretny",
+      "yavnyy",
+      "otkryty",
+      "dobrovolny",
+      "vynuzhdennyy",
+      "myagkiy",
+      "zhestkiy",
+      "pokaznoy",
+      "uspeshnyy",
+      "riskovannyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "politicheskiy",
+      "kulturnyy",
+      "ekonomicheskiy",
+      "sluzhebnyy",
+      "voenny",
+      "kratkiy",
+      "dlitelnyy",
+      "postepennnyy",
+      "vnezapnyy"
+    ],
+    "dependents": [
+      "agent",
+      "informator",
+      "nabor",
+      "prisyaga",
+      "verbovka",
+      "doverie",
+      "loyalnost",
+      "interes",
+      "vygoda",
+      "strakh",
+      "nadezhda",
+      "dolg",
+      "podderzhka",
+      "dengi",
+      "zoloto",
+      "kredit",
+      "usluga",
+      "tovar",
+      "rabota",
+      "sluzhba",
+      "semya",
+      "rod",
+      "obshchina",
+      "molodezh",
+      "uchenik",
+      "master",
+      "voin",
+      "navyk",
+      "opyt",
+      "risk",
+      "uspekh",
+      "proval",
+      "tsel",
+      "zadacha",
+      "zakon",
+      "norma",
+      "prikaz",
+      "pechat",
+      "mandat"
+    ],
+    "dependent_adjectives": [
+      "tayny",
+      "sekretny",
+      "yavnyy",
+      "otkryty",
+      "dobrovolny",
+      "vynuzhdennyy",
+      "myagkiy",
+      "zhestkiy",
+      "pokaznoy",
+      "uspeshnyy",
+      "riskovannyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "politicheskiy",
+      "kulturnyy",
+      "ekonomicheskiy",
+      "sluzhebnyy",
+      "voenny",
+      "kratkiy",
+      "dlitelnyy",
+      "postepennnyy",
+      "vnezapnyy"
+    ],
+    "extensions": [
+      "po_pervomu_trebovaniyu",
+      "bez_lishnikh_slov",
+      "po_pravu_silnogo",
+      "v_teni_zakona",
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  }
+}
