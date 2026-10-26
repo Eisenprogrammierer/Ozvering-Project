@@ -71,6 +71,8 @@ class RoleSpec:
         leadership: Режим лидерства (``nominal``, затем, возможно, другие).
         faction_kind: Тип фракции, к которой относится роль.
         faction_slot: Слот фракции в пресете (``player``/``enemy``).
+        faction_choice: Показывать ли выбор фракции после роли.
+        storyline_id: Сюжет, который запускается для этой роли.
         available: Можно ли выбрать роль в текущей сборке.
         sort_order: Порядок в каталоге и на экране выбора.
         grants: Переменные, которые роль передаёт сюжету/кампании.
@@ -84,6 +86,8 @@ class RoleSpec:
     leadership: str = "nominal"
     faction_kind: str = "automaton"
     faction_slot: str = "player"
+    faction_choice: bool = False
+    storyline_id: str = ""
     available: bool = True
     sort_order: int = 0
     grants: Mapping[str, object] = field(default_factory=dict)
@@ -115,6 +119,9 @@ class RoleSpec:
                            str(self.faction_kind).strip())
         object.__setattr__(self, "faction_slot",
                            str(self.faction_slot).strip())
+        object.__setattr__(self, "faction_choice", bool(self.faction_choice))
+        object.__setattr__(self, "storyline_id",
+                           str(self.storyline_id or "").strip())
         object.__setattr__(self, "available", bool(self.available))
         object.__setattr__(self, "sort_order", _as_int(self.sort_order, 0))
         object.__setattr__(self, "grants", dict(self.grants))
@@ -132,6 +139,8 @@ class RoleSpec:
             leadership=data.get("leadership", "nominal"),
             faction_kind=data.get("faction_kind", "automaton"),
             faction_slot=data.get("faction_slot", "player"),
+            faction_choice=data.get("faction_choice", False),
+            storyline_id=data.get("storyline_id", ""),
             available=data.get("available", True),
             sort_order=data.get("sort_order", index),
             grants=data.get("grants") or {},
@@ -155,6 +164,8 @@ class RoleSpec:
             "leadership": self.leadership,
             "faction_kind": self.faction_kind,
             "faction_slot": self.faction_slot,
+            "faction_choice": self.faction_choice,
+            "storyline_id": self.storyline_id,
             "available": self.available,
             "sort_order": self.sort_order,
             "grants": dict(self.grants),

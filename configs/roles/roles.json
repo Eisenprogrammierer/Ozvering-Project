@@ -9,6 +9,8 @@
       "leadership": "nominal",
       "faction_kind": "automaton",
       "faction_slot": "player",
+      "faction_choice": true,
+      "storyline_id": "faction_leader_demo",
       "available": true,
       "sort_order": 10,
       "grants": {

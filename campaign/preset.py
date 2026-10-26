@@ -511,6 +511,23 @@ class CampaignPreset:
     def player_side(self):
         return _text(self.scenario.get("player_side"), "red")
 
+    @property
+    def enemy_side(self):
+        return _text(self.scenario.get("enemy_side"), "blue")
+
+    @property
+    def enemy_faction(self):
+        return next(
+            (item for item in self.factions
+             if item.get("side") == self.enemy_side),
+            None,
+        )
+
+    @property
+    def player_organization(self):
+        faction = self.player_faction or {}
+        return self.organization(faction.get("organization_id"))
+
     def characters_for_side(self, side):
         return [item for item in self.characters if item.get("side") == side]
 
@@ -650,22 +667,72 @@ class CampaignPresetGenerator:
         self.template = _validate_template(dict(template))
         self.role_catalog = self.catalog
 
-    def generate(self, role_id="faction_leader", seed=None, preset_id=None):
+    def generate(self, role_id="faction_leader", seed=None, preset_id=None,
+                 player_faction_id=None):
         role = self.role_catalog.select(role_id)
         base_seed = _as_int(
             seed if seed is not None else self.template.get("default_seed", 7),
             7,
         )
-        return self._generate(role, base_seed, preset_id=preset_id)
+        return self._generate(
+            role, base_seed, preset_id=preset_id,
+            player_faction_id=player_faction_id,
+        )
 
-    def _generate(self, role, seed, preset_id=None):
+    def faction_options(self, seed=None):
+        template = self.template
+        base_seed = _as_int(
+            seed if seed is not None else template.get("default_seed", 7),
+            7,
+        )
+        scenario_cfg = template.get("scenario") or {}
+        companies = scenario_cfg.get("companies") or {}
+        slots = template.get("faction_slots") or {}
+        default_side = _text(
+            slots.get("player", template.get("player_side")), "red")
+        options = []
+        for side in _ordered_sides(template):
+            cfg = template["factions"][side]
+            organization = cfg.get("organization") or {}
+            leader = PersonNameGenerator(seed=base_seed).generate_many(
+                1,
+                culture=_text(cfg.get("culture")),
+                seed=base_seed + _stable_offset("names:%s" % side),
+            )[0]
+            options.append({
+                "id": _text(cfg.get("id")),
+                "side": side,
+                "name": _text(cfg.get("name")),
+                "kind": _text(cfg.get("kind"), "automaton"),
+                "culture": _text(cfg.get("culture")),
+                "leader_name": leader.full,
+                "organization_name": _text(organization.get("name")),
+                "companies": max(0, _as_int(companies.get(side), 0)),
+                "goals": list(cfg.get("goals") or ()),
+                "assets": dict(cfg.get("assets") or {}),
+                "is_default": side == default_side,
+            })
+        return options
+
+    def _generate(self, role, seed, preset_id=None, player_faction_id=None):
         template = self.template
         scenario_cfg = template.get("scenario") or {}
         slots = template.get("faction_slots") or {}
         slot = role.faction_slot or "player"
         other_slot = "enemy" if slot == "player" else "player"
-        player_side = _text(
+        default_player_side = _text(
             slots.get(slot, template.get("player_side")), "red")
+        player_side = default_player_side
+        if player_faction_id:
+            chosen = next(
+                (side for side, cfg in template["factions"].items()
+                 if _text(cfg.get("id")) == _text(player_faction_id)),
+                None,
+            )
+            if chosen is None:
+                raise CampaignPresetError(
+                    "нет фракции %r" % (player_faction_id,))
+            player_side = chosen
         enemy_side = _text(
             slots.get(other_slot, template.get("enemy_side")), "blue")
         if player_side not in template["factions"]:
@@ -838,8 +905,12 @@ class CampaignPresetGenerator:
             "characters_per_company": per_company,
             "units": units,
         }
-        preset_id = _text(preset_id).strip() or "%s_seed%d" % (
+        explicit_id = _text(preset_id).strip()
+        preset_id = explicit_id or "%s_seed%d" % (
             _text(template.get("template_id"), "test_skirmish"), seed)
+        if not explicit_id and player_side != default_player_side:
+            preset_id += "_%s" % _text(player_faction["id"]).replace(
+                "faction_", "")
         return CampaignPreset(
             schema=SCHEMA,
             template_id=_text(template.get("template_id"), "test_skirmish"),
@@ -1025,11 +1096,17 @@ class CampaignPresetGenerator:
 
 
 def generate_preset(role_id="faction_leader", seed=None, preset_id=None,
-                    template=None, template_path=None, catalog=None):
+                    template=None, template_path=None, catalog=None,
+                    player_faction_id=None):
     """Короткий функциональный вход для генерации тестовой кампании."""
     generator = CampaignPresetGenerator(
         catalog=catalog, template=template, template_path=template_path)
-    return generator.generate(role_id=role_id, seed=seed, preset_id=preset_id)
+    return generator.generate(
+        role_id=role_id,
+        seed=seed,
+        preset_id=preset_id,
+        player_faction_id=player_faction_id,
+    )
 
 
 __all__ = [

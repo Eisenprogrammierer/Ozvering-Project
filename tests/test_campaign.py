@@ -49,6 +49,8 @@ def test_role_catalog_exposes_only_faction_leader():
     assert role.leadership == "nominal"
     assert role.faction_kind == "automaton"
     assert role.faction_slot == "player"
+    assert role.faction_choice is True
+    assert role.storyline_id == "faction_leader_demo"
     assert role.grants["player_role"] == "faction_leader"
     assert role.grants["leadership_mode"] == "nominal"
     assert catalog.select("faction_leader") is role
@@ -98,6 +100,44 @@ def test_role_slot_selects_player_faction_without_code_changes():
     assert generated.player_character["side"] == "blue"
     assert generated.player_character["is_player"] is True
     assert generated.player_character["campaign_role_id"] == "enemy_leader"
+
+
+def test_player_can_choose_each_faction():
+    generator = CampaignPresetGenerator()
+    red = generator.generate(seed=7, player_faction_id="faction_red")
+    blue = generator.generate(seed=7, player_faction_id="faction_blue")
+    assert red.player_side == "red"
+    assert blue.player_side == "blue"
+    assert red.player_faction["id"] == "faction_red"
+    assert blue.player_faction["id"] == "faction_blue"
+    assert red.player_character["side"] == "red"
+    assert blue.player_character["side"] == "blue"
+    assert red.enemy_faction["side"] == "blue"
+    assert blue.enemy_faction["side"] == "red"
+    assert red.player_organization["id"] == "org_red"
+    assert blue.player_organization["id"] == "org_blue"
+    assert red.preset_id == "test_skirmish_seed7"
+    assert blue.preset_id == "test_skirmish_seed7_blue"
+
+
+def test_faction_options_preview_both_sides():
+    options = CampaignPresetGenerator().faction_options(seed=7)
+    assert [item["id"] for item in options] == [
+        "faction_red", "faction_blue"
+    ]
+    assert [item["companies"] for item in options] == [16, 32]
+    assert [item["is_default"] for item in options] == [True, False]
+    assert options[0]["organization_name"] == "Совет Севера"
+    assert options[1]["organization_name"] == "Директория Агоры"
+    assert all(item["leader_name"] for item in options)
+    assert all(item["goals"] for item in options)
+
+
+def test_faction_choice_rejects_unknown_faction():
+    with pytest.raises(Exception):
+        CampaignPresetGenerator().generate(
+            seed=7, player_faction_id="faction_missing"
+        )
 
 
 def test_role_validation_rejects_bad_ids_and_empty_catalog():
@@ -248,6 +288,59 @@ def test_world_uses_preset_roster_and_keeps_default_balance(preset):
     assert default.campaign_role_id == ""
 
 
+def test_world_can_use_blue_faction_as_player():
+    pytest.importorskip("numpy")
+    from view.support.scenario import build_world
+
+    chosen = generate_preset(seed=7, player_faction_id="faction_blue")
+    state = build_world(campaign_preset=chosen)
+    assert state.count == 48
+    assert state.player_side == "blue"
+    assert state.player_faction_id == "faction_blue"
+    assert state.units[state.player_idx].side == "blue"
+    assert state.units[state.player_idx].characters[0].campaign_role_id == (
+        "faction_leader"
+    )
+
+
+def test_faction_leader_storyline_skips_character_creation():
+    from view.support.storyline import load_storyline
+
+    storyline = load_storyline("faction_leader_demo")
+    assert storyline is not None
+    assert storyline["title"] == "Мандат фракции"
+    assert storyline["character_creation"] == {}
+    assert [scene["type"] for scene in storyline["scenes"]] == [
+        "visual_novel", "document", "gameplay"
+    ]
+    assert storyline["scenes"][0]["slides"][0]["image"].startswith(
+        "campaign/"
+    )
+
+
+def test_storyline_interpolates_campaign_variables():
+    from view.support.storyline import StorylineInterpreter
+
+    interp = StorylineInterpreter(None, {
+        "storyline_id": "test",
+        "scenes": [],
+    })
+    interp.set_variable("player_faction_name", "Северный союз")
+    interp.set_variable("player_companies", 16)
+    assert interp.interpolate(
+        "{player_faction_name}: {player_companies}"
+    ) == "Северный союз: 16"
+    assert interp.interpolate("неизвестно: {missing}") == (
+        "неизвестно: {missing}"
+    )
+    resolved = interp.resolve_variant({
+        "text": "{player_faction_name}",
+        "slides": [{"text": "{player_companies}"}],
+    })
+    assert resolved["text"] == "Северный союз"
+    assert resolved["slides"][0]["text"] == "16"
+
+
 def test_state_snapshot_preserves_campaign_metadata(preset):
     pytest.importorskip("numpy")
     from view.support.scenario import build_world
@@ -330,4 +423,37 @@ def test_role_select_screen_constructs_and_draws():
     assert [role.id for role in screen.roles] == ["faction_leader"]
     screen.select("faction_leader")
     assert app.selected_role.id == "faction_leader"
-    assert app.manager.current.__class__.__name__ == "StorylineSelectScreen"
+    assert app.selected_faction_id is None
+    assert app.manager.current.__class__.__name__ == "FactionSelectScreen"
+
+
+def test_faction_select_screen_constructs_and_draws():
+    import os
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from view.app import App
+    from view.screens.faction_select import FactionSelectScreen
+
+    app = App()
+    app.selected_role = app.role_catalog.select("faction_leader")
+    screen = FactionSelectScreen(app)
+    surface = pygame.Surface((1280, 720))
+    screen.draw(surface)
+    assert [item["id"] for item in screen.options] == [
+        "faction_red", "faction_blue"
+    ]
+    assert screen.storyline["storyline_id"] == "faction_leader_demo"
+
+
+def test_asset_loader_uses_procedural_placeholders():
+    import os
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pytest.importorskip("pygame")
+    from view.ui.asset_loader import AssetLoader
+
+    assert AssetLoader.USE_PLACEHOLDERS is True
+    image = AssetLoader.load("menus/main_menu_bg", (320, 180))
+    assert image.get_size() == (320, 180)
+    assert image.get_at((0, 0))[:3] != (0, 0, 0)

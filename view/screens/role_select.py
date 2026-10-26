@@ -76,11 +76,16 @@ class RoleSelectScreen(BaseScreen):
         ))
 
     def select(self, role_id):
-        """Зафиксировать роль и перейти к выбору сюжета."""
+        """Зафиксировать роль и перейти к выбору фракции или сюжета."""
         role = self.app.role_catalog.select(role_id)
         self.app.selected_role = role
+        self.app.selected_faction_id = None
         self.app.campaign_preset = None
         logger.info("Выбрана роль: %s (%s)", role.id, role.label)
+        if role.faction_choice:
+            from .faction_select import FactionSelectScreen
+            self.app.manager.push(FactionSelectScreen(self.app))
+            return
         from .storyline_select import StorylineSelectScreen
         self.app.manager.push(StorylineSelectScreen(self.app))
 

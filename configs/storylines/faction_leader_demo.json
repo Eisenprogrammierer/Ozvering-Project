@@ -1,0 +1,90 @@
+{
+  "storyline_id": "faction_leader_demo",
+  "title": "Мандат фракции",
+  "description": "Кампания номинального лидера фракции-автомата: выберите фракцию, примите её мандат и удержите переправу, пока совет и автомат ведут свою игру.",
+  "scenario_path": "scenarios/mvp.json",
+  "campaign_seed": 7,
+  "scenes": "faction_leader_demo_scenes",
+  "win_conditions": [
+    {
+      "type": "any_of",
+      "conditions": [
+        {
+          "type": "day_at_least",
+          "value": 7
+        },
+        {
+          "type": "all_enemies_destroyed"
+        }
+      ]
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "any_of",
+      "conditions": [
+        {
+          "type": "all_player_units_destroyed"
+        },
+        {
+          "type": "player_dead"
+        },
+        {
+          "type": "manpower_loss_above",
+          "value": 0.6
+        }
+      ]
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/aftermath_council",
+        "text": "Переправа удержана. {player_organization_name} признаёт мандат {player_character_name}, но в коридорах уже считают, во что обошлась эта верность."
+      },
+      {
+        "image": "campaign/aftermath_automaton",
+        "text": "Автомат фракции фиксирует новый баланс страха, статуса и легитимности. Ваша номинальная власть стала чуть менее номинальной — ровно настолько, насколько это выгодно организации."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/aftermath_ruins",
+        "text": "Переправа потеряна. {player_organization_name} отзывает мандат, а автомат фракции спокойно переписывает вашу роль в строку о временном исполняющем обязанности."
+      },
+      {
+        "image": "campaign/aftermath_council",
+        "text": "Вас не судят. Вас просто больше не называют лидером. В мире фракций-автоматов это и есть окончательный приговор."
+      }
+    ]
+  },
+  "adjutant_orders": [
+    {
+      "id": "hold",
+      "label": "Удержать переправу",
+      "effect": {
+        "targets": ["player"],
+        "log": "Мандат фракции: удержать переправу любой ценой."
+      }
+    },
+    {
+      "id": "withdraw",
+      "label": "Отвести роты за реку",
+      "effect": {
+        "targets": ["player"],
+        "set_segments": {"order": "withdrawal"},
+        "log": "Мандат фракции: организованный отвод за реку."
+      }
+    },
+    {
+      "id": "night_ops",
+      "label": "Ночная политика",
+      "effect": {
+        "targets": ["player"],
+        "log": "Мандат фракции: ночные переговоры и разведка."
+      }
+    }
+  ]
+}

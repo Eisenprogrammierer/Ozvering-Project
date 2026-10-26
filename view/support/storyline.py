@@ -25,8 +25,11 @@ list_storylines показывает в меню выбора только ос�
 
 import os
 import logging
+import re
 
 from .config_loader import load_json
+
+_VARIABLE_TOKEN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 STORYLINES_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "configs", "storylines")
@@ -443,6 +446,36 @@ class StorylineInterpreter:
         """
         return self.variables.get(key, default)
 
+    def interpolate(self, text):
+        """Подставить переменные сюжета в строку без изменения неизвестных."""
+        if not isinstance(text, str):
+            return text
+
+        def replace(match):
+            key = match.group(1)
+            if key not in self.variables:
+                return match.group(0)
+            value = self.variables[key]
+            if value is None:
+                return ""
+            if isinstance(value, (list, tuple)):
+                return ", ".join(str(item) for item in value)
+            return str(value)
+
+        return _VARIABLE_TOKEN.sub(replace, text)
+
+    def _interpolate_value(self, value):
+        if isinstance(value, str):
+            return self.interpolate(value)
+        if isinstance(value, list):
+            return [self._interpolate_value(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(self._interpolate_value(item) for item in value)
+        if isinstance(value, dict):
+            return {key: self._interpolate_value(item)
+                    for key, item in value.items()}
+        return value
+
     def resolve_variant(self, scene):
         """
         Разрешает вариант сцены по переменной сюжета.
@@ -460,7 +493,7 @@ class StorylineInterpreter:
         """
         variant_by = scene.get("variant_by")
         if variant_by is None:
-            return scene
+            return self._interpolate_value(scene)
         variants = scene.get("variants", {})
         value = self.variables.get(variant_by)
         if value is not None and value in variants:
@@ -469,9 +502,9 @@ class StorylineInterpreter:
                 logger.debug("resolve_variant: выбран вариант '%s'", value)
                 merged = dict(scene)
                 merged.update(resolved)
-                return merged
+                return self._interpolate_value(merged)
         logger.debug("resolve_variant: вариант не применён")
-        return scene
+        return self._interpolate_value(scene)
 
     def check_win_conditions(self):
         """

@@ -249,7 +249,7 @@ def build_brigade_scenario(seed=7, turns=CAMPAIGN_TURNS, rosters=None):
         duration=5000, targets=blues, side="blue",
     ))
     logger.info(
-        "Бригадный сценарий: игрок=%d рот (%.0f силы), противник=%d рот "
+        "Бригадный сценарий: красные=%d рот (%.0f силы), синие=%d рот "
         "(%.0f силы), секторы=%s",
         len(reds), sum(d.force for d in reds),
         len(blues), sum(d.force for d in blues),

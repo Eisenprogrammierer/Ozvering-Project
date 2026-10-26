@@ -20,6 +20,7 @@ view/ui/asset_loader.py
 и дублируются в консоль.
 """
 
+import json
 import os
 import logging
 
@@ -30,7 +31,22 @@ BASE_DIR = os.path.abspath(
 )
 IMAGES_DIR = os.path.join(BASE_DIR, "assets", "images")
 SUPPORTED_EXTENSIONS = (".png", ".jpg", ".jpeg")
+PRESENTATION_PATH = os.path.join(
+    BASE_DIR, "configs", "view", "presentation.json"
+)
 LOG_PATH = os.path.join(BASE_DIR, "operation_ozverin.log")
+
+
+def _load_presentation():
+    try:
+        with open(PRESENTATION_PATH, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+_PRESENTATION = _load_presentation()
 
 logger = logging.getLogger("asset_loader")
 if not logger.handlers:
@@ -73,6 +89,10 @@ class AssetLoader:
 
     BASE_DIR = BASE_DIR
     IMAGES_DIR = IMAGES_DIR
+    USE_PLACEHOLDERS = bool(_PRESENTATION.get("use_placeholders", True))
+    PLACEHOLDER_LABEL = str(
+        _PRESENTATION.get("placeholder_label", "PLACEHOLDER")
+    )
     _cache = {}
     _path_cache = {}
 
@@ -198,6 +218,16 @@ class AssetLoader:
         if key in AssetLoader._cache:
             logger.debug("Кэш: %s", name)
             return AssetLoader._cache[key]
+        if AssetLoader.USE_PLACEHOLDERS:
+            from .placeholders import make_placeholder
+            img = make_placeholder(
+                name,
+                size or (320, 200),
+                AssetLoader.PLACEHOLDER_LABEL,
+            )
+            AssetLoader._cache[key] = img
+            logger.info("Плейсхолдер: %s", name)
+            return img
         path = AssetLoader._resolve_path(name)
         img = None
         if path is not None:
@@ -206,17 +236,20 @@ class AssetLoader:
             except Exception:
                 img = pygame.image.load(path).convert()
         if img is None:
+            from .placeholders import make_placeholder
             logger.warning(
                 "Не найден ассет: %s в %s — создан плейсхолдер",
                 name,
                 AssetLoader.IMAGES_DIR,
             )
-            img = pygame.Surface(size or (320, 200), pygame.SRCALPHA)
-            img.fill((40, 40, 55, 200))
-            pygame.draw.rect(img, (90, 90, 120), img.get_rect(), 2)
+            img = make_placeholder(
+                name,
+                size or (320, 200),
+                AssetLoader.PLACEHOLDER_LABEL,
+            )
         else:
             logger.info("Загружен ассет: %s", name)
-        if size is not None:
+        if size is not None and img.get_size() != tuple(size):
             img = pygame.transform.smoothscale(img, size)
         AssetLoader._cache[key] = img
         return img

@@ -172,6 +172,7 @@ class App:
         from campaign import RoleCatalog
         self.role_catalog = RoleCatalog.load()
         self.selected_role = None
+        self.selected_faction_id = None
         self.campaign_preset = None
         from .ui.music_manager import MusicManager
         self.music = MusicManager(
@@ -323,6 +324,7 @@ class App:
         """Открывает выбор роли, затем выбор сюжета."""
         from .screens.role_select import RoleSelectScreen
         self.selected_role = None
+        self.selected_faction_id = None
         self.campaign_preset = None
         self.manager.push(RoleSelectScreen(self))
         logger.info("Запрошена новая игра: выбор роли")
@@ -335,12 +337,13 @@ class App:
         except (TypeError, ValueError):
             return 7
 
-    def start_storyline(self, storyline):
+    def start_storyline(self, storyline, faction_id=None):
         """
         Запускает сюжет: пересобирает мир, инициализирует интерпретатор
         и запускает первую сцену.
         Args:
             storyline (dict): Конфигурация сюжета из load_storyline().
+            faction_id (str | None): Выбранная игроком фракция.
         """
         from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
@@ -349,12 +352,16 @@ class App:
         from view.support.time_system import CampaignTimeSystem
         role = self.selected_role or self.role_catalog.default_role()
         self.selected_role = role
+        if faction_id is not None:
+            self.selected_faction_id = faction_id
         self.campaign_preset = CampaignPresetGenerator(
             catalog=self.role_catalog
         ).generate(
             role_id=role.id,
             seed=self._campaign_seed(storyline),
+            player_faction_id=self.selected_faction_id,
         )
+        self.selected_faction_id = self.campaign_preset.player_faction_id
         self.scenario_path = storyline.get(
             "scenario_path", "scenarios/mvp.json"
         )
@@ -385,10 +392,45 @@ class App:
         interp.set_variable("campaign_preset_id",
                             self.campaign_preset.preset_id)
         player_character = self.campaign_preset.player_character or {}
+        player_faction = self.campaign_preset.player_faction or {}
+        enemy_faction = self.campaign_preset.enemy_faction or {}
+        player_organization = self.campaign_preset.player_organization or {}
+        enemy_organization = self.campaign_preset.organization(
+            enemy_faction.get("organization_id")
+        ) or {}
+        companies = self.campaign_preset.scenario.get("companies") or {}
         if player_character:
             interp.set_variable("player_character_id", player_character.get("id"))
             interp.set_variable("player_character_name",
                                 player_character.get("name"))
+            state.needs.commander.name = str(
+                player_character.get("name") or "Лидер фракции"
+            )
+            state.needs.commander.archetype = "faction_leader"
+        interp.set_variable("player_side", self.campaign_preset.player_side)
+        interp.set_variable("enemy_side", self.campaign_preset.enemy_side)
+        interp.set_variable("player_faction_name",
+                            player_faction.get("name") or "ваша фракция")
+        interp.set_variable("enemy_faction_name",
+                            enemy_faction.get("name") or "противник")
+        interp.set_variable("player_organization_name",
+                            player_organization.get("name") or "организация")
+        interp.set_variable("enemy_organization_name",
+                            enemy_organization.get("name") or "чужая организация")
+        interp.set_variable(
+            "player_companies",
+            int(companies.get(self.campaign_preset.player_side, 0)),
+        )
+        interp.set_variable(
+            "enemy_companies",
+            int(companies.get(self.campaign_preset.enemy_side, 0)),
+        )
+        interp.set_variable("player_faction_goals",
+                            player_faction.get("goals") or [])
+        interp.state["initial_manpower"] = float(sum(
+            value for value, det in zip(state.initial_manpower, state.units)
+            if det.side == state.player_side
+        ))
         if 0 <= state.player_idx < state.count:
             state.log_event(
                 state.player_idx,
@@ -731,6 +773,9 @@ class App:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Пресет из сохранения не прочитан: %s", exc)
         self.campaign_preset = preset
+        self.selected_faction_id = (
+            preset.player_faction_id if preset is not None else None
+        )
         raw_role = snapshot.get("campaign_role")
         if not raw_role and preset is not None:
             raw_role = preset.role.as_dict()
