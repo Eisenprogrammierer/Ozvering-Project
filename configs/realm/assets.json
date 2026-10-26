@@ -1,0 +1,21 @@
+{
+  "assets": [
+    {"key": "menu_hero", "kind": "image", "caption": "СЦЕНА", "path": "assets/realm/menu_hero.png", "note": "Главный баннер меню"},
+    {"key": "scene_hall", "kind": "scene", "caption": "СЦЕНА", "path": "assets/realm/scene_hall.png", "note": "Пустой зал совета"},
+    {"key": "scene_council", "kind": "scene", "caption": "СЦЕНА", "path": "assets/realm/scene_council.png", "note": "Совет за столом"},
+    {"key": "scene_seal", "kind": "scene", "caption": "СЦЕНА", "path": "assets/realm/scene_seal.png", "note": "Печать устава"},
+    {"key": "ending_recognized", "kind": "image", "caption": "СЦЕНА", "path": "assets/realm/ending_recognized.png", "note": "Финал: признанный лидер"},
+    {"key": "ending_fragile", "kind": "image", "caption": "СЦЕНА", "path": "assets/realm/ending_fragile.png", "note": "Финал: хрупкий престол"},
+    {"key": "ending_puppet", "kind": "image", "caption": "СЦЕНА", "path": "assets/realm/ending_puppet.png", "note": "Финал: кукла на троне"},
+    {"key": "ending_lost", "kind": "image", "caption": "СЦЕНА", "path": "assets/realm/ending_lost.png", "note": "Финал: поражение"},
+    {"key": "portrait_leader", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_leader.png", "note": "Номинальный лидер"},
+    {"key": "portrait_marshal", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_marshal.png", "note": "Маршал Вейн"},
+    {"key": "portrait_treasurer", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_treasurer.png", "note": "Казначей Лира"},
+    {"key": "portrait_elder", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_elder.png", "note": "Старейшина Орм"},
+    {"key": "portrait_herald", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_herald.png", "note": "Глашатай Соль"},
+    {"key": "portrait_scribe", "kind": "portrait", "caption": "ПОРТРЕТ", "path": "assets/realm/portrait_scribe.png", "note": "Писец Кай"},
+    {"key": "mandate_heir", "kind": "image", "caption": "МАНДАТ", "path": "assets/realm/mandate_heir.png", "note": "Наследник"},
+    {"key": "mandate_council", "kind": "image", "caption": "МАНДАТ", "path": "assets/realm/mandate_council.png", "note": "Ставленник совета"},
+    {"key": "mandate_popular", "kind": "image", "caption": "МАНДАТ", "path": "assets/realm/mandate_popular.png", "note": "Народный голос"}
+  ]
+}

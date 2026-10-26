@@ -135,6 +135,8 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `ui/scenes/battlefield.py` | изометрический экран поля боя + HUD/диалоги (плейсхолдеры) |
 | `view/` | кампанийный UI: лагерь, RTS-карта, логистика, потребности, сюжет |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
+| `realm/` | **отдельная игра «Престол»**: номинальный лидер, совет, аудиенции (без карты/приказов) |
+| `configs/realm/`, `docs/REALM.md` | контент и спецификация «Престола» |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
 | `docs/MODEL.md` | спецификация механики (§1–19) — источник истины |
@@ -150,6 +152,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 ```bash
 python3 simulation.py            # канон: 10 партий + график силы
 python3 main.py                  # игра (сценный слой ui)
+python3 main.py --realm          # другая игра: «Престол» (совет/аудиенции)
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --arena          # автономная арена
 python3 warfare.py               # войсковая симуляция: отделения/паника/банзай

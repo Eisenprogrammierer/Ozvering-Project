@@ -1,0 +1,376 @@
+{
+  "petitions": [
+    {
+      "id": "empty_treasury",
+      "title": "Пустая казна",
+      "body": "Казначей Лира кладёт на стол три ведомости. Ни одна не сходится. До конца недели нужно найти деньги на жалованье страже и закупку хлеба, иначе город узнает о пустой казне раньше, чем совет успеет придумать объяснение.",
+      "options": [
+        {
+          "id": "war_tax",
+          "label": "Ввести военный налог",
+          "summary": "Казна получит 45, но улица ответит волной недовольства.",
+          "axes": {"order": 0.5, "wealth": 0.8, "tradition": 0.0, "freedom": -0.6},
+          "effects": {"treasury": 45, "unrest": 12, "legitimacy": -3},
+          "trust": {"treasurer": 8, "elder": 2, "marshal": 4, "herald": -8}
+        },
+        {
+          "id": "cut_court",
+          "label": "Урезать содержание двора",
+          "summary": "Экономия 18 монет, но ваша власть и единство пострадают.",
+          "axes": {"order": 0.2, "wealth": 0.4, "tradition": -0.3, "freedom": 0.2},
+          "effects": {"treasury": 18, "authority": -5, "unity": -4, "unrest": 2},
+          "trust": {"treasurer": 5, "elder": -4, "herald": 4, "marshal": -2}
+        },
+        {
+          "id": "merchant_loan",
+          "label": "Занять у купеческих домов",
+          "summary": "35 монет сейчас, но долг подорвёт признание вашей власти.",
+          "axes": {"order": -0.1, "wealth": 0.7, "tradition": -0.1, "freedom": 0.3},
+          "effects": {"treasury": 35, "legitimacy": -5, "unrest": 3},
+          "trust": {"treasurer": 4, "elder": -3, "herald": 2, "marshal": -3}
+        }
+      ]
+    },
+    {
+      "id": "granaries",
+      "title": "Хлебные склады",
+      "body": "Запасов хватит до конца месяца, если не кормить беднейшие кварталы. Глашатай Соль напоминает: пустые полки люди запоминают дольше, чем красивые речи. Казначей Лира напоминает: хлеб тоже стоит денег.",
+      "options": [
+        {
+          "id": "open_granaries",
+          "label": "Открыть склады",
+          "summary": "Смута падает, признание растёт, но запасы тают.",
+          "axes": {"order": 0.3, "wealth": -0.2, "tradition": -0.1, "freedom": 0.5},
+          "effects": {"stores": -40, "unrest": -12, "legitimacy": 8},
+          "trust": {"herald": 10, "elder": -2, "treasurer": -5, "marshal": 2}
+        },
+        {
+          "id": "ration",
+          "label": "Ввести строгие пайки",
+          "summary": "Немного запасов и порядка, но улица будет недовольна.",
+          "axes": {"order": 0.7, "wealth": 0.2, "tradition": 0.0, "freedom": -0.4},
+          "effects": {"stores": 10, "unrest": 5, "unity": -2, "authority": 3},
+          "trust": {"marshal": 6, "treasurer": 4, "herald": -6}
+        },
+        {
+          "id": "sell_grain",
+          "label": "Продать излишки",
+          "summary": "Казна пополнится, но голод и слухи ударят по признанию.",
+          "axes": {"order": -0.2, "wealth": 0.9, "tradition": 0.0, "freedom": -0.2},
+          "effects": {"treasury": 35, "stores": -20, "unrest": 15, "legitimacy": -8},
+          "trust": {"treasurer": 8, "herald": -10, "elder": -4}
+        }
+      ]
+    },
+    {
+      "id": "old_charter",
+      "title": "Старый устав",
+      "body": "Старейшина Орм приносит завернутый в ткань свиток: устав, по которому жили ещё до вашего назначения. Глашатай Соль предлагает написать новый. Писец Кай молча держит перо над чистым листом.",
+      "options": [
+        {
+          "id": "restore_charter",
+          "label": "Восстановить старый обряд",
+          "summary": "Власть и признание растут, но казна платит за церемонии.",
+          "axes": {"order": 0.5, "wealth": -0.1, "tradition": 0.9, "freedom": -0.6},
+          "effects": {"authority": 8, "legitimacy": 5, "treasury": -10},
+          "trust": {"elder": 10, "marshal": 4, "herald": -8, "treasurer": -3}
+        },
+        {
+          "id": "rewrite_charter",
+          "label": "Написать новый устав",
+          "summary": "Признание и свобода, но старейшины и порядок пострадают.",
+          "axes": {"order": 0.2, "wealth": 0.2, "tradition": -0.7, "freedom": 0.6},
+          "effects": {"legitimacy": 10, "unrest": 5, "authority": -3, "treasury": -5},
+          "trust": {"herald": 8, "treasurer": 2, "elder": -10, "marshal": -2}
+        },
+        {
+          "id": "postpone_charter",
+          "label": "Отложить вопрос",
+          "summary": "Ничего не меняется, кроме вашей власти и терпения улиц.",
+          "axes": {"order": 0.0, "wealth": 0.0, "tradition": 0.1, "freedom": 0.0},
+          "effects": {"authority": -5, "unrest": 4, "unity": -2},
+          "trust": {"elder": 2, "scribe": 2, "herald": -3}
+        }
+      ]
+    },
+    {
+      "id": "border_garrison",
+      "title": "Пограничный гарнизон",
+      "body": "Маршал Вейн просит денег на гарнизон у восточного тракта. Без него на дорогах станет больше разбойников. С гарнизоном — больше расходов и меньше людей, которые верят, что фракция не готовится к войне.",
+      "options": [
+        {
+          "id": "reinforce_garrison",
+          "label": "Усилить гарнизон",
+          "summary": "Порядок и власть крепнут за счёт казны и запасов.",
+          "axes": {"order": 0.9, "wealth": -0.2, "tradition": 0.1, "freedom": -0.3},
+          "effects": {"treasury": -30, "authority": 6, "unrest": -4, "stores": -10},
+          "trust": {"marshal": 10, "treasurer": -5, "herald": -2}
+        },
+        {
+          "id": "withdraw_garrison",
+          "label": "Отозвать гарнизон",
+          "summary": "Казна и свобода выигрывают, безопасность — нет.",
+          "axes": {"order": -0.8, "wealth": 0.3, "tradition": 0.0, "freedom": 0.2},
+          "effects": {"treasury": 10, "unrest": 8, "authority": -5, "unity": -3},
+          "trust": {"marshal": -10, "treasurer": 3, "herald": 3}
+        },
+        {
+          "id": "hire_mercenaries",
+          "label": "Нанять наёмников",
+          "summary": "Сила и порядок, но дорого и без признания.",
+          "axes": {"order": 0.7, "wealth": -0.4, "tradition": -0.3, "freedom": 0.1},
+          "effects": {"treasury": -45, "authority": 10, "legitimacy": -8, "unrest": 4},
+          "trust": {"marshal": 6, "treasurer": -8, "elder": -4, "herald": -4}
+        }
+      ]
+    },
+    {
+      "id": "guild_dispute",
+      "title": "Спор ремесленников",
+      "body": "Цеха требуют права самим устанавливать цены. Знать называет это мятежом в торговых рядах. Писец Кай уже подготовил три варианта указа, и все три кому-то не нравятся.",
+      "options": [
+        {
+          "id": "support_guilds",
+          "label": "Поддержать цеха",
+          "summary": "Единство и спокойствие растут, казна пустеет.",
+          "axes": {"order": -0.2, "wealth": 0.3, "tradition": -0.2, "freedom": 0.7},
+          "effects": {"treasury": -20, "unity": 6, "unrest": -5, "legitimacy": 4},
+          "trust": {"herald": 8, "treasurer": -2, "elder": -3}
+        },
+        {
+          "id": "side_with_nobles",
+          "label": "Встать на сторону знати",
+          "summary": "Казна и власть, но улица запомнит это решение.",
+          "axes": {"order": 0.6, "wealth": 0.5, "tradition": 0.3, "freedom": -0.5},
+          "effects": {"authority": 5, "treasury": 15, "unrest": 8, "unity": -5},
+          "trust": {"marshal": 3, "treasurer": 6, "herald": -8, "elder": 2}
+        },
+        {
+          "id": "arbitrate_guilds",
+          "label": "Созвать третейский суд",
+          "summary": "Компромисс укрепляет признание, но стоит времени и денег.",
+          "axes": {"order": 0.3, "wealth": 0.0, "tradition": 0.2, "freedom": 0.1},
+          "effects": {"treasury": -5, "legitimacy": 6, "authority": 2},
+          "trust": {"scribe": 8, "treasurer": 2, "marshal": 2, "herald": 1}
+        }
+      ]
+    },
+    {
+      "id": "street_preacher",
+      "title": "Проповедник на площади",
+      "body": "На площади собралась толпа. Проповедник говорит, что фракция забыла старые заветы. Маршал предлагает разогнать. Глашатай — дать ему говорить. Старейшина Орм впервые за неделю улыбается.",
+      "options": [
+        {
+          "id": "allow_preacher",
+          "label": "Разрешить проповедь",
+          "summary": "Улица успокаивается, но ваша формальная власть слабеет.",
+          "axes": {"order": -0.3, "wealth": 0.0, "tradition": 0.6, "freedom": 0.6},
+          "effects": {"unrest": -5, "unity": 5, "legitimacy": 3, "authority": -3},
+          "trust": {"herald": 6, "elder": 5, "marshal": -5}
+        },
+        {
+          "id": "expel_preacher",
+          "label": "Изгнать проповедника",
+          "summary": "Порядок и власть, но толпа этого не забудет.",
+          "axes": {"order": 0.8, "wealth": 0.0, "tradition": 0.2, "freedom": -0.8},
+          "effects": {"authority": 6, "unrest": 7, "legitimacy": -4},
+          "trust": {"marshal": 8, "elder": 2, "herald": -8}
+        },
+        {
+          "id": "public_debate",
+          "label": "Устроить публичный спор",
+          "summary": "Признание растёт, а власть становится предметом обсуждения.",
+          "axes": {"order": -0.1, "wealth": 0.0, "tradition": -0.2, "freedom": 0.8},
+          "effects": {"legitimacy": 8, "authority": -4, "unrest": 2, "unity": 3},
+          "trust": {"herald": 8, "scribe": 4, "elder": -6, "marshal": -4}
+        }
+      ]
+    },
+    {
+      "id": "refugees",
+      "title": "Беженцы у стен",
+      "body": "У городских ворот стоят семьи из сожжённых деревень. Стража ждёт приказа. Казначей считает, сколько стоит их содержать. Глашатай Соль стоит у ворот вместе с ними.",
+      "options": [
+        {
+          "id": "accept_refugees",
+          "label": "Принять беженцев",
+          "summary": "Признание и единство, но запасы и спокойствие под ударом.",
+          "axes": {"order": -0.4, "wealth": -0.3, "tradition": 0.0, "freedom": 0.8},
+          "effects": {"stores": -30, "unrest": 8, "legitimacy": 10, "unity": 4},
+          "trust": {"herald": 10, "elder": 2, "treasurer": -6, "marshal": -4}
+        },
+        {
+          "id": "close_gates",
+          "label": "Закрыть ворота",
+          "summary": "Порядок и власть, но признание падает.",
+          "axes": {"order": 0.8, "wealth": -0.1, "tradition": 0.3, "freedom": -0.7},
+          "effects": {"authority": 5, "unrest": 3, "legitimacy": -8, "unity": -3},
+          "trust": {"marshal": 7, "treasurer": 3, "herald": -10}
+        },
+        {
+          "id": "camp_outside",
+          "label": "Разбить лагерь за стенами",
+          "summary": "Осторожный компромисс: немного денег и немного порядка.",
+          "axes": {"order": 0.4, "wealth": -0.2, "tradition": 0.1, "freedom": -0.2},
+          "effects": {"treasury": -15, "unrest": 4, "authority": 2, "legitimacy": 2},
+          "trust": {"marshal": 3, "treasurer": -2, "herald": 2, "elder": 1}
+        }
+      ]
+    },
+    {
+      "id": "workshop_revolt",
+      "title": "Мятеж в цеху",
+      "body": "Оружейный цех остановил работу. Мастера требуют вернуть старые цены на железо. Маршал Вейн уже построил стражу. Глашатай Соль предлагает пойти к ним без оружия.",
+      "options": [
+        {
+          "id": "negotiate_workshop",
+          "label": "Начать переговоры",
+          "summary": "Смута падает, но порядок и казна страдают.",
+          "axes": {"order": -0.5, "wealth": -0.2, "tradition": -0.1, "freedom": 0.8},
+          "effects": {"treasury": -20, "unrest": -12, "legitimacy": 5, "unity": 3},
+          "trust": {"herald": 8, "treasurer": -3, "marshal": -6}
+        },
+        {
+          "id": "crush_revolt",
+          "label": "Подавить мятеж",
+          "summary": "Власть и порядок, но признание и единство трещат.",
+          "axes": {"order": 0.9, "wealth": 0.2, "tradition": 0.1, "freedom": -0.9},
+          "effects": {"authority": 10, "unrest": 8, "legitimacy": -10, "unity": -4},
+          "trust": {"marshal": 10, "treasurer": 2, "herald": -12, "elder": -2}
+        },
+        {
+          "id": "ignore_revolt",
+          "label": "Не вмешиваться",
+          "summary": "Цех сам разберётся, но бездействие подтачивает власть.",
+          "axes": {"order": -0.2, "wealth": 0.1, "tradition": 0.1, "freedom": 0.2},
+          "effects": {"unrest": 6, "authority": -5, "unity": -2},
+          "trust": {"scribe": -2, "herald": 2, "marshal": -4}
+        }
+      ]
+    },
+    {
+      "id": "heir_question",
+      "title": "Вопрос о наследнике",
+      "body": "Писец Кай напоминает: у фракции нет официального наследника. Пока вы у власти, это лишь строка в уставе. После первого же кризиса она станет главным вопросом двора.",
+      "options": [
+        {
+          "id": "name_heir",
+          "label": "Назвать наследника",
+          "summary": "Признание и единство, но власть теперь не только ваша.",
+          "axes": {"order": 0.5, "wealth": 0.0, "tradition": 0.7, "freedom": -0.3},
+          "effects": {"legitimacy": 10, "authority": -5, "unity": 5, "unrest": -3},
+          "trust": {"elder": 8, "marshal": 4, "herald": -2}
+        },
+        {
+          "id": "council_regency",
+          "label": "Оставить совет регентом",
+          "summary": "Совет доволен, но вы формально отходите в тень.",
+          "axes": {"order": 0.2, "wealth": 0.1, "tradition": 0.2, "freedom": 0.3},
+          "effects": {"authority": -8, "unity": 6, "legitimacy": 4, "unrest": -2},
+          "trust": {"scribe": 6, "treasurer": 4, "elder": 3, "herald": 2, "marshal": -5}
+        },
+        {
+          "id": "no_heir",
+          "label": "Отложить вопрос",
+          "summary": "Власть сохраняется, но неопределённость пугает двор.",
+          "axes": {"order": -0.1, "wealth": 0.0, "tradition": -0.4, "freedom": 0.4},
+          "effects": {"unrest": 6, "legitimacy": -5, "authority": 3},
+          "trust": {"herald": 4, "marshal": -5, "elder": -6}
+        }
+      ]
+    },
+    {
+      "id": "amnesty",
+      "title": "Приговор мятежникам",
+      "body": "Стража взяла пятерых зачинщиков беспорядков. На площади ждут приговора. Маршал требует показательной казни. Глашатай Соль просит помилования. Писец Кай уже вписал в протокол все три варианта.",
+      "options": [
+        {
+          "id": "pardon_rebels",
+          "label": "Помиловать",
+          "summary": "Признание и единство, но порядок и власть выглядят слабыми.",
+          "axes": {"order": -0.6, "wealth": 0.0, "tradition": -0.2, "freedom": 0.9},
+          "effects": {"legitimacy": 8, "unrest": -8, "unity": 4, "authority": -5},
+          "trust": {"herald": 10, "elder": 2, "marshal": -8}
+        },
+        {
+          "id": "execute_rebels",
+          "label": "Казнить",
+          "summary": "Власть и порядок, но признание и единство падают.",
+          "axes": {"order": 0.9, "wealth": 0.0, "tradition": 0.3, "freedom": -0.9},
+          "effects": {"authority": 8, "unrest": 8, "legitimacy": -8, "unity": -4},
+          "trust": {"marshal": 9, "elder": 3, "herald": -12}
+        },
+        {
+          "id": "exile_rebels",
+          "label": "Изгнать",
+          "summary": "Компромисс: порядок без крови, но с расходами.",
+          "axes": {"order": 0.4, "wealth": 0.0, "tradition": 0.2, "freedom": -0.2},
+          "effects": {"unrest": 2, "legitimacy": -2, "authority": 2, "treasury": -5},
+          "trust": {"marshal": 4, "herald": -3, "scribe": 2}
+        }
+      ]
+    },
+    {
+      "id": "temple_tax",
+      "title": "Налог на храмы",
+      "body": "Казначей Лира предлагает обложить храмы. Старейшина Орм говорит, что это оскорбление заветов. Глашатай Соль напоминает, что храмы кормят бедных. Все трое правы ровно настолько, насколько это выгодно их стороне.",
+      "options": [
+        {
+          "id": "tax_temples",
+          "label": "Обложить храмы",
+          "summary": "Казна пополнится, но старая вера и единство пострадают.",
+          "axes": {"order": 0.3, "wealth": 0.9, "tradition": -0.8, "freedom": -0.3},
+          "effects": {"treasury": 30, "unrest": 10, "legitimacy": -4, "unity": -4},
+          "trust": {"treasurer": 9, "elder": -12, "herald": -3, "marshal": 2}
+        },
+        {
+          "id": "exempt_temples",
+          "label": "Освободить храмы",
+          "summary": "Признание и спокойствие, но казна платит за благочестие.",
+          "axes": {"order": 0.1, "wealth": -0.4, "tradition": 0.8, "freedom": 0.2},
+          "effects": {"treasury": -10, "legitimacy": 6, "unity": 4, "unrest": -4},
+          "trust": {"elder": 10, "herald": 3, "treasurer": -7}
+        },
+        {
+          "id": "audit_temples",
+          "label": "Проверить счета храмов",
+          "summary": "Осторожная мера: немного казны и власти.",
+          "axes": {"order": 0.5, "wealth": 0.5, "tradition": -0.4, "freedom": 0.0},
+          "effects": {"treasury": 15, "authority": 3, "unrest": 3, "legitimacy": -2},
+          "trust": {"treasurer": 6, "elder": -5, "scribe": 4, "herald": 1}
+        }
+      ]
+    },
+    {
+      "id": "treason_rumor",
+      "title": "Слух о предательстве",
+      "body": "Писец Кай нашёл в архиве письмо без подписи. В нём говорится, что один из советников готовит переход власти. Имени нет. Есть только печать, слишком похожая на вашу.",
+      "options": [
+        {
+          "id": "investigate_treason",
+          "label": "Начать следствие",
+          "summary": "Власть и порядок, но двор нервничает.",
+          "axes": {"order": 0.6, "wealth": -0.2, "tradition": 0.2, "freedom": -0.1},
+          "effects": {"treasury": -10, "authority": 4, "unrest": 3, "legitimacy": 2},
+          "trust": {"scribe": 6, "marshal": 3, "herald": -2}
+        },
+        {
+          "id": "purge_council",
+          "label": "Провести чистку совета",
+          "summary": "Максимум власти, минимум единства и признания.",
+          "axes": {"order": 0.9, "wealth": -0.3, "tradition": 0.2, "freedom": -0.9},
+          "effects": {"authority": 10, "unity": -12, "unrest": 8, "legitimacy": -8},
+          "trust": {"marshal": 8, "herald": -12, "scribe": -8, "treasurer": -5, "elder": -4}
+        },
+        {
+          "id": "ignore_treason",
+          "label": "Не верить слухам",
+          "summary": "Признание и единство, но власть выглядит беспечной.",
+          "axes": {"order": -0.4, "wealth": 0.0, "tradition": -0.1, "freedom": 0.5},
+          "effects": {"unrest": 4, "authority": -4, "legitimacy": 2, "unity": 2},
+          "trust": {"herald": 5, "scribe": 2, "marshal": -5}
+        }
+      ]
+    }
+  ]
+}
