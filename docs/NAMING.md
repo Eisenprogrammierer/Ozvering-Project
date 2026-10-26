@@ -1,8 +1,9 @@
-# NAMING.md — естественные названия автоматов и взаимодействий
+# NAMING.md — естественные названия автоматов и имена персонажей
 
 > **Статус.** Чистый Python-слой без pygame. Он читает декларативные конфиги
 > из [`configs/naming/`](../configs/naming), строит русские названия по
-> морфологическим правилам и не меняет схему редактора `automata/`. Пакет
+> морфологическим правилам, а также генерирует реальные и фэнтезийные имена
+> персонажей. Схема редактора `automata/` не меняется. Пакет
 > [`naming/`](../naming) можно использовать отдельно от UI и от runtime
 > организаций.
 
@@ -28,6 +29,7 @@
 ```text
 configs/naming/
 ├── lexicon.json              # словарь: существительные, прилагательные, фразы
+├── people.json               # реальные культуры и фэнтезийные темы имён
 ├── classes/
 │   ├── order.json            # безопасность, принуждение, закон
 │   ├── meaning.json          # смысл, ритуал, авторитет
@@ -273,6 +275,57 @@ interaction_name("ritual", seed=3)
 * разные организации с разными потребностями/масштабом получают разные имена;
 * явный `seed=` переопределяет вычисленный seed, а `name=` — всё имя.
 
+### 6.2 Имена персонажей
+
+Имена людей вынесены в `naming/people.py` и `configs/naming/people.json`. Это
+отдельный слой: он не меняет семь классов автоматов, восемь типов
+взаимодействий и их онтологии. В конфиге 21 реальная культура (русская,
+германская, скандинавская, английская, французская, итальянская, иберийская,
+греческая, арабская, персидская, тюркская, еврейская, индийская, китайская,
+японская, корейская, мезоамериканская, суахили, йоруба, полинезийская,
+кельтская) и 19 фэнтезийных тем (высшие и тёмные эльфы, гномы, орки,
+полурослики, фейри, драконорождённые, тифлинги, нежить, небожители, теневые,
+ледяной народ, морской народ, песчаные кочевники, рунные, стимпанк,
+киберпанк, космическая, лесные эльфы).
+
+```python
+from naming import PersonNameGenerator
+
+generator = PersonNameGenerator(seed=7)
+
+real = generator.real(culture="russian", gender="f", seed=11)
+print(real.full)       # Евдокия Комарова (пример для seed=11)
+print(real.culture)    # russian
+print(real.gender)     # f
+
+fantasy = generator.fantasy(theme="cyberpunk", seed=11)
+print(fantasy.full)    # имя из киберпанк-пула
+print(fantasy.theme)   # cyberpunk
+
+mixed = generator.generate_many(count=12, seed=11)
+```
+
+`PersonName` содержит `given`, `family`, `full`/`text`, `short`, `style`
+(`real`/`fantasy`), `culture`, `theme`, `gender`, `epithet` и `seed`.
+`PersonCatalog` даёт `culture_ids()`, `theme_ids()`, `culture(id)` и
+`theme(id)`. Реальные профили могут задавать разные формы фамилии для полов и
+порядок «фамилия — имя» (китайская, японская, корейская традиции).
+Фэнтезийные профили используют собственные пулы имён и прозвищ, а также
+шаблоны `patterns`.
+
+Имена возвращаются готовой строкой в именительном падеже: слой не выполняет
+русскую морфологию для имён и не подставляет падежи. Для текстов событий этого
+достаточно; авторы шаблонов подбирают нейтральные формулировки.
+
+Функция быстрого доступа:
+
+```python
+from naming import person_name
+
+person_name(culture="japanese", seed=3)
+person_name(theme="undead", gender="f", seed=3)
+```
+
 ## 7. CLI
 
 ```bash
@@ -281,10 +334,18 @@ python3 -m naming --mode order --need fear --level 3 --count 5 --seed 7
 python3 -m naming --interaction coercion --count 5 --seed 7
 python3 -m naming --mode order --ontology
 python3 -m naming --mode care --need health --level 2 --json
+
+python3 -m naming --person --count 5 --seed 7
+python3 -m naming --person --culture russian --gender f --count 3 --seed 7
+python3 -m naming --person --fantasy high_elf --count 3 --seed 7
+python3 -m naming --list-people
 ```
 
-`--list` показывает классы и типы взаимодействий. `--ontology` печатает
-онтологию класса в JSON. `--json` печатает массив `NameResult.as_dict()`.
+`--list` показывает классы, типы взаимодействий, реальные культуры и
+фэнтезийные темы. `--list-people` печатает только список культур и тем.
+`--person` включает генератор имён; `--culture` и `--fantasy` взаимоисключащи.
+`--ontology` печатает онтологию класса в JSON. `--json` печатает массив
+`NameResult.as_dict()` или `PersonName.as_dict()`.
 
 ## 8. Интеграция с организациями
 
@@ -315,7 +376,11 @@ python3 -m organizations --write --name-seed 7
    `base`, `themes`, `levels` и полной `ontology`.
 4. Для нового типа взаимодействия создайте
    `configs/naming/interactions/<id>.json` с полной пятёркой и `naming`.
-5. Запустите `python3 -m naming --list` и `pytest -q tests/test_naming.py`.
+5. Для новой культуры добавьте профиль в `people.json.cultures`; для новой
+   фэнтезийной темы — в `people.json.fantasy_themes`. Профилю нужны `given`,
+   `patterns` с `{given}` и, если шаблон использует `{family}`, пул `family`.
+6. Запустите `python3 -m naming --list` и
+   `pytest -q tests/test_naming.py tests/test_people.py`.
 
 Каталог валидирует ссылки на лексикон, типы слов, обязательные уровни,
 полноту онтологии и пятёрки. Ошибка конфигурации — `NamingError` с указанием
@@ -329,18 +394,24 @@ python3 -m organizations --write --name-seed 7
 * Лексикон ограничен и вручную выверен. Экзотические слова и нерегулярные
   формы нужно добавлять через `forms`.
 * Названия не переводятся автоматически: это русскоязычный слой.
+* Имена персонажей не склоняются по падежам; шаблоны текста должны использовать
+  нейтральные конструкции. Культуры задают пулы, а не этнографически строгие
+  правила.
 * Слой не импортирует pygame и не меняет `configs/classes/*.json`.
 
 ## 11. Тесты
 
 ```bash
 pytest -q tests/test_naming.py
+pytest -q tests/test_people.py
 pytest -q tests/test_organizations.py
 pytest -q
 ```
 
 `tests/test_naming.py` проверяет распределение длины, полноту классов и
 пятёрок, морфологию, детерминизм, падежные формы, CLI и отсутствие импорта
+pygame. `tests/test_people.py` проверяет культуры, фэнтезийные темы, пол,
+порядок имени, детерминизм, уникальность `generate_many`, CLI и отсутствие
 pygame. `tests/test_organizations.py` проверяет, что генератор организаций
 использует естественные имена по умолчанию, поддерживает `name=`/`seed=` и
 сохраняет валидность автоматов.

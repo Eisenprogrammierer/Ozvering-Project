@@ -140,12 +140,15 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `ui/scenes/interaction.py` | экран из трёх панелей: объекты → действия → прогноз/фактический исход |
 | `organizations/` | **аналитические организации-суперсистемы**: 16 потребностей, масштаб/уровни, экономика участия, генератор JSON |
 | `organizations/runtime.py` | runtime-слой: Population из живых персонажей, эффекты на потребности/мораль, фазы, односторонний выход и распад; опционален для `WarfareSimulation` |
-| `naming/` | **генератор естественных названий**: морфология, распределение длины, классовые профили и типы взаимодействий; без pygame |
-| `configs/naming/` | лексикон, 7 классов автоматов и 8 типов взаимодействий; декларативные онтологии и пятёрки |
+| `naming/` | **генератор естественных названий и имён**: морфология, распределение длины, классовые профили, типы взаимодействий, реальные и фэнтезийные имена персонажей; без pygame |
+| `configs/naming/` | лексикон, 7 классов автоматов, 8 типов взаимодействий и `people.json` с 21 культурой/19 фэнтезийными темами |
+| `systems/` | **системные автоматы**: природная среда как 13 автоматов, драматург-соблазнитель и каталог событий; без pygame |
+| `configs/systems/` | `environment.json` (13 особенностей), `playwright.json` (веса, ритм, 18 шаблонов), `events.json` (12 категорий, 88 событий, 176 текстов) |
 | `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
 | `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
 | `docs/INTERACTION.md` | доменно-нейтральный фреймворк взаимодействий: объекты, действия, шумные/скрытые исходы |
-| `docs/NAMING.md` | естественные названия: грамматика, морфология, классы, онтологии, пятёрки взаимодействий |
+| `docs/NAMING.md` | естественные названия и имена: грамматика, морфология, классы, онтологии, пятёрки взаимодействий, культуры и фэнтезийные темы |
+| `docs/SYSTEMS.md` | среда, драматург, каталог событий и генератор имён: конфиги, API, CLI, границы |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
 | `docs/MODEL.md` | спецификация механики (§1–19) — источник истины |
@@ -165,8 +168,13 @@ python3 main.py --automata       # редактор автоматов (JSON-г�
 python3 -m organizations         # генератор аналитических организаций (JSON)
 python3 -m organizations --write # записать примеры в configs/automata/
 python3 -m organizations --runtime --turns 12  # runtime-демо с warfare
-python3 -m naming --list                  # классы и типы взаимодействий
+python3 -m naming --list                  # классы, взаимодействия, культуры
 python3 -m naming --mode order --need fear --level 3 --count 5 --seed 7
+python3 -m naming --person --count 5 --seed 7  # реальные и фэнтезийные имена
+python3 -m systems --list                 # среда, категории событий, шаблоны
+python3 -m systems --environment river --interact ford --seed 7
+python3 -m systems --event birth_child --seed 7
+python3 -m systems --playwright --turns 20 --seed 7
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --interaction    # экран взаимодействий (объекты/действия/исходы)
 python3 main.py --arena          # автономная арена
@@ -186,6 +194,8 @@ pytest -q                        # весь набор (канон, провер
 Доменно-нейтральный фреймворк взаимодействий проверяется
 `tests/test_interaction.py` (без pygame), сцена — headless-тестами
 `tests/test_ui.py`; описание — [`INTERACTION.md`](INTERACTION.md).
+Системные автоматы проверяются `tests/test_systems.py`, имена персонажей —
+`tests/test_people.py`; описание — [`SYSTEMS.md`](SYSTEMS.md).
 Зависимости: рантайм — `requirements.txt`, тесты — `requirements-dev.txt`.
 
 ## 9. Статус и открытые задачи
@@ -245,3 +255,44 @@ python3 -c "import simulation as S, lod, random; ..."   # см. tests/test_advan
 «нет отката», гистерезис, квантование/задержка, LOD-эквивалентность в допуске,
 флаги off = канон). Чистая логика RTS-поля — `tests/test_battlefield.py`
 (изометрия, движение/контакт, приказы, диалоги).
+
+## 11. Системные автоматы, события и имена
+
+Новый чистый слой [`systems/`](../systems) не меняет канон и не импортирует
+pygame. Он состоит из трёх частей:
+
+* **Среда** — 13 особенностей (`river`, `ravine`, `swamp`, `forest`,
+  `mountain_pass`, `storm`, `wildfire`, `ruins`, `fog`, `cave`, `snowfield`,
+  `crossroads`, `spring`), 40 состояний и 46 действий. Каждая особенность —
+  настоящий `SystemAutomaton`; её `as_target()` отдаёт обычный
+  `interaction.Target`, поэтому actor-автомат взаимодействует с feature-
+  автоматом теми же `ActionSpec`/`OutcomeSpec`. Исход может менять состояние
+  среды и возвращает вызывающему коду числовые/строковые `effects`.
+* **Драматург** (`Playwright`) — эпизодический соблазнитель. Оценивает
+  кандидатов по неопределённости, связности, новизне и ставкам:
+  `total = Σ weight[k]·component[k]`; веса нормализованы. Выбор идёт через
+  softmax с температурой, `episode_chance`, `cooldown`, затуханием новизны и
+  штрафом за повтор. В конфиге 18 шаблонов действий; толчок может сразу
+  получить текст события.
+* **События** — 12 категорий, 88 событий и 176 шаблонов, покрывающих
+  рождение, взросление, брак, выбор призвания, войну, осаду, голод, мор,
+  преступления, открытия, тайны, любовь, культуру и политику. Все шаблоны
+  содержат слот имени персонажа или организации; `EventTextGenerator`
+  подставляет контекст или генерирует имена через `naming.people` и
+  `naming.NameGenerator`.
+
+Для имён добавлен отдельный `naming.people.PersonNameGenerator`: 21 реальная
+культура и 19 фэнтезийных тем, детерминизм по seed, смешанный режим
+`generate_many`, культурный порядок «фамилия — имя». CLI:
+
+```bash
+python3 -m systems --list
+python3 -m systems --environment river --interact ford --seed 7
+python3 -m systems --event birth_child --seed 7
+python3 -m systems --playwright --turns 20 --seed 7
+python3 -m naming --person --count 5 --seed 7
+python3 -m naming --person --fantasy high_elf --count 3 --seed 7
+```
+
+Подробности, схемы конфигов и API — [`SYSTEMS.md`](SYSTEMS.md); тесты —
+`tests/test_systems.py` и `tests/test_people.py`.

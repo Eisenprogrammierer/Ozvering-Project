@@ -1,0 +1,1551 @@
+{
+  "schema": 1,
+  "categories": {
+    "life": {
+      "label": "Жизнь и семья",
+      "weight": 1.0
+    },
+    "choices": {
+      "label": "Жизненные выборы",
+      "weight": 1.0
+    },
+    "society": {
+      "label": "Общество и власть",
+      "weight": 0.9
+    },
+    "war": {
+      "label": "Война",
+      "weight": 1.1
+    },
+    "economy": {
+      "label": "Хозяйство",
+      "weight": 1.0
+    },
+    "disaster": {
+      "label": "Бедствия",
+      "weight": 0.8
+    },
+    "crime": {
+      "label": "Преступления",
+      "weight": 0.9
+    },
+    "discovery": {
+      "label": "Открытия",
+      "weight": 0.9
+    },
+    "mystery": {
+      "label": "Тайны",
+      "weight": 0.8
+    },
+    "romance": {
+      "label": "Любовь",
+      "weight": 1.0
+    },
+    "culture": {
+      "label": "Культура",
+      "weight": 0.8
+    },
+    "politics": {
+      "label": "Политика",
+      "weight": 0.9
+    }
+  },
+  "events": [
+    {
+      "id": "birth_child",
+      "category": "life",
+      "title": "Рождение ребёнка",
+      "tags": [
+        "birth",
+        "family",
+        "joy"
+      ],
+      "severity": 0.35,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{organization} объявляет о рождении ребёнка: {actor} и {target} стали родителями.",
+        "В семье {actor} и {target} родился {child}; {organization} обещает новорождённому покровительство."
+      ]
+    },
+    {
+      "id": "coming_of_age",
+      "category": "life",
+      "title": "Совершеннолетие",
+      "tags": [
+        "ritual",
+        "family",
+        "status"
+      ],
+      "severity": 0.3,
+      "stakes": 0.65,
+      "weight": 1.0,
+      "templates": [
+        "{actor} достигает совершеннолетия; {organization} вручает ему знак взрослого.",
+        "На празднике {organization} {actor} объявлен наследником традиции, а {target} произносит клятву."
+      ]
+    },
+    {
+      "id": "marriage",
+      "category": "life",
+      "title": "Свадьба",
+      "tags": [
+        "marriage",
+        "family",
+        "alliance"
+      ],
+      "severity": 0.4,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} и {target} объявляют о помолвке; {organization} готовит свадьбу.",
+        "Свадьба {actor} и {target} укрепляет союз {organization} с {rival_organization}."
+      ]
+    },
+    {
+      "id": "parenthood",
+      "category": "life",
+      "title": "Воспитание",
+      "tags": [
+        "family",
+        "care",
+        "duty"
+      ],
+      "severity": 0.3,
+      "stakes": 0.6,
+      "weight": 1.0,
+      "templates": [
+        "{actor} и {target} берут на воспитание {child}; {organization} признаёт договор.",
+        "{organization} поручает {actor} заботу о {child}, а {target} становится наставником."
+      ]
+    },
+    {
+      "id": "illness",
+      "category": "life",
+      "title": "Болезнь",
+      "tags": [
+        "health",
+        "fear",
+        "family"
+      ],
+      "severity": 0.5,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{actor} заболевает; {organization} посылает лекаря и требует изоляции.",
+        "Болезнь {actor} ставит под угрозу планы {organization}, а {target} ищет редкое лекарство."
+      ]
+    },
+    {
+      "id": "death",
+      "category": "life",
+      "title": "Смерть",
+      "tags": [
+        "death",
+        "loss",
+        "status"
+      ],
+      "severity": 0.7,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "{actor} умирает; {organization} объявляет траур.",
+        "Смерть {actor} меняет расклад сил в {organization}; {target} наследует его место."
+      ]
+    },
+    {
+      "id": "funeral",
+      "category": "life",
+      "title": "Похороны",
+      "tags": [
+        "death",
+        "ritual",
+        "memory"
+      ],
+      "severity": 0.6,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{organization} хоронит {actor}; {target} произносит речь.",
+        "На похоронах {actor} {target} заключает тайный союз от имени {organization}."
+      ]
+    },
+    {
+      "id": "homecoming",
+      "category": "life",
+      "title": "Возвращение домой",
+      "tags": [
+        "family",
+        "return",
+        "memory"
+      ],
+      "severity": 0.35,
+      "stakes": 0.6,
+      "weight": 1.0,
+      "templates": [
+        "{actor} возвращается домой после долгой отлучки; {organization} встречает его как героя.",
+        "Возвращение {actor} застаёт {target} в беде, и {organization} требует объяснений."
+      ]
+    },
+    {
+      "id": "vocation",
+      "category": "choices",
+      "title": "Выбор призвания",
+      "tags": [
+        "choice",
+        "work",
+        "identity"
+      ],
+      "severity": 0.35,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "{actor} выбирает путь ремесленника; {organization} предлагает ученичество.",
+        "{organization} требует, чтобы {actor} пошёл по стопам {target}, но тот выбирает иной путь."
+      ]
+    },
+    {
+      "id": "study",
+      "category": "choices",
+      "title": "Обучение",
+      "tags": [
+        "knowledge",
+        "choice",
+        "mentor"
+      ],
+      "severity": 0.25,
+      "stakes": 0.55,
+      "weight": 1.0,
+      "templates": [
+        "{actor} поступает в обучение к {target}; {organization} оплачивает годы учёбы.",
+        "{organization} отправляет {actor} в далёкую школу, где {target} становится его соперником."
+      ]
+    },
+    {
+      "id": "friendship",
+      "category": "choices",
+      "title": "Дружба",
+      "tags": [
+        "friendship",
+        "trust",
+        "alliance"
+      ],
+      "severity": 0.25,
+      "stakes": 0.6,
+      "weight": 1.0,
+      "templates": [
+        "{actor} и {target} становятся друзьями; {organization} поощряет этот союз.",
+        "Дружба {actor} и {target} вызывает подозрение у {organization}."
+      ]
+    },
+    {
+      "id": "betrayal",
+      "category": "choices",
+      "title": "Предательство",
+      "tags": [
+        "betrayal",
+        "trust",
+        "conflict"
+      ],
+      "severity": 0.7,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "{actor} предаёт {target} ради выгоды; {organization} делает вид, что не заметила.",
+        "Предательство {actor} раскрыто, и {organization} требует крови."
+      ]
+    },
+    {
+      "id": "secret",
+      "category": "choices",
+      "title": "Тайна",
+      "tags": [
+        "secret",
+        "risk",
+        "knowledge"
+      ],
+      "severity": 0.45,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} узнаёт тайну {target}; {organization} хочет её скрыть.",
+        "{organization} поручает {actor} молчать о том, что {target} сделал ради {amount}."
+      ]
+    },
+    {
+      "id": "sacrifice",
+      "category": "choices",
+      "title": "Жертва",
+      "tags": [
+        "sacrifice",
+        "duty",
+        "loss"
+      ],
+      "severity": 0.8,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "{actor} жертвует своим местом в {organization}, чтобы спасти {target}.",
+        "Ради {organization} {target} отказывается от любви, а {actor} уносит его тайну."
+      ]
+    },
+    {
+      "id": "temptation",
+      "category": "choices",
+      "title": "Соблазн",
+      "tags": [
+        "temptation",
+        "risk",
+        "desire"
+      ],
+      "severity": 0.55,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{organization} предлагает {actor} всё, что он хочет, если тот предаст {target}.",
+        "{actor} стоит перед соблазном, а {target} и {organization} ждут его решения."
+      ]
+    },
+    {
+      "id": "exile_choice",
+      "category": "choices",
+      "title": "Изгнание по выбору",
+      "tags": [
+        "choice",
+        "exile",
+        "loss"
+      ],
+      "severity": 0.6,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} может остаться в {organization} или уйти с {target} в изгнание.",
+        "Выбор {actor} определяет, кого {organization} назовёт предателем."
+      ]
+    },
+    {
+      "id": "peace_treaty",
+      "category": "society",
+      "title": "Мирный договор",
+      "tags": [
+        "peace",
+        "diplomacy",
+        "alliance"
+      ],
+      "severity": 0.5,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{organization} и {rival_organization} подписывают мир; {actor} и {target} скрепляют договор.",
+        "Мирный договор между {organization} и {rival_organization} спасает {place}, но {actor} против."
+      ]
+    },
+    {
+      "id": "rebellion",
+      "category": "society",
+      "title": "Восстание",
+      "tags": [
+        "rebellion",
+        "conflict",
+        "power"
+      ],
+      "severity": 0.8,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "В {place} вспыхивает восстание; {organization} требует выдать {actor}.",
+        "{actor} возглавляет недовольных против {organization}, а {target} пытается договориться."
+      ]
+    },
+    {
+      "id": "law_code",
+      "category": "society",
+      "title": "Новый закон",
+      "tags": [
+        "law",
+        "reform",
+        "order"
+      ],
+      "severity": 0.4,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{organization} принимает новый закон; {actor} и {target} оказываются по разные стороны.",
+        "Новый закон {organization} запрещает {target} заниматься прежним ремеслом."
+      ]
+    },
+    {
+      "id": "trial",
+      "category": "society",
+      "title": "Суд",
+      "tags": [
+        "law",
+        "trial",
+        "justice"
+      ],
+      "severity": 0.55,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{organization} судит {actor} за преступление против {target}.",
+        "На суде {organization} {target} неожиданно встаёт на защиту {actor}."
+      ]
+    },
+    {
+      "id": "festival",
+      "category": "society",
+      "title": "Праздник",
+      "tags": [
+        "festival",
+        "culture",
+        "unity"
+      ],
+      "severity": 0.2,
+      "stakes": 0.5,
+      "weight": 1.0,
+      "templates": [
+        "{organization} устраивает праздник; {actor} и {target} впервые встречаются при всех.",
+        "На празднике {organization} {target} бросает вызов {actor}."
+      ]
+    },
+    {
+      "id": "migration",
+      "category": "society",
+      "title": "Переселение",
+      "tags": [
+        "migration",
+        "crisis",
+        "home"
+      ],
+      "severity": 0.55,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "Семьи {actor} и {target} покидают {place}; {organization} обещает им новую землю.",
+        "{organization} закрывает границы, и {actor} с {target} оказываются в ловушке."
+      ]
+    },
+    {
+      "id": "famine",
+      "category": "society",
+      "title": "Голод",
+      "tags": [
+        "famine",
+        "scarcity",
+        "power"
+      ],
+      "severity": 0.8,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "В {place} начинается голод; {organization} распределяет последние запасы.",
+        "{actor} крадёт зерно у {target}, чтобы накормить семью; {organization} уже ищет виновного."
+      ]
+    },
+    {
+      "id": "plague",
+      "category": "society",
+      "title": "Мор",
+      "tags": [
+        "plague",
+        "health",
+        "fear"
+      ],
+      "severity": 0.9,
+      "stakes": 0.98,
+      "weight": 1.0,
+      "templates": [
+        "Мор приходит в {place}; {organization} закрывает ворота перед {actor} и {target}.",
+        "{actor} находит лекарство от мора, но {organization} требует отдать его только своим."
+      ]
+    },
+    {
+      "id": "war_declared",
+      "category": "war",
+      "title": "Начало войны",
+      "tags": [
+        "war",
+        "conflict",
+        "politics"
+      ],
+      "severity": 0.9,
+      "stakes": 0.98,
+      "weight": 1.0,
+      "templates": [
+        "{organization} объявляет войну {rival_organization}; {actor} получает приказ выступить.",
+        "Война между {organization} и {rival_organization} начинается из-за {place}, где служит {actor}."
+      ]
+    },
+    {
+      "id": "siege",
+      "category": "war",
+      "title": "Осада",
+      "tags": [
+        "war",
+        "siege",
+        "endurance"
+      ],
+      "severity": 0.8,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "{organization} осаждает {place}; {actor} и {target} держат оборону.",
+        "Осада {place} затягивается, и {organization} требует от {actor} невозможного."
+      ]
+    },
+    {
+      "id": "raid",
+      "category": "war",
+      "title": "Набег",
+      "tags": [
+        "war",
+        "raid",
+        "risk"
+      ],
+      "severity": 0.65,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} ведёт отряд {organization} в набег на земли {target}.",
+        "Набег {organization} на {place} заканчивается пленением {target}."
+      ]
+    },
+    {
+      "id": "truce",
+      "category": "war",
+      "title": "Перемирие",
+      "tags": [
+        "war",
+        "truce",
+        "diplomacy"
+      ],
+      "severity": 0.45,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{organization} и {rival_organization} заключают перемирие; {actor} не верит {target}.",
+        "Перемирие спасает {place}, но {organization} тайно готовит новый удар."
+      ]
+    },
+    {
+      "id": "desertion",
+      "category": "war",
+      "title": "Дезертирство",
+      "tags": [
+        "war",
+        "betrayal",
+        "fear"
+      ],
+      "severity": 0.6,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} бежит с поля боя; {organization} приказывает {target} найти его.",
+        "Отряд организации «{organization}» оставляет позиции; {actor} выбирает сторону."
+      ]
+    },
+    {
+      "id": "heroism",
+      "category": "war",
+      "title": "Подвиг",
+      "tags": [
+        "war",
+        "heroism",
+        "status"
+      ],
+      "severity": 0.55,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} совершает подвиг под {place}; {organization} награждает его на глазах у {target}.",
+        "Подвиг {target} спасает {organization}, но {actor} получает всю славу."
+      ]
+    },
+    {
+      "id": "capture",
+      "category": "war",
+      "title": "Плен",
+      "tags": [
+        "war",
+        "capture",
+        "choice"
+      ],
+      "severity": 0.7,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} попадает в плен к {rival_organization}; {organization} решает, стоит ли его спасать.",
+        "В плену {actor} встречает {target}, и вместе они готовят побег."
+      ]
+    },
+    {
+      "id": "aftermath",
+      "category": "war",
+      "title": "После битвы",
+      "tags": [
+        "war",
+        "loss",
+        "memory"
+      ],
+      "severity": 0.65,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "После битвы {organization} считает потери; {actor} находит {target} среди раненых.",
+        "Поле у {place} усеяно телами; {organization} требует от {actor} объяснить поражение."
+      ]
+    },
+    {
+      "id": "trade_route",
+      "category": "economy",
+      "title": "Торговый путь",
+      "tags": [
+        "trade",
+        "route",
+        "wealth"
+      ],
+      "severity": 0.35,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "{organization} открывает торговый путь через {place}; {actor} и {target} вкладывают свои средства.",
+        "Караван {organization} пропадает на пути к {place}, и {actor} обвиняет {target}."
+      ]
+    },
+    {
+      "id": "harvest",
+      "category": "economy",
+      "title": "Урожай",
+      "tags": [
+        "harvest",
+        "food",
+        "prosperity"
+      ],
+      "severity": 0.25,
+      "stakes": 0.55,
+      "weight": 1.0,
+      "templates": [
+        "{organization} собирает богатый урожай; {actor} и {target} делят землю.",
+        "Урожай {organization} погибает из-за {cause}, и {target} требует у {actor} долг."
+      ]
+    },
+    {
+      "id": "shortage",
+      "category": "economy",
+      "title": "Нехватка",
+      "tags": [
+        "scarcity",
+        "trade",
+        "fear"
+      ],
+      "severity": 0.55,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "В {place} не хватает припасов; {organization} повышает цены для {actor} и {target}.",
+        "{actor} находит склад {target}, но {organization} объявляет его своим."
+      ]
+    },
+    {
+      "id": "debt",
+      "category": "economy",
+      "title": "Долг",
+      "tags": [
+        "debt",
+        "obligation",
+        "power"
+      ],
+      "severity": 0.45,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{actor} занимает у {organization} крупную сумму ради {target}.",
+        "Долг {target} перед {organization} переходит к {actor}, и срок уже близок."
+      ]
+    },
+    {
+      "id": "inheritance",
+      "category": "economy",
+      "title": "Наследство",
+      "tags": [
+        "inheritance",
+        "family",
+        "conflict"
+      ],
+      "severity": 0.5,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} получает наследство {target}; {organization} оспаривает завещание.",
+        "Наследство {organization} должно достаться {target}, но {actor} находит вторую волю."
+      ]
+    },
+    {
+      "id": "market_crash",
+      "category": "economy",
+      "title": "Обвал рынка",
+      "tags": [
+        "economy",
+        "crisis",
+        "wealth"
+      ],
+      "severity": 0.6,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "Рынок в {place} обваливается; {organization} теряет состояние {actor}.",
+        "{target} скупает долги {actor}, и {organization} становится его должником."
+      ]
+    },
+    {
+      "id": "caravan",
+      "category": "economy",
+      "title": "Караван",
+      "tags": [
+        "trade",
+        "travel",
+        "risk"
+      ],
+      "severity": 0.35,
+      "stakes": 0.65,
+      "weight": 1.0,
+      "templates": [
+        "Караван {organization} идёт через {place}; {actor} и {target} охраняют груз.",
+        "На караван {organization} нападают; {actor} решает, кого спасать."
+      ]
+    },
+    {
+      "id": "mine",
+      "category": "economy",
+      "title": "Рудник",
+      "tags": [
+        "resource",
+        "work",
+        "risk"
+      ],
+      "severity": 0.4,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "В руднике {organization} находят новую жилу; {actor} и {target} работают в забое.",
+        "Обвал в руднике {organization} уносит жизни, а {actor} обвиняет {target}."
+      ]
+    },
+    {
+      "id": "flood",
+      "category": "disaster",
+      "title": "Наводнение",
+      "tags": [
+        "water",
+        "disaster",
+        "loss"
+      ],
+      "severity": 0.8,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "Река выходит из берегов и затопляет {place}; {organization} спасает {actor} и {target}.",
+        "Наводнение уничтожает запасы {organization}; {actor} ищет {target} в затопленном доме."
+      ]
+    },
+    {
+      "id": "fire",
+      "category": "disaster",
+      "title": "Пожар",
+      "tags": [
+        "fire",
+        "disaster",
+        "loss"
+      ],
+      "severity": 0.8,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "Пожар охватывает {place}; {organization} бросает людей на тушение.",
+        "{actor} спасает {target} из огня, но {organization} теряет архив."
+      ]
+    },
+    {
+      "id": "earthquake",
+      "category": "disaster",
+      "title": "Землетрясение",
+      "tags": [
+        "earthquake",
+        "disaster",
+        "loss"
+      ],
+      "severity": 0.9,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "Землетрясение разрушает {place}; {organization} ищет выживших под завалами.",
+        "{actor} и {target} оказываются в ловушке, а {organization} не может решить, кого спасать первым."
+      ]
+    },
+    {
+      "id": "epidemic",
+      "category": "disaster",
+      "title": "Эпидемия",
+      "tags": [
+        "disease",
+        "disaster",
+        "fear"
+      ],
+      "severity": 0.85,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "Эпидемия охватывает {place}; {organization} вводит карантин.",
+        "{actor} пытается спасти {target}, но {organization} закрывает границы квартала."
+      ]
+    },
+    {
+      "id": "landslide",
+      "category": "disaster",
+      "title": "Оползень",
+      "tags": [
+        "earth",
+        "disaster",
+        "loss"
+      ],
+      "severity": 0.7,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "Оползень перекрывает дорогу у {place}; {organization} ищет обход.",
+        "{actor} и {target} остаются отрезанными, а {organization} решает, стоит ли рисковать."
+      ]
+    },
+    {
+      "id": "shipwreck",
+      "category": "disaster",
+      "title": "Кораблекрушение",
+      "tags": [
+        "sea",
+        "disaster",
+        "loss"
+      ],
+      "severity": 0.8,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "Корабль {organization} разбивается у {place}; {actor} и {target} держатся за обломки.",
+        "После кораблекрушения {organization} объявляет {actor} погибшим, но {target} его видел."
+      ]
+    },
+    {
+      "id": "wildfire_event",
+      "category": "disaster",
+      "title": "Степной пожар",
+      "tags": [
+        "fire",
+        "disaster",
+        "war"
+      ],
+      "severity": 0.75,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "Степной пожар идёт на {place}; {organization} использует огонь против {rival_organization}.",
+        "{actor} и {target} оказываются между огнём и войсками {organization}."
+      ]
+    },
+    {
+      "id": "theft",
+      "category": "crime",
+      "title": "Кража",
+      "tags": [
+        "crime",
+        "theft",
+        "risk"
+      ],
+      "severity": 0.45,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "Из склада {organization} пропадает {object}; {actor} обвиняет {target}.",
+        "{actor} тайно забирает находку — {object} — у {target}, чтобы расплатиться с {organization}."
+      ]
+    },
+    {
+      "id": "murder",
+      "category": "crime",
+      "title": "Убийство",
+      "tags": [
+        "crime",
+        "death",
+        "conflict"
+      ],
+      "severity": 0.85,
+      "stakes": 0.98,
+      "weight": 1.0,
+      "templates": [
+        "{target} найден мёртвым; {organization} подозревает {actor}.",
+        "Убийство {target} потрясает {organization}; {actor} знает имя убийцы."
+      ]
+    },
+    {
+      "id": "fraud",
+      "category": "crime",
+      "title": "Мошенничество",
+      "tags": [
+        "crime",
+        "fraud",
+        "wealth"
+      ],
+      "severity": 0.5,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} подделывает документы {organization}, чтобы помочь {target}.",
+        "Мошенничество {target} раскрыто, но {organization} решает замять дело."
+      ]
+    },
+    {
+      "id": "punishment",
+      "category": "crime",
+      "title": "Наказание",
+      "tags": [
+        "crime",
+        "justice",
+        "fear"
+      ],
+      "severity": 0.6,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{organization} наказывает {actor} за проступок против {target}.",
+        "Публичное наказание {target} вызывает ропот против {organization}."
+      ]
+    },
+    {
+      "id": "exile",
+      "category": "crime",
+      "title": "Изгнание",
+      "tags": [
+        "crime",
+        "exile",
+        "loss"
+      ],
+      "severity": 0.65,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{organization} изгоняет {actor} за преступление, которого он не совершал.",
+        "{target} уходит в изгнание вместе с {actor}, оставляя {organization} без наследника."
+      ]
+    },
+    {
+      "id": "conspiracy",
+      "category": "crime",
+      "title": "Заговор",
+      "tags": [
+        "crime",
+        "conspiracy",
+        "power"
+      ],
+      "severity": 0.75,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "В {organization} зреет заговор; {actor} и {target} связаны клятвой.",
+        "Заговор против {organization} раскрыт, и {target} требует выдать {actor}."
+      ]
+    },
+    {
+      "id": "corruption",
+      "category": "crime",
+      "title": "Коррупция",
+      "tags": [
+        "crime",
+        "power",
+        "money"
+      ],
+      "severity": 0.55,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} берёт взятку от {target} в обход {organization}.",
+        "Коррупция в {organization} всплывает наружу, и {target} указывает на {actor}."
+      ]
+    },
+    {
+      "id": "smuggling",
+      "category": "crime",
+      "title": "Контрабанда",
+      "tags": [
+        "crime",
+        "trade",
+        "risk"
+      ],
+      "severity": 0.5,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{organization} перехватывает контрабанду {target}; {actor} оказывается посредником.",
+        "{actor} и {target} провозят ценный груз — {object} — через {place}, а {organization} идёт по следу."
+      ]
+    },
+    {
+      "id": "lost_relic",
+      "category": "discovery",
+      "title": "Потерянная реликвия",
+      "tags": [
+        "discovery",
+        "relic",
+        "mystery"
+      ],
+      "severity": 0.6,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "В {place} {actor} обнаруживает находку — {object}; {organization} объявляет её реликвией.",
+        "{target} утверждает, что {object} принадлежит {organization}, но {actor} сомневается."
+      ]
+    },
+    {
+      "id": "new_land",
+      "category": "discovery",
+      "title": "Новая земля",
+      "tags": [
+        "discovery",
+        "travel",
+        "hope"
+      ],
+      "severity": 0.45,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{organization} отправляет {actor} и {target} исследовать земли за {place}.",
+        "За {place} найдена плодородная земля; {organization} решает, кому её отдать."
+      ]
+    },
+    {
+      "id": "ancient_text",
+      "category": "discovery",
+      "title": "Древний текст",
+      "tags": [
+        "discovery",
+        "knowledge",
+        "secret"
+      ],
+      "severity": 0.5,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} находит древний текст в архиве {organization}; {target} требует сжечь его.",
+        "Древний текст предсказывает гибель {organization}, и {actor} скрывает это от {target}."
+      ]
+    },
+    {
+      "id": "invention",
+      "category": "discovery",
+      "title": "Изобретение",
+      "tags": [
+        "discovery",
+        "craft",
+        "progress"
+      ],
+      "severity": 0.4,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "В мастерской {actor} появляется {object}; {organization} хочет использовать это против {target}.",
+        "Изобретение {target} меняет планы {organization}, и {actor} получает предложение о помощи."
+      ]
+    },
+    {
+      "id": "cure",
+      "category": "discovery",
+      "title": "Лекарство",
+      "tags": [
+        "discovery",
+        "health",
+        "hope"
+      ],
+      "severity": 0.55,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} находит лекарство от болезни, которая терзает {organization}.",
+        "{target} испытывает лекарство {actor} на себе, но {organization} требует прекратить."
+      ]
+    },
+    {
+      "id": "hidden_truth",
+      "category": "discovery",
+      "title": "Скрытая правда",
+      "tags": [
+        "discovery",
+        "secret",
+        "truth"
+      ],
+      "severity": 0.6,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} раскрывает правду о прошлом {organization}; {target} пытается его остановить.",
+        "Правда о {target} выходит наружу; {organization} решает, кому верить."
+      ]
+    },
+    {
+      "id": "prophecy",
+      "category": "mystery",
+      "title": "Пророчество",
+      "tags": [
+        "prophecy",
+        "fate",
+        "mystery"
+      ],
+      "severity": 0.6,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "Пророчество называет {actor} спасителем {organization}, но {target} видит в нём угрозу.",
+        "В {place} найдено пророчество о гибели {organization}; {actor} скрывает последнюю строку."
+      ]
+    },
+    {
+      "id": "vision",
+      "category": "mystery",
+      "title": "Видение",
+      "tags": [
+        "vision",
+        "mystery",
+        "fear"
+      ],
+      "severity": 0.5,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} видит сон о смерти {target}; {organization} требует толкования.",
+        "Видение {target} указывает на предателя в {organization}, и {actor} боится смотреть на всех."
+      ]
+    },
+    {
+      "id": "disappearance",
+      "category": "mystery",
+      "title": "Исчезновение",
+      "tags": [
+        "mystery",
+        "loss",
+        "search"
+      ],
+      "severity": 0.65,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{target} исчезает из {place}; {organization} поручает поиски {actor}.",
+        "После исчезновения {actor} в {organization} остаётся только его странная записка для {target}."
+      ]
+    },
+    {
+      "id": "curse",
+      "category": "mystery",
+      "title": "Проклятие",
+      "tags": [
+        "curse",
+        "fear",
+        "mystery"
+      ],
+      "severity": 0.7,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "На {organization} падает проклятие; {actor} обвиняет {target}.",
+        "{actor} и {target} находят источник проклятия в {place}, но {organization} запрещает туда идти."
+      ]
+    },
+    {
+      "id": "portal",
+      "category": "mystery",
+      "title": "Портал",
+      "tags": [
+        "portal",
+        "mystery",
+        "danger"
+      ],
+      "severity": 0.75,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "В {place} открывается портал; {organization} отправляет {actor} и {target} внутрь.",
+        "Из портала возвращается {actor} с чужими воспоминаниями, и {target} не узнаёт его."
+      ]
+    },
+    {
+      "id": "cult",
+      "category": "mystery",
+      "title": "Культ",
+      "tags": [
+        "cult",
+        "secret",
+        "power"
+      ],
+      "severity": 0.65,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "В {organization} растёт тайный культ; {actor} и {target} оказываются его жрецами.",
+        "{organization} объявляет культ вне закона; {actor} решает, выдать ли {target}."
+      ]
+    },
+    {
+      "id": "revelation",
+      "category": "mystery",
+      "title": "Откровение",
+      "tags": [
+        "revelation",
+        "truth",
+        "mystery"
+      ],
+      "severity": 0.7,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "{actor} узнаёт, что {target} не тот, кем представлялся; {organization} в опасности.",
+        "Откровение {target} переворачивает историю {organization}, и {actor} получает шанс всё изменить."
+      ]
+    },
+    {
+      "id": "first_love",
+      "category": "romance",
+      "title": "Первая любовь",
+      "tags": [
+        "love",
+        "youth",
+        "hope"
+      ],
+      "severity": 0.3,
+      "stakes": 0.65,
+      "weight": 1.0,
+      "templates": [
+        "{actor} впервые влюбляется в {target}; {organization} замечает это раньше них.",
+        "Первая любовь {actor} и {target} вспыхивает на празднике {organization}."
+      ]
+    },
+    {
+      "id": "forbidden_love",
+      "category": "romance",
+      "title": "Запретная любовь",
+      "tags": [
+        "love",
+        "conflict",
+        "secret"
+      ],
+      "severity": 0.6,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} и {target} любят друг друга, но {organization} запрещает этот союз.",
+        "Запретная любовь {actor} грозит расколом {organization}, и {target} требует выбора."
+      ]
+    },
+    {
+      "id": "courtship",
+      "category": "romance",
+      "title": "Ухаживание",
+      "tags": [
+        "love",
+        "courtship",
+        "alliance"
+      ],
+      "severity": 0.35,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "{actor} добивается руки {target}; {organization} назначает цену согласия.",
+        "{target} отвергает ухаживания {actor}, но {organization} настаивает на союзе."
+      ]
+    },
+    {
+      "id": "jealousy",
+      "category": "romance",
+      "title": "Ревность",
+      "tags": [
+        "love",
+        "jealousy",
+        "conflict"
+      ],
+      "severity": 0.55,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} ревнует {target} к {rival}; {organization} использует это в своих целях.",
+        "Ревность {target} приводит к ссоре, о которой {organization} узнаёт последней."
+      ]
+    },
+    {
+      "id": "elopement",
+      "category": "romance",
+      "title": "Побег",
+      "tags": [
+        "love",
+        "escape",
+        "risk"
+      ],
+      "severity": 0.65,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} и {target} тайно бегут из {place}; {organization} бросается в погоню.",
+        "Побег влюблённых позорит {organization}; {actor} получает приказ вернуть {target} любой ценой."
+      ]
+    },
+    {
+      "id": "heartbreak",
+      "category": "romance",
+      "title": "Разрыв",
+      "tags": [
+        "love",
+        "loss",
+        "choice"
+      ],
+      "severity": 0.5,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} разрывает отношения с {target}; {organization} уже строит на них союз.",
+        "Разрыв {target} и {actor} освобождает место для {rival}, и {organization} в ярости."
+      ]
+    },
+    {
+      "id": "old_flame",
+      "category": "romance",
+      "title": "Старая любовь",
+      "tags": [
+        "love",
+        "memory",
+        "return"
+      ],
+      "severity": 0.45,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{actor} встречает старую любовь {target}; {organization} напоминает о долге.",
+        "Старая любовь {target} возвращается в {place}, и {actor} не знает, кому верить."
+      ]
+    },
+    {
+      "id": "song",
+      "category": "culture",
+      "title": "Песня",
+      "tags": [
+        "culture",
+        "art",
+        "memory"
+      ],
+      "severity": 0.25,
+      "stakes": 0.5,
+      "weight": 1.0,
+      "templates": [
+        "{actor} сочиняет песню о {target}; {organization} запрещает её исполнять.",
+        "Песня {target} становится гимном {organization}, но {actor} требует признания авторства."
+      ]
+    },
+    {
+      "id": "theater",
+      "category": "culture",
+      "title": "Театр",
+      "tags": [
+        "culture",
+        "art",
+        "scandal"
+      ],
+      "severity": 0.3,
+      "stakes": 0.6,
+      "weight": 1.0,
+      "templates": [
+        "{organization} ставит пьесу о {actor}; {target} узнаёт в ней себя.",
+        "На премьере в {place} {actor} освистывает {target}, и {organization} закрывает театр."
+      ]
+    },
+    {
+      "id": "archive",
+      "category": "culture",
+      "title": "Архив",
+      "tags": [
+        "culture",
+        "knowledge",
+        "secret"
+      ],
+      "severity": 0.4,
+      "stakes": 0.75,
+      "weight": 1.0,
+      "templates": [
+        "{actor} получает доступ к архиву {organization}; {target} просит найти одно имя.",
+        "В архиве {organization} пропадает документ, и {actor} обвиняет {target}."
+      ]
+    },
+    {
+      "id": "heresy",
+      "category": "culture",
+      "title": "Ересь",
+      "tags": [
+        "culture",
+        "religion",
+        "conflict"
+      ],
+      "severity": 0.6,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} проповедует ересь против {organization}; {target} слушает его тайно.",
+        "{organization} объявляет учение {target} ересью; {actor} выбирает сторону."
+      ]
+    },
+    {
+      "id": "patronage",
+      "category": "culture",
+      "title": "Покровительство",
+      "tags": [
+        "culture",
+        "power",
+        "art"
+      ],
+      "severity": 0.35,
+      "stakes": 0.7,
+      "weight": 1.0,
+      "templates": [
+        "{organization} берёт {actor} под покровительство; {target} требует такой же чести.",
+        "{actor} становится покровителем {target}, но {organization} хочет контролировать их обоих."
+      ]
+    },
+    {
+      "id": "legend",
+      "category": "culture",
+      "title": "Легенда",
+      "tags": [
+        "culture",
+        "memory",
+        "belief"
+      ],
+      "severity": 0.3,
+      "stakes": 0.6,
+      "weight": 1.0,
+      "templates": [
+        "{actor} рассказывает легенду о {target}; {organization} использует её для власти.",
+        "Легенда о {place} оказывается правдой, и {organization} отправляет {actor} проверить."
+      ]
+    },
+    {
+      "id": "alliance",
+      "category": "politics",
+      "title": "Союз",
+      "tags": [
+        "politics",
+        "alliance",
+        "diplomacy"
+      ],
+      "severity": 0.5,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{organization} и {rival_organization} заключают союз; {actor} и {target} скрепляют его браком.",
+        "Союз {organization} с {rival_organization} злит {target}, а {actor} получает власть."
+      ]
+    },
+    {
+      "id": "election",
+      "category": "politics",
+      "title": "Выборы",
+      "tags": [
+        "politics",
+        "power",
+        "choice"
+      ],
+      "severity": 0.45,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{organization} выбирает нового лидера; {actor} и {target} борются за голоса.",
+        "Выборы в {organization} заканчиваются скандалом, и {target} обвиняет {actor} в подкупе."
+      ]
+    },
+    {
+      "id": "reform",
+      "category": "politics",
+      "title": "Реформа",
+      "tags": [
+        "politics",
+        "reform",
+        "conflict"
+      ],
+      "severity": 0.55,
+      "stakes": 0.85,
+      "weight": 1.0,
+      "templates": [
+        "{actor} предлагает реформу {organization}; {target} объединяет противников.",
+        "Реформа {organization} лишает {target} власти, и тот ищет союзников в {rival_organization}."
+      ]
+    },
+    {
+      "id": "ultimatum",
+      "category": "politics",
+      "title": "Ультиматум",
+      "tags": [
+        "politics",
+        "threat",
+        "choice"
+      ],
+      "severity": 0.65,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{rival_organization} выдвигает {organization} ультиматум из-за {place}; {actor} готовит ответ.",
+        "{target} требует выдать {actor}, иначе {organization} начнёт войну."
+      ]
+    },
+    {
+      "id": "coronation",
+      "category": "politics",
+      "title": "Коронация",
+      "tags": [
+        "politics",
+        "ritual",
+        "power"
+      ],
+      "severity": 0.5,
+      "stakes": 0.9,
+      "weight": 1.0,
+      "templates": [
+        "{actor} восходит на трон {organization}; {target} отказывается присягнуть.",
+        "На коронации {actor} {target} объявляет о своём праве на престол."
+      ]
+    },
+    {
+      "id": "succession",
+      "category": "politics",
+      "title": "Наследование власти",
+      "tags": [
+        "politics",
+        "succession",
+        "conflict"
+      ],
+      "severity": 0.6,
+      "stakes": 0.95,
+      "weight": 1.0,
+      "templates": [
+        "После смерти {target} {organization} не может выбрать наследника; {actor} — главный претендент.",
+        "Борьба за власть в {organization} сталкивает {actor} и {target}, а {rival_organization} ждёт."
+      ]
+    },
+    {
+      "id": "diplomacy",
+      "category": "politics",
+      "title": "Дипломатия",
+      "tags": [
+        "politics",
+        "diplomacy",
+        "secret"
+      ],
+      "severity": 0.45,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "templates": [
+        "{actor} тайно встречается с {target} от имени {organization}.",
+        "Дипломатическая миссия {target} в {place} проваливается, и {organization} ищет виновного."
+      ]
+    }
+  ]
+}
