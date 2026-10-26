@@ -167,6 +167,15 @@ class RTSScreen(BaseScreen):
         super().__init__(app)
         self.state = app.engine.state
         self.engine = app.engine
+        interp = getattr(app, "storyline_interpreter", None)
+        if interp is not None:
+            get_variable = getattr(interp, "get_variable", None)
+            if callable(get_variable):
+                trait = get_variable("trait", None)
+            else:
+                trait = (getattr(interp, "variables", {}) or {}).get("trait")
+            if trait:
+                self.state.needs.set_commander_trait(trait)
         self.selected = []
         self.speed = 1
         self.paused = False

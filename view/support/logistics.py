@@ -23,10 +23,12 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 from .config_loader import load_json
 from .log_journal import get_logger
+from .traits import trait_modifiers
 
 logger = get_logger("view.logistics")
 
@@ -53,13 +55,13 @@ DEFAULT_RESOURCE_DEFS = {
 }
 
 DEFAULT_STOCKS = {
-    "food": 120.0,
-    "ammo": 160.0,
-    "fuel": 90.0,
-    "medicine": 60.0,
-    "engineering": 35.0,
-    "water": 140.0,
-    "morale": 45.0,
+    "food": 420.0,
+    "ammo": 260.0,
+    "fuel": 180.0,
+    "medicine": 75.0,
+    "engineering": 55.0,
+    "water": 620.0,
+    "morale": 70.0,
     "influence": 30.0,
 }
 
@@ -68,23 +70,48 @@ DEFAULT_STOCKS = {
 # единственного ресурса, которым оплачивается подвоз.
 DEFAULT_INFLUENCE_PER_HOUR = 4.0
 DEFAULT_FREE_CONVOY_MINUTES = 180
-FREE_CONVOY_KINDS = ("general", "ammo", "medical", "fuel")
+FREE_CONVOY_KINDS = ("general", "water", "ammo", "medical", "fuel")
 FREE_CONVOY_GAINS = {
-    "general": {"food": 18, "water": 22, "ammo": 10},
-    "ammo": {"ammo": 30},
-    "medical": {"medicine": 12, "morale": 5},
-    "fuel": {"fuel": 22},
+    "general": {"food": 30, "water": 38, "ammo": 18},
+    "water": {"water": 50},
+    "ammo": {"ammo": 55},
+    "medical": {"medicine": 18, "morale": 6},
+    "fuel": {"fuel": 40},
+}
+
+# Ручные конвои: плата влиянием и заявка груза. Прибытие не мгновенное —
+# конвой получает ETA, риск атаки и возможные потери в пути.
+CONVOY_PRICES = {
+    "general": {"influence": 5},
+    "water": {"influence": 2},
+    "ammo": {"influence": 4},
+    "medical": {"influence": 3},
+    "fuel": {"influence": 2},
+}
+CONVOY_GAINS = {
+    "general": {"food": 70, "water": 85, "ammo": 40},
+    "water": {"water": 120},
+    "ammo": {"ammo": 90},
+    "medical": {"medicine": 30, "morale": 10},
+    "fuel": {"fuel": 70},
+}
+CONVOY_LABELS = {
+    "general": "Общий конвой",
+    "water": "Питьевая вода",
+    "ammo": "Боеприпасы",
+    "medical": "Медикаменты",
+    "fuel": "Горючее",
 }
 
 # Суточные нормы на одного человека (и на подразделение в бою).
 PER_MAN_MINUTE = {
-    "food": 0.0018,
-    "water": 0.0028,
-    "medicine": 0.00035,
-    "ammo": 0.0012,
-    "fuel": 0.0008,
-    "morale": 0.00025,
-    "engineering": 0.00015,
+    "food": 0.0015,
+    "water": 0.0022,
+    "medicine": 0.00018,
+    "ammo": 0.0009,
+    "fuel": 0.0007,
+    "morale": 0.00018,
+    "engineering": 0.00012,
 }
 
 SUPPLY_LABELS = {
@@ -112,6 +139,53 @@ class UnitSupply:
         self.actual = {cls: pct for cls in CLASS_TO_KEY}
 
 
+@dataclass
+class Convoy:
+    """Конвой в пути: груз, ETA, риск и признак бесплатной автоколонны."""
+
+    kind: str
+    cargo: dict
+    remaining_minutes: float
+    total_minutes: float
+    risk: float
+    free: bool = False
+
+    @property
+    def eta_minutes(self):
+        return max(0, int(round(self.remaining_minutes)))
+
+    @property
+    def cargo_text(self):
+        return ", ".join(
+            "%s +%d" % (SUPPLY_LABELS.get(key, key), round(amount))
+            for key, amount in self.cargo.items() if amount > 0
+        )
+
+    def to_dict(self):
+        return {
+            "kind": self.kind,
+            "cargo": dict(self.cargo),
+            "remaining_minutes": float(self.remaining_minutes),
+            "total_minutes": float(self.total_minutes),
+            "risk": float(self.risk),
+            "free": bool(self.free),
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            kind=str(data.get("kind", "general")),
+            cargo={
+                str(key): float(value)
+                for key, value in (data.get("cargo") or {}).items()
+            },
+            remaining_minutes=float(data.get("remaining_minutes", 0.0)),
+            total_minutes=float(data.get("total_minutes", 1.0)),
+            risk=max(0.0, min(1.0, float(data.get("risk", 0.0)))),
+            free=bool(data.get("free", False)),
+        )
+
+
 class LogisticsSystem:
     """Запасы дивизии, готовность подразделений и операции снабжения."""
 
@@ -137,9 +211,42 @@ class LogisticsSystem:
                 "free_convoy_minutes", DEFAULT_FREE_CONVOY_MINUTES
             ))
         )
+        convoy_cfg = config.get("convoy_config") or {}
+        self.convoy_base_hours = max(
+            0.25, float(convoy_cfg.get(
+                "base_trip_hours", convoy_cfg.get("base_trip_time", 2.5)
+            ))
+        )
+        self.convoy_base_loss_chance = max(
+            0.0, min(0.95, float(convoy_cfg.get("base_loss_chance", 0.08)))
+        )
+        self.convoy_risk_combat_bonus = max(
+            0.0, float(convoy_cfg.get("combat_risk_bonus", 0.10))
+        )
+        self.convoy_full_loss_chance = max(
+            0.0, min(1.0, float(convoy_cfg.get("full_loss_chance", 0.25)))
+        )
+        partial = convoy_cfg.get("partial_loss_fraction") or [0.15, 0.55]
+        self.convoy_partial_loss = (
+            max(0.0, min(1.0, float(partial[0]))),
+            max(0.0, min(1.0, float(partial[-1]))),
+        )
+        self.convoy_route = str(convoy_cfg.get("route_type", "dirt"))
+        route_mods = convoy_cfg.get("route_type_time_modifier") or {}
+        self.convoy_route_modifier = max(
+            0.5, float(route_mods.get(self.convoy_route, 1.5))
+        )
+        jitter = (config.get("uncertainty") or {}).get("eta_jitter") or [1.0, 1.5]
+        self.convoy_eta_jitter = (
+            max(0.5, float(jitter[0])),
+            max(0.5, float(jitter[-1])),
+        )
         self._influence_accum = 0.0
         self._free_convoy_elapsed = 0.0
         self._free_convoy_index = 0
+        self.convoys = []
+        seed = int(getattr(getattr(state, "sim", None), "seed", 0) or 0)
+        self.rng = random.Random(seed * 7919 + 13)
         self.supplies = self.state.supplies
         for key, amount in DEFAULT_STOCKS.items():
             self.supplies.setdefault(key, float(amount))
@@ -206,6 +313,16 @@ class LogisticsSystem:
             if det.side == side and not getattr(det, "broken", False)
         ]
 
+    def _trait_mods(self):
+        return trait_modifiers(getattr(self.state, "commander_trait", None))
+
+    def _has_active_combat(self):
+        engine = getattr(self.state, "engine", None)
+        engagements = getattr(engine, "engagements", None)
+        if engagements:
+            return True
+        return bool(getattr(self.state, "engagements", None))
+
     # --- ежедневный/потактовый расход -----------------------------------
     def on_tick(self, seconds=300, engaged_names=None):
         """Списать довольствие и обновить готовность подразделений.
@@ -219,10 +336,14 @@ class LogisticsSystem:
         if minutes <= 0:
             return
         engaged = set(engaged_names or [])
+        mods = self._trait_mods()
+        consumption = float(mods.get("supply_consumption", 1.0))
         for key in list(self.cooldowns):
             self.cooldowns[key] = max(0.0, self.cooldowns[key] - minutes)
             if self.cooldowns[key] <= 0:
                 self.cooldowns.pop(key, None)
+
+        self._process_convoys(minutes)
 
         for idx, det in enumerate(self.state.units):
             if det.side != getattr(self.state, "player_side", "red"):
@@ -231,7 +352,7 @@ class LogisticsSystem:
                 continue
             people = max(1, len(getattr(det, "characters", [])))
             demand = {
-                key: rate * people * minutes
+                key: rate * people * minutes * consumption
                 for key, rate in PER_MAN_MINUTE.items()
             }
             if det.name in engaged or getattr(det, "engagements", 0):
@@ -259,9 +380,9 @@ class LogisticsSystem:
             det.ui_supply = supply
             det.ui_ammo = max(0.0, min(1.2, supply * (1.1 if coverage > .5 else .6)))
             if coverage < 0.5:
-                det.morale = max(0.0, det.morale - 0.35 * minutes / 5.0)
+                self._adjust_morale(det, -0.35 * minutes / 5.0)
             elif coverage >= 0.95 and det.morale < 100.0:
-                det.morale = min(100.0, det.morale + 0.10 * minutes / 5.0)
+                self._adjust_morale(det, 0.06 * minutes / 5.0)
             # Подразделение само закрывает базовые потребности по мере
             # подвоза. Игрок не «кормит» его вручную: это делает тыл.
             self._self_care(det, care_coverage, minutes,
@@ -271,6 +392,22 @@ class LogisticsSystem:
             "Снабжение: %s" % self.short_status()
         )
 
+    def _adjust_morale(self, det, delta):
+        """Изменить мораль роты через персонажей.
+
+        ``refresh_psychology`` восстанавливает ``det.morale`` как среднее по
+        персонажам, поэтому правка только агрегата была бы потеряна на
+        следующем такте.
+        """
+        delta = float(delta)
+        if not delta:
+            return
+        for character in det.characters:
+            character.morale = max(
+                0.0, min(100.0, character.morale + delta)
+            )
+        det.morale = max(0.0, min(100.0, det.morale + delta))
+
     def _accrue_influence(self, minutes):
         """Начислить пассивное влияние и, если подошло время, автоколонну.
 
@@ -279,7 +416,10 @@ class LogisticsSystem:
         отображении, но запас растёт уже с первого такта.
         """
         if self.influence_per_hour > 0 and minutes > 0:
-            gain = self.influence_per_hour / 60.0 * float(minutes)
+            rate = self.influence_per_hour * float(
+                self._trait_mods().get("influence_rate", 1.0)
+            )
+            gain = rate / 60.0 * float(minutes)
             self._influence_accum += gain
             self.supplies["influence"] = self.stock("influence") + gain
         if minutes <= 0:
@@ -297,23 +437,146 @@ class LogisticsSystem:
         )
 
     def _deliver_free_convoy(self):
-        """Доставить редкую бесплатную автоколонну (без влияния)."""
+        """Отправить редкую бесплатную автоколонну (без влияния).
+
+        Название метода сохранено для совместимости, но доставка теперь
+        отложенная: сначала конвой едет, затем может прибыть полностью,
+        частично или не прибыть вовсе.
+        """
         kind = FREE_CONVOY_KINDS[
             self._free_convoy_index % len(FREE_CONVOY_KINDS)
         ]
         self._free_convoy_index += 1
         gains = FREE_CONVOY_GAINS.get(kind, FREE_CONVOY_GAINS["general"])
-        for key, amount in gains.items():
-            self.supplies[key] = self.stock(key) + amount
-        message = "Автоколонна: %s" % ", ".join(
-            "%s +%d" % (SUPPLY_LABELS.get(k, k), v)
-            for k, v in gains.items()
+        convoy = self._schedule_convoy(kind, gains, free=True, risk_scale=0.6)
+        message = "Автоколонна отправлена: %s · ETA %d мин · риск %d%%" % (
+            convoy.cargo_text, convoy.eta_minutes, round(convoy.risk * 100)
         )
         if getattr(self.state, "log_event", None) is not None:
             self.state.log_event(self.state.player_idx, message)
         logger.info("Логистика: бесплатная автоколонна (%s), %s",
                     kind, message)
-        return {"ok": True, "kind": kind, "gains": gains}
+        return {
+            "ok": True,
+            "kind": kind,
+            "gains": dict(gains),
+            "eta_minutes": convoy.eta_minutes,
+            "risk": convoy.risk,
+        }
+
+    # --- конвои в пути ---------------------------------------------------
+    def _schedule_convoy(self, kind, cargo, free=False, risk=None,
+                         risk_scale=1.0, eta_minutes=None):
+        """Поставить конвой в очередь и вернуть объект ``Convoy``."""
+        if eta_minutes is None:
+            jitter = self.rng.uniform(*self.convoy_eta_jitter)
+            hours = (
+                self.convoy_base_hours
+                * self.convoy_route_modifier
+                * jitter
+                * float(self._trait_mods().get("convoy_time", 1.0))
+            )
+            eta_minutes = max(20.0, hours * 60.0)
+        if risk is None:
+            risk = (
+                self.convoy_base_loss_chance
+                + (self.convoy_risk_combat_bonus
+                   if self._has_active_combat() else 0.0)
+            ) * float(self._trait_mods().get("convoy_risk", 1.0)) * risk_scale
+        risk = max(0.0, min(0.92, float(risk)))
+        convoy = Convoy(
+            kind=str(kind),
+            cargo={
+                str(key): float(value)
+                for key, value in (cargo or {}).items() if value > 0
+            },
+            remaining_minutes=float(eta_minutes),
+            total_minutes=max(1.0, float(eta_minutes)),
+            risk=risk,
+            free=bool(free),
+        )
+        self.convoys.append(convoy)
+        return convoy
+
+    def _process_convoys(self, minutes):
+        """Продвинуть конвои и разрешить прибывшие."""
+        remaining = []
+        for convoy in self.convoys:
+            convoy.remaining_minutes -= float(minutes)
+            if convoy.remaining_minutes > 0:
+                remaining.append(convoy)
+                continue
+            delayed = self._arrive_convoy(convoy)
+            if delayed is not None:
+                remaining.append(delayed)
+        self.convoys = remaining
+
+    def _arrive_convoy(self, convoy):
+        """Разрешить один конвой. Вернуть конвой, если он задержан атакой."""
+        cargo = dict(convoy.cargo)
+        attacked = (
+            convoy.risk > 0.0
+            and self.rng.random() < max(0.0, min(1.0, convoy.risk))
+        )
+        if attacked:
+            if self.rng.random() < self.convoy_full_loss_chance:
+                self.state.log_event(
+                    self.state.player_idx,
+                    "Конвой уничтожен на маршруте: %s" % convoy.cargo_text,
+                )
+                logger.warning("Логистика: конвой (%s) уничтожен", convoy.kind)
+                return None
+            low, high = self.convoy_partial_loss
+            loss = self.rng.uniform(min(low, high), max(low, high))
+            cargo = {
+                key: amount * (1.0 - loss)
+                for key, amount in cargo.items()
+            }
+            delay = self.rng.randint(30, 90)
+            convoy.cargo = cargo
+            convoy.remaining_minutes = float(delay)
+            convoy.total_minutes += float(delay)
+            convoy.risk *= 0.45
+            self.state.log_event(
+                self.state.player_idx,
+                "Конвой атакован: потеряно %d%%, задержка %d мин, "
+                "уцелело: %s" % (
+                    round(loss * 100), delay, convoy.cargo_text,
+                ),
+            )
+            logger.warning(
+                "Логистика: конвой (%s) атакован, потеря %d%%, задержка %d",
+                convoy.kind, round(loss * 100), delay,
+            )
+            return convoy
+        for key, amount in cargo.items():
+            self.supplies[key] = self.stock(key) + amount
+        self.state.log_event(
+            self.state.player_idx,
+            "Прибыл конвой: %s" % ", ".join(
+                "%s +%d" % (SUPPLY_LABELS.get(key, key), round(amount))
+                for key, amount in cargo.items()
+            ),
+        )
+        logger.info("Логистика: конвой (%s) прибыл, %s",
+                    convoy.kind, short_supplies(self.supplies))
+        return None
+
+    def convoy_status_rows(self):
+        """Активные конвои для оверлея логистики."""
+        return [
+            {
+                "kind": convoy.kind,
+                "label": CONVOY_LABELS.get(convoy.kind, convoy.kind),
+                "eta": convoy.eta_minutes,
+                "risk": convoy.risk,
+                "cargo": convoy.cargo_text,
+                "free": convoy.free,
+            }
+            for convoy in sorted(
+                self.convoys, key=lambda item: item.remaining_minutes
+            )
+        ]
 
     def _self_care(self, det, coverage, minutes, engaged):
         """Автоматическое самообеспечение отделения из общих запасов.
@@ -357,8 +620,9 @@ class LogisticsSystem:
         op = self.operations.get(operation_id) or {}
         cost = op.get("cost") or {}
         multiplier = max(1, int(count))
+        trait_mult = float(self._trait_mods().get("operation_cost", 1.0))
         return {
-            CLASS_TO_KEY.get(cls, cls): float(amount) * multiplier
+            CLASS_TO_KEY.get(cls, cls): float(amount) * multiplier * trait_mult
             for cls, amount in cost.items()
         }
 
@@ -477,47 +741,64 @@ class LogisticsSystem:
             "stocks": dict(self.supplies),
         }
 
-    def request_convoy(self, kind="general"):
-        """Запросить конвой. Стоимость — влияние, приход — сразу (MVP)."""
-        prices = {
-            "general": {"influence": 5},
-            "ammo": {"influence": 4},
-            "medical": {"influence": 3},
-            "fuel": {"influence": 2},
-        }
-        price = prices.get(kind, prices["general"])
+    def request_convoy(self, kind="general", risk=None):
+        """Отправить конвой. Стоимость — влияние; прибытие отложенное.
+
+        ``risk`` — необязательное переопределение вероятности атаки для
+        тестов и сценарных проверок. В обычной игре риск вычисляется из
+        обстановки, маршрута и черты командира.
+        """
+        if kind not in CONVOY_GAINS:
+            return {"ok": False, "reason": "неизвестный тип конвоя"}
+        price = CONVOY_PRICES.get(kind, CONVOY_PRICES["general"])
         for key, amount in price.items():
             if self.stock(key) < amount:
                 return {"ok": False, "reason": "нет влияния"}
         for key, amount in price.items():
             self.supplies[key] = max(0.0, self.stock(key) - amount)
-        gains = {
-            "general": {"food": 35, "water": 40, "ammo": 25},
-            "ammo": {"ammo": 45},
-            "medical": {"medicine": 18, "morale": 8},
-            "fuel": {"fuel": 35},
-        }.get(kind, {})
-        for key, amount in gains.items():
-            self.supplies[key] = self.stock(key) + amount
+        gains = dict(CONVOY_GAINS[kind])
+        convoy = self._schedule_convoy(kind, gains, free=False, risk=risk)
         self.state.log_event(
             self.state.player_idx,
-            "Прибыл конвой: %s" % ", ".join(
-                "%s +%d" % (SUPPLY_LABELS.get(k, k), v)
-                for k, v in gains.items()
+            "Конвой отправлен: %s · ETA %d мин · риск %d%%" % (
+                convoy.cargo_text, convoy.eta_minutes,
+                round(convoy.risk * 100),
             ),
         )
-        return {"ok": True, "gains": gains}
+        logger.info(
+            "Логистика: отправлен конвой %s, ETA %d мин, риск %d%%, груз %s",
+            kind, convoy.eta_minutes, round(convoy.risk * 100),
+            short_supplies(gains),
+        )
+        return {
+            "ok": True,
+            "kind": kind,
+            "gains": gains,
+            "eta_minutes": convoy.eta_minutes,
+            "risk": convoy.risk,
+        }
 
     def morning_resupply(self):
-        """Ночной подвоз: небольшой бесплатный приток запасов."""
+        """Ночной подвоз: небольшой бесплатный приток запасов.
+
+        Это тоже колонна, а не телепорт: она отправляется утром и прибывает
+        через несколько часов, поэтому игрок должен планировать запас.
+        """
         gains = {
-            "food": 18, "water": 22, "ammo": 12, "medicine": 4,
-            "fuel": 8, "engineering": 3, "morale": 4,
+            "food": 26, "water": 34, "ammo": 16, "medicine": 6,
+            "fuel": 10, "engineering": 4, "morale": 5,
         }
-        for key, amount in gains.items():
-            self.supplies[key] = self.stock(key) + amount
-        logger.info("Логистика: ночной подвоз, %s",
-                    short_supplies(self.supplies))
+        convoy = self._schedule_convoy(
+            "general", gains, free=True, risk_scale=0.75
+        )
+        self.state.log_event(
+            self.state.player_idx,
+            "Ночной подвоз отправлен: ETA %d мин · риск %d%%" % (
+                convoy.eta_minutes, round(convoy.risk * 100)
+            ),
+        )
+        logger.info("Логистика: ночной подвоз отправлен, ETA %d мин",
+                    convoy.eta_minutes)
 
     def status_rows(self):
         """Строки для оверлея логистики."""
@@ -538,12 +819,15 @@ class LogisticsSystem:
 
     # --- сохранение ------------------------------------------------------
     def get_save_snapshot(self):
+        rng_state = self.rng.getstate()
         return {
             "supplies": dict(self.supplies),
             "cooldowns": dict(self.cooldowns),
             "influence_accum": float(self._influence_accum),
             "free_convoy_elapsed": float(self._free_convoy_elapsed),
             "free_convoy_index": int(self._free_convoy_index),
+            "convoys": [convoy.to_dict() for convoy in self.convoys],
+            "rng_state": [rng_state[0], list(rng_state[1]), rng_state[2]],
         }
 
     def load_from_snapshot(self, snapshot):
@@ -566,6 +850,21 @@ class LogisticsSystem:
         self._free_convoy_index = int(snapshot.get(
             "free_convoy_index", self._free_convoy_index
         ))
+        self.convoys = [
+            Convoy.from_dict(item)
+            for item in (snapshot.get("convoys") or [])
+            if isinstance(item, dict)
+        ]
+        rng_state = snapshot.get("rng_state")
+        if isinstance(rng_state, (list, tuple)) and len(rng_state) == 3:
+            try:
+                self.rng.setstate((
+                    int(rng_state[0]),
+                    tuple(int(value) for value in rng_state[1]),
+                    rng_state[2],
+                ))
+            except (TypeError, ValueError):
+                logger.warning("Логистика: не удалось восстановить RNG конвоев")
         self._ensure_unit_state()
 
 

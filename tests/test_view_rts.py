@@ -42,7 +42,7 @@ def test_rts_move_order_and_needs_action():
     assert screen.state.det_at(idx).position != start
     result = screen.state.needs.apply(idx, "feed")
     assert result["ok"]
-    assert screen.state.supplies["food"] < 120
+    assert screen.state.supplies["food"] < 420
 
 
 def test_text_layout_breaks_long_words():
@@ -103,6 +103,38 @@ def test_rts_overlays_draw_without_errors():
         overlay.update(0.016)
         overlay.draw(surface)
         app.manager.pop()
+
+
+def test_rts_overlay_controls_stay_inside_panels():
+    from view.screens.rts_screen import RTSScreen
+    from view.ui.needs_overlay import NeedsOverlay
+    from view.ui.overlays import LogisticsOverlay
+
+    app = _app()
+    screen = RTSScreen(app)
+
+    needs = NeedsOverlay(app, screen)
+    panel = needs.panel.rect
+    buttons = [needs.close_btn, needs.logistics_btn]
+    buttons += [btn for _action, btn in needs._action_buttons]
+    for button in buttons:
+        assert panel.contains(button.rect)
+
+    logistics = LogisticsOverlay(app)
+    panel = logistics.panel.rect
+    target_buttons = [btn for _name, btn in logistics._target_buttons]
+    right_buttons = (
+        [btn for _op, btn in logistics._op_buttons]
+        + [btn for _kind, btn in logistics._convoy_buttons]
+        + [logistics.btn_all, logistics.btn_none, logistics.close_btn]
+    )
+    for button in target_buttons + right_buttons:
+        assert panel.contains(button.rect)
+    assert max(btn.rect.bottom for btn in target_buttons) < \
+        logistics.btn_all.rect.top
+    for target in target_buttons:
+        for right in right_buttons:
+            assert not target.rect.colliderect(right.rect)
 
 
 def test_unit_orders_overlay_applies_withdrawal():
@@ -293,7 +325,7 @@ def test_rts_select_all_and_reads_loss_threshold_from_storyline():
             "lose_conditions": [{
                 "type": "any_of",
                 "conditions": [
-                    {"type": "manpower_loss_above", "value": 0.45},
+                    {"type": "manpower_loss_above", "value": 0.25},
                     {"type": "all_player_units_destroyed"},
                 ],
             }],
@@ -302,7 +334,7 @@ def test_rts_select_all_and_reads_loss_threshold_from_storyline():
     app = _app()
     app.storyline_interpreter = Interpreter()
     screen = RTSScreen(app)
-    assert screen._loss_limit_percent() == 45
+    assert screen._loss_limit_percent() == 25
     screen.selected = []
     screen.handle_event(pygame.event.Event(
         pygame.KEYDOWN, key=pygame.K_a, mod=pygame.KMOD_CTRL,

@@ -25,7 +25,7 @@
       "conditions": [
         {
           "type": "manpower_loss_above",
-          "value": 0.45
+          "value": 0.25
         },
         {
           "type": "all_player_units_destroyed"

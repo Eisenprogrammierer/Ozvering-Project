@@ -31,7 +31,7 @@ import pygame
 from .screen_manager import BaseScreen
 from .widgets import Button, Panel
 from .asset_loader import AssetLoader
-from .text_layout import wrap_text
+from .text_layout import draw_fitted, wrap_text
 from view.support.traits import get_report_noise_modifier
 from view.support.needs import SUPPLY_LABELS
 from view.support.log_journal import get_logger
@@ -1155,29 +1155,30 @@ class LogisticsOverlay(OverlayScreen):
         self.rts = self._find_rts()
         self._targets = set()
         panel = self.panel.rect
-        x = panel.x + 500
-        y = panel.y + 150
+        rx = panel.x + 500
+        y = panel.y + 126
         for op_id in ("fortify", "fierce_attack", "active_defense",
                       "medevac", "morale_boost"):
             btn = Button(
-                (x, y, 350, 30), self.OPERATION_LABELS.get(op_id, op_id),
+                (rx, y, 350, 30), self.OPERATION_LABELS.get(op_id, op_id),
                 app.font_tiny, lambda oid=op_id: self.apply_operation(oid),
             )
             self._op_buttons.append((op_id, btn))
             y += 46
-        y += 30
+        y = panel.y + 390
         for kind, label in (
             ("general", "Общий конвой"),
+            ("water", "Питьевая вода"),
             ("ammo", "Боеприпасы"),
             ("medical", "Медикаменты"),
             ("fuel", "Горючее"),
         ):
             btn = Button(
-                (x, y, 350, 28), label, app.font_tiny,
+                (rx, y, 350, 28), label, app.font_tiny,
                 lambda k=kind: self.request_convoy(k),
             )
             self._convoy_buttons.append((kind, btn))
-            y += 34
+            y += 31
         self._init_targets()
         self._build_target_buttons()
 
@@ -1213,17 +1214,22 @@ class LogisticsOverlay(OverlayScreen):
     def _build_target_buttons(self):
         panel = self.panel.rect
         x = panel.x + 16
-        y = panel.y + 356
-        for det in self._player_units():
+        top = panel.y + 316
+        button_y = panel.bottom - 30
+        units = self._player_units()
+        available = max(1, button_y - 8 - top)
+        row_h = min(19, max(14, available // max(1, len(units))))
+        self._target_row_h = row_h
+        y = top
+        for det in units:
             btn = Button(
-                (x, y, 360, 16), "[ ] %s" % det.name,
+                (x, y, 360, row_h - 2), "[ ] %s" % det.name,
                 self.app.font_tiny,
                 lambda name=det.name: self.toggle_target(name),
                 alpha=120,
             )
             self._target_buttons.append((det.name, btn))
-            y += 16
-        button_y = panel.y + 616
+            y += row_h
         self.btn_all = Button(
             (x, button_y, 174, 22), "Все", self.app.font_tiny,
             self.select_all_targets,
@@ -1278,10 +1284,13 @@ class LogisticsOverlay(OverlayScreen):
     def request_convoy(self, kind):
         ls = self.app.engine.state.logistics
         result = ls.request_convoy(kind)
-        self.feedback = (
-            "Конвой прибыл" if result.get("ok")
-            else result.get("reason", "Нет влияния")
-        )
+        if result.get("ok"):
+            self.feedback = "Конвой в пути: ETA %d мин · риск %d%%" % (
+                result.get("eta_minutes", 0),
+                round(float(result.get("risk", 0.0)) * 100),
+            )
+        else:
+            self.feedback = result.get("reason", "Нет влияния")
 
     def handle_event(self, event):
         for _oid, btn in self._op_buttons:
@@ -1320,11 +1329,28 @@ class LogisticsOverlay(OverlayScreen):
         count = len(self._targets)
         idx = self._selected_idx()
         det = st.det_at(idx)
-        screen.blit(self.app.font_tiny.render(
+        draw_fitted(
+            screen, [self.app.font_tiny],
             "Склад, расход и готовность. Отметьте цели слева; стоимость "
             "операции растёт с числом рот.",
-            True, (150, 165, 180),
-        ), (panel.x + 20, panel.y + 44))
+            pygame.Rect(panel.x + 20, panel.y + 44, panel.width - 40, 16),
+            (150, 165, 180),
+        )
+        if det is not None:
+            draw_fitted(
+                screen, [self.app.font_tiny],
+                "Открыто: %s · снабжение %d%%" % (
+                    det.name, round(ls.supply_of(idx) * 100)
+                ),
+                pygame.Rect(panel.x + 20, panel.y + 61, 380, 12),
+                (175, 190, 202),
+            )
+        if self.feedback:
+            draw_fitted(
+                screen, [self.app.font_tiny], self.feedback,
+                pygame.Rect(panel.x + 420, panel.y + 61, panel.width - 440, 12),
+                (224, 185, 95), align="right",
+            )
 
         # Левая часть: склад.
         y = panel.y + 78
@@ -1332,38 +1358,47 @@ class LogisticsOverlay(OverlayScreen):
             "СКЛАД", True, (205, 218, 230)
         ), (panel.x + 20, y))
         y += 24
-        header = ("Класс", "Запас", "В сутки", "Хватит")
-        for i, text in enumerate(header):
-            screen.blit(self.app.font_tiny.render(
-                text, True, (130, 145, 158)
-            ), (panel.x + 20 + i * 112, y))
+        headers = (
+            ("Класс", panel.x + 20, 104),
+            ("Запас", panel.x + 132, 76),
+            ("В сутки", panel.x + 224, 84),
+            ("Хватит", panel.x + 330, 120),
+        )
+        for text, hx, width in headers:
+            draw_fitted(
+                screen, [self.app.font_tiny], text,
+                pygame.Rect(hx, y, width, 12), (130, 145, 158),
+            )
         y += 18
         for row in ls.status_rows():
-            screen.blit(self.app.font_tiny.render(
-                row["label"][:18], True, (210, 220, 230)
-            ), (panel.x + 20, y))
-            screen.blit(self.app.font_tiny.render(
-                "%d" % round(row["stock"]), True, (220, 230, 238)
-            ), (panel.x + 132, y))
-            screen.blit(self.app.font_tiny.render(
-                "%.1f" % row["daily"], True, (165, 180, 192)
-            ), (panel.x + 244, y))
+            draw_fitted(
+                screen, [self.app.font_tiny], row["label"],
+                pygame.Rect(panel.x + 20, y, 108, 12), (210, 220, 230),
+            )
+            draw_fitted(
+                screen, [self.app.font_tiny], "%d" % round(row["stock"]),
+                pygame.Rect(panel.x + 132, y, 76, 12), (220, 230, 238),
+            )
+            draw_fitted(
+                screen, [self.app.font_tiny], "%.1f" % row["daily"],
+                pygame.Rect(panel.x + 224, y, 84, 12), (165, 180, 192),
+            )
             days = row["days"]
             days_text = "—" if days is None else ("%.1f дн" % days)
             color = (190, 110, 100) if days is not None and days < 2 else (
                 150, 195, 160
             )
-            screen.blit(self.app.font_tiny.render(
-                days_text, True, color
-            ), (panel.x + 356, y))
-            y += 22
+            draw_fitted(
+                screen, [self.app.font_tiny], days_text,
+                pygame.Rect(panel.x + 330, y, 120, 12), color,
+            )
+            y += 18
 
-        # Готовность и выбор целей.
-        y += 18
+        # Готовность и выбор целей. Строки и шкалы используют один и тот же
+        # rect кнопки, поэтому больше не расходятся на десятки пикселей.
         screen.blit(self.app.font_small.render(
             "ГОТОВНОСТЬ · ЦЕЛИ ОПЕРАЦИЙ", True, (205, 218, 230)
-        ), (panel.x + 20, y))
-        y += 24
+        ), (panel.x + 20, panel.y + 292))
         by_name = {unit.name: (i, unit) for i, unit in enumerate(st.units)}
         for name, btn in self._target_buttons:
             entry = by_name.get(name)
@@ -1376,16 +1411,19 @@ class LogisticsOverlay(OverlayScreen):
             selected = name in self._targets
             btn.text = ("[x] " if selected else "[ ] ") + unit.name
             btn.draw(screen)
-            bar = pygame.Rect(panel.x + 386, y + 4, 120, 6)
+            bar = pygame.Rect(
+                panel.x + 384, btn.rect.centery - 3, 72, 6
+            )
             pygame.draw.rect(screen, (38, 46, 55), bar)
             pygame.draw.rect(
                 screen, color,
                 (bar.x, bar.y, int(bar.width * min(1.0, value)), bar.height),
             )
-            screen.blit(self.app.font_tiny.render(
-                "%d%%" % round(value * 100), True, color
-            ), (panel.x + 512, y - 1))
-            y += 16
+            draw_fitted(
+                screen, [self.app.font_tiny], "%d%%" % round(value * 100),
+                pygame.Rect(panel.x + 458, btn.rect.y, 32, btn.rect.height),
+                color, align="right", valign="center",
+            )
         self.btn_all.draw(screen)
         self.btn_none.draw(screen)
 
@@ -1394,27 +1432,31 @@ class LogisticsOverlay(OverlayScreen):
         screen.blit(self.app.font_small.render(
             "ОПЕРАЦИИ", True, (205, 218, 230)
         ), (rx, panel.y + 78))
-        screen.blit(self.app.font_tiny.render(
+        draw_fitted(
+            screen, [self.app.font_tiny],
             "Целей: %d · цена за каждую роту" % count,
-            True, (175, 190, 202) if count else (190, 118, 118),
-        ), (rx, panel.y + 100))
+            pygame.Rect(rx, panel.y + 100, 350, 14),
+            (175, 190, 202) if count else (190, 118, 118),
+        )
         for op_id, btn in self._op_buttons:
             btn.draw(screen)
             effective = max(1, count)
             cost = ls.operation_cost(op_id, effective)
             cost_text = ", ".join(
-                "%s %d" % (SUPPLY_LABELS.get(k, k), v)
+                "%s %d" % (SUPPLY_LABELS.get(k, k), round(v))
                 for k, v in cost.items()
             )
             ok, reason = ls.can_operation(op_id, effective)
             info = cost_text + ("" if ok else " · " + reason)
-            screen.blit(self.app.font_tiny.render(
-                info, True, (150, 165, 178) if ok else (190, 118, 118)
-            ), (btn.rect.x + 6, btn.rect.y + 32))
-        convoy_top = self._convoy_buttons[0][1].rect.y - 24
+            draw_fitted(
+                screen, [self.app.font_tiny], info,
+                pygame.Rect(btn.rect.x + 6, btn.rect.y + 31,
+                            btn.rect.width - 12, 12),
+                (150, 165, 178) if ok else (190, 118, 118),
+            )
         screen.blit(self.app.font_small.render(
             "КОНВОИ (за влияние)", True, (205, 218, 230)
-        ), (rx, convoy_top))
+        ), (rx, panel.y + 366))
         for _kind, btn in self._convoy_buttons:
             btn.draw(screen)
         influence_text = (
@@ -1425,20 +1467,29 @@ class LogisticsOverlay(OverlayScreen):
                 int(round(ls.next_free_convoy_minutes)),
             )
         )
-        screen.blit(self.app.font_tiny.render(
-            influence_text, True, (224, 185, 95),
-        ), (rx, self._convoy_buttons[-1][1].rect.bottom + 6))
-        if det is not None:
-            screen.blit(self.app.font_tiny.render(
-                "Открыто на: %s · снабжение %d%%" % (
-                    det.name, round(ls.supply_of(idx) * 100)
-                ),
-                True, (175, 190, 202),
-            ), (rx, panel.bottom - 58))
-        if self.feedback:
-            screen.blit(self.app.font_tiny.render(
-                self.feedback, True, (224, 185, 95)
-            ), (rx, panel.bottom - 38))
+        draw_fitted(
+            screen, [self.app.font_tiny], influence_text,
+            pygame.Rect(rx, panel.y + 548, 350, 14),
+            (224, 185, 95),
+        )
+
+        pending = ls.convoy_status_rows()
+        draw_fitted(
+            screen, [self.app.font_tiny],
+            ("В ПУТИ: %d" % len(pending)) if pending else "В ПУТИ: нет",
+            pygame.Rect(rx, panel.y + 566, 350, 12),
+            (175, 190, 202),
+        )
+        for row_index, row in enumerate(pending[:3]):
+            text = "%s · %d мин · риск %d%% · %s" % (
+                row["label"], row["eta"], round(row["risk"] * 100),
+                row["cargo"],
+            )
+            draw_fitted(
+                screen, [self.app.font_tiny], text,
+                pygame.Rect(rx, panel.y + 580 + row_index * 14, 350, 12),
+                (190, 205, 218),
+            )
         self.close_btn.draw(screen)
 
 

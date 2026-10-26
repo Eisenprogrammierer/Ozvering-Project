@@ -226,6 +226,21 @@ def test_character_dies_when_health_reaches_critical_value():
     assert c.is_dead
 
 
+def test_barrier_fires_on_retreating_unit():
+    offender = _det("offender", n=3, seed=1)
+    offender.retreating = True
+    barrier = W.BarrierDetachment(
+        "barrier", "red", [_char("barrier-0", seed=9)],
+        targets=[offender.name],
+    )
+    sim = W.WarfareSimulation(seed=1, turns=5)
+    sim.add_detachment(offender)
+    sim.add_detachment(barrier)
+    sim.turn = 1
+    sim._enforce_barriers()
+    assert any(event["kind"] == "barrier_fire" for event in sim.events)
+
+
 def test_demo_scenario_is_deterministic_and_has_war_events():
     first = W.build_demo_scenario(seed=7, turns=140).run()
     second = W.build_demo_scenario(seed=7, turns=140).run()
@@ -240,7 +255,6 @@ def test_demo_scenario_is_deterministic_and_has_war_events():
     assert counts.get("retreat", 0) > 0
     assert counts.get("banzai", 0) > 0
     assert counts.get("barrier", 0) > 0
-    assert counts.get("barrier_fire", 0) > 0
     assert counts.get("spawn", 0) > 0
     assert counts.get("reinforcement", 0) > 0
     assert counts.get("support", 0) > 0

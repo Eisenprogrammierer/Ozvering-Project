@@ -126,6 +126,7 @@ class CampaignState:
         self.content = content or Content()
         self.map_name = map_name
         self.player_gender = "male"
+        self.commander_trait = None
         self.event_log = []
         self.tick_events = []
         self.engagements = []
@@ -463,6 +464,7 @@ class CampaignState:
             "max_turns": self.sim.max_turns,
             "player_side": self.player_side,
             "player_gender": self.player_gender,
+            "commander_trait": self.commander_trait,
             "detachments": dets,
             "event_log": self.event_log[-250:],
             "supplies": dict(getattr(self, "supplies", {})),
@@ -483,6 +485,11 @@ class CampaignState:
             return
         self.player_side = snapshot.get("player_side", self.player_side)
         self.player_gender = snapshot.get("player_gender", self.player_gender)
+        self.commander_trait = snapshot.get(
+            "commander_trait", self.commander_trait
+        )
+        if getattr(self, "needs", None) is not None:
+            self.needs.set_commander_trait(self.commander_trait)
         self.sim.turn = int(snapshot.get("turn", self.sim.turn))
         by_name = {det.name: det for det in self.units}
         for item in snapshot.get("detachments", []):

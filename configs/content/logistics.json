@@ -33,8 +33,12 @@
     "surplus_threshold": 1.5
   },
   "convoy_config": {
-    "base_trip_time": 10.0,
-    "base_loss_chance": 0.05,
+    "base_trip_hours": 2.5,
+    "base_loss_chance": 0.08,
+    "combat_risk_bonus": 0.10,
+    "full_loss_chance": 0.25,
+    "partial_loss_fraction": [0.15, 0.55],
+    "route_type": "dirt",
     "route_type_time_modifier": {"highway": 1.0, "dirt": 1.5, "field": 2.5}
   },
   "route_config": {

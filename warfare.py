@@ -75,13 +75,17 @@ NEEDS_RU = {
     "love": "любовь", "friendship": "дружба",
 }
 
-# Базовые темпы роста неудовлетворённости за такт (до поправок личности/боя).
+# Базовый рост потребностей за 30 игровых минут. Темпы подобраны так,
+# чтобы за сутки без снабжения и отдыха потребности становились заметными,
+# но не критическими уже на второй день: страх/тревога растут медленнее
+# голода и жажды, а мораль реагирует на реальный стресс, а не только на
+# формальное «покрытие».
 _NEED_RATES = {
-    "hunger": 0.005, "thirst": 0.007, "fatigue": 0.006, "health": 0.002,
-    "fear": 0.008, "anxiety": 0.006, "loneliness": 0.003,
-    "reproduction": 0.001, "knowledge": 0.002, "creativity": 0.002,
-    "boredom": 0.004, "status": 0.003, "spirituality": 0.002,
-    "skill": 0.002, "love": 0.002, "friendship": 0.002,
+    "hunger": 0.0038, "thirst": 0.0052, "fatigue": 0.0042, "health": 0.0020,
+    "fear": 0.0022, "anxiety": 0.0024, "loneliness": 0.0022,
+    "reproduction": 0.0010, "knowledge": 0.0018, "creativity": 0.0018,
+    "boredom": 0.0025, "status": 0.0024, "spirituality": 0.0018,
+    "skill": 0.0018, "love": 0.0018, "friendship": 0.0018,
 }
 
 # Здоровье — единственная потребность, достижение критического значения
@@ -469,7 +473,8 @@ class Character(S.UtilityAI):
         return total
 
     def tick_needs(self, in_combat=False, under_fire=0.0, supported=0.0,
-                   rested=False, rng=None, seconds=1800):
+                   rested=False, rng=None, seconds=1800,
+                   rate_multipliers=None, morale_baseline_bonus=0.0):
         """Обработка потребностей и морали за интервал времени.
 
         Потребности растут по базовым темпам и от боя; личность модулирует
@@ -481,6 +486,10 @@ class Character(S.UtilityAI):
         ``seconds`` — длительность интервала. Историческая норма — 1800 секунд
         (30 игровых минут); при более частом войсковом такте UI передаёт 300,
         чтобы потребности не росли в шесть раз быстрее.
+
+        ``rate_multipliers`` и ``morale_baseline_bonus`` — необязательные
+        модификаторы черты командира. Они не меняют ``warfare`` по умолчанию
+        и применяются только к персонажу игрока из ``NeedsSystem``.
         """
         rng = rng or self.rng
         if self.is_dead:
@@ -495,6 +504,7 @@ class Character(S.UtilityAI):
         support = max(0.0, min(1.0, float(supported)))
         scale = max(0.0, float(seconds)) / 1800.0
         health_multiplier = self.health_degradation_multiplier()
+        rate_multipliers = rate_multipliers or {}
 
         rates = dict(_NEED_RATES)
         rates["fatigue"] *= 0.70 + 0.6 * (1.0 - p["endurance"])
@@ -505,15 +515,18 @@ class Character(S.UtilityAI):
         rates["boredom"] *= 0.75 + 0.6 * (1.0 - p["curiosity"])
         rates["status"] *= 0.80 + 0.5 * p["ambition"]
         rates["spirituality"] *= 0.80 + 0.5 * p["spirituality"]
+        for need, multiplier in rate_multipliers.items():
+            if need in rates:
+                rates[need] *= max(0.0, float(multiplier))
 
         for need in NEEDS:
             delta = rates[need]
             if in_combat and need in ("fatigue", "fear", "anxiety", "health"):
-                delta += (0.012 + 0.030 * uf) * (0.8 + 0.4 * rng.random())
+                delta += (0.003 + 0.010 * uf) * (0.8 + 0.4 * rng.random())
             if need in ("fear", "anxiety"):
-                delta += 0.020 * uf
+                delta += 0.006 * uf
             if need == "boredom" and not in_combat:
-                delta += 0.006
+                delta += 0.003
             if need == "health":
                 # Все прочие потребности мультипликативно ускоряют или
                 # замедляют ухудшение здоровья. Считаем множитель один раз
@@ -529,7 +542,7 @@ class Character(S.UtilityAI):
         if support > 0:
             for need in ("loneliness", "friendship", "love", "fear", "anxiety"):
                 self.needs[need] = max(
-                    0.0, self.needs[need] - 0.020 * support * scale
+                    0.0, self.needs[need] - 0.014 * support * scale
                 )
         if rested:
             for need in ("fatigue", "hunger", "thirst", "boredom"):
@@ -567,15 +580,20 @@ class Character(S.UtilityAI):
             )
 
         # Мораль: медленно тянется к «безопасному» уровню, но бой и потребности
-        # тянут вниз; приказ и поддержка — вверх.
+        # тянут вниз; приказ и поддержка — вверх. Положительные слагаемые
+        # намеренно слабее стресса, иначе мораль не падает даже при голоде,
+        # страхе и потерях.
         stress = (self.needs["fear"] * 0.30 + self.needs["anxiety"] * 0.22 +
                   self.needs["fatigue"] * 0.20 + self.needs["health"] * 0.18 +
                   self.needs["loneliness"] * 0.10)
-        baseline = 55.0 + 20.0 * p["discipline"] + 10.0 * p["courage"]
-        drift = 0.10 * (baseline - self.morale)
+        baseline = (
+            50.0 + 18.0 * p["discipline"] + 10.0 * p["courage"]
+            + float(morale_baseline_bonus)
+        )
+        drift = 0.03 * (baseline - self.morale)
         self.morale += scale * (
-            drift - 7.0 * stress - 10.0 * uf
-            + 2.5 * mod.morale + 1.5 * support + 2.0 * mod.discipline
+            drift - 4.0 * stress - 3.0 * uf
+            + 0.15 * mod.morale + 0.20 * support + 0.10 * mod.discipline
         )
         self.morale = max(0.0, min(100.0, self.morale))
         self.under_fire = uf
@@ -793,8 +811,10 @@ class Detachment(S.Environment):
             self.fanaticism = min(1.5, self.fanaticism + 0.04)
         elif self.doctrine == "defensive":
             self.discipline = min(1.5, self.discipline + 0.10)
-        if mod.morale:
-            self.morale = max(0.0, min(100.0, self.morale + mod.morale))
+        # Сигнал морали приказа уже учитывается в ``Character.tick_needs``
+        # с масштабом времени. Здесь его нельзя добавлять ещё раз: этот
+        # метод вызывается несколько раз за такт, и плоская прибавка
+        # «прибивала» мораль к 100 даже под огнём.
         self.panicked = any(c.panicked for c in self.characters)
         self.fanatical = any(c.fanatical for c in self.characters)
         if not self.retreat_allowed:
@@ -917,7 +937,7 @@ class Detachment(S.Environment):
         # Отход: либо массовая паника, либо паника лидера при низкой дисциплине.
         leader = self.characters[0] if self.characters else None
         leader_panic = bool(leader and leader.panicked)
-        should_retreat = (panic_frac >= 0.34 or
+        should_retreat = (panic_frac >= 0.30 or
                           (leader_panic and self.discipline < 0.52) or
                           self.morale < 20.0)
         if should_retreat and self.retreat_allowed and not self.fanatical:

@@ -16,7 +16,7 @@ import pygame
 
 from .overlays import OverlayScreen
 from .widgets import Button
-from .text_layout import wrap_text
+from .text_layout import draw_fitted, wrap_text
 from view.support.needs import (
     ACTION_ORDER, NEED_LABELS, NEED_SOURCES, PLAYER_NEED_ACTIONS,
     SUPPLY_LABELS,
@@ -68,16 +68,16 @@ class NeedsOverlay(OverlayScreen):
     def _build_actions(self):
         panel = self.panel.rect
         x = panel.x + 440
-        y = panel.y + 178
+        y = panel.y + 148
         for action_id in ACTION_ORDER:
             btn = Button(
-                (x, y, 372, 30),
+                (x, y, 372, 34),
                 PLAYER_NEED_ACTIONS[action_id]["label"],
                 self.app.font_tiny,
                 lambda aid=action_id: self.apply(aid),
             )
             self._action_buttons.append((action_id, btn))
-            y += 44
+            y += 42
 
     def apply(self, action_id):
         result = self.app.engine.state.needs.apply_player(action_id)
@@ -108,26 +108,44 @@ class NeedsOverlay(OverlayScreen):
         st = self.app.engine.state
         needs_system = st.needs
         needs = needs_system.player_needs_summary()
-        screen.blit(self.app.font_small.render(
-            "Личные потребности командира · мораль %.0f" %
-            getattr(needs_system.commander, "morale", 0.0),
-            True, (215, 225, 235),
-        ), (panel.x + 20, panel.y + 42))
-        screen.blit(self.app.font_tiny.render(
+        trait = needs_system.trait_info
+        status_text = (
+            "Личные потребности командира · мораль %.0f · черта: %s"
+            % (getattr(needs_system.commander, "morale", 0.0),
+               trait.get("label", "—"))
+        )
+        draw_fitted(
+            screen, [self.app.font_small, self.app.font_tiny],
+            status_text,
+            pygame.Rect(panel.x + 20, panel.y + 42, panel.width - 190, 18),
+            (215, 225, 235), valign="center",
+        )
+        draw_fitted(
+            screen, [self.app.font_tiny],
+            trait.get("summary", ""),
+            pygame.Rect(panel.x + 20, panel.y + 62, panel.width - 40, 16),
+            (150, 165, 180), valign="center",
+        )
+        if getattr(needs_system, "player_dead", False):
+            draw_fitted(
+                screen, [self.app.font_tiny],
+                "КОМАНДИР ПОГИБ",
+                pygame.Rect(panel.right - 150, panel.y + 42, 130, 18),
+                (224, 88, 88), align="right", valign="center",
+            )
+        draw_fitted(
+            screen, [self.app.font_tiny],
             "0 — потребность удовлетворена, 1 — критическая. "
             "Подразделения обеспечивают себя сами.",
-            True, (150, 165, 180),
-        ), (panel.x + 20, panel.y + 64))
-        if getattr(needs_system, "player_dead", False):
-            screen.blit(self.app.font_body.render(
-                "КОМАНДИР ПОГИБ", True, (224, 88, 88)
-            ), (panel.x + 440, panel.y + 42))
+            pygame.Rect(panel.x + 20, panel.y + 80, panel.width - 40, 14),
+            (140, 155, 168),
+        )
 
         # Левая колонка: 16 личных потребностей в две колонки.
         x0 = panel.x + 18
-        y0 = panel.y + 92
+        y0 = panel.y + 100
         col_w = 198
-        row_h = 58
+        row_h = 56
         for i, need in enumerate(NEED_ORDER):
             col = i // 8
             row = i % 8
@@ -136,9 +154,12 @@ class NeedsOverlay(OverlayScreen):
             value = max(0.0, min(1.0, needs.get(need, 0.0)))
             color = ((96, 190, 120) if value < 0.35 else
                      (224, 164, 74) if value < 0.65 else (224, 88, 88))
-            screen.blit(self.app.font_tiny.render(
-                NEED_LABELS.get(need, need), True, (210, 220, 230)
-            ), (x, y))
+            draw_fitted(
+                screen, [self.app.font_tiny],
+                NEED_LABELS.get(need, need),
+                pygame.Rect(x, y, col_w - 34, 14),
+                (210, 220, 230),
+            )
             screen.blit(self.app.font_tiny.render(
                 "%d" % round(value * 100), True, color
             ), (x + col_w - 24, y))
@@ -152,23 +173,27 @@ class NeedsOverlay(OverlayScreen):
                 self.app.font_tiny, NEED_SOURCES.get(need, ""), col_w - 2
             )
             for j, line in enumerate(source_lines[:2]):
-                screen.blit(self.app.font_tiny.render(
-                    line, True, (132, 148, 162)
-                ), (x, y + 24 + j * 12))
+                draw_fitted(
+                    screen, [self.app.font_tiny], line,
+                    pygame.Rect(x, y + 24 + j * 12, col_w - 2, 12),
+                    (132, 148, 162),
+                )
 
         # Правая колонка: личные действия командира.
         rx = panel.x + 440
         screen.blit(self.app.font_small.render(
             "ЛИЧНЫЕ ДЕЙСТВИЯ", True, (205, 218, 230)
-        ), (rx, panel.y + 92))
+        ), (rx, panel.y + 98))
         resources = " · ".join(
             "%s %d" % (SUPPLY_LABELS.get(k, k), int(v))
             for k, v in st.supplies.items()
             if k in ("food", "water", "medicine", "influence")
         )
-        screen.blit(self.app.font_tiny.render(
-            resources, True, (165, 178, 190)
-        ), (rx, panel.y + 112))
+        draw_fitted(
+            screen, [self.app.font_tiny], resources,
+            pygame.Rect(rx, panel.y + 118, 372, 14),
+            (165, 178, 190),
+        )
         status = needs_system.status_player()
         for action_id, btn in self._action_buttons:
             action_state = status.get(action_id, {})
@@ -178,45 +203,57 @@ class NeedsOverlay(OverlayScreen):
                              ax, border_radius=4)
             pygame.draw.rect(screen, (55, 76, 94) if enabled else (43, 48, 54),
                              ax, 1, border_radius=4)
-            label = PLAYER_NEED_ACTIONS[action_id]["label"]
-            screen.blit(self.app.font_tiny.render(
-                label, True, (220, 228, 235) if enabled else (105, 112, 120)
-            ), (ax.x + 7, ax.y + 3))
-            if not enabled:
-                reason = action_state.get("reason", "")
-                if reason:
-                    screen.blit(self.app.font_tiny.render(
-                        reason[:40], True, (190, 120, 120)
-                    ), (ax.right - 150, ax.y + 3))
-            effects = _effect_text(PLAYER_NEED_ACTIONS[action_id].get("effects"))
-            cost = PLAYER_NEED_ACTIONS[action_id].get("cost", {})
+            label = action_state.get("label", action_id)
+            draw_fitted(
+                screen, [self.app.font_tiny], label,
+                pygame.Rect(ax.x + 7, ax.y + 2, ax.width - 122, 14),
+                (220, 228, 235) if enabled else (105, 112, 120),
+                valign="center",
+            )
+            cooldown = action_state.get("cooldown", 0)
+            if cooldown:
+                right_text = "перезарядка %d мин" % max(
+                    1, int(cooldown) // 60
+                )
+                right_color = (200, 160, 90)
+            elif not enabled:
+                right_text = action_state.get("reason", "")
+                right_color = (190, 120, 120)
+            else:
+                right_text = ""
+                right_color = (150, 166, 179)
+            if right_text:
+                draw_fitted(
+                    screen, [self.app.font_tiny], right_text,
+                    pygame.Rect(ax.right - 112, ax.y + 2, 105, 14),
+                    right_color, align="right", valign="center",
+                )
+            effects = _effect_text(action_state.get("effects"))
+            cost = action_state.get("cost", {})
             cost_text = ", ".join(
                 "%s:%d" % (SUPPLY_LABELS.get(k, k)[:4], v)
                 for k, v in cost.items()
             )
             rare = cost_text + (" · " if cost_text else "")
-            lines = wrap_text(
-                self.app.font_tiny, rare + effects, ax.width - 16
+            draw_fitted(
+                screen, [self.app.font_tiny], rare + effects,
+                pygame.Rect(ax.x + 7, ax.y + 16, ax.width - 14, 16),
+                (150, 166, 179),
             )
-            if lines:
-                screen.blit(self.app.font_tiny.render(
-                    lines[0], True, (150, 166, 179)
-                ), (ax.x + 7, ax.y + 16))
-            cooldown = action_state.get("cooldown", 0)
-            if cooldown:
-                screen.blit(self.app.font_tiny.render(
-                    "перезарядка %d мин" % max(1, int(cooldown) // 60),
-                    True, (200, 160, 90),
-                ), (ax.right - 110, ax.y + 16))
 
         if self.feedback:
-            screen.blit(self.app.font_tiny.render(
-                self.feedback, True, (224, 185, 95)
-            ), (rx, panel.bottom - 62))
-        screen.blit(self.app.font_tiny.render(
+            draw_fitted(
+                screen, [self.app.font_tiny], self.feedback,
+                pygame.Rect(rx, panel.bottom - 100, 372, 16),
+                (224, 185, 95),
+            )
+        draw_fitted(
+            screen, [self.app.font_tiny],
             "Это только ваши потребности. Подразделения снабжаются "
             "автоматически через логистику.",
-            True, (140, 155, 168),
-        ), (panel.x + 20, panel.bottom - 70))
+            pygame.Rect(panel.x + 20, panel.bottom - 70,
+                        panel.width - 40, 16),
+            (140, 155, 168),
+        )
         self.logistics_btn.draw(screen)
         self.close_btn.draw(screen)

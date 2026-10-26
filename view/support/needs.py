@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import warfare as W
 from .log_journal import get_logger
+from .traits import trait_modifiers, trait_label, trait_summary, normalize_trait
 
 logger = get_logger("view.needs")
 
@@ -232,8 +233,61 @@ class NeedsSystem:
             "Командир", getattr(self.state, "player_side", "red"),
             seed=90210, archetype="veteran",
         )
+        # Черта хранится в состоянии кампании и переживает сохранение/загрузку.
+        self.commander.trait = normalize_trait(
+            getattr(self.state, "commander_trait", None)
+        )
         self.player_cooldowns = {}
         self._death_logged = False
+
+    # --- черты командира ------------------------------------------------
+    @property
+    def trait(self):
+        return normalize_trait(getattr(self.commander, "trait", None))
+
+    @property
+    def trait_info(self):
+        return {
+            "key": self.trait,
+            "label": trait_label(self.trait),
+            "summary": trait_summary(self.trait),
+        }
+
+    def trait_modifiers(self):
+        return trait_modifiers(self.trait)
+
+    def set_commander_trait(self, trait):
+        """Зафиксировать черту из пролога без повторного применения бонусов."""
+        key = normalize_trait(trait)
+        self.commander.trait = key
+        self.state.commander_trait = key
+        return key
+
+    def _trait_action_definition(self, action_id):
+        """Личное действие с учётом черты командира."""
+        base = PLAYER_NEED_ACTIONS[action_id]
+        mods = self.trait_modifiers()
+        bonus = float(mods.get("action_bonus", {}).get(action_id, 1.0))
+        effect_scale = float(mods.get("action_effect", 1.0)) * bonus
+        cost_scale = float(mods.get("action_cost", 1.0))
+        definition = dict(base)
+        definition["effects"] = {
+            need: value * effect_scale
+            for need, value in base.get("effects", {}).items()
+        }
+        definition["morale"] = float(base.get("morale", 0.0)) * effect_scale
+        definition["cost"] = {
+            key: max(1, int(round(value * cost_scale)))
+            for key, value in base.get("cost", {}).items()
+        }
+        definition["cooldown"] = max(
+            600,
+            int(round(
+                base.get("cooldown", 0)
+                * float(mods.get("action_cooldown", 1.0))
+            )),
+        )
+        return definition
 
     @property
     def player_dead(self):
@@ -327,7 +381,8 @@ class NeedsSystem:
 
     def can_apply_player(self, action_id):
         """Проверить личное действие командира без его выполнения."""
-        definition = PLAYER_NEED_ACTIONS.get(action_id)
+        definition = self._trait_action_definition(action_id) \
+            if action_id in PLAYER_NEED_ACTIONS else None
         if definition is None:
             return False, "неизвестное действие"
         remaining = self.player_cooldown_remaining(action_id)
@@ -344,7 +399,7 @@ class NeedsSystem:
         ok, reason = self.can_apply_player(action_id)
         if not ok:
             return {"ok": False, "reason": reason}
-        definition = PLAYER_NEED_ACTIONS[action_id]
+        definition = self._trait_action_definition(action_id)
         for resource, amount in definition["cost"].items():
             self.supplies[resource] = max(
                 0, self.supplies.get(resource, 0) - amount
@@ -374,7 +429,7 @@ class NeedsSystem:
         result = {}
         for action_id in ACTION_ORDER:
             ok, reason = self.can_apply_player(action_id)
-            definition = PLAYER_NEED_ACTIONS[action_id]
+            definition = self._trait_action_definition(action_id)
             result[action_id] = {
                 "ok": ok,
                 "reason": reason,
@@ -383,6 +438,7 @@ class NeedsSystem:
                 "hint": definition.get("hint", ""),
                 "cost": dict(definition.get("cost", {})),
                 "effects": dict(definition.get("effects", {})),
+                "morale": float(definition.get("morale", 0.0)),
             }
         return result
 
@@ -398,13 +454,24 @@ class NeedsSystem:
                 det.name for det in self.state.units
                 if det.side == player_side
             }
-            under_fire = 0.35 if player_names & engaged else 0.0
+            under_fire = 0.20 if player_names & engaged else 0.0
+        mods = self.trait_modifiers()
         self.commander.tick_needs(
             in_combat=bool(under_fire),
             under_fire=under_fire,
-            supported=0.45,
+            supported=0.55,
             seconds=seconds,
+            rate_multipliers={
+                "fear": mods["fear_rate"],
+                "anxiety": mods["anxiety_rate"],
+                "fatigue": mods["fatigue_rate"],
+                "health": mods["health_rate"],
+                "hunger": mods["hunger_rate"],
+                "thirst": mods["thirst_rate"],
+            },
+            morale_baseline_bonus=mods["morale_baseline"],
         )
+        self._commander_self_care(seconds)
         if self.player_dead and not self._death_logged:
             self._death_logged = True
             self.state.log_event(
@@ -412,6 +479,69 @@ class NeedsSystem:
                 "Командир погиб: здоровье достигло критического значения.",
             )
             logger.warning("Потребности: персонаж игрока погиб")
+
+    def _commander_self_care(self, seconds):
+        """Базовое питание и вода командира из общих запасов.
+
+        Без этого личные потребности росли бы независимо от склада, и
+        командир умирал бы от жажды при полных цистернах. Расход маленький
+        по сравнению с ротами, но реальный.
+        """
+        share = max(0.0, float(seconds)) / 1800.0
+        if not share:
+            return
+        consumption = float(
+            self.trait_modifiers().get("supply_consumption", 1.0)
+        )
+        effects = {}
+        food = min(
+            self.supplies.get("food", 0.0),
+            0.06 * share * consumption,
+        )
+        if food > 0:
+            ratio = food / max(1e-9, 0.06 * share * consumption)
+            effects["hunger"] = 0.0045 * share * ratio
+            effects["health"] = 0.0004 * share * ratio
+            self.supplies["food"] = max(
+                0.0, self.supplies.get("food", 0.0) - food
+            )
+        water = min(
+            self.supplies.get("water", 0.0),
+            0.10 * share * consumption,
+        )
+        if water > 0:
+            ratio = water / max(1e-9, 0.10 * share * consumption)
+            effects["thirst"] = 0.0058 * share * ratio
+            effects["health"] = effects.get("health", 0.0) + (
+                0.0004 * share * ratio
+            )
+            self.supplies["water"] = max(
+                0.0, self.supplies.get("water", 0.0) - water
+            )
+        if effects:
+            self.commander.satisfy(effects)
+
+    def _apply_trait_morale(self, seconds):
+        """Суточное влияние черты на мораль рот игрока.
+
+        ``Detachment.refresh_psychology`` пересчитывает мораль из персонажей,
+        поэтому менять надо именно персонажей, а не только агрегат.
+        """
+        delta = (
+            float(self.trait_modifiers().get("troop_morale_per_day", 0.0))
+            * max(0.0, float(seconds)) / 86400.0
+        )
+        if not delta:
+            return
+        player_side = getattr(self.state, "player_side", "red")
+        for det in self.state.units:
+            if det.side != player_side or not det.characters:
+                continue
+            for character in det.characters:
+                character.morale = max(
+                    0.0, min(100.0, character.morale + delta)
+                )
+            det.refresh_psychology()
 
     def _satisfy_player(self, effects, morale_bonus=0.0):
         self.commander.satisfy(effects, morale_bonus=morale_bonus)
@@ -437,6 +567,14 @@ class NeedsSystem:
                 self.player_cooldowns.pop(key, None)
 
         engaged = set(engaged_names or [])
+        player_side = getattr(self.state, "player_side", "red")
+        mods = self.trait_modifiers()
+        troop_rates = {
+            "fear": mods["fear_rate"],
+            "anxiety": mods["anxiety_rate"],
+            "fatigue": mods["fatigue_rate"],
+            "health": mods["health_rate"],
+        }
         for det in self.state.units:
             if det.name in engaged or not det.characters:
                 continue
@@ -444,15 +582,18 @@ class NeedsSystem:
                 1.0, 0.3 + 0.7 * (det.morale / 100.0)
             )
             rested = getattr(det, "ui_order", "") == "rest"
+            is_player = det.side == player_side
             for character in det.characters:
                 character.tick_needs(
                     in_combat=False,
                     supported=support,
                     rested=rested,
                     seconds=seconds,
+                    rate_multipliers=troop_rates if is_player else None,
                 )
             det.refresh_psychology()
         self._tick_player(seconds, engaged)
+        self._apply_trait_morale(seconds)
 
     def camp_morning(self):
         """Утреннее довольствие лагеря: бесплатное, но не полное."""
@@ -469,11 +610,6 @@ class NeedsSystem:
             "hunger": 0.30, "thirst": 0.34, "fatigue": 0.22,
             "health": 0.10, "boredom": 0.14,
         }, morale_bonus=0.5)
-        self.supplies["food"] = min(220, self.supplies.get("food", 0) + 12)
-        self.supplies["water"] = min(260, self.supplies.get("water", 0) + 16)
-        self.supplies["medicine"] = min(
-            110, self.supplies.get("medicine", 0) + 4
-        )
         logistics = getattr(self.state, "logistics", None)
         if logistics is not None and hasattr(logistics, "morning_resupply"):
             logistics.morning_resupply()
@@ -527,6 +663,7 @@ class NeedsSystem:
         return {
             "supplies": dict(self.supplies),
             "cooldowns": dict(self.cooldowns),
+            "trait": self.trait,
             "player": {
                 "needs": dict(self.commander.needs),
                 "morale": float(self.commander.morale),
@@ -538,6 +675,11 @@ class NeedsSystem:
     def load_from_snapshot(self, snapshot):
         if not snapshot:
             return
+        trait = normalize_trait(
+            snapshot.get("trait", getattr(self.state, "commander_trait", None))
+        )
+        if trait:
+            self.set_commander_trait(trait)
         # Сохраняем стартовые значения для ресурсов, которых нет в старом
         # сохранении; явно записанные нули при этом не теряются.
         supplies = dict(self.supplies)

@@ -238,8 +238,140 @@ def test_logistics_operation_and_convoy_change_stocks():
     assert ls.stock("engineering") < before_engineering
     assert state.det_at(idx).ui_fortification > 0
     before_ammo = ls.stock("ammo")
-    assert ls.request_convoy("ammo")["ok"]
+    sent = ls.request_convoy("ammo", risk=0.0)
+    assert sent["ok"]
+    assert sent["eta_minutes"] > 0
+    # Сразу груз не приходит: конвой сначала должен доехать.
+    assert ls.stock("ammo") == pytest.approx(before_ammo)
+    assert ls.convoy_status_rows()
+    ls._process_convoys(sent["eta_minutes"] + 1)
     assert ls.stock("ammo") > before_ammo
+    assert not ls.convoys
+
+
+def test_water_convoy_is_delayed_and_survives_save_load():
+    state, _, _ = _world()
+    ls = state.logistics
+    before = ls.stock("water")
+    sent = ls.request_convoy("water", risk=0.0)
+    assert sent["ok"]
+    assert sent["eta_minutes"] > 0
+    assert ls.stock("water") == pytest.approx(before)
+    assert any(
+        row["kind"] == "water" for row in ls.convoy_status_rows()
+    )
+
+    snapshot = state.to_snapshot()
+    loaded = build_world()
+    loaded.apply_snapshot(snapshot)
+    assert loaded.logistics.convoy_status_rows()
+    before_loaded = loaded.logistics.stock("water")
+    loaded.logistics._process_convoys(10_000)
+    assert loaded.logistics.stock("water") > before_loaded
+
+
+def test_convoy_attack_can_delay_or_destroy_cargo():
+    from view.support.logistics import Convoy
+
+    state, _, _ = _world()
+    ls = state.logistics
+
+    class AttackRng:
+        def random(self):
+            return 0.0
+
+        def uniform(self, low, high):
+            return (low + high) / 2.0
+
+        def randint(self, low, high):
+            return low
+
+    ls.rng = AttackRng()
+    ls.convoy_full_loss_chance = 0.0
+    before = ls.stock("water")
+    convoy = Convoy(
+        "water", {"water": 100.0}, remaining_minutes=0.0,
+        total_minutes=10.0, risk=1.0,
+    )
+    delayed = ls._arrive_convoy(convoy)
+    assert delayed is convoy
+    assert convoy.cargo["water"] == pytest.approx(65.0)
+    assert convoy.remaining_minutes == 30.0
+    assert ls.stock("water") == pytest.approx(before)
+
+    convoy.risk = 0.0
+    ls.convoys = [convoy]
+    ls._process_convoys(31)
+    assert ls.stock("water") == pytest.approx(before + 65.0)
+
+    lost = Convoy(
+        "water", {"water": 100.0}, remaining_minutes=0.0,
+        total_minutes=10.0, risk=1.0,
+    )
+    ls.convoy_full_loss_chance = 0.25
+    before_loss = ls.stock("water")
+    assert ls._arrive_convoy(lost) is None
+    assert ls.stock("water") == pytest.approx(before_loss)
+
+
+def test_commander_trait_changes_needs_logistics_and_actions():
+    neutral = build_world()
+    scholar = build_world()
+    scholar.needs.set_commander_trait("general_scholar")
+    assert scholar.needs.trait_info["label"] == "Генерал-учёный"
+    assert (
+        scholar.logistics.operation_cost("fortify", 1)["engineering"]
+        < neutral.logistics.operation_cost("fortify", 1)["engineering"]
+    )
+    neutral_eta = neutral.logistics.request_convoy(
+        "water", risk=0.0
+    )["eta_minutes"]
+    scholar_eta = scholar.logistics.request_convoy(
+        "water", risk=0.0
+    )["eta_minutes"]
+    assert scholar_eta < neutral_eta
+
+    knight = build_world()
+    knight.needs.set_commander_trait("knight")
+    neutral_effect = neutral.needs.status_player()["encourage"]["effects"]["fear"]
+    knight_effect = knight.needs.status_player()["encourage"]["effects"]["fear"]
+    assert knight_effect > neutral_effect
+
+    freeloader = build_world()
+    freeloader.needs.set_commander_trait("freeloader")
+    neutral_food = neutral.logistics.stock("food")
+    freeloader_food = freeloader.logistics.stock("food")
+    neutral.logistics.on_tick(300, [])
+    freeloader.logistics.on_tick(300, [])
+    neutral_used = neutral_food - neutral.logistics.stock("food")
+    freeloader_used = freeloader_food - freeloader.logistics.stock("food")
+    assert freeloader_used > neutral_used
+
+
+def test_morale_falls_under_sustained_combat():
+    import random
+
+    state, _, _ = _world()
+    det = next(
+        det for det in state.units if det.side == state.player_side
+    )
+    for character in det.characters:
+        character.morale = 80.0
+    det.refresh_psychology()
+    for index in range(24):
+        det.after_combat(under_fire=0.5, rng=random.Random(index))
+    assert det.morale < 70.0
+
+
+def test_fear_does_not_become_critical_by_day_two():
+    state, _, _ = _world()
+    commander = state.needs.commander
+    for _ in range(576):
+        commander.tick_needs(
+            in_combat=True, under_fire=0.3, supported=0.45, seconds=300,
+        )
+    assert commander.needs["fear"] < 0.8
+    assert not commander.is_dead
 
 
 def test_logistics_operation_can_target_several_units_at_once():
@@ -326,8 +458,8 @@ def test_campaign_save_keeps_needs_state(tmp_path, monkeypatch):
     assert state.needs.apply(state.player_idx, "water")["ok"]
     save_system.save_game(state, time_system, "needs-test")
     snapshot = save_system.load_game("needs-test")
-    assert snapshot["campaign"]["needs"]["supplies"]["water"] == 137
-    assert snapshot["campaign"]["supplies"]["water"] == 137
+    assert snapshot["campaign"]["needs"]["supplies"]["water"] == 617
+    assert snapshot["campaign"]["supplies"]["water"] == 617
     needs = snapshot["campaign"]["detachments"][state.player_idx]["needs"]
     assert needs and "thirst" in needs[0]
 
@@ -340,8 +472,8 @@ def test_old_campaign_save_without_needs_keeps_default_supplies():
     for item in snapshot["detachments"]:
         item.pop("needs", None)
     state.apply_snapshot(snapshot)
-    assert state.supplies["food"] == 120
-    assert state.supplies["water"] == 140
+    assert state.supplies["food"] == 420
+    assert state.supplies["water"] == 620
 
 
 def test_needs_actions_cover_all_sixteen_needs():
@@ -440,7 +572,7 @@ def test_mvp_win_scene_uses_existing_outtro_assets():
 
 
 def test_mvp_loss_threshold_allows_meaningful_battle():
-    """45% — дивизия теряет боеспособность, но бой не обрывается сразу."""
+    """25% — дивизия теряет боеспособность, но бой не обрывается сразу."""
     import json
     from pathlib import Path
 
@@ -454,7 +586,7 @@ def test_mvp_loss_threshold_allows_meaningful_battle():
         condition for condition in data["lose_conditions"][0]["conditions"]
         if condition["type"] == "manpower_loss_above"
     )
-    assert loss_condition["value"] == pytest.approx(0.45)
+    assert loss_condition["value"] == pytest.approx(0.25)
 
 
 def test_main_dispatches_view_flag(monkeypatch):
