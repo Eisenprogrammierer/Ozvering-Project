@@ -1,15 +1,3 @@
-"""Приложение редактора автоматов: окно, сцены и главный цикл.
-
-Запуск::
-
-    python3 main.py --automata
-    python3 -m automata
-
-Редактор переиспользует общий сценный каркас ``ui.scene``/``ui.theme``/
-``ui.widgets``, но имеет собственную модель и хранилище. Он не запускает
-``simulation.py``/``warfare.py`` и не влияет на канон игры.
-"""
-
 from __future__ import annotations
 
 import json
@@ -31,14 +19,14 @@ SETTINGS_PATH = SAVE_DIR / "settings.json"
 
 
 class AutomataApp:
-    """Окно + менеджер сцен + библиотека автоматов."""
 
     def __init__(self, fullscreen=None, store=None):
         ge.init_pygame_minimal()
         self.settings = self._load_settings()
         self.fullscreen = bool(
             self.settings.get("fullscreen", False)
-            if fullscreen is None else fullscreen
+            if fullscreen is None
+            else fullscreen
         )
         self.store = store or AutomataStore()
         self._create_window()
@@ -50,18 +38,20 @@ class AutomataApp:
         self.manager = scene_base.SceneManager(self)
         self._register()
         self.manager.go("library")
-        ge.LOG.info("automata.App: редактор запущен, кириллица=%s"
-                    % self.cyrillic_ok)
+        ge.LOG.info(
+            "automata.App: редактор запущен, кириллица=%s" % self.cyrillic_ok
+        )
 
-    # --- окно -----------------------------------------------------------
     def _create_window(self):
         w, h = ge.compute_window_size()
         flags = pygame.FULLSCREEN if self.fullscreen else pygame.RESIZABLE
         self.screen = pygame.display.set_mode((w, h), flags)
         pygame.display.set_caption("Редактор автоматов — Ozvering-Project")
         ge.SCREEN_W, ge.SCREEN_H = w, h
-        ge.LOG.info("automata.App: окно %sx%s (fullscreen=%s)"
-                    % (w, h, self.fullscreen))
+        ge.LOG.info(
+            "automata.App: окно %sx%s (fullscreen=%s)"
+            % (w, h, self.fullscreen)
+        )
 
     @property
     def size(self):
@@ -74,7 +64,6 @@ class AutomataApp:
             caption = "Редактор автоматов — Ozvering-Project"
         pygame.display.set_caption(caption)
 
-    # --- настройки окна -------------------------------------------------
     def _load_settings(self):
         try:
             with open(SETTINGS_PATH, "r", encoding="utf-8") as handle:
@@ -92,8 +81,9 @@ class AutomataApp:
                 handle.write("\n")
             os.replace(tmp, SETTINGS_PATH)
         except OSError as exc:
-            ge.LOG.warn("automata.App: не удалось сохранить настройки: %s"
-                        % exc)
+            ge.LOG.warn(
+                "automata.App: не удалось сохранить настройки: %s" % exc
+            )
 
     def _register(self):
         from .scenes.confirm import ConfirmScene
@@ -107,7 +97,6 @@ class AutomataApp:
         m.register("help", HelpScene)
         m.register("confirm", ConfirmScene)
 
-    # --- навигация/документы -------------------------------------------
     def go(self, name, **kwargs):
         return self.manager.go(name, **kwargs)
 
@@ -134,8 +123,7 @@ class AutomataApp:
 
     def new_automaton(self):
         automaton = Automaton()
-        automaton.add_state(name="Состояние 1", x=220, y=180,
-                            initial=True)
+        automaton.add_state(name="Состояние 1", x=220, y=180, initial=True)
         self.go("editor", automaton=automaton, slug=None, saved_data=None)
         self._focus_initial()
 
@@ -146,8 +134,12 @@ class AutomataApp:
             ge.LOG.warn("automata.App: %s" % exc)
             self.go("library", message=str(exc))
             return False
-        self.go("editor", automaton=automaton, slug=slug,
-                saved_data=automaton.to_dict())
+        self.go(
+            "editor",
+            automaton=automaton,
+            slug=slug,
+            saved_data=automaton.to_dict(),
+        )
         self._focus_initial()
         return True
 
@@ -158,11 +150,13 @@ class AutomataApp:
         states = scene.automaton.states
         if not states:
             return
-        target = scene.automaton.initial_states[0] \
-            if scene.automaton.initial_states else states[0]
+        target = (
+            scene.automaton.initial_states[0]
+            if scene.automaton.initial_states
+            else states[0]
+        )
         scene.canvas.select("state", target.id)
 
-    # --- настройки ------------------------------------------------------
     def set_fullscreen(self, value):
         value = bool(value)
         self.settings["fullscreen"] = value
@@ -173,7 +167,6 @@ class AutomataApp:
         self._create_window()
         self.manager.resize(*self.size)
 
-    # --- события/цикл ---------------------------------------------------
     def _global_event(self, event):
         if event.type == pygame.QUIT:
             self.quit()
@@ -183,7 +176,8 @@ class AutomataApp:
             return True
         if event.type == pygame.VIDEORESIZE and not self.fullscreen:
             self.screen = pygame.display.set_mode(
-                (int(event.w), int(event.h)), pygame.RESIZABLE)
+                (int(event.w), int(event.h)), pygame.RESIZABLE
+            )
             ge.SCREEN_W, ge.SCREEN_H = self.size
             self.manager.resize(*self.size)
             return True
@@ -199,8 +193,11 @@ class AutomataApp:
                 try:
                     self.manager.handle_event(event)
                 except Exception as exc:
-                    ge.LOG.exc("automata.scene.handle_event", exc,
-                               key="automata-events")
+                    ge.LOG.exc(
+                        "automata.scene.handle_event",
+                        exc,
+                        key="automata-events",
+                    )
             try:
                 self.manager.update(dt)
             except Exception as exc:

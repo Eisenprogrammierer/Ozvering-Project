@@ -1,20 +1,3 @@
-"""
-view/screens/documents.py
-
-Экран просмотра документов в виде раскрытой папки.
-
-Текст документов раскладывается по разворотам: каждый документ
-начинается с нового разворота. Заголовки и строки заполняют левый
-лист, затем правый; при переполнении обоих листов создаётся
-следующий разворот (в рамках того же документа). Текст выводится
-на прозрачной поверхности, наклоняется под углом листа и накладывается
-внутрь белого листа с внутренними полями. Навигация осуществляется
-стрелками листания, закрытие — кнопкой и ESC.
-
-События экрана записываются в журнал operation_ozverin.log и
-дублируются в консоль.
-"""
-
 import os
 import logging
 
@@ -37,16 +20,6 @@ _LOG_NAME = "ozverin"
 
 
 def _ensure_journal():
-    """
-    Создаёт корневой журнал проекта при первом вызове.
-
-    Настраивает файловый обработчик для записи в operation_ozverin.log
-    и консольный обработчик для вывода в stdout. Повторные вызовы
-    не создают дублирующихся обработчиков.
-
-    Returns:
-        logging.Logger: Настроенный корневой журнал.
-    """
     root_logger = logging.getLogger(_LOG_NAME)
     if not root_logger.handlers:
         root_logger.setLevel(logging.INFO)
@@ -73,36 +46,8 @@ logger = logging.getLogger(_LOG_NAME + ".documents")
 
 
 class DocumentsScreen(BaseScreen):
-    """
-    Экран документов с постраничной навигацией.
-
-    Отображает документы в виде раскрытой папки с разворотами страниц.
-    Каждый документ начинается с нового разворота. Текст размещается
-    на наклонённых поверхностях с учётом внутренних полей страницы.
-    Навигация осуществляется стрелками или кликами по зонам листания.
-
-    Attributes:
-        documents (list[dict]): Список документов для отображения.
-        page (int): Индекс текущего разворота.
-        folder_img (pygame.Surface): Изображение папки.
-        spreads (list[tuple]): Список разворотов (левые, правые строки).
-        prev_rect (pygame.Rect): Зона клика для перехода назад.
-        next_rect (pygame.Rect): Зона клика для перехода вперёд.
-        close_btn (Button): Кнопка закрытия экрана.
-    """
 
     def __init__(self, app, documents):
-        """
-        Инициализирует экран документов.
-
-        Загружает изображение папки, строит список разворотов из
-        документов и создаёт элементы управления навигацией.
-
-        Args:
-            app: Экземпляр приложения (App).
-            documents (list[dict]): Список документов. Каждый документ —
-                словарь с ключами title (str) и lines (list[str]).
-        """
         super().__init__(app)
         self.documents = documents
         self.page = 0
@@ -135,37 +80,11 @@ class DocumentsScreen(BaseScreen):
         )
 
     def _line_height(self, kind):
-        """
-        Возвращает высоту строки для заданного типа текста.
-
-        Для заголовков используется font_body с дополнительным
-        отступом 10px. Для обычного текста — font_small с отступом 6px.
-
-        Args:
-            kind (str): Тип текста ("heading" или "line").
-
-        Returns:
-            int: Высота строки в пикселях.
-        """
         if kind == "heading":
             return self.app.font_body.get_height() + 10
         return self.app.font_small.get_height() + 6
 
     def _wrap_text(self, text, font, max_width):
-        """
-        Переносит текст по ширине с учётом максимальной ширины строки.
-
-        Разбивает текст на слова и формирует строки, не превышающие
-        max_width пикселей при отрисовке заданным шрифтом.
-
-        Args:
-            text (str): Исходный текст.
-            font (pygame.font.Font): Шрифт для измерения ширины.
-            max_width (int): Максимальная ширина строки в пикселях.
-
-        Returns:
-            list[str]: Список строк после переноса.
-        """
         words = text.split()
         lines = []
         current_line = ""
@@ -182,19 +101,6 @@ class DocumentsScreen(BaseScreen):
         return lines
 
     def _build_spreads(self):
-        """
-        Строит список разворотов из документов.
-
-        Каждый документ начинается с нового разворота. Внутри документа
-        текст заполняет левый лист, затем правый. При переполнении
-        обоих листов создаётся следующий разворот. Текст не залезает
-        на нижнюю зону листания (TEXT_BOTTOM_MARGIN).
-
-        Returns:
-            list[tuple[list, list]]: Список разворотов. Каждый разворот —
-                кортеж (строки левого листа, строки правого листа).
-                Каждая строка — кортеж (kind, text).
-        """
         left_w = LEFT_PAGE_RECT.width
         right_w = RIGHT_PAGE_RECT.width
         left_h = LEFT_PAGE_RECT.height - TEXT_BOTTOM_MARGIN
@@ -240,19 +146,6 @@ class DocumentsScreen(BaseScreen):
         return spreads
 
     def _blit_page(self, screen, lines, page_rect, angle):
-        """
-        Отрисовывает страницу с текстом на наклонённой поверхности.
-
-        Создаёт прозрачную поверхность, размещает на ней текст,
-        поворачивает на заданный угол и накладывает на экран
-        по центру целевого прямоугольника страницы.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-            lines (list[tuple]): Список строк (kind, text).
-            page_rect (pygame.Rect): Прямоугольник страницы.
-            angle (float): Угол поворота в градусах.
-        """
         if not lines:
             return
         line_heights = [self._line_height(k) for k, _ in lines]
@@ -275,14 +168,6 @@ class DocumentsScreen(BaseScreen):
         screen.blit(rotated, dest)
 
     def _draw_arrow(self, screen, rect, direction):
-        """
-        Рисует стрелку навигации в заданном прямоугольнике.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-            rect (pygame.Rect): Прямоугольник, в котором рисуется стрелка.
-            direction (str): Направление стрелки ("prev" или "next").
-        """
         if direction == "next":
             points = [
                 (rect.left + 4, rect.top + 2),
@@ -298,7 +183,6 @@ class DocumentsScreen(BaseScreen):
         pygame.draw.polygon(screen, ARROW_COLOR, points)
 
     def prev_page(self):
-        """Переходит на предыдущий разворот."""
         if self.page > 0:
             self.page -= 1
             logger.info(
@@ -306,7 +190,6 @@ class DocumentsScreen(BaseScreen):
             )
 
     def next_page(self):
-        """Переходит на следующий разворот."""
         if self.page < len(self.spreads) - 1:
             self.page += 1
             logger.info(
@@ -314,20 +197,10 @@ class DocumentsScreen(BaseScreen):
             )
 
     def close_menu(self):
-        """Закрывает экран документов."""
         logger.info("DocumentsScreen: закрыт")
         self.app.manager.pop()
 
     def handle_event(self, event):
-        """
-        Обрабатывает события pygame для экрана документов.
-
-        Обрабатывает клик по кнопке закрытия и клики по зонам
-        навигации (стрелкам листания).
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if self.close_btn.handle_event(event):
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -337,25 +210,13 @@ class DocumentsScreen(BaseScreen):
                 self.prev_page()
 
     def draw(self, screen):
-        """
-        Отрисовывает экран документов.
-
-        Порядок отрисовки: затемнение фона, изображение папки,
-        левая и правая страницы текущего разворота, индикатор
-        номера страницы, стрелки навигации, кнопка закрытия.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         overlay = pygame.Surface((1280, 720), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (0, 0))
         screen.blit(self.folder_img, FOLDER_RECT.topleft)
         left_lines, right_lines = self.spreads[self.page]
         self._blit_page(screen, left_lines, LEFT_PAGE_RECT, LEFT_PAGE_ANGLE)
-        self._blit_page(
-            screen, right_lines, RIGHT_PAGE_RECT, RIGHT_PAGE_ANGLE
-        )
+        self._blit_page(screen, right_lines, RIGHT_PAGE_RECT, RIGHT_PAGE_ANGLE)
         info = f"{self.page + 1} / {len(self.spreads)}"
         info_surf = self.app.font_small.render(info, True, INK_COLOR)
         screen.blit(

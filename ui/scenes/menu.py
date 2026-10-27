@@ -1,5 +1,3 @@
-"""Главное меню."""
-
 from .. import content, save, theme
 from .base import MenuScene
 
@@ -12,20 +10,33 @@ class MainMenuScene(MenuScene):
         self.title = content.TITLE
         self.subtitle = self.app.t(*content.SUBTITLE)
         self.tagline = self.app.t(*content.TAGLINE)
-        self.footer = self.app.t("Мышь — выбор; ESC в партии — пауза.",
-                                 "Mouse to choose; ESC in a match - pause.")
+        self.footer = self.app.t(
+            "Мышь — выбор; ESC в партии — пауза.",
+            "Mouse to choose; ESC in a match - pause.",
+        )
         self.has_save = self.app.save.has_autosave()
 
     def build_buttons(self):
         t = self.app.t
         return [
-            (t("Поле боя (RTS)", "Battlefield (RTS)"), self._battlefield, True),
+            (
+                t("Поле боя (RTS)", "Battlefield (RTS)"),
+                self._battlefield,
+                True,
+            ),
             (t("Взаимодействие", "Interaction"), self._interaction, True),
             (t("Новая партия", "New game"), self._new_game, True),
             (t("Продолжить", "Continue"), self._continue, self.has_save),
-            (t("Загрузить", "Load"), lambda: self.app.go("saves", mode="load"),
-             True),
-            (t("Настройки", "Settings"), lambda: self.app.go("settings"), True),
+            (
+                t("Загрузить", "Load"),
+                lambda: self.app.go("saves", mode="load"),
+                True,
+            ),
+            (
+                t("Настройки", "Settings"),
+                lambda: self.app.go("settings"),
+                True,
+            ),
             (t("Об игре", "About"), lambda: self.app.go("about"), True),
             (t("Выход", "Quit"), self.app.quit, True),
         ]
@@ -37,8 +48,12 @@ class MainMenuScene(MenuScene):
         self.app.go("interaction")
 
     def _new_game(self):
-        self.app.go("narrative", pages=content.INTRO_PAGES, next_scene="game",
-                    next_kwargs={"new": True})
+        self.app.go(
+            "narrative",
+            pages=content.INTRO_PAGES,
+            next_scene="game",
+            next_kwargs={"new": True},
+        )
 
     def _continue(self):
         data = self.app.save.read(save.AUTOSAVE_SLOT)
@@ -48,5 +63,11 @@ class MainMenuScene(MenuScene):
         super().draw(s)
         if getattr(self, "tagline", ""):
             w, h = s.get_size()
-            theme.text(s, self.app.fonts.font_s, self.tagline,
-                       (w // 2, int(h * 0.235)), theme.TEXT_MUTED, center=True)
+            theme.text(
+                s,
+                self.app.fonts.font_s,
+                self.tagline,
+                (w // 2, int(h * 0.235)),
+                theme.TEXT_MUTED,
+                center=True,
+            )

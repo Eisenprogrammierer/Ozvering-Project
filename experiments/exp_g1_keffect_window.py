@@ -1,23 +1,3 @@
-"""G1: окно баланса K_EFFECT на плато F0=30 (docs/TODO.md, ревью A4.1).
-
-Что меряется (детерминированно, только monkeypatch, core не меняется):
-
-  * сетка K_EFFECT из задания {0.4,0.5,0.6,0.65,0.7,0.75,0.8,0.9,1.0};
-  * для каждого K — матрица всех 5 стратегий (``experiments/strategies.py``),
-    n_seeds=12, steps=400, f0=30;
-  * max доля побед внутри конкурентного ядра (COMPETITIVE), нарушения контролей,
-    доля ничьих (общая и внутри ядра), асимметрия смены ролей, вердикт CI;
-  * 1–2 структурных прототипа через monkeypatch глобальных констант
-    (``OFF_FRAC`` и ``GAIN_MAX``), чтобы проверить, РАСШИРЯЕТСЯ ли окно;
-  * канон (``run_batch(10)``) при каноническом K=0.70 для каждого варианта —
-    структурная правка не должна возвращать winner-take-all.
-
-Критерий CI — как в ``exp_balance_ci.py``: max доминирование в ядре < 0.65,
-контроль не обыгрывает конкурентную (< 0.65), асимметрия ролей <= 0.30*N.
-
-Запуск из корня репозитория:
-    python3 experiments/exp_g1_keffect_window.py
-"""
 import os
 import sys
 
@@ -39,7 +19,6 @@ CONTROLS = ST.CONTROLS
 
 
 def metrics(mtx, n_seeds):
-    """Сводка матрицы: доминирование ядра, контроли, ничьи, асимметрия."""
     dom, dom_pair = 0.0, None
     for a in ACTIVE:
         for b in ACTIVE:
@@ -58,7 +37,7 @@ def metrics(mtx, n_seeds):
                 ctrl_n += 1
     asym, asym_pair = 0, None
     for i, a in enumerate(NAMES):
-        for b in NAMES[i + 1:]:
+        for b in NAMES[i + 1 :]:
             d = abs(mtx[(a, b)]["A"] - mtx[(b, a)]["B"])
             if d > asym:
                 asym, asym_pair = d, (a, b)
@@ -66,12 +45,21 @@ def metrics(mtx, n_seeds):
     total = len(mtx) * n_seeds
     core_draws = sum(mtx[(a, b)][None] for a in ACTIVE for b in ACTIVE)
     core_total = len(ACTIVE) * len(ACTIVE) * n_seeds
-    ok = (dom < DOM_LIMIT and ctrl < DOM_LIMIT
-          and asym <= SYM_TOL * n_seeds)
-    return dict(dom=dom, dom_pair=dom_pair, ctrl=ctrl, ctrl_pair=ctrl_pair,
-                ctrl_n=ctrl_n, asym=asym, asym_pair=asym_pair,
-                draws=draws, total=total, core_draws=core_draws,
-                core_total=core_total, ok=ok)
+    ok = dom < DOM_LIMIT and ctrl < DOM_LIMIT and asym <= SYM_TOL * n_seeds
+    return dict(
+        dom=dom,
+        dom_pair=dom_pair,
+        ctrl=ctrl,
+        ctrl_pair=ctrl_pair,
+        ctrl_n=ctrl_n,
+        asym=asym,
+        asym_pair=asym_pair,
+        draws=draws,
+        total=total,
+        core_draws=core_draws,
+        core_total=core_total,
+        ok=ok,
+    )
 
 
 def one_k(k, n_seeds=N_SEEDS, steps=STEPS, f0=F0):
@@ -86,18 +74,28 @@ def one_k(k, n_seeds=N_SEEDS, steps=STEPS, f0=F0):
 
 def sweep(label, n_seeds=N_SEEDS, steps=STEPS, f0=F0, ks=K_LEVELS):
     print(f"\n=== {label} (n_seeds={n_seeds}, steps={steps}, f0={f0}) ===")
-    print(f"{'K':>5} | {'maxDom':>7} {'пара':>20} | {'ctrl':>6} {'наруш.':>6} | "
-          f"{'ничьи':>7} {'ядро':>7} | {'асимм':>6} | CI")
+    print(
+        f"{'K':>5} | {'maxDom':>7} {'пара':>20} | {'ctrl':>6} {'наруш.':>6} | "
+        f"{'ничьи':>7} {'ядро':>7} | {'асимм':>6} | CI"
+    )
     rows = {}
     for k in ks:
         r = one_k(k, n_seeds=n_seeds, steps=steps, f0=f0)
         rows[k] = r
-        pair = f"{r['dom_pair'][0]}/{r['dom_pair'][1]}" if r["dom_pair"] else "-"
-        cp = f"{r['ctrl_pair'][0]}/{r['ctrl_pair'][1]}" if r["ctrl_pair"] else "-"
-        print(f"{k:>5.2f} | {r['dom']:>7.2f} {pair:>20} | {r['ctrl']:>6.2f} "
-              f"{r['ctrl_n']:>6} | {r['draws']:>3}/{r['total']:<3} "
-              f"{r['core_draws']:>3}/{r['core_total']:<3} | "
-              f"{r['asym']:>6} | {'OK' if r['ok'] else 'FAIL'}")
+        pair = (
+            f"{r['dom_pair'][0]}/{r['dom_pair'][1]}" if r["dom_pair"] else "-"
+        )
+        cp = (
+            f"{r['ctrl_pair'][0]}/{r['ctrl_pair'][1]}"
+            if r["ctrl_pair"]
+            else "-"
+        )
+        print(
+            f"{k:>5.2f} | {r['dom']:>7.2f} {pair:>20} | {r['ctrl']:>6.2f} "
+            f"{r['ctrl_n']:>6} | {r['draws']:>3}/{r['total']:<3} "
+            f"{r['core_draws']:>3}/{r['core_total']:<3} | "
+            f"{r['asym']:>6} | {'OK' if r['ok'] else 'FAIL'}"
+        )
     ok_k = [k for k, r in rows.items() if r["ok"]]
     print(f"  окно CI: K ∈ {{{', '.join(f'{k:.2f}' for k in ok_k)}}}")
     return rows
@@ -110,27 +108,31 @@ def canon_at_k07(label):
         res = S.run_batch(10, quiet=True)[2]
     finally:
         S.K_EFFECT = saved
-    print(f"  канон run_batch(10) @K=0.70: RL {res['RL']} / UtilityAI "
-          f"{res['UtilityAI']} / нет {res[None]}   [{label}]")
+    print(
+        f"  канон run_batch(10) @K=0.70: RL {res['RL']} / UtilityAI "
+        f"{res['UtilityAI']} / нет {res[None]}   [{label}]"
+    )
     return res
 
 
 def main():
     print("G1: окно баланса K_EFFECT на плато F0=30")
-    print(f"канон K_EFFECT={S.K_EFFECT}, f0={F0}, n_seeds={N_SEEDS}, steps={STEPS}")
+    print(
+        f"канон K_EFFECT={S.K_EFFECT}, f0={F0}, n_seeds={N_SEEDS}, "
+        f"steps={STEPS}"
+    )
     base = sweep("БАЗА (core без правок)")
     canon_at_k07("база")
 
-    # Контрольный прогон N=40: малая выборка N=12 даёт шум асимметрии ролей
-    # (допуск 3.6 победы), поэтому окно подтверждается на N=40.
     base40 = sweep("БАЗА, контроль N=40", n_seeds=40)
 
-    # Структурный прототип 1: ниже нижний порог OFF(F) -> окно живёт дольше.
     saved_off = S.OFF_FRAC
     saved_gain = S.GAIN_MAX
 
     v1 = None
-    print(f"\n########## ВАРИАНТ: OFF_FRAC x0.8 (окно открыто дольше) ##########")
+    print(
+        f"\n########## ВАРИАНТ: OFF_FRAC x0.8 (окно открыто дольше) ##########"
+    )
     try:
         S.OFF_FRAC = saved_off * 0.8
         v1 = sweep("OFF_FRAC x0.8")
@@ -139,7 +141,10 @@ def main():
         S.OFF_FRAC = saved_off
 
     v2 = None
-    print(f"\n########## ВАРИАНТ: GAIN_MAX x0.85 (слабее засадный удар) ##########")
+    print(
+        f"\n########## ВАРИАНТ: GAIN_MAX x0.85 (слабее засадный удар) "
+        f"##########"
+    )
     try:
         S.GAIN_MAX = saved_gain * 0.85
         v2 = sweep("GAIN_MAX x0.85")
@@ -147,11 +152,11 @@ def main():
     finally:
         S.GAIN_MAX = saved_gain
 
-    # Доп. прототипы (N=40, только верхняя граница окна K>=0.8): проверяем, не
-    # сдвигает ли границу противоположное направление тех же констант.
     print("\n########## ДОП. ПРОТОТИПЫ N=40 (верхняя граница окна) ##########")
-    for lab, attr, mult in (("OFF_FRAC x1.2", "OFF_FRAC", 1.2),
-                            ("GAIN_MAX x1.15", "GAIN_MAX", 1.15)):
+    for lab, attr, mult in (
+        ("OFF_FRAC x1.2", "OFF_FRAC", 1.2),
+        ("GAIN_MAX x1.15", "GAIN_MAX", 1.15),
+    ):
         old = getattr(S, attr)
         print(f"\n--- {lab} ---")
         try:
@@ -161,10 +166,17 @@ def main():
             setattr(S, attr, old)
 
     print("\n=== ИТОГ G1 ===")
-    for label, rows in (("база N=12", base), ("OFF_FRACx0.8", v1),
-                        ("GAIN_MAXx0.85", v2), ("база N=40", base40)):
+    for label, rows in (
+        ("база N=12", base),
+        ("OFF_FRACx0.8", v1),
+        ("GAIN_MAXx0.85", v2),
+        ("база N=40", base40),
+    ):
         ok = [f"{k:.2f}" for k, r in rows.items() if r["ok"]]
-        print(f"  {label:>16}: CI OK при K = {{ {', '.join(ok) if ok else '—'} }}")
+        print(
+            f"  {label:>16}: CI OK при K = {{ {', '.join(ok) if ok else '—'} "
+            f"}}"
+        )
 
 
 if __name__ == "__main__":

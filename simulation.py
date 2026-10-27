@@ -1,29 +1,9 @@
-"""Ozvering-Project: модель конкуренции IPO-автоматов.
-
-Полная документация механики, формулы и параметры — в docs/MODEL.md.
-Кратко: сущности обладают двумя метриками (сила force — целевая функция,
-энергия energy_pool — расходуемый запас, пополняемый потоком floor(sqrt(F)));
-взаимодействие — передача работы; восприимчивость входа адресата описывается
-порогами Шмитта с гистерезисом ON(F)/OFF(F); прибыль покоя логистическая с
-потолком, растущим только от труда; поражение — по устойчивому доминированию.
-Среда — всеобъемлющий IPO-автомат (суперсистема того же кодекса, см. раздел 13
-docs/MODEL.md): её вход нагружается всякой передачей, открытое окно даёт
-надбавку к отдаче адресанта, автономный доход ENV_INCOME поддерживает динамику.
-Иерархия автоматов (раздел 14 MODEL.md): суперсистемы строятся композицией
-Environment из нижестоящих автоматов (members) без новых переменных состояния;
-выходы членов суммируются на вход суперсистемы, а её окно конъюнктуры
-модулирует их отдачу — эмерджентность и самоподобие как свойства архитектуры.
-Терминология нейтральна: один закон покрывает физическую, информационную и
-экономическую конкуренцию и мирное сосуществование (работа = 0).
-"""
-
 import math
 import random
 import statistics
 
 import information
 import observability
-
 
 PARAMETERS = {
     "TYPES": ["FIRE", "WATER", "EARTH"],
@@ -57,60 +37,37 @@ PARAMETERS = {
     "ENV_BONUS": 0.25,
     "ENV_INCOME": 2,
     "ENV_REST_CAP": 10.0,
-    # --- Информационный слой (энтропия смысла, демпфер петель) ---
     "ENTROPY_EMA": 0.25,
     "ENTROPY_SIGMA": 0.15,
     "ENTROPY_DF": 3.0,
     "ENTROPY_DEADBAND": 0.15,
-    # --- Лоссовая наблюдаемость (информационная асимметрия) ---
     "OBS_RESOLUTION": 1.0,
     "OBS_DELAY": 1,
-    # --- LOD (ленивые вычисления) ---
     "LOD_WORK_THRESHOLD": 20.0,
     "LOD_HORIZON": 10,
     "LOD_ERROR_TOL": 0.05,
 }
-"""Канонические значения калибровки модели; смысл каждого параметра — в docs/MODEL.md, раздел 8.
-
-ENV_REST_CAP — предохранитель от долгого дрейфа среды: потолок покоя суперсистемы
-растёт от чужого труда (Environment.receive_pressure), и без капа `rest_units`
-уползал бы неограниченно, уводя порог Шмитта ON(F) вверх. Кап держит потолок
-конечным (см. docs/MODEL.md, разделы 8 и 13)."""
 
 globals().update(PARAMETERS)
 
-MULT = {("WATER", "FIRE"): 3.0, ("FIRE", "EARTH"): 3.0, ("EARTH", "WATER"): 3.0}
-"""Круговой контр-множитель типов: WATER > FIRE > EARTH > WATER (x3). Цикл симметричен,
-ни один тип не доминирует архитектурно; тип входа — контекстная фаза (Agent.defense,
-см. docs/MODEL.md §2), отдельной ротации нет."""
+MULT = {
+    ("WATER", "FIRE"): 3.0,
+    ("FIRE", "EARTH"): 3.0,
+    ("EARTH", "WATER"): 3.0,
+}
 
 PROFILES = {
-    # p — профильный параметр «догматичности» входа: множитель при DECAY_ADOPT.
-    # p < 1: давление остывает быстрее (DECAY*p), нижний порог OFF(F) выше
-    #        (OFF_FRAC/p) — окно открывается реже и живёт меньше; вход «догматичен»,
-    #        устойчив к чужому напору, но сам требует большего собственного напора
-    #        для вскрытия чужого окна через тот же закон.
-    # p = 1: каноническая механика (прежние значения калибровки без изменений).
-    # Диапазон — ТОЛЬКО p ≤ 1. Ветвь p > 1 удалена: она вырождена (DECAY*p > 1 —
-    # давление растёт без напора, входной закон перестаёт быть сжатием) и не
-    # наблюдаема (канал opp_decay_guess строится по убыванию давления, которого
-    # нет), т.е. была бы скрытой конституцией. См. docs/MODEL.md §2а и §15.2,
-    # experiments/exp_profile_constitution.py.
-    "ZEALOT": 0.7,   # догматик: быстрое «заживление» входа, окно открывается реже
+    "ZEALOT": 0.7,
     "ORTHODOX": 0.85,
-    "CANON": 1.0,    # базовый профиль == прежняя модель
+    "CANON": 1.0,
 }
-"""Профильные классы автоматов: ОДИН параметр p ≤ 1, умножающий существующие
-константы входа (DECAY_ADOPT и OFF_FRAC) — новых переменных состояния или метрик
-не вводится. Смысл и обоснование достаточности IPO-архитектуры, а также почему
-допустим только p ≤ 1 — docs/MODEL.md, раздел 2а."""
 
-# Схема PROFILES (инвариант модели, §2а): имя профиля — ключ словаря (перечень
-# приводится в сообщении ``set_profile`` при неизвестном имени), значение —
-# вещественное ``p`` в диапазоне ``0 < p ≤ 1``. Проверка выполняется при загрузке
-# модуля, чтобы ошибочная правка словаря падала сразу, а не всплывала в прогоне.
-_nonnum = {n: p for n, p in PROFILES.items()
-           if isinstance(p, bool) or not isinstance(p, (int, float))}
+
+_nonnum = {
+    n: p
+    for n, p in PROFILES.items()
+    if isinstance(p, bool) or not isinstance(p, (int, float))
+}
 if _nonnum:
     raise TypeError(f"PROFILES: p должно быть числом: {_nonnum}")
 _bad_profiles = {n: p for n, p in PROFILES.items() if not (0.0 < p <= 1.0)}
@@ -119,14 +76,9 @@ if _bad_profiles:
 del _nonnum, _bad_profiles
 
 ACTIONS = [("REST", 0)] + [(t, w) for t in TYPES for w in [0.3, 0.7]]
-"""Пространство действий автомата: покой либо передача типом с долей пула 0.3/0.7."""
 
 
 def p_success(att_type, att_work, dfn_type, dfn_work):
-    """Вероятность успешной передачи по логистике отношения мощностей
-    (min(w_att, MAX_WORK)/max(w_def,1)) со штрафом K_TYPE, если защита
-    адресата контрит тип атаки. Вход адресанта, тип энергии и количество
-    работы — единственные определители вероятности (согласованная модель)."""
     mass = min(att_work, MAX_WORK) / max(dfn_work, 1)
     penalty = K_TYPE if MULT.get((dfn_type, att_type)) else 0.0
     logit = math.log(mass) * K_MASS - penalty
@@ -134,153 +86,78 @@ def p_success(att_type, att_work, dfn_type, dfn_work):
 
 
 class Agent:
-    """Базовый автомат на IPO-архитектуре (+BDI у персонажей).
-
-    Компоненты IPO представлены единообразно, как части одного автомата:
-
-      * ВХОД — ``beliefs`` (BDI-слой): оценки противника, собираемые ``sense()``;
-        восприимчивость собственного входа адресата (пороги Шмитта) — поля
-        ``w_adopt``, ``in_open``, ``open_timer``;
-      * СОСТОЯНИЕ — ``state``: единственное хранилище внутреннего состояния
-        автомата. В нём лежат обе метрики (``force`` — сила, целевая функция;
-        ``energy_pool`` — энергия, расходуемый запас) и управляющие переменные
-        (``last_act``, ``last_work``, ``w_adopt``, ``in_open``, ``open_timer``,
-        ``rest_units``). Рецептивного типа входа (``defense``) в составе
-        ``state`` НЕТ — это функция контекста (``@property``, см. MODEL.md §2).
-        Не объемлющая характеристика, а один из компонентов наравне с
-        входом/выходом/обработчиками;
-      * ОБРАБОТКА/ВЫХОД — методы-обработчики (``commit``, ``do_rest``,
-        ``rotate_defense``, ``gain``, ``process_hit``, ``sense`` и т.д.).
-
-    Обработчики читают и записывают ``state`` напрямую — Мили-подобная
-    зависимость, но шире: состояние определяет не только выход, но и
-    переходы и вид обработки. Именованные атрибуты (``force``, ``in_open``,
-    ``last_act``, …) — представления полей ``state`` через ``@property``,
-    поэтому внешний код и обработчики обращаются к ним как к обычным полям,
-    а единым хранилищем остаётся ``state``. Метрики при этом не теряют
-    статуса метрик: ``energy_pool`` пополняется потоком
-    ``regen = floor(sqrt(F))`` с потолком ``E_MAX_MULT * regen``.
-    """
 
     def __init__(self, profile="CANON"):
-        """profile — имя из PROFILES (p ≤ 1) или вещественный p ≤ 1 (см.
-        docs/MODEL.md, раздел 2а). Значение проверяется ``set_profile``:
-        диапазон ``p ≤ 1`` обязателен.
-
-        Профиль НЕ вводит новых переменных состояния: это единственный скаляр ``p``,
-        модифицирующий ОБРАБОТКУ единственного существующего IPO-компонента — вход
-        (пороги Шмитта: decay и нижний порог). Прежний выходной канал
-        (масштабирование тяжести поражения) удалён как инертный: партия завершается
-        первым же захватом (пункт A7 ревью).
-        Метрики force/energy_pool, их динамика и состав beliefs остаются прежними;
-        профиль не наблюдается противником напрямую (частичная наблюдаемость).
-
-        Тип входа НЕ хранится и не принимается аргументом (прежний ``defense=``
-        удалён как вестигиальный): он выводится из контекста — см. property
-        ``defense``; конверсия типов энергии не нужна.
-        """
         self.entropy_enabled = False
         self.info = information.BeliefEntropy(
-            ema=ENTROPY_EMA, sigma=ENTROPY_SIGMA,
-            df=ENTROPY_DF, deadband=ENTROPY_DEADBAND)
+            ema=ENTROPY_EMA,
+            sigma=ENTROPY_SIGMA,
+            df=ENTROPY_DF,
+            deadband=ENTROPY_DEADBAND,
+        )
         self.set_profile(profile)
         self.reset_state()
 
     def set_profile(self, profile, allow_out_of_range=False):
-        """Задать профиль с проверкой допустимого диапазона ``0 < p ≤ 1``.
-
-        Принимает имя из ``PROFILES`` либо вещественный ``p``. Диапазон ``p ≤ 1``
-        обязателен: ветвь ``p > 1`` вырождена (``DECAY_ADOPT·p > 1`` — давление
-        растёт без напора) и не наблюдаема (канал оценки строится по убыванию
-        давления, которого нет), т.е. была бы скрытой конституцией, поэтому
-        удалена из ``PROFILES`` (docs/MODEL.md, раздел 2а).
-
-        Args:
-            profile: имя из ``PROFILES`` или вещественный ``p``.
-            allow_out_of_range: сознательный обход проверки диапазона — только
-                для воспроизведения УДАЛЁННОЙ ветви ``p > 1`` в исторических
-                экспериментах («сырым» числом). Штатный код не использует.
-
-        Raises:
-            ValueError: неизвестное имя профиля, ``bool`` либо ``p`` вне ``(0, 1]``.
-        """
         if isinstance(profile, bool):
-            # bool — подкласс int: ``profile=True`` молча стал бы ``p=1.0``.
+
             raise ValueError(f"profile не может быть bool: {profile!r}")
         if isinstance(profile, str):
             if profile not in PROFILES:
                 raise ValueError(
-                    f"неизвестный профиль {profile!r}; допустимы: {sorted(PROFILES)}")
+                    f"неизвестный профиль {profile!r}; допустимы: "
+                    f"{sorted(PROFILES)}"
+                )
             p, norm = PROFILES[profile], profile
         else:
             p, norm = float(profile), round(float(profile), 4)
         if not allow_out_of_range and not (0.0 < p <= 1.0):
             raise ValueError(
                 f"профиль p={p} вне допустимого диапазона 0 < p ≤ 1 "
-                f"(docs/MODEL.md, раздел 2а)")
+                f"(docs/MODEL.md, раздел 2а)"
+            )
         self.profile, self.p = norm, p
 
     def reset_state(self):
-        """Сброс физического состояния к началу партии (метрики и наблюдения).
 
-        Физическое состояние (сила, пул, вход Шмитта, ``beliefs``) — состояние
-        ПАРТИИ, а не ресурс, переносимый между партиями. Сброс гарантирует
-        равные стартовые условия каждой партии: иначе проигравший начинал бы
-        следующую партию ослабленным (сила у дна), а победитель — усиленным,
-        и исход зависел бы от ПОРЯДКА партий, а не от стратегии. Обучение
-        (Q-таблица ``RLAgent``) сюда не входит и переносится отдельно.
-        """
-        # Новая линия сигнала: локальный отсчёт энтропии начинается заново,
-        # но накопленный износ канала (H_cum) НЕ откатывается — см. information.py.
         if hasattr(self, "info"):
             self.new_entropy_lineage()
-        # Единое хранилище внутреннего состояния автомата (IPO-компонент
-        # «состояние»): обе метрики и управляющие переменные. Обработчики
-        # читают/пишут поля напрямую через представления-свойства ниже.
+
         self.state = {
             "force": 10,
             "energy_pool": 3,
             "rest_units": 0.0,
-            # Поля "defense" в составе состояния НЕТ: рецептивный тип входа —
-            # не хранимая/ротируемая метка, а функция контекста (см. property
-            # ``defense``). Тип энергии определяется контекстом её сообщения
-            # между автоматами, поэтому конвертировать типы не требуется.
             "last_act": "REST",
             "last_work": 0,
             "w_adopt": 0.0,
             "in_open": False,
             "open_timer": 0,
         }
-        self.beliefs = {"opp_energy": 3,
-                        "opp_last_act": "REST", "opp_last_work": 0,
-                        "opp_force": 10, "opp_w_adopt": 0.0, "opp_in_open": False,
-                        "opp_ctx_base": None,
-                        # Информационный слой (производные величины, не метрики):
-                        # энтропия смысла и её необратимый износ. H_cum
-                        # переносится между линиями (эффект «нет обратного хода»).
-                        "entropy": 0.0,
-                        "entropy_cum": (self.info.H_cum if hasattr(self, "info") else 0.0),
-                        "entropy_lineage": (self.info.lineage if hasattr(self, "info") else 0),
-                        "noise_floor": (self.info.noise_floor if hasattr(self, "info") else 0.0),
-                        "belief_noise_factor": 1.0}
+        self.beliefs = {
+            "opp_energy": 3,
+            "opp_last_act": "REST",
+            "opp_last_work": 0,
+            "opp_force": 10,
+            "opp_w_adopt": 0.0,
+            "opp_in_open": False,
+            "opp_ctx_base": None,
+            "entropy": 0.0,
+            "entropy_cum": (self.info.H_cum if hasattr(self, "info") else 0.0),
+            "entropy_lineage": (
+                self.info.lineage if hasattr(self, "info") else 0
+            ),
+            "noise_floor": (
+                self.info.noise_floor if hasattr(self, "info") else 0.0
+            ),
+            "belief_noise_factor": 1.0,
+        }
 
     def new_entropy_lineage(self):
-        """Начать новую линию сигнала (партия/захват/фаза).
-
-        Локальный отсчёт энтропии начинается заново, но накопленный износ
-        ``H_cum`` сохраняется — «похожий сигнал — это новый сигнал, а не возврат
-        прежнего» (см. ``information.py``). Вызывается из ``reset_state`` и
-        ``check_capture``; при выключенном entropy слой инертен.
-        """
         if hasattr(self, "info"):
             self.info.new_lineage(reset_counts=True)
 
-    # --- Представления полей ``state`` (единое хранилище внутреннего состояния).
-    # Позволяют обработчикам и внешнему коду работать с полями как с обычными
-    # атрибутами, тогда как источником истины остаётся ``state``.
     @property
     def force(self):
-        """Сила — метрика (целевая функция автомата)."""
         return self.state["force"]
 
     @force.setter
@@ -289,7 +166,6 @@ class Agent:
 
     @property
     def energy_pool(self):
-        """Энергия — метрика (расходуемый запас)."""
         return self.state["energy_pool"]
 
     @energy_pool.setter
@@ -298,7 +174,6 @@ class Agent:
 
     @property
     def rest_units(self):
-        """Труд, накопленный отдыхом (расширяет потолок покоя)."""
         return self.state["rest_units"]
 
     @rest_units.setter
@@ -307,34 +182,16 @@ class Agent:
 
     @property
     def defense(self):
-        """Рецептивный тип входа — КОНТЕКСТ обмена, а не хранимая метка.
-
-        Тип энергии не является «валютой» автомата, которую нужно конвертировать:
-        это фаза самого автомата в его цикле, выводимая из контекста —
-        напора на входе (``w_adopt``), состояния окна (``in_open``),
-        наполненности пула и **выходной фазы** данного такта (текущее действие
-        ``last_act``). Так «тип» определяется выходом и входом адресата,
-        обработчиками (``p_success``/``_apply_transfer``) и состояниями — как
-        того требует архитектура. Выходная фаза адресата одновременна нашему
-        ходу и потому противнику не наблюдается: это и есть остаточная
-        неопределённость типа (``context_base`` видна, ``hidden`` — нет).
-        Фактический маргинал ``hidden`` зависит от политики автомата и не
-        равномерен: ``REST`` и ``FIRE`` дают одну фазу 0
-        (``experiments/exp_hidden_marginal.py``). Ротация защиты как независимой
-        метки упразднена (``rotate_defense`` оставлен no-op ради совместимости API).
-        """
         hidden = TYPES.index(self.last_act) if self.last_act in TYPES else 0
-        return self.receptive_type(self.energy_pool, self.w_adopt,
-                                   self.in_open, self.force, hidden)
+        return self.receptive_type(
+            self.energy_pool, self.w_adopt, self.in_open, self.force, hidden
+        )
 
     @staticmethod
     def context_base(energy_pool, w_adopt, in_open, force):
-        """Наблюдаемая часть контекста входа: 0/1/2 (истощён/наполнен/на порогe).
-
-        Из неё выводится рецептивный тип вместе со скрытой выходной фазой
-        (``hidden``). Именно эта часть известна противнику (по его наблюдениям).
-        """
-        full = energy_pool / max(1.0, E_MAX_MULT * max(1, math.floor(math.sqrt(max(1, force)))))
+        full = energy_pool / max(
+            1.0, E_MAX_MULT * max(1, math.floor(math.sqrt(max(1, force))))
+        )
         press = w_adopt / max(1.0, max(ON_MIN, ON_FRAC * force))
         if in_open or press >= 1.0:
             return 2
@@ -344,18 +201,11 @@ class Agent:
 
     @staticmethod
     def receptive_type(energy_pool, w_adopt, in_open, force, hidden=0):
-        """Единый закон вывода рецептивного типа из контекста (см. ``defense``).
-
-        ``context_base`` (наблюдаемо) + ``hidden`` (выходная фаза адресата,
-        не наблюдаема противником при одновременных ходах) по модулю 3.
-        """
         base = Agent.context_base(energy_pool, w_adopt, in_open, force)
         return TYPES[(base + int(hidden)) % 3]
 
-
     @property
     def last_act(self):
-        """Последнее совершённое действие (для расчёта p_success)."""
         return self.state["last_act"]
 
     @last_act.setter
@@ -364,7 +214,6 @@ class Agent:
 
     @property
     def last_work(self):
-        """Работа последнего действия (для расчёта p_success)."""
         return self.state["last_work"]
 
     @last_work.setter
@@ -373,7 +222,6 @@ class Agent:
 
     @property
     def w_adopt(self):
-        """Накопленное давление на входе (пороги Шмитта)."""
         return self.state["w_adopt"]
 
     @w_adopt.setter
@@ -382,7 +230,6 @@ class Agent:
 
     @property
     def in_open(self):
-        """Признак открытого окна восприимчивости входа."""
         return self.state["in_open"]
 
     @in_open.setter
@@ -391,7 +238,6 @@ class Agent:
 
     @property
     def open_timer(self):
-        """Остаток времени жизни открытого окна (такты)."""
         return self.state["open_timer"]
 
     @open_timer.setter
@@ -400,31 +246,14 @@ class Agent:
 
     @property
     def rest_ceiling(self):
-        """Потолок покоя L(t) = L_BASE + L_STEP * rest_units.
-
-        Работает побудителем баланса: ``rest_units`` растут только от труда
-        (реально полученная сила при успешных передачах), поэтому бездельник
-        стагнирует на статичном потолке и отстаёт от работающих."""
         return L_BASE + L_STEP * self.rest_units
 
     def rest_gain(self):
-        """Логистическая прибыль покоя: dF/dt = r * E * (1 - E/L).
-
-        Ускорение внизу, убывание у потолка, ноль выше него. Вершина логистики
-        превышает UPKEEP — иначе равновесный покой убыточен и среда вымирает
-        к F=1 (показано диагностикой)."""
         e = self.force - UPKEEP
-        l = self.rest_ceiling
-        return MAX_REST_DELTA * (e / l) * (1.0 - e / l)
+        ceiling = self.rest_ceiling
+        return MAX_REST_DELTA * (e / ceiling) * (1.0 - e / ceiling)
 
     def do_rest(self, chosen=True):
-        """Применение покоя; потолок покоя превзойти отдыхом нельзя — только трудом.
-
-        Args:
-            chosen: True — осознанный отдых (выбор стратегии или рефлекс голода),
-                полная прибыль; False — режим покоя (работа отвергнута расчётом,
-                голод ещё не наступил), вдвое слабее. Иначе пассивное ожидание
-                доминирует над трудом."""
         gain = self.rest_gain() if chosen else 0.5 * self.rest_gain()
         self.force = min(self.force + gain, self.rest_ceiling)
         add = max(2, self.regen) if chosen else 1
@@ -433,71 +262,26 @@ class Agent:
 
     @property
     def regen(self):
-        """Поток восстановления структуры: dE/dt = floor(sqrt(F)).
-
-        Сохраняет формулу README «энергия = корень из силы» как темп пополнения
-        расходуемого пула энергии."""
         return max(1, math.floor(math.sqrt(self.force)))
 
     def tick_energy(self):
-        """Тактовое пополнение пула (в покое и в работе) потоком ``regen``.
-
-        Пул никогда не превышает потолок ``E_MAX_MULT * regen``: запас энергии
-        пропорционален темпу её восстановления, поэтому крупная структура
-        копит больший резерв для давления, а мелкая остаётся быстрой, но
-        неспособной к длительному напору."""
-        self.energy_pool = min(self.energy_pool + self.regen, E_MAX_MULT * self.regen)
+        self.energy_pool = min(
+            self.energy_pool + self.regen, E_MAX_MULT * self.regen
+        )
 
     def schmitt_on(self):
-        """Верхний порог Шмитта входа: ON(F) = max(ON_MIN, ON_FRAC * force).
-
-        Масштабный (выведен из силы адресата — одной из двух метрик модели):
-        крупный автомат требует крупного напора, малый уязвим к малому.
-        Исторический абсолютный порог ON=40 создавал catch-22 дна (см. H-A)."""
         return max(ON_MIN, ON_FRAC * self.force)
 
     def effective_decay(self):
-        """Профильная скорость остывания давления: DECAY_ADOPT * p.
-
-        p ≤ 1 (допустимый диапазон, см. ``PROFILES``), поэтому множитель остаётся
-        сжатием: давление не растёт без внешнего напора. Вынесено в метод, чтобы
-        обработчики (вход — tick_input_state и модель планирования UtilityAI)
-        использовали одну и ту же формулу; новых переменных не появляется — это
-        функция от уже существующих p и DECAY_ADOPT."""
         return DECAY_ADOPT * self.p
 
     def receive_pressure(self, w):
-        """Input-обработка входящей работы: накопление давления на вход.
-
-        Всякая входящая работа (успешная или нет) увеличивает ``w_adopt``.
-        При ``w_adopt >= ON(F)`` вход переходит в состояние открытого окна
-        восприимчивости длительностью OPEN_TTL тактов. Гистерезис ON > OFF
-        исключает дребезг контакта от шума и мелочи."""
         self.w_adopt += w
         if not self.in_open and self.w_adopt >= self.schmitt_on():
             self.in_open = True
             self.open_timer = OPEN_TTL
 
     def tick_input_state(self):
-        """Тактовка состояния входа адресата (пороги Шмитта с гистерезисом).
-
-        Профильный множитель ``p`` входит в обработку ДВУХ существующих величин
-        (см. docs/MODEL.md, раздел 2а): скорость остывания давления и положение
-        нижнего порога гистерезиса. Верхний порог ON(F) остаётся инвариантом
-        автомата — «конституция» по сути, но не по значению: новые переменные
-        не введены, изменена только обработка.
-
-        Три перехода за один такт:
-          1. ``w_adopt *= DECAY_ADOPT * p`` — «заживление»: накопленное давление
-             остывает, если напор не поддерживается; при p<1 (догматик) — быстрее;
-          2. при открытом окне уменьшается ``open_timer`` (окно конечно);
-          3. окно захлопывается по истечении ``OPEN_TTL`` **или** когда
-             давление упало ниже ``OFF(F) = (OFF_FRAC / p) * ON(F)`` — у догматика
-             нижний порог выше relative ON, окно захлопывается раньше.
-
-        Нижний порог строго выше нуля и меньше верхнего (гистерезис ON > OFF),
-        поэтому шум наблюдения и мелкая работа не «дёргают» контакт: вход
-        открывается только устойчивым напором и так же устойчиво закрывается."""
         self.w_adopt *= self.effective_decay()
         if self.in_open:
             self.open_timer -= 1
@@ -506,41 +290,15 @@ class Agent:
                 self.in_open = False
 
     def sense(self, opp, rng):
-        """Input-фаза: построение beliefs о противнике (частичная наблюдаемость).
-
-        Реализует согласованное допущение модели «шум наблюдения вместо шума
-        результата»: сам исход передачи не рандомизирован сверх ``p_success``,
-        но агенты видят мир неполно и неточно:
-
-          * ``opp_energy`` — пул противника с аддитивным шумом +/- BELIEF_NOISE;
-          * ``opp_force`` — сила, округлённая до десятков (грубая оценка);
-          * ``opp_w_adopt`` / ``opp_in_open`` — косвенный сигнал о состоянии
-            входа противника (накопленное давление и положение окна);
-          * ``opp_defense_guess`` — ЛЕГАСИ-канал (в ядре не читается): вестигий
-            упразднённой ротации защиты. Тип входа как метка не наблюдается
-            вовсе; оценка строится скользящим большинством последних 5 действий
-            противника. Оставлен ради исторических ``exp_fix``/``exp_hypotheses``;
-          * ``opp_last_act`` / ``opp_last_work`` — его прошлый ход;
-          * ``opp_decay_guess`` — КОСВЕННАЯ оценка профильной скорости остывания
-            чужого входа. Профиль не наблюдается напрямую (частичная
-            наблюдаемость); он выводится из уже наблюдаемой траектории
-            ``w_adopt``: если давление не пополнялось, w_adopt за такт умножилось
-            на DECAY_ADOPT·p — отсюда p = decay_obs / DECAY_ADOPT. Скользящее
-            среднее по последним 8 наблюдениям. Новых истинных переменных нет:
-            это производная величина от уже существующих наблюдений.
-
-        Args:
-            opp: наблюдаемый противник.
-            rng: генератор случайных чисел партии (шум наблюдения детерминирован seed'ом)."""
         prev_w = self.beliefs.get("opp_w_adopt_prev")
-        self.beliefs["opp_energy"] = max(1, opp.energy_pool + rng.randint(-BELIEF_NOISE, BELIEF_NOISE))
+        self.beliefs["opp_energy"] = max(
+            1, opp.energy_pool + rng.randint(-BELIEF_NOISE, BELIEF_NOISE)
+        )
         self.beliefs["opp_force"] = max(1, int(round(opp.force, -1)))
         self.beliefs["opp_w_adopt"] = max(0.0, opp.w_adopt)
         self.beliefs["opp_in_open"] = opp.in_open
         if prev_w is not None and prev_w > 1e-6 and opp.w_adopt <= prev_w:
-            # В текущем такте вход ещё не пополнялся (resolve_attack идёт после
-            # sense), поэтому изменение w_adopt от прошлого наблюдения — чистое
-            # «заживление»: наблюдаем эффективный decay входа противника.
+
             obs_decay = min(0.999, max(0.5, opp.w_adopt / prev_w))
             dq = self.beliefs.setdefault("opp_decay_hist", [])
             dq.append(obs_decay)
@@ -553,85 +311,53 @@ class Agent:
         if len(hist) > 5:
             hist.pop(0)
         non_rest = [a for a in hist if a != "REST"]
-        # Оценка защиты противника — мода последних наблюдённых действий, но
-        # перебор строго по TYPES, а НЕ по set(): порядок обхода set зависит от
-        # рандомизации хэшей строк между процессами (PYTHONHASHSEED), из-за чего
-        # при равных частотах результат «плавал» и партии/тесты были невоспроизводимы
-        # (детерминизм по seed нарушался). При ничьей выигрывает первый тип в TYPES.
+
         self.beliefs["opp_defense_guess"] = (
             max(TYPES, key=non_rest.count) if non_rest else None
         )
-        # Оценка рецептивного типа противника из НАБЛЮДАЕМЫХ величин — тем же
-        # законом, что и свойство ``defense``. Наблюдаема лишь базовая часть
-        # контекста (``context_base``); скрытая выходная фаза текущего такта
-        # противнику неизвестна, поэтому обработчики маргинализуют по трём
-        # возможным типам под равномерным (максимально-энтропийным) априором
-        # (см. ``UtilityAI``); хранится только наблюдаемая база (0/1/2), а не
-        # «угаданный тип» — самого типа как метки в модели нет (§2).
-        # Новых истинных переменных состояния не вводится.
+
         self.beliefs["opp_ctx_base"] = self.context_base(
-            self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
-            self.beliefs["opp_in_open"], self.beliefs["opp_force"])
-        # Информационный слой: энтропия смысла и необратимый износ канала.
-        # Работает ТОЛЬКО на beliefs (вход), не на force/energy_pool: это
-        # демпфер самоусиливающихся петель через размывание информации.
+            self.beliefs["opp_energy"],
+            self.beliefs["opp_w_adopt"],
+            self.beliefs["opp_in_open"],
+            self.beliefs["opp_force"],
+        )
+
         if getattr(self, "entropy_enabled", False):
-            self.info.observe(self.beliefs["opp_ctx_base"],
-                              self.beliefs["opp_in_open"])
+            self.info.observe(
+                self.beliefs["opp_ctx_base"], self.beliefs["opp_in_open"]
+            )
             self.beliefs["entropy"] = self.info.H_local
             self.beliefs["entropy_cum"] = self.info.H_cum
             self.beliefs["entropy_lineage"] = self.info.lineage
             self.beliefs["noise_floor"] = self.info.noise_floor
             self.info.perturb(self.beliefs, rng)
-            # Пересчитать наблюдаемую базу уже по зашумлённым убеждениям:
-            # изношенный канал даёт более грубую картину мира.
+
             self.beliefs["opp_ctx_base"] = self.context_base(
-                self.beliefs["opp_energy"], self.beliefs["opp_w_adopt"],
-                self.beliefs["opp_in_open"], self.beliefs["opp_force"])
+                self.beliefs["opp_energy"],
+                self.beliefs["opp_w_adopt"],
+                self.beliefs["opp_in_open"],
+                self.beliefs["opp_force"],
+            )
         self.beliefs["opp_last_act"] = opp.last_act
         self.beliefs["opp_last_work"] = opp.last_work
 
     def rotate_defense(self, rng):
-        """Ротация защиты упразднена: тип входа выводится из контекста.
-
-        Раньше защита была хранимой меткой, которую приходилось ротировать,
-        чтобы исход не был предопределён архитектурным контр-типом. Теперь
-        «тип» — не валюта автомата, а фаза его состояния (property ``defense``),
-        поэтому отдельной ротации не требуется (по ТРИЗ: лучшая функция — та,
-        которой нет; здесь функция растворена в сущности контекста). Метод
-        оставлен no-op ради совместимости API с внешним кодом (game_engine,
-        эксперименты).
-        """
         return None
 
     def upkeep(self):
-        """Пассивное поддержание структуры: сила тратится на себя каждый такт."""
         self.force = max(1, self.force - UPKEEP)
 
     def commit(self, act, work):
-        """Processing-фаза: фиксация намерения и списание энергии из пула.
-
-        Энергия — настоящий расходуемый ресурс: заявленная работа вычитается
-        из ``energy_pool`` безвозвратно (частично возвращается через трение
-        обмена в ``resolve_attack``). Легальный выход ограничен сверху тремя
-        барьерами одновременно:
-          * ``energy_pool`` — нельзя сообщить больше, чем имеешь в запасе;
-          * ``MAX_WORK`` — кап за такт (стабилизирует экспоненту);
-          * ``max(MIN_OUTPUT, force // 4)`` — предельная доля структуры:
-            автомат не может заявить передачу, разрушающую его саму;
-            ``MIN_OUTPUT`` страхует зону дна от catch-22 (слабый должен иметь
-            хотя бы минимальный легальный напор).
-
-        Пустая или нулевая работа переводит автомат в режим покоя
-        (неосознанный отдых — вдвое слабее осознанного).
-
-        Returns:
-            int: фактический выход работы (0, если выбран покой или работа
-            оказалась невозможной)."""
         if act == "REST":
             self.do_rest(chosen=True)
             return 0
-        w = min(int(work), self.energy_pool, MAX_WORK, max(MIN_OUTPUT, self.force // 4))
+        w = min(
+            int(work),
+            self.energy_pool,
+            MAX_WORK,
+            max(MIN_OUTPUT, self.force // 4),
+        )
         if w <= 0:
             self.do_rest(chosen=False)
             return 0
@@ -640,133 +366,68 @@ class Agent:
         return w
 
     def committed_work(self, act, work):
-        """Работа, которую фактически зафиксирует ``commit`` — БЕЗ побочных эффектов.
-
-        Планировщик знает собственное будущее состояние, поэтому оценивает
-        намерение по реально выполнимой работе, а не по заявленной. Повторяет
-        верхнюю обрезку ``commit``: ``act='REST'`` → 0, иначе
-        ``min(work, energy_pool, MAX_WORK, max(MIN_OUTPUT, force // 4))``;
-        неположительный результат означает вынужденный покой → 0."""
         if act == "REST":
             return 0
-        w = min(int(work), self.energy_pool, MAX_WORK, max(MIN_OUTPUT, self.force // 4))
+        w = min(
+            int(work),
+            self.energy_pool,
+            MAX_WORK,
+            max(MIN_OUTPUT, self.force // 4),
+        )
         return w if w > 0 else 0
 
     def defense_after(self, act, work):
-        """Рецептивный тип входа ПОСЛЕ ``commit(act, work)`` — БЕЗ побочных эффектов.
-
-        Фактический ``resolve_attack`` берёт тип защиты адресата уже после фиксации
-        его действия и списания пула. Планировщик может спроецировать ровно это
-        состояние (выходная фаза выбранного действия ``act`` и пул минус выполнимая
-        работа), чтобы оценка совпала с фактическим законом, а не брала «вчерашнее»
-        действие и несписанный пул. Модель подразумевает ПЕРЕДАЧУ (пул тратится);
-        для ``act='REST'`` проекция пула не действует (покой пул восполняет), поэтому
-        помощник применяется только к атакующим оценкам."""
         hidden = TYPES.index(act) if act in TYPES else 0
         pool = self.energy_pool - self.committed_work(act, work)
-        return self.receptive_type(pool, self.w_adopt, self.in_open, self.force, hidden)
+        return self.receptive_type(
+            pool, self.w_adopt, self.in_open, self.force, hidden
+        )
 
     def rest_if_starving(self):
-        """Рефлекс самосохранения (нижний ярус иерархии автомата).
-
-        При критическом пуле (<= STARVING_E) покой обязателен и не подлежит
-        ни утилитарному расчёту, ни Q-разведке; симметричен для обеих сторон."""
         if self.energy_pool <= STARVING_E:
             self.do_rest(chosen=True)
             return True
         return False
 
     def process_hit(self, tr):
-        """Output-обработка принятой передачи: потеря силы и шок пула.
-
-        Принятый удар (мощность ``tr``) действует двояко:
-          * сила уменьшается на ``tr`` — прямое следствие входа адресата;
-          * из пула выбивается ``HOCK_FRACTION * tr`` энергии — структурный
-            шок: без него давление на пассивного не истощало бы его вовсе
-            (диагностика: вечная ничья PRESSER vs PASSIVE).
-
-        Часть ``tr`` возвращается адресату позже трением ``K_EFFECT`` в
-        ``resolve_attack`` — безвозвратны лишь ``(1 - K_EFFECT) * tr``."""
         self.force = max(1, self.force - tr)
         self.energy_pool = max(0, self.energy_pool - int(HOCK_FRACTION * tr))
 
     def gain(self, tr):
-        """Приращение силы (Output-эффект успешной передачи)."""
         self.force += tr
 
 
 class UtilityAI(Agent):
-    """Заскриптованный BDI-агент: намерение по ожидаемой выгоде U(action).
-
-    Не обучается — следует аналитической модели того же закона, что и среда
-    (включая положение входа противника по порогам Шмитта). Авантюры — работу
-    по закрытому входу — отвергает сама утилита: U(action) = delta + gamma*reward(t).
-
-    Профильная осведомлённость (параметр ``profile_aware``, по умолчанию False —
-    прежние значения калибровки и поведение без изменений): при True модель
-    накопления чужого входа использует косвенную оценку остывания давления
-    ``opp_decay_guess`` вместо глобального DECAY_ADOPT. Демонстрация того, что
-    «характер» автомата различим существующими IPO-каналами
-    (наблюдение → beliefs → расчёт) без введения новых переменных мира."""
 
     def __init__(self, profile="CANON", profile_aware=False):
         super().__init__(profile=profile)
         self.profile_aware = profile_aware
 
     def gain_model(self, m, p):
-        """Ожидаемая отдача единицы работы при гипотезе о защите (множитель m)
-        и вероятности успеха p — тот же закон, что в ``resolve_attack``.
-
-        Различает два положения чужого входа:
-          * открыт: ``y = p * m * GAIN_MAX`` — окно «распахивает» вход;
-          * закрыт: ``y = p * m * Y_SMALL`` плюс **опционная надбавка**
-            ``OPTION_VALUE * progress``, где ``progress`` — доля порога ON(F),
-            уже накопленная давлением на вход. Смысл: каждый удар по закрытому
-            входу приближает его к открытию и потому ценен не только сейчас,
-            но и как покупка будущего окна восприимчивости. Это позволяет
-            UtilityAI осмысленно выбирать линию накопления, а не только
-            мгновенную выгоду."""
         if self.beliefs["opp_in_open"]:
             return p * m * GAIN_MAX
         base = Y_SMALL * p * m
         on_opp = max(ON_MIN, ON_FRAC * self.beliefs["opp_force"])
         progress = min(1.0, self.beliefs["opp_w_adopt"] / on_opp)
-        # Профильно-осведомлённая модель опциона: давление на чужой вход остывает
-        # со скоростью DECAY_ADOPT*p_opp; при p<1 (догматик) накопленное быстрее
-        # утекает, и опцион «покупки окна» дешевле; при p>1 — дороже и вероятнее.
-        # Оценка p_opp берётся из beliefs (opp_decay_guess); без profile_aware или
-        # без достаточных наблюдений — канонический DECAY_ADOPT (прежнее поведение).
+
         eff_decay = DECAY_ADOPT
         if self.profile_aware:
             dg = self.beliefs.get("opp_decay_guess")
             if dg is not None:
                 eff_decay = dg
-        k = 3  # горизонт планирования опциона (в тактах), вынесен локально
-        retained = sum(eff_decay ** i for i in range(1, k + 1)) / k
-        # Информационный демпфер: изношенный канал (noise_floor > 0) снижает
-        # ценность опциона «покупки окна» — это размывание СМЫСЛА, не энергии.
-        # При entropy=False noise_floor=0, поведение канона не меняется.
+        k = 3
+        retained = sum(eff_decay**i for i in range(1, k + 1)) / k
+
         reliability = max(0.0, 1.0 - self.beliefs.get("noise_floor", 0.0))
-        option = (OPTION_VALUE * progress * reliability
-                  * (retained / (sum(DECAY_ADOPT ** i for i in range(1, k + 1)) / k)))
+        option = (
+            OPTION_VALUE
+            * progress
+            * reliability
+            * (retained / (sum(DECAY_ADOPT**i for i in range(1, k + 1)) / k))
+        )
         return base + option
 
     def expected_retaliation(self, act, work):
-        """Оценка возмездия: адресат бьёт в ответ долей RETALIATE_FRACTION*W.
-
-        Здесь ``W`` — ВЫПОЛНИМАЯ работа планируемого действия (``committed_work``),
-        т.е. ровно та, что фактически уйдёт в ``resolve_attack`` после обрезки
-        ``commit``. Рецептивный тип ответчика складывается из наблюдаемой базы
-        контекста и СКРЫТОЙ выходной фазы ДАННОГО такта (см. §2); противнику скрытая
-        фаза неизвестна, поэтому оценка — среднее по трём возможным типам под
-        равномерным (максимально-энтропийным) априором. Фактический маргинал фазы
-        зависит от политики противника и не равномерен (``exp_hidden_marginal``).
-        Вероятность успеха и множитель считаются фактическим законом
-        ``p_success``/``MULT`` (тем же, что в ``resolve_attack``), а наши вход и
-        работа берутся в состоянии ПОСЛЕ ``commit`` (``defense_after``/``W``), поэтому
-        оценка строится ровно по закону фактического возмездия (без учёта обрезки
-        ответной работы пулом противника — это остаточная неопределённость, как и
-        скрытая фаза)."""
         w = self.committed_work(act, work)
         r_w = int(RETALIATE_FRACTION * w)
         if r_w <= 0:
@@ -780,34 +441,16 @@ class UtilityAI(Agent):
         return ev
 
     def gain_model_rev(self, m, p):
-        """Отдача ответного удара по НАШЕМУ входу (наше состояние нам точно известно)."""
         if self.in_open:
             return p * m * GAIN_MAX
         return Y_SMALL * p * m
 
     def retaliation_penalty(self, act, work):
-        """Цена возмездия для нас: цена работы COST_FRACTION*W плюс шок пула
-        HOCK_FRACTION*r_w от ответного удара, где ``W`` — выполнимая работа
-        (``committed_work``), а ``r_w = RETALIATE_FRACTION*W`` — как в
-        ``resolve_attack``. Бить по открытому противнику дорого."""
         w = self.committed_work(act, work)
         r_w = int(RETALIATE_FRACTION * w)
         return COST_FRACTION * w + HOCK_FRACTION * r_w
 
     def expected_gain(self, act, work):
-        """U(action): ожидаемая отдача минус цена работы и минус ожидание
-        возмездия. Покой оценивается логистикой rest_gain.
-
-        Рецептивный тип адресата = наблюдаемая база контекста + СКРЫТАЯ выходная
-        фаза данного такта (§2). Скрытая фаза противнику неизвестна, поэтому отдача
-        оценивается средним по трём возможным типам под равномерным (максимально-
-        энтропийным) априором (фактический маргинал — политика противника, не
-        равномерен: ``exp_hidden_marginal``); вероятность успеха — фактическим
-        законом ``p_success`` (мощность и контр-тип), тем же, что в
-        ``resolve_attack``. Отдача и отдача-стоимость считаются по ЗАЯВЛЕННОЙ работе
-        (абстракция «заявленное выполняется»); цена возмездия и шок пула — по
-        ВЫПОЛНИМОЙ работе (``committed_work``), т.к. фактическое возмездие идёт уже
-        после обрезки ``commit`` (п. A3 ревью)."""
         if act == "REST" or work <= 0:
             return self.rest_gain()
         ev = 0.0
@@ -815,10 +458,13 @@ class UtilityAI(Agent):
             m = MULT.get((act, hypo), 1.0)
             p = p_success(act, work, hypo, self.beliefs["opp_last_work"])
             ev += work * self.gain_model(m, p) / 3.0
-        return ev - self.retaliation_penalty(act, work) - self.expected_retaliation(act, work)
+        return (
+            ev
+            - self.retaliation_penalty(act, work)
+            - self.expected_retaliation(act, work)
+        )
 
     def form_intention(self):
-        """Перебор действий (покой/3 типа x 2 доли пула), выбор максимума U."""
         best, best_u = ("REST", 0), self.rest_gain()
         for t in TYPES:
             for frac in (0.3, 0.7):
@@ -830,17 +476,7 @@ class UtilityAI(Agent):
 
 
 class RLAgent(Agent):
-    """Обучающийся агент: табличный Q-Learning с переносом обучения между партиями.
 
-    Состояние — дискретизированные beliefs, включая положение входа противника
-    (O/C) и степень его наполнения давлением: Q различает «давить бесполезно»
-    и «окно открыто — бей». Между партиями переносится ТОЛЬКО Q-таблица; физическое
-    состояние сбрасывается ``reset_state`` в начале каждой партии (иначе порядок
-    партий влиял бы на исход). Разведка anneal'ится по ОБЩЕМУ опыту (``epsilon``),
-    а не по номеру такта внутри партии."""
-
-    # Горизонт annealing разведки — в тактах ОБЩЕГО опыта агента за все партии
-    # (не по такту партии: короткие партии иначе целиком проходят «в разведке»).
     EPS_START = 1.0
     EPS_MIN = 0.05
     EPS_DECAY_STEPS = 3000
@@ -851,19 +487,14 @@ class RLAgent(Agent):
         self.steps_trained = 0
 
     def epsilon(self):
-        """Текущая вероятность разведки по ОБЩЕМУ числу тактов обучения.
-
-        Прежде eps anneal'ился по номеру такта ВНУТРИ партии и сбрасывался
-        каждую партию. При коротких партиях (~20–60 тактов до захвата) агент
-        почти всю игру действовал случайно и НИКОГДА не эксплуатировал
-        выученное — отсюда его слабость. Здесь горизонт — суммарный опыт за все
-        партии, поэтому выученная политика успевает выразиться в игре."""
-        e = max(self.EPS_MIN, self.EPS_START - self.steps_trained / self.EPS_DECAY_STEPS)
+        e = max(
+            self.EPS_MIN,
+            self.EPS_START - self.steps_trained / self.EPS_DECAY_STEPS,
+        )
         self.steps_trained += 1
         return e
 
     def discretize(self, e):
-        """Многошкалильная дискретизация: точная до 8, шаг 4 до 32, далее log-баки."""
         if e <= 8:
             return e
         if e <= 32:
@@ -871,40 +502,24 @@ class RLAgent(Agent):
         return 14 + int(math.log(e / 32))
 
     def skey(self):
-        """Ключ символического состояния RL-агента (дискретизированные beliefs).
-
-        Семь компонент — всё наблюдаемое, никаких скрытых истинных переменных:
-          1. собственный пул (``energy_pool``, дискретизация ``discretize``);
-          2. пул противника (оценка с шумом наблюдения);
-          3. последний тип атаки противника;
-          4. признак угрозы ``T/-``: контрит ли его последняя атака нашу защиту;
-          5. уровень давления на его вход (накопленный ``w_adopt``) — степень
-             близости чужого окна восприимчивости;
-          6. положение его входа ``O/C`` (Open/Closed);
-          7. наблюдаемая база рецептивного контекста противника ``opp_ctx_base``
-             (0/1/2): истощён / наполнен / на пороге.
-
-        Компонента 7 несёт наблюдаемую часть рецептивного типа (§2); его СКРЫТАЯ
-        выходная фаза (текущее действие противника) агенту недоступна — это и есть
-        остаточная неопределённость типа. Компоненты 5–6 дают Q-функции различать
-        «давить бесполезно» и «окно открыто — бей», не вводя новых состояний среды."""
-        threat = "T" if MULT.get((self.beliefs["opp_last_act"], self.defense)) else "-"
+        threat = (
+            "T"
+            if MULT.get((self.beliefs["opp_last_act"], self.defense))
+            else "-"
+        )
         adopt = self.discretize(int(self.beliefs["opp_w_adopt"]))
         openg = "O" if self.beliefs["opp_in_open"] else "C"
-        return (self.discretize(self.energy_pool),
-                self.discretize(self.beliefs["opp_energy"]),
-                self.beliefs["opp_last_act"],
-                threat, adopt, openg,
-                self.beliefs.get("opp_ctx_base"))
+        return (
+            self.discretize(self.energy_pool),
+            self.discretize(self.beliefs["opp_energy"]),
+            self.beliefs["opp_last_act"],
+            threat,
+            adopt,
+            openg,
+            self.beliefs.get("opp_ctx_base"),
+        )
 
     def form_intention(self, eps, rng):
-        """Выбор действия epsilon-greedy по Q-таблице текущего состояния.
-
-        Args:
-            eps: вероятность разведки (epsilon-greedy).
-            rng: генератор случайных чисел партии — разведка берёт случайность
-                из него, а НЕ из глобального ``random``, поэтому прогоны
-                воспроизводимы по seed (см. play_game)."""
         st = self.skey()
         if st not in self.Q:
             self.Q[st] = [0.0] * len(ACTIONS)
@@ -913,14 +528,6 @@ class RLAgent(Agent):
         return self.Q[st].index(max(self.Q[st]))
 
     def learn(self, st, a_idx, reward, nst, alpha=0.3, gamma=0.9):
-        """TD-обновление по корректному переходу s -> s'.
-
-        Args:
-            st: состояние ДО применения действия (снимается до commit).
-            a_idx: индекс выбранного действия.
-            reward: изменение силы за такт (delta + gamma*reward(t) в TD-цели).
-            nst: состояние ПОСЛЕ разрешения боя.
-        """
         if nst not in self.Q:
             self.Q[nst] = [0.0] * len(ACTIONS)
         td = reward + gamma * max(self.Q[nst]) - self.Q[st][a_idx]
@@ -928,135 +535,52 @@ class RLAgent(Agent):
 
 
 class Environment(Agent):
-    """Среда как всеобъемлющий IPO-автомат (суперсистема над автоматами).
-
-    Утверждённое архитектурное решение (раздел 13 MODEL.md; бывший эксперимент —
-    «гипотеза B», гипотеза A удалена из кода): среда — не пустое пространство
-    между автоматами, а автомат того же кодекса. Среда наследует ``Agent``,
-    поэтому весь кодекс Шмитта и логистика покоя реализованы обработчиками
-    базового автомата один-в-один: повторения кода нет и новых переменных
-    состояния не вводится (набор полей среды — точное подмножество полей Agent).
-
-      INPUT   : входящие работы всех автоматов такта (каждая передача нагружает
-                вход среды через resolve_attack -> receive_pressure) плюс
-                автономный доход ENV_INCOME; в многоуровневой иерархии
-                (``members``, см. ниже и раздел 14 MODEL.md) вход дополнительно
-                нагружается суммарной работой членов нижнего яруса;
-      PROCESS : накопление w_adopt и гистерезис ON(F)/OFF(F) — восприимчивость
-                среды = «конъюнктура»; рецептивный тип входа выводится из
-                контекста (property ``defense``), ротации нет (см. §2 MODEL.md);
-                upkeep, пополнение пула, покой — всё обработчиками Agent при
-                профиле CANON (p=1), т.е. без профильных искажений суперсистемы;
-      OUTPUT  : состояние входа транслируется в правила для автоматов одним
-                скаляром: при открытом входе среды отдача адресанта увеличивается
-                на ENV_BONUS («окно возможностей»), при закрытом — прежний канон.
-
-    Тактовый протокол tick() повторяет протокол автомата, т.е. среда подчинена
-    той же IPO-архитектуре — иерархия автоматов (открытый вопрос 4 MODEL.md
-    закрыт разделом 14: композиция Environment из Environment/Agent) получает
-    ярусы без расширения онтологии.
-
-    Иерархия (параметр ``members``): суперсистема может объять нижестоящие
-    автоматы — список ``Agent`` (или других ``Environment``; композиция
-    рекурсивна: Environment может быть членом Environment). Тогда каждый такт:
-      * выходы членов (всякая их передача в ``resolve_attack``) уже нагружают
-        вход суперсистемы через ``receive_pressure`` — суммирование работ есть
-        эмерджентный вход верхнего яруса;
-      * в ``tick()`` перед собственной тактовкой входа среда агрегирует суммарную
-        работу автономных членов (``member_output``), а открытое окно среды
-        транслируется всякому адресанту надбавкой ENV_BONUS к отдаче —
-        самоподобие: закон модуляции окна одинаков на всех ярусах.
-    ``members=None`` (по умолчанию) — прежнее поведение плоской среды; список
-    пуст — то же. Новых переменных состояния не вводится: members — структура
-    из уже существующих объектов-автоматов, их поля — те же поля Agent.
-
-    Отличие от автомата-персонажа одно и состоит из уже существующих состояний:
-    у среды нет оппонента, поэтому beliefs фиксированы («противник REST с
-    нулевой работой»), а её собственный выход наружу — не передача силы, а
-    окно конъюнктуры (ENV_BONUS) и автономный доход (ENV_INCOME).
-
-    Альтернативная онтология («среда как отдельное пространство», гипотеза A)
-    удалена из кода по итогам сравнения (раздел 13 MODEL.md): она не имела ни
-    метрик, ни состояний и была вырожденным случаем настоящей среды (env=None).
-    """
 
     def __init__(self, start_force=10, members=None, lossy=False):
-        # Профиль CANON (p=1): среда применяет кодекс без профильных искажений.
+
         super().__init__(profile="CANON")
-        self.force = float(start_force)          # сила среды (капитал конъюнктуры)
-        # Иерархия: нижестоящие автоматы, объятые этой суперсистемой (см.
-        # docs/MODEL.md, раздел 14). None/пусто — плоская среда (прежнее
-        # поведение). Новых переменных нет: members — контейнер существующих
-        # автоматов, его содержимое описывается тем же кодексом Agent.
+        self.force = float(start_force)
+
         self.members = list(members) if members else []
-        # Лоссовая наблюдаемость (информационная асимметрия): суперсистема
-        # видит агрегат событий, а части — только публичное окно с задержкой.
-        # При lossy=False поведение канона не меняется.
+
         self.lossy = bool(lossy)
         self.channel = observability.LossyChannel(
-            resolution=OBS_RESOLUTION, delay=OBS_DELAY)
+            resolution=OBS_RESOLUTION, delay=OBS_DELAY
+        )
         self._public_window = False
         self._public_window_prev = False
-        # Среде некого наблюдать: beliefs нейтральны. Ротации типа нет —
-        # рецептивный тип входа выводится из контекста (property ``defense``).
-        self.beliefs.update({"opp_last_act": "REST", "opp_last_work": 0,
-                             "opp_energy": 0, "opp_force": 1,
-                             "opp_w_adopt": 0.0, "opp_in_open": False})
+
+        self.beliefs.update(
+            {
+                "opp_last_act": "REST",
+                "opp_last_work": 0,
+                "opp_energy": 0,
+                "opp_force": 1,
+                "opp_w_adopt": 0.0,
+                "opp_in_open": False,
+            }
+        )
 
     def receive_pressure(self, w):
-        """Input-обработка Agent + рост потолка покоя от труда автоматов.
-
-        Наследует накопление давления и открытие окна по Шмитту у Agent;
-        добавляет единственное средовое следствие нагрузки: rest_units среды
-        растёт от входящей работы (w * 0.01), расширяя потолок покоя
-        суперсистемы. Новых переменных нет — rest_units есть поле Agent.
-
-        Рост ограничен ENV_REST_CAP (предохранитель): иначе на длинных партиях
-        потолок покоя среды уползал бы неограниченно, а с ним и порог Шмитта
-        ON(F), из-за чего окно конъюнктуры в итоге перестало бы открываться."""
         super().receive_pressure(w)
-        self.rest_units = min(self.rest_units + w * 0.01, ENV_REST_CAP)  # труд расширяет потолок (с капом)
+        self.rest_units = min(self.rest_units + w * 0.01, ENV_REST_CAP)
 
     def ingest(self, work):
-        """Вход от части: при lossy — лоссовый агрегат вместо точного события.
-
-        Точная работа, identity, тип и тайминг события теряются; суперсистема
-        получает только квантованный агрегат за интервал. При lossy=False —
-        прежний прямой ``receive_pressure`` (канон).
-        """
         if self.lossy:
             self.channel.push(work)
         else:
             self.receive_pressure(work)
 
     def public_window(self):
-        """Публичное окно конъюнктуры для частей.
-
-        При lossy части видят окно ПРОШЛОГО такта (информационная асимметрия:
-        суперсистема не отдаёт внутренности в реальном времени), иначе — как
-        раньше, текущее ``in_open``.
-        """
         return self._public_window_prev if self.lossy else self.in_open
 
     def rotate_defense(self, rng):
-        """No-op ради совместимости API: ротация типа упразднена (см. §2 MODEL.md).
-
-        Тип входа — контекстная фаза (property ``defense``), а не ротируемая
-        метка, поэтому ротации нет ни у автоматов, ни у суперсистем. Метод
-        сохранён для совместимости протокола такта; рекурсивный вызов на
-        членах-средах сохранён ради симметрии обхода (оба вызова инертны)."""
         super().rotate_defense(rng)
         for m in self.members:
             if isinstance(m, Environment):
-                Agent.rotate_defense(m, rng)   # инертно (тот же no-op)
+                Agent.rotate_defense(m, rng)
 
     def snapshot(self):
-        """Снимок IPO-состояния суперсистемы для наблюдения за иерархией.
-
-        Только ЧТЕНИЕ существующих полей — новых переменных состояния не вводится.
-        Рекурсивен: включает снимки объятых членов-сред, поэтому многоуровневая
-        композиция наблюдаема целиком (нужно экспериментам раздела 14 MODEL.md).
-        last_work/last_act среды отражают её входной труд за такт (агрегат)."""
         return {
             "force": self.force,
             "energy_pool": self.energy_pool,
@@ -1065,24 +589,23 @@ class Environment(Agent):
             "defense": self.defense,
             "last_act": self.last_act,
             "last_work": self.last_work,
-            "members": [m.snapshot() for m in self.members
-                        if isinstance(m, Environment)],
+            "members": [
+                m.snapshot()
+                for m in self.members
+                if isinstance(m, Environment)
+            ],
         }
 
     def public_snapshot(self):
-        """Публичный снимок суперсистемы для частей: только агрегаты.
-
-        Контракт лоссовой наблюдаемости (docs/MODEL.md §16, docs/TODO.md O1):
-        часть не должна получать identity членов, точные ``last_work``/``defense``
-        и внутренние метрики суперсистемы. Возвращаются только грубые полосы и
-        публичное окно; для отладки остаётся ``snapshot()`` (ground truth).
-        """
         on = max(ON_MIN, ON_FRAC * self.force)
         pressure = self.w_adopt / on if on > 0 else 0.0
         pressure_band = 0 if pressure < 0.5 else (1 if pressure < 1.0 else 2)
         ceiling = max(1.0, self.rest_ceiling)
-        force_band = 0 if self.force < ceiling / 3.0 else (
-            1 if self.force < 2.0 * ceiling / 3.0 else 2)
+        force_band = (
+            0
+            if self.force < ceiling / 3.0
+            else (1 if self.force < 2.0 * ceiling / 3.0 else 2)
+        )
         return {
             "window": self.public_window(),
             "pressure_band": pressure_band,
@@ -1092,81 +615,20 @@ class Environment(Agent):
         }
 
     def member_output(self):
-        """Эмерджентный выход нижнего яруса: суммарная работа членов за такт.
-
-        Выходы автоматов (``last_work`` при nonzero ``last_act``) складываются —
-        это и есть вход суперсистемы от объятых ею структур. Новых переменных
-        нет: сумма берётся из уже существующих полей членов; свойство
-        самоподобия — та же величина, что нагружает вход среды в партии
-        (resolve_attack -> receive_pressure), здесь агрегируется явно.
-
-        Агрегация РЕКУРСИВНА: если член — сам среда-суперсистема, в сумму
-        входит её собственный ``member_output`` (а не её ``last_work``: среда
-        наружу даёт окно конъюнктуры, а не передачу силы, и в покое её
-        ``last_act`` = REST). Иначе труд членов второго и более ярусов не
-        доходил бы до верхнего входа — глубина ≥2 была бы разорвана. Тот же
-        кодекс на всех ярусах (docs/MODEL.md, раздел 14; автотест —
-        experiments/exp_hierarchy_depth.py)."""
         total = 0.0
         for m in self.members:
             if isinstance(m, Environment):
-                total += m.member_output()          # рекурсия вниз по ярусам
+                total += m.member_output()
             elif m.last_act != "REST":
                 total += m.last_work
         return total
 
     def tick(self):
-        """Один такт среды: тот же протокол Process, что у автомата.
-
-        Здесь — энергия, состояния входа, автономный доход и покой/upkeep.
-        Все фазы — унаследованные обработчики Agent; ротации типа нет
-        (``rotate_defense`` — no-op, тип выводится из контекста, §2 MODEL.md).
-
-        Иерархия (members): перед собственной тактовкой входа среда принимает
-        эмерджентный вход яруса — суммарную работу членов (member_output).
-        В партии play_game члены-персонажи уже бьют по входу среды напрямую
-        (resolve_attack -> receive_pressure); здесь же агрегируются выходы
-        автономных подсистем, живущих вне дуэли: суперсистема «видит» труд
-        своих членов как единое давление, и окно конъюнктуры верхнего яруса
-        открывается устойчивым суммарным напором, а не отдельными передачами —
-        эмерджентность порога Шмитта над суммацией работ. Обработчик тот же
-        (receive_pressure), новых переменных нет.
-
-        Автономный доход ENV_INCOME — единственный элемент, отсутствовавший в
-        прежней модели «среды-пространства»: среда-автомат воспроизводит
-        закрытый разделом 13 открытый вопрос 3 MODEL.md (внешняя среда с
-        автономным доходом) без новых переменных — доход есть работа самой
-        среды, порождаемая её состоянием покоя. Замечание: потолок покоя среды
-        растёт только от чужого труда (receive_pressure), сам доход rest_units
-        не увеличивает — принцип §5 («потолок недоступен бездельнику»)
-        сохранён и для суперсистемы. Автономный доход ограничен этим же
-        потолком покоя (``min(force + ENV_INCOME, rest_ceiling)``): без
-        ограничения сила среды растёт безгранично (ENV_INCOME > upkeep), а с ней
-        и порог Шмитта ON(F), из-за чего окно конъюнктуры закрывается навсегда —
-        среда переставала быть источником окон.
-
-        Покой применяется как НЕвыбранный (do_rest(chosen=False), половина
-        прибыли и малое пополнение пула): осознанный отдых Agent ограничивает
-        силу потолка ПОЛОЖИТЕЛЬНЫМ приростом, из-за чего среда не могла бы
-        опуститься ниже L и окно конъюнктуры переставало бы захлопываться
-        (дегенерация гистерезиса). Прежняя средовая форма do_rest была
-        эквивалентна именно этому вызову.
-
-        Иерархия (рекурсия ярусов): если среди members есть нижестоящие
-        суперсистемы (Environment), они тактуются ЗДЕСЬ — тот же протокол
-        на ярус ниже (их собственные члены агрегируются их же tick). Так
-        многоуровневая композиция живёт без расширения онтологии: порядок
-        обхода — снизу вверх (сначала труд членов, затем вход яруса), что
-        соответствует причинности партии (передачи персонажей бьют по входу
-        среды уже в resolve_attack)."""
-        for m in self.members:                   # рекурсивный такт нижних ярусов
-            if isinstance(m, Environment):       # автономные подсреды «дышат» сами
-                m.tick()                         # агенты-члены вне дуэли такта не имеют
+        for m in self.members:
+            if isinstance(m, Environment):
+                m.tick()
         if self.lossy:
-            # Лоссовый вход: только агрегат событий (identity/тип/тайминг
-            # потеряны) плюс автономные подсреды. Точные last_work участников
-            # дуэли уже прошли через channel в resolve_attack, поэтому
-            # member_output для них не дублируется — это снимает F5.
+
             obs = self.channel.drain()
             w_members = obs.work
             for m in self.members:
@@ -1174,47 +636,23 @@ class Environment(Agent):
                     w_members += m.member_output()
             if w_members:
                 self.receive_pressure(w_members)
-        elif self.members:                       # вход суперсистемы: суммарный труд членов
+        elif self.members:
             w_members = self.member_output()
             if w_members:
-                self.receive_pressure(w_members) # тот же кодекс Шмитта — самоподобие
-        self.tick_energy()                       # пополнение пула потоком regen (Agent)
-        self.tick_input_state()                  # гистерезис Шмитта входа (Agent)
-        # Автономный доход НЕ обходит потолок покоя: иначе сила среды растёт
-        # безгранично (ENV_INCOME > upkeep), а вместе с ней и порог Шмитта
-        # ON(F)=max(ON_MIN, ON_FRAC*F) — окно конъюнктуры закрывается навсегда
-        # (замер: force 10→1030 при потолке ~76, ON→258). Доход ограничен тем же
-        # логистическим потолком, что и покой любого автомата, поэтому среда
-        # остаётся рабочей «конъюнктурой», а не бесконечным накопителем.
+                self.receive_pressure(w_members)
+        self.tick_energy()
+        self.tick_input_state()
+
         self.force = min(self.force + ENV_INCOME, self.rest_ceiling)
-        if self.force < self.rest_ceiling:       # логистический покой (Agent)
+        if self.force < self.rest_ceiling:
             self.do_rest(chosen=False)
-        self.upkeep()                            # содержание структуры (Agent)
-        # Публичное окно для частей: при lossy они видят прошлый такт.
+        self.upkeep()
+
         self._public_window_prev = self._public_window
         self._public_window = self.in_open
 
 
 def _apply_transfer(att, dfn, work, att_type, rng, env=None):
-    """Ядро единого закона передачи: шаги 2–5 протокола ``resolve_attack``.
-
-    Выделено, чтобы ОБА направления — основной удар и ответный — проходили один
-    и тот же закон, но ответный не порождал собственного контр-возмездия (иначе
-    бесконечная рекурсия). Отличие от прежней версии принципиально: тип энергии
-    адресанта передаётся ЯВНЫМ аргументом ``att_type`` и НЕ читается из
-    ``att.last_act``, поэтому ответный удар не искажает намерение адресанта
-    (раньше возмездие перезаписывало ``last_act``/``last_work`` адресата, и
-    вторая атака такта уходила чужим типом — защитой вместо выбранного действия).
-
-    Args:
-        att, dfn: адресант и адресат передачи.
-        work: мощность передачи (единиц работы).
-        att_type: тип энергии адресанта (его выбранное действие или защита
-            при возмездии) — определяет контр-множитель ``MULT``.
-        rng: генератор случайных чисел партии.
-        env: необязательная среда-автомат; её вход нагружается всякой передачей,
-            открытое окно даёт надбавку ENV_BONUS к отдаче адресанта.
-    """
     open_now = dfn.in_open
     dfn.receive_pressure(work)
     if env is not None:
@@ -1223,11 +661,10 @@ def _apply_transfer(att, dfn, work, att_type, rng, env=None):
         m = MULT.get((att_type, dfn.defense), 1.0)
         gain_frac = GAIN_MAX if open_now else Y_SMALL
         if env is not None:
-            # При lossy часть видит только публичное окно (с задержкой), а не
-            # внутреннее in_open суперсистемы — информационная асимметрия.
+
             env_window = env.public_window() if env.lossy else env.in_open
             if env_window:
-                gain_frac *= (1.0 + ENV_BONUS)
+                gain_frac *= 1.0 + ENV_BONUS
         gained = int(work * m * gain_frac)
         if gained:
             att.gain(gained)
@@ -1237,53 +674,11 @@ def _apply_transfer(att, dfn, work, att_type, rng, env=None):
 
 
 def resolve_attack(att, dfn, work, rng, env=None):
-    """Единый закон передачи — общий для конкуренции любой природы
-    (физической, информационной, экономической; мирное сосуществование = работа 0).
-
-    Порядок разрешения такта давящего att против адресата dfn:
-      1. Цена работы: COST_FRACTION*w сгорает всегда — предельная стоимость давления.
-      2. Накопление давления: всякая входящая работа нагружает вход адресата
-         (пороги Шмитта); окно открывается со следующего удара — инерция системы
-         (удар, переполнивший чашу, сам сквозь неё ещё не проходит).
-      3. Успех вероятностен (p_success: мощность, тип против защиты).
-      4. При успехе: адресант получает w*m*(GAIN_MAX если вход был открыт, иначе
-         Y_SMALL); адресат теряет w и восстанавливает K_EFFECT*w — разница
-         сгорает безвозвратно (единственный источник чистых потерь обмена).
-         Труд адресанта порождает rest_units (рост потолка покоя).
-      5. Промах: цена уплачена, отдачи нет, но износ входа накоплен — завтра
-         окно может открыться. Система «трескается» от любого напора.
-      6. Возмездие: адресат отвечает долей RETALIATE_FRACTION*w ПО ТОМУ ЖЕ закону
-         (шаги 1–5 ниже через ``_apply_transfer``: цена работы, накопление
-         давления на входе обидчика, шок его пула, трение, окно среды), но без
-         собственного контр-возмездия. Тип ответа — тип защиты адресата.
-         ``last_act``/``last_work`` адресата не перезаписываются, поэтому
-         запланированное им действие такта не искажается ответным ударом.
-
-    Окупаемость давления НЕ гарантирована архитектурой: нужен накопленный напор,
-    угаданный тип (m=3), попадание броска и резерв сил в такт конечного окна.
-    Просчитанные линии гибнут — это свойство стратегии, а не случайности.
-
-    Опциональный env (среда-автомат, см. Environment): работа одновременно нагружает
-    вход среды; если вход среды открыт, адресант получает надбавку ENV_BONUS к
-    отдаче — среда-автомат транслирует накопленное давление в выход для автоматов.
-
-    Иерархия (раздел 14 MODEL.md): env может быть суперсистемой с members —
-    тогда всякая передача нижестоящего автомата удваивает канал входа яруса:
-    прямой удар по входу среды (здесь) и суммирование работ членов (Environment.
-    tick -> member_output -> receive_pressure). Модуляция отдачи окном среды
-    действует на любого адресанта, объятного этой средой, — закон одинаков для
-    всех направлений иерархии (самоподобие)."""
     if not work:
         return
     att.force = max(1, att.force - int(COST_FRACTION * work))
     _apply_transfer(att, dfn, work, att.last_act, rng, env)
 
-    # Возмездие (шаг 6 протокола): доля принятой работы возвращается адресатом
-    # по ТОМУ ЖЕ закону — с ценой работы, накоплением давления на входе обидчика,
-    # шоком его пула, трением и модуляцией окном среды, — но без собственного
-    # контр-возмездия (иначе рекурсия). Тип ответа — тип защиты адресата.
-    # ``last_act``/``last_work`` при этом НЕ перезаписываются: они принадлежат
-    # запланированному действию адресата в этом такте и не должны искажаться.
     r_w = int(RETALIATE_FRACTION * work)
     if r_w > 0 and dfn.energy_pool >= 1:
         r_w = min(r_w, dfn.energy_pool, MAX_WORK)
@@ -1293,39 +688,13 @@ def resolve_attack(att, dfn, work, rng, env=None):
 
 
 def dominates(att, dfn):
-    """Устойчивое доминирование: пул ``att`` не меньше CAPTURE_RATIO-кратного пула
-    соперника И сила строго больше (``docs/MODEL.md`` §6).
-
-    ЕДИНЫЙ предикат победы: используется и каноном (``check_capture``), и
-    экспериментами (``experiments/strategies.duel``), чтобы CI-баланс проверялся под
-    тем же правилом, что и канон (пункт A2 ревью; ранее критерии расходились и по
-    метрике-якорю, и по строгости). Чистая функция — состояния сторон не меняет."""
-    return att.energy_pool >= CAPTURE_RATIO * dfn.energy_pool and att.force > dfn.force
+    return (
+        att.energy_pool >= CAPTURE_RATIO * dfn.energy_pool
+        and att.force > dfn.force
+    )
 
 
 def check_capture(rl, ai, dom_rl=0, dom_ai=0):
-    """Решение о поражении по устойчивому доминированию, а не по одному удачному ходу.
-
-    Доминирование фиксируется серией из CAPTURE_STREAK тактов, в течение которых
-    одна сторона сохраняет пул >= CAPTURE_RATIO * пула соперника и большую силу.
-    Тогда перетекает CAPTURE_FRAC силы проигравшего; тяжесть удваивается, если
-    проигравший встречает решение с открытым (надорванным) входом — стоять до
-    конца на надорванном входе сопоставимо с разгромом, отступление покоем дешевле.
-    Формулировка нейтральна: описывает вытеснение с рынка, подавление канала
-    в инфо-среде и физическое давление одинаково.
-
-    Серии доминирования — состояние ПАРТИИ, а не автомата: передаются и
-    возвращаются явно (``dom_rl``/``dom_ai``), поэтому функция реентерабельна и
-    не держит модульных глобалов (несколько партий могут сосуществовать).
-
-    Args:
-        rl, ai: стороны.
-        dom_rl, dom_ai: текущие серии доминирования сторон (такты).
-
-    Returns:
-        (winner, dom_rl, dom_ai): winner — "RL" | "UtilityAI" | None
-        (None означает «партия продолжается»); серии сбрасываются при решении.
-    """
     dom_rl = dom_rl + 1 if dominates(rl, ai) else 0
     dom_ai = dom_ai + 1 if dominates(ai, rl) else 0
     if dom_rl >= CAPTURE_STREAK:
@@ -1334,8 +703,7 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
         ai.force = max(1, ai.force - cap)
         ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
         rl.gain(cap)
-        # Захват — граница линии сигнала: локальная энтропия начинается заново,
-        # H_cum (необратимый износ) сохраняется (E1, information.py).
+
         rl.new_entropy_lineage()
         ai.new_entropy_lineage()
         return "RL", 0, 0
@@ -1352,33 +720,13 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
 
 
 def run_tick(a, b, intent_a, intent_b, rng, env=None):
-    """Единый такт дуэли сторон ``a`` и ``b`` (шаги 1–5 протокола ``play_game``).
-
-    ЕДИНЫЙ источник порядка такта: и канон (``play_game``), и эксперименты
-    (``experiments/strategies.duel``, ``exp_schmitt_suite``) вызывают его, чтобы
-    порядок шагов не расходился между ними (пункт B2 ревью).
-
-    Что делает: 1) взаимное наблюдение ``sense``; 2) шаг совместимости
-    ``rotate_defense`` (no-op) обеих сторон и среды; 3) ``upkeep``,
-    ``tick_energy``, ``tick_input_state`` сторон и ``env.tick()`` (если среда
-    есть); 4) намерения сторон через ``intent_*`` (голодный рефлекс и ``commit``
-    применяются здесь одинаково для всех); 5) ``resolve_attack`` в обе стороны.
-
-    Намерение стороны — вызываемый ``intent_x(me, opp, rng) -> (act, work)``:
-    у RL это epsilon-greedy + захват состояния для TD-обучения, у Utility —
-    argmax ``U``, у скриптов — сама политика ``(me, opp, rng)``. Всё, что
-    специфично для стороны (обучение RL, учёт истории), остаётся у вызывающего.
-
-    Returns:
-        (work_a, work_b) — фактически выполненная работа сторон (после
-        ``rest_if_starving`` и ``commit``)."""
     a.sense(b, rng)
     b.sense(a, rng)
 
     a.rotate_defense(rng)
     b.rotate_defense(rng)
     if env is not None:
-        env.rotate_defense(rng)          # no-op (тип — контекст, см. §2 MODEL.md)
+        env.rotate_defense(rng)
 
     a.upkeep()
     b.upkeep()
@@ -1399,83 +747,31 @@ def run_tick(a, b, intent_a, intent_b, rng, env=None):
     return work_a, work_b
 
 
-def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
-              env_members=None, entropy=False, lossy=False):
-    """Одна партия; между партиями переносится только Q-таблица RL.
-
-    Физическое состояние сторон сбрасывается в начале партии (``reset_state``):
-    каждая партия стартует с равных условий (сила 10, пул 3, вход закрыт), а
-    обучение (Q) переносится. Без сброса порядок партий влиял бы на исход.
-
-    Args:
-        profiles: None — профили сторон берутся из уже заданных при создании
-            агентов (по умолчанию "CANON" == прежняя каноническая механика);
-            пара (p_rl, p_ai) — применить профили сторонам перед партией
-            (имя из PROFILES или вещественный p). Профиль присваивается
-            существующему скаляру ``Agent.p`` — новых переменных не появляется.
-        with_env: участвовать ли среде-автомату (Environment) в партии.
-            Среда как всеобъемлющий IPO-автомат — утверждённое архитектурное
-            решение (раздел 13 MODEL.md), поэтому по умолчанию True: вход
-            среды нагружается всякой передачей, а открытое окно даёт адресанту
-            надбавку ENV_BONUS к отдаче и среда несёт автономный доход
-            ENV_INCOME. False оставлен лишь для сравнения с прежним каноном
-            («среда-пространство» удалена из кода вместе с гипотезой A).
-        env_members: список нижестоящих автоматов, объятых средой партии
-            (суперсистема, раздел 14 MODEL.md). Принято передавать саму среду
-            ([rl, ai] либо [rl, ai, подсреда]) — тогда персонажи одновременно
-            члены дуэли и объятые структуры, а их суммарный труд образует
-            эмерджентный вход яруса (Environment.tick -> member_output).
-            Ветки members, не участвующие в дуэли (автономные подсреды),
-            тактуются рекурсивно внутри env.tick(). Новых переменных нет:
-            members — контейнер существующих автоматов того же кодекса.
-        entropy: включить информационный слой (энтропия смысла как демпфер
-            петель). По умолчанию False — канон не меняется. См.
-            ``information.py`` и docs/DESIGN_ADVANCED.md.
-        lossy: включить лоссовую наблюдаемость (информационная асимметрия
-            суперсистемы и частей). По умолчанию False — канон не меняется.
-            См. ``observability.py`` и docs/DESIGN_ADVANCED.md.
-
-    Протокол такта (фиксированный порядок, стороны зеркальны):
-      1. Взаимное наблюдение (sense) — частичная наблюдаемость.
-      2. Шаг совместимости: вызовы ``rotate_defense`` (no-op) обеих сторон и
-         среды; тип входа выводится из контекста, ротации нет (§2 MODEL.md).
-      3. Поддержание структуры (upkeep), пополнение пулов (tick_energy),
-         тактовка состояний входов (tick_input_state, пороги Шмитта с
-         профильным decay/OFF). При with_env тем же шагом тактуется
-         и среда (Environment.tick — тот же протокол для суперсистемы);
-         если заданы env_members, её вход дополнительно нагружается
-         суммарным трудом объятых автоматов (эмерджентность яруса), а
-         автономные подсреды тактуются в ней рекурсивно.
-      4. Намерения: RL epsilon-greedy (eps annealing по ОБЩЕМУ опыту агента,
-         см. ``RLAgent.epsilon``); Utility — argmax U(action); рефлекс голода
-         имеет приоритет над обоими.
-      5. Разрешение передач по единому закону (resolve_attack) в обе стороны;
-         при with_env передачи одновременно нагружают вход среды.
-      6. TD-обучение RL на корректном переходе s -> s' с наградой delta F.
-      7. Проверка устойчивого доминирования (check_capture).
-
-    Returns:
-        (winner | None, rl_hist, ai_hist, end_step)
-    """
+def play_game(
+    rl,
+    ai,
+    steps=1000,
+    seed=0,
+    profiles=None,
+    with_env=True,
+    env_members=None,
+    entropy=False,
+    lossy=False,
+):
     if profiles is not None:
         p_rl, p_ai = profiles
         rl.set_profile(p_rl)
         ai.set_profile(p_ai)
-    # Партия начинается с равных стартовых условий: физическое состояние
-    # (метрики, вход, наблюдения) сбрасывается, переносится только обучение
-    # (Q-таблица RL). Иначе проигравший стартовал бы ослабленным, а победитель —
-    # усиленным, и исход зависел бы от порядка партий (см. Agent.reset_state).
+
     rl.entropy_enabled = bool(entropy)
     ai.entropy_enabled = bool(entropy)
     rl.reset_state()
     ai.reset_state()
     env = Environment(members=env_members, lossy=lossy) if with_env else None
-    dom_rl = dom_ai = 0                     # серии доминирования — локальны для партии
+    dom_rl = dom_ai = 0
     rng = random.Random(seed)
     rl_hist, ai_hist = [], []
-    # Намерения сторон (шаг 4 протокола) и захват состояния для TD-обучения RL.
-    # ``trace`` выносит наружу индекс действия и силу до commit: обучение (шаг 6)
-    # RL-специфично, поэтому в общий ``run_tick`` не входит.
+
     trace = {}
 
     def rl_intent(me, opp, r):
@@ -1494,8 +790,12 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
 
         rl_hist.append(rl.force)
         ai_hist.append(ai.force)
-        rl.learn(trace["st_before"], trace["idx"],
-                 rl.force - trace["f_before"], rl.skey())
+        rl.learn(
+            trace["st_before"],
+            trace["idx"],
+            rl.force - trace["f_before"],
+            rl.skey(),
+        )
 
         winner, dom_rl, dom_ai = check_capture(rl, ai, dom_rl, dom_ai)
         if winner:
@@ -1503,22 +803,15 @@ def play_game(rl, ai, steps=1000, seed=0, profiles=None, with_env=True,
     return None, rl_hist, ai_hist, steps
 
 
-def run_batch(n_games=10, steps=1000, quiet=False, with_env=True,
-              env_members_fn=None, entropy=False, lossy=False):
-    """Пакет партий со сквозным обучением RL (общая Q-таблица через все партии).
-
-    Args:
-        with_env: участвовать ли среде-автомату в партиях (см. play_game;
-            по умолчанию True — утверждённая онтология раздела 13 MODEL.md).
-        env_members_fn: None — плоская среда (канон); вызываемый объект
-            fn(rl, ai) -> list — состав members среды каждой партии
-            (суперсистема, раздел 14 MODEL.md), напр. lambda rl, ai: [rl, ai].
-            Вызывается после создания оппонента, до старта тактов.
-
-    Returns:
-        (rl_agent, last_game_tuple, results_dict) — results_dict считает победы
-        по ключам "RL" / "UtilityAI" / None (None — «без решения» за steps тактов).
-    """
+def run_batch(
+    n_games=10,
+    steps=1000,
+    quiet=False,
+    with_env=True,
+    env_members_fn=None,
+    entropy=False,
+    lossy=False,
+):
     rl = RLAgent()
     results = {"RL": 0, "UtilityAI": 0, None: 0}
     finals = {"RL": [], "UtilityAI": [], None: []}
@@ -1527,43 +820,58 @@ def run_batch(n_games=10, steps=1000, quiet=False, with_env=True,
         ai = UtilityAI()
         members = env_members_fn(rl, ai) if env_members_fn else None
         winner, rl_hist, ai_hist, end_step = play_game(
-            rl, ai, steps, seed=g, with_env=with_env, env_members=members,
-            entropy=entropy, lossy=lossy)
+            rl,
+            ai,
+            steps,
+            seed=g,
+            with_env=with_env,
+            env_members=members,
+            entropy=entropy,
+            lossy=lossy,
+        )
         results[winner] += 1
         finals[winner].append(rl.force)
         last = (winner, rl_hist, ai_hist, end_step)
         if not quiet:
-            print(f"Game {g+1}: winner={winner or 'no-capture'} at step {end_step} | "
-                  f"final RL force={rl.force:.0f}, final UtilityAI force={ai_hist[-1]:.0f}")
+            print(
+                f"Game {g + 1}: winner={winner or 'no-capture'} at step "
+                f"{end_step} | "
+                f"final RL force={rl.force:.0f}, final UtilityAI "
+                f"force={ai_hist[-1]:.0f}"
+            )
     if not quiet:
         print("\nИтоги пакетного прогона:")
-        print(f"  RL победил: {results['RL']}/{n_games}, "
-              f"UtilityAI: {results['UtilityAI']}/{n_games}, "
-              f"без решения: {results[None]}/{n_games}")
+        print(
+            f"  RL победил: {results['RL']}/{n_games}, "
+            f"UtilityAI: {results['UtilityAI']}/{n_games}, "
+            f"без решения: {results[None]}/{n_games}"
+        )
         for k in finals:
             if finals[k]:
-                print(f"  Финальная сила RL при '{k}': медиана={statistics.median(finals[k]):.0f}")
+                print(
+                    f"  Финальная сила RL при '{k}': "
+                    f"медиана={statistics.median(finals[k]):.0f}"
+                )
     return rl, last, results
 
 
 def main():
-    """Точка входа: пакет из 10 партий со сквозным обучением RL, сводка и график.
-
-    График — динамика силы обеих сторон за последнюю партию (лог-шкала),
-    наглядно показывающая фазы накопления, окон восприимчивости и доминирования.
-
-    ``matplotlib`` импортируется лениво: ядро модели (и все эксперименты/тесты,
-    которым график не нужен) не зависят от графической библиотеки."""
     rl, (winner, rl_hist, ai_hist, end_step), results = run_batch(n_games=10)
 
-    print(f"\nПоследняя партия: winner={winner or 'no-capture'}, шагов={end_step}")
+    print(
+        f"\nПоследняя партия: winner={winner or 'no-capture'}, "
+        f"шагов={end_step}"
+    )
     print(f"Q-состояний изучено: {len(rl.Q)}")
 
     import matplotlib.pyplot as plt
+
     plt.figure(figsize=(10, 6))
-    plt.plot(rl_hist, label="RL Agent", color='blue', linewidth=2)
-    plt.plot(ai_hist, label="Utility AI", color='red', linewidth=2)
-    plt.title("Динамика силы агентов (пороги Шмитта на входе адресата)", fontsize=14)
+    plt.plot(rl_hist, label="RL Agent", color="blue", linewidth=2)
+    plt.plot(ai_hist, label="Utility AI", color="red", linewidth=2)
+    plt.title(
+        "Динамика силы агентов (пороги Шмитта на входе адресата)", fontsize=14
+    )
     plt.xlabel("Шаг симуляции", fontsize=12)
     plt.ylabel("Сила (Force, log)", fontsize=12)
     plt.yscale("log")

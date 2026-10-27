@@ -1,11 +1,3 @@
-"""Генератор JSON-автоматов из аналитического разбора организации.
-
-Модуль использует только ``automata.model`` (без pygame) и пишет файлы через
-``automata.storage.AutomataStore``. Один разбор — один автомат: универсальная
-функциональная цепь, названия состояний которой выводятся из потребности,
-режимов и уровня.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -55,11 +47,16 @@ def _description(analysis):
         "Аналитическая организация-суперсистема, выведенная из приоритетной "
         "потребности и масштаба её удовлетворения. "
         + _summary(analysis)
-        + ". Режимы: " + _mode_line(analysis)
-        + ". Взносы: " + analysis.contribution
-        + "; принуждение: " + analysis.coercion
-        + "; легитимация: " + analysis.legitimation
-        + "; воспроизводство: " + analysis.reproduction
+        + ". Режимы: "
+        + _mode_line(analysis)
+        + ". Взносы: "
+        + analysis.contribution
+        + "; принуждение: "
+        + analysis.coercion
+        + "; легитимация: "
+        + analysis.legitimation
+        + "; воспроизводство: "
+        + analysis.reproduction
         + ". Участие: участник считается желающим, если выгода внутри минус "
         "взносы, риск и внешняя альтернатива неотрицательна; организация "
         "живёт, пока есть хотя бы один желающий. Ярлык — производная режимов "
@@ -68,17 +65,16 @@ def _description(analysis):
 
 
 def _analysis_seed(analysis):
-    """Стабильный seed из разбора; не зависит от hash randomization."""
     payload = analysis.to_dict()
     payload.pop("assessments", None)
-    text = json.dumps(payload, ensure_ascii=False, sort_keys=True,
-                      separators=(",", ":"))
+    text = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return int(digest[:16], 16)
 
 
 def _natural_name(analysis, seed=None):
-    """Естественное название по функции, потребности и уровню."""
     mode = analysis.top_mode
     if not mode or analysis.dissolved:
         return None
@@ -88,8 +84,11 @@ def _natural_name(analysis, seed=None):
         from naming.catalog import NamingError
 
         result = NameGenerator(seed=name_seed).automaton_name(
-            mode, need=analysis.priority_need, level=analysis.level,
-            seed=name_seed)
+            mode,
+            need=analysis.priority_need,
+            level=analysis.level,
+            seed=name_seed,
+        )
         return result.text or None
     except (NamingError, ValueError, KeyError):
         return None
@@ -100,12 +99,6 @@ def _legacy_title(analysis):
 
 
 def build_automaton(analysis, name=None, seed=None):
-    """Собрать ``automata.model.Automaton`` из разбора.
-
-    По умолчанию имя выводится генератором ``naming`` из доминирующей
-    функции, приоритетной потребности и уровня. ``name`` задаёт явное
-    переопределение, ``seed`` — воспроизводимый seed названия.
-    """
     if analysis.dissolved:
         return _build_dissolved(analysis, name=name)
     return _build_active(analysis, name=name, seed=seed)
@@ -118,101 +111,109 @@ def _build_dissolved(analysis, name=None):
     automaton = Automaton(title, _description(analysis))
     need = analysis.need_ru
     latent = automaton.add_state(
-        "Потребность: %s" % need,
-        x=120, y=180, initial=True)
+        "Потребность: %s" % need, x=120, y=180, initial=True
+    )
     dissolved = automaton.add_state(
-        "Распад: нет желающих",
-        x=480, y=180, final=True)
+        "Распад: нет желающих", x=480, y=180, final=True
+    )
     automaton.add_transition(
-        latent.id, dissolved.id,
-        "мобилизация не состоялась",
-        "willing = 0")
+        latent.id, dissolved.id, "мобилизация не состоялась", "willing = 0"
+    )
     return automaton
 
 
 def _build_active(analysis, name=None, seed=None):
     from automata.model import Automaton
 
-    title = name or _natural_name(analysis, seed=seed) or _legacy_title(analysis)
+    title = (
+        name or _natural_name(analysis, seed=seed) or _legacy_title(analysis)
+    )
     automaton = Automaton(title, _description(analysis))
 
     latent = automaton.add_state(
-        "Потребность: %s" % analysis.need_ru,
-        x=80, y=80, initial=True)
+        "Потребность: %s" % analysis.need_ru, x=80, y=80, initial=True
+    )
     mobilizing = automaton.add_state(
-        "Мобилизация: %s" % analysis.contribution,
-        x=340, y=80)
+        "Мобилизация: %s" % analysis.contribution, x=340, y=80
+    )
     producing = automaton.add_state(
-        "Производство: %s" % analysis.goods,
-        x=600, y=80)
+        "Производство: %s" % analysis.goods, x=600, y=80
+    )
     distributing = automaton.add_state(
-        "Распределение: %s" % analysis.goods,
-        x=860, y=80)
+        "Распределение: %s" % analysis.goods, x=860, y=80
+    )
     enforcing = automaton.add_state(
-        "Принуждение: %s" % analysis.coercion,
-        x=860, y=280)
+        "Принуждение: %s" % analysis.coercion, x=860, y=280
+    )
     legitimating = automaton.add_state(
-        "Легитимация: %s" % analysis.legitimation,
-        x=600, y=280)
+        "Легитимация: %s" % analysis.legitimation, x=600, y=280
+    )
     reproducing = automaton.add_state(
-        "Воспроизводство: %s" % analysis.reproduction,
-        x=340, y=280)
-    crisis = automaton.add_state(
-        "Кризис участия",
-        x=340, y=480)
+        "Воспроизводство: %s" % analysis.reproduction, x=340, y=280
+    )
+    crisis = automaton.add_state("Кризис участия", x=340, y=480)
     dissolved = automaton.add_state(
-        "Распад: нет желающих",
-        x=80, y=480, final=True)
+        "Распад: нет желающих", x=80, y=480, final=True
+    )
 
     automaton.add_transition(
-        latent.id, mobilizing.id,
+        latent.id,
+        mobilizing.id,
         "потребность осознана",
-        "доля приоритета %.2f > 0" % analysis.priority_share)
+        "доля приоритета %.2f > 0" % analysis.priority_share,
+    )
     automaton.add_transition(
-        mobilizing.id, producing.id,
+        mobilizing.id,
+        producing.id,
         "взносы собраны",
-        "собрано ≥ %.2f" % analysis.contribution_rate)
+        "собрано ≥ %.2f" % analysis.contribution_rate,
+    )
     automaton.add_transition(
-        producing.id, distributing.id,
+        producing.id,
+        distributing.id,
         "благо готово",
-        "выпуск покрывает потребность")
+        "выпуск покрывает потребность",
+    )
     automaton.add_transition(
-        distributing.id, reproducing.id,
+        distributing.id,
+        reproducing.id,
         "благо распределено",
-        "доля willing ≥ 0.50")
+        "доля willing ≥ 0.50",
+    )
     automaton.add_transition(
-        reproducing.id, mobilizing.id,
-        "смена и набор",
-        "есть желающие")
+        reproducing.id, mobilizing.id, "смена и набор", "есть желающие"
+    )
     automaton.add_transition(
-        distributing.id, enforcing.id,
+        distributing.id,
+        enforcing.id,
         "уклонение от взносов",
-        "доля уклоняющихся > 0.10")
+        "доля уклоняющихся > 0.10",
+    )
     automaton.add_transition(
-        enforcing.id, legitimating.id,
+        enforcing.id,
+        legitimating.id,
         "санкция применена",
-        "принуждение > легитимности")
+        "принуждение > легитимности",
+    )
     automaton.add_transition(
-        legitimating.id, reproducing.id,
+        legitimating.id,
+        reproducing.id,
         "порядок подтверждён",
-        "легитимность восстановлена")
+        "легитимность восстановлена",
+    )
     automaton.add_transition(
-        reproducing.id, crisis.id,
-        "выход участников",
-        "доля willing < 0.50")
+        reproducing.id, crisis.id, "выход участников", "доля willing < 0.50"
+    )
     automaton.add_transition(
-        crisis.id, reproducing.id,
-        "реформа участия",
-        "доля willing ≥ 0.50")
+        crisis.id, reproducing.id, "реформа участия", "доля willing ≥ 0.50"
+    )
     automaton.add_transition(
-        crisis.id, dissolved.id,
-        "нет желающих",
-        "willing = 0")
+        crisis.id, dissolved.id, "нет желающих", "willing = 0"
+    )
     return automaton
 
 
 def save_automaton(analysis, store, slug=None, name=None, seed=None):
-    """Сгенерировать и записать автомат; вернуть slug."""
     automaton = build_automaton(analysis, name=name, seed=seed)
     if slug is None:
         slug = store.unique_slug(automaton.name)

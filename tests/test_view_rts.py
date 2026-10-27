@@ -1,5 +1,3 @@
-"""Дымовые тесты RTS-экрана (требуют pygame)."""
-
 import math
 import os
 
@@ -10,8 +8,16 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 pygame = pytest.importorskip("pygame")
 
 
+@pytest.fixture(autouse=True)
+def _reset_audio():
+    yield
+    if pygame.mixer.get_init():
+        pygame.mixer.quit()
+
+
 def _app():
     from view.app import App
+
     return App()
 
 
@@ -130,8 +136,10 @@ def test_rts_overlay_controls_stay_inside_panels():
     )
     for button in target_buttons + right_buttons:
         assert panel.contains(button.rect)
-    assert max(btn.rect.bottom for btn in target_buttons) < \
-        logistics.btn_all.rect.top
+    assert (
+        max(btn.rect.bottom for btn in target_buttons)
+        < logistics.btn_all.rect.top
+    )
     for target in target_buttons:
         for right in right_buttons:
             assert not target.rect.colliderect(right.rect)
@@ -218,14 +226,13 @@ def test_rts_icons_do_not_jump_in_crowded_contact():
             if old is not None:
                 step = math.dist(old, point)
                 worst = max(worst, step)
-                if (not previous_moving.get(name, False) and
-                        not screen._moving.get(name, False)):
+                if not previous_moving.get(
+                    name, False
+                ) and not screen._moving.get(name, False):
                     static_drift = max(static_drift, step)
             previous[name] = point
             previous_moving[name] = screen._moving.get(name, False)
-    # На границах такта раньше были скачки по 40–60 px из-за пересборки
-    # перекрытий. Теперь позиция должна меняться плавно, а покоящиеся
-    # жетоны не должны смещаться вовсе.
+
     assert worst < 2.5
     assert static_drift < 0.05
 
@@ -245,21 +252,28 @@ def test_rts_groups_select_and_apply_common_order():
     assert screen.selected == group
     screen.command_hold()
     assert all(
-        screen.state.det_at(i).ui_order == "holding_defense"
-        for i in group
+        screen.state.det_at(i).ui_order == "holding_defense" for i in group
     )
-    # Клик по чипу выбирает группу, Ctrl+клик записывает в неё выделение.
+
     screen.selected = []
     chip = next(rect for number, rect in screen._group_rects if number == 3)
-    screen.handle_event(pygame.event.Event(
-        pygame.MOUSEBUTTONDOWN, button=1, pos=chip.center,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            button=1,
+            pos=chip.center,
+        )
+    )
     assert screen.selected == group
     chip4 = next(rect for number, rect in screen._group_rects if number == 4)
-    screen.handle_event(pygame.event.Event(
-        pygame.MOUSEBUTTONDOWN, button=1, pos=chip4.center,
-        mod=pygame.KMOD_CTRL,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            button=1,
+            pos=chip4.center,
+            mod=pygame.KMOD_CTRL,
+        )
+    )
     assert screen.groups[4] == names
 
 
@@ -269,9 +283,7 @@ def test_rts_contact_line_uses_engagement_midpoints():
     app = _app()
     screen = RTSScreen(app)
     first = screen.state.units[0]
-    second = next(
-        det for det in screen.state.units if det.side != first.side
-    )
+    second = next(det for det in screen.state.units if det.side != first.side)
     screen.engine.engagements = [
         {"attacker": first.name, "defender": second.name}
     ]
@@ -289,11 +301,13 @@ def test_focus_fire_assigns_two_attackers_to_one_target():
     screen = RTSScreen(app)
     state = screen.state
     reds = [
-        det for det in state.units
+        det
+        for det in state.units
         if det.side == state.player_side and det.role != "barrier"
     ][:2]
     enemy = next(
-        det for det in state.units
+        det
+        for det in state.units
         if det.side != state.player_side and det.role != "barrier"
     )
     reds[0].position = (5, 6)
@@ -311,7 +325,8 @@ def test_focus_fire_assigns_two_attackers_to_one_target():
     screen.engine._sync_focus_targets()
     pairs = state.sim._pair_engagements()
     focused = [
-        (a.name, b.name) for a, b in pairs
+        (a.name, b.name)
+        for a, b in pairs
         if a.name in {reds[0].name, reds[1].name} and b.name == enemy.name
     ]
     assert len(focused) == 2
@@ -322,13 +337,15 @@ def test_rts_select_all_and_reads_loss_threshold_from_storyline():
 
     class Interpreter:
         storyline = {
-            "lose_conditions": [{
-                "type": "any_of",
-                "conditions": [
-                    {"type": "manpower_loss_above", "value": 0.25},
-                    {"type": "all_player_units_destroyed"},
-                ],
-            }],
+            "lose_conditions": [
+                {
+                    "type": "any_of",
+                    "conditions": [
+                        {"type": "manpower_loss_above", "value": 0.25},
+                        {"type": "all_player_units_destroyed"},
+                    ],
+                }
+            ],
         }
 
     app = _app()
@@ -336,9 +353,13 @@ def test_rts_select_all_and_reads_loss_threshold_from_storyline():
     screen = RTSScreen(app)
     assert screen._loss_limit_percent() == 25
     screen.selected = []
-    screen.handle_event(pygame.event.Event(
-        pygame.KEYDOWN, key=pygame.K_a, mod=pygame.KMOD_CTRL,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            key=pygame.K_a,
+            mod=pygame.KMOD_CTRL,
+        )
+    )
     assert screen.selected == screen._player_indices()
 
 
@@ -373,29 +394,49 @@ def test_rts_auto_plan_buttons_hotkeys_and_shift_rmb():
     screen = RTSScreen(app)
     app.manager.replace_all(screen)
 
-    screen.handle_event(pygame.event.Event(
-        pygame.KEYDOWN, key=pygame.K_g, mod=0,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            key=pygame.K_g,
+            mod=0,
+        )
+    )
     assert screen.engine.plan_for().mode == "hold"
 
-    screen.handle_event(pygame.event.Event(
-        pygame.KEYDOWN, key=pygame.K_t, mod=0,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            key=pygame.K_t,
+            mod=0,
+        )
+    )
     assert screen.engine.plan_for().mode == "advance"
 
-    screen.handle_event(pygame.event.Event(
-        pygame.KEYDOWN, key=pygame.K_y, mod=0,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            key=pygame.K_y,
+            mod=0,
+        )
+    )
     assert not screen.engine.plan_for().active
 
-    screen.handle_event(pygame.event.Event(
-        pygame.KEYDOWN, key=pygame.K_g, mod=0,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            key=pygame.K_g,
+            mod=0,
+        )
+    )
     cell = (14, 10)
-    screen.handle_event(pygame.event.Event(
-        pygame.MOUSEBUTTONDOWN, button=3,
-        pos=screen._project(cell), mod=pygame.KMOD_SHIFT,
-    ))
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            button=3,
+            pos=screen._project(cell),
+            mod=pygame.KMOD_SHIFT,
+        )
+    )
     plan = screen.engine.plan_for()
     assert plan.mode == "hold"
     assert plan.target == cell
@@ -417,7 +458,6 @@ def test_rts_draws_active_plan_overlay():
 
 
 def test_mandatory_screen_uses_each_camp_variant(monkeypatch):
-    """Утренний экран реально проходит fresh -> wounded -> critical."""
     from types import SimpleNamespace
 
     from view.screens.mandatory_screen import MandatorySceneScreen
@@ -425,13 +465,15 @@ def test_mandatory_screen_uses_each_camp_variant(monkeypatch):
     app = _app()
     app.storyline_interpreter = SimpleNamespace(
         storyline={
-            "lose_conditions": [{
-                "type": "any_of",
-                "conditions": [
-                    {"type": "manpower_loss_above", "value": 0.25},
-                    {"type": "all_player_units_destroyed"},
-                ],
-            }],
+            "lose_conditions": [
+                {
+                    "type": "any_of",
+                    "conditions": [
+                        {"type": "manpower_loss_above", "value": 0.25},
+                        {"type": "all_player_units_destroyed"},
+                    ],
+                }
+            ],
         }
     )
     monkeypatch.setattr(MandatorySceneScreen, "_autosave", lambda self: None)

@@ -1,28 +1,3 @@
-"""
-view/ui/overlays.py
-
-Оверлеи: блокнот, бинокль, рация, логистика, лог тика.
-
-Блокнот отображает контент вкладок и живых донесений в виде текста
-на страницах открытого блокнота: строки заполняют левую страницу,
-затем правую; при переполнении обоих листов создаётся следующий
-разворот. Текст выводится на прозрачной поверхности, наклоняется
-под углом листа и накладывается внутрь белого листа с внутренними
-полями. Навигация осуществляется стрелками листания, закрытие —
-кнопкой и ESC.
-
-Бинокль ведёт поэтапную разведку сектора: донесение уточняется по
-стадиям, а погрешность оценки умножается на усталость наблюдателя
-и черту персонажа (report_noise_mult). Текст донесения переносится
-по ширине панели и клипсуется внутри неё, не налезая на кнопки.
-
-Рация поддерживает пагинацию списка подразделений, отображает
-ролевые имена и выводит журнал связи в отдельной зоне.
-
-События записываются в журнал operation_ozverin.log и дублируются
-в консоль.
-"""
-
 import random
 import zlib
 
@@ -64,18 +39,6 @@ EQUIPMENT_LABELS = {
 
 
 def _wrap_text(text, font, max_width):
-    """
-    Разбивает текст на строки по максимальной ширине.
-
-    Args:
-        text (str): Исходный текст.
-        font (pygame.font.Font): Шрифт для измерения ширины.
-        max_width (int): Максимальная ширина строки в пикселях.
-
-    Returns:
-        list[str]: Список строк, каждая из которых не превышает
-            max_width пикселей.
-    """
     words = text.split()
     lines = []
     current_line = ""
@@ -93,22 +56,8 @@ def _wrap_text(text, font, max_width):
 
 
 class OverlayScreen(BaseScreen):
-    """
-    Базовый оверлей с панелью и кнопкой закрытия.
-
-    Attributes:
-        panel (Panel): Фоновая панель оверлея.
-        close_btn (Button): Кнопка закрытия.
-    """
 
     def __init__(self, app, rect):
-        """
-        Инициализирует базовый оверлей.
-
-        Args:
-            app: Экземпляр приложения (App).
-            rect (tuple): Прямоугольник панели (x, y, w, h).
-        """
         super().__init__(app)
         self.panel = Panel(rect)
         self.close_btn = Button(
@@ -119,13 +68,6 @@ class OverlayScreen(BaseScreen):
         )
 
     def draw_base(self, screen, title):
-        """
-        Рисует затемнение, панель, заголовок и кнопку закрытия.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-            title (str): Заголовок оверлея.
-        """
         dim = pygame.Surface((1280, 720), pygame.SRCALPHA)
         dim.fill((0, 0, 0, 140))
         screen.blit(dim, (0, 0))
@@ -136,36 +78,8 @@ class OverlayScreen(BaseScreen):
 
 
 class NotebookOverlay(OverlayScreen):
-    """
-    Оверлей открытого блокнота.
-
-    Контент вкладок и живой сводки донесений раскладывается по
-    разворотам увеличенного блокнота: текст заполняет левую
-    страницу, затем правую; при переполнении обоих листов
-    создаётся следующий разворот. Текст выводится на прозрачной
-    поверхности, наклоняется под углом листа и накладывается
-    внутрь белого листа с внутренними полями. Навигация
-    осуществляется стрелками листания, закрытие — кнопкой.
-
-    Attributes:
-        notebook_img (pygame.Surface): Изображение открытого блокнота.
-        spreads (list[tuple]): Список разворотов (левые, правые строки).
-        page (int): Индекс текущего разворота.
-        prev_rect (pygame.Rect): Зона клика для перехода назад.
-        next_rect (pygame.Rect): Зона клика для перехода вперёд.
-    """
 
     def __init__(self, app):
-        """
-        Инициализирует блокнот.
-
-        Загружает изображение блокнота, формирует единый поток
-        текста из вкладок и живой сводки, раскладывает его по
-        разворотам страниц и создаёт элементы навигации.
-
-        Args:
-            app: Экземпляр приложения (App).
-        """
         super().__init__(app, tuple(NOTEBOOK_RECT))
         tabs_data = [dict(t) for t in app.content.notebook.get("tabs", [])]
         tabs_data.append(self._build_live_tab(app))
@@ -204,16 +118,6 @@ class NotebookOverlay(OverlayScreen):
         )
 
     def _order_label(self, st, idx):
-        """
-        Возвращает название текущего приказа сущности.
-
-        Args:
-            st: Состояние игрового мира (WorldState).
-            idx (int): Индекс сущности.
-
-        Returns:
-            str: Название приказа или «—».
-        """
         cfg = st.class_configs[st.class_ids[idx]]
         if "order" not in cfg.segment_layout.segments:
             return "—"
@@ -224,16 +128,6 @@ class NotebookOverlay(OverlayScreen):
         return st.get_segment_label(idx, "order")
 
     def _unit_report_line(self, st, idx):
-        """
-        Формирует строку донесения о подразделении.
-
-        Args:
-            st: Состояние игрового мира (WorldState).
-            idx (int): Индекс сущности.
-
-        Returns:
-            str: Строка донесения.
-        """
         head = st.label_of(idx)
         if st.factions[idx] != st.factions[st.player_idx]:
             head += " (противник)"
@@ -242,9 +136,7 @@ class NotebookOverlay(OverlayScreen):
         if "U_manpower" in cfg.voltage_layout.channel_index:
             parts.append(f"л.с. {st.read_voltage(idx, 'U_manpower'):.0f}")
         if "U_casualties" in cfg.voltage_layout.channel_index:
-            parts.append(
-                f"потери {st.read_voltage(idx, 'U_casualties'):.0%}"
-            )
+            parts.append(f"потери {st.read_voltage(idx, 'U_casualties'):.0%}")
         for ch, name in EQUIPMENT_LABELS.items():
             if ch in cfg.voltage_layout.channel_index:
                 v = st.read_voltage(idx, ch)
@@ -257,15 +149,6 @@ class NotebookOverlay(OverlayScreen):
         return head
 
     def _build_live_tab(self, app):
-        """
-        Строит живую вкладку донесений.
-
-        Args:
-            app: Экземпляр приложения (App).
-
-        Returns:
-            dict: Вкладка с донесениями о всех военных юнитах.
-        """
         st = app.engine.state
         lines = ["Сводка на момент открытия:"]
         for i in range(st.count):
@@ -276,15 +159,6 @@ class NotebookOverlay(OverlayScreen):
         return {"id": "live", "label": "Донесения", "lines": lines}
 
     def _line_height(self, kind):
-        """
-        Возвращает высоту строки для заданного типа текста.
-
-        Args:
-            kind (str): Тип текста ("heading", "separator" или "line").
-
-        Returns:
-            int: Высота строки в пикселях.
-        """
         if kind == "heading":
             return self.app.font_body.get_height() + 10
         if kind == "separator":
@@ -292,19 +166,6 @@ class NotebookOverlay(OverlayScreen):
         return self.app.font_small.get_height() + 6
 
     def _build_spreads(self):
-        """
-        Строит список разворотов из потока строк контента.
-
-        Текст переносится по ширине узкой из двух страниц, заполняет
-        левую страницу, затем правую. При переполнении обоих листов
-        создаётся следующий разворот. Текст не заходит в нижнюю зону
-        страниц, где расположены стрелки листания.
-
-        Returns:
-            list[tuple[list, list]]: Список разворотов. Каждый
-                разворот — кортеж (строки левой страницы, строки
-                правой страницы). Каждая строка — кортеж (kind, text).
-        """
         page_w = min(LEFT_PAGE_RECT.width, RIGHT_PAGE_RECT.width)
         left_h = LEFT_PAGE_RECT.height - TEXT_BOTTOM_MARGIN
         right_h = RIGHT_PAGE_RECT.height - TEXT_BOTTOM_MARGIN
@@ -351,19 +212,6 @@ class NotebookOverlay(OverlayScreen):
         return spreads
 
     def _blit_page(self, screen, lines, page_rect, angle):
-        """
-        Отрисовывает страницу с текстом на наклонённой поверхности.
-
-        Создаёт прозрачную поверхность, размещает на ней текст,
-        поворачивает на заданный угол и накладывает на экран
-        по центру целевого прямоугольника страницы.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-            lines (list[tuple]): Список строк (kind, text).
-            page_rect (pygame.Rect): Прямоугольник страницы.
-            angle (float): Угол поворота в градусах.
-        """
         if not lines:
             return
         line_heights = [self._line_height(k) for k, _ in lines]
@@ -397,14 +245,6 @@ class NotebookOverlay(OverlayScreen):
         screen.blit(rotated, dest)
 
     def _draw_arrow(self, screen, rect, direction):
-        """
-        Рисует стрелку навигации в заданном прямоугольнике.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-            rect (pygame.Rect): Прямоугольник, в котором рисуется стрелка.
-            direction (str): Направление стрелки ("prev" или "next").
-        """
         if direction == "next":
             points = [
                 (rect.left + 4, rect.top + 2),
@@ -420,25 +260,16 @@ class NotebookOverlay(OverlayScreen):
         pygame.draw.polygon(screen, ARROW_COLOR, points)
 
     def prev_page(self):
-        """Переходит на предыдущий разворот."""
         if self.page > 0:
             self.page -= 1
             logger.info("Блокнот: переход на разворот %d", self.page + 1)
 
     def next_page(self):
-        """Переходит на следующий разворот."""
         if self.page < len(self.spreads) - 1:
             self.page += 1
             logger.info("Блокнот: переход на разворот %d", self.page + 1)
 
     def handle_event(self, event):
-        """
-        Обрабатывает события: закрытие, прокрутка колесом мыши
-        и клики по стрелкам листания.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if self.close_btn.handle_event(event):
             return
         if event.type == pygame.MOUSEWHEEL:
@@ -454,26 +285,13 @@ class NotebookOverlay(OverlayScreen):
                 self.prev_page()
 
     def draw(self, screen):
-        """
-        Отрисовывает открытый блокнот.
-
-        Порядок отрисовки: затемнение фона, увеличенное изображение
-        открытого блокнота, левая и правая страницы текущего
-        разворота, индикатор номера разворота внизу правой страницы,
-        стрелки навигации в нижних углах страниц, кнопка закрытия.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         overlay = pygame.Surface((1280, 720), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (0, 0))
         screen.blit(self.notebook_img, NOTEBOOK_RECT.topleft)
         left_lines, right_lines = self.spreads[self.page]
         self._blit_page(screen, left_lines, LEFT_PAGE_RECT, LEFT_PAGE_ANGLE)
-        self._blit_page(
-            screen, right_lines, RIGHT_PAGE_RECT, RIGHT_PAGE_ANGLE
-        )
+        self._blit_page(screen, right_lines, RIGHT_PAGE_RECT, RIGHT_PAGE_ANGLE)
         info = f"{self.page + 1} / {len(self.spreads)}"
         info_surf = self.app.font_small.render(info, True, INK_COLOR)
         screen.blit(
@@ -489,35 +307,6 @@ class NotebookOverlay(OverlayScreen):
 
 
 class BinocularsOverlay(BaseScreen):
-    """
-    Бинокль с выбором сектора и стадиями наблюдения.
-
-    Донесение уточняется по стадиям: стадия 0 — начало наблюдения;
-    стадия 1 — качественная оценка (много/немало, тип с возможной
-    ошибкой); стадия 2 — вилка числа рот и тенденция приказа
-    противника (соседние приказы могут путаться); стадия 3 —
-    численная оценка с небольшой погрешностью. Погрешность
-    умножается на усталость наблюдателя и черту персонажа
-    (report_noise_mult). Текст донесения переносится по ширине
-    панели и клипсуется внутри неё, не налезая на кнопки.
-
-    Attributes:
-        SECTORS (tuple): Названия секторов.
-        PANEL_RECT (pygame.Rect): Область панели донесения.
-        TEXT_RECT (pygame.Rect): Область текста внутри панели.
-        LINE_HEIGHT (int): Высота строки текста.
-        STAGE_WAIT_SECONDS (int): Время ожидания между стадиями.
-        TYPE_LABELS (dict): Подписи типов целей.
-        ORDER_SCALE (tuple): Шкала приказов по агрессивности.
-        TENDENCY_LABELS (dict): Подписи тенденций приказов.
-        current (int): Индекс текущего сектора.
-        stage (int): Текущая стадия наблюдения (0–3).
-        sector_buttons (list[Button]): Кнопки выбора сектора.
-        close_btn (Button): Кнопка закрытия.
-        panel (Panel): Панель донесения.
-        btn_stop (Button): Кнопка прекращения наблюдения.
-        btn_continue (Button): Кнопка продолжения/завершения.
-    """
 
     SECTORS = ("front", "left", "right")
     PANEL_RECT = pygame.Rect(260, 410, 760, 230)
@@ -545,12 +334,6 @@ class BinocularsOverlay(BaseScreen):
     }
 
     def __init__(self, app):
-        """
-        Инициализирует бинокль.
-
-        Args:
-            app: Экземпляр приложения (App).
-        """
         super().__init__(app)
         self.current = 0
         self.stage = 0
@@ -604,18 +387,11 @@ class BinocularsOverlay(BaseScreen):
         logger.info("Бинокль открыт")
 
     def set_view(self, i):
-        """
-        Переключает сектор и сбрасывает стадию наблюдения.
-
-        Args:
-            i (int): Индекс сектора (0–2).
-        """
         self.current = i
         self.stage = 0
         self.btn_continue.text = "Продолжить"
 
     def cancel_and_close(self):
-        """Отменяет наблюдение и закрывает оверлей."""
         ts = getattr(self.app, "time_system", None)
         if (
             ts is not None
@@ -626,7 +402,6 @@ class BinocularsOverlay(BaseScreen):
         self.app.manager.pop()
 
     def advance_observation(self):
-        """Продвигает стадию наблюдения, тратя игровое время."""
         if self.stage >= 3:
             self.app.manager.pop()
             return
@@ -638,56 +413,23 @@ class BinocularsOverlay(BaseScreen):
             self.btn_continue.text = "Завершить"
 
     def _fatigue(self):
-        """
-        Возвращает текущую усталость наблюдателя (0..1).
-
-        Returns:
-            float: Усталость наблюдателя.
-        """
         ts = getattr(self.app, "time_system", None)
         if ts is None:
             return 0.0
         return float(ts.get_fatigue())
 
     def _noise_mult(self):
-        """
-        Возвращает множитель погрешности наблюдателя.
-
-        Черта персонажа (report_noise_mult), умноженная на фактор
-        усталости. Ограничен, чтобы отчёт не становился абсурдным.
-
-        Returns:
-            float: Множитель погрешности [0.25, 3.0].
-        """
         trait_mult = get_report_noise_modifier(self.app)
         mult = trait_mult * (1.0 + 1.5 * self._fatigue())
         return max(0.25, min(3.0, mult))
 
     def _noise_rng(self, sector):
-        """
-        Детерминированный генератор шума для сектора и дня.
-
-        Args:
-            sector (str): Название сектора.
-
-        Returns:
-            random.Random: Генератор случайных чисел.
-        """
         ts = getattr(self.app, "time_system", None)
         day = ts.day if ts is not None else 1
         seed = zlib.crc32(f"{sector}:{day}".encode("utf-8"))
         return random.Random(seed)
 
     def _is_dead(self, idx):
-        """
-        Проверяет, уничтожено ли подразделение.
-
-        Args:
-            idx (int): Индекс сущности.
-
-        Returns:
-            bool: True, если подразделение уничтожено.
-        """
         st = self.app.engine.state
         cfg = st.class_configs[st.class_ids[idx]]
         if "condition" in cfg.segment_layout.segments:
@@ -699,16 +441,6 @@ class BinocularsOverlay(BaseScreen):
         return False
 
     def _voltage(self, idx, channel):
-        """
-        Возвращает напряжение канала или 0, если канала нет.
-
-        Args:
-            idx (int): Индекс сущности.
-            channel (str): Имя канала.
-
-        Returns:
-            float: Значение напряжения.
-        """
         st = self.app.engine.state
         cfg = st.class_configs[st.class_ids[idx]]
         if channel not in cfg.voltage_layout.channel_index:
@@ -716,15 +448,6 @@ class BinocularsOverlay(BaseScreen):
         return float(st.read_voltage(idx, channel))
 
     def _order_id(self, idx):
-        """
-        Возвращает строковый ID текущего приказа сущности.
-
-        Args:
-            idx (int): Индекс сущности.
-
-        Returns:
-            str: ID приказа или "rest".
-        """
         st = self.app.engine.state
         cfg = st.class_configs[st.class_ids[idx]]
         if "order" not in cfg.segment_layout.segments:
@@ -736,15 +459,6 @@ class BinocularsOverlay(BaseScreen):
         return "rest"
 
     def _order_label(self, order_id):
-        """
-        Возвращает человекочитаемое название приказа.
-
-        Args:
-            order_id (str): ID приказа.
-
-        Returns:
-            str: Название приказа.
-        """
         ot = getattr(self.app.engine, "order_table", None)
         if ot is not None:
             idx = ot.id_to_index.get(order_id)
@@ -753,15 +467,6 @@ class BinocularsOverlay(BaseScreen):
         return order_id
 
     def _sector_enemies(self, sector):
-        """
-        Возвращает индексы живых противников в секторе.
-
-        Args:
-            sector (str): Название сектора.
-
-        Returns:
-            list[int]: Индексы противников в секторе.
-        """
         from view.support.geometry import direction_between
 
         st = self.app.engine.state
@@ -792,19 +497,6 @@ class BinocularsOverlay(BaseScreen):
         return result
 
     def _sector_stats(self, sector):
-        """
-        Агрегирует силы противника в секторе по ротам (size == 1).
-
-        Иерархия не даёт двойного счёта: учитываются только
-        сущности с сегментом size == 1 (роты).
-
-        Args:
-            sector (str): Название сектора.
-
-        Returns:
-            dict: Статистика сектора с ключами companies,
-                manpower, tanks, guns, orders.
-        """
         st = self.app.engine.state
         stats = {
             "companies": 0,
@@ -835,30 +527,12 @@ class BinocularsOverlay(BaseScreen):
         return stats
 
     def _dominant_order(self, stats):
-        """
-        Возвращает приказ с наибольшим числом рот.
-
-        Args:
-            stats (dict): Статистика сектора.
-
-        Returns:
-            str: ID доминирующего приказа или "rest".
-        """
         orders = stats["orders"]
         if not orders:
             return "rest"
         return max(orders, key=orders.get)
 
     def _tendency_of(self, order_id):
-        """
-        Возвращает ключ тенденции приказа.
-
-        Args:
-            order_id (str): ID приказа.
-
-        Returns:
-            str: Ключ тенденции (attack, move, defense, rest).
-        """
         if order_id in (
             "aggressive_attack",
             "attack",
@@ -876,21 +550,6 @@ class BinocularsOverlay(BaseScreen):
         return "rest"
 
     def _noised_order(self, rng, mult, order_id):
-        """
-        Возвращает приказ с шумом.
-
-        С вероятностью, растущей от множителя наблюдателя, приказ
-        сдвигается на соседний по шкале агрессии (агрессивная
-        путается с умеренной, но не с осторожной).
-
-        Args:
-            rng (random.Random): Генератор случайных чисел.
-            mult (float): Множитель погрешности.
-            order_id (str): Исходный ID приказа.
-
-        Returns:
-            str: Возможно изменённый ID приказа.
-        """
         if order_id not in self.ORDER_SCALE:
             return order_id
         if rng.random() >= min(0.5, 0.25 * mult):
@@ -901,38 +560,16 @@ class BinocularsOverlay(BaseScreen):
         return self.ORDER_SCALE[idx]
 
     def _true_type(self, stats):
-        """
-        Возвращает истинный доминирующий тип цели в секторе.
-
-        Args:
-            stats (dict): Статистика сектора.
-
-        Returns:
-            str: Тип цели (tanks, fortifications, infantry).
-        """
         if stats["tanks"] >= 10:
             return "tanks"
         if (
             stats["guns"] >= 8
-            and self._tendency_of(self._dominant_order(stats))
-            == "defense"
+            and self._tendency_of(self._dominant_order(stats)) == "defense"
         ):
             return "fortifications"
         return "infantry"
 
     def _report_lines(self, sector):
-        """
-        Формирует строки донесения для текущей стадии наблюдения.
-
-        Погрешность растёт от множителя наблюдателя (черта и
-        усталость); в конце выводится строка поправки.
-
-        Args:
-            sector (str): Название сектора.
-
-        Returns:
-            list[str]: Строки донесения.
-        """
         stats = self._sector_stats(sector)
         if self.stage == 0:
             return ["Наблюдение начато. Продолжайте смотреть."]
@@ -943,9 +580,7 @@ class BinocularsOverlay(BaseScreen):
         fatigue = self._fatigue()
         lines = []
         if self.stage == 1:
-            size_word = (
-                "много" if stats["manpower"] >= 1200 else "немного"
-            )
+            size_word = "много" if stats["manpower"] >= 1200 else "немного"
             true_type = self._true_type(stats)
             p_error = min(0.45, 0.15 * mult)
             if rng.random() < p_error:
@@ -954,23 +589,15 @@ class BinocularsOverlay(BaseScreen):
                 )
             else:
                 guessed = true_type
-            lines.append(
-                f"Противник замечен. Похоже, его {size_word}."
-            )
-            lines.append(
-                f"Видимо, это {self.TYPE_LABELS[guessed]}."
-            )
+            lines.append(f"Противник замечен. Похоже, его {size_word}.")
+            lines.append(f"Видимо, это {self.TYPE_LABELS[guessed]}.")
         elif self.stage == 2:
             companies = max(1.0, stats["manpower"] / 450.0)
             spread = 0.25 * mult
             lo = max(1, int(companies * max(0.5, 1.0 - spread)))
             hi = max(lo, int(round(companies * (1.0 + spread))))
-            noised = self._noised_order(
-                rng, mult, self._dominant_order(stats)
-            )
-            tendency = self.TENDENCY_LABELS[
-                self._tendency_of(noised)
-            ]
+            noised = self._noised_order(rng, mult, self._dominant_order(stats))
+            tendency = self.TENDENCY_LABELS[self._tendency_of(noised)]
             lines.append(
                 f"{lo}-{hi} рот "
                 f"({self.TYPE_LABELS[self._true_type(stats)]}), "
@@ -1030,21 +657,11 @@ class BinocularsOverlay(BaseScreen):
                 f"{self._order_label(self._dominant_order(stats))}."
             )
         lines.append(
-            f"Поправка наблюдателя: x{mult:.2f} "
-            f"(усталость {fatigue:.0%})."
+            f"Поправка наблюдателя: x{mult:.2f} " f"(усталость {fatigue:.0%})."
         )
         return lines
 
     def _view_asset(self):
-        """
-        Подбирает ассет вида по оценке наблюдателя.
-
-        На ранних стадиях тип может быть определён с ошибкой,
-        на поздних — точно; количество — по численности.
-
-        Returns:
-            str | None: Путь к ассету или None.
-        """
         sector = self.SECTORS[self.current]
         stats = self._sector_stats(sector)
         if stats["companies"] == 0:
@@ -1065,12 +682,6 @@ class BinocularsOverlay(BaseScreen):
         return f"views/{shown}_{qty}"
 
     def handle_event(self, event):
-        """
-        Обрабатывает события кнопок бинокля.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if self.close_btn.handle_event(event):
             return
         if self.btn_stop.handle_event(event):
@@ -1082,16 +693,6 @@ class BinocularsOverlay(BaseScreen):
                 return
 
     def draw(self, screen):
-        """
-        Рисует бинокль.
-
-        Ассет вида, панель донесения, текст донесения с переносом
-        и клипсой внутри панели (не налезает на кнопки), кнопки
-        управления и сектора.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         screen.fill((0, 0, 0))
         asset = self._view_asset()
         if asset:
@@ -1115,9 +716,7 @@ class BinocularsOverlay(BaseScreen):
                 if y > self.TEXT_RECT.bottom - self.LINE_HEIGHT:
                     break
                 screen.blit(
-                    self.app.font_small.render(
-                        wrapped, True, (230, 230, 235)
-                    ),
+                    self.app.font_small.render(wrapped, True, (230, 230, 235)),
                     (self.TEXT_RECT.left, y),
                 )
                 y += self.LINE_HEIGHT
@@ -1130,13 +729,6 @@ class BinocularsOverlay(BaseScreen):
 
 
 class LogisticsOverlay(OverlayScreen):
-    """Склад, суточный расход, готовность и операции снабжения.
-
-    Операции можно применять сразу к нескольким ротам: слева у каждой роты
-    есть переключатель цели. Игрок может нажать «Все», «Никого» и вручную
-    оставить без снабжения конкретные подразделения. Стоимость операции
-    умножается на число выбранных целей.
-    """
 
     OPERATION_LABELS = {
         "fortify": "Укрепить позицию",
@@ -1157,11 +749,18 @@ class LogisticsOverlay(OverlayScreen):
         panel = self.panel.rect
         rx = panel.x + 500
         y = panel.y + 126
-        for op_id in ("fortify", "fierce_attack", "active_defense",
-                      "medevac", "morale_boost"):
+        for op_id in (
+            "fortify",
+            "fierce_attack",
+            "active_defense",
+            "medevac",
+            "morale_boost",
+        ):
             btn = Button(
-                (rx, y, 350, 30), self.OPERATION_LABELS.get(op_id, op_id),
-                app.font_tiny, lambda oid=op_id: self.apply_operation(oid),
+                (rx, y, 350, 30),
+                self.OPERATION_LABELS.get(op_id, op_id),
+                app.font_tiny,
+                lambda oid=op_id: self.apply_operation(oid),
             )
             self._op_buttons.append((op_id, btn))
             y += 46
@@ -1174,7 +773,9 @@ class LogisticsOverlay(OverlayScreen):
             ("fuel", "Горючее"),
         ):
             btn = Button(
-                (rx, y, 350, 28), label, app.font_tiny,
+                (rx, y, 350, 28),
+                label,
+                app.font_tiny,
                 lambda k=kind: self.request_convoy(k),
             )
             self._convoy_buttons.append((kind, btn))
@@ -1189,21 +790,21 @@ class LogisticsOverlay(OverlayScreen):
         return None
 
     def _player_units(self):
-        """Живые роты игрока — те же, что принимает логистика."""
         state = self.app.engine.state
         return [
-            det for det in state.units
+            det
+            for det in state.units
             if det.side == state.player_side
             and not getattr(det, "broken", False)
             and det.force > 1
         ]
 
     def _init_targets(self):
-        """По умолчанию — выделенные в RTS роты, иначе все роты игрока."""
         selected = []
         if self.rts is not None and hasattr(self.rts, "_selected_dets"):
             selected = [
-                det.name for det in self.rts._selected_dets()
+                det.name
+                for det in self.rts._selected_dets()
                 if det.side == self.app.engine.state.player_side
             ]
         if selected:
@@ -1223,7 +824,8 @@ class LogisticsOverlay(OverlayScreen):
         y = top
         for det in units:
             btn = Button(
-                (x, y, 360, row_h - 2), "[ ] %s" % det.name,
+                (x, y, 360, row_h - 2),
+                "[ ] %s" % det.name,
                 self.app.font_tiny,
                 lambda name=det.name: self.toggle_target(name),
                 alpha=120,
@@ -1231,11 +833,15 @@ class LogisticsOverlay(OverlayScreen):
             self._target_buttons.append((det.name, btn))
             y += row_h
         self.btn_all = Button(
-            (x, button_y, 174, 22), "Все", self.app.font_tiny,
+            (x, button_y, 174, 22),
+            "Все",
+            self.app.font_tiny,
             self.select_all_targets,
         )
         self.btn_none = Button(
-            (x + 186, button_y, 174, 22), "Никого", self.app.font_tiny,
+            (x + 186, button_y, 174, 22),
+            "Никого",
+            self.app.font_tiny,
             self.clear_targets,
         )
 
@@ -1266,7 +872,8 @@ class LogisticsOverlay(OverlayScreen):
     def apply_operation(self, op_id):
         ls = self.app.engine.state.logistics
         targets = [
-            name for name, _btn in self._target_buttons
+            name
+            for name, _btn in self._target_buttons
             if name in self._targets
         ]
         if not targets:
@@ -1320,9 +927,12 @@ class LogisticsOverlay(OverlayScreen):
         ls = getattr(st, "logistics", None)
         panel = self.panel.rect
         if ls is None:
-            screen.blit(self.app.font_body.render(
-                "Логистическая система не активна.", True, (200, 100, 100)
-            ), (panel.x + 20, panel.y + 80))
+            screen.blit(
+                self.app.font_body.render(
+                    "Логистическая система не активна.", True, (200, 100, 100)
+                ),
+                (panel.x + 20, panel.y + 80),
+            )
             self.close_btn.draw(screen)
             return
         self._alive_target_names()
@@ -1330,7 +940,8 @@ class LogisticsOverlay(OverlayScreen):
         idx = self._selected_idx()
         det = st.det_at(idx)
         draw_fitted(
-            screen, [self.app.font_tiny],
+            screen,
+            [self.app.font_tiny],
             "Склад, расход и готовность. Отметьте цели слева; стоимость "
             "операции растёт с числом рот.",
             pygame.Rect(panel.x + 20, panel.y + 44, panel.width - 40, 16),
@@ -1338,25 +949,30 @@ class LogisticsOverlay(OverlayScreen):
         )
         if det is not None:
             draw_fitted(
-                screen, [self.app.font_tiny],
-                "Открыто: %s · снабжение %d%%" % (
-                    det.name, round(ls.supply_of(idx) * 100)
-                ),
+                screen,
+                [self.app.font_tiny],
+                "Открыто: %s · снабжение %d%%"
+                % (det.name, round(ls.supply_of(idx) * 100)),
                 pygame.Rect(panel.x + 20, panel.y + 61, 380, 12),
                 (175, 190, 202),
             )
         if self.feedback:
             draw_fitted(
-                screen, [self.app.font_tiny], self.feedback,
-                pygame.Rect(panel.x + 420, panel.y + 61, panel.width - 440, 12),
-                (224, 185, 95), align="right",
+                screen,
+                [self.app.font_tiny],
+                self.feedback,
+                pygame.Rect(
+                    panel.x + 420, panel.y + 61, panel.width - 440, 12
+                ),
+                (224, 185, 95),
+                align="right",
             )
 
-        # Левая часть: склад.
         y = panel.y + 78
-        screen.blit(self.app.font_small.render(
-            "СКЛАД", True, (205, 218, 230)
-        ), (panel.x + 20, y))
+        screen.blit(
+            self.app.font_small.render("СКЛАД", True, (205, 218, 230)),
+            (panel.x + 20, y),
+        )
         y += 24
         headers = (
             ("Класс", panel.x + 20, 104),
@@ -1366,39 +982,57 @@ class LogisticsOverlay(OverlayScreen):
         )
         for text, hx, width in headers:
             draw_fitted(
-                screen, [self.app.font_tiny], text,
-                pygame.Rect(hx, y, width, 12), (130, 145, 158),
+                screen,
+                [self.app.font_tiny],
+                text,
+                pygame.Rect(hx, y, width, 12),
+                (130, 145, 158),
             )
         y += 18
         for row in ls.status_rows():
             draw_fitted(
-                screen, [self.app.font_tiny], row["label"],
-                pygame.Rect(panel.x + 20, y, 108, 12), (210, 220, 230),
+                screen,
+                [self.app.font_tiny],
+                row["label"],
+                pygame.Rect(panel.x + 20, y, 108, 12),
+                (210, 220, 230),
             )
             draw_fitted(
-                screen, [self.app.font_tiny], "%d" % round(row["stock"]),
-                pygame.Rect(panel.x + 132, y, 76, 12), (220, 230, 238),
+                screen,
+                [self.app.font_tiny],
+                "%d" % round(row["stock"]),
+                pygame.Rect(panel.x + 132, y, 76, 12),
+                (220, 230, 238),
             )
             draw_fitted(
-                screen, [self.app.font_tiny], "%.1f" % row["daily"],
-                pygame.Rect(panel.x + 224, y, 84, 12), (165, 180, 192),
+                screen,
+                [self.app.font_tiny],
+                "%.1f" % row["daily"],
+                pygame.Rect(panel.x + 224, y, 84, 12),
+                (165, 180, 192),
             )
             days = row["days"]
             days_text = "—" if days is None else ("%.1f дн" % days)
-            color = (190, 110, 100) if days is not None and days < 2 else (
-                150, 195, 160
+            color = (
+                (190, 110, 100)
+                if days is not None and days < 2
+                else (150, 195, 160)
             )
             draw_fitted(
-                screen, [self.app.font_tiny], days_text,
-                pygame.Rect(panel.x + 330, y, 120, 12), color,
+                screen,
+                [self.app.font_tiny],
+                days_text,
+                pygame.Rect(panel.x + 330, y, 120, 12),
+                color,
             )
             y += 18
 
-        # Готовность и выбор целей. Строки и шкалы используют один и тот же
-        # rect кнопки, поэтому больше не расходятся на десятки пикселей.
-        screen.blit(self.app.font_small.render(
-            "ГОТОВНОСТЬ · ЦЕЛИ ОПЕРАЦИЙ", True, (205, 218, 230)
-        ), (panel.x + 20, panel.y + 292))
+        screen.blit(
+            self.app.font_small.render(
+                "ГОТОВНОСТЬ · ЦЕЛИ ОПЕРАЦИЙ", True, (205, 218, 230)
+            ),
+            (panel.x + 20, panel.y + 292),
+        )
         by_name = {unit.name: (i, unit) for i, unit in enumerate(st.units)}
         for name, btn in self._target_buttons:
             entry = by_name.get(name)
@@ -1406,34 +1040,41 @@ class LogisticsOverlay(OverlayScreen):
                 continue
             i, unit = entry
             value = ls.supply_of(i)
-            color = ((96, 190, 120) if value >= 0.7 else
-                     (224, 164, 74) if value >= 0.4 else (224, 88, 88))
+            color = (
+                (96, 190, 120)
+                if value >= 0.7
+                else (224, 164, 74) if value >= 0.4 else (224, 88, 88)
+            )
             selected = name in self._targets
             btn.text = ("[x] " if selected else "[ ] ") + unit.name
             btn.draw(screen)
-            bar = pygame.Rect(
-                panel.x + 384, btn.rect.centery - 3, 72, 6
-            )
+            bar = pygame.Rect(panel.x + 384, btn.rect.centery - 3, 72, 6)
             pygame.draw.rect(screen, (38, 46, 55), bar)
             pygame.draw.rect(
-                screen, color,
+                screen,
+                color,
                 (bar.x, bar.y, int(bar.width * min(1.0, value)), bar.height),
             )
             draw_fitted(
-                screen, [self.app.font_tiny], "%d%%" % round(value * 100),
+                screen,
+                [self.app.font_tiny],
+                "%d%%" % round(value * 100),
                 pygame.Rect(panel.x + 458, btn.rect.y, 32, btn.rect.height),
-                color, align="right", valign="center",
+                color,
+                align="right",
+                valign="center",
             )
         self.btn_all.draw(screen)
         self.btn_none.draw(screen)
 
-        # Правая часть: операции и конвои.
         rx = panel.x + 500
-        screen.blit(self.app.font_small.render(
-            "ОПЕРАЦИИ", True, (205, 218, 230)
-        ), (rx, panel.y + 78))
+        screen.blit(
+            self.app.font_small.render("ОПЕРАЦИИ", True, (205, 218, 230)),
+            (rx, panel.y + 78),
+        )
         draw_fitted(
-            screen, [self.app.font_tiny],
+            screen,
+            [self.app.font_tiny],
             "Целей: %d · цена за каждую роту" % count,
             pygame.Rect(rx, panel.y + 100, 350, 14),
             (175, 190, 202) if count else (190, 118, 118),
@@ -1449,44 +1090,54 @@ class LogisticsOverlay(OverlayScreen):
             ok, reason = ls.can_operation(op_id, effective)
             info = cost_text + ("" if ok else " · " + reason)
             draw_fitted(
-                screen, [self.app.font_tiny], info,
-                pygame.Rect(btn.rect.x + 6, btn.rect.y + 31,
-                            btn.rect.width - 12, 12),
+                screen,
+                [self.app.font_tiny],
+                info,
+                pygame.Rect(
+                    btn.rect.x + 6, btn.rect.y + 31, btn.rect.width - 12, 12
+                ),
                 (150, 165, 178) if ok else (190, 118, 118),
             )
-        screen.blit(self.app.font_small.render(
-            "КОНВОИ (за влияние)", True, (205, 218, 230)
-        ), (rx, panel.y + 366))
+        screen.blit(
+            self.app.font_small.render(
+                "КОНВОИ (за влияние)", True, (205, 218, 230)
+            ),
+            (rx, panel.y + 366),
+        )
         for _kind, btn in self._convoy_buttons:
             btn.draw(screen)
-        influence_text = (
-            "Влияние: %d (+%.1f/ч) · автоколонна через %d мин"
-            % (
-                int(ls.stock("influence")),
-                ls.influence_per_hour,
-                int(round(ls.next_free_convoy_minutes)),
-            )
+        influence_text = "Влияние: %d (+%.1f/ч) · автоколонна через %d мин" % (
+            int(ls.stock("influence")),
+            ls.influence_per_hour,
+            int(round(ls.next_free_convoy_minutes)),
         )
         draw_fitted(
-            screen, [self.app.font_tiny], influence_text,
+            screen,
+            [self.app.font_tiny],
+            influence_text,
             pygame.Rect(rx, panel.y + 548, 350, 14),
             (224, 185, 95),
         )
 
         pending = ls.convoy_status_rows()
         draw_fitted(
-            screen, [self.app.font_tiny],
+            screen,
+            [self.app.font_tiny],
             ("В ПУТИ: %d" % len(pending)) if pending else "В ПУТИ: нет",
             pygame.Rect(rx, panel.y + 566, 350, 12),
             (175, 190, 202),
         )
         for row_index, row in enumerate(pending[:3]):
             text = "%s · %d мин · риск %d%% · %s" % (
-                row["label"], row["eta"], round(row["risk"] * 100),
+                row["label"],
+                row["eta"],
+                round(row["risk"] * 100),
                 row["cargo"],
             )
             draw_fitted(
-                screen, [self.app.font_tiny], text,
+                screen,
+                [self.app.font_tiny],
+                text,
                 pygame.Rect(rx, panel.y + 580 + row_index * 14, 350, 12),
                 (190, 205, 218),
             )
@@ -1494,38 +1145,14 @@ class LogisticsOverlay(OverlayScreen):
 
 
 class RadioOverlay(OverlayScreen):
-    """
-    Рация с пагинацией списка подразделений.
-
-    Отображает ролевые имена и выводит журнал связи в отдельной
-    зоне.
-
-    Attributes:
-        units (list[tuple]): Список (индекс, entity_id) юнитов игрока.
-        selected (int): Индекс выбранного юнита в списке units.
-        page (int): Текущая страница списка.
-        log (str): Текст журнала связи.
-        radio_img (pygame.Surface): Изображение открытой рации.
-        btn_connect (Button): Кнопка установки связи.
-        btn_prev (Button): Кнопка предыдущей страницы.
-        btn_next (Button): Кнопка следующей страницы.
-        buttons (list[Button]): Кнопки юнитов текущей страницы.
-    """
 
     def __init__(self, app):
-        """
-        Инициализирует рацию.
-
-        Args:
-            app: Экземпляр приложения (App).
-        """
         super().__init__(app, (290, 90, 700, 540))
         st = app.engine.state
         self.units = [
             (i, st.entity_ids[i])
             for i in range(st.count)
-            if st.class_configs[st.class_ids[i]].class_name
-            == "military_unit"
+            if st.class_configs[st.class_ids[i]].class_name == "military_unit"
             and st.factions[i] == "player"
         ]
         self.selected = 0
@@ -1533,9 +1160,7 @@ class RadioOverlay(OverlayScreen):
         self.log = "Выберите подразделение."
         self.log_scroll = 0
         self.log_lines = []
-        self.radio_img = AssetLoader.load(
-            "items/radio_open", RADIO_OPEN_SIZE
-        )
+        self.radio_img = AssetLoader.load("items/radio_open", RADIO_OPEN_SIZE)
         self.btn_connect = Button(
             (660, 160, 280, 38),
             "Связаться",
@@ -1558,28 +1183,11 @@ class RadioOverlay(OverlayScreen):
         self._build_unit_buttons()
 
     def _page_count(self):
-        """
-        Возвращает число страниц списка подразделений.
-
-        Returns:
-            int: Число страниц (не менее 1).
-        """
         return max(
             1, (len(self.units) + RADIO_PAGE_SIZE - 1) // RADIO_PAGE_SIZE
         )
 
     def _display_name(self, st, idx):
-        """
-        Строит ролевое имя: тактический индекс плюс роль внутри
-        дивизии.
-
-        Args:
-            st: Состояние игрового мира (WorldState).
-            idx (int): Индекс сущности.
-
-        Returns:
-            str: Ролевое имя (не более 30 символов).
-        """
         label = st.label_of(idx)
         root = idx
         guard = 0
@@ -1589,7 +1197,7 @@ class RadioOverlay(OverlayScreen):
         root_label = st.label_of(root)
         tail = ""
         if root != idx and label.startswith(root_label):
-            tail = label[len(root_label):].strip()
+            tail = label[len(root_label) :].strip()
         tids = getattr(st, "tactical_ids", None)
         tid = tids[idx] if tids is not None and idx < len(tids) else ""
         if tail:
@@ -1601,12 +1209,11 @@ class RadioOverlay(OverlayScreen):
         return name
 
     def _build_unit_buttons(self):
-        """Строит кнопки подразделений текущей страницы."""
         st = self.app.engine.state
         self.buttons = []
         start = self.page * RADIO_PAGE_SIZE
         for n, (idx, eid) in enumerate(
-            self.units[start:start + RADIO_PAGE_SIZE]
+            self.units[start : start + RADIO_PAGE_SIZE]
         ):
             self.buttons.append(
                 Button(
@@ -1618,28 +1225,19 @@ class RadioOverlay(OverlayScreen):
             )
 
     def prev_page(self):
-        """Листает страницы списка назад."""
         if self.page > 0:
             self.page -= 1
             self._build_unit_buttons()
 
     def next_page(self):
-        """Листает страницы списка вперёд."""
         if self.page < self._page_count() - 1:
             self.page += 1
             self._build_unit_buttons()
 
     def select(self, i):
-        """
-        Выбирает подразделение по индексу.
-
-        Args:
-            i (int): Индекс в списке units.
-        """
         self.selected = i
 
     def connect(self):
-        """Устанавливает связь и формирует сводку."""
         if not self.units:
             self.log = "Нет доступных подразделений."
             return
@@ -1669,27 +1267,15 @@ class RadioOverlay(OverlayScreen):
             lines.append(" · ".join(status))
         lines.append("Техника: %s" % (", ".join(equipment) or "—"))
         lines.append("Приказ: %s" % self._order_label(st, idx))
-        events = [
-            e["message"]
-            for e in st.event_log
-            if e["entity_id"] == eid
-        ][-2:]
+        events = [e["message"] for e in st.event_log if e["entity_id"] == eid][
+            -2:
+        ]
         if events:
             lines.append("Связь: " + " / ".join(events))
         self.log = "\n".join(lines)
         self.log_scroll = 0
 
     def _order_label(self, st, idx):
-        """
-        Возвращает название текущего приказа сущности.
-
-        Args:
-            st: Состояние игрового мира (WorldState).
-            idx (int): Индекс сущности.
-
-        Returns:
-            str: Название приказа или «—».
-        """
         cfg = st.class_configs[st.class_ids[idx]]
         if "order" not in cfg.segment_layout.segments:
             return "—"
@@ -1700,14 +1286,9 @@ class RadioOverlay(OverlayScreen):
         return st.get_segment_label(idx, "order")
 
     def handle_event(self, event):
-        """
-        Обрабатывает события кнопок рации.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if event.type == pygame.MOUSEWHEEL and RADIO_LOG_RECT.collidepoint(
-                pygame.mouse.get_pos()):
+            pygame.mouse.get_pos()
+        ):
             self.log_scroll = max(0, self.log_scroll - event.y)
             return
         if self.close_btn.handle_event(event):
@@ -1723,99 +1304,64 @@ class RadioOverlay(OverlayScreen):
                 return
 
     def draw(self, screen):
-        """
-        Рисует рацию.
-
-        Список юнитов, кнопки пагинации, кнопка связи,
-        изображение рации, журнал связи в отдельной зоне.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         self.draw_base(screen, "Рация")
         for b in self.buttons:
             b.draw(screen)
         self.btn_prev.draw(screen)
         self.btn_next.draw(screen)
         info = f"{self.page + 1}/{self._page_count()}"
-        info_surf = self.app.font_small.render(
-            info, True, (150, 150, 160)
-        )
+        info_surf = self.app.font_small.render(info, True, (150, 150, 160))
         screen.blit(info_surf, (610, 482))
         self.btn_connect.draw(screen)
         if self.radio_img:
             screen.blit(self.radio_img, RADIO_OPEN_POS)
-        # Журнал связи: переносим каждую строку по ширине и даём прокрутку
-        # колесом, чтобы длинная сводка никогда не пропадала за границей.
+
         font = self.app.font_tiny
         lines = []
         for paragraph in str(self.log).split("\n"):
-            lines.extend(wrap_text(
-                font, paragraph, RADIO_LOG_RECT.width - 10
-            ))
+            lines.extend(wrap_text(font, paragraph, RADIO_LOG_RECT.width - 10))
         self.log_lines = lines
         max_lines = max(1, (RADIO_LOG_RECT.height - 24) // 13)
         max_scroll = max(0, len(lines) - max_lines)
         self.log_scroll = max(0, min(self.log_scroll, max_scroll))
         pygame.draw.rect(screen, (9, 18, 12), RADIO_LOG_RECT, border_radius=4)
-        pygame.draw.rect(screen, (50, 92, 58), RADIO_LOG_RECT, 1,
-                         border_radius=4)
+        pygame.draw.rect(
+            screen, (50, 92, 58), RADIO_LOG_RECT, 1, border_radius=4
+        )
         y = RADIO_LOG_RECT.top + 4
-        for line in lines[self.log_scroll:self.log_scroll + max_lines]:
-            screen.blit(font.render(line, True, (140, 220, 140)),
-                        (RADIO_LOG_RECT.left + 5, y))
+        for line in lines[self.log_scroll : self.log_scroll + max_lines]:
+            screen.blit(
+                font.render(line, True, (140, 220, 140)),
+                (RADIO_LOG_RECT.left + 5, y),
+            )
             y += 13
         if max_scroll:
             hint = self.app.font_tiny.render(
-                "колесо — прокрутка (%d/%d)" % (
-                    self.log_scroll + 1, max_scroll + 1
-                ),
-                True, (110, 150, 115),
+                "колесо — прокрутка (%d/%d)"
+                % (self.log_scroll + 1, max_scroll + 1),
+                True,
+                (110, 150, 115),
             )
-            screen.blit(hint, (RADIO_LOG_RECT.right - hint.get_width() - 6,
-                               RADIO_LOG_RECT.bottom - 13))
+            screen.blit(
+                hint,
+                (
+                    RADIO_LOG_RECT.right - hint.get_width() - 6,
+                    RADIO_LOG_RECT.bottom - 13,
+                ),
+            )
         self.close_btn.draw(screen)
 
 
 class TurnLogOverlay(OverlayScreen):
-    """
-    Оверлей лога последнего тика.
-
-    Отображает последние 30 событий текущего тика.
-
-    Attributes:
-        close_btn (Button): Кнопка закрытия.
-    """
 
     def __init__(self, app):
-        """
-        Инициализирует оверлей лога тика.
-
-        Args:
-            app: Экземпляр приложения (App).
-        """
         super().__init__(app, (240, 60, 800, 600))
 
     def handle_event(self, event):
-        """
-        Обрабатывает события: только закрытие.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if self.close_btn.handle_event(event):
             return
 
     def draw(self, screen):
-        """
-        Рисует лог тика.
-
-        Показывает последние 30 событий или сообщение об
-        отсутствии событий.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         self.draw_base(screen, "Лог последнего тика")
         y = 130
         if not self.app.engine.state.tick_events:
@@ -1833,9 +1379,7 @@ class TurnLogOverlay(OverlayScreen):
             if len(line) > 96:
                 line = line[:93] + "..."
             screen.blit(
-                self.app.font_small.render(
-                    line, True, (210, 210, 220)
-                ),
+                self.app.font_small.render(line, True, (210, 210, 220)),
                 (270, y),
             )
             y += 22

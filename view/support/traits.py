@@ -1,14 +1,3 @@
-"""Личностные черты командира и их игровые модификаторы.
-
-Черта выбирается в прологе и хранится в переменной сюжета ``trait``.
-Раньше она влияла только на шум разведки; теперь это единый реестр
-модификаторов, который используют потребности, логистика и интерфейс.
-
-Все коэффициенты — множители (1.0 — нейтрально), кроме ``morale_baseline``
-(пункты морали), ``troop_morale_per_day`` (пункты морали в сутки) и
-``action_bonus`` (множители к конкретным личным действиям).
-"""
-
 from __future__ import annotations
 
 NEUTRAL = {
@@ -34,12 +23,12 @@ NEUTRAL = {
     "action_bonus": {},
 }
 
-# Ключи совпадают со значениями ``set_variable: trait`` в сюжете.
+
 TRAITS = {
     "knight": {
         "label": "Рыцарь",
         "summary": "Держит слово и берёт удар на себя: выше мораль, "
-                   "страх растёт медленнее, люди спокойнее.",
+        "страх растёт медленнее, люди спокойнее.",
         "fear_rate": 0.78,
         "anxiety_rate": 0.88,
         "morale_baseline": 8.0,
@@ -51,7 +40,7 @@ TRAITS = {
     "general_scholar": {
         "label": "Генерал-учёный",
         "summary": "Планирует снабжение и обучение: дешевле операции, "
-                   "быстрее конвои, сильнее учёба.",
+        "быстрее конвои, сильнее учёба.",
         "anxiety_rate": 0.84,
         "report_noise": 0.75,
         "operation_cost": 0.80,
@@ -62,7 +51,7 @@ TRAITS = {
     "freeloader": {
         "label": "Халявщик",
         "summary": "Ищет тёплое место: больше расход запасов, слабее "
-                   "личные действия и ниже мораль войск.",
+        "личные действия и ниже мораль войск.",
         "morale_baseline": -5.0,
         "troop_morale_per_day": -3.0,
         "supply_consumption": 1.20,
@@ -77,7 +66,7 @@ TRAITS = {
     "mercenary": {
         "label": "Наёмник",
         "summary": "Война — работа: больше влияния и дешевле операции, "
-                   "но люди держатся за плату, а не за идею.",
+        "но люди держатся за плату, а не за идею.",
         "morale_baseline": -2.0,
         "troop_morale_per_day": -1.0,
         "influence_rate": 1.30,
@@ -89,7 +78,7 @@ TRAITS = {
     "pretty_eyes": {
         "label": "Красивые глазки",
         "summary": "Связи и обаяние: больше влияния, легче достать "
-                   "конвой, чуть выше мораль.",
+        "конвой, чуть выше мораль.",
         "morale_baseline": 2.0,
         "influence_rate": 1.15,
         "convoy_time": 0.95,
@@ -99,7 +88,7 @@ TRAITS = {
     "truth_teller": {
         "label": "Правдоруб",
         "summary": "Честность сплачивает людей, но штаб не любит "
-                   "неудобных докладов: выше мораль, меньше влияния.",
+        "неудобных докладов: выше мораль, меньше влияния.",
         "morale_baseline": 4.0,
         "fear_rate": 0.90,
         "troop_morale_per_day": 1.0,
@@ -109,17 +98,16 @@ TRAITS = {
     "careerist": {
         "label": "Кадровик",
         "summary": "Работает по регламенту: дешевле операции, быстрее "
-                   "бумаги, но люди чувствуют расчёт.",
+        "бумаги, но люди чувствуют расчёт.",
         "operation_cost": 0.90,
         "convoy_time": 0.95,
         "influence_rate": 1.05,
         "action_bonus": {"train": 1.10, "letters": 0.95},
     },
-    # На случай старых сохранений и ручных сценариев.
     "reservist": {
         "label": "Резервист",
         "summary": "Не отвык от службы, но бережёт силы: меньше усталости, "
-                   "слабее эффект личных действий.",
+        "слабее эффект личных действий.",
         "fatigue_rate": 0.90,
         "morale_baseline": -2.0,
         "supply_consumption": 1.10,
@@ -129,13 +117,11 @@ TRAITS = {
 
 
 def normalize_trait(trait):
-    """Вернуть известный ключ черты или ``None``."""
     key = str(trait or "").strip()
     return key if key in TRAITS else None
 
 
 def trait_label(trait):
-    """Человекочитаемое название черты для интерфейса."""
     key = normalize_trait(trait)
     if key is None:
         return NEUTRAL["label"]
@@ -143,7 +129,6 @@ def trait_label(trait):
 
 
 def trait_summary(trait):
-    """Короткое описание эффекта черты для интерфейса."""
     key = normalize_trait(trait)
     if key is None:
         return NEUTRAL["summary"]
@@ -151,7 +136,6 @@ def trait_summary(trait):
 
 
 def trait_modifiers(trait):
-    """Полный набор модификаторов для черты (с нейтральными значениями)."""
     key = normalize_trait(trait)
     result = dict(NEUTRAL)
     result["action_bonus"] = dict(NEUTRAL["action_bonus"])
@@ -170,7 +154,6 @@ def trait_modifiers(trait):
 
 
 def get_report_noise_modifier(app):
-    """Множитель шума разведки (1.0 — нейтрально)."""
     interp = getattr(app, "storyline_interpreter", None)
     if interp is None:
         return 1.0

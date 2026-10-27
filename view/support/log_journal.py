@@ -1,10 +1,3 @@
-"""Служебный журнал UI-слоя ``view``.
-
-Пишет в ``operation_ozverin.log`` в корне проекта и дублирует сообщения
-уровня INFO и выше в консоль. Журнал не является частью математической
-модели: это только диагностика интерфейса.
-"""
-
 import logging
 import os
 
@@ -13,7 +6,6 @@ LOG_PATH = os.path.join(ROOT, "operation_ozverin.log")
 
 
 def get_logger(name):
-    """Вернуть именованный журнал с файловым и консольным обработчиками."""
     logger = logging.getLogger(name)
     if logger.handlers:
         return logger
@@ -27,7 +19,7 @@ def get_logger(name):
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except OSError:
-        # Каталог только для чтения — интерфейс должен работать и без лога.
+
         pass
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)

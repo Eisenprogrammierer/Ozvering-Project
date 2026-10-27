@@ -1,5 +1,3 @@
-"""Экраны редактора автоматов."""
-
 from .confirm import ConfirmScene
 from .editor import EditorScene
 from .help import HelpScene

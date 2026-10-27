@@ -39,9 +39,25 @@
   RL 1 / UtilityAI 9 / без захвата 0) должен сохраняться либо изменение
   обосновывается и вносится в `BASELINE.md`.
 
+## Код и документация
+
+* В Python-файлах **нет комментариев и docstrings**. Исключение — исполняемый
+  shebang в standalone-скриптах.
+* Описание модулей, классов, функций и переменных переносится в
+  [`docs/code/`](docs/code/README.md). Inline-заметки, удалённые из кода,
+  попадают в [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md).
+* Новая механика, контракты и ограничения описываются в тематических
+  документах (`MODEL.md`, `BASELINE.md`, `CAMPAIGN_UI.md` и т.п.), а не рядом
+  с кодом.
+* Форматирование — `black --line-length 79`; стиль — `pycodestyle` с
+  настройками из `setup.cfg`. Исключения `E402`, `E203`, `W503` зафиксированы
+  из-за bootstrap-импортов в экспериментах и совместимости с `black`.
+
 ## Перед отправкой PR
 
 ```bash
+black --line-length 79 $(git ls-files '*.py')
+python3 -m pycodestyle $(git ls-files '*.py')
 python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view automata interaction organizations experiments tests
 pytest -q
 ```

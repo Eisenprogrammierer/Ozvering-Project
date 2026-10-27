@@ -1,12 +1,3 @@
-"""Оверлей приказов выбранным подразделениям.
-
-Экран открывается с RTS-карты и перечисляет все приказы из
-``configs/content/orders.json``. Выбор применяется к текущему выделению
-через ``CampaignEngine.assign_order``. Если на карте выбрана явная цель,
-наступательные приказы сосредоточивают огонь на ней; иначе используется
-ближайший противник. Точное движение по-прежнему задаётся правым кликом.
-"""
-
 from __future__ import annotations
 
 import pygame
@@ -19,7 +10,8 @@ from view.support.log_journal import get_logger
 logger = get_logger("view.orders")
 
 ORDER_HINTS = {
-    "aggressive_attack": "Максимальный удар, повышенная уязвимость. Отход запрещён.",
+    "aggressive_attack": "Максимальный удар, повышенная уязвимость. Отход "
+    "запрещён.",
     "attack": "Обычное наступление с отходом при угрозе.",
     "cautious_attack": "Осторожное сближение, меньше потерь, ниже темп.",
     "holding_defense": "Держать рубеж и не отходить без приказа.",
@@ -33,7 +25,6 @@ ORDER_HINTS = {
 
 
 class UnitOrdersOverlay(OverlayScreen):
-    """Список приказов, применимых к выделенным подразделениям."""
 
     def __init__(self, app, rts):
         super().__init__(app, (250, 64, 780, 592))
@@ -50,7 +41,9 @@ class UnitOrdersOverlay(OverlayScreen):
         )
 
     def _build(self):
-        orders = list(getattr(self.app.engine, "order_table", None).orders or [])
+        orders = list(
+            getattr(self.app.engine, "order_table", None).orders or []
+        )
         seen = {item.get("id") for item in orders}
         if "withdrawal" not in seen:
             orders.append({"id": "withdrawal", "label": "Отход"})
@@ -111,9 +104,12 @@ class UnitOrdersOverlay(OverlayScreen):
         panel = self.panel.rect
         selected = self.rts._selected_dets()
         names = ", ".join(det.name for det in selected) or "—"
-        screen.blit(self.app.font_tiny.render(
-            "Выбрано: %s" % names, True, (170, 185, 200)
-        ), (panel.x + 20, panel.y + 42))
+        screen.blit(
+            self.app.font_tiny.render(
+                "Выбрано: %s" % names, True, (170, 185, 200)
+            ),
+            (panel.x + 20, panel.y + 42),
+        )
         for btn, hint in self.buttons:
             btn.draw(screen)
             if hint:
@@ -121,13 +117,18 @@ class UnitOrdersOverlay(OverlayScreen):
                     self.app.font_tiny, hint, btn.rect.width - 10
                 )
                 for j, line in enumerate(lines[:2]):
-                    screen.blit(self.app.font_tiny.render(
-                        line, True, (145, 158, 172)
-                    ), (btn.rect.x + 5, btn.rect.y + 27 + j * 12))
-        screen.blit(self.app.font_tiny.render(
-            "Совет: точку движения можно задать правым кликом по карте.",
-            True, (150, 165, 180),
-        ), (panel.x + 20, panel.bottom - 52))
+                    screen.blit(
+                        self.app.font_tiny.render(line, True, (145, 158, 172)),
+                        (btn.rect.x + 5, btn.rect.y + 27 + j * 12),
+                    )
+        screen.blit(
+            self.app.font_tiny.render(
+                "Совет: точку движения можно задать правым кликом по карте.",
+                True,
+                (150, 165, 180),
+            ),
+            (panel.x + 20, panel.bottom - 52),
+        )
         self.staff_btn.draw(screen)
         self.close_btn.draw(screen)
 

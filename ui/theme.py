@@ -1,51 +1,40 @@
-"""Визуальная тема сценного слоя: палитра, метрики и помощники рисования.
-
-Плейсхолдеры вместо ассетов: изображения рисуются прямоугольником с рамкой,
-диагоналями и подписью ``[ IMG: <ключ> ]`` — это позволяет собирать полный
-интерфейс экранов до появления арта (2-D арт и 3-D сцены — отдельные задачи).
-"""
-
 import pygame
 
-# --- палитра (единый источник цвета для всех экранов) -----------------------
-BG = (14, 16, 22)             # фон экрана
-BG_ALT = (20, 23, 30)         # фон подпанели
-PANEL = (26, 29, 38)         # панель/кнопка (недоступная)
-PANEL_HI = (37, 41, 53)      # панель/кнопка (активная)
+BG = (14, 16, 22)
+BG_ALT = (20, 23, 30)
+PANEL = (26, 29, 38)
+PANEL_HI = (37, 41, 53)
 BORDER = (60, 66, 80)
 TEXT = (228, 228, 232)
 TEXT_DIM = (150, 154, 164)
 TEXT_MUTED = (105, 110, 122)
-ACCENT = (255, 210, 90)      # золото (совпадает с рамкой окна конъюнктуры)
-ACCENT2 = (110, 170, 255)    # вторичный акцент (RL/AI)
+ACCENT = (255, 210, 90)
+ACCENT2 = (110, 170, 255)
 OK = (120, 200, 130)
 WARN = (240, 150, 90)
 DANGER = (225, 95, 95)
 
-# --- метрики вёрстки --------------------------------------------------------
-EDGE = 18                    # внешний отступ экрана
-GAP = 12                     # зазор между элементами
-BTN_H = 46                   # высота кнопки
-ROW_H = 62                   # высота строки слота сохранения
+
+EDGE = 18
+GAP = 12
+BTN_H = 46
+ROW_H = 62
 RADIUS = 6
 TITLE_PAD = 10
 
 
 def mix(a, b, t):
-    """Линейная интерполяция двух цветов (``t`` — доля ``b``)."""
     t = max(0.0, min(1.0, float(t)))
     return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
 
 
 def panel(s, rect, fill=PANEL, border=BORDER, radius=RADIUS, width=1):
-    """Панель: заливка + рамка со скруглением."""
     pygame.draw.rect(s, fill, rect, border_radius=radius)
     if border is not None:
         pygame.draw.rect(s, border, rect, width=width, border_radius=radius)
 
 
 def text(s, font, value, pos, color=TEXT, center=False, right=False):
-    """Нарисовать строку. Возвращает rect занятой области."""
     img = font.render(str(value), True, color)
     r = img.get_rect()
     if center:
@@ -63,7 +52,6 @@ def text_size(font, value):
 
 
 def wrap(font, value, max_w):
-    """Разбить текст на строки по ширине (по словам; перенос по ``\\n``)."""
     lines = []
     for paragraph in str(value).split("\n"):
         words = paragraph.split()
@@ -84,22 +72,32 @@ def wrap(font, value, max_w):
 
 
 def draw_placeholder(s, rect, key, fonts, caption="IMG", color=None):
-    """Плейсхолдер ассета: рамка, диагонали и подпись ``[ caption: key ]``."""
     rect = pygame.Rect(rect)
     fill = color or (30, 33, 42)
     panel(s, rect, fill=fill, border=BORDER, radius=4)
     pygame.draw.line(s, BORDER, rect.topleft, rect.bottomright)
     pygame.draw.line(s, BORDER, rect.topright, rect.bottomleft)
-    text(s, fonts.font_s, "[ %s: %s ]" % (caption, key), rect.center,
-         TEXT_DIM, center=True)
+    text(
+        s,
+        fonts.font_s,
+        "[ %s: %s ]" % (caption, key),
+        rect.center,
+        TEXT_DIM,
+        center=True,
+    )
 
 
 def draw_title(s, fonts, value, center_x, y, color=ACCENT):
-    """Крупный заголовок по центру; возвращает нижнюю границу."""
     r = text(s, fonts.font_b, value, (center_x, y), color, center=True)
     return r.bottom
 
 
 def draw_footer_hint(s, fonts, value, w, h):
-    """Строка-подсказка внизу экрана (управление)."""
-    text(s, fonts.font_s, value, (w // 2, h - EDGE // 2), TEXT_MUTED, center=True)
+    text(
+        s,
+        fonts.font_s,
+        value,
+        (w // 2, h - EDGE // 2),
+        TEXT_MUTED,
+        center=True,
+    )

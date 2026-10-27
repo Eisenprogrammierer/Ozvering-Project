@@ -1,17 +1,7 @@
-"""Морфология русских слов для генератора названий.
-
-Словари содержат только опорные формы (именительный и родительный падеж для
-существительных, именительный для прилагательных). Остальные формы выводятся
-по регулярным правилам. Это не академический морфологический анализатор:
-слой рассчитан на ограниченный, вручную выверенный лексикон названий и хранит
-исключения в поле ``forms``.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Mapping
-
 
 CASES = ("nom", "gen", "dat", "acc", "ins", "prep")
 CASE_RU = {
@@ -24,15 +14,20 @@ CASE_RU = {
 }
 GENDERS = ("m", "f", "n", "pl")
 _ADJECTIVE_PATTERNS = (
-    "hard", "soft", "stressed", "velar", "hush",
-    "stressed_velar", "stressed_hush",
+    "hard",
+    "soft",
+    "stressed",
+    "velar",
+    "hush",
+    "stressed_velar",
+    "stressed_hush",
 )
 _HUSH = ("ж", "ш", "ч", "щ")
 _VELAR = ("к", "г", "х")
 
 
 class MorphologyError(ValueError):
-    """Некорректная словарная статья или форма слова."""
+    pass
 
 
 def normalize_case(case):
@@ -74,7 +69,6 @@ def _require(data, key, label):
 
 @dataclass(frozen=True)
 class Noun:
-    """Существительное с опорными формами и необязательными исключениями."""
 
     id: str
     nom: str
@@ -86,11 +80,13 @@ class Noun:
 
     def __post_init__(self):
         if self.gender not in GENDERS:
-            raise MorphologyError("%s: неизвестный род %r"
-                                  % (self.id, self.gender))
+            raise MorphologyError(
+                "%s: неизвестный род %r" % (self.id, self.gender)
+            )
         if self.number not in ("sg", "pl"):
-            raise MorphologyError("%s: неизвестное число %r"
-                                  % (self.id, self.number))
+            raise MorphologyError(
+                "%s: неизвестное число %r" % (self.id, self.number)
+            )
         object.__setattr__(self, "forms", _clean_forms(self.forms))
 
     @classmethod
@@ -116,8 +112,7 @@ class Noun:
         if case == "gen":
             return self.gen
         if self.number == "pl":
-            # Для pluralia tantum требуется полный набор форм; без него
-            # возвращаем именительный, чтобы не изобретать неверную форму.
+
             return self.forms.get(case, self.nom)
         if case == "acc":
             return self.gen if self.animate else self.nom
@@ -187,12 +182,12 @@ class Noun:
                 prep = stem + ("и" if nom.endswith("ие") else "е")
                 return {"dat": dat, "ins": ins, "prep": prep}[case]
         raise MorphologyError(
-            "не удалось вывести форму %s для %s (%s)" % (case, self.id, nom))
+            "не удалось вывести форму %s для %s (%s)" % (case, self.id, nom)
+        )
 
 
 @dataclass(frozen=True)
 class Adjective:
-    """Прилагательное; формы выводятся из именительного и характера основы."""
 
     id: str
     nom: str
@@ -202,7 +197,7 @@ class Adjective:
         object.__setattr__(self, "forms", _clean_forms(self.forms))
         if not self.nom:
             raise MorphologyError("%s: пустое прилагательное" % self.id)
-        self.pattern  # проверка выводимости
+        self.pattern
 
     @classmethod
     def from_config(cls, word_id, data):
@@ -233,7 +228,8 @@ class Adjective:
         if nom.endswith("ый"):
             return "hard"
         raise MorphologyError(
-            "%s: прилагательное должно оканчиваться на -ый/-ий/-ой" % self.id)
+            "%s: прилагательное должно оканчиваться на -ый/-ий/-ой" % self.id
+        )
 
     def form(self, case, gender="m", animate=False):
         case = normalize_case(case)
@@ -245,7 +241,11 @@ class Adjective:
             return self.nom
         stem = self.nom[:-2]
         endings = _ADJECTIVE_ENDINGS[self.pattern]
-        key = "acc_anim" if (case == "acc" and gender == "m" and animate) else case
+        key = (
+            "acc_anim"
+            if (case == "acc" and gender == "m" and animate)
+            else case
+        )
         if gender == "pl" and case == "acc" and animate:
             key = "acc_anim"
         return stem + endings[gender][key]
@@ -253,81 +253,276 @@ class Adjective:
 
 _ADJECTIVE_ENDINGS = {
     "hard": {
-        "m": {"nom": "ый", "gen": "ого", "dat": "ому", "acc": "ый",
-              "acc_anim": "ого", "ins": "ым", "prep": "ом"},
-        "f": {"nom": "ая", "gen": "ой", "dat": "ой", "acc": "ую",
-              "acc_anim": "ую", "ins": "ой", "prep": "ой"},
-        "n": {"nom": "ое", "gen": "ого", "dat": "ому", "acc": "ое",
-              "acc_anim": "ое", "ins": "ым", "prep": "ом"},
-        "pl": {"nom": "ые", "gen": "ых", "dat": "ым", "acc": "ые",
-               "acc_anim": "ых", "ins": "ыми", "prep": "ых"},
+        "m": {
+            "nom": "ый",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ый",
+            "acc_anim": "ого",
+            "ins": "ым",
+            "prep": "ом",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ой",
+            "dat": "ой",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ой",
+            "prep": "ой",
+        },
+        "n": {
+            "nom": "ое",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ое",
+            "acc_anim": "ое",
+            "ins": "ым",
+            "prep": "ом",
+        },
+        "pl": {
+            "nom": "ые",
+            "gen": "ых",
+            "dat": "ым",
+            "acc": "ые",
+            "acc_anim": "ых",
+            "ins": "ыми",
+            "prep": "ых",
+        },
     },
     "soft": {
-        "m": {"nom": "ий", "gen": "его", "dat": "ему", "acc": "ий",
-              "acc_anim": "его", "ins": "им", "prep": "ем"},
-        "f": {"nom": "яя", "gen": "ей", "dat": "ей", "acc": "юю",
-              "acc_anim": "юю", "ins": "ей", "prep": "ей"},
-        "n": {"nom": "ее", "gen": "его", "dat": "ему", "acc": "ее",
-              "acc_anim": "ее", "ins": "им", "prep": "ем"},
-        "pl": {"nom": "ие", "gen": "их", "dat": "им", "acc": "ие",
-               "acc_anim": "их", "ins": "ими", "prep": "их"},
+        "m": {
+            "nom": "ий",
+            "gen": "его",
+            "dat": "ему",
+            "acc": "ий",
+            "acc_anim": "его",
+            "ins": "им",
+            "prep": "ем",
+        },
+        "f": {
+            "nom": "яя",
+            "gen": "ей",
+            "dat": "ей",
+            "acc": "юю",
+            "acc_anim": "юю",
+            "ins": "ей",
+            "prep": "ей",
+        },
+        "n": {
+            "nom": "ее",
+            "gen": "его",
+            "dat": "ему",
+            "acc": "ее",
+            "acc_anim": "ее",
+            "ins": "им",
+            "prep": "ем",
+        },
+        "pl": {
+            "nom": "ие",
+            "gen": "их",
+            "dat": "им",
+            "acc": "ие",
+            "acc_anim": "их",
+            "ins": "ими",
+            "prep": "их",
+        },
     },
     "stressed": {
-        "m": {"nom": "ой", "gen": "ого", "dat": "ому", "acc": "ой",
-              "acc_anim": "ого", "ins": "ым", "prep": "ом"},
-        "f": {"nom": "ая", "gen": "ой", "dat": "ой", "acc": "ую",
-              "acc_anim": "ую", "ins": "ой", "prep": "ой"},
-        "n": {"nom": "ое", "gen": "ого", "dat": "ому", "acc": "ое",
-              "acc_anim": "ое", "ins": "ым", "prep": "ом"},
-        "pl": {"nom": "ые", "gen": "ых", "dat": "ым", "acc": "ые",
-               "acc_anim": "ых", "ins": "ыми", "prep": "ых"},
+        "m": {
+            "nom": "ой",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ой",
+            "acc_anim": "ого",
+            "ins": "ым",
+            "prep": "ом",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ой",
+            "dat": "ой",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ой",
+            "prep": "ой",
+        },
+        "n": {
+            "nom": "ое",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ое",
+            "acc_anim": "ое",
+            "ins": "ым",
+            "prep": "ом",
+        },
+        "pl": {
+            "nom": "ые",
+            "gen": "ых",
+            "dat": "ым",
+            "acc": "ые",
+            "acc_anim": "ых",
+            "ins": "ыми",
+            "prep": "ых",
+        },
     },
     "velar": {
-        "m": {"nom": "ий", "gen": "ого", "dat": "ому", "acc": "ий",
-              "acc_anim": "ого", "ins": "им", "prep": "ом"},
-        "f": {"nom": "ая", "gen": "ой", "dat": "ой", "acc": "ую",
-              "acc_anim": "ую", "ins": "ой", "prep": "ой"},
-        "n": {"nom": "ое", "gen": "ого", "dat": "ому", "acc": "ое",
-              "acc_anim": "ое", "ins": "им", "prep": "ом"},
-        "pl": {"nom": "ие", "gen": "их", "dat": "им", "acc": "ие",
-               "acc_anim": "их", "ins": "ими", "prep": "их"},
+        "m": {
+            "nom": "ий",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ий",
+            "acc_anim": "ого",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ой",
+            "dat": "ой",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ой",
+            "prep": "ой",
+        },
+        "n": {
+            "nom": "ое",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ое",
+            "acc_anim": "ое",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "pl": {
+            "nom": "ие",
+            "gen": "их",
+            "dat": "им",
+            "acc": "ие",
+            "acc_anim": "их",
+            "ins": "ими",
+            "prep": "их",
+        },
     },
     "hush": {
-        "m": {"nom": "ий", "gen": "его", "dat": "ему", "acc": "ий",
-              "acc_anim": "его", "ins": "им", "prep": "ем"},
-        "f": {"nom": "ая", "gen": "ей", "dat": "ей", "acc": "ую",
-              "acc_anim": "ую", "ins": "ей", "prep": "ей"},
-        "n": {"nom": "ее", "gen": "его", "dat": "ему", "acc": "ее",
-              "acc_anim": "ее", "ins": "им", "prep": "ем"},
-        "pl": {"nom": "ие", "gen": "их", "dat": "им", "acc": "ие",
-               "acc_anim": "их", "ins": "ими", "prep": "их"},
+        "m": {
+            "nom": "ий",
+            "gen": "его",
+            "dat": "ему",
+            "acc": "ий",
+            "acc_anim": "его",
+            "ins": "им",
+            "prep": "ем",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ей",
+            "dat": "ей",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ей",
+            "prep": "ей",
+        },
+        "n": {
+            "nom": "ее",
+            "gen": "его",
+            "dat": "ему",
+            "acc": "ее",
+            "acc_anim": "ее",
+            "ins": "им",
+            "prep": "ем",
+        },
+        "pl": {
+            "nom": "ие",
+            "gen": "их",
+            "dat": "им",
+            "acc": "ие",
+            "acc_anim": "их",
+            "ins": "ими",
+            "prep": "их",
+        },
     },
     "stressed_velar": {
-        "m": {"nom": "ой", "gen": "ого", "dat": "ому", "acc": "ой",
-              "acc_anim": "ого", "ins": "им", "prep": "ом"},
-        "f": {"nom": "ая", "gen": "ой", "dat": "ой", "acc": "ую",
-              "acc_anim": "ую", "ins": "ой", "prep": "ой"},
-        "n": {"nom": "ое", "gen": "ого", "dat": "ому", "acc": "ое",
-              "acc_anim": "ое", "ins": "им", "prep": "ом"},
-        "pl": {"nom": "ие", "gen": "их", "dat": "им", "acc": "ие",
-               "acc_anim": "их", "ins": "ими", "prep": "их"},
+        "m": {
+            "nom": "ой",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ой",
+            "acc_anim": "ого",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ой",
+            "dat": "ой",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ой",
+            "prep": "ой",
+        },
+        "n": {
+            "nom": "ое",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ое",
+            "acc_anim": "ое",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "pl": {
+            "nom": "ие",
+            "gen": "их",
+            "dat": "им",
+            "acc": "ие",
+            "acc_anim": "их",
+            "ins": "ими",
+            "prep": "их",
+        },
     },
     "stressed_hush": {
-        "m": {"nom": "ой", "gen": "ого", "dat": "ому", "acc": "ой",
-              "acc_anim": "ого", "ins": "им", "prep": "ом"},
-        "f": {"nom": "ая", "gen": "ой", "dat": "ой", "acc": "ую",
-              "acc_anim": "ую", "ins": "ой", "prep": "ой"},
-        "n": {"nom": "ое", "gen": "ого", "dat": "ому", "acc": "ое",
-              "acc_anim": "ое", "ins": "им", "prep": "ом"},
-        "pl": {"nom": "ие", "gen": "их", "dat": "им", "acc": "ие",
-               "acc_anim": "их", "ins": "ими", "prep": "их"},
+        "m": {
+            "nom": "ой",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ой",
+            "acc_anim": "ого",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "f": {
+            "nom": "ая",
+            "gen": "ой",
+            "dat": "ой",
+            "acc": "ую",
+            "acc_anim": "ую",
+            "ins": "ой",
+            "prep": "ой",
+        },
+        "n": {
+            "nom": "ое",
+            "gen": "ого",
+            "dat": "ому",
+            "acc": "ое",
+            "acc_anim": "ое",
+            "ins": "им",
+            "prep": "ом",
+        },
+        "pl": {
+            "nom": "ие",
+            "gen": "их",
+            "dat": "им",
+            "acc": "ие",
+            "acc_anim": "их",
+            "ins": "ими",
+            "prep": "их",
+        },
     },
 }
 
 
 @dataclass(frozen=True)
 class Phrase:
-    """Неизменяемая готовая фраза (например, «особого назначения»)."""
 
     id: str
     nom: str
@@ -377,8 +572,9 @@ def capitalize(text):
 
 
 def join_words(words: Iterable[str]):
-    return " ".join(part for part in (str(word or "").strip() for word in words)
-                    if part)
+    return " ".join(
+        part for part in (str(word or "").strip() for word in words) if part
+    )
 
 
 def noun_gender(noun: Noun):
@@ -390,7 +586,18 @@ def agreed_adjective(adjective: Adjective, noun: Noun, case="nom"):
 
 
 __all__ = [
-    "CASES", "CASE_RU", "GENDERS", "MorphologyError", "Noun", "Adjective",
-    "Phrase", "load_word", "normalize_case", "word_count", "capitalize",
-    "join_words", "noun_gender", "agreed_adjective",
+    "CASES",
+    "CASE_RU",
+    "GENDERS",
+    "MorphologyError",
+    "Noun",
+    "Adjective",
+    "Phrase",
+    "load_word",
+    "normalize_case",
+    "word_count",
+    "capitalize",
+    "join_words",
+    "noun_gender",
+    "agreed_adjective",
 ]

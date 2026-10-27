@@ -1,5 +1,3 @@
-"""Тесты кампанийного UI-каркаса ``view`` (без pygame)."""
-
 import pytest
 
 np = pytest.importorskip("numpy")
@@ -36,7 +34,7 @@ def test_order_and_tick_change_warfare_state():
     assert engine.assign_order(0, "aggressive_attack")
     assert state.get_segment_label(0, "order") == "Агрессивная атака"
     time_system.advance(1800)
-    # 30 игровых минут при такте боя в 5 минут = 6 тактов.
+
     assert state.current_tick == start_tick + 6
     assert any(event["message"] for event in state.tick_events)
 
@@ -69,12 +67,15 @@ def test_effect_targets_player_and_sets_order():
     from view.support.effects import EffectInterpreter
 
     state, _, _ = _world()
-    EffectInterpreter.apply(state, {
-        "targets": ["player"],
-        "set_segments": {"order": "holding_defense"},
-        "add_voltages": {"U_supply": -0.1},
-        "log": "Тестовый эффект",
-    })
+    EffectInterpreter.apply(
+        state,
+        {
+            "targets": ["player"],
+            "set_segments": {"order": "holding_defense"},
+            "add_voltages": {"U_supply": -0.1},
+            "log": "Тестовый эффект",
+        },
+    )
     assert state.read_voltage(state.player_idx, "U_supply") < 0.82
     assert state.event_log[-1]["message"] == "Тестовый эффект"
 
@@ -89,7 +90,7 @@ def test_needs_actions_consume_supplies_and_restore_needs():
     assert result["ok"]
     assert state.supplies["food"] == before_food - 4
     assert det.needs_summary()["hunger"] < before
-    assert not state.needs.apply(idx, "feed")["ok"]  # кулдаун
+    assert not state.needs.apply(idx, "feed")["ok"]
 
 
 def test_evening_and_morning_mandatory_scenes_advance_day():
@@ -126,46 +127,46 @@ def test_division_losses_accumulate_and_are_reported():
 
 
 def test_reserve_spawn_does_not_create_phantom_losses():
-    """Выход резерва не должен считаться безвозвратными потерями.
-
-    До исправления резерв тикал как самостоятельная среда внутри стана,
-    выходил с силой 28.8 вместо штатных 12, а на следующем такте UI
-    ограничивал силу до штата и записывал разницу (11) в потери. Из-за
-    этого потери дивизии прыгали с 1% до 18% за один такт.
-
-    Бригадный сценарий больше не содержит станов, поэтому регрессия
-    проверяется на синтетическом мире с явным резервом.
-    """
     import warfare as W
     from view.support.world import CampaignState
 
     sim = W.WarfareSimulation(seed=3, turns=30)
     sim.engage_range = 3
     line = W.Detachment(
-        "Р-1", "red",
+        "Р-1",
+        "red",
         W._character_roster("red", "Р", ["rifleman", "veteran"], 1),
     )
     reserve = W.Detachment(
-        "Р-резерв-1", "red",
+        "Р-резерв-1",
+        "red",
         W._character_roster("red", "РР", ["conscript", "rifleman"], 2),
     )
     enemy = W.Detachment(
-        "С-1", "blue",
+        "С-1",
+        "blue",
         W._character_roster("blue", "С", ["rifleman", "veteran"], 4),
         position=(23, 23),
     )
     sim.add_detachment(line)
     sim.add_detachment(enemy)
-    sim.add_stan(W.Stan(
-        "Стан-Р", "red", reserve=[reserve],
-        spawn_interval=9, position=(0, 8), rally=(1, 8),
-    ))
+    sim.add_stan(
+        W.Stan(
+            "Стан-Р",
+            "red",
+            reserve=[reserve],
+            spawn_interval=9,
+            position=(0, 8),
+            rally=(1, 8),
+        )
+    )
     state = CampaignState(sim)
     engine = CampaignEngine(state)
     for _ in range(9):
         engine.tick()
     spawned = next(
-        det for det in state.units
+        det
+        for det in state.units
         if det.side == state.player_side and "резерв" in det.name
     )
     assert spawned.force == pytest.approx(spawned.start_force)
@@ -243,7 +244,7 @@ def test_logistics_operation_and_convoy_change_stocks():
     sent = ls.request_convoy("ammo", risk=0.0)
     assert sent["ok"]
     assert sent["eta_minutes"] > 0
-    # Сразу груз не приходит: конвой сначала должен доехать.
+
     assert ls.stock("ammo") == pytest.approx(before_ammo)
     assert ls.convoy_status_rows()
     ls._process_convoys(sent["eta_minutes"] + 1)
@@ -259,9 +260,7 @@ def test_water_convoy_is_delayed_and_survives_save_load():
     assert sent["ok"]
     assert sent["eta_minutes"] > 0
     assert ls.stock("water") == pytest.approx(before)
-    assert any(
-        row["kind"] == "water" for row in ls.convoy_status_rows()
-    )
+    assert any(row["kind"] == "water" for row in ls.convoy_status_rows())
 
     snapshot = state.to_snapshot()
     loaded = build_world()
@@ -292,8 +291,11 @@ def test_convoy_attack_can_delay_or_destroy_cargo():
     ls.convoy_full_loss_chance = 0.0
     before = ls.stock("water")
     convoy = Convoy(
-        "water", {"water": 100.0}, remaining_minutes=0.0,
-        total_minutes=10.0, risk=1.0,
+        "water",
+        {"water": 100.0},
+        remaining_minutes=0.0,
+        total_minutes=10.0,
+        risk=1.0,
     )
     delayed = ls._arrive_convoy(convoy)
     assert delayed is convoy
@@ -307,8 +309,11 @@ def test_convoy_attack_can_delay_or_destroy_cargo():
     assert ls.stock("water") == pytest.approx(before + 65.0)
 
     lost = Convoy(
-        "water", {"water": 100.0}, remaining_minutes=0.0,
-        total_minutes=10.0, risk=1.0,
+        "water",
+        {"water": 100.0},
+        remaining_minutes=0.0,
+        total_minutes=10.0,
+        risk=1.0,
     )
     ls.convoy_full_loss_chance = 0.25
     before_loss = ls.stock("water")
@@ -325,18 +330,22 @@ def test_commander_trait_changes_needs_logistics_and_actions():
         scholar.logistics.operation_cost("fortify", 1)["engineering"]
         < neutral.logistics.operation_cost("fortify", 1)["engineering"]
     )
-    neutral_eta = neutral.logistics.request_convoy(
-        "water", risk=0.0
-    )["eta_minutes"]
-    scholar_eta = scholar.logistics.request_convoy(
-        "water", risk=0.0
-    )["eta_minutes"]
+    neutral_eta = neutral.logistics.request_convoy("water", risk=0.0)[
+        "eta_minutes"
+    ]
+    scholar_eta = scholar.logistics.request_convoy("water", risk=0.0)[
+        "eta_minutes"
+    ]
     assert scholar_eta < neutral_eta
 
     knight = build_world()
     knight.needs.set_commander_trait("knight")
-    neutral_effect = neutral.needs.status_player()["encourage"]["effects"]["fear"]
-    knight_effect = knight.needs.status_player()["encourage"]["effects"]["fear"]
+    neutral_effect = neutral.needs.status_player()["encourage"]["effects"][
+        "fear"
+    ]
+    knight_effect = knight.needs.status_player()["encourage"]["effects"][
+        "fear"
+    ]
     assert knight_effect > neutral_effect
 
     freeloader = build_world()
@@ -354,9 +363,7 @@ def test_morale_falls_under_sustained_combat():
     import random
 
     state, _, _ = _world()
-    det = next(
-        det for det in state.units if det.side == state.player_side
-    )
+    det = next(det for det in state.units if det.side == state.player_side)
     for character in det.characters:
         character.morale = 80.0
     det.refresh_psychology()
@@ -370,7 +377,10 @@ def test_fear_does_not_become_critical_by_day_two():
     commander = state.needs.commander
     for _ in range(576):
         commander.tick_needs(
-            in_combat=True, under_fire=0.3, supported=0.45, seconds=300,
+            in_combat=True,
+            under_fire=0.3,
+            supported=0.45,
+            seconds=300,
         )
     assert commander.needs["fear"] < 0.8
     assert not commander.is_dead
@@ -380,15 +390,14 @@ def test_logistics_operation_can_target_several_units_at_once():
     state, _, _ = _world()
     ls = state.logistics
     player_indices = [
-        i for i, det in enumerate(state.units)
-        if det.side == state.player_side
+        i for i, det in enumerate(state.units) if det.side == state.player_side
     ][:3]
     untouched = state.det_at(player_indices[2] + 1)
     before = ls.stock("engineering")
     result = ls.apply_operation("fortify", player_indices)
     assert result["ok"]
     assert result["count"] == 3
-    # Цена умножается на число рот; четвёртая рота остаётся без эффекта.
+
     assert ls.stock("engineering") == pytest.approx(before - 3)
     for idx in player_indices:
         assert state.det_at(idx).ui_fortification > 0
@@ -399,8 +408,7 @@ def test_multi_target_logistics_is_all_or_nothing():
     state, _, _ = _world()
     ls = state.logistics
     player_indices = [
-        i for i, det in enumerate(state.units)
-        if det.side == state.player_side
+        i for i, det in enumerate(state.units) if det.side == state.player_side
     ][:3]
     ls.supplies["engineering"] = 2.0
     result = ls.apply_operation("fortify", player_indices)
@@ -417,11 +425,10 @@ def test_passive_influence_and_free_convoy():
     assert ls.influence_per_hour > 0
     start = ls.stock("influence")
     events_before = len(state.event_log)
-    # Доход дробный и виден уже после первого пятиминутного такта.
+
     ls.on_tick(300, [])
     assert ls.stock("influence") > start
-    # 36 тактов по 300 секунд = 3 игровых часа: +12 влияния и одна
-    # автоколонна. Автоколонна не тратит влияние.
+
     for _ in range(35):
         ls.on_tick(300, [])
     assert ls.stock("influence") == pytest.approx(start + 12.0)
@@ -435,10 +442,9 @@ def test_passive_influence_and_free_convoy():
 
 def test_groups_are_saved_with_campaign_state():
     state, _, _ = _world()
-    names = [
-        det.name for det in state.units
-        if det.side == state.player_side
-    ][:3]
+    names = [det.name for det in state.units if det.side == state.player_side][
+        :3
+    ]
     state.groups[2] = names
     snapshot = state.to_snapshot()
     assert snapshot["groups"]["2"] == names
@@ -523,7 +529,9 @@ def test_manpower_loss_condition_uses_division_losses():
         det.losses = state._start_force(det) * 0.3
     assert check_storyline_condition(
         {"type": "manpower_loss_above", "value": 0.2},
-        state, None, {"initial_manpower": 1.0},
+        state,
+        None,
+        {"initial_manpower": 1.0},
     )
 
 
@@ -536,9 +544,7 @@ def test_player_death_is_a_storyline_defeat_condition():
     )
     state.needs.commander.needs["health"] = 1.0
     assert state.needs.player_dead
-    assert check_storyline_condition(
-        {"type": "player_dead"}, state, None, {}
-    )
+    assert check_storyline_condition({"type": "player_dead"}, state, None, {})
     snapshot = state.to_snapshot()
     state.needs.commander.needs["health"] = 0.0
     state.needs.commander.dead = False
@@ -552,9 +558,7 @@ def test_mvp_win_scene_uses_existing_outtro_assets():
 
     root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/storylines/mvp_demo.json").read_text(
-            encoding="utf-8"
-        )
+        (root / "configs/storylines/mvp_demo.json").read_text(encoding="utf-8")
     )
     slides = data["win_scene"]["slides"]
     images = []
@@ -566,26 +570,29 @@ def test_mvp_win_scene_uses_existing_outtro_assets():
                 images.append(variant["image"])
     assert len(slides) == 6
     assert set(images) == {
-        "outtro_male_1", "outtro_female_1", "outtro_2", "outtro_3",
-        "outtro_4", "outtro_5", "outtro_6",
+        "outtro_male_1",
+        "outtro_female_1",
+        "outtro_2",
+        "outtro_3",
+        "outtro_4",
+        "outtro_5",
+        "outtro_6",
     }
     for name in images:
         assert list((root / "assets/images/scenes").glob(name + ".*"))
 
 
 def test_mvp_loss_threshold_allows_meaningful_battle():
-    """25% — дивизия теряет боеспособность, но бой не обрывается сразу."""
     import json
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/storylines/mvp_demo.json").read_text(
-            encoding="utf-8"
-        )
+        (root / "configs/storylines/mvp_demo.json").read_text(encoding="utf-8")
     )
     loss_condition = next(
-        condition for condition in data["lose_conditions"][0]["conditions"]
+        condition
+        for condition in data["lose_conditions"][0]["conditions"]
         if condition["type"] == "manpower_loss_above"
     )
     assert loss_condition["value"] == pytest.approx(0.25)
@@ -670,9 +677,7 @@ def test_manual_order_exempts_company_until_plan_reactivated():
     engine.tick()
     assert det.name not in engine._plan_goals
     manual_order = engine._ui_orders.get(idx)
-    assert engine.set_auto_plan(
-        "hold", target=(12, 12), keep_exemptions=True
-    )
+    assert engine.set_auto_plan("hold", target=(12, 12), keep_exemptions=True)
     assert det.name in state.plan_exempt
     assert manual_order is not None and manual_order.active
     assert idx in engine._ui_orders
@@ -697,8 +702,7 @@ def test_contact_produces_more_than_static_attrition():
     for _ in range(20):
         engine.tick()
     moved = sum(
-        1 for det in state.units
-        if det.position != positions.get(det.name)
+        1 for det in state.units if det.position != positions.get(det.name)
     )
     assert moved > 0
     red_after = _center_of(
@@ -707,9 +711,8 @@ def test_contact_produces_more_than_static_attrition():
     blue_after = _center_of(
         [det for det in state.units if det.side != state.player_side]
     )
-    front_shift = (
-        abs(red_after[0] - red_before[0]) +
-        abs(blue_after[0] - blue_before[0])
+    front_shift = abs(red_after[0] - red_before[0]) + abs(
+        blue_after[0] - blue_before[0]
     )
     assert front_shift > 0.2
 
@@ -735,28 +738,43 @@ def test_auto_plan_survives_snapshot_round_trip():
 
 def test_loss_limit_percent_reads_nested_storyline_condition():
     storyline = {
-        "lose_conditions": [{
-            "type": "any_of",
-            "conditions": [
-                {"type": "manpower_loss_above", "value": 0.25},
-                {"type": "all_player_units_destroyed"},
-            ],
-        }],
+        "lose_conditions": [
+            {
+                "type": "any_of",
+                "conditions": [
+                    {"type": "manpower_loss_above", "value": 0.25},
+                    {"type": "all_player_units_destroyed"},
+                ],
+            }
+        ],
     }
     assert loss_limit_percent(storyline) == 25
-    assert loss_limit_percent({
-        "lose_conditions": [{"type": "manpower_loss_above", "value": 0.2}]
-    }) == 20
-    assert loss_limit_percent({
-        "lose_conditions": [{"type": "manpower_loss_above", "value": 0.45}]
-    }) == 45
-    # Нет валидного условия — безопасный запасной лимит.
+    assert (
+        loss_limit_percent(
+            {
+                "lose_conditions": [
+                    {"type": "manpower_loss_above", "value": 0.2}
+                ]
+            }
+        )
+        == 20
+    )
+    assert (
+        loss_limit_percent(
+            {
+                "lose_conditions": [
+                    {"type": "manpower_loss_above", "value": 0.45}
+                ]
+            }
+        )
+        == 45
+    )
+
     assert loss_limit_percent({"lose_conditions": []}) == 45
 
 
 @pytest.mark.parametrize("limit", [20, 25, 45])
 def test_camp_stages_use_whole_loss_limit_range(limit):
-    """Все три фона достижимы при старом, текущем и запасном лимите."""
     fresh_end = int(limit * 0.40) - 1
     wounded_start = int(limit * 0.40)
     wounded_end = int(limit * 0.80)

@@ -1,9 +1,3 @@
-"""Экран сохранений: слоты автосохранения и ручные 1-3.
-
-Режимы: ``load`` (загрузить сохранение) и ``save`` (записать в слот прогресс
-текущей партии — доступен из оверлея паузы).
-"""
-
 import pygame
 
 from .. import save, theme, widgets
@@ -33,8 +27,10 @@ class SavesScene(Scene):
             wname = {"RL": "RL", "UtilityAI": "UtilityAI"}.get(winner, "-")
             result = self.app.t("победа: %s" % wname, "winner: %s" % wname)
         else:
-            result = self.app.t("такт %s" % data.get("tick", 0),
-                                "tick %s" % data.get("tick", 0))
+            result = self.app.t(
+                "такт %s" % data.get("tick", 0),
+                "tick %s" % data.get("tick", 0),
+            )
         return "%s  |  seed %s" % (result, data.get("seed", 0))
 
     def layout(self, w, h):
@@ -46,33 +42,51 @@ class SavesScene(Scene):
         for entry in self.slots:
             slot, empty, data = entry["slot"], entry["empty"], entry["data"]
             row = pygame.Rect(x, y, col_w, ROW_H)
-            self.widgets.append(_RowLabel(
-                self._slot_label(slot), self._slot_meta(data), row, empty))
+            self.widgets.append(
+                _RowLabel(
+                    self._slot_label(slot), self._slot_meta(data), row, empty
+                )
+            )
             bx = row.right - btn_w - theme.GAP
             if self.mode == "save":
                 game = self.app.manager.find("game")
-                self.widgets.append(widgets.Button(
-                    self.app.t("Сохранить", "Save here"),
-                    (lambda s=slot: self._save(s)),
-                    (bx, y + 10, btn_w, ROW_H - 20), enabled=game is not None))
+                self.widgets.append(
+                    widgets.Button(
+                        self.app.t("Сохранить", "Save here"),
+                        (lambda s=slot: self._save(s)),
+                        (bx, y + 10, btn_w, ROW_H - 20),
+                        enabled=game is not None,
+                    )
+                )
                 bx -= btn_w + theme.GAP
-            self.widgets.append(widgets.Button(
-                self.app.t("Загрузить", "Load"),
-                (lambda s=slot: self._load(s)),
-                (bx, y + 10, btn_w, ROW_H - 20), enabled=not empty))
+            self.widgets.append(
+                widgets.Button(
+                    self.app.t("Загрузить", "Load"),
+                    (lambda s=slot: self._load(s)),
+                    (bx, y + 10, btn_w, ROW_H - 20),
+                    enabled=not empty,
+                )
+            )
             bx -= btn_w + theme.GAP
-            self.widgets.append(widgets.Button(
-                self.app.t("Удалить", "Delete"),
-                (lambda s=slot: self._delete(s)),
-                (bx, y + 10, btn_w, ROW_H - 20), enabled=not empty))
+            self.widgets.append(
+                widgets.Button(
+                    self.app.t("Удалить", "Delete"),
+                    (lambda s=slot: self._delete(s)),
+                    (bx, y + 10, btn_w, ROW_H - 20),
+                    enabled=not empty,
+                )
+            )
             y += ROW_H + theme.GAP
 
         bw = min(220, col_w)
-        self.widgets.append(widgets.Button(
-            self.app.t("Назад", "Back"), self.app.back,
-            ((w - bw) // 2, y + theme.GAP, bw, theme.BTN_H)))
+        self.widgets.append(
+            widgets.Button(
+                self.app.t("Назад", "Back"),
+                self.app.back,
+                ((w - bw) // 2, y + theme.GAP, bw, theme.BTN_H),
+            )
+        )
 
-    # --- действия ---
     def _load(self, slot):
         data = self.app.save.read(slot)
         if data:
@@ -95,16 +109,17 @@ class SavesScene(Scene):
     def draw(self, s):
         s.fill(theme.BG)
         w, h = s.get_size()
-        title = (self.app.t("Сохранить партию", "Save a match")
-                 if self.mode == "save"
-                 else self.app.t("Загрузить партию", "Load a match"))
+        title = (
+            self.app.t("Сохранить партию", "Save a match")
+            if self.mode == "save"
+            else self.app.t("Загрузить партию", "Load a match")
+        )
         theme.draw_title(s, self.app.fonts, title, w // 2, int(h * 0.07))
         for wdg in self.widgets:
             wdg.draw(s, self.app.fonts)
 
 
 class _RowLabel(widgets.Widget):
-    """Строка слота: название + метаданные (не кликабельна)."""
 
     def __init__(self, title, meta, rect, empty):
         super().__init__(rect)
@@ -113,10 +128,24 @@ class _RowLabel(widgets.Widget):
         self.empty = empty
 
     def draw(self, s, fonts):
-        fill = theme.BG_ALT if self.empty else theme.mix(theme.PANEL, theme.PANEL_HI, 0.4)
+        fill = (
+            theme.BG_ALT
+            if self.empty
+            else theme.mix(theme.PANEL, theme.PANEL_HI, 0.4)
+        )
         theme.panel(s, self.rect, fill=fill, border=theme.BORDER)
         color = theme.TEXT_MUTED if self.empty else theme.TEXT
-        theme.text(s, fonts.font, self.title,
-                   (self.rect.left + 14, self.rect.top + 10), color)
-        theme.text(s, fonts.font_s, self.meta,
-                   (self.rect.left + 14, self.rect.top + 36), theme.TEXT_DIM)
+        theme.text(
+            s,
+            fonts.font,
+            self.title,
+            (self.rect.left + 14, self.rect.top + 10),
+            color,
+        )
+        theme.text(
+            s,
+            fonts.font_s,
+            self.meta,
+            (self.rect.left + 14, self.rect.top + 36),
+            theme.TEXT_DIM,
+        )

@@ -1,5 +1,3 @@
-"""Тесты чистого фреймворка взаимодействий (без pygame)."""
-
 import pathlib
 import subprocess
 import sys
@@ -59,7 +57,7 @@ def test_invalid_selections_are_rejected():
     assert model.resolve() is None
 
     assert model.select_target("alpha") is True
-    assert model.select_action("observe") is False  # есть у beta/gamma, не у alpha
+    assert model.select_action("observe") is False
     assert model.resolve() is None
 
     unavailable = Target("locked", "Недоступный", available=False)
@@ -88,9 +86,9 @@ def test_forecasts_are_stable_noisy_and_explain_uncertainty():
     hidden = [item for item in first if item.hidden]
     assert hidden
     assert all(not item.known for item in hidden)
-    # Скрытый исход не должен раскрывать свой настоящий ярлык до выполнения.
+
     assert all(item.label == "Неизвестный исход" for item in hidden)
-    # У действия press есть доля вообще неизвестных эффектов.
+
     assert any(item.unknown for item in first)
 
 
@@ -114,13 +112,15 @@ def test_resolution_is_deterministic_by_seed_and_updates_history():
 
 def test_unknown_share_always_can_produce_unknown_result():
     action = ActionSpec(
-        "void", "Неизвестное действие",
+        "void",
+        "Неизвестное действие",
         outcomes=(OutcomeSpec("known", "Известный исход", probability=1.0),),
         unknown_share=1.0,
         unknown_description="Совсем неизвестно.",
     )
     model = InteractionModel(
-        [Target("t", "Объект", actions=(action,))], seed=0)
+        [Target("t", "Объект", actions=(action,))], seed=0
+    )
     model.select_target("t")
     model.select_action("void")
     forecasts = model.forecasts()
@@ -134,7 +134,8 @@ def test_unknown_share_always_can_produce_unknown_result():
 def test_action_without_outcomes_returns_neutral_result():
     action = ActionSpec("idle", "Ничего не делать")
     model = InteractionModel(
-        [Target("t", "Объект", actions=(action,))], seed=0)
+        [Target("t", "Объект", actions=(action,))], seed=0
+    )
     model.select_target("t")
     model.select_action("idle")
     result = model.resolve()
@@ -191,8 +192,11 @@ def test_duplicate_or_empty_specs_are_validated():
 
 def test_interaction_package_is_pygame_free():
     root = pathlib.Path(__file__).resolve().parents[1]
-    code = ("import sys, interaction; "
-            "sys.exit(1 if 'pygame' in sys.modules else 0)")
-    result = subprocess.run([sys.executable, "-c", code], cwd=root,
-                            capture_output=True, text=True)
+    code = (
+        "import sys, interaction; "
+        "sys.exit(1 if 'pygame' in sys.modules else 0)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], cwd=root, capture_output=True, text=True
+    )
     assert result.returncode == 0, result.stdout + result.stderr

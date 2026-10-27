@@ -1,25 +1,3 @@
-"""Чувствительность канона RL-vs-UtilityAI к гиперпараметрам Q-learning (пункт A5 ревью).
-
-Канон даёт RL **1 / UtilityAI 9**. Остаточное преимущество model-based UtilityAI
-признано **дефектом по цели проекта** (конкурентоспособность RL — цель, п. A5
-ревью; `docs/TODO.md` → P1). Здесь измеряется, устойчив ли 1/9 к объёму и
-настройке обучения или это свойство конкретной калибровки.
-
-Гиперпараметры точечно переопределяются на классе ``RLAgent`` (модель не меняется),
-затем прогоняется пакет партий (`run_batch`, среда включена). Меряется доля побед
-RL в партиях (канонический масштаб — 10 партий, для устойчивости — 30).
-
-Сетка:
-  * объём обучения (горизонт annealing ``EPS_DECAY_STEPS``);
-  * нижний порог разведки ``EPS_MIN`` и контроли (чистая разведка / чистая жадность);
-  * темп обучения ``alpha`` и дисконт ``gamma``;
-  * дискретизация состояния ``discretize``.
-
-Измерение, а не утверждение: печатает числа и завершается кодом 0. Вопрос цели
-(конкурентоспособный RL или демонстрационный слой) — решается отдельно, не этим
-замером.
-"""
-
 import math
 import os
 import sys
@@ -28,14 +6,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import simulation as S
 
-GAMES = 30                       # партий на конфигурацию (канон тоже показывается)
+GAMES = 30
 _EPS_KEYS = ("EPS_START", "EPS_MIN", "EPS_DECAY_STEPS")
 
 
-def _run(games=GAMES, eps_start=None, eps_min=None, eps_decay=None,
-         alpha=None, gamma=None, discretize=None):
-    """Пакет партий с точечным переопределением гиперпараметров ``RLAgent``."""
-    saved = {k: getattr(S.RLAgent, k) for k in (*_EPS_KEYS, "discretize", "learn")}
+def _run(
+    games=GAMES,
+    eps_start=None,
+    eps_min=None,
+    eps_decay=None,
+    alpha=None,
+    gamma=None,
+    discretize=None,
+):
+    saved = {
+        k: getattr(S.RLAgent, k) for k in (*_EPS_KEYS, "discretize", "learn")
+    }
     if eps_start is not None:
         S.RLAgent.EPS_START = eps_start
     if eps_min is not None:
@@ -48,7 +34,9 @@ def _run(games=GAMES, eps_start=None, eps_min=None, eps_decay=None,
         orig_learn = saved["learn"]
 
         def learn(self, st, a_idx, reward, nst, alpha=a, gamma=g):
-            return orig_learn(self, st, a_idx, reward, nst, alpha=alpha, gamma=gamma)
+            return orig_learn(
+                self, st, a_idx, reward, nst, alpha=alpha, gamma=gamma
+            )
 
         S.RLAgent.learn = learn
     if discretize is not None:
@@ -62,13 +50,14 @@ def _run(games=GAMES, eps_start=None, eps_min=None, eps_decay=None,
 
 def _row(label, value, res, games=GAMES):
     rl = res["RL"]
-    print(f"  {label:<26} {str(value):>10} | RL {rl:>3}/{games:<3} "
-          f"({100.0 * rl / games:4.1f}%)  UtilityAI {res['UtilityAI']:>3}  "
-          f"нет {res[None]:>3}")
+    print(
+        f"  {label:<26} {str(value):>10} | RL {rl:>3}/{games:<3} "
+        f"({100.0 * rl / games:4.1f}%)  UtilityAI {res['UtilityAI']:>3}  "
+        f"нет {res[None]:>3}"
+    )
 
 
 def _coarse_discretize(self, e):
-    """Грубая дискретизация (контроль): точно до 8, далее log2-баки."""
     if e <= 8:
         return e
     return 8 + int(math.log2(e / 8))
@@ -76,7 +65,10 @@ def _coarse_discretize(self, e):
 
 def main():
     print("=" * 76)
-    print("  A5. Чувствительность канона RL vs UtilityAI к гиперпараметрам Q-learning")
+    print(
+        "  A5. Чувствительность канона RL vs UtilityAI к гиперпараметрам "
+        "Q-learning"
+    )
     print("=" * 76)
 
     print("\n[0] Базовая линия (канон)")
@@ -104,11 +96,24 @@ def main():
     _row("грубая (log2)", "-", _run(discretize=_coarse_discretize))
 
     print("\n" + "=" * 76)
-    print("  (доля RL — победы RL из партий; канон = EPS 1.0→0.05/3000, α=0.3, γ=0.9)")
-    print("  Вывод: RL остаётся в меньшинстве во всём разумном диапазоне, но НЕ")
-    print("  инвариантен — доля растёт с горизонтом разведки (3000→6000: 13%→27%).")
-    print("  Значит 1/9 — дефект по цели (п. A5): слабость табличного RL/разведки,")
-    print("  частично артефакт калибровки EPS_DECAY_STEPS (короткий горизонт).")
+    print(
+        "  (доля RL — победы RL из партий; канон = EPS 1.0→0.05/3000, α=0.3, "
+        "γ=0.9)"
+    )
+    print(
+        "  Вывод: RL остаётся в меньшинстве во всём разумном диапазоне, но НЕ"
+    )
+    print(
+        "  инвариантен — доля растёт с горизонтом разведки (3000→6000: "
+        "13%→27%)."
+    )
+    print(
+        "  Значит 1/9 — дефект по цели (п. A5): слабость табличного "
+        "RL/разведки,"
+    )
+    print(
+        "  частично артефакт калибровки EPS_DECAY_STEPS (короткий горизонт)."
+    )
     print("=" * 76)
 
 

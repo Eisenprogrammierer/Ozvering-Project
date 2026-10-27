@@ -1,11 +1,3 @@
-"""Игровое время UI-каркаса.
-
-Это упрощённая замена легаси-``GameTimeSystem``: она ведёт часы по
-минутам, выполняет действия из ``configs/content/time_actions.json`` и раз в
-несколько игровых минут (по умолчанию 5) продвигает войсковой такт
-``warfare``. Никакой отдельной математической модели времени здесь нет.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -16,8 +8,8 @@ from .log_journal import get_logger
 
 logger = get_logger("view.time")
 ROOT = Path(__file__).resolve().parents[2]
-# Часы кампании идут по минутам; войсковой такт случается реже (по умолчанию
-# раз в 5 минут) и настраивается в configs/content/time_settings.json.
+
+
 TICK_SECONDS = 60
 COMBAT_TICK_SECONDS = 300
 
@@ -36,24 +28,24 @@ class ActionDefinition:
 
 
 class CampaignTimeSystem:
-    """Часы кампании и очередь действий игрока."""
 
     def __init__(self, state, engine=None, app=None):
         self.state = state
-        self.engine = engine if engine is not None else getattr(
-            state, "engine", None
+        self.engine = (
+            engine if engine is not None else getattr(state, "engine", None)
         )
         self.app = app
-        settings = load_json(ROOT / "configs/content/time_settings.json", {}) or {}
+        settings = (
+            load_json(ROOT / "configs/content/time_settings.json", {}) or {}
+        )
         self.day_start_seconds = int(settings.get("day_start_seconds", 25200))
         self.day_end_seconds = int(settings.get("day_end_seconds", 79200))
-        self.evening_start_seconds = int(settings.get(
-            "evening_start_seconds", self.day_end_seconds - 3600
-        ))
+        self.evening_start_seconds = int(
+            settings.get("evening_start_seconds", self.day_end_seconds - 3600)
+        )
         self.combat_tick_seconds = max(
-            TICK_SECONDS, int(settings.get(
-                "combat_tick_seconds", COMBAT_TICK_SECONDS
-            ))
+            TICK_SECONDS,
+            int(settings.get("combat_tick_seconds", COMBAT_TICK_SECONDS)),
         )
         if getattr(self.engine, "combat_seconds", None) is not None:
             self.engine.combat_seconds = self.combat_tick_seconds
@@ -91,11 +83,12 @@ class CampaignTimeSystem:
                     action_id, label, duration, category="orders"
                 )
 
-    # --- время -----------------------------------------------------------
     def get_time_string(self):
         minutes = int(self.seconds_of_day) // 60
         return "День %d · %02d:%02d" % (
-            self.day, (minutes // 60) % 24, minutes % 60
+            self.day,
+            (minutes // 60) % 24,
+            minutes % 60,
         )
 
     def get_fatigue(self):
@@ -107,30 +100,27 @@ class CampaignTimeSystem:
         )
 
     def advance(self, seconds):
-        """Продвинуть часы по минутам и выполнить накопившиеся такты.
-
-        Войсковой такт выполняется не каждую минуту, а раз в
-        ``combat_tick_seconds`` (по умолчанию 5 минут). Это позволяет часам
-        идти по минутам, не превращая бой в 300-кратную прокрутку.
-        """
         remaining = max(0, int(seconds))
         while remaining > 0:
             step = min(remaining, TICK_SECONDS)
             self.seconds_of_day += step
             self._combat_accum += step
             remaining -= step
-            if (not self._evening_done and
-                    self.seconds_of_day >= self.evening_start_seconds):
+            if (
+                not self._evening_done
+                and self.seconds_of_day >= self.evening_start_seconds
+            ):
                 self._evening_done = True
                 self.pending_mandatory_scene = "evening_inspection"
-                # Дальше не идём: вечерний осмотр должен состояться до ночи.
+
                 break
             if self.seconds_of_day >= self.day_end_seconds:
                 self.seconds_of_day = self.day_start_seconds
                 self.day += 1
                 self._evening_done = False
                 if self.app is not None and hasattr(
-                        self.app, "check_storyline_end_of_day"):
+                    self.app, "check_storyline_end_of_day"
+                ):
                     self.app.check_storyline_end_of_day()
                 self.pending_mandatory_scene = "morning_inspection"
                 break
@@ -143,7 +133,6 @@ class CampaignTimeSystem:
     def wait(self, seconds):
         return self.advance(seconds)
 
-    # --- действия --------------------------------------------------------
     def get_available_actions(self):
         return list(self.actions.values())
 
@@ -171,8 +160,9 @@ class CampaignTimeSystem:
         if definition is None:
             logger.warning("Неизвестное действие: %s", action_id)
             return {"status": "completed"}
-        logger.info("Действие %s: %.0f сек.", action_id,
-                    definition.duration_seconds)
+        logger.info(
+            "Действие %s: %.0f сек.", action_id, definition.duration_seconds
+        )
         self.advance(definition.duration_seconds)
         return {"status": "completed"}
 
@@ -186,8 +176,10 @@ class CampaignTimeSystem:
                 self.state.player_idx,
                 "Обязательная сцена завершена: %s" % scene_id,
             )
-        if (scene_id == "morning_inspection" and
-                getattr(self.state, "needs", None) is not None):
+        if (
+            scene_id == "morning_inspection"
+            and getattr(self.state, "needs", None) is not None
+        ):
             self.state.needs.camp_morning()
 
     def choose_night_duty(self, value):
@@ -197,7 +189,7 @@ class CampaignTimeSystem:
         )
         if getattr(self.state, "needs", None) is not None:
             self.state.needs.camp_night(slept=not value)
-        # Ночь проходит до утра: следующий экран — утренний осмотр лагеря.
+
         seconds_to_morning = max(
             0, self.day_end_seconds - int(self.seconds_of_day)
         )
@@ -214,7 +206,6 @@ class CampaignTimeSystem:
             self.state.player_idx, "Прерывание отложено: %s" % interrupt_id
         )
 
-    # --- сохранение ------------------------------------------------------
     def get_save_snapshot(self):
         return {
             "day": self.day,
@@ -228,21 +219,25 @@ class CampaignTimeSystem:
         if not snapshot:
             return
         self.day = int(snapshot.get("day", self.day))
-        self.seconds_of_day = int(snapshot.get(
-            "seconds_of_day", self.seconds_of_day))
-        self.pending_mandatory_scene = snapshot.get(
-            "pending_mandatory_scene")
+        self.seconds_of_day = int(
+            snapshot.get("seconds_of_day", self.seconds_of_day)
+        )
+        self.pending_mandatory_scene = snapshot.get("pending_mandatory_scene")
         if "evening_done" in snapshot:
             self._evening_done = bool(snapshot.get("evening_done"))
         else:
-            # Старые сохранения: если уже вечер, повторный осмотр не нужен.
+
             self._evening_done = (
                 self.seconds_of_day >= self.evening_start_seconds
             )
-        for planned, action_id in (snapshot.get("order_actions") or {}).items():
+        for planned, action_id in (
+            snapshot.get("order_actions") or {}
+        ).items():
             self._order_actions[int(planned)] = action_id
             if action_id not in self.actions:
                 self.actions[action_id] = ActionDefinition(
-                    action_id, "Планирование приказов", TICK_SECONDS,
+                    action_id,
+                    "Планирование приказов",
+                    TICK_SECONDS,
                     category="orders",
                 )

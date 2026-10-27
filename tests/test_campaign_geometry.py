@@ -1,9 +1,9 @@
-"""Геометрия бригадного боя и исторические суточные потери."""
-
 import pytest
 
 from view.support.geometry import (
-    BREACH_PRESSURE_TICKS, HOLD_DEFENDER_DAILY, ORDERLY_RETREAT_DAILY_CAP,
+    BREACH_PRESSURE_TICKS,
+    HOLD_DEFENDER_DAILY,
+    ORDERLY_RETREAT_DAILY_CAP,
 )
 from view.support.scenario import build_world
 from view.support.world import CampaignEngine
@@ -19,12 +19,9 @@ def _player_units(state):
 
 
 def _front_player(state):
-    """Живая рота на фронте при явном фронте на восток."""
     state.geometry.set_facing(state.player_side, (1, 0))
     state.geometry.recompute()
-    return next(
-        d for d in _player_units(state) if d.sector == "front"
-    )
+    return next(d for d in _player_units(state) if d.sector == "front")
 
 
 def _enemy(state):
@@ -32,7 +29,6 @@ def _enemy(state):
 
 
 def _park_enemies(state):
-    """Убрать случайных врагов подальше, чтобы контекст был однозначным."""
     for det in state.units:
         if det.side != state.player_side:
             det.position = (23, 23)
@@ -49,12 +45,11 @@ def test_brigade_has_sixteen_player_and_thirty_two_enemy_companies():
     )
     assert state.geometry.player_side == state.player_side
     assert state.geometry.enemy_side != state.player_side
-    # Запас на семь кампанийных суток по 180 пятиминутных тактов.
+
     assert state.sim.max_turns >= 7 * 180
 
 
 def test_prepared_defense_is_not_three_to_one_at_any_sector():
-    """Двукратное общее превосходство не даёт троекратного на участке."""
     state, _ = _world()
     statuses = state.geometry.statuses()
     for status in statuses:
@@ -73,15 +68,9 @@ def test_prepared_defense_is_not_three_to_one_at_any_sector():
 
 def test_sector_projection_reports_different_effective_force():
     state, _ = _world()
-    front = next(
-        d for d in _player_units(state) if d.sector == "front"
-    )
-    left = next(
-        d for d in _player_units(state) if d.sector == "left"
-    )
-    rear = next(
-        d for d in _player_units(state) if d.sector == "rear"
-    )
+    front = next(d for d in _player_units(state) if d.sector == "front")
+    left = next(d for d in _player_units(state) if d.sector == "left")
+    rear = next(d for d in _player_units(state) if d.sector == "rear")
     assert state.projected_force(front) > state.projected_force(left)
     assert state.projected_force(left) > state.projected_force(rear)
 
@@ -96,8 +85,7 @@ def test_sector_loss_rates_differ_but_average_to_daily_norm():
     assert rates["left"] > rates["front"] > rates["rear"]
     assert rates["left"] == pytest.approx(rates["right"])
     weighted = sum(
-        rates[det.sector] * det.force
-        for det in _player_units(state)
+        rates[det.sector] * det.force for det in _player_units(state)
     )
     total_force = sum(det.force for det in _player_units(state))
     assert weighted / total_force == pytest.approx(
@@ -106,7 +94,6 @@ def test_sector_loss_rates_differ_but_average_to_daily_norm():
 
 
 def test_historical_attrition_is_slow_and_attackers_lose_more():
-    """Три часа боя: потери обороны далеки от «дивизия уничтожена»."""
     state, engine = _world()
     for _ in range(36):
         engine.tick()
@@ -126,21 +113,17 @@ def test_historical_attrition_is_slow_and_attackers_lose_more():
 
 
 def _place_red_cross(state):
-    """Поставить красных крестом: север/юг/восток/запад от центра (10, 12)."""
     reds = _player_units(state)
-    positions = (
-        [(10, 8)] * 4 + [(10, 16)] * 4 + [(14, 12)] * 4 + [(6, 12)] * 4
-    )
+    positions = [(10, 8)] * 4 + [(10, 16)] * 4 + [(14, 12)] * 4 + [(6, 12)] * 4
     for det, position in zip(reds, positions):
         det.position = position
     return reds
 
 
 def test_sector_is_derived_from_facing_not_frozen_on_detachment():
-    """Армия смотрит на север, а масса врага — на востоке: это фланг."""
     state, _ = _world()
     reds = _place_red_cross(state)
-    # Противник сосредоточен восточнее красных.
+
     for det in state.units:
         if det.side != state.player_side:
             det.position = (22, 12)
@@ -154,9 +137,9 @@ def test_sector_is_derived_from_facing_not_frozen_on_detachment():
 
     assert north.sector == "front"
     assert south.sector == "rear"
-    assert east.sector == "right"      # восточный фланг
+    assert east.sector == "right"
     assert west.sector == "left"
-    # Смена фронта пересчитывает проекции: та же рота уже не «тыл».
+
     state.geometry.set_facing("red", (1, 0))
     state.geometry.recompute()
     assert east.sector == "front"
@@ -167,14 +150,15 @@ def test_sector_is_derived_from_facing_not_frozen_on_detachment():
 def test_surrounded_army_has_front_on_outer_ring_and_rear_in_the_centre():
     state, _ = _world()
     reds = _player_units(state)
-    # Четыре роты на внешнем кольце, остальные — в центре строя.
+
     outer_positions = [(14, 12), (6, 12), (10, 16), (10, 8)]
     for det in reds[4:]:
         det.position = (10, 12)
     for det, position in zip(reds[:4], outer_positions):
         det.position = position
-    # Синие охватывают красных по всему кругу.
+
     import math
+
     enemies = [d for d in state.units if d.side != state.player_side]
     for index, det in enumerate(enemies):
         angle = 2.0 * math.pi * index / len(enemies)
@@ -210,7 +194,7 @@ def test_loaded_facing_is_initial_direction_not_permanent_lock():
         det.position = (det.position[0], det.position[1] - 3)
     state.geometry.load_snapshot(snapshot)
     assert state.geometry.facing_of("red") == pytest.approx((0.0, -1.0))
-    # После загрузки армия снова может повернуть вслед за движением.
+
     for det in reds:
         det.position = (det.position[0] + 3, det.position[1])
     state.geometry.recompute()
@@ -219,9 +203,7 @@ def test_loaded_facing_is_initial_direction_not_permanent_lock():
 
 def test_breach_after_sustained_local_superiority_raises_loss_rate():
     state, _ = _world()
-    # Игрок вытянул все роты в одну линию вдоль фронта: фланги остались
-    # без защитников. Проекции вычисляются из позиций, поэтому просто
-    # «переставить метку» уже нельзя — двигаем сами роты.
+
     for index, det in enumerate(_player_units(state)):
         det.position = (2 + index, 12)
     state.geometry.recompute()
@@ -236,12 +218,11 @@ def test_breach_after_sustained_local_superiority_raises_loss_rate():
 
 
 def test_intact_front_does_not_treat_close_flank_melee_as_rout():
-    """Пока линия цела, бой вплотную сам по себе не даёт «разгром»."""
     state, _ = _world()
     target = _front_player(state)
     _park_enemies(state)
     enemy = _enemy(state)
-    # Враг в двух клетках сбоку: обычный бой за стык, а не прорыв.
+
     enemy.position = (target.position[0], target.position[1] - 2)
     state.geometry.recompute()
     context = state.geometry.combat_context(target)
@@ -253,7 +234,6 @@ def test_intact_front_does_not_treat_close_flank_melee_as_rout():
 
 
 def test_enemy_in_rear_before_formal_breach_is_a_local_overrun():
-    """Враг уже за спиной — позиция смята даже без общего прорыва."""
     state, _ = _world()
     target = _front_player(state)
     _park_enemies(state)
@@ -268,7 +248,6 @@ def test_enemy_in_rear_before_formal_breach_is_a_local_overrun():
 
 
 def test_breach_makes_holding_the_lost_line_much_costlier():
-    """После прорыва оставаться на потерянном рубеже невыгодно."""
     state, _ = _world()
     target = _front_player(state)
     _park_enemies(state)
@@ -313,7 +292,6 @@ def test_flank_and_rear_attacks_after_breach_scale_losses():
 
 
 def test_orderly_withdrawal_avoids_rout_losses_under_overrun():
-    """Один и тот же охват: остаться — разгром, отойти — сохранить роту."""
     holding_state, _ = _world()
     withdraw_state, _ = _world()
     holding_target = _front_player(holding_state)

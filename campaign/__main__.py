@@ -1,12 +1,3 @@
-"""CLI кампанийного слоя.
-
-    python3 -m campaign --list-roles
-    python3 -m campaign --list-presets
-    python3 -m campaign --generate --seed 7
-    python3 -m campaign --generate --seed 7 --out campaigns/test.json
-    python3 -m campaign --show campaigns/test.json
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -56,9 +47,15 @@ def _cmd_list_presets(args):
         print("Пресетов пока нет: %s" % default_presets_dir(args.directory))
         return 0
     for item in items:
-        print("%-32s seed=%-6s role=%-16s %s" % (
-            item.get("preset_id"), item.get("seed"),
-            item.get("role_id"), item.get("title")))
+        print(
+            "%-32s seed=%-6s role=%-16s %s"
+            % (
+                item.get("preset_id"),
+                item.get("seed"),
+                item.get("role_id"),
+                item.get("title"),
+            )
+        )
         print("  %s" % item.get("path"))
     return 0
 
@@ -75,7 +72,9 @@ def _cmd_generate(args):
     template_path = _template_path(args.template)
     generator = CampaignPresetGenerator(template_path=template_path)
     preset = generator.generate(
-        role_id=args.role, seed=args.seed, preset_id=args.preset_id,
+        role_id=args.role,
+        seed=args.seed,
+        preset_id=args.preset_id,
     )
     if args.out:
         path = preset.save(Path(args.out))
@@ -91,28 +90,52 @@ def build_parser():
         prog="python3 -m campaign",
         description="Роли игрока и детерминированные пресеты кампаний.",
     )
-    parser.add_argument("--list-roles", action="store_true",
-                        help="показать каталог ролей")
-    parser.add_argument("--list-presets", action="store_true",
-                        help="показать пресеты в campaigns/")
-    parser.add_argument("--generate", action="store_true",
-                        help="сгенерировать тестовый пресет")
-    parser.add_argument("--show", metavar="FILE",
-                        help="показать сводку пресета")
-    parser.add_argument("--full", action="store_true",
-                        help="с --show: вывести весь JSON пресета")
-    parser.add_argument("--role", default="faction_leader",
-                        help="id роли (по умолчанию faction_leader)")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="seed генерации (по умолчанию из шаблона)")
-    parser.add_argument("--preset-id", default=None,
-                        help="явный id сгенерированного пресета")
-    parser.add_argument("--template", default=None,
-                        help="шаблон в configs/campaigns/ или путь к JSON")
-    parser.add_argument("--out", default=None,
-                        help="путь для сгенерированного JSON")
-    parser.add_argument("--directory", default=None,
-                        help="каталог пресетов (по умолчанию campaigns/)")
+    parser.add_argument(
+        "--list-roles", action="store_true", help="показать каталог ролей"
+    )
+    parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="показать пресеты в campaigns/",
+    )
+    parser.add_argument(
+        "--generate", action="store_true", help="сгенерировать тестовый пресет"
+    )
+    parser.add_argument(
+        "--show", metavar="FILE", help="показать сводку пресета"
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="с --show: вывести весь JSON пресета",
+    )
+    parser.add_argument(
+        "--role",
+        default="faction_leader",
+        help="id роли (по умолчанию faction_leader)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="seed генерации (по умолчанию из шаблона)",
+    )
+    parser.add_argument(
+        "--preset-id", default=None, help="явный id сгенерированного пресета"
+    )
+    parser.add_argument(
+        "--template",
+        default=None,
+        help="шаблон в configs/campaigns/ или путь к JSON",
+    )
+    parser.add_argument(
+        "--out", default=None, help="путь для сгенерированного JSON"
+    )
+    parser.add_argument(
+        "--directory",
+        default=None,
+        help="каталог пресетов (по умолчанию campaigns/)",
+    )
     return parser
 
 

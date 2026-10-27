@@ -1,9 +1,3 @@
-"""Хранилище сгенерированных пресетов кампаний.
-
-Пресеты не являются сохранениями партии: сохранения лежат в ``saves/`` и
-игнорируются git, а пресеты — это проверяемые данные в ``campaigns/``.
-"""
-
 from __future__ import annotations
 
 import json
@@ -14,7 +8,7 @@ from .preset import CampaignPreset
 
 
 class CampaignStorageError(CampaignError):
-    """Ошибка чтения/записи пресета."""
+    pass
 
 
 def repository_root():
@@ -39,7 +33,6 @@ def _resolve(path_or_id, directory=None):
 
 
 def save_preset(preset, path=None, directory=None):
-    """Сохранить пресет и вернуть путь к JSON."""
     if not isinstance(preset, CampaignPreset):
         raise CampaignStorageError("save_preset ожидает CampaignPreset")
     directory = default_presets_dir(directory)
@@ -47,23 +40,21 @@ def save_preset(preset, path=None, directory=None):
         path = directory / ("%s.json" % preset.preset_id)
     try:
         return preset.save(path)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise CampaignStorageError("не удалось сохранить пресет: %s" % exc)
 
 
 def load_preset(path_or_id, directory=None):
-    """Загрузить пресет по пути или идентификатору в ``campaigns/``."""
     path = _resolve(path_or_id, directory)
     if not path.exists():
         raise CampaignStorageError("пресет не найден: %s" % path)
     try:
         return CampaignPreset.load(path)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise CampaignStorageError("не удалось прочитать пресет: %s" % exc)
 
 
 def list_presets(directory=None):
-    """Вернуть краткие сведения о пресетах, новые первыми."""
     directory = default_presets_dir(directory)
     if not directory.is_dir():
         return []
@@ -71,19 +62,21 @@ def list_presets(directory=None):
     for path in sorted(directory.glob("*.json")):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
         if not isinstance(data, dict) or "preset_id" not in data:
             continue
-        out.append({
-            "path": str(path),
-            "preset_id": data.get("preset_id"),
-            "title": data.get("title"),
-            "seed": data.get("seed"),
-            "role_id": data.get("role_id")
-            or (data.get("role") or {}).get("id"),
-            "player_faction_id": data.get("player_faction_id"),
-        })
+        out.append(
+            {
+                "path": str(path),
+                "preset_id": data.get("preset_id"),
+                "title": data.get("title"),
+                "seed": data.get("seed"),
+                "role_id": data.get("role_id")
+                or (data.get("role") or {}).get("id"),
+                "player_faction_id": data.get("player_faction_id"),
+            }
+        )
     out.sort(key=lambda item: str(item.get("preset_id") or ""), reverse=True)
     return out
 

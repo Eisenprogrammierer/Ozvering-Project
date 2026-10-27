@@ -1,45 +1,41 @@
-"""Канонические 16 потребностей и аналитические профили организаций.
-
-Модуль не импортирует ``warfare``/``simulation``: это чистые данные слоя
-организаций. Порядок ``NEEDS`` совпадает с ``warfare.NEEDS``; синхронность
-проверяется тестом ``tests/test_organizations.py``.
-
-Профили ниже — не шаблоны организаций. Это **семантические коэффициенты**
-потребности: насколько она тяготеет к той или иной универсальной функции
-(порядок, смысл, снабжение, статус, знание, забота, обмен). Сами организации
-выводятся формулами из приоритета, масштаба и уровня, а не выбираются из
-таблицы готовых классов.
-"""
-
 from __future__ import annotations
 
 NEEDS = (
-    "hunger",          # голод
-    "thirst",          # жажда
-    "fatigue",         # усталость
-    "health",          # здоровье
-    "fear",            # страх
-    "anxiety",         # тревога
-    "loneliness",      # одиночество
-    "reproduction",    # репродукция
-    "knowledge",       # знания
-    "creativity",      # творчество
-    "boredom",         # скука
-    "status",          # статус
-    "spirituality",    # духовность
-    "skill",           # умение
-    "love",            # любовь
-    "friendship",      # дружба
+    "hunger",
+    "thirst",
+    "fatigue",
+    "health",
+    "fear",
+    "anxiety",
+    "loneliness",
+    "reproduction",
+    "knowledge",
+    "creativity",
+    "boredom",
+    "status",
+    "spirituality",
+    "skill",
+    "love",
+    "friendship",
 )
-"""Ровно 16 потребностей в каноническом порядке ``warfare.NEEDS``."""
 
 NEEDS_RU = {
-    "hunger": "голод", "thirst": "жажда", "fatigue": "усталость",
-    "health": "здоровье", "fear": "страх", "anxiety": "тревога",
-    "loneliness": "одиночество", "reproduction": "репродукция",
-    "knowledge": "знания", "creativity": "творчество", "boredom": "скука",
-    "status": "статус", "spirituality": "духовность", "skill": "умение",
-    "love": "любовь", "friendship": "дружба",
+    "hunger": "голод",
+    "thirst": "жажда",
+    "fatigue": "усталость",
+    "health": "здоровье",
+    "fear": "страх",
+    "anxiety": "тревога",
+    "loneliness": "одиночество",
+    "reproduction": "репродукция",
+    "knowledge": "знания",
+    "creativity": "творчество",
+    "boredom": "скука",
+    "status": "статус",
+    "spirituality": "духовность",
+    "skill": "умение",
+    "love": "любовь",
+    "friendship": "дружба",
 }
 
 NEED_GOODS = {
@@ -61,9 +57,7 @@ NEED_GOODS = {
     "friendship": "дружба",
 }
 
-# Универсальные функции организации. Это не классы организаций, а измерения
-# одной и той же функциональной цепи «взносы → благо → распределение →
-# принуждение/легитимация → воспроизводство участия».
+
 MODE_ORDER = (
     "order",
     "meaning",
@@ -84,37 +78,56 @@ MODE_RU = {
     "exchange": "обмен",
 }
 
-# Вклад потребности в функцию. Значения — не вероятности, а относительные
-# веса; перед использованием они нормализуются по суммам.
+
 NEED_AFFINITY = {
     "order": {
-        "fear": 1.0, "anxiety": 0.7, "status": 0.2, "health": 0.2,
+        "fear": 1.0,
+        "anxiety": 0.7,
+        "status": 0.2,
+        "health": 0.2,
     },
     "meaning": {
-        "spirituality": 1.0, "status": 0.3, "loneliness": 0.3, "love": 0.2,
+        "spirituality": 1.0,
+        "status": 0.3,
+        "loneliness": 0.3,
+        "love": 0.2,
     },
     "provision": {
-        "hunger": 0.9, "thirst": 0.9, "fatigue": 0.5, "health": 0.2,
+        "hunger": 0.9,
+        "thirst": 0.9,
+        "fatigue": 0.5,
+        "health": 0.2,
         "skill": 0.3,
     },
     "status": {
-        "status": 1.0, "fear": 0.35, "reproduction": 0.15, "love": 0.1,
+        "status": 1.0,
+        "fear": 0.35,
+        "reproduction": 0.15,
+        "love": 0.1,
     },
     "knowledge": {
-        "knowledge": 1.0, "skill": 0.9, "creativity": 0.8, "boredom": 0.6,
+        "knowledge": 1.0,
+        "skill": 0.9,
+        "creativity": 0.8,
+        "boredom": 0.6,
     },
     "care": {
-        "health": 0.8, "loneliness": 0.9, "love": 0.9, "friendship": 0.9,
+        "health": 0.8,
+        "loneliness": 0.9,
+        "love": 0.9,
+        "friendship": 0.9,
         "reproduction": 0.8,
     },
     "exchange": {
-        "hunger": 0.6, "thirst": 0.5, "skill": 0.7, "creativity": 0.5,
+        "hunger": 0.6,
+        "thirst": 0.5,
+        "skill": 0.7,
+        "creativity": 0.5,
         "status": 0.3,
     },
 }
 
-# С ростом уровня растёт формализация и вес принудительно-управленческих
-# функций. Это следствие координационной энтропии, а не отдельный шаблон.
+
 LEVEL_MODE_BOOST = {
     "order": 0.04,
     "meaning": 0.02,
@@ -125,8 +138,7 @@ LEVEL_MODE_BOOST = {
     "exchange": 0.01,
 }
 
-# Ярлыки — производная от доминирующей функции и уровня. Они не задают
-# механику: одна и та же универсальная цепь получает разные имена.
+
 ARCHETYPE_TIERS = {
     "order": ("банда", "военный отряд", "государство"),
     "meaning": ("секта", "поместная церковь", "церковная иерархия"),

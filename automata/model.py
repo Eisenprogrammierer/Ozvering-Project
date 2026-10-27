@@ -1,29 +1,3 @@
-"""Чистая модель конечного автомата для графического редактора.
-
-Модель ничего не знает о pygame, предметной области и способе отрисовки. Это
-обычный ориентированный граф: состояния (узлы), переходы (рёбра), координаты
-для раскладки и два флага нотации — начальное и финальное состояние.
-
-JSON-формат (``schema = 1``)::
-
-    {
-      "version": 1,
-      "name": "Пример",
-      "description": "",
-      "states": [
-        {"id": "s1", "name": "Ожидание", "x": 120, "y": 140,
-         "initial": true, "final": false}
-      ],
-      "transitions": [
-        {"id": "t1", "source": "s1", "target": "s2",
-         "event": "старт", "guard": ""}
-      ]
-    }
-
-Идентификаторы состояний и переходов — короткие латинские имена (``s1``,
-``t1``). Имена состояний и подписи переходов могут быть любыми строками.
-"""
-
 from __future__ import annotations
 
 from copy import deepcopy
@@ -32,28 +6,55 @@ import re
 
 SCHEMA = 1
 
-#: Допустимые идентификаторы: латиница/цифры, без пробелов.
+
 ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")
 
 _CYRILLIC = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
-    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
-    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
-    "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch",
-    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    "а": "a",
+    "б": "b",
+    "в": "v",
+    "г": "g",
+    "д": "d",
+    "е": "e",
+    "ё": "e",
+    "ж": "zh",
+    "з": "z",
+    "и": "i",
+    "й": "y",
+    "к": "k",
+    "л": "l",
+    "м": "m",
+    "н": "n",
+    "о": "o",
+    "п": "p",
+    "р": "r",
+    "с": "s",
+    "т": "t",
+    "у": "u",
+    "ф": "f",
+    "х": "h",
+    "ц": "c",
+    "ч": "ch",
+    "ш": "sh",
+    "щ": "sch",
+    "ъ": "",
+    "ы": "y",
+    "ь": "",
+    "э": "e",
+    "ю": "yu",
+    "я": "ya",
 }
 
 
 class AutomatonError(ValueError):
-    """Ошибка структуры автомата или некорректной операции."""
+    pass
 
 
 def slugify(value):
-    """Превратить имя в безопасное имя файла (латиница, цифры, ``_``)."""
     text = str(value or "").strip().lower()
     text = "".join(_CYRILLIC.get(ch, ch) for ch in text)
     text = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
-    return (text[:48].strip("_") or "automaton")
+    return text[:48].strip("_") or "automaton"
 
 
 def valid_id(value):
@@ -76,7 +77,6 @@ def _coord(value, default=0):
 
 @dataclass
 class State:
-    """Узел автомата."""
 
     id: str
     name: str = ""
@@ -114,7 +114,6 @@ class State:
 
 @dataclass
 class Transition:
-    """Направленное ребро автомата. ``event`` и ``guard`` — свободный текст."""
 
     id: str
     source: str
@@ -137,13 +136,15 @@ class Transition:
             raise AutomatonError("переход должен быть объектом JSON")
         transition_id = _text(data.get("id")).strip()
         if not valid_id(transition_id):
-            raise AutomatonError("некорректный id перехода: %r"
-                                 % (transition_id,))
+            raise AutomatonError(
+                "некорректный id перехода: %r" % (transition_id,)
+            )
         source = _text(data.get("source")).strip()
         target = _text(data.get("target")).strip()
         if not source or not target:
-            raise AutomatonError("у перехода %r нет source/target"
-                                 % (transition_id,))
+            raise AutomatonError(
+                "у перехода %r нет source/target" % (transition_id,)
+            )
         return cls(
             id=transition_id,
             source=source,
@@ -155,10 +156,9 @@ class Transition:
 
 @dataclass
 class Issue:
-    """Замечание проверки структуры."""
 
     code: str
-    level: str            # "error" | "warning"
+    level: str
     message: str
 
     @property
@@ -168,14 +168,12 @@ class Issue:
 
 @dataclass
 class Automaton:
-    """Конечный автомат: список состояний и переходов + метаданные."""
 
     name: str = "Без названия"
     description: str = ""
     states: list = field(default_factory=list)
     transitions: list = field(default_factory=list)
 
-    # --- поиск ----------------------------------------------------------
     def state(self, state_id):
         for item in self.states:
             if item.id == state_id:
@@ -202,7 +200,6 @@ class Automaton:
     def final_states(self):
         return [s for s in self.states if s.final]
 
-    # --- идентификаторы -------------------------------------------------
     def _next_state_id(self):
         used = {s.id for s in self.states}
         number = 1
@@ -217,10 +214,15 @@ class Automaton:
             number += 1
         return "t%d" % number
 
-    # --- операции -------------------------------------------------------
     def add_state(self, name="", x=0, y=0, initial=False, final=False):
-        state = State(self._next_state_id(), _text(name), _coord(x),
-                      _coord(y), bool(initial), bool(final))
+        state = State(
+            self._next_state_id(),
+            _text(name),
+            _coord(x),
+            _coord(y),
+            bool(initial),
+            bool(final),
+        )
         if state.initial:
             for other in self.states:
                 other.initial = False
@@ -232,8 +234,11 @@ class Automaton:
         if state is None:
             return False
         self.states.remove(state)
-        self.transitions = [t for t in self.transitions
-                            if t.source != state_id and t.target != state_id]
+        self.transitions = [
+            t
+            for t in self.transitions
+            if t.source != state_id and t.target != state_id
+        ]
         return True
 
     def add_transition(self, source, target, event="", guard=""):
@@ -241,8 +246,13 @@ class Automaton:
             raise AutomatonError("нет исходного состояния %r" % (source,))
         if self.state(target) is None:
             raise AutomatonError("нет целевого состояния %r" % (target,))
-        transition = Transition(self._next_transition_id(), source, target,
-                                _text(event), _text(guard))
+        transition = Transition(
+            self._next_transition_id(),
+            source,
+            target,
+            _text(event),
+            _text(guard),
+        )
         self.transitions.append(transition)
         return transition
 
@@ -260,11 +270,14 @@ class Automaton:
         new_id = _text(new_id).strip()
         if not valid_id(new_id):
             raise AutomatonError(
-                "id: латиница/цифры, первый символ — буква или «_»")
+                "id: латиница/цифры, первый символ — буква или «_»"
+            )
         if new_id == state_id:
             return state
         if self.state(new_id) is not None:
-            raise AutomatonError("состояние с id %r уже существует" % (new_id,))
+            raise AutomatonError(
+                "состояние с id %r уже существует" % (new_id,)
+            )
         state.id = new_id
         for transition in self.transitions:
             if transition.source == state_id:
@@ -300,9 +313,7 @@ class Automaton:
         state.y = _coord(y)
         return state
 
-    # --- проверка -------------------------------------------------------
     def reachable_ids(self):
-        """Множество состояний, достижимых из начального (или пустое)."""
         starts = [s.id for s in self.states if s.initial]
         if not starts:
             return set()
@@ -313,38 +324,57 @@ class Automaton:
             for transition in self.transitions:
                 if transition.source != current:
                     continue
-                if (self.state(transition.target) is not None
-                        and transition.target not in seen):
+                if (
+                    self.state(transition.target) is not None
+                    and transition.target not in seen
+                ):
                     seen.add(transition.target)
                     todo.append(transition.target)
         return seen
 
     def validate(self):
-        """Вернуть список ``Issue``; ошибки — нарушения структуры."""
         issues = []
         if not self.states:
-            issues.append(Issue("empty", "error",
-                                "В автомате нет ни одного состояния."))
+            issues.append(
+                Issue("empty", "error", "В автомате нет ни одного состояния.")
+            )
             return issues
 
         state_ids = [s.id for s in self.states]
         transition_ids = [t.id for t in self.transitions]
         if len(set(state_ids)) != len(state_ids):
-            issues.append(Issue("duplicate_state", "error",
-                                "Повторяются идентификаторы состояний."))
+            issues.append(
+                Issue(
+                    "duplicate_state",
+                    "error",
+                    "Повторяются идентификаторы состояний.",
+                )
+            )
         if len(set(transition_ids)) != len(transition_ids):
-            issues.append(Issue("duplicate_transition", "error",
-                                "Повторяются идентификаторы переходов."))
+            issues.append(
+                Issue(
+                    "duplicate_transition",
+                    "error",
+                    "Повторяются идентификаторы переходов.",
+                )
+            )
 
         initials = [s.id for s in self.states if s.initial]
         if not initials:
-            issues.append(Issue("no_initial", "warning",
-                                "Не выбрано начальное состояние."))
+            issues.append(
+                Issue(
+                    "no_initial", "warning", "Не выбрано начальное состояние."
+                )
+            )
         elif len(initials) > 1:
-            issues.append(Issue(
-                "multiple_initial", "error",
-                "Начальных состояний больше одного: %s."
-                % ", ".join(initials)))
+            issues.append(
+                Issue(
+                    "multiple_initial",
+                    "error",
+                    "Начальных состояний больше одного: %s."
+                    % ", ".join(initials),
+                )
+            )
 
         known = set(state_ids)
         broken = False
@@ -356,10 +386,14 @@ class Automaton:
                 missing.append("target=%s" % transition.target)
             if missing:
                 broken = True
-                issues.append(Issue(
-                    "missing_state", "error",
-                    "Переход %s ссылается на отсутствующее состояние (%s)."
-                    % (transition.id, ", ".join(missing))))
+                issues.append(
+                    Issue(
+                        "missing_state",
+                        "error",
+                        "Переход %s ссылается на отсутствующее состояние (%s)."
+                        % (transition.id, ", ".join(missing)),
+                    )
+                )
 
         pairs = {}
         for transition in self.transitions:
@@ -367,35 +401,51 @@ class Automaton:
             pairs[key] = pairs.get(key, 0) + 1
         for (source, target, event), count in pairs.items():
             if count > 1:
-                issues.append(Issue(
-                    "duplicate_edge", "warning",
-                    "Переходы %s → %s с подписью «%s» повторяются (%d)."
-                    % (source, target, event or "—", count)))
+                issues.append(
+                    Issue(
+                        "duplicate_edge",
+                        "warning",
+                        "Переходы %s → %s с подписью «%s» повторяются (%d)."
+                        % (source, target, event or "—", count),
+                    )
+                )
 
         if initials and not broken:
             reachable = self.reachable_ids()
             unreachable = [s.id for s in self.states if s.id not in reachable]
             if unreachable:
-                issues.append(Issue(
-                    "unreachable", "warning",
-                    "Недостижимы из начального: %s."
-                    % ", ".join(unreachable)))
+                issues.append(
+                    Issue(
+                        "unreachable",
+                        "warning",
+                        "Недостижимы из начального: %s."
+                        % ", ".join(unreachable),
+                    )
+                )
 
         if not self.final_states:
-            issues.append(Issue("no_final", "warning",
-                                "Не отмечено ни одного финального состояния."))
+            issues.append(
+                Issue(
+                    "no_final",
+                    "warning",
+                    "Не отмечено ни одного финального состояния.",
+                )
+            )
 
         for state in self.states:
             if state.final:
                 continue
             if not any(t.source == state.id for t in self.transitions):
-                issues.append(Issue(
-                    "dead_end", "warning",
-                    "У состояния %s нет исходящих переходов." % state.id))
+                issues.append(
+                    Issue(
+                        "dead_end",
+                        "warning",
+                        "У состояния %s нет исходящих переходов." % state.id,
+                    )
+                )
 
         return issues
 
-    # --- сериализация ---------------------------------------------------
     def to_dict(self):
         return {
             "version": SCHEMA,
@@ -431,15 +481,13 @@ class Automaton:
             states=states,
             transitions=transitions,
         )
-        # В файле может быть несколько initial: сохраняем как есть, чтобы
-        # редактор мог показать ошибку и дать её исправить.
+
         return automaton
 
     def clone(self):
         return Automaton.from_dict(self.to_dict())
 
     def bounds(self):
-        """Габариты по координатам верхних левых углов состояний."""
         if not self.states:
             return None
         xs = [s.x for s in self.states]
@@ -451,7 +499,6 @@ class Automaton:
 
 
 class History:
-    """История снимков документа для отмены/повтора."""
 
     def __init__(self, initial=None, limit=100):
         self.limit = max(2, int(limit))
@@ -465,14 +512,13 @@ class History:
         self.index = 0
 
     def push(self, snapshot):
-        """Добавить снимок; вернуть True, если история изменилась."""
         if not self._items:
             self.reset(snapshot)
             return True
         snapshot = deepcopy(snapshot)
         if snapshot == self._items[self.index]:
             return False
-        self._items = self._items[:self.index + 1]
+        self._items = self._items[: self.index + 1]
         self._items.append(snapshot)
         if len(self._items) > self.limit:
             drop = len(self._items) - self.limit

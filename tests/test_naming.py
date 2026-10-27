@@ -1,5 +1,3 @@
-"""Тесты конфигурируемого генератора естественных названий (без pygame)."""
-
 from __future__ import annotations
 
 import random
@@ -21,13 +19,24 @@ from naming import (
 )
 from naming.morphology import Adjective, Noun, Phrase
 
-
 EXPECTED_CLASSES = {
-    "order", "meaning", "provision", "status", "knowledge", "care", "exchange",
+    "order",
+    "meaning",
+    "provision",
+    "status",
+    "knowledge",
+    "care",
+    "exchange",
 }
 EXPECTED_INTERACTIONS = {
-    "coercion", "exchange", "instruction", "care", "ritual", "recruitment",
-    "reconnaissance", "negotiation",
+    "coercion",
+    "exchange",
+    "instruction",
+    "care",
+    "ritual",
+    "recruitment",
+    "reconnaissance",
+    "negotiation",
 }
 CASES = ("nom", "gen", "dat", "acc", "ins", "prep")
 
@@ -36,10 +45,6 @@ CASES = ("nom", "gen", "dat", "acc", "ins", "prep")
 def catalog():
     return NamingCatalog.load()
 
-
-# --------------------------------------------------------------------------
-# Распределение длины
-# --------------------------------------------------------------------------
 
 def test_word_count_distribution_has_mode_two_tail_and_hard_cap():
     weights = word_count_weights()
@@ -58,10 +63,6 @@ def test_sampling_never_exceeds_hard_cap():
     assert min(sampled) >= MIN_WORDS
     assert max(sampled) <= MAX_WORDS
 
-
-# --------------------------------------------------------------------------
-# Конфиги и онтология
-# --------------------------------------------------------------------------
 
 def test_catalog_contains_seven_classes_and_eight_interactions(catalog):
     assert set(catalog.class_ids()) == EXPECTED_CLASSES
@@ -93,8 +94,13 @@ def test_every_interaction_has_complete_quintuple(catalog):
     for type_id in catalog.interaction_ids():
         item = catalog.interaction(type_id)
         quintuple = item.quintuple
-        assert {"recipient_input", "sender_output", "handlers", "states",
-                "surrounding_influence"} <= set(quintuple)
+        assert {
+            "recipient_input",
+            "sender_output",
+            "handlers",
+            "states",
+            "surrounding_influence",
+        } <= set(quintuple)
         assert quintuple["recipient_input"]["keywords"]
         assert quintuple["sender_output"]["keywords"]
         for side in ("sender", "recipient"):
@@ -108,10 +114,6 @@ def test_every_interaction_has_complete_quintuple(catalog):
         assert quintuple["surrounding_influence"]["sources"]
         assert item.naming.heads
 
-
-# --------------------------------------------------------------------------
-# Морфология
-# --------------------------------------------------------------------------
 
 def test_adjective_agreement_all_genders():
     blagoy = Adjective("blagoy", "благой")
@@ -148,7 +150,12 @@ def test_all_lexicon_words_have_all_case_forms(catalog):
 def test_noun_declension_and_animacy():
     gruppa = Noun("gruppa", "группа", "группы", gender="f")
     assert [gruppa.form(case) for case in CASES] == [
-        "группа", "группы", "группе", "группа", "группой", "группе",
+        "группа",
+        "группы",
+        "группе",
+        "группа",
+        "группой",
+        "группе",
     ]
 
     agent = Noun("agent", "агент", "агента", gender="m", animate=True)
@@ -156,17 +163,15 @@ def test_noun_declension_and_animacy():
     assert agent.form("ins") == "агентом"
 
 
-# --------------------------------------------------------------------------
-# Названия автоматов
-# --------------------------------------------------------------------------
-
 def test_automaton_names_are_deterministic_for_all_classes(catalog):
     generator = NameGenerator(catalog, seed=0)
     for class_id in catalog.class_ids():
-        first = generator.automaton_name(class_id, need="fear", level=3,
-                                         seed=17)
-        second = generator.automaton_name(class_id, need="fear", level=3,
-                                          seed=17)
+        first = generator.automaton_name(
+            class_id, need="fear", level=3, seed=17
+        )
+        second = generator.automaton_name(
+            class_id, need="fear", level=3, seed=17
+        )
         assert first.text == second.text
         assert first.seed == 17
         assert 1 <= first.words <= MAX_WORDS
@@ -180,8 +185,7 @@ def test_automaton_names_are_deterministic_for_all_classes(catalog):
 def test_generated_names_vary_with_seed_and_need(catalog):
     generator = NameGenerator(catalog, seed=0)
     names = {
-        generator.automaton_name("order", need="fear", level=3,
-                                 seed=seed).text
+        generator.automaton_name("order", need="fear", level=3, seed=seed).text
         for seed in range(20)
     }
     assert len(names) > 3
@@ -193,16 +197,13 @@ def test_generated_names_vary_with_seed_and_need(catalog):
 
 def test_generate_many_returns_unique_names(catalog):
     generator = NameGenerator(catalog, seed=5)
-    results = generator.generate_many("provision", need="hunger", level=2,
-                                      count=25, seed=5)
+    results = generator.generate_many(
+        "provision", need="hunger", level=2, count=25, seed=5
+    )
     assert len(results) == 25
     assert len({item.text for item in results}) == 25
     assert all(1 <= item.words <= MAX_WORDS for item in results)
 
-
-# --------------------------------------------------------------------------
-# Названия взаимодействий
-# --------------------------------------------------------------------------
 
 def test_interaction_names_are_deterministic_and_declined(catalog):
     generator = NameGenerator(catalog, seed=0)
@@ -226,10 +227,6 @@ def test_interaction_names_vary_across_types(catalog):
     assert len(names) == len(EXPECTED_INTERACTIONS)
 
 
-# --------------------------------------------------------------------------
-# Чистота слоя и CLI
-# --------------------------------------------------------------------------
-
 def test_naming_does_not_import_pygame():
     code = (
         "import sys; import naming; "
@@ -238,22 +235,52 @@ def test_naming_does_not_import_pygame():
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(Path(__file__).resolve().parents[1]),
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
 
 
 def test_naming_cli_previews_names_and_ontology():
     root = str(Path(__file__).resolve().parents[1])
     result = subprocess.run(
-        [sys.executable, "-m", "naming", "--mode", "order", "--need", "fear",
-         "--level", "3", "--count", "3", "--seed", "7"],
-        cwd=root, capture_output=True, text=True)
+        [
+            sys.executable,
+            "-m",
+            "naming",
+            "--mode",
+            "order",
+            "--need",
+            "fear",
+            "--level",
+            "3",
+            "--count",
+            "3",
+            "--seed",
+            "7",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("\n") >= 3
 
     result = subprocess.run(
-        [sys.executable, "-m", "naming", "--interaction", "coercion",
-         "--count", "2", "--seed", "7"],
-        cwd=root, capture_output=True, text=True)
+        [
+            sys.executable,
+            "-m",
+            "naming",
+            "--interaction",
+            "coercion",
+            "--count",
+            "2",
+            "--seed",
+            "7",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("\n") >= 2

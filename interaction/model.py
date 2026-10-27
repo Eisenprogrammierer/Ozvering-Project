@@ -1,19 +1,3 @@
-"""Доменно-нейтральный фреймворк взаимодействий.
-
-Модель не знает, кто именно взаимодействует и что означает действие. Она
-описывает только три слоя будущего интерфейса:
-
-1. **С кем можно взаимодействовать** — ``Target``;
-2. **Что с ними можно сделать** — ``ActionSpec``;
-3. **Что может произойти** — ``OutcomeSpec`` и его шумный прогноз
-   ``OutcomeForecast``.
-
-Ключевой принцип: прогноз не обязан быть точным. У действия и исхода есть
-неопределённость, часть исходов может быть скрыта, а часть — вообще не входить
-в известную модель (``unknown_share``). Поэтому UI показывает диапазоны,
-уверенность и «неизвестный исход», а не только одну вероятность.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -27,24 +11,20 @@ def _clamp(value, low=0.0, high=1.0):
         value = float(value)
     except (TypeError, ValueError):
         return low
-    if value != value:  # NaN
+    if value != value:
         return low
     return max(low, min(high, value))
 
 
 def _stable_rng(seed, key):
-    digest = hashlib.sha256(("%s|%s" % (seed, key)).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(
+        ("%s|%s" % (seed, key)).encode("utf-8")
+    ).hexdigest()
     return random.Random(int(digest[:16], 16))
 
 
 @dataclass(frozen=True)
 class OutcomeSpec:
-    """Один возможный исход действия.
-
-    ``probability`` — относительный вес, а не обязательная доля: модель
-    нормализует веса. ``uncertainty`` — шум прогноза (``0..1``). ``hidden``
-    означает, что до действия исход не показывается как известный.
-    """
 
     id: str
     label: str
@@ -60,15 +40,16 @@ class OutcomeSpec:
         object.__setattr__(self, "id", str(self.id))
         object.__setattr__(self, "label", str(self.label or self.id))
         object.__setattr__(self, "description", str(self.description or ""))
-        object.__setattr__(self, "probability",
-                           max(0.0, float(self.probability)))
-        object.__setattr__(self, "uncertainty",
-                           _clamp(self.uncertainty, 0.0, 1.0))
+        object.__setattr__(
+            self, "probability", max(0.0, float(self.probability))
+        )
+        object.__setattr__(
+            self, "uncertainty", _clamp(self.uncertainty, 0.0, 1.0)
+        )
 
 
 @dataclass(frozen=True)
 class ActionSpec:
-    """Действие, доступное для выбранного объекта."""
 
     id: str
     label: str
@@ -88,10 +69,12 @@ class ActionSpec:
         object.__setattr__(self, "label", str(self.label or self.id))
         object.__setattr__(self, "description", str(self.description or ""))
         object.__setattr__(self, "outcomes", tuple(self.outcomes or ()))
-        object.__setattr__(self, "uncertainty",
-                           _clamp(self.uncertainty, 0.0, 1.0))
-        object.__setattr__(self, "unknown_share",
-                           _clamp(self.unknown_share, 0.0, 1.0))
+        object.__setattr__(
+            self, "uncertainty", _clamp(self.uncertainty, 0.0, 1.0)
+        )
+        object.__setattr__(
+            self, "unknown_share", _clamp(self.unknown_share, 0.0, 1.0)
+        )
 
     @property
     def total_weight(self):
@@ -100,7 +83,6 @@ class ActionSpec:
 
 @dataclass(frozen=True)
 class Target:
-    """Объект, с которым игрок может взаимодействовать."""
 
     id: str
     label: str
@@ -121,11 +103,6 @@ class Target:
 
 @dataclass(frozen=True)
 class OutcomeForecast:
-    """Шумный прогноз одного исхода.
-
-    ``known=False`` — вероятность неизвестна (скрытый исход или слишком
-    высокая неопределённость). ``low``/``high`` — диапазон, если он известен.
-    """
 
     outcome_id: Optional[str]
     label: str
@@ -147,8 +124,10 @@ class OutcomeForecast:
         if high - low < 0.02:
             return "~%d%%" % round(100.0 * (low + high) / 2.0)
         return "~%d-%d%% · уверенность %d%%" % (
-            round(100.0 * low), round(100.0 * high),
-            round(100.0 * self.confidence))
+            round(100.0 * low),
+            round(100.0 * high),
+            round(100.0 * self.confidence),
+        )
 
     @property
     def short_label(self):
@@ -157,7 +136,6 @@ class OutcomeForecast:
 
 @dataclass(frozen=True)
 class InteractionResult:
-    """Фактический исход после выполнения действия."""
 
     target_id: str
     target_label: str
@@ -172,13 +150,6 @@ class InteractionResult:
 
 
 class InteractionModel:
-    """Состояние выбора: объект → действие → прогноз → фактический исход.
-
-    Модель детерминирована по ``seed``:
-    * прогнозы кешируются и стабильны для пары ``(target, action)``;
-    * выполнение действия использует последовательный ``random.Random(seed)``,
-      поэтому повторный прогон с тем же seed даёт ту же историю.
-    """
 
     def __init__(self, targets: Iterable[Target], seed=0):
         self.targets = list(targets or ())
@@ -190,7 +161,6 @@ class InteractionModel:
         self.history: List[InteractionResult] = []
         self._forecast_cache = {}
 
-    # --- доступ к объектам и действиям --------------------------------
     def target(self, target_id=None):
         target_id = self.selected_target_id if target_id is None else target_id
         for item in self.targets:
@@ -242,15 +212,17 @@ class InteractionModel:
         self.history = []
         self._forecast_cache = {}
 
-    # --- прогноз -------------------------------------------------------
     def forecasts(self, target_id=None, action_id=None):
         target = self.target(target_id)
         if target is None:
             return []
         action_id = self.selected_action_id if action_id is None else action_id
         action = next(
-            (item for item in target.actions
-             if item.id == action_id and item.enabled),
+            (
+                item
+                for item in target.actions
+                if item.id == action_id and item.enabled
+            ),
             None,
         )
         if action is None:
@@ -271,58 +243,66 @@ class InteractionModel:
                 true_p = (outcome.probability / total) * visible_mass
                 noise = _clamp(action.uncertainty + outcome.uncertainty)
                 if outcome.hidden or noise >= 0.95:
-                    forecasts.append(OutcomeForecast(
-                        outcome_id=outcome.id,
-                        label="Неизвестный исход",
-                        description=(
-                            "Один из возможных эффектов пока не наблюдается."
-                        ),
-                        tone="unknown" if outcome.hidden else outcome.tone,
-                        known=False,
-                        confidence=0.0,
-                        hidden=outcome.hidden,
-                    ))
+                    forecasts.append(
+                        OutcomeForecast(
+                            outcome_id=outcome.id,
+                            label="Неизвестный исход",
+                            description=(
+                                "Один из возможных эффектов пока не "
+                                "наблюдается."
+                            ),
+                            tone="unknown" if outcome.hidden else outcome.tone,
+                            known=False,
+                            confidence=0.0,
+                            hidden=outcome.hidden,
+                        )
+                    )
                     continue
                 rng = _stable_rng(
                     self.seed,
                     "%s|%s|%s" % (target.id, action.id, outcome.id),
                 )
-                center = _clamp(
-                    true_p + rng.uniform(-0.5, 0.5) * noise)
+                center = _clamp(true_p + rng.uniform(-0.5, 0.5) * noise)
                 low = _clamp(center - 0.5 * noise)
                 high = _clamp(center + 0.5 * noise)
-                forecasts.append(OutcomeForecast(
-                    outcome_id=outcome.id,
-                    label=outcome.label,
-                    description=outcome.description,
-                    tone=outcome.tone,
-                    known=True,
-                    confidence=_clamp(1.0 - noise),
-                    low=low,
-                    high=high,
-                    hidden=False,
-                ))
+                forecasts.append(
+                    OutcomeForecast(
+                        outcome_id=outcome.id,
+                        label=outcome.label,
+                        description=outcome.description,
+                        tone=outcome.tone,
+                        known=True,
+                        confidence=_clamp(1.0 - noise),
+                        low=low,
+                        high=high,
+                        hidden=False,
+                    )
+                )
         if action.unknown_share > 0.0:
-            forecasts.append(OutcomeForecast(
-                outcome_id=None,
-                label="Неизвестный исход",
-                description=action.unknown_description,
-                tone="unknown",
-                known=False,
-                confidence=0.0,
-                unknown=True,
-            ))
+            forecasts.append(
+                OutcomeForecast(
+                    outcome_id=None,
+                    label="Неизвестный исход",
+                    description=action.unknown_description,
+                    tone="unknown",
+                    known=False,
+                    confidence=0.0,
+                    unknown=True,
+                )
+            )
         return forecasts
 
-    # --- выполнение -----------------------------------------------------
     def resolve(self, target_id=None, action_id=None):
         target = self.target(target_id)
         if target is None:
             return None
         action_id = self.selected_action_id if action_id is None else action_id
         action = next(
-            (item for item in target.actions
-             if item.id == action_id and item.enabled),
+            (
+                item
+                for item in target.actions
+                if item.id == action_id and item.enabled
+            ),
             None,
         )
         if action is None:
@@ -380,7 +360,6 @@ class InteractionModel:
                 return outcome
         return action.outcomes[-1]
 
-    # --- снимок ---------------------------------------------------------
     def snapshot(self):
         return {
             "seed": self.seed,
@@ -388,7 +367,8 @@ class InteractionModel:
             "selected_action": self.selected_action_id,
             "last_result": (
                 self.last_result.__dict__.copy()
-                if self.last_result is not None else None
+                if self.last_result is not None
+                else None
             ),
             "history": [item.__dict__.copy() for item in self.history],
         }

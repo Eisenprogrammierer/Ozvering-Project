@@ -1,10 +1,8 @@
-"""Общие ошибки кампанийного слоя."""
-
 from __future__ import annotations
 
 
 class CampaignError(ValueError):
-    """Базовая ошибка ролей, пресетов и кампанийного хранилища."""
+    pass
 
 
 __all__ = ["CampaignError"]

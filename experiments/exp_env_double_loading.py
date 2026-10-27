@@ -1,28 +1,3 @@
-"""Замер «двойного нагружения» входа среды (пункт A6 ревью; docs/MODEL.md §13–14).
-
-``MODEL.md §14`` называет двойное нагружение входа суперсистемы намеренным
-(«удваивает канал входа яруса»: прямой удар по входу среды в ``resolve_attack``
-ПЛЮС агрегат труда членов в ``Environment.tick -> member_output``), но не
-измеряет, к чему это приводит. Здесь это измеряется на каноне (RL vs UtilityAI,
-10 партий), без изменения модели: среда-суперсистема ``members=[rl, ai]``
-инструментируется обёртками ``receive_pressure``/``tick``.
-
-Что показывается:
-
-  1. РАЗЛОЖЕНИЕ ВХОДА СРЕДЫ ПО ИСТОЧНИКАМ (сумма ``w`` за 10 партий):
-     * прямой удар — ``resolve_attack -> _apply_transfer -> env.receive_pressure``;
-     * возмездие — тот же канал для ответного удара (шаг 6 протокола);
-     * агрегат ``member_output`` — суммирование ``last_work`` членов в ``tick``.
-     Сравнивается плоская среда (один канал) и удвоенная (те же передачи учтены
-     ещё раз агрегатом): доля агрегата от входного давления показывает «двойной счёт».
-  2. СЛЕДСТВИЕ ДЛЯ ИСХОДОВ И ОКНА: победители партий и доля тактов с открытым
-     окном среды — плоская против удвоенной на тех же seed.
-  3. ПОКОЙ СРЕДЫ: ``do_rest(chosen=False)`` («половинная» прибыль и +1 к пулу)
-     против осознанного ``do_rest(chosen=True)``.
-
-Измерение, а не утверждение: скрипт печатает числа и завершается кодом 0.
-"""
-
 import os
 import sys
 
@@ -40,14 +15,21 @@ _orig_resolve_attack = S.resolve_attack
 
 def _reset_stats():
     STATS.clear()
-    STATS.update({"direct": 0.0, "direct_calls": 0,
-                  "aggregate": 0.0, "aggregate_calls": 0,
-                  "attack": 0.0, "attack_calls": 0,
-                  "ticks": 0, "open_ticks": 0})
+    STATS.update(
+        {
+            "direct": 0.0,
+            "direct_calls": 0,
+            "aggregate": 0.0,
+            "aggregate_calls": 0,
+            "attack": 0.0,
+            "attack_calls": 0,
+            "ticks": 0,
+            "open_ticks": 0,
+        }
+    )
 
 
 def _instrument_env(env):
-    """Обернуть ``tick``/``receive_pressure`` среды, размечая источник нагрузки."""
     orig_tick, orig_rp = env.tick, env.receive_pressure
     flag = {"in_tick": False}
 
@@ -84,7 +66,6 @@ def _resolve_attack(att, dfn, work, rng, env=None):
 
 
 def measure(members_fn):
-    """Гон канона с инструментовкой; возвращает (исходы, снимок статистики)."""
     _reset_stats()
     results = S.run_batch(GAMES, quiet=True, env_members_fn=members_fn)[2]
     return results, dict(STATS)
@@ -105,24 +86,39 @@ def main():
         S.resolve_attack = _orig_resolve_attack
 
     print("=" * 70)
-    print(f"  A6. Вход среды: канон RL vs UtilityAI, {GAMES} партий, до {STEPS} тактов")
+    print(
+        f"  A6. Вход среды: канон RL vs UtilityAI, {GAMES} партий, до {STEPS} "
+        f"тактов"
+    )
     print("=" * 70)
 
     print("\n[1] Источники входного давления среды (сумма w)")
-    for label, s in (("плоская (members=None)     ", flat),
-                     ("удвоенная (members=[rl,ai])", dbl)):
+    for label, s in (
+        ("плоская (members=None)     ", flat),
+        ("удвоенная (members=[rl,ai])", dbl),
+    ):
         total = s["direct"] + s["aggregate"]
         attack = s["attack"]
         retaliate = s["direct"] - s["attack"]
         print(f"\n  {label}: всего {total:8.0f}")
         print(f"      прямой удар  : {attack:8.0f}  ({_pct(attack, total)})")
-        print(f"      возмездие    : {retaliate:8.0f}  ({_pct(retaliate, total)})")
-        print(f"      агрегат труда: {s['aggregate']:8.0f}  ({_pct(s['aggregate'], total)})")
+        print(
+            f"      возмездие    : {retaliate:8.0f}  "
+            f"({_pct(retaliate, total)})"
+        )
+        print(
+            f"      агрегат труда: {s['aggregate']:8.0f}  "
+            f"({_pct(s['aggregate'], total)})"
+        )
         if s["aggregate"] and attack:
-            print(f"      → агрегат/удар = {s['aggregate'] / attack:.2f} "
-                  f"(пересчёт уже учтённых передач тем же тактом)")
-        print(f"      окно среды открыто: {s['open_ticks']}/{s['ticks']} тактов "
-              f"({_pct(s['open_ticks'], s['ticks'])})")
+            print(
+                f"      → агрегат/удар = {s['aggregate'] / attack:.2f} "
+                f"(пересчёт уже учтённых передач тем же тактом)"
+            )
+        print(
+            f"      окно среды открыто: {s['open_ticks']}/{s['ticks']} тактов "
+            f"({_pct(s['open_ticks'], s['ticks'])})"
+        )
 
     print("\n[2] Следствие: исходы партий")
     print(f"  плоская   (members=None)     : {flat_results}")
@@ -134,11 +130,18 @@ def main():
     f0, e0 = full.force, full.energy_pool
     full.do_rest(chosen=True)
     half.do_rest(chosen=False)
-    print(f"      осознанный (chosen=True ) : ΔF={full.force - f0:+.2f}  "
-          f"ΔE={full.energy_pool - e0:+d}")
-    print(f"      среды      (chosen=False) : ΔF={half.force - f0:+.2f}  "
-          f"ΔE={half.energy_pool - e0:+d}")
-    print("      (доля прибыли силы — 1/2, пополнение пула — +1 вместо max(2, regen))")
+    print(
+        f"      осознанный (chosen=True ) : ΔF={full.force - f0:+.2f}  "
+        f"ΔE={full.energy_pool - e0:+d}"
+    )
+    print(
+        f"      среды      (chosen=False) : ΔF={half.force - f0:+.2f}  "
+        f"ΔE={half.energy_pool - e0:+d}"
+    )
+    print(
+        "      (доля прибыли силы — 1/2, пополнение пула — +1 вместо max(2, "
+        "regen))"
+    )
 
     print("\n" + "=" * 70)
     print("  Вывод: канал входа при members=[rl,ai] дублируется агрегатом;")

@@ -1,20 +1,3 @@
-"""Система сохранений и настроек сценного слоя.
-
-Всё хранится в каталоге ``saves/`` (в корне репозитория, в ``.gitignore``):
-  * ``settings.json``           — пользовательские настройки;
-  * ``autosave.json``           — автосохранение;
-  * ``slot_1..3.json``          — ручные слоты.
-
-Запись атомарная (временный файл + ``os.replace``), кодировка UTF-8. Битый или
-отсутствующий JSON не роняет приложение: чтение возвращает ``None`` и пишет
-предупреждение в переданный логгер.
-
-Прогресс партии сериализуется как метаданные (seed, такт, победитель). Само
-состояние партии не сохраняется: движок детерминирован по seed, поэтому позиция
-восстанавливается повторным проигрыванием до сохранённого такта
-(``game_engine.GameApp.start_match``).
-"""
-
 import json
 import os
 import time
@@ -30,13 +13,13 @@ ALL_SLOTS = (AUTOSAVE_SLOT,) + MANUAL_SLOTS
 
 DEFAULT_SETTINGS = {
     "version": SCHEMA,
-    "language": "ru",          # ru | en
+    "language": "ru",
     "volume_master": 0.8,
     "volume_music": 0.6,
     "volume_sfx": 0.8,
     "fullscreen": False,
     "autosave": True,
-    "text_speed": 1.0,          # множитель скорости показа нарратива
+    "text_speed": 1.0,
 }
 
 
@@ -45,7 +28,6 @@ def _now():
 
 
 class SaveManager:
-    """Чтение/запись настроек и слотов сохранения."""
 
     def __init__(self, directory=None, log=None):
         self.dir = Path(directory) if directory else SAVE_DIR
@@ -59,7 +41,6 @@ class SaveManager:
                     self.settings[key] = value
             self.settings["version"] = SCHEMA
 
-    # --- низкоуровневый ввод/вывод --------------------------------------
     def _warn(self, msg):
         if self._log is not None:
             try:
@@ -77,9 +58,10 @@ class SaveManager:
             return data if isinstance(data, dict) else None
         except FileNotFoundError:
             return None
-        except Exception as exc:                      # битый JSON и т.п.
-            self._warn("SaveManager: не удалось прочитать %s (%s)"
-                       % (path, exc))
+        except Exception as exc:
+            self._warn(
+                "SaveManager: не удалось прочитать %s (%s)" % (path, exc)
+            )
             return None
 
     def _write(self, path, data):
@@ -92,7 +74,6 @@ class SaveManager:
         os.replace(tmp, path)
         return data
 
-    # --- настройки ------------------------------------------------------
     def set_setting(self, key, value, save=True):
         self.settings[key] = value
         if save:
@@ -102,7 +83,6 @@ class SaveManager:
         self.settings["version"] = SCHEMA
         self._write(self.settings_path, self.settings)
 
-    # --- слоты ----------------------------------------------------------
     def slot_path(self, slot):
         return self.dir / ("%s.json" % slot)
 
@@ -139,7 +119,6 @@ class SaveManager:
         return any(self.slot_path(s).exists() for s in ALL_SLOTS)
 
     def list_slots(self):
-        """Список слотов: ``[{slot, empty, data}]`` (autosave первым)."""
         out = []
         for slot in ALL_SLOTS:
             data = self.read(slot)

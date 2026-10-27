@@ -1,11 +1,3 @@
-"""Общие примитивы системных автоматов.
-
-Системный автомат — это обычный ``automata.model.Automaton`` плюс текущее
-состояние и история переходов. Слой не рисует граф и не знает pygame: он нужен
-среде и драматургу, чтобы их поведение было выражено тем же языком состояний и
-переходов, что и остальные автоматы проекта.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,7 +7,7 @@ from automata.model import Automaton, Transition, valid_id
 
 
 class SystemError(ValueError):
-    """Ошибка конфигурации или работы системного автомата."""
+    pass
 
 
 def clamp(value, low=0.0, high=1.0):
@@ -23,7 +15,7 @@ def clamp(value, low=0.0, high=1.0):
         value = float(value)
     except (TypeError, ValueError):
         return float(low)
-    if value != value:  # NaN
+    if value != value:
         return float(low)
     return max(float(low), min(float(high), value))
 
@@ -58,12 +50,6 @@ def as_list(value):
 
 @dataclass
 class SystemAutomaton:
-    """Обёртка над ``Automaton`` с текущим состоянием.
-
-    ``fire(event)`` ищет исходящий переход из текущего состояния, у которого
-    совпадает ``event`` (и, если задан, ``guard``). Это минимальный протокол,
-    достаточный для среды и драматурга.
-    """
 
     id: str
     name: str
@@ -81,11 +67,13 @@ class SystemAutomaton:
             raise SystemError("%s: у автомата нет состояний" % self.id)
         if not self.current:
             initial = self.automaton.initial_states
-            self.current = initial[0].id if initial else \
-                self.automaton.states[0].id
+            self.current = (
+                initial[0].id if initial else self.automaton.states[0].id
+            )
         if self.automaton.state(self.current) is None:
-            raise SystemError("%s: текущего состояния %r нет"
-                              % (self.id, self.current))
+            raise SystemError(
+                "%s: текущего состояния %r нет" % (self.id, self.current)
+            )
 
     @property
     def state(self):
@@ -100,13 +88,12 @@ class SystemAutomaton:
 
     def can_fire(self, event, guard=None):
         return any(
-            transition.event == event and
-            (guard is None or transition.guard == guard)
+            transition.event == event
+            and (guard is None or transition.guard == guard)
             for transition in self.outgoing()
         )
 
     def fire(self, event, guard=None):
-        """Совершить первый подходящий переход; вернуть его или ``None``."""
         for transition in self.outgoing():
             if transition.event != event:
                 continue
@@ -114,12 +101,14 @@ class SystemAutomaton:
                 continue
             previous = self.current
             self.current = transition.target
-            self.history.append({
-                "from": previous,
-                "to": self.current,
-                "event": transition.event,
-                "transition": transition.id,
-            })
+            self.history.append(
+                {
+                    "from": previous,
+                    "to": self.current,
+                    "event": transition.event,
+                    "transition": transition.id,
+                }
+            )
             self.history = self.history[-200:]
             return transition
         return None
@@ -132,12 +121,14 @@ class SystemAutomaton:
             return False
         previous = self.current
         self.current = state_id
-        self.history.append({
-            "from": previous,
-            "to": state_id,
-            "event": "set_state",
-            "transition": None,
-        })
+        self.history.append(
+            {
+                "from": previous,
+                "to": state_id,
+                "event": "set_state",
+                "transition": None,
+            }
+        )
         self.history = self.history[-200:]
         return True
 
@@ -153,7 +144,6 @@ class SystemAutomaton:
 
 
 def make_state_id(value, prefix="s"):
-    """Проверить/нормализовать id состояния из конфига."""
     state_id = text(value).strip()
     if not valid_id(state_id):
         raise SystemError("некорректный id состояния: %r" % (state_id,))
@@ -165,6 +155,13 @@ def find_transition(automaton: Automaton, transition_id):
 
 
 __all__ = [
-    "SystemError", "SystemAutomaton", "clamp", "text", "as_float",
-    "as_int", "as_list", "make_state_id", "find_transition",
+    "SystemError",
+    "SystemAutomaton",
+    "clamp",
+    "text",
+    "as_float",
+    "as_int",
+    "as_list",
+    "make_state_id",
+    "find_transition",
 ]

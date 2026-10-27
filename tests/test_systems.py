@@ -1,5 +1,3 @@
-"""Тесты системных автоматов: среда, драматург и события (без pygame)."""
-
 from __future__ import annotations
 
 from dataclasses import replace
@@ -49,15 +47,12 @@ def playwright_config():
 def _actors():
     return [
         DramaActor("a", "Анна", "Орден", tags=("war", "ambition"), stakes=0.8),
-        DramaActor("b", "Борис", "Гильдия", tags=("trade", "secret"),
-                   stakes=0.6),
+        DramaActor(
+            "b", "Борис", "Гильдия", tags=("trade", "secret"), stakes=0.6
+        ),
         DramaActor("c", "Вера", "Совет", tags=("power", "duty"), stakes=0.4),
     ]
 
-
-# --------------------------------------------------------------------------
-# Среда
-# --------------------------------------------------------------------------
 
 def test_environment_catalog_is_large_and_machine_driven(environment_catalog):
     assert len(environment_catalog.features) >= 12
@@ -81,14 +76,17 @@ def test_environment_features_are_interaction_targets(environment_catalog):
             assert isinstance(action, ActionSpec)
             assert action.enabled is True
             assert action.outcomes
-            assert all(isinstance(item, OutcomeSpec) for item in action.outcomes)
+            assert all(
+                isinstance(item, OutcomeSpec) for item in action.outcomes
+            )
 
 
 def test_environment_drift_is_deterministic_with_fresh_catalogs():
     def run(seed):
         catalog = EnvironmentCatalog.load()
-        runtime = EnvironmentRuntime([catalog.feature("storm")], seed=seed,
-                                     drift_chance=1.0)
+        runtime = EnvironmentRuntime(
+            [catalog.feature("storm")], seed=seed, drift_chance=1.0
+        )
         states = [runtime.feature("storm").machine.current]
         shifts = []
         for _ in range(8):
@@ -127,8 +125,7 @@ def test_environment_interaction_returns_effects_and_state_change():
         catalog = EnvironmentCatalog.load()
         runtime = EnvironmentRuntime(catalog, seed=1)
         feature = runtime.feature("river")
-        built = runtime.interact("actor-1", "river", "build_bridge",
-                                 seed=seed)
+        built = runtime.interact("actor-1", "river", "build_bridge", seed=seed)
         if built is not None and built.outcome_id == "built":
             break
     assert built is not None
@@ -145,12 +142,9 @@ def test_environment_unavailable_action_returns_none():
     assert runtime.interact("actor", "river", "ford", seed=1) is None
 
 
-# --------------------------------------------------------------------------
-# Драматург
-# --------------------------------------------------------------------------
-
 def test_playwright_config_has_normalized_weights_and_templates(
-        playwright_config):
+    playwright_config,
+):
     assert playwright_config.weights
     assert sum(playwright_config.weights.values()) == pytest.approx(1.0)
     assert len(playwright_config.templates) >= 15
@@ -162,11 +156,27 @@ def test_playwright_config_has_normalized_weights_and_templates(
 def test_drama_score_is_monotonic_by_components(playwright_config):
     playwright = Playwright(playwright_config, seed=3)
     low = DramaticAction(
-        "low", "a", "b", "низкий", tags=("talk",),
-        uncertainty=0.1, coherence=0.1, novelty=0.1, stakes=0.1)
+        "low",
+        "a",
+        "b",
+        "низкий",
+        tags=("talk",),
+        uncertainty=0.1,
+        coherence=0.1,
+        novelty=0.1,
+        stakes=0.1,
+    )
     high = DramaticAction(
-        "high", "a", "b", "высокий", tags=("war",),
-        uncertainty=0.9, coherence=0.9, novelty=0.9, stakes=0.9)
+        "high",
+        "a",
+        "b",
+        "высокий",
+        tags=("war",),
+        uncertainty=0.9,
+        coherence=0.9,
+        novelty=0.9,
+        stakes=0.9,
+    )
     low_score = playwright.score(low)
     high_score = playwright.score(high)
     assert high_score.total > low_score.total
@@ -179,8 +189,16 @@ def test_drama_score_is_monotonic_by_components(playwright_config):
 def test_novelty_decays_after_a_repeated_push(playwright_config):
     playwright = Playwright(playwright_config, seed=3)
     candidate = DramaticAction(
-        "repeat", "a", "b", "повтор", tags=("war", "risk"),
-        uncertainty=0.7, coherence=0.7, novelty=0.9, stakes=0.8)
+        "repeat",
+        "a",
+        "b",
+        "повтор",
+        tags=("war", "risk"),
+        uncertainty=0.7,
+        coherence=0.7,
+        novelty=0.9,
+        stakes=0.8,
+    )
     before = playwright.score(candidate)
     score = playwright.score(candidate)
     playwright.history.append((candidate, score))
@@ -198,12 +216,14 @@ def test_playwright_seeded_sequence_is_deterministic(playwright_config):
         for turn in range(20):
             push = playwright.tick(turn, actors, candidates)
             if push is not None:
-                pushes.append((
-                    turn,
-                    push.candidate.id,
-                    round(push.score.total, 6),
-                    push.state_after,
-                ))
+                pushes.append(
+                    (
+                        turn,
+                        push.candidate.id,
+                        round(push.score.total, 6),
+                        push.state_after,
+                    )
+                )
         return pushes, playwright.machine.current, playwright.cooldown
 
     first = run(7)
@@ -228,14 +248,19 @@ def test_playwright_respects_episode_cooldown(playwright_config):
         for earlier, later in zip(turns, turns[1:])
     )
     assert playwright.machine.current in (
-        "dormant", "watching", "tempting", "pushing", "withdrawing")
+        "dormant",
+        "watching",
+        "tempting",
+        "pushing",
+        "withdrawing",
+    )
 
 
 def test_playwright_event_generation_uses_context_and_names(
-        playwright_config, event_catalog):
+    playwright_config, event_catalog
+):
     events = EventTextGenerator(event_catalog, seed=7)
-    playwright = Playwright(playwright_config, seed=7,
-                            event_generator=events)
+    playwright = Playwright(playwright_config, seed=7, event_generator=events)
     actors = _actors()
     candidates = playwright.spawn_candidates(actors)
     push = None
@@ -250,15 +275,16 @@ def test_playwright_event_generation_uses_context_and_names(
     assert push.text == push.event.text
 
 
-# --------------------------------------------------------------------------
-# События
-# --------------------------------------------------------------------------
-
 def test_event_catalog_is_large_and_every_template_uses_names(event_catalog):
     assert len(event_catalog.events) >= 80
     assert len(event_catalog.categories) >= 10
-    name_slots = {"actor", "target", "child", "organization",
-                  "rival_organization"}
+    name_slots = {
+        "actor",
+        "target",
+        "child",
+        "organization",
+        "rival_organization",
+    }
     for event in event_catalog.events.values():
         assert event.templates
         for template in event.templates:
@@ -268,11 +294,13 @@ def test_event_catalog_is_large_and_every_template_uses_names(event_catalog):
 
 def _slots(template):
     import re
+
     return re.findall(r"\{([a-z][a-z0-9_]*)\}", template)
 
 
 def test_event_generator_fills_explicit_context_deterministically(
-        event_catalog):
+    event_catalog,
+):
     events = EventTextGenerator(event_catalog, seed=7)
     context = {
         "actor": "Анна",
@@ -289,7 +317,8 @@ def test_event_generator_fills_explicit_context_deterministically(
 
 
 def test_event_generator_auto_fills_names_and_handles_random_choice(
-        event_catalog):
+    event_catalog,
+):
     events = EventTextGenerator(event_catalog, seed=7)
     for seed in range(12):
         item = events.generate(category="war", seed=seed)
@@ -307,10 +336,6 @@ def test_unknown_event_is_rejected(event_catalog):
         event_catalog.event("not_an_event")
 
 
-# --------------------------------------------------------------------------
-# Чистота слоя и CLI
-# --------------------------------------------------------------------------
-
 def test_systems_layer_does_not_import_pygame():
     code = (
         "import sys; import systems; "
@@ -319,7 +344,9 @@ def test_systems_layer_does_not_import_pygame():
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(Path(__file__).resolve().parents[1]),
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
 
 
@@ -327,15 +354,40 @@ def test_systems_cli_covers_environment_events_and_playwright():
     root = str(Path(__file__).resolve().parents[1])
     commands = [
         [sys.executable, "-m", "systems", "--list"],
-        [sys.executable, "-m", "systems", "--environment", "river",
-         "--interact", "ford", "--seed", "7"],
-        [sys.executable, "-m", "systems", "--event", "birth_child",
-         "--seed", "7"],
-        [sys.executable, "-m", "systems", "--playwright", "--turns", "12",
-         "--seed", "7"],
+        [
+            sys.executable,
+            "-m",
+            "systems",
+            "--environment",
+            "river",
+            "--interact",
+            "ford",
+            "--seed",
+            "7",
+        ],
+        [
+            sys.executable,
+            "-m",
+            "systems",
+            "--event",
+            "birth_child",
+            "--seed",
+            "7",
+        ],
+        [
+            sys.executable,
+            "-m",
+            "systems",
+            "--playwright",
+            "--turns",
+            "12",
+            "--seed",
+            "7",
+        ],
     ]
     for command in commands:
         result = subprocess.run(
-            command, cwd=root, capture_output=True, text=True)
+            command, cwd=root, capture_output=True, text=True
+        )
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip()

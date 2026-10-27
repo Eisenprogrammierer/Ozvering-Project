@@ -1,17 +1,3 @@
-"""Аналитическое ядро организаций-суперсистем.
-
-Слой чистый: он не импортирует pygame, ``simulation`` или ``warfare``. На вход
-подаётся население (участники, их потребности/энергия/сила и граф связей), на
-выходе — разбор организации:
-
-* приоритетная потребность как смесь приоритета массы и лидера;
-* плотность связей, эффективный масштаб, уровень и ёмкость уровня;
-* универсальные функции (порядок/смысл/снабжение/...), из которых выводится
-  ярлык «государство», «церковь», «банда», «артель» и т.п.;
-* экономика участия: желающие остаются, нежелающие выходят; если не осталось
-  ни одного желающего, организация распадается.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -49,12 +35,6 @@ def _clamp(value, low=0.0, high=1.0):
 
 
 def organization_level(effective_count, threshold=165.0):
-    """Уровень организации по эффективному числу участников.
-
-    ``L = ceil(sqrt(N_eff / 165))``. Порог 165 — калибровочная точка, в
-    которой координационная энтропия начинает расти быстрее силы лидера.
-    Ёмкость уровня — ``165 * L**2``; отсюда пороги 165, 660, 1485, ...
-    """
     effective_count = max(0.0, _number(effective_count, 0.0))
     threshold = max(1e-12, _number(threshold, 165.0))
     if effective_count <= 0.0:
@@ -63,20 +43,12 @@ def organization_level(effective_count, threshold=165.0):
 
 
 def level_capacity(level, threshold=165.0):
-    """Сколько эффективных участников координирует уровень ``level``."""
     level = max(0, int(level))
     return max(1e-12, _number(threshold, 165.0)) * level * level
 
 
 @dataclass
 class Member:
-    """Участник: потребности, энергия, сила и (необязательно) граф связей.
-
-    ``needs`` — неудовлетворённость в ``0..1``. ``urgency`` — взвешенная
-    личностью значимость для выбора приоритета; если не задана, совпадает с
-    ``needs``. Для экономики участия используется именно ``needs``: личность
-    влияет на то, *что* организация считает главным, а не на размер нужды.
-    """
 
     id: str
     needs: Mapping[str, float] = field(default_factory=dict)
@@ -92,8 +64,7 @@ class Member:
         self.name = str(self.name or self.id)
         raw_needs = dict(self.needs or {})
         self.needs = {
-            need: _clamp(raw_needs.get(need, 0.0), 0.0, 1.0)
-            for need in NEEDS
+            need: _clamp(raw_needs.get(need, 0.0), 0.0, 1.0) for need in NEEDS
         }
         raw_urgency = self.urgency if self.urgency is not None else self.needs
         raw_urgency = dict(raw_urgency or {})
@@ -106,11 +77,6 @@ class Member:
 
     @classmethod
     def from_character(cls, character, member_id=None):
-        """Адаптер к ``warfare.Character`` без импорта ``warfare``.
-
-        Использует ``weighted_urgency()`` для приоритета, ``energy_pool`` и
-        ``force`` как две канонические метрики.
-        """
         urgency = None
         getter = getattr(character, "weighted_urgency", None)
         if callable(getter):
@@ -128,7 +94,6 @@ class Member:
         )
 
     def priority_demand(self, priority_weights):
-        """Насколько участник нуждается в приоритетных благах (``0..1``)."""
         return sum(
             _clamp(priority_weights.get(need, 0.0), 0.0, 1.0)
             * self.needs[need]
@@ -148,12 +113,6 @@ class Member:
 
 @dataclass
 class Population:
-    """Население и граф связей.
-
-    ``links`` — список ``(id_a, id_b, weight)``; вес в ``0..1``. Для плотного
-    однородного графа можно не хранить рёбра: ``complete_weight`` задаёт вес
-    всех пар сразу. Это удобно для больших сценариев и не меняет формулы.
-    """
 
     members: List[Member] = field(default_factory=list)
     links: List[Tuple[str, str, float]] = field(default_factory=list)
@@ -176,7 +135,8 @@ class Population:
             self.complete_weight = _clamp(self.complete_weight, 0.0, 1.0)
             if self.links:
                 raise ValueError(
-                    "нельзя одновременно задавать links и complete_weight")
+                    "нельзя одновременно задавать links и complete_weight"
+                )
             self._adjacency = {}
         else:
             adjacency = {}
@@ -185,7 +145,9 @@ class Population:
                     raise ValueError("связь должна быть (id_a, id_b, weight)")
                 left, right, weight = item
                 if left not in self._by_id or right not in self._by_id:
-                    raise ValueError("связь ссылается на неизвестного участника")
+                    raise ValueError(
+                        "связь ссылается на неизвестного участника"
+                    )
                 if left == right:
                     raise ValueError("петля участника не является связью")
                 key = (left, right) if left < right else (right, left)
@@ -196,12 +158,13 @@ class Population:
 
     @classmethod
     def complete(cls, members, weight=1.0):
-        """Однородный взвешенный полный граф без хранения всех рёбер."""
         return cls(members=list(members), complete_weight=weight)
 
     @classmethod
     def from_characters(cls, characters, links=None, complete_weight=None):
-        members = [Member.from_character(character) for character in characters]
+        members = [
+            Member.from_character(character) for character in characters
+        ]
         return cls(
             members=members,
             links=list(links or []),
@@ -214,18 +177,19 @@ class Population:
 
     @property
     def leader(self):
-        """Самый сильный участник; при равенстве — первый в населении."""
         return max(self.members, key=lambda member: member.force)
 
     def _active(self, member_ids=None):
         if member_ids is None:
             return list(self.ids)
         known = set(self._by_id)
-        return [str(member_id) for member_id in member_ids
-                if str(member_id) in known]
+        return [
+            str(member_id)
+            for member_id in member_ids
+            if str(member_id) in known
+        ]
 
     def density(self, member_ids=None):
-        """Взвешенная плотность: ``2 * Σw / (N*(N-1))``."""
         active = self._active(member_ids)
         count = len(active)
         if count <= 0:
@@ -245,12 +209,12 @@ class Population:
         return _clamp(total / pairs, 0.0, 1.0)
 
     def strengths(self, member_ids=None):
-        """Взвешенная степень каждого активного участника."""
         active = self._active(member_ids)
         if self.complete_weight is not None:
             weight = self.complete_weight
-            return {member_id: (len(active) - 1) * weight
-                    for member_id in active}
+            return {
+                member_id: (len(active) - 1) * weight for member_id in active
+            }
         active_set = set(active)
         result = {member_id: 0.0 for member_id in active}
         for (left, right), weight in self._adjacency.items():
@@ -260,30 +224,26 @@ class Population:
         return result
 
     def centrality(self, member_ids=None):
-        """Относительная сила связей: ``strength_i / max(strength)``."""
         strengths = self.strengths(member_ids)
         maximum = max(strengths.values(), default=0.0)
         if maximum <= 0.0:
             return {member_id: 0.0 for member_id in strengths}
-        return {member_id: value / maximum
-                for member_id, value in strengths.items()}
+        return {
+            member_id: value / maximum
+            for member_id, value in strengths.items()
+        }
 
     def mean_energy(self, member_ids=None):
         active = self._active(member_ids)
         if not active:
             return 0.0
-        return sum(self._by_id[member_id].energy
-                   for member_id in active) / len(active)
+        return sum(
+            self._by_id[member_id].energy for member_id in active
+        ) / len(active)
 
 
 @dataclass
 class OrganizationParameters:
-    """Калибруемые коэффициенты аналитической модели.
-
-    Значения подобраны так, чтобы четыре эталонных сценария давали
-    «государство», «поместную церковь», «банду» и «торговую артель», но не
-    являются набором шаблонов: все ярлыки выводятся из формул.
-    """
 
     threshold: float = 165.0
     leader_priority_weight: float = 0.35
@@ -319,15 +279,14 @@ class OrganizationParameters:
     def __post_init__(self):
         self.threshold = max(1e-12, _number(self.threshold, 165.0))
         self.leader_priority_weight = _clamp(
-            self.leader_priority_weight, 0.0, 1.0)
-        self.centrality_weight = max(
-            0.0, _number(self.centrality_weight, 0.5))
+            self.leader_priority_weight, 0.0, 1.0
+        )
+        self.centrality_weight = max(0.0, _number(self.centrality_weight, 0.5))
         self.max_iterations = max(1, int(self.max_iterations))
 
 
 @dataclass
 class MemberAssessment:
-    """Решение участника по экономике участия."""
 
     member: Member
     centrality: float
@@ -364,7 +323,6 @@ class MemberAssessment:
 
 @dataclass
 class OrganizationAnalysis:
-    """Полный разбор организации; из него генерируется автомат."""
 
     priority_need: Optional[str]
     priority_weights: Dict[str, float]
@@ -422,26 +380,38 @@ class OrganizationAnalysis:
         if self.priority_need:
             parts.append(
                 "приоритетная потребность — %s (%.2f)"
-                % (self.need_ru, self.priority_share))
+                % (self.need_ru, self.priority_share)
+            )
         else:
             parts.append("приоритетная потребность не определена")
         if self.leader_id:
-            parts.append("лидер %s (сила %.1f)"
-                         % (self.leader_id, self.leader_force))
+            parts.append(
+                "лидер %s (сила %.1f)" % (self.leader_id, self.leader_force)
+            )
         parts.append(
             "активных N=%d, ρ=%.2f, N_eff=%.1f, S=%.1f"
-            % (self.active_count, self.density,
-               self.effective_count, self.scale))
+            % (
+                self.active_count,
+                self.density,
+                self.effective_count,
+                self.scale,
+            )
+        )
         if self.level:
             parts.append(
-                "уровень %d (ёмкость %d)"
-                % (self.level, int(self.capacity)))
+                "уровень %d (ёмкость %d)" % (self.level, int(self.capacity))
+            )
         else:
             parts.append("уровень 0 (организация не состоялась)")
         parts.append(
             "участников %d из %d (%.0f%%), итераций %d"
-            % (self.active_count, self.initial_count,
-               100.0 * self.willing_share, self.iterations))
+            % (
+                self.active_count,
+                self.initial_count,
+                100.0 * self.willing_share,
+                self.iterations,
+            )
+        )
         return parts
 
     def to_dict(self):
@@ -483,7 +453,6 @@ class OrganizationAnalysis:
 
 
 class OrganizationSolver:
-    """Выводит организацию из населения и графа связей."""
 
     def __init__(self, parameters=None):
         self.parameters = parameters or OrganizationParameters()
@@ -496,7 +465,8 @@ class OrganizationSolver:
         initial_centrality = population.centrality(initial_ids)
         leader = population.leader
         priority = self._priority(
-            population, initial_ids, initial_centrality, leader)
+            population, initial_ids, initial_centrality, leader
+        )
 
         active_ids = list(initial_ids)
         assessments = []
@@ -504,7 +474,8 @@ class OrganizationSolver:
         while active_ids:
             metrics = self._metrics(population, active_ids, priority)
             assessments = self._assess(
-                population, active_ids, metrics, priority, leader)
+                population, active_ids, metrics, priority, leader
+            )
             willing_ids = [item.id for item in assessments if item.willing]
             iterations += 1
             if len(willing_ids) == len(active_ids):
@@ -516,16 +487,19 @@ class OrganizationSolver:
         if active_ids:
             metrics = self._metrics(population, active_ids, priority)
             assessments = self._assess(
-                population, active_ids, metrics, priority, leader)
+                population, active_ids, metrics, priority, leader
+            )
             if iterations >= parameters.max_iterations:
                 willing_ids = [item.id for item in assessments if item.willing]
                 if len(willing_ids) != len(active_ids):
                     active_ids = willing_ids
                     if active_ids:
                         metrics = self._metrics(
-                            population, active_ids, priority)
+                            population, active_ids, priority
+                        )
                         assessments = self._assess(
-                            population, active_ids, metrics, priority, leader)
+                            population, active_ids, metrics, priority, leader
+                        )
                     else:
                         metrics = self._metrics(population, [], priority)
                         assessments = []
@@ -545,8 +519,7 @@ class OrganizationSolver:
         dissolved = active_count == 0
         archetype = "распущена"
         if not dissolved and metrics["top_mode"]:
-            archetype = self._archetype(
-                metrics["top_mode"], metrics["level"])
+            archetype = self._archetype(metrics["top_mode"], metrics["level"])
 
         goods = NEED_GOODS.get(priority_need or "", "потребность")
         top_mode = metrics["top_mode"]
@@ -584,28 +557,32 @@ class OrganizationSolver:
             contribution_rate=metrics["contribution_rate"],
             willing_count=willing_count,
             willing_share=(
-                willing_count / initial_count if initial_count else 0.0),
+                willing_count / initial_count if initial_count else 0.0
+            ),
             dissolved=dissolved,
             iterations=iterations,
             active_ids=list(active_ids),
             assessments=list(assessments),
         )
 
-    # --- шаги модели ----------------------------------------------------
     def _priority(self, population, member_ids, centrality, leader):
         parameters = self.parameters
         mass_weights = []
         for member_id in member_ids:
             member = population._by_id[member_id]
             weight = member.energy * (
-                1.0 + parameters.centrality_weight
-                * centrality.get(member_id, 0.0))
+                1.0
+                + parameters.centrality_weight * centrality.get(member_id, 0.0)
+            )
             mass_weights.append((member, weight))
         total_weight = sum(weight for _, weight in mass_weights)
         if total_weight > 0.0:
             mass = {
-                need: sum(weight * member.urgency[need]
-                          for member, weight in mass_weights) / total_weight
+                need: sum(
+                    weight * member.urgency[need]
+                    for member, weight in mass_weights
+                )
+                / total_weight
                 for need in NEEDS
             }
         else:
@@ -617,7 +594,8 @@ class OrganizationSolver:
         leader_total = sum(leader.urgency.values()) if leader else 0.0
         if leader_total > 0.0:
             leader_priority = {
-                need: leader.urgency[need] / leader_total for need in NEEDS}
+                need: leader.urgency[need] / leader_total for need in NEEDS
+            }
         else:
             leader_priority = {need: 0.0 for need in NEEDS}
 
@@ -637,7 +615,8 @@ class OrganizationSolver:
         raw = {
             mode: sum(
                 priority.get(need, 0.0) * NEED_AFFINITY[mode].get(need, 0.0)
-                for need in NEEDS)
+                for need in NEEDS
+            )
             for mode in MODE_ORDER
         }
         total = sum(raw.values())
@@ -664,13 +643,16 @@ class OrganizationSolver:
         if level:
             hierarchy = _clamp(
                 parameters.hierarchy_base
-                + parameters.hierarchy_step * (level - 1))
+                + parameters.hierarchy_step * (level - 1)
+            )
             formalization = _clamp(
                 parameters.formalization_base
-                + parameters.formalization_step * (level - 1))
+                + parameters.formalization_step * (level - 1)
+            )
             specialization = _clamp(
                 parameters.specialization_base
-                + parameters.specialization_step * (level - 1))
+                + parameters.specialization_step * (level - 1)
+            )
         else:
             hierarchy = formalization = specialization = 0.0
 
@@ -681,7 +663,8 @@ class OrganizationSolver:
         legitimation = _clamp(
             0.5 * mode_weights.get("meaning", 0.0)
             + 0.3 * mode_weights.get("order", 0.0)
-            + 0.2 * mode_weights.get("status", 0.0))
+            + 0.2 * mode_weights.get("status", 0.0)
+        )
         service_quality = 0.0
         contribution_rate = 0.0
         if level:
@@ -692,8 +675,8 @@ class OrganizationSolver:
                 + parameters.service_provision
                 * mode_weights.get("provision", 0.0)
                 + parameters.service_care * mode_weights.get("care", 0.0)
-                + parameters.service_status
-                * mode_weights.get("status", 0.0))
+                + parameters.service_status * mode_weights.get("status", 0.0)
+            )
             contribution_rate = max(
                 0.0,
                 parameters.contribution_base
@@ -735,44 +718,60 @@ class OrganizationSolver:
             member_centrality = centrality.get(member_id, 0.0)
             demand = member.priority_demand(priority)
             benefit = (
-                demand * metrics["service_quality"]
-                * (1.0 + parameters.network_bonus
-                   * member_centrality * metrics["density"]))
+                demand
+                * metrics["service_quality"]
+                * (
+                    1.0
+                    + parameters.network_bonus
+                    * member_centrality
+                    * metrics["density"]
+                )
+            )
             if mean_energy > 0.0:
                 energy_factor = 0.5 + 0.5 * (member.energy / mean_energy)
             else:
                 energy_factor = 0.5
             contribution = metrics["contribution_rate"] * energy_factor
             coercion_risk = (
-                parameters.coercion_risk * coercion_weight
+                parameters.coercion_risk
+                * coercion_weight
                 * (1.0 - 0.5 * legitimation)
-                * (1.0 - 0.5 * member_centrality))
+                * (1.0 - 0.5 * member_centrality)
+            )
             is_leader = leader is not None and member.id == leader.id
             leader_rent = (
                 parameters.leader_rent * (status_weight + coercion_weight)
-                if is_leader else 0.0)
+                if is_leader
+                else 0.0
+            )
             outside_utility = max(
                 0.0,
                 parameters.outside_base * demand
-                - parameters.outside_dominant_discount
-                * demand * top_weight)
+                - parameters.outside_dominant_discount * demand * top_weight,
+            )
             margin = (
-                benefit - contribution - coercion_risk
-                + leader_rent - outside_utility)
+                benefit
+                - contribution
+                - coercion_risk
+                + leader_rent
+                - outside_utility
+            )
             willing = margin >= 0.0 and demand > 1e-12
-            assessments.append(MemberAssessment(
-                member=member,
-                centrality=member_centrality,
-                demand=demand,
-                benefit=benefit,
-                contribution=contribution,
-                coercion_risk=coercion_risk,
-                leader_rent=leader_rent,
-                outside_utility=outside_utility,
-                margin=margin,
-                willing=willing,
-                leader=is_leader,
-            ))
+            assessments.append(
+                MemberAssessment(
+                    member=member,
+                    centrality=member_centrality,
+                    demand=demand,
+                    benefit=benefit,
+                    contribution=contribution,
+                    coercion_risk=coercion_risk,
+                    leader_rent=leader_rent,
+                    outside_utility=outside_utility,
+                    margin=margin,
+                    willing=willing,
+                    leader=is_leader,
+                )
+            )
         return assessments
 
     @staticmethod

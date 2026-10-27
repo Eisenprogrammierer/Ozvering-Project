@@ -1,14 +1,3 @@
-"""Шаблоны игровых событий и их наполнение именами.
-
-Событие — это не только текст: у него есть категория, теги, серьёзность и
-ставки. Драматург использует эти поля как один из входов, а генератор текста
-подставляет имена персонажей и организаций, места и предметы.
-
-Слой чистый и детерминированный: один и тот же seed даёт одну и ту же историю.
-Если контекст не задан, имена генерируются через ``naming.people`` и
-``naming.NameGenerator``.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -22,7 +11,7 @@ from .core import SystemError, as_float, as_int, clamp, text
 
 
 class EventError(SystemError):
-    """Ошибка конфигурации или генерации события."""
+    pass
 
 
 _SLOT = re.compile(r"\{([a-z][a-z0-9_]*)\}")
@@ -40,23 +29,49 @@ _FALLBACKS = {
     "amount": "немало",
 }
 _PLACES = (
-    "«Старая переправа»", "«Лесная дорога»", "«Горное ущелье»",
-    "«Городская площадь»", "«Речной брод»", "«Заброшенная крепость»",
-    "«Пыльный тракт»", "«Приграничная деревня»", "«Поле боя»",
-    "«Подземелья под городом»", "«Берег холодного моря»",
+    "«Старая переправа»",
+    "«Лесная дорога»",
+    "«Горное ущелье»",
+    "«Городская площадь»",
+    "«Речной брод»",
+    "«Заброшенная крепость»",
+    "«Пыльный тракт»",
+    "«Приграничная деревня»",
+    "«Поле боя»",
+    "«Подземелья под городом»",
+    "«Берег холодного моря»",
 )
 _OBJECTS = (
-    "старая печать", "кованый ларец", "письмо без подписи",
-    "обломок клинка", "карта с пометками", "медальон с чужим гербом",
-    "книга в потёртом переплёте", "ключ неизвестной формы",
-    "фляга с клеймом", "связка долговых расписок",
+    "старая печать",
+    "кованый ларец",
+    "письмо без подписи",
+    "обломок клинка",
+    "карта с пометками",
+    "медальон с чужим гербом",
+    "книга в потёртом переплёте",
+    "ключ неизвестной формы",
+    "фляга с клеймом",
+    "связка долговых расписок",
 )
 _CAUSES = (
-    "внезапная буря", "ошибка разведки", "старый долг", "чужая интрига",
-    "голод", "предательство", "роковая случайность", "забытое пророчество",
+    "внезапная буря",
+    "ошибка разведки",
+    "старый долг",
+    "чужая интрига",
+    "голод",
+    "предательство",
+    "роковая случайность",
+    "забытое пророчество",
 )
-_AMOUNTS = ("немало", "тридцать монет", "целое состояние", "сущий пустяк",
-            "двадцать возов зерна", "годовой доход", "цена крови")
+_AMOUNTS = (
+    "немало",
+    "тридцать монет",
+    "целое состояние",
+    "сущий пустяк",
+    "двадцать возов зерна",
+    "годовой доход",
+    "цена крови",
+)
 
 
 def _read_json(path):
@@ -103,8 +118,9 @@ class EventTemplate:
             raw = [data.get("template")]
         if not isinstance(raw, (list, tuple)):
             raw = [raw]
-        templates = tuple(str(item).strip() for item in raw
-                          if str(item or "").strip())
+        templates = tuple(
+            str(item).strip() for item in raw if str(item or "").strip()
+        )
         if not templates:
             raise EventError("%s: нет templates" % event_id)
         return cls(
@@ -120,11 +136,15 @@ class EventTemplate:
 
     @property
     def slots(self):
-        return tuple(sorted({
-            match.group(1)
-            for template in self.templates
-            for match in _SLOT.finditer(template)
-        }))
+        return tuple(
+            sorted(
+                {
+                    match.group(1)
+                    for template in self.templates
+                    for match in _SLOT.finditer(template)
+                }
+            )
+        )
 
     def as_dict(self):
         return {
@@ -171,7 +191,6 @@ class GameEvent:
 
 
 class EventCatalog:
-    """Категории и шаблоны событий из ``configs/systems/events.json``."""
 
     def __init__(self, events, categories, root=None, schema=1):
         self.events = {event.id: event for event in events}
@@ -203,18 +222,25 @@ class EventCatalog:
             if isinstance(value, Mapping):
                 parsed_categories[key] = {
                     "label": str(value.get("label") or key),
-                    "weight": max(0.0, as_float(value.get("weight", 1.0), 1.0)),
+                    "weight": max(
+                        0.0, as_float(value.get("weight", 1.0), 1.0)
+                    ),
                 }
             else:
-                parsed_categories[key] = {"label": str(value or key),
-                                          "weight": 1.0}
+                parsed_categories[key] = {
+                    "label": str(value or key),
+                    "weight": 1.0,
+                }
         raw = data.get("events") or ()
         if not isinstance(raw, (list, tuple)):
             raise EventError("events должен быть списком")
-        events = [EventTemplate.from_data(item, number, "events")
-                  for number, item in enumerate(raw)]
-        return cls(events, parsed_categories, root=root,
-                   schema=data.get("schema", 1))
+        events = [
+            EventTemplate.from_data(item, number, "events")
+            for number, item in enumerate(raw)
+        ]
+        return cls(
+            events, parsed_categories, root=root, schema=data.get("schema", 1)
+        )
 
     def validate(self):
         if not self.events:
@@ -223,8 +249,9 @@ class EventCatalog:
             raise EventError("нет ни одной категории")
         for event in self.events.values():
             if event.category not in self.categories:
-                raise EventError("%s: неизвестная категория %r"
-                                 % (event.id, event.category))
+                raise EventError(
+                    "%s: неизвестная категория %r" % (event.id, event.category)
+                )
         return self
 
     def event(self, event_id):
@@ -253,10 +280,10 @@ class EventCatalog:
     def as_dict(self):
         return {
             "schema": self.schema,
-            "categories": {key: dict(value)
-                           for key, value in self.categories.items()},
-            "events": [self.events[key].as_dict()
-                       for key in self.event_ids()],
+            "categories": {
+                key: dict(value) for key, value in self.categories.items()
+            },
+            "events": [self.events[key].as_dict() for key in self.event_ids()],
         }
 
 
@@ -273,21 +300,28 @@ def _as_text(value):
 
 
 class EventTextGenerator:
-    """Наполняет шаблоны событий именами и контекстом."""
 
-    def __init__(self, catalog: Optional[EventCatalog] = None, seed=0,
-                 people=None, organizations=None, auto_names=True):
+    def __init__(
+        self,
+        catalog: Optional[EventCatalog] = None,
+        seed=0,
+        people=None,
+        organizations=None,
+        auto_names=True,
+    ):
         self.catalog = catalog or default_catalog()
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
         self.auto_names = bool(auto_names)
         if people is None and self.auto_names:
             from naming.people import PersonNameGenerator
+
             people = PersonNameGenerator(seed=self.seed)
         self.people = people
         if organizations is None and self.auto_names:
             try:
                 from naming import NameGenerator
+
                 organizations = NameGenerator(seed=self.seed)
             except Exception:
                 organizations = None
@@ -299,33 +333,43 @@ class EventTextGenerator:
     def _organization(self, rng, mode=None):
         if self.organizations is None:
             return None
-        modes = ("order", "meaning", "exchange", "care", "knowledge",
-                 "provision", "status")
+        modes = (
+            "order",
+            "meaning",
+            "exchange",
+            "care",
+            "knowledge",
+            "provision",
+            "status",
+        )
         mode = mode or rng.choice(modes)
         try:
             item = self.organizations.automaton_name(
-                mode, level=rng.choice((1, 2, 2, 3)), seed=rng.randrange(2 ** 31))
+                mode, level=rng.choice((1, 2, 2, 3)), seed=rng.randrange(2**31)
+            )
             return item.text
         except Exception:
             return None
 
     def default_context(self, seed=None, rng=None):
-        """Сгенерировать полный контекст: персонажи, организации, место, вещь."""
         rng = rng or self._rng(seed)
-        base_seed = int(seed) if seed is not None else rng.randrange(2 ** 31)
+        base_seed = int(seed) if seed is not None else rng.randrange(2**31)
         values = {}
         if self.auto_names and self.people is not None:
             persons = self.people.generate_many(
-                count=4, seed=rng.randrange(2 ** 31))
+                count=4, seed=rng.randrange(2**31)
+            )
             names = [item.text for item in persons]
             while len(names) < 4:
                 names.append("безымянный герой")
-            values.update({
-                "actor": names[0],
-                "target": names[1],
-                "child": names[2],
-                "rival": names[3],
-            })
+            values.update(
+                {
+                    "actor": names[0],
+                    "target": names[1],
+                    "child": names[2],
+                    "rival": names[3],
+                }
+            )
         if self.auto_names and self.organizations is not None:
             first = self._organization(rng, "order")
             second = self._organization(rng, "status")
@@ -333,15 +377,20 @@ class EventTextGenerator:
                 second = self._organization(rng, "meaning")
             values["organization"] = first
             values["rival_organization"] = second
-        values.update({
-            "place": rng.choice(_PLACES),
-            "object": rng.choice(_OBJECTS),
-            "cause": rng.choice(_CAUSES),
-            "amount": rng.choice(_AMOUNTS),
-            "consequence": "последствия ещё впереди",
-        })
-        values = {key: value for key, value in values.items()
-                  if value not in (None, "")}
+        values.update(
+            {
+                "place": rng.choice(_PLACES),
+                "object": rng.choice(_OBJECTS),
+                "cause": rng.choice(_CAUSES),
+                "amount": rng.choice(_AMOUNTS),
+                "consequence": "последствия ещё впереди",
+            }
+        )
+        values = {
+            key: value
+            for key, value in values.items()
+            if value not in (None, "")
+        }
         values["_seed"] = base_seed
         return values
 
@@ -374,20 +423,23 @@ class EventTextGenerator:
             context=dict(values),
         )
 
-    def generate(self, event_id=None, category=None, tags=None, context=None,
-                 seed=None):
-        """Отрисовать конкретное событие или выбрать подходящее по весам."""
+    def generate(
+        self, event_id=None, category=None, tags=None, context=None, seed=None
+    ):
         if event_id:
             return self.render(event_id, context=context, seed=seed)
         rng = self._rng(seed)
         candidates = self.catalog.events_in(category=category, tags=tags)
         if not candidates:
-            raise EventError("нет событий для category=%r tags=%r"
-                             % (category, tags))
+            raise EventError(
+                "нет событий для category=%r tags=%r" % (category, tags)
+            )
         weights = [
-            max(0.0, event.weight) *
-            self.catalog.categories.get(event.category, {}).get("weight", 1.0) *
-            (0.5 + event.stakes)
+            max(0.0, event.weight)
+            * self.catalog.categories.get(event.category, {}).get(
+                "weight", 1.0
+            )
+            * (0.5 + event.stakes)
             for event in candidates
         ]
         total = sum(weights)
@@ -402,16 +454,23 @@ class EventTextGenerator:
                 if roll <= cursor:
                     selected = event
                     break
-        return self.render(selected.id, context=context,
-                           seed=seed if seed is not None
-                           else rng.randrange(2 ** 31))
+        return self.render(
+            selected.id,
+            context=context,
+            seed=seed if seed is not None else rng.randrange(2**31),
+        )
 
-    def generate_many(self, count=10, category=None, tags=None, context=None,
-                      seed=None):
+    def generate_many(
+        self, count=10, category=None, tags=None, context=None, seed=None
+    ):
         rng = self._rng(seed)
         return [
-            self.generate(category=category, tags=tags, context=context,
-                          seed=rng.randrange(2 ** 31))
+            self.generate(
+                category=category,
+                tags=tags,
+                context=context,
+                seed=rng.randrange(2**31),
+            )
             for _ in range(max(1, int(count)))
         ]
 
@@ -431,6 +490,11 @@ def default_catalog():
 
 
 __all__ = [
-    "EventError", "EventTemplate", "GameEvent", "EventCatalog",
-    "EventTextGenerator", "default_catalog", "default_root",
+    "EventError",
+    "EventTemplate",
+    "GameEvent",
+    "EventCatalog",
+    "EventTextGenerator",
+    "default_catalog",
+    "default_root",
 ]

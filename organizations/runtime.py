@@ -1,47 +1,39 @@
-"""Runtime-слой организаций: персонажи/отделения → живая суперсистема.
-
-Аналитическое ядро (``organizations.model``) отвечает на вопрос «какая
-организация выводится из этого среза». Runtime-слой делает срез живым:
-
-* на каждом такте собирает ``Population`` из текущих потребностей, энергии,
-  силы и связей персонажей;
-* пересчитывает приоритет, масштаб, уровень и участие;
-* применяет блага к потребностям, взносы — к усталости/голоду, риск
-  принуждения — к страху/тревоге, легитимацию — к морали;
-* ведёт фазу универсальной цепи (мобилизация → производство → распределение →
-  принуждение/легитимация → воспроизводство);
-* при отсутствии желающих распускает организацию.
-
-Слой не меняет канон ``simulation.py`` и не добавляет новых метрик в
-``Agent.state``. Он опционален: ``WarfareSimulation`` без организаций ведёт
-себя ровно как раньше.
-"""
-
 from __future__ import annotations
 
 import math
 
 import simulation as S
 
-from .model import Member, OrganizationParameters, OrganizationSolver, Population
+from .model import (
+    Member,
+    OrganizationParameters,
+    OrganizationSolver,
+    Population,
+)
 from .needs import NEEDS
 
-
-# Какие потребности закрывает каждая функция. Это не новые метрики, а
-# направление уже существующего RPG-эффекта ``Character.satisfy``.
 MODE_EFFECTS = {
     "order": (("fear", 0.55), ("anxiety", 0.45)),
     "meaning": (("spirituality", 0.70), ("anxiety", 0.20)),
     "provision": (("hunger", 0.50), ("thirst", 0.50), ("fatigue", 0.40)),
     "status": (("status", 0.70),),
-    "knowledge": (("knowledge", 0.50), ("boredom", 0.40),
-                  ("creativity", 0.20)),
+    "knowledge": (
+        ("knowledge", 0.50),
+        ("boredom", 0.40),
+        ("creativity", 0.20),
+    ),
     "care": (("loneliness", 0.50), ("friendship", 0.40), ("love", 0.30)),
     "exchange": (("hunger", 0.20), ("thirst", 0.20), ("skill", 0.20)),
 }
 
-PHASE_ORDER = ("mobilizing", "producing", "distributing",
-               "enforcing", "legitimating", "reproducing")
+PHASE_ORDER = (
+    "mobilizing",
+    "producing",
+    "distributing",
+    "enforcing",
+    "legitimating",
+    "reproducing",
+)
 
 
 def _clamp(value, low=0.0, high=1.0):
@@ -55,23 +47,24 @@ def _clamp(value, low=0.0, high=1.0):
 
 
 class OrganizationRuntime(S.Environment):
-    """Организация как живая суперсистема над персонажами/отделениями.
 
-    ``detachments`` удобны для кампании: организация сама разворачивает их в
-    персонажей и после эффектов обновляет психологию отделений. ``characters``
-    — для точечной интеграции без отделений.
-
-    Параметры эффектов намеренно мягкие: один такт не должен заменять бой или
-    полностью закрывать потребности. Экономика участия уже посчитана ядром;
-    runtime лишь транслирует её в существующие BDI-поля персонажа.
-    """
-
-    def __init__(self, name, side, detachments=None, characters=None,
-                 parameters=None, complete_weight=0.8, links=None,
-                 leader_id=None, apply_effects=True,
-                 satisfaction_per_tick=0.03, contribution_cost=0.08,
-                 coercion_factor=0.5, leader_morale_bonus=10.0,
-                 allow_rejoin=False):
+    def __init__(
+        self,
+        name,
+        side,
+        detachments=None,
+        characters=None,
+        parameters=None,
+        complete_weight=0.8,
+        links=None,
+        leader_id=None,
+        apply_effects=True,
+        satisfaction_per_tick=0.03,
+        contribution_cost=0.08,
+        coercion_factor=0.5,
+        leader_morale_bonus=10.0,
+        allow_rejoin=False,
+    ):
         detachments = list(detachments or [])
         characters = list(characters or [])
         members = detachments if detachments else characters
@@ -108,9 +101,7 @@ class OrganizationRuntime(S.Environment):
         self._dissolution_applied = False
         self._last_crisis = False
 
-    # --- сборка среза -------------------------------------------------
     def _character_bindings(self):
-        """Пары ``(member_id, character, detachment|None)`` для живых членов."""
         bindings = []
         seen = set()
         for det in self.detachments:
@@ -119,8 +110,10 @@ class OrganizationRuntime(S.Environment):
             for character in list(getattr(det, "characters", []) or []):
                 if getattr(character, "is_dead", False):
                     continue
-                member_id = "%s/%s" % (getattr(det, "name", "det"),
-                                       getattr(character, "name", "char"))
+                member_id = "%s/%s" % (
+                    getattr(det, "name", "det"),
+                    getattr(character, "name", "char"),
+                )
                 if not self.allow_rejoin and member_id in self.exited:
                     continue
                 bindings.append((member_id, character, det))
@@ -143,9 +136,12 @@ class OrganizationRuntime(S.Environment):
             return None
         if self.leader_id:
             chosen = next(
-                (member for member in members
-                 if member.id == self.leader_id
-                 or member.name == self.leader_id),
+                (
+                    member
+                    for member in members
+                    if member.id == self.leader_id
+                    or member.name == self.leader_id
+                ),
                 None,
             )
             if chosen is not None:
@@ -154,10 +150,8 @@ class OrganizationRuntime(S.Environment):
             return Population(members=members, links=self.links)
         return Population.complete(members, weight=self.complete_weight)
 
-    # --- такт ----------------------------------------------------------
     def tick(self, rng=None, turn=None):
-        """Один социальный такт. Возвращает снимок + события этого такта."""
-        del rng  # пока детерминированно; параметр сохранён для общего протокола
+        del rng
         self.tick_count += 1
         turn = self.tick_count if turn is None else int(turn)
         if self.allow_rejoin:
@@ -186,28 +180,35 @@ class OrganizationRuntime(S.Environment):
                 self.exited.add(member_id)
                 new_exits.append(member_id)
         if new_exits:
-            new_events.append(self._event(
-                "organization_exit",
-                "%s: вышли %d участников" % (self.name, len(new_exits)),
-                turn,
-            ))
+            new_events.append(
+                self._event(
+                    "organization_exit",
+                    "%s: вышли %d участников" % (self.name, len(new_exits)),
+                    turn,
+                )
+            )
 
         if not self._announced_active:
             self._announced_active = True
-            new_events.append(self._event(
-                "organization", "%s: организация активна (%s, уровень %d)"
-                % (self.name, analysis.archetype, analysis.level),
-                turn,
-            ))
+            new_events.append(
+                self._event(
+                    "organization",
+                    "%s: организация активна (%s, уровень %d)"
+                    % (self.name, analysis.archetype, analysis.level),
+                    turn,
+                )
+            )
 
         crisis_now = analysis.willing_share < 0.5
         if crisis_now and not self._last_crisis:
-            new_events.append(self._event(
-                "organization_crisis",
-                "%s: кризис участия (желающих %.0f%%)"
-                % (self.name, 100.0 * analysis.willing_share),
-                turn,
-            ))
+            new_events.append(
+                self._event(
+                    "organization_crisis",
+                    "%s: кризис участия (желающих %.0f%%)"
+                    % (self.name, 100.0 * analysis.willing_share),
+                    turn,
+                )
+            )
         self._last_crisis = crisis_now
 
         self.phase = self._next_phase(analysis)
@@ -230,7 +231,6 @@ class OrganizationRuntime(S.Environment):
         self._phase_cursor += 1
         return phase
 
-    # --- эффекты -------------------------------------------------------
     def _effects_for(self, analysis):
         base = self.satisfaction_per_tick * analysis.service_quality
         effects = {}
@@ -240,8 +240,7 @@ class OrganizationRuntime(S.Environment):
                 effects[need] = effects.get(need, 0.0) + amount
 
         if analysis.priority_need:
-            add(analysis.priority_need,
-                base * (0.5 + analysis.priority_share))
+            add(analysis.priority_need, base * (0.5 + analysis.priority_share))
         for mode, items in MODE_EFFECTS.items():
             weight = (analysis.mode_weights or {}).get(mode, 0.0)
             if weight <= 0.0:
@@ -265,28 +264,36 @@ class OrganizationRuntime(S.Environment):
             )
             cost = analysis.contribution_rate * self.contribution_cost
             character.needs["fatigue"] = min(
-                1.0, character.needs.get("fatigue", 0.0) + cost)
+                1.0, character.needs.get("fatigue", 0.0) + cost
+            )
             character.needs["hunger"] = min(
-                1.0, character.needs.get("hunger", 0.0) + cost * 0.3)
+                1.0, character.needs.get("hunger", 0.0) + cost * 0.3
+            )
             risk = self.coercion_factor * assessment.coercion_risk
             character.needs["fear"] = min(
-                1.0, character.needs.get("fear", 0.0) + risk)
+                1.0, character.needs.get("fear", 0.0) + risk
+            )
             character.needs["anxiety"] = min(
-                1.0, character.needs.get("anxiety", 0.0) + risk * 0.5)
+                1.0, character.needs.get("anxiety", 0.0) + risk * 0.5
+            )
             legitimation = _clamp(
                 0.5 * (analysis.mode_weights or {}).get("meaning", 0.0)
                 + 0.3 * (analysis.mode_weights or {}).get("order", 0.0)
-                + 0.2 * (analysis.mode_weights or {}).get("status", 0.0))
+                + 0.2 * (analysis.mode_weights or {}).get("status", 0.0)
+            )
             character.needs["anxiety"] = max(
-                0.0, character.needs["anxiety"] - 0.003 * legitimation)
+                0.0, character.needs["anxiety"] - 0.003 * legitimation
+            )
             character.morale = _clamp(
-                character.morale - 10.0 * risk + 0.2 * legitimation,
-                0.0, 100.0)
+                character.morale - 10.0 * risk + 0.2 * legitimation, 0.0, 100.0
+            )
             if assessment.leader:
                 character.morale = _clamp(
                     character.morale
                     + self.leader_morale_bonus * assessment.leader_rent,
-                    0.0, 100.0)
+                    0.0,
+                    100.0,
+                )
             character.deliberate()
             if det is not None:
                 touched.add(det)
@@ -299,11 +306,13 @@ class OrganizationRuntime(S.Environment):
             self._dissolved_event_sent = True
             self.active = False
             self.phase = "dissolved"
-            events.append(self._event(
-                "organization_dissolved",
-                "%s: распад (%s)" % (self.name, reason),
-                turn,
-            ))
+            events.append(
+                self._event(
+                    "organization_dissolved",
+                    "%s: распад (%s)" % (self.name, reason),
+                    turn,
+                )
+            )
         elif not self.active:
             self.phase = "dissolved"
             return events
@@ -316,9 +325,11 @@ class OrganizationRuntime(S.Environment):
             for _member_id, character, det in bindings:
                 character.morale = _clamp(character.morale - 2.0, 0.0, 100.0)
                 character.needs["fear"] = min(
-                    1.0, character.needs.get("fear", 0.0) + 0.01)
+                    1.0, character.needs.get("fear", 0.0) + 0.01
+                )
                 character.needs["anxiety"] = min(
-                    1.0, character.needs.get("anxiety", 0.0) + 0.005)
+                    1.0, character.needs.get("anxiety", 0.0) + 0.005
+                )
                 if det is not None:
                     touched.add(det)
             for det in touched:
@@ -328,7 +339,6 @@ class OrganizationRuntime(S.Environment):
                     self.exited.add(member_id)
         return events
 
-    # --- события и снимки ---------------------------------------------
     def _event(self, kind, text, turn):
         event = {
             "turn": int(turn),
@@ -355,8 +365,8 @@ class OrganizationRuntime(S.Environment):
             "tick": self.tick_count,
             "active": self.active,
             "phase": self.phase,
-            "leader_id": self.leader_id or (
-                analysis.leader_id if analysis else None),
+            "leader_id": self.leader_id
+            or (analysis.leader_id if analysis else None),
             "priority_need": analysis.priority_need if analysis else None,
             "archetype": analysis.archetype if analysis else "—",
             "level": analysis.level if analysis else 0,
@@ -374,20 +384,19 @@ class OrganizationRuntime(S.Environment):
         }
 
     def public_snapshot(self):
-        """Публичный срез для частей: без identity вышедших и точных весов."""
         return {
             "name": self.name,
             "side": self.side,
             "active": self.active,
             "phase": self.phase,
             "priority_need": (
-                self.analysis.priority_need if self.analysis else None),
+                self.analysis.priority_need if self.analysis else None
+            ),
             "level": self.analysis.level if self.analysis else 0,
             "active_count": self.analysis.active_count if self.analysis else 0,
         }
 
     def reset(self):
-        """Сбросить социальную историю, не трогая персонажей."""
         self.tick_count = 0
         self.phase = "latent"
         self.active = bool(self.detachments or self.characters)
@@ -403,12 +412,6 @@ class OrganizationRuntime(S.Environment):
 
 
 def build_runtime_demo(seed=7, turns=12, side="red", name="фронт"):
-    """Собрать эталонный ``warfare``-сценарий с одной организацией.
-
-    Импорт ``warfare`` намеренно локальный: аналитическое ядро и генератор
-    остаются независимыми от войскового слоя, а runtime-демо доступно только
-    по явному вызову.
-    """
     import warfare as W
 
     sim = W.build_demo_scenario(seed=seed, turns=max(1, int(turns)))

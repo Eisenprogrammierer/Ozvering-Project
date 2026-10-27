@@ -1,10 +1,3 @@
-"""Холст редактора: узлы, рёбра, камера, выбор и создание переходов.
-
-Холст не знает о сценах и истории: он меняет переданную модель и сообщает
-сцене о действиях через колбэки. Благодаря этому геометрию и ввод можно
-тестировать отдельно от окна и инспектора.
-"""
-
 from __future__ import annotations
 
 import math
@@ -42,10 +35,18 @@ def _bezier(p0, p1, p2, p3, steps=26):
     for i in range(steps + 1):
         t = i / float(steps)
         u = 1.0 - t
-        x = (u ** 3) * p0[0] + 3 * (u ** 2) * t * p1[0] \
-            + 3 * u * (t ** 2) * p2[0] + (t ** 3) * p3[0]
-        y = (u ** 3) * p0[1] + 3 * (u ** 2) * t * p1[1] \
-            + 3 * u * (t ** 2) * p2[1] + (t ** 3) * p3[1]
+        x = (
+            (u**3) * p0[0]
+            + 3 * (u**2) * t * p1[0]
+            + 3 * u * (t**2) * p2[0]
+            + (t**3) * p3[0]
+        )
+        y = (
+            (u**3) * p0[1]
+            + 3 * (u**2) * t * p1[1]
+            + 3 * u * (t**2) * p2[1]
+            + (t**3) * p3[1]
+        )
         points.append((x, y))
     return points
 
@@ -63,10 +64,10 @@ def _ellipsis(font, text, width):
 
 
 class AutomatonCanvas:
-    """Интерактивный холст одного автомата."""
 
-    def __init__(self, automaton, on_select=None, on_change=None,
-                 on_status=None):
+    def __init__(
+        self, automaton, on_select=None, on_change=None, on_status=None
+    ):
         self.automaton = automaton
         self.on_select = on_select
         self.on_change = on_change
@@ -90,7 +91,6 @@ class AutomatonCanvas:
         self._last_click = (0.0, (0, 0))
         self._did_fit = False
 
-    # --- геометрия ------------------------------------------------------
     def set_rect(self, rect, fit=False):
         self.rect = pygame.Rect(rect)
         if fit or not self._did_fit:
@@ -104,13 +104,16 @@ class AutomatonCanvas:
         )
 
     def to_world(self, pos):
-        return ((pos[0] - self.rect.left - self.origin.x) / self.zoom,
-                (pos[1] - self.rect.top - self.origin.y) / self.zoom)
+        return (
+            (pos[0] - self.rect.left - self.origin.x) / self.zoom,
+            (pos[1] - self.rect.top - self.origin.y) / self.zoom,
+        )
 
     def node_rect(self, state):
         point = self.to_screen(state.x, state.y)
         return pygame.Rect(
-            int(round(point.x)), int(round(point.y)),
+            int(round(point.x)),
+            int(round(point.y)),
             max(14, int(round(NODE_W * self.zoom))),
             max(14, int(round(NODE_H * self.zoom))),
         )
@@ -120,7 +123,8 @@ class AutomatonCanvas:
             self.zoom = 1.0
             self.origin.update(
                 self.rect.width / 2 - NODE_W / 2,
-                self.rect.height / 2 - NODE_H / 2)
+                self.rect.height / 2 - NODE_H / 2,
+            )
             return
         bounds = self.automaton.bounds()
         min_x, min_y, max_x, max_y = bounds
@@ -128,8 +132,10 @@ class AutomatonCanvas:
         height = (max_y - min_y) + NODE_H
         available_w = max(120, self.rect.width - 120)
         available_h = max(100, self.rect.height - 120)
-        self.zoom = max(MIN_ZOOM, min(
-            1.2, available_w / float(width), available_h / float(height)))
+        self.zoom = max(
+            MIN_ZOOM,
+            min(1.2, available_w / float(width), available_h / float(height)),
+        )
         self.origin.update(
             (self.rect.width - width * self.zoom) / 2 - min_x * self.zoom,
             (self.rect.height - height * self.zoom) / 2 - min_y * self.zoom,
@@ -144,7 +150,6 @@ class AutomatonCanvas:
         )
         self._status("Масштаб %d%%" % round(self.zoom * 100))
 
-    # --- выбор ----------------------------------------------------------
     def select(self, kind, item_id):
         if (kind, item_id) != (self.selected_kind, self.selected_id):
             self.selected_kind, self.selected_id = kind, item_id
@@ -169,13 +174,14 @@ class AutomatonCanvas:
         if self.on_change is not None:
             self.on_change(message, commit)
 
-    # --- операции -------------------------------------------------------
     def set_connect_mode(self, active):
         self.connect_mode = bool(active)
         self.pending_source = None
         self._status(
             "Режим связи: кликните исходное, затем целевое состояние"
-            if self.connect_mode else "Режим связи выключен")
+            if self.connect_mode
+            else "Режим связи выключен"
+        )
         if self.on_select is not None:
             self.on_select(self.selected_kind, self.selected_id)
 
@@ -185,22 +191,26 @@ class AutomatonCanvas:
         world = self.to_world(screen_pos)
         x = int(round((world[0] - NODE_W / 2) / SNAP) * SNAP)
         y = int(round((world[1] - NODE_H / 2) / SNAP) * SNAP)
-        # Не ставим новый узел поверх существующего (проверяем весь прямоугольник).
+
         new_rect = pygame.Rect(
             int(round(self.rect.left + self.origin.x + x * self.zoom)),
             int(round(self.rect.top + self.origin.y + y * self.zoom)),
             max(14, int(round(NODE_W * self.zoom))),
             max(14, int(round(NODE_H * self.zoom))),
         )
-        while any(self.node_rect(state).colliderect(new_rect)
-                  for state in self.automaton.states):
+        while any(
+            self.node_rect(state).colliderect(new_rect)
+            for state in self.automaton.states
+        ):
             x += SNAP * 3
             y += SNAP * 3
-            new_rect.move_ip(round(SNAP * 3 * self.zoom),
-                             round(SNAP * 3 * self.zoom))
+            new_rect.move_ip(
+                round(SNAP * 3 * self.zoom), round(SNAP * 3 * self.zoom)
+            )
         name = "Состояние %d" % (len(self.automaton.states) + 1)
         state = self.automaton.add_state(
-            name=name, x=x, y=y, initial=not self.automaton.states)
+            name=name, x=x, y=y, initial=not self.automaton.states
+        )
         self.select("state", state.id)
         self._changed("Добавлено состояние %s" % state.id)
         return state
@@ -236,7 +246,6 @@ class AutomatonCanvas:
         self._changed("Добавлен переход %s → %s" % (source_id, target_id))
         return transition
 
-    # --- попадания ------------------------------------------------------
     def _hit_node(self, pos):
         for state in reversed(self.automaton.states):
             if self.node_rect(state).collidepoint(pos):
@@ -244,15 +253,17 @@ class AutomatonCanvas:
         return None
 
     def _edge_geometry(self, transition):
-        """Вернуть (points, label_pos) в экранных координатах."""
         source = self.automaton.state(transition.source)
         target = self.automaton.state(transition.target)
         if source is None or target is None:
             return ([], None)
         if source.id == target.id:
             rect = self.node_rect(source)
-            loops = [t for t in self.automaton.transitions
-                     if t.source == source.id and t.target == source.id]
+            loops = [
+                t
+                for t in self.automaton.transitions
+                if t.source == source.id and t.target == source.id
+            ]
             index = loops.index(transition) if transition in loops else 0
             scale = max(0.5, min(1.6, self.zoom))
             height = (74 + index * 30) * scale
@@ -268,8 +279,11 @@ class AutomatonCanvas:
             return points, (cx, top - height - 12)
 
         key = tuple(sorted((source.id, target.id)))
-        group = [t for t in self.automaton.transitions
-                 if tuple(sorted((t.source, t.target))) == key]
+        group = [
+            t
+            for t in self.automaton.transitions
+            if tuple(sorted((t.source, t.target))) == key
+        ]
         index = group.index(transition) if transition in group else 0
         offset = (index - (len(group) - 1) / 2.0) * 22.0
 
@@ -288,21 +302,24 @@ class AutomatonCanvas:
         end = c2
         hit_target = r2.clipline(c1, c2)
         if hit_target:
-            candidates = [pygame.Vector2(hit_target[0]),
-                          pygame.Vector2(hit_target[1])]
+            candidates = [
+                pygame.Vector2(hit_target[0]),
+                pygame.Vector2(hit_target[1]),
+            ]
             candidates.sort(key=lambda p: (p - c1).length_squared())
             end = candidates[0]
         hit_source = r1.clipline(c1, end)
         if hit_source:
-            candidates = [pygame.Vector2(hit_source[0]),
-                          pygame.Vector2(hit_source[1])]
+            candidates = [
+                pygame.Vector2(hit_source[0]),
+                pygame.Vector2(hit_source[1]),
+            ]
             candidates.sort(key=lambda p: (p - end).length_squared())
             start = candidates[0]
 
         midpoint = (start + end) / 2.0
         if len(group) > 1:
-            # Разносим подписи вдоль ребра. Для обратного перехода берём
-            # зеркальную долю, чтобы пара подписей не сходилась в центре.
+
             fraction = 0.28 + 0.44 * (index / float(len(group) - 1))
             if transition.source != key[0]:
                 fraction = 1.0 - fraction
@@ -316,18 +333,18 @@ class AutomatonCanvas:
             points, _label = self._edge_geometry(transition)
             for index in range(len(points) - 1):
                 distance = _distance_to_segment(
-                    pos, points[index], points[index + 1])
+                    pos, points[index], points[index + 1]
+                )
                 if distance < best_distance:
                     best_distance = distance
                     best = transition
         return best
 
-    # --- события --------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.MOUSEWHEEL:
             if not self.rect.collidepoint(pygame.mouse.get_pos()):
                 return False
-            factor = 1.14 ** event.y
+            factor = 1.14**event.y
             self.zoom_at(pygame.mouse.get_pos(), factor)
             return True
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -366,9 +383,11 @@ class AutomatonCanvas:
     def _mouse_down(self, pos):
         now = time.monotonic()
         last_time, last_pos = self._last_click
-        double = (now - last_time < 0.32
-                  and abs(pos[0] - last_pos[0]) < 6
-                  and abs(pos[1] - last_pos[1]) < 6)
+        double = (
+            now - last_time < 0.32
+            and abs(pos[0] - last_pos[0]) < 6
+            and abs(pos[1] - last_pos[1]) < 6
+        )
         self._last_click = (now, pos)
 
         state = self._hit_node(pos)
@@ -380,8 +399,9 @@ class AutomatonCanvas:
             if self.pending_source is None:
                 self.pending_source = state.id
                 self.select("state", state.id)
-                self._status("Источник: %s — выберите целевое состояние"
-                             % state.id)
+                self._status(
+                    "Источник: %s — выберите целевое состояние" % state.id
+                )
                 return True
             source = self.pending_source
             self.pending_source = None
@@ -424,7 +444,8 @@ class AutomatonCanvas:
                 self.automaton.move_state(
                     state.id,
                     int(round(x / SNAP) * SNAP),
-                    int(round(y / SNAP) * SNAP))
+                    int(round(y / SNAP) * SNAP),
+                )
                 self._drag_moved = True
                 self._changed("Перемещение…", False)
             return True
@@ -465,7 +486,9 @@ class AutomatonCanvas:
             return True
         if key == pygame.K_g:
             self.grid = not self.grid
-            self._status("Сетка %s" % ("включена" if self.grid else "выключена"))
+            self._status(
+                "Сетка %s" % ("включена" if self.grid else "выключена")
+            )
             return True
         if key in (pygame.K_EQUALS, pygame.K_KP_PLUS):
             self.zoom_at(self.rect.center, 1.14)
@@ -473,31 +496,38 @@ class AutomatonCanvas:
         if key in (pygame.K_MINUS, pygame.K_KP_MINUS):
             self.zoom_at(self.rect.center, 1 / 1.14)
             return True
-        if key in (pygame.K_LEFT, pygame.K_RIGHT,
-                   pygame.K_UP, pygame.K_DOWN):
+        if key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
             state = self.selected_state()
             if state is None:
                 return False
             step = 10 if event.mod & pygame.KMOD_SHIFT else 1
-            dx = (-step if key == pygame.K_LEFT
-                  else step if key == pygame.K_RIGHT else 0)
-            dy = (-step if key == pygame.K_UP
-                  else step if key == pygame.K_DOWN else 0)
+            dx = (
+                -step
+                if key == pygame.K_LEFT
+                else step if key == pygame.K_RIGHT else 0
+            )
+            dy = (
+                -step
+                if key == pygame.K_UP
+                else step if key == pygame.K_DOWN else 0
+            )
             self.automaton.move_state(state.id, state.x + dx, state.y + dy)
             self._changed("Перемещено состояние %s" % state.id, True)
             return True
         return False
 
-    # --- отрисовка ------------------------------------------------------
     def draw(self, screen, fonts):
         pygame.draw.rect(screen, ui.CANVAS_BG, self.rect)
         if self.grid:
             self._draw_grid(screen)
         if not self.automaton.states:
             ui.draw_empty(
-                screen, fonts, self.rect.inflate(-80, -80),
+                screen,
+                fonts,
+                self.rect.inflate(-80, -80),
                 "Пустой холст",
-                "Добавьте состояние кнопкой «+ Состояние» или двойным кликом")
+                "Добавьте состояние кнопкой «+ Состояние» или двойным кликом",
+            )
             return
         for transition in self.automaton.transitions:
             self._draw_edge(screen, fonts, transition)
@@ -514,16 +544,18 @@ class AutomatonCanvas:
         index_x = int((self.rect.left + self.origin.x) / spacing)
         while x < self.rect.right:
             color = ui.GRID_MAJOR if index_x % 5 == 0 else ui.GRID
-            pygame.draw.line(screen, color, (x, self.rect.top),
-                             (x, self.rect.bottom))
+            pygame.draw.line(
+                screen, color, (x, self.rect.top), (x, self.rect.bottom)
+            )
             x += spacing
             index_x += 1
         y = self.rect.top + offset_y
         index_y = int((self.rect.top + self.origin.y) / spacing)
         while y < self.rect.bottom:
             color = ui.GRID_MAJOR if index_y % 5 == 0 else ui.GRID
-            pygame.draw.line(screen, color, (self.rect.left, y),
-                             (self.rect.right, y))
+            pygame.draw.line(
+                screen, color, (self.rect.left, y), (self.rect.right, y)
+            )
             y += spacing
             index_y += 1
 
@@ -531,16 +563,22 @@ class AutomatonCanvas:
         points, label_pos = self._edge_geometry(transition)
         if len(points) < 2:
             return
-        selected = (self.selected_kind == "transition"
-                    and self.selected_id == transition.id)
-        hovered = (self.hover_kind == "transition"
-                   and self.hover_id == transition.id)
-        color = ui.SELECT if selected else (
-            ui.EDGE_HI if hovered else ui.EDGE)
+        selected = (
+            self.selected_kind == "transition"
+            and self.selected_id == transition.id
+        )
+        hovered = (
+            self.hover_kind == "transition" and self.hover_id == transition.id
+        )
+        color = ui.SELECT if selected else (ui.EDGE_HI if hovered else ui.EDGE)
         width = 3 if (selected or hovered) else 2
-        pygame.draw.lines(screen, color, False,
-                          [(int(round(x)), int(round(y)))
-                           for x, y in points], width)
+        pygame.draw.lines(
+            screen,
+            color,
+            False,
+            [(int(round(x)), int(round(y))) for x, y in points],
+            width,
+        )
         self._arrow(screen, points[-2], points[-1], color)
 
         if self.zoom < 0.45 or label_pos is None:
@@ -557,16 +595,21 @@ class AutomatonCanvas:
             lines.append(_ellipsis(font, guard, available))
         if not lines:
             return
-        rendered = [font.render(line, True, theme.TEXT if selected else
-                                theme.TEXT_DIM) for line in lines]
+        rendered = [
+            font.render(line, True, theme.TEXT if selected else theme.TEXT_DIM)
+            for line in lines
+        ]
         width_px = max(image.get_width() for image in rendered) + 10
         height_px = sum(image.get_height() for image in rendered) + 6
         box = pygame.Rect(0, 0, width_px, height_px)
         box.center = (int(round(label_pos[0])), int(round(label_pos[1])))
-        theme.panel(screen, box,
-                    fill=ui.CANVAS_BG,
-                    border=ui.SELECT if selected else theme.BORDER,
-                    radius=4)
+        theme.panel(
+            screen,
+            box,
+            fill=ui.CANVAS_BG,
+            border=ui.SELECT if selected else theme.BORDER,
+            radius=4,
+        )
         y = box.top + 3
         for image in rendered:
             screen.blit(image, (box.centerx - image.get_width() // 2, y))
@@ -574,28 +617,37 @@ class AutomatonCanvas:
 
     def _draw_node(self, screen, fonts, state):
         rect = self.node_rect(state)
-        selected = (self.selected_kind == "state"
-                    and self.selected_id == state.id)
-        hovered = (self.hover_kind == "state" and self.hover_id == state.id)
-        pending = (self.pending_source == state.id)
+        selected = (
+            self.selected_kind == "state" and self.selected_id == state.id
+        )
+        hovered = self.hover_kind == "state" and self.hover_id == state.id
+        pending = self.pending_source == state.id
         fill = ui.NODE_HI if (selected or hovered) else ui.NODE
-        border = ui.SELECT if (selected or pending) else (
-            ui.EDGE_HI if hovered else ui.NODE_BORDER)
+        border = (
+            ui.SELECT
+            if (selected or pending)
+            else (ui.EDGE_HI if hovered else ui.NODE_BORDER)
+        )
 
         shadow = rect.move(3, 3)
         pygame.draw.rect(screen, (0, 0, 0), shadow, border_radius=7)
-        theme.panel(screen, rect, fill=fill, border=border,
-                    radius=7, width=3 if selected else 1)
+        theme.panel(
+            screen,
+            rect,
+            fill=fill,
+            border=border,
+            radius=7,
+            width=3 if selected else 1,
+        )
         if state.final:
             inner = rect.inflate(-8, -8)
             if inner.width > 4 and inner.height > 4:
-                pygame.draw.rect(screen, ui.FINAL, inner,
-                                 width=2, border_radius=5)
+                pygame.draw.rect(
+                    screen, ui.FINAL, inner, width=2, border_radius=5
+                )
         if state.initial:
             self._draw_initial_marker(screen, rect)
 
-        # Бейджи S/F. На мелком масштабе они отнимают место у названия,
-        # а роль начального/финального уже показывают маркер и рамка.
         badges = []
         if self.zoom >= 0.85:
             if state.initial:
@@ -607,8 +659,9 @@ class AutomatonCanvas:
             box = pygame.Rect(0, 0, 18, 16)
             box.topright = (badge_x, rect.top + 7)
             theme.panel(screen, box, fill=ui.CANVAS_BG, border=color, radius=3)
-            theme.text(screen, fonts.font_s, letter, box.center, color,
-                       center=True)
+            theme.text(
+                screen, fonts.font_s, letter, box.center, color, center=True
+            )
             badge_x -= 21
 
         old_clip = screen.get_clip()
@@ -616,24 +669,43 @@ class AutomatonCanvas:
         title = state.name or state.id
         title_width = max(24, rect.width - 20 - 21 * len(badges))
         if self.zoom < 0.8 or rect.height < 50:
-            theme.text(screen, fonts.font_s, _ellipsis(
-                fonts.font_s, title, title_width), rect.center,
-                ui.NODE_TEXT, center=True)
+            theme.text(
+                screen,
+                fonts.font_s,
+                _ellipsis(fonts.font_s, title, title_width),
+                rect.center,
+                ui.NODE_TEXT,
+                center=True,
+            )
         else:
-            theme.text(screen, fonts.font, _ellipsis(
-                fonts.font, title, title_width),
-                (rect.left + 12, rect.top + 12), ui.NODE_TEXT)
+            theme.text(
+                screen,
+                fonts.font,
+                _ellipsis(fonts.font, title, title_width),
+                (rect.left + 12, rect.top + 12),
+                ui.NODE_TEXT,
+            )
             if state.name and state.name != state.id:
-                theme.text(screen, fonts.font_s, state.id,
-                           (rect.left + 12, rect.top + 36), ui.NODE_DIM)
+                theme.text(
+                    screen,
+                    fonts.font_s,
+                    state.id,
+                    (rect.left + 12, rect.top + 36),
+                    ui.NODE_DIM,
+                )
             if rect.height >= 70:
                 outgoing = len(self.automaton.outgoing(state.id))
                 incoming = len(self.automaton.incoming(state.id))
                 if outgoing or incoming:
                     extra = "%d→ · →%d" % (outgoing, incoming)
-                    theme.text(screen, fonts.font_s, extra,
-                               (rect.right - 12, rect.bottom - 18),
-                               ui.NODE_DIM, right=True)
+                    theme.text(
+                        screen,
+                        fonts.font_s,
+                        extra,
+                        (rect.right - 12, rect.bottom - 18),
+                        ui.NODE_DIM,
+                        right=True,
+                    )
         screen.set_clip(old_clip)
 
     def _draw_initial_marker(self, screen, rect):
@@ -642,8 +714,13 @@ class AutomatonCanvas:
         radius = max(4, int(6 * self.zoom))
         center = (rect.left - radius - 8, rect.centery)
         pygame.draw.circle(screen, ui.INITIAL, center, radius)
-        pygame.draw.line(screen, ui.INITIAL, (center[0] + radius, center[1]),
-                         (rect.left - 2, center[1]), 2)
+        pygame.draw.line(
+            screen,
+            ui.INITIAL,
+            (center[0] + radius, center[1]),
+            (rect.left - 2, center[1]),
+            2,
+        )
 
     def _arrow(self, screen, previous, tip, color):
         start = pygame.Vector2(previous)

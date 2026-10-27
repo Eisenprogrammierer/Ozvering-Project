@@ -1,20 +1,3 @@
-"""P1: можно ли поднять долю RL выше 50% без изменения core (docs/TODO.md P1).
-
-Варианты (monkeypatch на время прогона, core не меняется):
-
-  * горизонт разведки EPS_DECAY_STEPS = 3000 (канон) / 6000 / 12000;
-  * грубая дискретизация состояния (``exp_rl_sensitivity._coarse_discretize``);
-  * shaping награды: r = ΔF − w·ΔF_opp (относительное преимущество) для w=0.25/0.5;
-  * литеральная формула из задания r = ΔF + 0.25·ΔF_opp (контроль знака);
-  * r = ΔF − 0.25·ΔF_opp + 5 за успешную исходящую передачу RL.
-
-ΔF_opp снимается обёрткой ``run_tick`` (сила AI до/после такта), успех передачи —
-обёрткой ``_apply_transfer`` (сила RL выросла внутри передачи, т.е. удар прошёл).
-Каждый вариант — 30 партий (seed 0..29, сквозное обучение Q, with_env=True).
-
-Запуск из корня репозитория:
-    python3 experiments/exp_p1_rl_boost.py
-"""
 import os
 import statistics
 import sys
@@ -29,9 +12,14 @@ from exp_rl_sensitivity import _coarse_discretize
 GAMES = 30
 
 
-def _run(label, eps_decay=None, discretize=None, shape=None, weight=0.0,
-         success_bonus=0.0):
-    """Один пакет партий с точечными monkeypatch."""
+def _run(
+    label,
+    eps_decay=None,
+    discretize=None,
+    shape=None,
+    weight=0.0,
+    success_bonus=0.0,
+):
     saved = {
         "EPS_DECAY_STEPS": S.RLAgent.EPS_DECAY_STEPS,
         "discretize": S.RLAgent.discretize,
@@ -72,8 +60,9 @@ def _run(label, eps_decay=None, discretize=None, shape=None, weight=0.0,
                     r += weight * d_opp
                 if success_bonus and getattr(self, "_transfer_success", False):
                     r += success_bonus
-                return saved["learn"](self, st, a_idx, r, nst,
-                                      alpha=alpha, gamma=gamma)
+                return saved["learn"](
+                    self, st, a_idx, r, nst, alpha=alpha, gamma=gamma
+                )
 
             S.RLAgent.learn = learn
         res = S.run_batch(GAMES, quiet=True)[2]
@@ -87,14 +76,19 @@ def _run(label, eps_decay=None, discretize=None, shape=None, weight=0.0,
 
 
 def row(label, res, games=GAMES):
-    print(f"  {label:<46} | RL {res['RL']:>2}/{games} "
-          f"({100.0 * res['RL'] / games:5.1f}%) | AI {res['UtilityAI']:>2} "
-          f"| нет {res[None]:>2}")
+    print(
+        f"  {label:<46} | RL {res['RL']:>2}/{games} "
+        f"({100.0 * res['RL'] / games:5.1f}%) | AI {res['UtilityAI']:>2} "
+        f"| нет {res[None]:>2}"
+    )
 
 
 def main():
     print("=" * 88)
-    print("P1: доля RL при разных гиперпараметрах/награде (30 партий, core не меняется)")
+    print(
+        "P1: доля RL при разных гиперпараметрах/награде (30 партий, core не "
+        "меняется)"
+    )
     print("=" * 88)
 
     print("\n[0] Канон / горизонт разведки")
@@ -110,21 +104,39 @@ def main():
     print("\n[2] Reward shaping")
     row("r = dF - 0.25*dF_opp", _run("adv.25", shape="adv", weight=0.25))
     row("r = dF - 0.50*dF_opp", _run("adv.50", shape="adv", weight=0.5))
-    row("r = dF + 0.25*dF_opp (литерально)", _run("plus.25", shape="plus", weight=0.25))
-    row("r = dF - 0.25*dF_opp + 5*success",
-        _run("adv.25+succ", shape="adv", weight=0.25, success_bonus=5.0))
+    row(
+        "r = dF + 0.25*dF_opp (литерально)",
+        _run("plus.25", shape="plus", weight=0.25),
+    )
+    row(
+        "r = dF - 0.25*dF_opp + 5*success",
+        _run("adv.25+succ", shape="adv", weight=0.25, success_bonus=5.0),
+    )
 
     print("\n[3] Комбинация лучших (если есть)")
-    row("EPS=6000 + coarse", _run("e6+coarse", eps_decay=6000,
-                                  discretize=_coarse_discretize))
-    row("EPS=6000 + r=dF-0.25*dF_opp", _run("e6+adv.25", eps_decay=6000,
-                                            shape="adv", weight=0.25))
-    row("EPS=12000 + coarse + r=dF-0.25*dF_opp",
-        _run("e12+coarse+adv.25", eps_decay=12000,
-             discretize=_coarse_discretize, shape="adv", weight=0.25))
+    row(
+        "EPS=6000 + coarse",
+        _run("e6+coarse", eps_decay=6000, discretize=_coarse_discretize),
+    )
+    row(
+        "EPS=6000 + r=dF-0.25*dF_opp",
+        _run("e6+adv.25", eps_decay=6000, shape="adv", weight=0.25),
+    )
+    row(
+        "EPS=12000 + coarse + r=dF-0.25*dF_opp",
+        _run(
+            "e12+coarse+adv.25",
+            eps_decay=12000,
+            discretize=_coarse_discretize,
+            shape="adv",
+            weight=0.25,
+        ),
+    )
 
     print("\n" + "=" * 88)
-    print("  Цель P1 — RL > 50%. Сравнивайте строки с каноном; вывод по числам.")
+    print(
+        "  Цель P1 — RL > 50%. Сравнивайте строки с каноном; вывод по числам."
+    )
     print("=" * 88)
 
 

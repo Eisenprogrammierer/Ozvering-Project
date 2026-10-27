@@ -1,5 +1,3 @@
-"""Тесты чистой логики стратегического слоя (без pygame)."""
-
 import random
 
 import simulation as S
@@ -25,7 +23,7 @@ def test_model_starts_in_intro_and_out_of_contact():
     assert m.objective_owner is None
     assert set(m.units) == {"player", "enemy"}
     assert (5, 5) in m.move_targets("player")
-    assert (7, 3) not in m.move_targets("player")   # занято противником
+    assert (7, 3) not in m.move_targets("player")
 
 
 def test_move_is_bounded_by_range_and_cp():
@@ -37,7 +35,7 @@ def test_move_is_bounded_by_range_and_cp():
     ok, _, _ = m.move_unit("player", 5, 5)
     assert ok
     assert m.player_unit.pos == (5, 5)
-    assert m.turn == 2          # ход игрока + ответ противника
+    assert m.turn == 2
 
 
 def test_attack_requires_contact_and_resolves_model_tick():

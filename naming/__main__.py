@@ -1,11 +1,3 @@
-"""CLI: предпросмотр названий и онтологий.
-
-    python3 -m naming --list
-    python3 -m naming --mode order --need fear --level 3 --count 5 --seed 7
-    python3 -m naming --interaction coercion --count 5 --seed 7
-    python3 -m naming --mode order --ontology
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -13,8 +5,11 @@ import json
 
 from .catalog import NamingError, default_catalog
 from .generator import NameGenerator
-from .people import PeopleError, PersonNameGenerator, default_catalog as \
-    default_people_catalog
+from .people import (
+    PeopleError,
+    PersonNameGenerator,
+    default_catalog as default_people_catalog,
+)
 
 
 def _print_people_catalog(catalog):
@@ -33,37 +28,62 @@ def main(argv=None):
     people_catalog = default_people_catalog()
     parser = argparse.ArgumentParser(
         prog="python3 -m naming",
-        description="Генератор естественных названий и имён")
-    parser.add_argument("--mode", choices=catalog.class_ids(),
-                        help="класс автомата (функция организации)")
-    parser.add_argument("--need", default=None,
-                        help="каноническая потребность, например fear")
-    parser.add_argument("--level", type=int, default=1,
-                        help="уровень организации, 1..3+")
-    parser.add_argument("--theme", default=None,
-                        help="явная тема класса")
-    parser.add_argument("--interaction", choices=catalog.interaction_ids(),
-                        help="тип взаимодействия")
-    parser.add_argument("--person", action="store_true",
-                        help="генерировать имя персонажа")
-    parser.add_argument("--culture", choices=people_catalog.culture_ids(),
-                        help="реальная культура имени")
-    parser.add_argument("--fantasy", choices=people_catalog.theme_ids(),
-                        help="фэнтезийная тема имени")
-    parser.add_argument("--gender", choices=("m", "f", "any"), default=None,
-                        help="пол имени персонажа")
-    parser.add_argument("--count", type=int, default=1,
-                        help="сколько названий показать")
-    parser.add_argument("--seed", type=int, default=0,
-                        help="seed генератора")
-    parser.add_argument("--json", action="store_true",
-                        help="печатать JSON")
-    parser.add_argument("--ontology", action="store_true",
-                        help="напечатать онтологию класса")
-    parser.add_argument("--list", action="store_true",
-                        help="список классов, взаимодействий и культур")
-    parser.add_argument("--list-people", action="store_true",
-                        help="только список культур и фэнтезийных тем")
+        description="Генератор естественных названий и имён",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=catalog.class_ids(),
+        help="класс автомата (функция организации)",
+    )
+    parser.add_argument(
+        "--need", default=None, help="каноническая потребность, например fear"
+    )
+    parser.add_argument(
+        "--level", type=int, default=1, help="уровень организации, 1..3+"
+    )
+    parser.add_argument("--theme", default=None, help="явная тема класса")
+    parser.add_argument(
+        "--interaction",
+        choices=catalog.interaction_ids(),
+        help="тип взаимодействия",
+    )
+    parser.add_argument(
+        "--person", action="store_true", help="генерировать имя персонажа"
+    )
+    parser.add_argument(
+        "--culture",
+        choices=people_catalog.culture_ids(),
+        help="реальная культура имени",
+    )
+    parser.add_argument(
+        "--fantasy",
+        choices=people_catalog.theme_ids(),
+        help="фэнтезийная тема имени",
+    )
+    parser.add_argument(
+        "--gender",
+        choices=("m", "f", "any"),
+        default=None,
+        help="пол имени персонажа",
+    )
+    parser.add_argument(
+        "--count", type=int, default=1, help="сколько названий показать"
+    )
+    parser.add_argument("--seed", type=int, default=0, help="seed генератора")
+    parser.add_argument("--json", action="store_true", help="печатать JSON")
+    parser.add_argument(
+        "--ontology", action="store_true", help="напечатать онтологию класса"
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="список классов, взаимодействий и культур",
+    )
+    parser.add_argument(
+        "--list-people",
+        action="store_true",
+        help="только список культур и фэнтезийных тем",
+    )
     args = parser.parse_args(argv)
 
     if args.list_people:
@@ -71,8 +91,13 @@ def main(argv=None):
         return 0
 
     if args.list or (
-            not args.mode and not args.interaction and not args.person and
-            not args.culture and not args.fantasy and not args.gender):
+        not args.mode
+        and not args.interaction
+        and not args.person
+        and not args.culture
+        and not args.fantasy
+        and not args.gender
+    ):
         print("Классы автоматов:")
         for class_id in catalog.class_ids():
             profile = catalog.class_profile(class_id)
@@ -97,8 +122,13 @@ def main(argv=None):
             seed=args.seed,
         )
         if args.json:
-            print(json.dumps([item.as_dict() for item in results],
-                             ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    [item.as_dict() for item in results],
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
         else:
             for item in results:
                 origin = item.culture or item.theme or "—"
@@ -108,21 +138,36 @@ def main(argv=None):
     if args.ontology:
         if not args.mode:
             parser.error("--ontology требует --mode")
-        print(json.dumps(catalog.ontology_for(args.mode),
-                         ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                catalog.ontology_for(args.mode), ensure_ascii=False, indent=2
+            )
+        )
         return 0
 
     generator = NameGenerator(catalog, seed=args.seed)
     if args.interaction:
-        results = [generator.interaction_name(args.interaction)
-                   for _ in range(max(1, args.count))]
+        results = [
+            generator.interaction_name(args.interaction)
+            for _ in range(max(1, args.count))
+        ]
     else:
         results = generator.generate_many(
-            args.mode, need=args.need, level=args.level, theme=args.theme,
-            count=max(1, args.count), seed=args.seed)
+            args.mode,
+            need=args.need,
+            level=args.level,
+            theme=args.theme,
+            count=max(1, args.count),
+            seed=args.seed,
+        )
     if args.json:
-        print(json.dumps([item.as_dict() for item in results],
-                         ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                [item.as_dict() for item in results],
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
     else:
         for item in results:
             suffix = " [%s, %s слов]" % (item.theme or item.mode, item.words)

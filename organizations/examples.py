@@ -1,11 +1,3 @@
-"""Эталонные сценарии: страх/государство, духовность/церковь, статус/банда,
-голод/торговая артель.
-
-Населения детерминированы. Часть участников — «свободные ездоки» с нулевыми
-потребностями: они не получают выгоды и выходят, поэтому в примерах видна
-экономика участия, а не только статическая формула.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,8 +20,9 @@ def _needs(hot, base=0.2):
     return values
 
 
-def _build_population(count, hot, complete_weight,
-                      leader_hot=None, low_every=10):
+def _build_population(
+    count, hot, complete_weight, leader_hot=None, low_every=10
+):
     members = []
     leader = Member(
         id="leader",
@@ -62,7 +55,6 @@ def _build_population(count, hot, complete_weight,
 
 
 def fear_state():
-    """Многие боятся, связи плотные, масштаб выше 660 → государство."""
     return Scenario(
         slug="state_fear",
         title="Страх и большой масштаб → государство",
@@ -76,7 +68,6 @@ def fear_state():
 
 
 def spirituality_church():
-    """Духовность доминирует, масштаб выше 660 → церковная иерархия."""
     return Scenario(
         slug="church_spirituality",
         title="Духовность и большой масштаб → церковь",
@@ -91,7 +82,6 @@ def spirituality_church():
 
 
 def status_gang():
-    """Статус при малом масштабе → банда."""
     return Scenario(
         slug="gang_status",
         title="Статус и малый масштаб → банда",
@@ -105,7 +95,6 @@ def status_gang():
 
 
 def subsistence_artel():
-    """Голод/жажда и малый масштаб → торговая артель."""
     return Scenario(
         slug="trade_artel_hunger",
         title="Голод, жажда и малый масштаб → торговая артель",
@@ -132,8 +121,10 @@ def analyze_scenario(scenario, parameters=None):
 
 
 def analyze_all(parameters=None):
-    return [(scenario, analyze_scenario(scenario, parameters))
-            for scenario in get_scenarios()]
+    return [
+        (scenario, analyze_scenario(scenario, parameters))
+        for scenario in get_scenarios()
+    ]
 
 
 __all__ = [

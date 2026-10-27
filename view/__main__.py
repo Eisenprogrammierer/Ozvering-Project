@@ -1,5 +1,3 @@
-"""Запуск кампании ``view``: ``python3 -m view``."""
-
 from .app import main
 
 if __name__ == "__main__":

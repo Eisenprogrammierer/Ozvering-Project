@@ -1,9 +1,3 @@
-"""Контент интерфейса: приказы, документы, блокнот, диалоги, решения.
-
-Файлы лежат в ``configs/content/``. Это данные UI-слоя, а не математическая
-модель; загрузчик не трогает ``simulation.py`` и ``warfare.py``.
-"""
-
 from pathlib import Path
 
 from .log_journal import get_logger
@@ -13,7 +7,6 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class Content:
-    """Контейнер JSON-контента, используемого экранами ``view``."""
 
     def __init__(self, root=None):
         self.root = Path(root) if root else ROOT / "configs" / "content"
@@ -39,6 +32,6 @@ class Content:
         try:
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as exc:                   # noqa: BLE001
+        except Exception as exc:
             logger.warning("Не удалось прочитать %s: %s", path, exc)
             return default

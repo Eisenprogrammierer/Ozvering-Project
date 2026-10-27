@@ -1,10 +1,3 @@
-"""Тесты ролей игрока и детерминированных кампанийных пресетов.
-
-Ядро тестов не требует pygame: каталог ролей, генератор и хранилище — чистый
-Python. Интеграция с ``view.support.scenario`` проверяется отдельно и
-пропускается, если нет numpy.
-"""
-
 import json
 from pathlib import Path
 import subprocess
@@ -22,6 +15,17 @@ from campaign.roles import RoleCatalog, RoleError, RoleSpec
 from campaign.storage import load_preset, save_preset
 
 
+@pytest.fixture(autouse=True)
+def _reset_audio():
+    yield
+    try:
+        import pygame
+    except ImportError:
+        return
+    if pygame.mixer.get_init():
+        pygame.mixer.quit()
+
+
 @pytest.fixture(scope="module")
 def preset():
     return generate_preset(seed=7)
@@ -35,8 +39,10 @@ def test_campaign_layer_is_headless():
         "assert 'pygame' not in sys.modules, 'campaign imported pygame'"
     )
     result = subprocess.run(
-        [sys.executable, "-c", code], cwd=root,
-        capture_output=True, text=True,
+        [sys.executable, "-c", code],
+        cwd=root,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stderr
 
@@ -57,27 +63,30 @@ def test_role_catalog_exposes_only_faction_leader():
 
 
 def test_role_catalog_is_extensible_but_hides_unavailable_roles():
-    catalog = RoleCatalog.from_data({
-        "schema": 1,
-        "roles": [
-            {
-                "id": "faction_leader",
-                "label": "Номинальный лидер",
-                "sort_order": 1,
-            },
-            {
-                "id": "future_role",
-                "label": "Будущая роль",
-                "available": False,
-                "sort_order": 2,
-            },
-        ],
-    })
+    catalog = RoleCatalog.from_data(
+        {
+            "schema": 1,
+            "roles": [
+                {
+                    "id": "faction_leader",
+                    "label": "Номинальный лидер",
+                    "sort_order": 1,
+                },
+                {
+                    "id": "future_role",
+                    "label": "Будущая роль",
+                    "available": False,
+                    "sort_order": 2,
+                },
+            ],
+        }
+    )
     assert [role.id for role in catalog.available_roles()] == [
         "faction_leader"
     ]
     assert [role.id for role in catalog.all_roles()] == [
-        "faction_leader", "future_role"
+        "faction_leader",
+        "future_role",
     ]
     with pytest.raises(RoleError):
         catalog.select("future_role")
@@ -86,14 +95,21 @@ def test_role_catalog_is_extensible_but_hides_unavailable_roles():
 
 
 def test_role_slot_selects_player_faction_without_code_changes():
-    catalog = RoleCatalog.from_data({"roles": [{
-        "id": "enemy_leader",
-        "label": "Номинальный лидер противника",
-        "faction_slot": "enemy",
-        "grants": {"player_role": "enemy_leader"},
-    }]})
+    catalog = RoleCatalog.from_data(
+        {
+            "roles": [
+                {
+                    "id": "enemy_leader",
+                    "label": "Номинальный лидер противника",
+                    "faction_slot": "enemy",
+                    "grants": {"player_role": "enemy_leader"},
+                }
+            ]
+        }
+    )
     generated = CampaignPresetGenerator(catalog=catalog).generate(
-        role_id="enemy_leader", seed=7,
+        role_id="enemy_leader",
+        seed=7,
     )
     assert generated.player_side == "blue"
     assert generated.player_faction["side"] == "blue"
@@ -122,9 +138,7 @@ def test_player_can_choose_each_faction():
 
 def test_faction_options_preview_both_sides():
     options = CampaignPresetGenerator().faction_options(seed=7)
-    assert [item["id"] for item in options] == [
-        "faction_red", "faction_blue"
-    ]
+    assert [item["id"] for item in options] == ["faction_red", "faction_blue"]
     assert [item["companies"] for item in options] == [16, 32]
     assert [item["is_default"] for item in options] == [True, False]
     assert options[0]["organization_name"] == "Совет Севера"
@@ -146,9 +160,17 @@ def test_role_validation_rejects_bad_ids_and_empty_catalog():
     with pytest.raises(RoleError):
         RoleCatalog.from_data({"roles": []})
     with pytest.raises(RoleError):
-        RoleCatalog.from_data({"roles": [{
-            "id": "only_hidden", "label": "Скрытая", "available": False
-        }]})
+        RoleCatalog.from_data(
+            {
+                "roles": [
+                    {
+                        "id": "only_hidden",
+                        "label": "Скрытая",
+                        "available": False,
+                    }
+                ]
+            }
+        )
 
 
 def test_preset_generation_is_deterministic(preset):
@@ -206,8 +228,11 @@ def test_preset_scenario_roster_is_complete(preset):
         rosters = preset.roster_by_side()[side]
         assert len(rosters) == expected
         assert all(len(roster) == 4 for roster in rosters)
-        names = [character["name"] for character in preset.characters
-                 if character["side"] == side]
+        names = [
+            character["name"]
+            for character in preset.characters
+            if character["side"] == side
+        ]
         assert len(names) == len(set(names)) == expected * 4
 
 
@@ -227,14 +252,19 @@ def test_preset_characters_have_bdi_fields(preset):
 def test_preset_environment_events_and_playwright(preset):
     environment = preset.environment
     assert environment["feature_ids"] == [
-        "river", "forest", "storm", "ruins", "crossroads"
+        "river",
+        "forest",
+        "storm",
+        "ruins",
+        "crossroads",
     ]
     assert set(environment["features"]) == set(environment["feature_ids"])
 
     events = preset.events
     assert len(events["hooks"]) == 8
     assert {hook["category"] for hook in events["hooks"]} <= set(
-        events["categories"])
+        events["categories"]
+    )
     assert all(hook["text"] for hook in events["hooks"])
     assert events["context"]["organization"] == "Совет Севера"
     assert events["context"]["rival_organization"] == "Директория Агоры"
@@ -244,8 +274,10 @@ def test_preset_environment_events_and_playwright(preset):
     assert playwright["candidate_count"] > 0
     assert playwright["candidates"]
     assert playwright["templates"]
-    assert any(actor["organization"] == "Совет Севера"
-               for actor in playwright["actors"])
+    assert any(
+        actor["organization"] == "Совет Севера"
+        for actor in playwright["actors"]
+    )
 
 
 def test_preset_roundtrip_and_storage(tmp_path, preset):
@@ -275,10 +307,13 @@ def test_world_uses_preset_roster_and_keeps_default_balance(preset):
     assert state.campaign_preset_id == preset.preset_id
     assert len(state.organization_runtimes) == 2
     first_unit = preset.scenario["units"][0]
-    first_names = [preset.character(char_id)["name"]
-                   for char_id in first_unit["character_ids"]]
-    assert [character.name for character
-            in state.units[0].characters] == first_names
+    first_names = [
+        preset.character(char_id)["name"]
+        for char_id in first_unit["character_ids"]
+    ]
+    assert [
+        character.name for character in state.units[0].characters
+    ] == first_names
     assert state.units[0].characters[0].campaign_role_id == "faction_leader"
     assert state.units[0].characters[0].campaign_leader is True
 
@@ -311,32 +346,38 @@ def test_faction_leader_storyline_skips_character_creation():
     assert storyline["title"] == "Мандат фракции"
     assert storyline["character_creation"] == {}
     assert [scene["type"] for scene in storyline["scenes"]] == [
-        "visual_novel", "document", "gameplay"
+        "visual_novel",
+        "document",
+        "gameplay",
     ]
-    assert storyline["scenes"][0]["slides"][0]["image"].startswith(
-        "campaign/"
-    )
+    assert storyline["scenes"][0]["slides"][0]["image"].startswith("campaign/")
 
 
 def test_storyline_interpolates_campaign_variables():
     from view.support.storyline import StorylineInterpreter
 
-    interp = StorylineInterpreter(None, {
-        "storyline_id": "test",
-        "scenes": [],
-    })
+    interp = StorylineInterpreter(
+        None,
+        {
+            "storyline_id": "test",
+            "scenes": [],
+        },
+    )
     interp.set_variable("player_faction_name", "Северный союз")
     interp.set_variable("player_companies", 16)
-    assert interp.interpolate(
-        "{player_faction_name}: {player_companies}"
-    ) == "Северный союз: 16"
+    assert (
+        interp.interpolate("{player_faction_name}: {player_companies}")
+        == "Северный союз: 16"
+    )
     assert interp.interpolate("неизвестно: {missing}") == (
         "неизвестно: {missing}"
     )
-    resolved = interp.resolve_variant({
-        "text": "{player_faction_name}",
-        "slides": [{"text": "{player_companies}"}],
-    })
+    resolved = interp.resolve_variant(
+        {
+            "text": "{player_faction_name}",
+            "slides": [{"text": "{player_companies}"}],
+        }
+    )
     assert resolved["text"] == "Северный союз"
     assert resolved["slides"][0]["text"] == "16"
 
@@ -369,7 +410,9 @@ def test_save_roundtrip_keeps_role_and_preset(tmp_path, monkeypatch, preset):
     state = build_world(campaign_preset=preset)
     time_system = CampaignTimeSystem(state)
     path = save_system.save_game(
-        state, time_system, "role-test",
+        state,
+        time_system,
+        "role-test",
         campaign_role=preset.role,
         campaign_preset=preset,
     )
@@ -386,7 +429,9 @@ def test_save_roundtrip_keeps_role_and_preset(tmp_path, monkeypatch, preset):
     )
     assert restored.campaign_preset_id == preset.preset_id
     assert restored.campaign_role_id == "faction_leader"
-    assert restored.units[0].characters[0].name == preset.player_character["name"]
+    assert (
+        restored.units[0].characters[0].name == preset.player_character["name"]
+    )
 
 
 def test_cli_lists_roles_and_generates_preset(tmp_path, capsys):
@@ -396,9 +441,18 @@ def test_cli_lists_roles_and_generates_preset(tmp_path, capsys):
     assert "Номинальный лидер фракции" in output
 
     out = tmp_path / "generated.json"
-    assert campaign_main([
-        "--generate", "--seed", "7", "--out", str(out),
-    ]) == 0
+    assert (
+        campaign_main(
+            [
+                "--generate",
+                "--seed",
+                "7",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
     output = capsys.readouterr().out
     assert "test_skirmish_seed7" in output
     assert out.exists()
@@ -408,8 +462,8 @@ def test_cli_lists_roles_and_generates_preset(tmp_path, capsys):
 
 
 def test_role_select_screen_constructs_and_draws():
-    """Дымовой тест UI: пропускается без pygame."""
     import os
+
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     pygame = pytest.importorskip("pygame")
@@ -429,6 +483,7 @@ def test_role_select_screen_constructs_and_draws():
 
 def test_faction_select_screen_constructs_and_draws():
     import os
+
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     pygame = pytest.importorskip("pygame")
@@ -441,13 +496,15 @@ def test_faction_select_screen_constructs_and_draws():
     surface = pygame.Surface((1280, 720))
     screen.draw(surface)
     assert [item["id"] for item in screen.options] == [
-        "faction_red", "faction_blue"
+        "faction_red",
+        "faction_blue",
     ]
     assert screen.storyline["storyline_id"] == "faction_leader_demo"
 
 
 def test_asset_loader_uses_procedural_placeholders():
     import os
+
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     pytest.importorskip("pygame")

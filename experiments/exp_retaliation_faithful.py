@@ -1,20 +1,3 @@
-"""Автотест ВЕРНОСТИ оценки возмездия (пункт A3 ревью, docs/MODEL.md §7).
-
-``UtilityAI.expected_retaliation`` обещает строиться «ровно по закону фактического
-``resolve_attack``». До фикса A3 оценка на этапе планирования брала УСТАРЕВШИЕ
-собственные величины: ``self.last_work`` (работа прошлого такта) и ``self.defense``
-(тип по прошлому действию и до списания пула), тогда как фактический
-``resolve_attack`` использует состояние ПОСЛЕ ``commit``. Фикс ввёл чистые
-помощники ``Agent.committed_work`` / ``Agent.defense_after``, проецирующие это
-состояние без побочных эффектов.
-
-Здесь helpers сверяются с фактом на канонической траектории (RL vs UtilityAI,
-10 партий, with_env): у каждой атаки (r>0, единственный случай, где оценка
-возмездия вообще вызывается) проекция обязана совпасть с результатом ``commit``.
-
-Запуск из корня репозитория (0 — верно, 1 — регрессия):
-    python3 experiments/exp_retaliation_faithful.py
-"""
 import os
 import sys
 
@@ -29,14 +12,13 @@ _stat = {"att": 0, "work_ok": 0, "def_ok": 0}
 
 
 def _probe(self, act, work):
-    """Обёртка commit: сверяет проекцию ДО с фактом ПОСЛЕ."""
     pred_w = self.committed_work(act, work)
     pred_d = self.defense_after(act, work)
     r = _orig_commit(self, act, work)
-    if r > 0:  # атакующий такт: только тут работает expected_retaliation
+    if r > 0:
         _stat["att"] += 1
-        _stat["work_ok"] += (pred_w == r)
-        _stat["def_ok"] += (pred_d == self.defense)
+        _stat["work_ok"] += pred_w == r
+        _stat["def_ok"] += pred_d == self.defense
     return r
 
 
@@ -62,6 +44,12 @@ print()
 print("  канон run_batch(10):", S.run_batch(10, quiet=True)[2])
 
 print()
-print("ИТОГ:", "проекция совпадает с commit на 100%"
-      if (ok_work and ok_def) else "РАСХОЖДЕНИЕ с commit — регрессия A3")
+print(
+    "ИТОГ:",
+    (
+        "проекция совпадает с commit на 100%"
+        if (ok_work and ok_def)
+        else "РАСХОЖДЕНИЕ с commit — регрессия A3"
+    ),
+)
 sys.exit(0 if (ok_work and ok_def) else 1)

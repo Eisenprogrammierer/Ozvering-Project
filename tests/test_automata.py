@@ -1,5 +1,3 @@
-"""Тесты чистой модели и хранилища редактора автоматов (без pygame)."""
-
 from __future__ import annotations
 
 import json
@@ -18,10 +16,6 @@ from automata.model import (
 )
 from automata.storage import AutomataStore, StoreError
 
-
-# --------------------------------------------------------------------------
-# Состояния и переходы
-# --------------------------------------------------------------------------
 
 def test_state_ids_and_one_initial():
     automaton = Automaton()
@@ -95,10 +89,6 @@ def test_set_initial_and_final():
     assert automaton.final_states == [a, b]
 
 
-# --------------------------------------------------------------------------
-# Проверка структуры
-# --------------------------------------------------------------------------
-
 def test_validation_reports_unreachable_and_dead_end():
     automaton = Automaton()
     a = automaton.add_state("A", initial=True)
@@ -143,10 +133,6 @@ def test_empty_automaton_has_error():
     assert issues[0].is_error
 
 
-# --------------------------------------------------------------------------
-# JSON и история
-# --------------------------------------------------------------------------
-
 def test_json_roundtrip_and_clone():
     automaton = Automaton("Имя", "Описание")
     a = automaton.add_state("A", 10, 20, initial=True)
@@ -167,10 +153,12 @@ def test_json_roundtrip_and_clone():
 
 def test_from_dict_rejects_duplicate_ids():
     with pytest.raises(AutomatonError):
-        Automaton.from_dict({
-            "states": [{"id": "s1"}, {"id": "s1"}],
-            "transitions": [],
-        })
+        Automaton.from_dict(
+            {
+                "states": [{"id": "s1"}, {"id": "s1"}],
+                "transitions": [],
+            }
+        )
     with pytest.raises(AutomatonError):
         Automaton.from_dict({"states": "not-a-list"})
 
@@ -200,10 +188,6 @@ def test_history_limit_keeps_the_tail():
     assert history.undo() == {"n": 5}
     assert history.undo() is None
 
-
-# --------------------------------------------------------------------------
-# Хранилище
-# --------------------------------------------------------------------------
 
 def test_slugify_transliterates_and_cleans():
     assert slugify("Простой цикл") == "prostoy_cikl"
@@ -279,5 +263,7 @@ def test_core_model_does_not_import_pygame():
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(Path(__file__).resolve().parents[1]),
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr

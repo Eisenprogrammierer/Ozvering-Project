@@ -1,14 +1,3 @@
-"""Проверка войсковых автоматов: персонажи, отделения, стан, приказы.
-
-Сценарий — ``warfare.build_demo_scenario``: две стороны, отделения из персонажей,
-паники/отходы, банзай-атаки, заградотряд, выход резерва из стана и подкрепление
-с задержкой. Скрипт возвращает 0 при выполнении инвариантов и 1 при регрессии.
-
-Запуск из корня репозитория:
-
-    python3 experiments/exp_warfare.py
-"""
-
 import pathlib
 import sys
 
@@ -23,23 +12,44 @@ def main():
     first = warfare.build_demo_scenario(seed=7, turns=140).run()
     second = warfare.build_demo_scenario(seed=7, turns=140).run()
     counts = first["counts"]
-    need = ("panic", "retreat", "banzai", "barrier", "spawn", "reinforcement",
-            "support")
+    need = (
+        "panic",
+        "retreat",
+        "banzai",
+        "barrier",
+        "spawn",
+        "reinforcement",
+        "support",
+    )
     missing = [name for name in need if counts.get(name, 0) <= 0]
 
-    print(f"Войсковой сценарий: seed=7, тактов={first['turn']}, "
-          f"итог={first['winner']}")
-    print("События: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    print(
+        f"Войсковой сценарий: seed=7, тактов={first['turn']}, "
+        f"итог={first['winner']}"
+    )
+    print(
+        "События: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+    )
     checks = [
-        ("детерминизм по seed", first["counts"] == second["counts"] and
-         first["winner"] == second["winner"] and
-         first["turn"] == second["turn"]),
-        ("обе стороны на поле", bool(first["sides"]["red"]) and
-         bool(first["sides"]["blue"])),
-        ("16 потребностей у персонажей",
-         all(set(c["needs"]) == set(warfare.NEEDS)
-             for side in first["sides"].values() for d in side
-             for c in d["characters"])),
+        (
+            "детерминизм по seed",
+            first["counts"] == second["counts"]
+            and first["winner"] == second["winner"]
+            and first["turn"] == second["turn"],
+        ),
+        (
+            "обе стороны на поле",
+            bool(first["sides"]["red"]) and bool(first["sides"]["blue"]),
+        ),
+        (
+            "16 потребностей у персонажей",
+            all(
+                set(c["needs"]) == set(warfare.NEEDS)
+                for side in first["sides"].values()
+                for d in side
+                for c in d["characters"]
+            ),
+        ),
         ("все виды событий", not missing),
     ]
     for name, ok in checks:

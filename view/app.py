@@ -1,27 +1,3 @@
-"""
-view/app.py
-Главное окно приложения.
-Инициализирует pygame, загружает контент, строит мир, запускает движок
-и управляет стеком экранов. Передаёт ссылку на себя в time_system
-и logistics для доступа к модификаторам черт персонажа.
-При запуске новой игры открывает экран выбора роли, затем — экран выбора
-сюжета; после создания персонажа интерпретатор ведёт игрока по
-последовательности сцен. Роль определяет генерируемый пресет кампании
-(персонажи, фракции-автоматы, организации, среда и события).
-Исход сюжета (победа/поражение) отложен: флаг ставится при пересечении
-вечерней границы дня, а финальная сцена показывается в главном цикле
-через process_pending_storyline_outcome(), чтобы не переключать экраны
-изнутри раскрутки времени.
-Слайды визуальных новелл (интро, победная и проигрышная сцены)
-поддерживают варианты по переменным сюжета на уровне отдельного
-слайда через variant_by/variants.
-HUD игрового времени отрисовывается только когда в стеке экранов
-присутствует экран с show_time_hud == True (RTSScreen); на самом RTS-экране
-он скрыт, потому что время уже показано в его верхней панели.
-События инициализации, загрузки, сохранения и переходов между экранами
-записываются в журнал operation_ozverin.log в корне проекта и
-дублируются в консоль.
-"""
 import os
 import sys
 import logging
@@ -38,16 +14,6 @@ LOG_PATH = os.path.normpath(
 
 
 def _build_logger(name):
-    """
-    Создаёт и возвращает журнал с файловым и консольным обработчиками.
-    Файловый обработчик пишет в operation_ozverin.log в корне проекта
-    с уровнем DEBUG, консольный выводит сообщения уровня INFO и выше.
-    Обработчики создаются один раз для каждого имени журнала.
-    Args:
-        name (str): Имя журнала.
-    Returns:
-        logging.Logger: Настроенный журнал.
-    """
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
@@ -70,15 +36,6 @@ logger = _build_logger("view.app")
 
 
 def _find_first_valid_ttf():
-    """
-    Ищет первый валидный TTF-шрифт в директории assets/fonts.
-    Перебирает файлы с расширением .ttf в алфавитном порядке и
-    возвращает путь к первому, который успешно загружается и
-    рендерит тестовую строку. Если директория отсутствует или
-    валидных шрифтов нет, возвращает None.
-    Returns:
-        str | None: Абсолютный путь к валидному TTF-шрифту или None.
-    """
     fonts_dir = os.path.normpath(
         os.path.join(BASE_DIR, "..", "assets", "fonts")
     )
@@ -96,22 +53,11 @@ def _find_first_valid_ttf():
     return None
 
 
-# Шрифт ищется до создания App, поэтому подсистему шрифтов нужно поднять явно.
 pygame.font.init()
 FONT_PATH = _find_first_valid_ttf()
 
 
 def load_font(size):
-    """
-    Загружает шрифт заданного размера с фолбэком на встроенный.
-    Использует первый валидный TTF, найденный в assets/fonts.
-    При ошибке загрузки или отсутствии шрифта возвращает
-    встроенный шрифт pygame.
-    Args:
-        size (int): Размер шрифта в пикселях.
-    Returns:
-        pygame.font.Font: Загруженный или встроенный шрифт.
-    """
     if FONT_PATH:
         try:
             return pygame.font.Font(FONT_PATH, size)
@@ -122,38 +68,8 @@ def load_font(size):
 
 
 class App:
-    """
-    Главное приложение игры.
-    Управляет инициализацией pygame, загрузкой контента, построением
-    мира, запуском движка и стеком экранов. Передаёт ссылку на себя
-    в time_system и logistics для доступа к модификаторам черт.
-    Attributes:
-        screen (pygame.Surface): Поверхность экрана.
-        clock (pygame.time.Clock): Часы для ограничения FPS.
-        font_title (pygame.font.Font): Шрифт заголовков.
-        font_body (pygame.font.Font): Основной шрифт.
-        font_small (pygame.font.Font): Мелкий шрифт.
-        font_tiny (pygame.font.Font): Очень мелкий шрифт.
-        running (bool): Флаг работы главного цикла.
-        scenario_path (str): Путь к текущему сценарию.
-        storyline_interpreter (StorylineInterpreter | None): Интерпретатор сюжета.
-        pending_storyline_outcome (str | None): Отложенный исход сюжета.
-        music (MusicManager): Менеджер фоновой музыки.
-        content (Content): Загруженный контент интерфейса.
-        engine (TickEngine): Игровой движок.
-        player_idx (int): Индекс сущности игрока.
-        time_system (GameTimeSystem): Система игрового времени.
-        time_hud (TimeHUD): HUD игрового времени.
-        manager (ScreenManager): Менеджер стека экранов.
-    """
 
     def __init__(self):
-        """
-        Инициализирует приложение, pygame, загружает контент и строит мир.
-        Создаёт окно, загружает шрифты, контент, строит начальное
-        состояние мира, инициализирует движок, систему времени,
-        менеджер музыки и стек экранов. Начальный экран — главное меню.
-        """
         pygame.init()
         pygame.display.set_caption("Operation Ozverin — MVP")
         self.fullscreen = False
@@ -167,14 +83,15 @@ class App:
         self.scenario_path = "scenarios/mvp.json"
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
-        # Роль и пресет выбираются до сюжета. Каталог ролей — обычный JSON,
-        # поэтому новые роли не требуют правок экрана или генератора.
+
         from campaign import RoleCatalog
+
         self.role_catalog = RoleCatalog.load()
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None
         from .ui.music_manager import MusicManager
+
         self.music = MusicManager(
             os.path.normpath(os.path.join(BASE_DIR, "..", "music"))
         )
@@ -182,51 +99,42 @@ class App:
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
+
         self.content = Content()
         state = build_world(content=self.content)
         self.state = state
         self.engine = CampaignEngine(state)
         self.engine.engagements = getattr(state, "engagements", [])
         self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(state, engine=self.engine,
-                                              app=self)
+        self.time_system = CampaignTimeSystem(
+            state, engine=self.engine, app=self
+        )
         self.engine.time_system = self.time_system
         from .ui.time_hud import TimeHUD
+
         self.time_hud = TimeHUD(self)
         from .ui.screen_manager import ScreenManager
         from .screens.main_menu import MainMenuScreen
+
         self.manager = ScreenManager()
         self.manager.replace_all(MainMenuScreen(self))
         self.music.request_category("overture")
         logger.info("Приложение инициализировано")
 
     def finish_storyline_outcome(self, outcome):
-        """Зафиксировать победу/поражение и отдать сцену главному циклу.
-
-        Метод не переключает экраны сам: ``process_pending_storyline_outcome``
-        сделает это на ближайшем кадре. Повторные вызовы идемпотентны.
-        """
         if outcome not in ("win", "lose"):
             return False
         if self.storyline_interpreter is None:
             return False
-        if (self.pending_storyline_outcome is not None or
-                getattr(self.storyline_interpreter, "finished", False)):
+        if self.pending_storyline_outcome is not None or getattr(
+            self.storyline_interpreter, "finished", False
+        ):
             return False
         self.pending_storyline_outcome = outcome
         self.storyline_interpreter.finished = True
         return True
 
     def check_storyline_end_of_day(self):
-        """
-        Проверка исходов сюжета по пороговым условиям. Idempotent.
-
-        Вызывается на вечерней границе и после каждого войскового такта,
-        поэтому потеря 90% дивизии завершает операцию сразу, а не ждёт ночи.
-        Ставит флаг pending_storyline_outcome, но не переключает экраны;
-        финальная сцена показывается в главном цикле через
-        process_pending_storyline_outcome().
-        """
         if self.storyline_interpreter is None:
             return
         if getattr(self.storyline_interpreter, "finished", False):
@@ -243,17 +151,10 @@ class App:
             self.finish_storyline_outcome("win")
 
     def apply_to_player(self, channel, delta):
-        """
-        Применяет дельту к каналу напряжения игрока.
-        Args:
-            channel (str): Имя канала напряжения.
-            delta (float): Изменение значения канала.
-        """
         if self.engine:
             self.engine.state.add_voltage(self.player_idx, channel, delta)
 
     def toggle_fullscreen(self):
-        """Переключает полноэкранный режим."""
         self.fullscreen = not self.fullscreen
         if self.fullscreen:
             self.screen = pygame.display.set_mode(
@@ -267,7 +168,6 @@ class App:
         logger.info("Полноэкранный режим: %s", self.fullscreen)
 
     def advance_turn(self):
-        """Выполняет один тик движка (старый режим)."""
         if not self.engine:
             return
         self.engine.tick()
@@ -279,20 +179,12 @@ class App:
         logger.info("Выполнен тик: %d", self.engine.tick_count)
 
     def open_turn_log(self):
-        """Открывает оверлей лога последнего тика."""
         from .ui.overlays import TurnLogOverlay
+
         self.manager.push(TurnLogOverlay(self))
         logger.debug("Открыт оверлей лога тика")
 
     def execute_player_action(self, action_id, on_completed=None):
-        """
-        Выполняет действие игрока через time_system.
-        Обрабатывает прерывания, обязательные сцены и завершение.
-        При статусе completed вызывает on_completed callback.
-        Args:
-            action_id (str): ID действия из time_actions.json.
-            on_completed (callable | None): Callback при завершении.
-        """
         if self.time_system is None:
             return
         result = self.time_system.execute_action(action_id)
@@ -302,27 +194,27 @@ class App:
             interrupt = result.get("interrupt")
             if interrupt is not None:
                 from .screens.interrupt_modal import InterruptModal
+
                 self.manager.push(InterruptModal(self, interrupt))
         elif status == "mandatory_scene":
             scene_id = result.get("mandatory_scene")
             if scene_id is not None:
                 from .screens.mandatory_screen import MandatorySceneScreen
+
                 self.manager.push(MandatorySceneScreen(self, scene_id))
         elif status == "blocked":
             scene_id = result.get("mandatory_scene")
-            if (
-                result.get("reason") == "mandatory_scene_pending"
-                and scene_id
-            ):
+            if result.get("reason") == "mandatory_scene_pending" and scene_id:
                 from .screens.mandatory_screen import MandatorySceneScreen
+
                 self.manager.push(MandatorySceneScreen(self, scene_id))
         elif status == "completed":
             if on_completed is not None:
                 on_completed()
 
     def new_game(self):
-        """Открывает выбор роли, затем выбор сюжета."""
         from .screens.role_select import RoleSelectScreen
+
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None
@@ -330,26 +222,20 @@ class App:
         logger.info("Запрошена новая игра: выбор роли")
 
     def _campaign_seed(self, storyline):
-        """Seed кампании из сюжета; по умолчанию 7 (как у бригады)."""
         try:
-            return int(storyline.get(
-                "campaign_seed", storyline.get("seed", 7)))
+            return int(
+                storyline.get("campaign_seed", storyline.get("seed", 7))
+            )
         except (TypeError, ValueError):
             return 7
 
     def start_storyline(self, storyline, faction_id=None):
-        """
-        Запускает сюжет: пересобирает мир, инициализирует интерпретатор
-        и запускает первую сцену.
-        Args:
-            storyline (dict): Конфигурация сюжета из load_storyline().
-            faction_id (str | None): Выбранная игроком фракция.
-        """
         from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
+
         role = self.selected_role or self.role_catalog.default_role()
         self.selected_role = role
         if faction_id is not None:
@@ -376,10 +262,12 @@ class App:
         self.engine = CampaignEngine(state)
         self.engine.engagements = state.engagements
         self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(state, engine=self.engine,
-                                              app=self)
+        self.time_system = CampaignTimeSystem(
+            state, engine=self.engine, app=self
+        )
         self.engine.time_system = self.time_system
         from .ui.time_hud import TimeHUD
+
         self.time_hud = TimeHUD(self)
         self.storyline_interpreter = StorylineInterpreter(self, storyline)
         interp = self.storyline_interpreter
@@ -387,36 +275,50 @@ class App:
             interp.set_variable(str(key), value)
         interp.set_variable("player_role", role.id)
         interp.set_variable("player_role_label", role.label)
-        interp.set_variable("player_faction_id",
-                            self.campaign_preset.player_faction_id)
-        interp.set_variable("campaign_preset_id",
-                            self.campaign_preset.preset_id)
+        interp.set_variable(
+            "player_faction_id", self.campaign_preset.player_faction_id
+        )
+        interp.set_variable(
+            "campaign_preset_id", self.campaign_preset.preset_id
+        )
         player_character = self.campaign_preset.player_character or {}
         player_faction = self.campaign_preset.player_faction or {}
         enemy_faction = self.campaign_preset.enemy_faction or {}
         player_organization = self.campaign_preset.player_organization or {}
-        enemy_organization = self.campaign_preset.organization(
-            enemy_faction.get("organization_id")
-        ) or {}
+        enemy_organization = (
+            self.campaign_preset.organization(
+                enemy_faction.get("organization_id")
+            )
+            or {}
+        )
         companies = self.campaign_preset.scenario.get("companies") or {}
         if player_character:
-            interp.set_variable("player_character_id", player_character.get("id"))
-            interp.set_variable("player_character_name",
-                                player_character.get("name"))
+            interp.set_variable(
+                "player_character_id", player_character.get("id")
+            )
+            interp.set_variable(
+                "player_character_name", player_character.get("name")
+            )
             state.needs.commander.name = str(
                 player_character.get("name") or "Лидер фракции"
             )
             state.needs.commander.archetype = "faction_leader"
         interp.set_variable("player_side", self.campaign_preset.player_side)
         interp.set_variable("enemy_side", self.campaign_preset.enemy_side)
-        interp.set_variable("player_faction_name",
-                            player_faction.get("name") or "ваша фракция")
-        interp.set_variable("enemy_faction_name",
-                            enemy_faction.get("name") or "противник")
-        interp.set_variable("player_organization_name",
-                            player_organization.get("name") or "организация")
-        interp.set_variable("enemy_organization_name",
-                            enemy_organization.get("name") or "чужая организация")
+        interp.set_variable(
+            "player_faction_name", player_faction.get("name") or "ваша фракция"
+        )
+        interp.set_variable(
+            "enemy_faction_name", enemy_faction.get("name") or "противник"
+        )
+        interp.set_variable(
+            "player_organization_name",
+            player_organization.get("name") or "организация",
+        )
+        interp.set_variable(
+            "enemy_organization_name",
+            enemy_organization.get("name") or "чужая организация",
+        )
         interp.set_variable(
             "player_companies",
             int(companies.get(self.campaign_preset.player_side, 0)),
@@ -425,12 +327,16 @@ class App:
             "enemy_companies",
             int(companies.get(self.campaign_preset.enemy_side, 0)),
         )
-        interp.set_variable("player_faction_goals",
-                            player_faction.get("goals") or [])
-        interp.state["initial_manpower"] = float(sum(
-            value for value, det in zip(state.initial_manpower, state.units)
-            if det.side == state.player_side
-        ))
+        interp.set_variable(
+            "player_faction_goals", player_faction.get("goals") or []
+        )
+        interp.state["initial_manpower"] = float(
+            sum(
+                value
+                for value, det in zip(state.initial_manpower, state.units)
+                if det.side == state.player_side
+            )
+        )
         if 0 <= state.player_idx < state.count:
             state.log_event(
                 state.player_idx,
@@ -442,13 +348,13 @@ class App:
             )
         logger.info(
             "Сюжет запущен: %s; роль=%s; пресет=%s",
-            storyline.get("storyline_id", "?"), role.id,
+            storyline.get("storyline_id", "?"),
+            role.id,
             self.campaign_preset.preset_id,
         )
         self._play_next_scene()
 
     def _play_next_scene(self):
-        """Запускает следующую сцену из последовательности."""
         interp = self.storyline_interpreter
         if interp is None:
             return
@@ -463,17 +369,6 @@ class App:
         self._play_scene(resolved)
 
     def _resolve_slides(self, block):
-        """
-        Возвращает слайды блока новеллы с разрешёнными вариантами.
-        Каждый слайд прогоняется через resolve_variant интерпретатора,
-        поэтому отдельный слайд может содержать variant_by/variants
-        (например, выбор изображения по полу персонажа) без
-        дублирования всего списка слайдов.
-        Args:
-            block (dict): Блок сцены с ключом slides.
-        Returns:
-            list[dict]: Список разрешённых слайдов.
-        """
         slides = block.get("slides", []) if isinstance(block, dict) else []
         interp = self.storyline_interpreter
         if interp is None:
@@ -481,12 +376,6 @@ class App:
         return [interp.resolve_variant(s) for s in slides]
 
     def _play_scene(self, scene):
-        """
-        Запускает сцену соответствующего типа.
-        Неизвестный тип сцены пропускается с переходом к следующей.
-        Args:
-            scene (dict): Конфигурация сцены.
-        """
         scene_type = scene.get("type", "")
         logger.debug("Запуск сцены: %s", scene_type)
         if scene_type == "character_creation":
@@ -500,8 +389,7 @@ class App:
         elif scene_type == "mandatory_scene":
             self._play_mandatory_scene(scene)
         elif scene_type in ("rts_scene", "hq_scene"):
-            # ``hq_scene`` оставлен синонимом для старых сохранений и
-            # сюжетных файлов: командный пункт заменён боевой картой.
+
             self._play_gameplay(scene)
         elif scene_type == "gameplay":
             self._play_gameplay(scene)
@@ -512,36 +400,23 @@ class App:
                 self._play_next_scene()
 
     def _play_character_creation(self, scene):
-        """
-        Запускает экран создания персонажа.
-        Args:
-            scene (dict): Конфигурация сцены (не используется напрямую,
-                шаги берутся из storyline.character_creation).
-        """
         interp = self.storyline_interpreter
         if interp is None:
             return
         self.music.request_category("overture")
-        steps = interp.storyline.get("character_creation", {}).get(
-            "steps", []
-        )
+        steps = interp.storyline.get("character_creation", {}).get("steps", [])
         if not steps:
             interp.advance()
             self._play_next_scene()
             return
         interp.advance()
         from .screens.character_creation import CharacterCreationScreen
+
         self.manager.replace_all(CharacterCreationScreen(self, steps))
 
     def _play_visual_novel(self, scene):
-        """
-        Запускает визуальную новеллу.
-        Слайды разрешаются через _resolve_slides, поэтому каждый
-        слайд может иметь собственные варианты по переменным сюжета.
-        Args:
-            scene (dict): Конфигурация сцены с полем slides.
-        """
         from .screens.visual_novel import VisualNovelScreen
+
         self.music.request_category("overture")
 
         def on_finish():
@@ -554,13 +429,8 @@ class App:
         self.manager.replace_all(VisualNovelScreen(self, slides, on_finish))
 
     def _play_document(self, scene):
-        """
-        Запускает сцену с документом.
-        Args:
-            scene (dict): Конфигурация сцены с полями title,
-                content_stylized, content_plain, hands_asset.
-        """
         from .screens.document_intro import DocumentIntroScreen
+
         self.music.request_category("overture")
 
         def on_finish():
@@ -573,21 +443,15 @@ class App:
             "title": scene.get("title", "ПРИКАЗ"),
             "content_stylized": scene.get("content_stylized", ""),
             "content_plain": scene.get("content_plain", ""),
-            "hands_asset": scene.get(
-                "hands_asset", "items/hands_paper"
-            ),
+            "hands_asset": scene.get("hands_asset", "items/hands_paper"),
         }
         self.manager.replace_all(
             DocumentIntroScreen(self, doc_data, on_finish_callback=on_finish)
         )
 
     def _play_dialogue(self, scene):
-        """
-        Запускает диалог.
-        Args:
-            scene (dict): Конфигурация сцены с полем node_id.
-        """
         from .screens.dialogue import DialogueScreen
+
         node_id = scene.get("node_id", "")
         if node_id and node_id in self.content.dialogues:
             self.manager.push(DialogueScreen(self, node_id))
@@ -597,11 +461,6 @@ class App:
             self._play_next_scene()
 
     def _play_mandatory_scene(self, scene):
-        """
-        Запускает обязательную сцену.
-        Args:
-            scene (dict): Конфигурация сцены с полем scene_id.
-        """
         scene_id = scene.get("scene_id", "")
         if scene_id and self.time_system is not None:
             self.time_system.pending_mandatory_scene = scene_id
@@ -611,19 +470,12 @@ class App:
             self._play_next_scene()
 
     def _play_gameplay(self, scene):
-        """Запускает интерактивную RTS-карту вместо командного пункта."""
         from .screens.rts_screen import RTSScreen
+
         self.music.request_category("ambient")
         self.manager.replace_all(RTSScreen(self))
 
     def _show_win_scene(self):
-        """
-        Показывает победную сцену.
-        Блок win_scene прогоняется через resolve_variant целиком,
-        а затем каждый слайд разрешается отдельно, чтобы первый
-        слайд мог выбирать изображение по полу персонажа без
-        дублирования всего списка слайдов.
-        """
         interp = self.storyline_interpreter
         if interp is None:
             self._return_to_menu()
@@ -637,17 +489,13 @@ class App:
             return
         self.music.request_category("victorious", fade=True)
         from .screens.visual_novel import VisualNovelScreen
+
         logger.info("Показана победная сцена")
         self.manager.replace_all(
             VisualNovelScreen(self, slides, self._return_to_menu)
         )
 
     def _show_lose_scene(self):
-        """
-        Показывает проигрышную сцену.
-        Блок lose_scene и каждый слайд прогоняются через
-        resolve_variant для симметрии с победной сценой.
-        """
         interp = self.storyline_interpreter
         if interp is None:
             self._return_to_menu()
@@ -661,26 +509,22 @@ class App:
             return
         self.music.request_category("tragic", fade=True)
         from .screens.visual_novel import VisualNovelScreen
+
         logger.info("Показана проигрышная сцена")
         self.manager.replace_all(
             VisualNovelScreen(self, slides, self._return_to_menu)
         )
 
     def _return_to_menu(self):
-        """Возвращает в главное меню."""
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
         self.music.request_category("overture")
         from .screens.main_menu import MainMenuScreen
+
         self.manager.replace_all(MainMenuScreen(self))
         logger.info("Возврат в главное меню")
 
     def process_pending_storyline_outcome(self):
-        """
-        Обрабатывает отложенный исход сюжета.
-        Вызывается в главном цикле. Если pending_storyline_outcome
-        установлен, показывает соответствующую финальную сцену.
-        """
         outcome = self.pending_storyline_outcome
         if outcome is None:
             return
@@ -691,12 +535,6 @@ class App:
             self._show_win_scene()
 
     def process_pending_mandatory_scene(self):
-        """
-        Обрабатывает отложенную обязательную сцену.
-        Показывает обязательную сцену только если в стеке есть
-        экран с show_time_hud == True и текущий экран не является
-        MandatorySceneScreen или InterruptModal.
-        """
         ts = self.time_system
         if ts is None:
             return
@@ -712,21 +550,16 @@ class App:
         if name in ("MandatorySceneScreen", "InterruptModal"):
             return
         from .screens.mandatory_screen import MandatorySceneScreen
+
         self.manager.push(MandatorySceneScreen(self, scene_id))
         logger.info("Выведена обязательная сцена: %s", scene_id)
 
     def save_game(self, slot_name):
-        """
-        Сохраняет игру в указанный слот.
-        Args:
-            slot_name (str): Имя слота сохранения.
-        Returns:
-            str | None: Путь к файлу сохранения или None при ошибке.
-        """
         if self.engine is None or self.time_system is None:
             return None
         self.engine.state.engagements = list(self.engine.engagements)
         from view.support.save_system import save_game as do_save
+
         storyline_snapshot = None
         if self.storyline_interpreter is not None:
             storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
@@ -743,19 +576,11 @@ class App:
         return path
 
     def load_game(self, slot_name):
-        """
-        Загружает игру из указанного слота.
-        Мир пересобирается из сценария, поверх применяется снимок.
-        Стек экранов заменяется на RTSScreen.
-        Args:
-            slot_name (str): Имя слота сохранения.
-        Returns:
-            bool: True при успешной загрузке, False при ошибке.
-        """
         from view.support.save_system import load_game as do_load
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
+
         snapshot = do_load(slot_name)
         if snapshot is None:
             logger.warning("Загрузка не выполнена: слот=%s", slot_name)
@@ -765,12 +590,13 @@ class App:
         self.pending_storyline_outcome = None
         from campaign.preset import CampaignPreset
         from campaign.roles import RoleSpec
+
         raw_preset = snapshot.get("campaign_preset")
         preset = None
         if raw_preset:
             try:
                 preset = CampaignPreset.from_dict(raw_preset)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("Пресет из сохранения не прочитан: %s", exc)
         self.campaign_preset = preset
         self.selected_faction_id = (
@@ -785,14 +611,16 @@ class App:
         if raw_role:
             try:
                 self.selected_role = RoleSpec.from_data(raw_role)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 try:
-                    role_id = (raw_role.get("id")
-                               if isinstance(raw_role, dict) else raw_role)
+                    role_id = (
+                        raw_role.get("id")
+                        if isinstance(raw_role, dict)
+                        else raw_role
+                    )
                     self.selected_role = self.role_catalog.role(role_id)
                 except Exception:
-                    logger.warning(
-                        "Роль из сохранения не прочитана: %s", exc)
+                    logger.warning("Роль из сохранения не прочитана: %s", exc)
         state = build_world(
             scenario_path=scenario_path,
             campaign_snapshot=snapshot.get("campaign", {}),
@@ -804,15 +632,21 @@ class App:
         self.engine = CampaignEngine(state)
         self.engine.engagements = state.engagements
         self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(state, engine=self.engine,
-                                              app=self)
+        self.time_system = CampaignTimeSystem(
+            state, engine=self.engine, app=self
+        )
         self.time_system.load_from_snapshot(snapshot.get("time_system", {}))
         self.engine.time_system = self.time_system
         from .ui.time_hud import TimeHUD
+
         self.time_hud = TimeHUD(self)
         storyline_snapshot = snapshot.get("storyline", None)
         if storyline_snapshot is not None:
-            from view.support.storyline import load_storyline, StorylineInterpreter
+            from view.support.storyline import (
+                load_storyline,
+                StorylineInterpreter,
+            )
+
             storyline_id = storyline_snapshot.get("storyline_id")
             if storyline_id:
                 storyline = load_storyline(storyline_id)
@@ -824,14 +658,15 @@ class App:
                         storyline_snapshot
                     )
         from .screens.rts_screen import RTSScreen
+
         self.manager.replace_all(RTSScreen(self))
         self.music.request_category("ambient")
         logger.info("Загрузка выполнена: слот=%s", slot_name)
         return True
 
     def continue_game(self):
-        """Продолжает последнее сохранение."""
         from view.support.save_system import list_saves
+
         saves = list_saves()
         if not saves:
             return
@@ -839,53 +674,41 @@ class App:
         self.load_game(saves[0]["name"])
 
     def open_saves(self):
-        """Открывает меню сохранений."""
         from .screens.saves_menu import SavesMenuScreen
+
         self.manager.push(SavesMenuScreen(self))
         logger.debug("Открыто меню сохранений")
 
     def open_settings(self):
-        """Открывает меню настроек."""
         from .screens.settings_menu import SettingsMenuScreen
+
         self.manager.push(SettingsMenuScreen(self))
         logger.debug("Открыто меню настроек")
 
     def quit(self):
-        """Завершает приложение."""
         logger.info("Приложение останавливается")
         self.running = False
 
     def run(self):
-        """
-        Главный цикл приложения.
-        Обрабатывает события pygame, обновляет менеджер экранов
-        и музыку, проверяет отложенные исходы сюжета и обязательные
-        сцены, отрисовывает стек экранов и HUD (при наличии
-        show_time_hud экрана в стеке).
-        """
         logger.info("Главный цикл запущен")
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                elif (
+                    event.type == pygame.KEYDOWN and event.key == pygame.K_F11
+                ):
                     self.toggle_fullscreen()
                 elif (
                     event.type == pygame.KEYDOWN
                     and event.key == pygame.K_ESCAPE
                 ):
                     self.manager.handle_escape()
-                elif (
-                    event.type == pygame.KEYDOWN and event.key == pygame.K_t
-                ):
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
                     self.advance_turn()
-                elif (
-                    event.type == pygame.KEYDOWN and event.key == pygame.K_l
-                ):
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
                     self.open_turn_log()
-                elif (
-                    event.type == pygame.KEYDOWN and event.key == pygame.K_F5
-                ):
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F5:
                     self.save_game("quicksave")
                 else:
                     self.manager.handle_event(event)
@@ -896,9 +719,9 @@ class App:
             self.process_pending_mandatory_scene()
             self.screen.fill(BG_COLOR)
             self.manager.draw(self.screen)
-            if (self.manager.has_time_hud_screen() and
-                    not getattr(self.manager.current,
-                                "hide_time_hud", False)):
+            if self.manager.has_time_hud_screen() and not getattr(
+                self.manager.current, "hide_time_hud", False
+            ):
                 self.time_hud.draw(self.screen)
             pygame.display.flip()
         pygame.quit()
@@ -906,7 +729,6 @@ class App:
 
 
 def main(argv=None):
-    """Точка входа интерфейса ``view`` (``python3 main.py --view``)."""
     argv = list(sys.argv[1:] if argv is None else argv)
     fullscreen = ("--fullscreen" in argv) or ("-f" in argv)
     app = App()

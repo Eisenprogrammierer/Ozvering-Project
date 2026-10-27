@@ -1,15 +1,3 @@
-"""Роли игрока: декларативный каталог и стабильный выбор роли.
-
-Роль — это не класс персонажа и не боевая специальность. Это позиция
-игрока в кампании: кем он входит в мир, какие права и ограничения получает.
-Первый каталог намеренно содержит только одну доступную роль —
-``faction_leader`` (номинальный лидер фракции-автомата). Будущие роли
-добавляются в ``configs/roles/roles.json`` без изменения кода генератора и
-экрана выбора.
-
-Слой чистый: он не импортирует pygame и не зависит от ``view``.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -20,12 +8,11 @@ from typing import Dict, Mapping, Tuple
 
 from .errors import CampaignError
 
-
 ROLE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
 class RoleError(CampaignError):
-    """Ошибка каталога ролей или выбранной роли."""
+    pass
 
 
 def _read_json(path):
@@ -61,23 +48,6 @@ def _as_int(value, default=0):
 
 @dataclass(frozen=True)
 class RoleSpec:
-    """Одна роль игрока из каталога.
-
-    Attributes:
-        id: Стабильный машинный идентификатор (например, ``faction_leader``).
-        label: Название для игрока.
-        short_label: Короткое название для HUD и кнопок.
-        description: Пояснение, что роль значит в кампании.
-        leadership: Режим лидерства (``nominal``, затем, возможно, другие).
-        faction_kind: Тип фракции, к которой относится роль.
-        faction_slot: Слот фракции в пресете (``player``/``enemy``).
-        faction_choice: Показывать ли выбор фракции после роли.
-        storyline_id: Сюжет, который запускается для этой роли.
-        available: Можно ли выбрать роль в текущей сборке.
-        sort_order: Порядок в каталоге и на экране выбора.
-        grants: Переменные, которые роль передаёт сюжету/кампании.
-        tags: Смысловые теги для будущих правил и фильтров.
-    """
 
     id: str
     label: str
@@ -113,15 +83,20 @@ class RoleSpec:
         object.__setattr__(self, "id", role_id)
         object.__setattr__(self, "label", label)
         object.__setattr__(self, "description", _text(self.description))
-        object.__setattr__(self, "short_label", _text(self.short_label) or label)
+        object.__setattr__(
+            self, "short_label", _text(self.short_label) or label
+        )
         object.__setattr__(self, "leadership", str(self.leadership).strip())
-        object.__setattr__(self, "faction_kind",
-                           str(self.faction_kind).strip())
-        object.__setattr__(self, "faction_slot",
-                           str(self.faction_slot).strip())
+        object.__setattr__(
+            self, "faction_kind", str(self.faction_kind).strip()
+        )
+        object.__setattr__(
+            self, "faction_slot", str(self.faction_slot).strip()
+        )
         object.__setattr__(self, "faction_choice", bool(self.faction_choice))
-        object.__setattr__(self, "storyline_id",
-                           str(self.storyline_id or "").strip())
+        object.__setattr__(
+            self, "storyline_id", str(self.storyline_id or "").strip()
+        )
         object.__setattr__(self, "available", bool(self.available))
         object.__setattr__(self, "sort_order", _as_int(self.sort_order, 0))
         object.__setattr__(self, "grants", dict(self.grants))
@@ -174,7 +149,6 @@ class RoleSpec:
 
 
 class RoleCatalog:
-    """Каталог ролей, загруженный из ``configs/roles/roles.json``."""
 
     def __init__(self, roles, schema=1):
         roles = list(roles or ())
@@ -201,15 +175,14 @@ class RoleCatalog:
 
     @classmethod
     def from_data(cls, data, root=None):
-        del root  # зарезервировано для будущих относительных ссылок
+        del root
         if not isinstance(data, Mapping):
             raise RoleError("roles.json должен быть объектом")
         raw = data.get("roles")
         if not isinstance(raw, (list, tuple)):
             raise RoleError("roles должен быть списком")
         roles = [
-            RoleSpec.from_data(item, index)
-            for index, item in enumerate(raw)
+            RoleSpec.from_data(item, index) for index, item in enumerate(raw)
         ]
         return cls(roles, schema=data.get("schema", 1))
 
@@ -245,7 +218,6 @@ class RoleCatalog:
         return available[0]
 
     def select(self, role_id=None):
-        """Выбрать роль; ``None`` означает первую доступную."""
         if role_id is None:
             return self.default_role()
         return self.require(role_id, available=True)
@@ -253,8 +225,7 @@ class RoleCatalog:
     def as_dict(self):
         return {
             "schema": self.schema,
-            "roles": [self.roles[key].as_dict()
-                      for key in sorted(self.roles)],
+            "roles": [self.roles[key].as_dict() for key in sorted(self.roles)],
         }
 
 

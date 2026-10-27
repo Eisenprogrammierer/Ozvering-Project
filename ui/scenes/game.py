@@ -1,10 +1,3 @@
-"""Экран «основное игровое поле»: обёртка над ``game_engine.GameApp``.
-
-Сцена владеет экземпляром ``GameApp`` (арена + HUD партии) и живёт в стеке
-сцен: ESC открывает оверлей паузы (``push``), а при снятии паузы партия
-продолжается, так как экземпляр сцены сохраняется.
-"""
-
 import game_engine as ge
 
 from .. import theme
@@ -21,7 +14,7 @@ class GameScene(Scene):
 
     def on_enter(self, save_data=None, new=False, seed=None, **kwargs):
         if self.view is not None:
-            # Возврат из оверлея (пауза/настройки): партия продолжается.
+
             self.view.screen = self.app.screen
             self.on_resize(*self.app.size)
             return
@@ -36,10 +29,16 @@ class GameScene(Scene):
         if new or progress_seed is None:
             progress_seed = self.app.new_seed()
             resume_tick = 0
-        ge.LOG.info("GameScene: старт партии seed=%s resume_tick=%s (new=%s)"
-                    % (progress_seed, resume_tick, new))
-        self.view = ge.GameApp(fonts=self.app.fonts, screen=self.app.screen,
-                               on_escape=self._on_escape, seed=progress_seed)
+        ge.LOG.info(
+            "GameScene: старт партии seed=%s resume_tick=%s (new=%s)"
+            % (progress_seed, resume_tick, new)
+        )
+        self.view = ge.GameApp(
+            fonts=self.app.fonts,
+            screen=self.app.screen,
+            on_escape=self._on_escape,
+            seed=progress_seed,
+        )
         if resume_tick > 0:
             self.view.start_match(seed=progress_seed, resume_tick=resume_tick)
         self._autosaved = False

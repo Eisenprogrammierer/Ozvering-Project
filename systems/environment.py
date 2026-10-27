@@ -1,21 +1,3 @@
-"""Среда как системный автомат.
-
-Среда — это не «фон» и не набор модификаторов, а коллекция автоматов-особенностей
-(река, овраг, лес, буря, руины...). У каждой особенности есть собственные
-состояния и переходы, а взаимодействие с ней описано теми же ``Target`` /
-``ActionSpec`` / ``OutcomeSpec``, что и остальные взаимодействия проекта.
-
-Ключевой контракт:
-
-* ``EnvironmentFeature.machine`` — настоящий ``SystemAutomaton``;
-* ``EnvironmentFeature.as_target()`` — объект для ``interaction.InteractionModel``;
-* ``EnvironmentRuntime.interact(actor, feature, action)`` — actor-автомат
-  взаимодействует с feature-автоматом, получает исход и эффекты, а состояние
-  особенности может измениться.
-
-Слой чистый: pygame, ``simulation`` и ``warfare`` не импортируются.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,13 +10,19 @@ from automata.model import Automaton, State, Transition
 from interaction import ActionSpec, InteractionModel, OutcomeSpec, Target
 
 from .core import (
-    SystemAutomaton, SystemError, as_float, as_list, as_int, clamp,
-    make_state_id, text,
+    SystemAutomaton,
+    SystemError,
+    as_float,
+    as_list,
+    as_int,
+    clamp,
+    make_state_id,
+    text,
 )
 
 
 class EnvironmentError(SystemError):
-    """Ошибка конфигурации среды."""
+    pass
 
 
 def _read_json(path):
@@ -48,8 +36,9 @@ def _read_json(path):
 
 
 def _tags(value):
-    return tuple(str(item).strip() for item in as_list(value)
-                 if str(item).strip())
+    return tuple(
+        str(item).strip() for item in as_list(value) if str(item).strip()
+    )
 
 
 def _effects(value):
@@ -88,12 +77,15 @@ class EnvironmentState:
     @classmethod
     def from_data(cls, data, index=0, source="state"):
         if not isinstance(data, Mapping):
-            raise EnvironmentError("%s[%d] должен быть объектом" % (source, index))
+            raise EnvironmentError(
+                "%s[%d] должен быть объектом" % (source, index)
+            )
         state_id = make_state_id(data.get("id"))
         bias = data.get("outcome_bias") or {}
         if not isinstance(bias, Mapping):
-            raise EnvironmentError("%s.%s.outcome_bias должен быть объектом"
-                                   % (source, state_id))
+            raise EnvironmentError(
+                "%s.%s.outcome_bias должен быть объектом" % (source, state_id)
+            )
         return cls(
             id=state_id,
             name=str(data.get("name") or state_id),
@@ -101,8 +93,10 @@ class EnvironmentState:
             difficulty=clamp(data.get("difficulty", 0.5), 0.0, 1.0),
             passable=bool(data.get("passable", True)),
             tags=_tags(data.get("tags")),
-            outcome_bias={str(key): max(0.0, as_float(value, 1.0))
-                          for key, value in bias.items()},
+            outcome_bias={
+                str(key): max(0.0, as_float(value, 1.0))
+                for key, value in bias.items()
+            },
             blocked_actions=_tags(data.get("blocked_actions")),
             uncertainty=clamp(data.get("uncertainty", 0.0), 0.0, 1.0),
         )
@@ -130,7 +124,9 @@ class EnvironmentOutcome:
     @classmethod
     def from_data(cls, data, index=0, source="outcome"):
         if not isinstance(data, Mapping):
-            raise EnvironmentError("%s[%d] должен быть объектом" % (source, index))
+            raise EnvironmentError(
+                "%s[%d] должен быть объектом" % (source, index)
+            )
         spec = OutcomeSpec(
             id=text(data.get("id")),
             label=text(data.get("label")),
@@ -175,12 +171,16 @@ class EnvironmentAction:
     @classmethod
     def from_data(cls, data, index=0, source="action"):
         if not isinstance(data, Mapping):
-            raise EnvironmentError("%s[%d] должен быть объектом" % (source, index))
+            raise EnvironmentError(
+                "%s[%d] должен быть объектом" % (source, index)
+            )
         action_id = text(data.get("id")).strip()
         if not action_id:
             raise EnvironmentError("%s[%d]: пустой id" % (source, index))
         outcomes = tuple(
-            EnvironmentOutcome.from_data(item, number, "%s.outcomes" % action_id)
+            EnvironmentOutcome.from_data(
+                item, number, "%s.outcomes" % action_id
+            )
             for number, item in enumerate(data.get("outcomes") or ())
         )
         if not outcomes:
@@ -218,19 +218,22 @@ class EnvironmentAction:
     def spec(self, state):
         outcomes = []
         for item in self.outcomes:
-            probability = item.spec.probability * \
-                state.outcome_bias.get(item.spec.id, 1.0)
+            probability = item.spec.probability * state.outcome_bias.get(
+                item.spec.id, 1.0
+            )
             if probability <= 0.0:
                 continue
-            outcomes.append(OutcomeSpec(
-                id=item.spec.id,
-                label=item.spec.label,
-                description=item.spec.description,
-                probability=probability,
-                uncertainty=item.spec.uncertainty,
-                hidden=item.spec.hidden,
-                tone=item.spec.tone,
-            ))
+            outcomes.append(
+                OutcomeSpec(
+                    id=item.spec.id,
+                    label=item.spec.label,
+                    description=item.spec.description,
+                    probability=probability,
+                    uncertainty=item.spec.uncertainty,
+                    hidden=item.spec.hidden,
+                    tone=item.spec.tone,
+                )
+            )
         return ActionSpec(
             id=self.id,
             label=self.label,
@@ -267,7 +270,9 @@ class EnvironmentTransition:
     @classmethod
     def from_data(cls, data, index=0, source="transition"):
         if not isinstance(data, Mapping):
-            raise EnvironmentError("%s[%d] должен быть объектом" % (source, index))
+            raise EnvironmentError(
+                "%s[%d] должен быть объектом" % (source, index)
+            )
         transition_id = text(data.get("id")).strip()
         if not transition_id:
             raise EnvironmentError("%s[%d]: пустой id" % (source, index))
@@ -281,8 +286,9 @@ class EnvironmentTransition:
         )
 
     def as_model(self):
-        return Transition(self.id, self.source, self.target,
-                          self.event, self.guard)
+        return Transition(
+            self.id, self.source, self.target, self.event, self.guard
+        )
 
     def as_dict(self):
         return {
@@ -310,28 +316,31 @@ class EnvironmentFeature:
     @classmethod
     def from_data(cls, data, index=0, source="feature"):
         if not isinstance(data, Mapping):
-            raise EnvironmentError("%s[%d] должен быть объектом" % (source, index))
+            raise EnvironmentError(
+                "%s[%d] должен быть объектом" % (source, index)
+            )
         feature_id = text(data.get("id")).strip()
         if not feature_id:
             raise EnvironmentError("%s[%d]: пустой id" % (source, index))
         states = tuple(
-            EnvironmentState.from_data(item, number,
-                                       "%s.states" % feature_id)
+            EnvironmentState.from_data(item, number, "%s.states" % feature_id)
             for number, item in enumerate(data.get("states") or ())
         )
         if not states:
             raise EnvironmentError("%s: нет states" % feature_id)
         transitions = tuple(
-            EnvironmentTransition.from_data(item, number,
-                                            "%s.transitions" % feature_id)
+            EnvironmentTransition.from_data(
+                item, number, "%s.transitions" % feature_id
+            )
             for number, item in enumerate(data.get("transitions") or ())
         )
         raw_actions = data.get("actions")
         if raw_actions is None:
             raw_actions = data.get("interactions") or ()
         actions = tuple(
-            EnvironmentAction.from_data(item, number,
-                                        "%s.actions" % feature_id)
+            EnvironmentAction.from_data(
+                item, number, "%s.actions" % feature_id
+            )
             for number, item in enumerate(raw_actions)
         )
         if not actions:
@@ -362,38 +371,54 @@ class EnvironmentFeature:
 
         for action in self.actions:
             for outcome in action.outcomes:
-                if outcome.next_state and outcome.next_state not in self._states:
+                if (
+                    outcome.next_state
+                    and outcome.next_state not in self._states
+                ):
                     raise EnvironmentError(
                         "%s.%s.%s: нет состояния %r"
-                        % (self.id, action.id, outcome.spec.id,
-                           outcome.next_state))
+                        % (
+                            self.id,
+                            action.id,
+                            outcome.spec.id,
+                            outcome.next_state,
+                        )
+                    )
         initial = next((state for state in self.states), None)
         raw_states = []
         for number, state in enumerate(self.states):
-            raw_states.append(State(
-                state.id,
-                state.name,
-                x=80 + 220 * (number % 4),
-                y=80 + 160 * (number // 4),
-                initial=(state is initial),
-                final=False,
-            ))
+            raw_states.append(
+                State(
+                    state.id,
+                    state.name,
+                    x=80 + 220 * (number % 4),
+                    y=80 + 160 * (number // 4),
+                    initial=(state is initial),
+                    final=False,
+                )
+            )
         raw_transitions = []
         for transition in self.transitions:
             if transition.source not in self._states:
-                raise EnvironmentError("%s.%s: нет source-состояния %r"
-                                       % (self.id, transition.id,
-                                          transition.source))
+                raise EnvironmentError(
+                    "%s.%s: нет source-состояния %r"
+                    % (self.id, transition.id, transition.source)
+                )
             if transition.target not in self._states:
-                raise EnvironmentError("%s.%s: нет target-состояния %r"
-                                       % (self.id, transition.id,
-                                          transition.target))
+                raise EnvironmentError(
+                    "%s.%s: нет target-состояния %r"
+                    % (self.id, transition.id, transition.target)
+                )
             raw_transitions.append(transition.as_model())
         automaton = Automaton(
-            self.name, self.description,
-            states=raw_states, transitions=raw_transitions)
+            self.name,
+            self.description,
+            states=raw_states,
+            transitions=raw_transitions,
+        )
         self.machine = SystemAutomaton(
-            self.id, self.name, automaton, current=initial.id)
+            self.id, self.name, automaton, current=initial.id
+        )
 
     def state(self) -> EnvironmentState:
         return self._states[self.machine.current]
@@ -418,8 +443,11 @@ class EnvironmentFeature:
         return self.machine.set_state(outcome.next_state)
 
     def drift(self, rng):
-        choices = [item for item in self.transitions
-                   if item.source == self.machine.current and item.weight > 0.0]
+        choices = [
+            item
+            for item in self.transitions
+            if item.source == self.machine.current and item.weight > 0.0
+        ]
         if not choices:
             return None
         total = sum(item.weight for item in choices)
@@ -436,10 +464,11 @@ class EnvironmentFeature:
         previous = self.machine.current
         if not self.machine.set_state(selected.target):
             return None
-        # set_state нужен, чтобы не зависеть от guard; сохраняем в истории
-        # именно переход автомата, а не техническую запись set_state.
-        if self.machine.history and \
-                self.machine.history[-1].get("event") == "set_state":
+
+        if (
+            self.machine.history
+            and self.machine.history[-1].get("event") == "set_state"
+        ):
             self.machine.history[-1]["event"] = selected.event or selected.id
             self.machine.history[-1]["transition"] = selected.id
         return EnvironmentShift(
@@ -454,8 +483,11 @@ class EnvironmentFeature:
 
     def as_target(self):
         state = self.state()
-        actions = tuple(action.spec(state) for action in self.actions
-                        if action.enabled(state))
+        actions = tuple(
+            action.spec(state)
+            for action in self.actions
+            if action.enabled(state)
+        )
         description = self.description.strip()
         if state.description:
             description = (description + " " + state.description).strip()
@@ -497,7 +529,11 @@ class EnvironmentShift:
     @property
     def text(self):
         return "%s: %s → %s (%s)" % (
-            self.feature_name, self.from_name, self.to_name, self.event)
+            self.feature_name,
+            self.from_name,
+            self.to_name,
+            self.event,
+        )
 
     def as_dict(self):
         return {
@@ -533,9 +569,14 @@ class EnvironmentInteraction:
     def text(self):
         if self.unknown:
             return "%s: неизвестный исход взаимодействия с «%s»" % (
-                self.actor_id, self.feature_name)
+                self.actor_id,
+                self.feature_name,
+            )
         return "%s: %s → %s" % (
-            self.actor_id, self.action_label, self.outcome_label)
+            self.actor_id,
+            self.action_label,
+            self.outcome_label,
+        )
 
     def as_dict(self):
         return {
@@ -558,7 +599,6 @@ class EnvironmentInteraction:
 
 
 class EnvironmentCatalog:
-    """Набор особенностей среды из ``configs/systems/environment.json``."""
 
     def __init__(self, features, drift_chance=0.15, root=None, schema=1):
         self.features = {feature.id: feature for feature in features}
@@ -587,8 +627,12 @@ class EnvironmentCatalog:
         ]
         if not features:
             raise EnvironmentError("нет ни одной особенности среды")
-        return cls(features, drift_chance=data.get("drift_chance", 0.15),
-                   root=root, schema=data.get("schema", 1))
+        return cls(
+            features,
+            drift_chance=data.get("drift_chance", 0.15),
+            root=root,
+            schema=data.get("schema", 1),
+        )
 
     def feature(self, feature_id):
         if feature_id not in self.features:
@@ -602,8 +646,9 @@ class EnvironmentCatalog:
         return {
             "schema": self.schema,
             "drift_chance": self.drift_chance,
-            "features": [self.features[key].as_dict()
-                         for key in self.feature_ids()],
+            "features": [
+                self.features[key].as_dict() for key in self.feature_ids()
+            ],
         }
 
 
@@ -614,12 +659,12 @@ def _actor_id(actor):
         return actor
     if isinstance(actor, Mapping):
         return str(actor.get("id") or actor.get("name") or "actor")
-    return str(getattr(actor, "id", None) or
-               getattr(actor, "name", None) or actor)
+    return str(
+        getattr(actor, "id", None) or getattr(actor, "name", None) or actor
+    )
 
 
 class EnvironmentRuntime:
-    """Живая среда: такты дрейфа и взаимодействия actor → feature."""
 
     def __init__(self, catalog_or_features, seed=0, drift_chance=None):
         if isinstance(catalog_or_features, EnvironmentCatalog):
@@ -633,8 +678,11 @@ class EnvironmentRuntime:
         self.features = {feature.id: feature for feature in features}
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
-        self.drift_chance = (default_drift if drift_chance is None
-                             else clamp(drift_chance, 0.0, 1.0))
+        self.drift_chance = (
+            default_drift
+            if drift_chance is None
+            else clamp(drift_chance, 0.0, 1.0)
+        )
         self.history: List[EnvironmentInteraction] = []
         self.shifts: List[EnvironmentShift] = []
 
@@ -653,7 +701,7 @@ class EnvironmentRuntime:
         return [target for target in self.targets() if target.available]
 
     def _next_seed(self, seed=None):
-        return int(self.rng.randrange(2 ** 31)) if seed is None else int(seed)
+        return int(self.rng.randrange(2**31)) if seed is None else int(seed)
 
     def interact(self, actor, feature_id, action_id, seed=None):
         feature = self.feature(feature_id)
@@ -699,8 +747,11 @@ class EnvironmentRuntime:
         rng = self.rng if seed is None else random.Random(int(seed))
         shifts = []
         for feature in self.features.values():
-            chance = feature.drift_chance if self.drift_chance is None \
+            chance = (
+                feature.drift_chance
+                if self.drift_chance is None
                 else self.drift_chance
+            )
             if rng.random() >= chance:
                 continue
             shift = feature.drift(rng)
@@ -723,10 +774,12 @@ class EnvironmentRuntime:
         return {
             "seed": self.seed,
             "drift_chance": self.drift_chance,
-            "features": {key: self.features[key].as_dict()
-                         for key in self.feature_ids()},
-            "last_interaction": (self.history[-1].as_dict()
-                                 if self.history else None),
+            "features": {
+                key: self.features[key].as_dict() for key in self.feature_ids()
+            },
+            "last_interaction": (
+                self.history[-1].as_dict() if self.history else None
+            ),
             "history": [item.as_dict() for item in self.history],
             "shifts": [item.as_dict() for item in self.shifts],
         }
@@ -747,8 +800,16 @@ def default_catalog():
 
 
 __all__ = [
-    "EnvironmentError", "EnvironmentState", "EnvironmentOutcome",
-    "EnvironmentAction", "EnvironmentTransition", "EnvironmentFeature",
-    "EnvironmentShift", "EnvironmentInteraction", "EnvironmentCatalog",
-    "EnvironmentRuntime", "default_catalog", "default_root",
+    "EnvironmentError",
+    "EnvironmentState",
+    "EnvironmentOutcome",
+    "EnvironmentAction",
+    "EnvironmentTransition",
+    "EnvironmentFeature",
+    "EnvironmentShift",
+    "EnvironmentInteraction",
+    "EnvironmentCatalog",
+    "EnvironmentRuntime",
+    "default_catalog",
+    "default_root",
 ]

@@ -1,11 +1,3 @@
-"""Строгие проверки прорыва, окружения и капитуляции.
-
-Канонический обмен огнём живёт в ``warfare.py``. Здесь проверяется именно
-кампанийный слой ``FrontGeometry``: насколько быстро растут суточные потери
-после прорыва и что замкнутое кольцо не оставляет роте возможности бесконечно
-«терпеть» строчкой в сводке.
-"""
-
 from types import SimpleNamespace
 
 import pytest
@@ -51,28 +43,27 @@ def _force_before(state):
 
 
 def _apply_tick(state):
-    state.geometry.apply_attrition(
-        _force_before(state), {state.player_side}
-    )
+    state.geometry.apply_attrition(_force_before(state), {state.player_side})
 
 
 def _place_ring(state, target, positions=None):
-    """Поставить врагов вокруг цели, не трогая остальной мир."""
     _park_enemies(state)
     enemies = _enemy_units(state)
     x, y = target.position
     if positions is None:
         positions = [
-            (x + 1, y), (x, y + 1), (x - 1, y), (x, y - 1),
+            (x + 1, y),
+            (x, y + 1),
+            (x - 1, y),
+            (x, y - 1),
         ]
     for enemy, position in zip(enemies, positions):
         enemy.position = position
     state.geometry.recompute()
-    return enemies[:len(positions)]
+    return enemies[: len(positions)]
 
 
 def _one_day_loss(state, *, breached=False):
-    """Один полный кампанийный день без движения войск."""
     _park_enemies(state)
     state.geometry.set_facing(state.player_side, (1, 0))
     if breached:
@@ -94,13 +85,13 @@ def test_bearing_uses_forward_flank_and_rear_cones_not_map_quadrants():
     facing = (1.0, 0.0)
 
     cases = {
-        (13, 10): "front",       # прямо вперёд
-        (12, 12): "front",       # внутри конуса 45°
-        (12, 14): "flank",       # уже фланг, а не «впереди-сбоку»
-        (10, 14): "flank",       # чистый фланг
-        (8, 13): "flank",        # задне-фланговый сектор
-        (7, 12): "rear",         # за спиной
-        (8, 10): "rear",         # чистый тыл
+        (13, 10): "front",
+        (12, 12): "front",
+        (12, 14): "flank",
+        (10, 14): "flank",
+        (8, 13): "flank",
+        (7, 12): "rear",
+        (8, 10): "rear",
     }
     for position, expected in cases.items():
         enemy = SimpleNamespace(position=position)
@@ -140,9 +131,16 @@ def test_four_enemies_on_one_side_do_not_form_an_encirclement():
     state, _ = _world()
     target = _front_target(state)
     x, y = target.position
-    _place_ring(state, target, [
-        (x + 1, y), (x + 2, y), (x + 1, y + 1), (x + 1, y - 1),
-    ])
+    _place_ring(
+        state,
+        target,
+        [
+            (x + 1, y),
+            (x + 2, y),
+            (x + 1, y + 1),
+            (x + 1, y - 1),
+        ],
+    )
     context = state.geometry.combat_context(target)
 
     assert not context.encircled
@@ -157,9 +155,15 @@ def test_three_sides_leave_a_corridor_and_do_not_start_the_clock():
     state, _ = _world()
     target = _front_target(state)
     x, y = target.position
-    _place_ring(state, target, [
-        (x + 1, y), (x, y + 1), (x, y - 1),
-    ])
+    _place_ring(
+        state,
+        target,
+        [
+            (x + 1, y),
+            (x, y + 1),
+            (x, y - 1),
+        ],
+    )
     context = state.geometry.combat_context(target)
 
     assert not context.encircled
@@ -216,21 +220,27 @@ def test_encircled_company_capitulates_on_the_twelfth_tick():
     assert state.division_loss_percent() > initial_div_loss + 5.0
 
     surrender_events = [
-        event["message"] for event in state.event_log
+        event["message"]
+        for event in state.event_log
         if "капитулировала" in event["message"]
     ]
     assert len(surrender_events) == 1
     assert target.name in surrender_events[0]
 
-    # Повторный такт не должен второй раз списать остаток или повторить лог.
     losses_after = target.losses
     _apply_tick(state)
     assert target.losses == pytest.approx(losses_after)
     assert target.force == pytest.approx(1.0)
-    assert len([
-        event for event in state.event_log
-        if "капитулировала" in event["message"]
-    ]) == 1
+    assert (
+        len(
+            [
+                event
+                for event in state.event_log
+                if "капитулировала" in event["message"]
+            ]
+        )
+        == 1
+    )
 
 
 def test_withdrawal_order_does_not_save_a_fully_encircled_company():
@@ -322,9 +332,7 @@ def test_surrender_and_encirclement_state_survive_snapshot():
 
     restored, _ = _world()
     restored.apply_snapshot(snapshot)
-    restored_target = next(
-        d for d in restored.units if d.name == target.name
-    )
+    restored_target = next(d for d in restored.units if d.name == target.name)
     assert restored_target.broken
     assert restored_target.surrendered
     assert restored_target.force == pytest.approx(1.0)
@@ -378,6 +386,5 @@ def test_one_day_step_marks_encircled_capitulation_not_silent_break():
     assert target.force == pytest.approx(1.0)
     assert target.losses == pytest.approx(start - 1.0)
     assert any(
-        "капитулировала" in event["message"]
-        for event in state.event_log
+        "капитулировала" in event["message"] for event in state.event_log
     )

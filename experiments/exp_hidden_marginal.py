@@ -1,17 +1,7 @@
-# Замер маргинала СКРЫТОЙ выходной фазы `hidden` (пункт A1 ревью).
-# Запуск из корня: python3 experiments/exp_hidden_marginal.py
-#
-# A1: `Agent.defense` выводит рецептивный тип как TYPES[(context_base + hidden) % 3],
-# где hidden = TYPES.index(last_act), а для не-типовых действий (REST) — 0. То есть
-# REST и FIRE отображаются в ОДНУ фазу. MODEL.md §2/§15.1 утверждают, что маргинал
-# hidden равномерен, и на этом строится усреднение 1/3 в UtilityAI и
-# «типо-безразличие» strategies.timing.
-#
-# Здесь измеряется фактическое распределение hidden на траекториях канона и на
-# крайнем контроле (всегда отдыхающий противник). Модель не меняется: используется
-# monkeypatch (как в exp_review_*).
+import os
+import sys
+import math
 
-import os, sys, math
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 import random
@@ -21,7 +11,6 @@ from simulation import Agent, RLAgent, UtilityAI, TYPES, play_game, ACTIONS
 
 
 def hidden_of(act):
-    """Фаза вывода из действия ровно по коду `Agent.defense`."""
     return TYPES.index(act) if act in TYPES else 0
 
 
@@ -34,15 +23,17 @@ def entropy(counts):
         p = c / total
         if p > 0:
             h -= p * math.log(p)
-    return h  # нат; максимум ln(3) ≈ 1.0986
+    return h
 
 
 def table(counts):
     total = sum(counts.values()) or 1
-    return "  ".join(f"{k}:{counts.get(k,0)/total:.3f}" for k in sorted(set(list(counts.keys()) + [0, 1, 2])))
+    return "  ".join(
+        f"{k}:{counts.get(k, 0) / total:.3f}"
+        for k in sorted(set(list(counts.keys()) + [0, 1, 2]))
+    )
 
 
-# --- Инструментация: запоминаем last_act сторон на каждом такте через check_capture.
 _orig_cc = S.check_capture
 _CUR = None
 
@@ -58,7 +49,6 @@ S.check_capture = _spy_cc
 
 
 def collect(n_games=10, seeds=range(0, 40, 4), with_env=True):
-    """Собрать действия сторон за партии (обучение RL — как в run_batch)."""
     global _CUR
     rl, ai = RLAgent(), UtilityAI()
     acts = {"rl": Counter(), "ai": Counter()}
@@ -81,9 +71,11 @@ print("=" * 72)
 print("A1. Маргинал скрытой фазы hidden (TYPES.index(last_act), REST->0)")
 print("=" * 72)
 print(f"TYPES = {TYPES}; ACTIONS = {[a for a, _ in ACTIONS]}")
-print("Отображение действий в фазу: " +
-      ", ".join(f"{a}->{hidden_of(a)}" for a, _ in ACTIONS) +
-      f"  (цена коллизии: REST и FIRE оба -> {hidden_of('REST')})")
+print(
+    "Отображение действий в фазу: "
+    + ", ".join(f"{a}->{hidden_of(a)}" for a, _ in ACTIONS)
+    + f"  (цена коллизии: REST и FIRE оба -> {hidden_of('REST')})"
+)
 print()
 
 for with_env in (True, False):
@@ -93,11 +85,13 @@ for with_env in (True, False):
         hd = hidden_dist(acts[side])
         total = sum(hd.values()) or 1
         rest = acts[side].get("REST", 0)
-        print(f"  {side.upper():>3}: hidden {table(hd)}  | H={entropy(hd):.4f} "
-              f"(max ln3={math.log(3):.4f})  | доля REST={rest/total:.3f}")
+        print(
+            f"  {side.upper():>3}: hidden {table(hd)}  | H={entropy(hd):.4f} "
+            f"(max ln3={math.log(3):.4f})  | доля REST={rest / total:.3f}"
+        )
     print()
 
-# --- Крайний контроль: всегда отдыхающий противник ---------------------------------
+
 class _AlwaysRest(Agent):
     def form_intention(self):
         return ("REST", 0)
@@ -120,34 +114,61 @@ rest_ai = _AlwaysRest()
 for g in range(4):
     play_game(rl, rest_ai, steps=200, seed=g, with_env=True)
 hd = hidden_dist(acts_ctl)
-print(f"  всегда-REST: hidden {table(hd)}  | H={entropy(hd):.4f}  "
-      f"| действия={dict(acts_ctl)}")
+print(
+    f"  всегда-REST: hidden {table(hd)}  | H={entropy(hd):.4f}  "
+    f"| действия={dict(acts_ctl)}"
+)
 print()
 
-# --- Разбивка: только атакующие действия (без REST), отделяем коллизию от перекоса
+
 print("--- hidden только по атакующим действиям (REST исключён) ---")
 for with_env in (True, False):
     acts = collect(with_env=with_env)
     for side in ("rl", "ai"):
         atk = Counter({a: n for a, n in acts[side].items() if a in TYPES})
         hd = hidden_dist(atk)
-        print(f"  with_env={with_env} {side.upper():>3}: hidden {table(hd)}  "
-              f"| H={entropy(hd):.4f}  | атак={sum(atk.values())}")
+        print(
+            f"  with_env={with_env} {side.upper():>3}: hidden {table(hd)}  "
+            f"| H={entropy(hd):.4f}  | атак={sum(atk.values())}"
+        )
 print()
 
-# --- Вывод --------------------------------------------------------------------------
+
 print("=" * 72)
 print("ВЫВОД")
 print("=" * 72)
-print("1. hidden=0 при покое И при FIRE — коллизия заложена в отображение (стр. 270).")
-print("2. Маргинал hidden задаётся ПОЛИТИКОЙ адресата (частотой типов действий), а не")
-print("   архитектурой; равномерность — не закон, а (приблизительное) наблюдение")
-print("   для конкретных стратегий. У отдыхающего противника маргинал вырожден.")
-print("3. Следствие: усреднение 1/3 в UtilityAI.expected_gain/expected_retaliation и")
-print("   «типо-безразличие» strategies.timing опираются на априор, не на закон.")
+print(
+    "1. hidden=0 при покое И при FIRE — коллизия заложена в отображение (стр. "
+    "270)."
+)
+print(
+    "2. Маргинал hidden задаётся ПОЛИТИКОЙ адресата (частотой типов "
+    "действий), а не"
+)
+print(
+    "   архитектурой; равномерность — не закон, а (приблизительное) наблюдение"
+)
+print(
+    "   для конкретных стратегий. У отдыхающего противника маргинал вырожден."
+)
+print(
+    "3. Следствие: усреднение 1/3 в "
+    "UtilityAI.expected_gain/expected_retaliation и"
+)
+print(
+    "   «типо-безразличие» strategies.timing опираются на априор, не на закон."
+)
 print("4. Резолв A1 (2026-10-16): равномерность трактуется как МАКСИМАЛЬНО-")
 print("   ЭНТРОПИЙНЫЙ (неинформированный) АПРИОР наблюдателя, а не свойство")
-print("   архитектуры; MODEL.md §2/§15.1 и docstrings переформулированы. Поведение")
+print(
+    "   архитектуры; MODEL.md §2/§15.1 и docstrings переформулированы. "
+    "Поведение"
+)
 print("   модели не менялось (априор уже был 1/3).")
-print("5. Тип входа = TYPES[(base+hidden)%3]: равномерность ТИПА слабее равномерности")
-print("   hidden и не следует из неё автоматически — две величины не смешивать.")
+print(
+    "5. Тип входа = TYPES[(base+hidden)%3]: равномерность ТИПА слабее "
+    "равномерности"
+)
+print(
+    "   hidden и не следует из неё автоматически — две величины не смешивать."
+)

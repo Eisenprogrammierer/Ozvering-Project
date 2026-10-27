@@ -1,5 +1,3 @@
-"""Тесты аналитического слоя организаций и генератора автоматов (без pygame)."""
-
 from __future__ import annotations
 
 import json
@@ -36,15 +34,10 @@ def _member(member_id, needs, force=1.0, energy=1.0):
 
 def _population(needs, count, complete_weight=1.0, force=1.0):
     return Population.complete(
-        [_member("m%d" % index, needs, force=force)
-         for index in range(count)],
+        [_member("m%d" % index, needs, force=force) for index in range(count)],
         weight=complete_weight,
     )
 
-
-# --------------------------------------------------------------------------
-# Канон потребностей и профили
-# --------------------------------------------------------------------------
 
 def test_need_order_and_names_match_warfare():
     import warfare
@@ -53,8 +46,13 @@ def test_need_order_and_names_match_warfare():
     assert NEEDS_RU == warfare.NEEDS_RU
     assert len(NEEDS) == 16
     assert set(MODE_ORDER) == {
-        "order", "meaning", "provision", "status",
-        "knowledge", "care", "exchange",
+        "order",
+        "meaning",
+        "provision",
+        "status",
+        "knowledge",
+        "care",
+        "exchange",
     }
 
 
@@ -79,14 +77,11 @@ def test_member_from_character_uses_bdi_and_metrics():
     assert member.id == "бойец"
     assert member.needs["fear"] == pytest.approx(0.73)
     assert member.urgency["fear"] == pytest.approx(
-        character.weighted_urgency()["fear"])
+        character.weighted_urgency()["fear"]
+    )
     assert member.energy == pytest.approx(4.0)
     assert member.force == pytest.approx(7.0)
 
-
-# --------------------------------------------------------------------------
-# Плотность, масштаб и уровни
-# --------------------------------------------------------------------------
 
 def test_weighted_density_centrality_and_mean_energy():
     population = Population(
@@ -97,7 +92,7 @@ def test_weighted_density_centrality_and_mean_energy():
         ],
         links=[("a", "b", 1.0), ("b", "c", 0.5)],
     )
-    # 1.5 / 3 возможные пары = 0.5
+
     assert population.density() == pytest.approx(0.5)
     assert population.mean_energy() == pytest.approx(2.0)
     centrality = population.centrality()
@@ -109,14 +104,18 @@ def test_weighted_density_centrality_and_mean_energy():
 
 def test_complete_population_does_not_materialize_edges():
     population = Population.complete(
-        [_member("a", {"fear": 0.9}), _member("b", {"fear": 0.9}),
-         _member("c", {"fear": 0.9})],
+        [
+            _member("a", {"fear": 0.9}),
+            _member("b", {"fear": 0.9}),
+            _member("c", {"fear": 0.9}),
+        ],
         weight=0.8,
     )
     assert population.links == []
     assert population.density() == pytest.approx(0.8)
     assert population.strengths() == pytest.approx(
-        {"a": 1.6, "b": 1.6, "c": 1.6})
+        {"a": 1.6, "b": 1.6, "c": 1.6}
+    )
 
 
 def test_level_thresholds_and_capacity():
@@ -134,8 +133,10 @@ def test_level_thresholds_and_capacity():
 
 def test_scale_uses_density_and_energy():
     population = Population.complete(
-        [_member("a", {"fear": 0.9}, energy=1.0),
-         _member("b", {"fear": 0.9}, energy=3.0)],
+        [
+            _member("a", {"fear": 0.9}, energy=1.0),
+            _member("b", {"fear": 0.9}, energy=3.0),
+        ],
         weight=0.5,
     )
     analysis = OrganizationSolver().analyze(population)
@@ -146,14 +147,9 @@ def test_scale_uses_density_and_energy():
     assert analysis.level == 1
 
 
-# --------------------------------------------------------------------------
-# Приоритетная потребность: смесь лидера и массы
-# --------------------------------------------------------------------------
-
 def test_priority_need_is_a_mix_of_mass_and_leader():
     members = [
-        _member("m%d" % index, {"fear": 0.9}, force=1.0)
-        for index in range(9)
+        _member("m%d" % index, {"fear": 0.9}, force=1.0) for index in range(9)
     ]
     members.append(_member("leader", {"spirituality": 0.9}, force=20.0))
     population = Population.complete(members, weight=1.0)
@@ -178,15 +174,14 @@ def test_priority_need_is_a_mix_of_mass_and_leader():
     assert leader_dominant.priority_need == "spirituality"
 
 
-# --------------------------------------------------------------------------
-# Экономика участия
-# --------------------------------------------------------------------------
-
 def test_unwilling_members_leave_and_willing_members_stay():
-    population = Population.complete([
-        _member("high", {"fear": 0.9}),
-        _member("zero", {}),
-    ], weight=0.9)
+    population = Population.complete(
+        [
+            _member("high", {"fear": 0.9}),
+            _member("zero", {}),
+        ],
+        weight=0.9,
+    )
     analysis = OrganizationSolver().analyze(population)
     assert analysis.dissolved is False
     assert analysis.active_ids == ["high"]
@@ -197,9 +192,13 @@ def test_unwilling_members_leave_and_willing_members_stay():
 
 
 def test_organization_dissolves_without_willing_members():
-    population = Population.complete([
-        _member("a", {}), _member("b", {}),
-    ], weight=1.0)
+    population = Population.complete(
+        [
+            _member("a", {}),
+            _member("b", {}),
+        ],
+        weight=1.0,
+    )
     analysis = OrganizationSolver().analyze(population)
     assert analysis.dissolved is True
     assert analysis.active_count == 0
@@ -211,18 +210,18 @@ def test_organization_dissolves_without_willing_members():
 
 
 def test_dissolution_when_need_is_too_weak_to_pay_contribution():
-    population = Population.complete([
-        _member("a", {"fear": 0.01}), _member("b", {"fear": 0.01}),
-    ], weight=1.0)
+    population = Population.complete(
+        [
+            _member("a", {"fear": 0.01}),
+            _member("b", {"fear": 0.01}),
+        ],
+        weight=1.0,
+    )
     analysis = OrganizationSolver().analyze(population)
     assert analysis.priority_need == "fear"
     assert analysis.dissolved is True
     assert analysis.active_count == 0
 
-
-# --------------------------------------------------------------------------
-# Функции, ярлыки и масштаб
-# --------------------------------------------------------------------------
 
 def test_four_examples_produce_four_derived_labels():
     state = OrganizationSolver().analyze(fear_state().population)
@@ -231,13 +230,25 @@ def test_four_examples_produce_four_derived_labels():
     artel = OrganizationSolver().analyze(subsistence_artel().population)
 
     assert (state.priority_need, state.archetype, state.level) == (
-        "fear", "государство", 3)
+        "fear",
+        "государство",
+        3,
+    )
     assert (church.priority_need, church.archetype, church.level) == (
-        "spirituality", "церковная иерархия", 3)
+        "spirituality",
+        "церковная иерархия",
+        3,
+    )
     assert (gang.priority_need, gang.archetype, gang.level) == (
-        "status", "банда", 1)
+        "status",
+        "банда",
+        1,
+    )
     assert (artel.priority_need, artel.archetype, artel.level) == (
-        "hunger", "торговая артель", 1)
+        "hunger",
+        "торговая артель",
+        1,
+    )
 
     for analysis in (state, church, gang, artel):
         assert analysis.dissolved is False
@@ -254,16 +265,17 @@ def test_four_examples_produce_four_derived_labels():
 
 def test_same_need_changes_label_with_scale():
     small = Population.complete(
-        [_member("leader", {"spirituality": 1.0}, force=10.0)] + [
-            _member("m%d" % index, {"spirituality": 0.9,
-                                    "loneliness": 0.4})
+        [_member("leader", {"spirituality": 1.0}, force=10.0)]
+        + [
+            _member("m%d" % index, {"spirituality": 0.9, "loneliness": 0.4})
             for index in range(29)
         ],
         weight=0.8,
     )
     small_analysis = OrganizationSolver().analyze(small)
     large_analysis = OrganizationSolver().analyze(
-        spirituality_church().population)
+        spirituality_church().population
+    )
 
     assert small_analysis.priority_need == "spirituality"
     assert small_analysis.archetype == "секта"
@@ -271,10 +283,6 @@ def test_same_need_changes_label_with_scale():
     assert large_analysis.archetype == "церковная иерархия"
     assert large_analysis.level == 3
 
-
-# --------------------------------------------------------------------------
-# Генерация автоматов
-# --------------------------------------------------------------------------
 
 def test_active_automaton_is_valid_and_reachable():
     for scenario in get_scenarios():
@@ -284,31 +292,35 @@ def test_active_automaton_is_valid_and_reachable():
         assert automaton.name
         assert automaton.name != "%s — %s" % (
             analysis.archetype[:1].upper() + analysis.archetype[1:],
-            analysis.need_ru)
+            analysis.need_ru,
+        )
         assert automaton.name == build_automaton(analysis).name
         assert automaton.validate() == []
         assert len(automaton.initial_states) == 1
         assert automaton.final_states
-        assert automaton.reachable_ids() == {state.id for state in
-                                             automaton.states}
+        assert automaton.reachable_ids() == {
+            state.id for state in automaton.states
+        }
         payload = automaton.to_dict()
         assert payload["version"] == 1
         restored = Automaton.from_dict(
-            json.loads(json.dumps(payload, ensure_ascii=False)))
+            json.loads(json.dumps(payload, ensure_ascii=False))
+        )
         assert restored.to_dict() == payload
         assert "Потребность:" in automaton.states[0].name
-        assert any("Производство:" in state.name
-                   for state in automaton.states)
-        assert any("Принуждение:" in state.name
-                   for state in automaton.states)
-        assert any("Легитимация:" in state.name
-                   for state in automaton.states)
+        assert any("Производство:" in state.name for state in automaton.states)
+        assert any("Принуждение:" in state.name for state in automaton.states)
+        assert any("Легитимация:" in state.name for state in automaton.states)
 
 
 def test_dissolved_automaton_is_minimal_and_valid():
-    population = Population.complete([
-        _member("a", {}), _member("b", {}),
-    ], weight=1.0)
+    population = Population.complete(
+        [
+            _member("a", {}),
+            _member("b", {}),
+        ],
+        weight=1.0,
+    )
     analysis = OrganizationSolver().analyze(population)
     automaton = build_automaton(analysis)
 
@@ -341,8 +353,10 @@ def test_save_automaton_and_cli_write(tmp_path):
     generated = AutomataStore(tmp_path / "generated")
     slugs = {entry["slug"] for entry in generated.list_entries()}
     assert slugs == {
-        "state_fear", "church_spirituality",
-        "gang_status", "trade_artel_hunger",
+        "state_fear",
+        "church_spirituality",
+        "gang_status",
+        "trade_artel_hunger",
     }
     for slug in slugs:
         assert generated.load(slug).validate() == []
@@ -356,7 +370,9 @@ def test_organizations_do_not_import_pygame():
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(Path(__file__).resolve().parents[1]),
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
 
 
@@ -377,20 +393,18 @@ def test_natural_name_can_be_overridden_by_name_and_seed():
 def test_cli_name_seed_is_reproducible(capsys):
     from organizations.__main__ import main
 
-    assert main(["--scenario", "gang_status", "--json", "--name-seed",
-                 "7"]) == 0
+    assert (
+        main(["--scenario", "gang_status", "--json", "--name-seed", "7"]) == 0
+    )
     first = capsys.readouterr().out
-    assert main(["--scenario", "gang_status", "--json", "--name-seed",
-                 "7"]) == 0
+    assert (
+        main(["--scenario", "gang_status", "--json", "--name-seed", "7"]) == 0
+    )
     second = capsys.readouterr().out
     assert first == second
     payload = json.loads(first)
     assert payload["name"]
 
-
-# --------------------------------------------------------------------------
-# Валидация данных
-# --------------------------------------------------------------------------
 
 def test_population_rejects_bad_graph_data():
     member = _member("a", {"fear": 0.9})
@@ -401,5 +415,6 @@ def test_population_rejects_bad_graph_data():
     with pytest.raises(ValueError):
         Population(members=[member], links=[("a", "a", 1.0)])
     with pytest.raises(ValueError):
-        Population(members=[member], links=[("a", "a", 1.0)],
-                   complete_weight=1.0)
+        Population(
+            members=[member], links=[("a", "a", 1.0)], complete_weight=1.0
+        )

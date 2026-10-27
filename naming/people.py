@@ -1,14 +1,3 @@
-"""Генератор имён персонажей: реальные культуры и фэнтезийные темы.
-
-Конфиг лежит в ``configs/naming/people.json``. В отличие от генератора
-названий автоматов, этот слой не пытается строить морфологию: имена — это
-собственные имена, а не русские нарицательные конструкции. Шаблоны текста
-используют имя в именительном падеже, поэтому генератору достаточно вернуть
-готовую строку.
-
-Слой чистый: он не импортирует pygame, ``simulation`` или ``warfare``.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,17 +7,24 @@ import random
 import re
 from typing import Dict, List, Mapping, Optional, Tuple
 
-
 _GENDER_KEYS = ("m", "f")
 _GENDER_ALIASES = {
-    "m": "m", "male": "m", "man": "m", "м": "m", "муж": "m",
-    "f": "f", "female": "f", "woman": "f", "ж": "f", "жен": "f",
+    "m": "m",
+    "male": "m",
+    "man": "m",
+    "м": "m",
+    "муж": "m",
+    "f": "f",
+    "female": "f",
+    "woman": "f",
+    "ж": "f",
+    "жен": "f",
 }
 _SLOT = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 
 
 class PeopleError(ValueError):
-    """Ошибка конфига или запроса генератора имён."""
+    pass
 
 
 def _read_json(path):
@@ -50,7 +46,6 @@ def _as_list(value, label):
 
 
 def _pool(value, label):
-    """Пул имён: либо список для обоих полов, либо объект ``m``/``f``."""
     if value is None:
         return {key: [] for key in _GENDER_KEYS}
     if isinstance(value, (list, tuple)):
@@ -63,7 +58,9 @@ def _pool(value, label):
         result[key] = _as_list(value.get(key), "%s.%s" % (label, key))
     unknown = sorted(set(value) - set(_GENDER_KEYS))
     if unknown:
-        raise PeopleError("%s: неизвестные полы %s" % (label, ", ".join(unknown)))
+        raise PeopleError(
+            "%s: неизвестные полы %s" % (label, ", ".join(unknown))
+        )
     return result
 
 
@@ -87,7 +84,6 @@ def _as_text(value, label):
 
 @dataclass(frozen=True)
 class PersonCulture:
-    """Культура или фэнтезийная тема с пулами имён и шаблонами."""
 
     id: str
     label: str
@@ -106,27 +102,31 @@ class PersonCulture:
         family = _pool(data.get("family"), "%s.%s.family" % (source, item_id))
         if not any(given.values()):
             raise PeopleError("%s.%s: нет имён" % (source, item_id))
-        patterns = _as_list(data.get("patterns"),
-                            "%s.%s.patterns" % (source, item_id))
+        patterns = _as_list(
+            data.get("patterns"), "%s.%s.patterns" % (source, item_id)
+        )
         if not patterns:
             patterns = ["{given} {family}"]
         for pattern in patterns:
             if "{given}" not in pattern:
                 raise PeopleError(
                     "%s.%s: шаблон %r не содержит {given}"
-                    % (source, item_id, pattern))
+                    % (source, item_id, pattern)
+                )
             if "{family}" in pattern and not any(family.values()):
                 raise PeopleError(
                     "%s.%s: шаблону %r нужна фамилия"
-                    % (source, item_id, pattern))
+                    % (source, item_id, pattern)
+                )
         profile = cls(
             id=_as_text(item_id, source),
             label=str(data.get("label") or item_id),
             style=style,
             given=given,
             family=family,
-            epithets=_as_list(data.get("epithets"),
-                              "%s.%s.epithets" % (source, item_id)),
+            epithets=_as_list(
+                data.get("epithets"), "%s.%s.epithets" % (source, item_id)
+            ),
             patterns=tuple(patterns),
             description=str(data.get("description") or ""),
         )
@@ -167,7 +167,6 @@ class PersonCulture:
 
 @dataclass(frozen=True)
 class PersonName:
-    """Готовое имя персонажа и его происхождение."""
 
     given: str
     family: str
@@ -206,10 +205,10 @@ class PersonName:
 
 
 class PersonCatalog:
-    """Загруженный набор реальных культур и фэнтезийных тем."""
 
-    def __init__(self, cultures, themes, default_culture="russian",
-                 root=None, schema=1):
+    def __init__(
+        self, cultures, themes, default_culture="russian", root=None, schema=1
+    ):
         self.cultures = dict(cultures)
         self.themes = dict(themes)
         self.default_culture = str(default_culture or "russian")
@@ -236,11 +235,13 @@ class PersonCatalog:
         }
         themes = {
             str(key): PersonCulture.from_data(
-                key, value, "fantasy", "fantasy_themes")
+                key, value, "fantasy", "fantasy_themes"
+            )
             for key, value in themes_raw.items()
         }
         return cls(
-            cultures, themes,
+            cultures,
+            themes,
             default_culture=data.get("default_culture", "russian"),
             root=root,
             schema=data.get("schema", 1),
@@ -251,17 +252,20 @@ class PersonCatalog:
         if not isinstance(data, Mapping):
             raise PeopleError("данные people должны быть объектом")
         cultures = {
-            str(key): PersonCulture.from_data(
-                key, value, "real", "cultures")
+            str(key): PersonCulture.from_data(key, value, "real", "cultures")
             for key, value in (data.get("cultures") or {}).items()
         }
         themes = {
             str(key): PersonCulture.from_data(
-                key, value, "fantasy", "fantasy_themes")
+                key, value, "fantasy", "fantasy_themes"
+            )
             for key, value in (data.get("fantasy_themes") or {}).items()
         }
-        return cls(cultures, themes,
-                   default_culture=data.get("default_culture", "russian"))
+        return cls(
+            cultures,
+            themes,
+            default_culture=data.get("default_culture", "russian"),
+        )
 
     def validate(self):
         if not self.cultures:
@@ -269,10 +273,13 @@ class PersonCatalog:
         if not self.themes:
             raise PeopleError("нет ни одной фэнтезийной темы")
         if self.default_culture not in self.cultures:
-            raise PeopleError("default_culture %r отсутствует в cultures"
-                              % self.default_culture)
-        for key, profile in list(self.cultures.items()) + \
-                list(self.themes.items()):
+            raise PeopleError(
+                "default_culture %r отсутствует в cultures"
+                % self.default_culture
+            )
+        for key, profile in list(self.cultures.items()) + list(
+            self.themes.items()
+        ):
             if not profile.id:
                 raise PeopleError("пустой id профиля имён")
             if not any(profile.given.values()):
@@ -299,30 +306,32 @@ class PersonCatalog:
 
     def all_profiles(self):
         return [self.cultures[key] for key in self.culture_ids()] + [
-            self.themes[key] for key in self.theme_ids()]
+            self.themes[key] for key in self.theme_ids()
+        ]
 
     def as_dict(self):
         return {
             "schema": self.schema,
             "default_culture": self.default_culture,
-            "cultures": {key: self.cultures[key].as_dict()
-                         for key in self.culture_ids()},
-            "fantasy_themes": {key: self.themes[key].as_dict()
-                               for key in self.theme_ids()},
+            "cultures": {
+                key: self.cultures[key].as_dict() for key in self.culture_ids()
+            },
+            "fantasy_themes": {
+                key: self.themes[key].as_dict() for key in self.theme_ids()
+            },
         }
 
 
 def _render_pattern(pattern, values):
-    """Подставить слоты, не падая на необязательных частях имени."""
     def replace(match):
         key = match.group(1)
         return str(values.get(key) or "").strip()
+
     text = _SLOT.sub(replace, pattern)
     return re.sub(r"\s+", " ", text).strip(" -")
 
 
 class PersonNameGenerator:
-    """Детерминированный по seed генератор имён персонажей."""
 
     def __init__(self, catalog: Optional[PersonCatalog] = None, seed=0):
         self.catalog = catalog or default_catalog()
@@ -333,31 +342,34 @@ class PersonNameGenerator:
         return self.rng if seed is None else random.Random(int(seed))
 
     def real(self, culture=None, gender=None, seed=None):
-        """Имя из реальной культуры (по умолчанию — случайной)."""
         rng = self._rng(seed)
         culture_id = culture or self.catalog.default_culture
         if culture is None:
             culture_id = rng.choice(self.catalog.culture_ids())
         profile = self.catalog.culture(culture_id)
-        return self._one(profile, "real", gender, rng,
-                         seed if seed is not None else self.seed)
+        return self._one(
+            profile,
+            "real",
+            gender,
+            rng,
+            seed if seed is not None else self.seed,
+        )
 
     def fantasy(self, theme=None, gender=None, seed=None):
-        """Имя из фэнтезийной темы (по умолчанию — случайной)."""
         rng = self._rng(seed)
         theme_id = theme
         if theme_id is None:
             theme_id = rng.choice(self.catalog.theme_ids())
         profile = self.catalog.theme(theme_id)
-        return self._one(profile, "fantasy", gender, rng,
-                         seed if seed is not None else self.seed)
+        return self._one(
+            profile,
+            "fantasy",
+            gender,
+            rng,
+            seed if seed is not None else self.seed,
+        )
 
     def generate(self, culture=None, theme=None, gender=None, seed=None):
-        """Имя в реальном или фэнтезийном стиле.
-
-        ``culture`` и ``theme`` взаимоисключающи. Без них стиль выбирается
-        случайно с небольшим перевесом в сторону реальных культур.
-        """
         if culture and theme:
             raise PeopleError("нельзя одновременно указать culture и theme")
         if culture:
@@ -366,19 +378,24 @@ class PersonNameGenerator:
             return self.fantasy(theme=theme, gender=gender, seed=seed)
         rng = self._rng(seed)
         if rng.random() < 0.65:
-            profile = self.catalog.culture(rng.choice(
-                self.catalog.culture_ids()))
+            profile = self.catalog.culture(
+                rng.choice(self.catalog.culture_ids())
+            )
             style = "real"
         else:
-            profile = self.catalog.theme(rng.choice(
-                self.catalog.theme_ids()))
+            profile = self.catalog.theme(rng.choice(self.catalog.theme_ids()))
             style = "fantasy"
-        return self._one(profile, style, gender, rng,
-                         seed if seed is not None else self.seed)
+        return self._one(
+            profile,
+            style,
+            gender,
+            rng,
+            seed if seed is not None else self.seed,
+        )
 
-    def generate_many(self, count=10, culture=None, theme=None, gender=None,
-                      seed=None):
-        """Несколько разных имён, детерминированно по seed."""
+    def generate_many(
+        self, count=10, culture=None, theme=None, gender=None, seed=None
+    ):
         if culture and theme:
             raise PeopleError("нельзя одновременно указать culture и theme")
         limit = max(1, int(count))
@@ -395,16 +412,22 @@ class PersonNameGenerator:
                 profile = self.catalog.theme(theme)
                 style = "fantasy"
             elif rng.random() < 0.65:
-                profile = self.catalog.culture(rng.choice(
-                    self.catalog.culture_ids()))
+                profile = self.catalog.culture(
+                    rng.choice(self.catalog.culture_ids())
+                )
                 style = "real"
             else:
-                profile = self.catalog.theme(rng.choice(
-                    self.catalog.theme_ids()))
+                profile = self.catalog.theme(
+                    rng.choice(self.catalog.theme_ids())
+                )
                 style = "fantasy"
             item = self._one(
-                profile, style, gender, rng,
-                seed if seed is not None else self.seed)
+                profile,
+                style,
+                gender,
+                rng,
+                seed if seed is not None else self.seed,
+            )
             if item.full in seen:
                 continue
             seen.add(item.full)
@@ -414,9 +437,14 @@ class PersonNameGenerator:
     def _one(self, profile, style, gender, rng, seed):
         gender = _normalize_gender(gender) or rng.choice(list(_GENDER_KEYS))
         given = rng.choice(profile.given_for(gender))
-        family = rng.choice(profile.family_for(gender)) \
-            if profile.has_family() else ""
-        epithet = rng.choice(profile.epithets) if profile.has_epithets() else ""
+        family = (
+            rng.choice(profile.family_for(gender))
+            if profile.has_family()
+            else ""
+        )
+        epithet = (
+            rng.choice(profile.epithets) if profile.has_epithets() else ""
+        )
         pattern = rng.choice(profile.patterns)
         values = {
             "given": given,
@@ -461,6 +489,11 @@ def default_catalog():
 
 
 __all__ = [
-    "PeopleError", "PersonCatalog", "PersonCulture", "PersonName",
-    "PersonNameGenerator", "default_catalog", "default_root",
+    "PeopleError",
+    "PersonCatalog",
+    "PersonCulture",
+    "PersonName",
+    "PersonNameGenerator",
+    "default_catalog",
+    "default_root",
 ]

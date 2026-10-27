@@ -1,9 +1,3 @@
-"""
-view/screens/faction_select.py
-
-Экран выбора фракции для роли с номинальным лидерством.
-"""
-
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
 from campaign import CampaignPresetGenerator
@@ -31,9 +25,6 @@ def _wrap(font, text, max_width):
 
 
 class FactionSelectScreen(BaseScreen):
-    """
-    Экран выбора фракции-автомата, которой будет управлять игрок.
-    """
 
     def __init__(self, app):
         super().__init__(app)
@@ -64,18 +55,21 @@ class FactionSelectScreen(BaseScreen):
             )
             self.buttons.append(self.option_buttons[faction_id])
             y += 150
-        self.buttons.append(Button(
-            (540, 610, 200, 40),
-            "Назад",
-            app.font_body,
-            app.manager.pop,
-        ))
+        self.buttons.append(
+            Button(
+                (540, 610, 200, 40),
+                "Назад",
+                app.font_body,
+                app.manager.pop,
+            )
+        )
 
     def select(self, faction_id):
-        """Запустить кампанию за выбранную фракцию."""
         if self.storyline is None:
-            logger.warning("Сюжет роли не найден: %s",
-                           getattr(self.role, "storyline_id", ""))
+            logger.warning(
+                "Сюжет роли не найден: %s",
+                getattr(self.role, "storyline_id", ""),
+            )
             return
         self.app.selected_faction_id = faction_id
         logger.info("Выбрана фракция: %s", faction_id)
@@ -117,7 +111,8 @@ class FactionSelectScreen(BaseScreen):
                 else "альтернативная сторона"
             )
             meta = self.app.font_small.render(
-                "%s · %s · %d рот · %s" % (
+                "%s · %s · %d рот · %s"
+                % (
                     option["side"].upper(),
                     option["kind"],
                     option["companies"],
@@ -127,11 +122,9 @@ class FactionSelectScreen(BaseScreen):
                 (130, 165, 215),
             )
             screen.blit(meta, (280, top + 66))
-            details = (
-                "Организация: %s · Лидер: %s" % (
-                    option["organization_name"] or "—",
-                    option["leader_name"] or "—",
-                )
+            details = "Организация: %s · Лидер: %s" % (
+                option["organization_name"] or "—",
+                option["leader_name"] or "—",
             )
             screen.blit(
                 self.app.font_small.render(details, True, (190, 190, 205)),

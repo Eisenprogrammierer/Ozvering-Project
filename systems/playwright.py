@@ -1,20 +1,3 @@
-"""Драматург — системный автомат, который искушает акторов.
-
-Драматург не управляет персонажами напрямую. Он периодически (эпизодически)
-оценивает доступные драматические действия и стохастически выбирает одно,
-подталкивая актора к поступку. Оценка складывается из четырёх компонентов:
-
-* **неопределённость** — насколько исход непредсказуем;
-* **связность** — насколько поступок вытекает из характера и контекста;
-* **новизна** — насколько поступок отличается от недавних толчков;
-* **ставки** — насколько высока цена ошибки.
-
-Чем выше итоговая оценка, тем охотнее драматург выбирает действие. Выбор идёт
-через softmax-температуру, поэтому это именно соблазн, а не жёсткий диктат.
-
-Слой чистый: он не импортирует pygame, ``simulation`` или ``warfare``.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,9 +11,9 @@ from automata.model import Automaton, State, Transition
 
 from .core import SystemAutomaton, SystemError, as_float, as_int, clamp
 
-try:  # импорт типа не обязателен для расчёта, но нужен для текста
+try:
     from .events import EventError, EventTextGenerator
-except Exception:  # pragma: no cover - защита от частичной установки
+except Exception:
     EventError = Exception
     EventTextGenerator = None
 
@@ -39,7 +22,7 @@ WEIGHT_KEYS = ("uncertainty", "coherence", "novelty", "stakes")
 
 
 class PlaywrightError(SystemError):
-    """Ошибка конфигурации или работы драматурга."""
+    pass
 
 
 def _read_json(path):
@@ -85,7 +68,6 @@ def _relationship_items(value):
 
 @dataclass(frozen=True)
 class DramaActor:
-    """Актор, которого драматург может подтолкнуть к поступку."""
 
     id: str
     name: str
@@ -98,12 +80,14 @@ class DramaActor:
     def __post_init__(self):
         object.__setattr__(self, "id", str(self.id or "").strip())
         object.__setattr__(self, "name", str(self.name or self.id).strip())
-        object.__setattr__(self, "organization",
-                           str(self.organization or "").strip())
+        object.__setattr__(
+            self, "organization", str(self.organization or "").strip()
+        )
         object.__setattr__(self, "tags", _tags(self.tags))
         object.__setattr__(self, "traits", _tags(self.traits))
-        object.__setattr__(self, "relationships",
-                           _relationship_items(self.relationships))
+        object.__setattr__(
+            self, "relationships", _relationship_items(self.relationships)
+        )
         object.__setattr__(self, "stakes", clamp(self.stakes, 0.0, 1.0))
         if not self.id:
             raise PlaywrightError("у актора должен быть id")
@@ -124,9 +108,11 @@ class DramaActor:
 
     @classmethod
     def from_character(cls, character, organization="", stakes=None):
-        """Адаптер для ``warfare.Character`` без импорта warfare."""
-        name = str(getattr(character, "name", "") or
-                   getattr(character, "id", "") or "безымянный")
+        name = str(
+            getattr(character, "name", "")
+            or getattr(character, "id", "")
+            or "безымянный"
+        )
         actor_id = str(getattr(character, "id", "") or name)
         role = str(getattr(character, "role", "") or "")
         side = str(getattr(character, "side", "") or "")
@@ -166,8 +152,10 @@ class DramaActor:
             "tags": list(self.tags),
             "stakes": self.stakes,
             "traits": list(self.traits),
-            "relationships": [{"target": key, "weight": value}
-                              for key, value in self.relationships],
+            "relationships": [
+                {"target": key, "weight": value}
+                for key, value in self.relationships
+            ],
         }
 
     def __str__(self):
@@ -176,7 +164,6 @@ class DramaActor:
 
 @dataclass(frozen=True)
 class DramaticAction:
-    """Кандидат на драматический поступок."""
 
     id: str
     actor_id: str
@@ -193,13 +180,16 @@ class DramaticAction:
     def __post_init__(self):
         object.__setattr__(self, "id", str(self.id or "").strip())
         object.__setattr__(self, "actor_id", str(self.actor_id or "").strip())
-        object.__setattr__(self, "target_id", str(self.target_id or "").strip())
+        object.__setattr__(
+            self, "target_id", str(self.target_id or "").strip()
+        )
         object.__setattr__(self, "action", str(self.action or self.id).strip())
         object.__setattr__(self, "description", str(self.description or ""))
         object.__setattr__(self, "tags", _tags(self.tags))
         object.__setattr__(self, "event_id", str(self.event_id or "").strip())
-        object.__setattr__(self, "uncertainty",
-                           clamp(self.uncertainty, 0.0, 1.0))
+        object.__setattr__(
+            self, "uncertainty", clamp(self.uncertainty, 0.0, 1.0)
+        )
         object.__setattr__(self, "coherence", clamp(self.coherence, 0.0, 1.0))
         object.__setattr__(self, "novelty", clamp(self.novelty, 0.0, 1.0))
         object.__setattr__(self, "stakes", clamp(self.stakes, 0.0, 1.0))
@@ -230,7 +220,6 @@ class DramaticAction:
 
 @dataclass(frozen=True)
 class DramaticTemplate:
-    """Шаблон действия, из которого рождаются кандидаты."""
 
     id: str
     label: str
@@ -265,10 +254,15 @@ class DramaticTemplate:
 
     def candidate(self, actor, target, suffix=None):
         actor_id = actor.id if isinstance(actor, DramaActor) else str(actor)
-        target_id = target.id if isinstance(target, DramaActor) else str(target)
+        target_id = (
+            target.id if isinstance(target, DramaActor) else str(target)
+        )
         return DramaticAction(
-            id="%s:%s:%s" % (self.id, actor_id, target_id) if suffix is None
-            else str(suffix),
+            id=(
+                "%s:%s:%s" % (self.id, actor_id, target_id)
+                if suffix is None
+                else str(suffix)
+            ),
             actor_id=actor_id,
             target_id=target_id,
             action=self.action,
@@ -298,7 +292,6 @@ class DramaticTemplate:
 
 @dataclass(frozen=True)
 class DramaScore:
-    """Разложенная по компонентам оценка соблазна."""
 
     uncertainty: float
     coherence: float
@@ -325,7 +318,6 @@ class DramaScore:
 
 @dataclass
 class DramaPush:
-    """Свершившийся толчок драматурга."""
 
     turn: int
     candidate: DramaticAction
@@ -349,22 +341,26 @@ class DramaPush:
             "state_before": self.state_before,
             "state_after": self.state_after,
             "text": self.text,
-            "event": (self.event.as_dict()
-                      if hasattr(self.event, "as_dict") else None),
+            "event": (
+                self.event.as_dict()
+                if hasattr(self.event, "as_dict")
+                else None
+            ),
             "reason": self.reason,
         }
 
 
 @dataclass
 class PlaywrightConfig:
-    """Веса, ритм эпизодов и шаблоны соблазна."""
 
-    weights: Dict[str, float] = field(default_factory=lambda: {
-        "uncertainty": 0.28,
-        "coherence": 0.24,
-        "novelty": 0.26,
-        "stakes": 0.22,
-    })
+    weights: Dict[str, float] = field(
+        default_factory=lambda: {
+            "uncertainty": 0.28,
+            "coherence": 0.24,
+            "novelty": 0.26,
+            "stakes": 0.22,
+        }
+    )
     episode_chance: float = 0.35
     cooldown: int = 3
     temperature: float = 0.35
@@ -404,11 +400,13 @@ class PlaywrightConfig:
             weights=weights,
             episode_chance=clamp(data.get("episode_chance", 0.35), 0.0, 1.0),
             cooldown=max(0, as_int(data.get("cooldown", 3), 3)),
-            temperature=max(0.01, as_float(data.get("temperature", 0.35),
-                                          0.35)),
+            temperature=max(
+                0.01, as_float(data.get("temperature", 0.35), 0.35)
+            ),
             novelty_decay=clamp(data.get("novelty_decay", 0.55), 0.0, 1.0),
             repetition_penalty=clamp(
-                data.get("repetition_penalty", 0.60), 0.0, 1.0),
+                data.get("repetition_penalty", 0.60), 0.0, 1.0
+            ),
             min_score=clamp(data.get("min_score", 0.15), 0.0, 1.0),
             exploration=clamp(data.get("exploration", 0.05), 0.0, 1.0),
             max_candidates=max(1, as_int(data.get("max_candidates", 32), 32)),
@@ -436,8 +434,17 @@ def _actor_map(actors):
     if isinstance(actors, Mapping):
         items = actors.items()
     else:
-        items = ((item.id if isinstance(item, DramaActor)
-                  else getattr(item, "id", item), item) for item in actors)
+        items = (
+            (
+                (
+                    item.id
+                    if isinstance(item, DramaActor)
+                    else getattr(item, "id", item)
+                ),
+                item,
+            )
+            for item in actors
+        )
     result = {}
     for key, item in items:
         if isinstance(item, DramaActor):
@@ -450,8 +457,11 @@ def _actor_map(actors):
 def _actor_name(actor, fallback):
     if actor is None:
         return fallback
-    return str(getattr(actor, "name", None) or
-               getattr(actor, "label", None) or fallback)
+    return str(
+        getattr(actor, "name", None)
+        or getattr(actor, "label", None)
+        or fallback
+    )
 
 
 def _actor_organization(actor):
@@ -461,10 +471,13 @@ def _actor_organization(actor):
 
 
 class Playwright:
-    """Системный автомат-драматург."""
 
-    def __init__(self, config: Optional[PlaywrightConfig] = None, seed=0,
-                 event_generator=None):
+    def __init__(
+        self,
+        config: Optional[PlaywrightConfig] = None,
+        seed=0,
+        event_generator=None,
+    ):
         self.config = config or PlaywrightConfig.load()
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
@@ -473,15 +486,16 @@ class Playwright:
         self.history: List[tuple] = []
         self.pushes: List[DramaPush] = []
         self.machine = SystemAutomaton(
-            "playwright", "Драматург", _build_automaton())
+            "playwright", "Драматург", _build_automaton()
+        )
 
-    # --- оценка ---------------------------------------------------------
     def _similarity(self, candidate: DramaticAction):
         recent = self.history[-8:]
         if not recent:
             return 0.0
-        exact = 1.0 if any(item[0].id == candidate.id for item in recent) \
-            else 0.0
+        exact = (
+            1.0 if any(item[0].id == candidate.id for item in recent) else 0.0
+        )
         tag_scores = []
         actor_reuse = 0.0
         target_reuse = 0.0
@@ -491,8 +505,9 @@ class Playwright:
             new_tags = set(candidate.tags)
             if old_tags or new_tags:
                 union = old_tags | new_tags
-                tag_scores.append(len(old_tags & new_tags) / len(union)
-                                  if union else 0.0)
+                tag_scores.append(
+                    len(old_tags & new_tags) / len(union) if union else 0.0
+                )
             if old.actor_id == candidate.actor_id:
                 actor_reuse += 1.0
             if old.target_id and old.target_id == candidate.target_id:
@@ -500,8 +515,12 @@ class Playwright:
         tag_score = max(tag_scores) if tag_scores else 0.0
         actor_reuse /= len(recent)
         target_reuse /= len(recent)
-        return clamp(max(exact, 0.75 * tag_score +
-                         0.15 * actor_reuse + 0.10 * target_reuse))
+        return clamp(
+            max(
+                exact,
+                0.75 * tag_score + 0.15 * actor_reuse + 0.10 * target_reuse,
+            )
+        )
 
     def score(self, candidate: DramaticAction, actors=None):
         actor_map = _actor_map(actors)
@@ -514,23 +533,36 @@ class Playwright:
         stakes_base = clamp(candidate.stakes, 0.0, 1.0)
 
         if actor is not None or target is not None:
-            actor_stake = float(getattr(actor, "stakes", 0.5)) \
-                if actor is not None else 0.5
-            target_stake = float(getattr(target, "stakes", 0.5)) \
-                if target is not None else 0.5
-            stakes = clamp(0.55 * stakes_base +
-                           0.45 * max(actor_stake, target_stake), 0.0, 1.0)
+            actor_stake = (
+                float(getattr(actor, "stakes", 0.5))
+                if actor is not None
+                else 0.5
+            )
+            target_stake = (
+                float(getattr(target, "stakes", 0.5))
+                if target is not None
+                else 0.5
+            )
+            stakes = clamp(
+                0.55 * stakes_base + 0.45 * max(actor_stake, target_stake),
+                0.0,
+                1.0,
+            )
         else:
             stakes = stakes_base
 
         similarity = self._similarity(candidate)
-        exact = 1.0 if any(item[0].id == candidate.id
-                           for item in self.history[-8:]) else 0.0
+        exact = (
+            1.0
+            if any(item[0].id == candidate.id for item in self.history[-8:])
+            else 0.0
+        )
         novelty = clamp(
-            novelty_base *
-            (1.0 - self.config.novelty_decay * similarity) *
-            (1.0 - self.config.repetition_penalty * exact),
-            0.0, 1.0,
+            novelty_base
+            * (1.0 - self.config.novelty_decay * similarity)
+            * (1.0 - self.config.repetition_penalty * exact),
+            0.0,
+            1.0,
         )
         components = {
             "uncertainty": uncertainty,
@@ -538,8 +570,9 @@ class Playwright:
             "novelty": novelty,
             "stakes": stakes,
         }
-        total = sum(self.config.weights[key] * components[key]
-                    for key in WEIGHT_KEYS)
+        total = sum(
+            self.config.weights[key] * components[key] for key in WEIGHT_KEYS
+        )
         return DramaScore(
             uncertainty=uncertainty,
             coherence=coherence,
@@ -550,26 +583,30 @@ class Playwright:
         )
 
     def score_candidates(self, candidates, actors=None):
-        scored = [(candidate, self.score(candidate, actors))
-                  for candidate in candidates]
+        scored = [
+            (candidate, self.score(candidate, actors))
+            for candidate in candidates
+        ]
         return sorted(scored, key=lambda item: item[1].total, reverse=True)
 
     def choose(self, candidates, actors=None, rng=None):
         scored = self.score_candidates(candidates, actors)
-        scored = [item for item in scored
-                  if item[1].total >= self.config.min_score]
+        scored = [
+            item for item in scored if item[1].total >= self.config.min_score
+        ]
         if not scored:
             return None, None
         rng = rng or self.rng
-        if self.config.exploration > 0.0 and rng.random() < \
-                self.config.exploration:
+        if (
+            self.config.exploration > 0.0
+            and rng.random() < self.config.exploration
+        ):
             candidate, score = rng.choice(scored)
             return candidate, score
         best = max(item[1].total for item in scored)
         temperature = max(0.01, self.config.temperature)
         weights = [
-            math.exp((score.total - best) / temperature)
-            for _, score in scored
+            math.exp((score.total - best) / temperature) for _, score in scored
         ]
         total = sum(weights)
         if total <= 0.0:
@@ -584,9 +621,7 @@ class Playwright:
         candidate, score = scored[-1]
         return candidate, score
 
-    # --- ритм и толчок --------------------------------------------------
     def tick(self, turn, actors=None, candidates=None, seed=None):
-        """Сделать один такт. Возвращает ``DramaPush`` или ``None``."""
         rng = self.rng if seed is None else random.Random(int(seed))
         if self.machine.current == "withdrawing":
             self.machine.fire("затишье")
@@ -648,21 +683,21 @@ class Playwright:
             "rival_organization": target_org or "соперники",
             "action": candidate.action,
         }
-        seed = rng.randrange(2 ** 31)
+        seed = rng.randrange(2**31)
         try:
             if candidate.event_id:
-                return generator.render(candidate.event_id,
-                                        context=context, seed=seed)
-            return generator.generate(tags=candidate.tags,
-                                      context=context, seed=seed)
+                return generator.render(
+                    candidate.event_id, context=context, seed=seed
+                )
+            return generator.generate(
+                tags=candidate.tags, context=context, seed=seed
+            )
         except EventError:
             return None
         except Exception:
             return None
 
-    # --- кандидаты из шаблонов -----------------------------------------
     def spawn_candidates(self, actors, templates=None):
-        """Построить кандидатов из шаблонов и списка акторов."""
         actor_map = _actor_map(actors)
         ordered = [actor_map[key] for key in sorted(actor_map)]
         templates = tuple(templates or self.config.templates)
@@ -700,8 +735,7 @@ class Playwright:
             "cooldown": self.cooldown,
             "config": self.config.as_dict(),
             "history": [
-                {"candidate": candidate.as_dict(),
-                 "score": score.as_dict()}
+                {"candidate": candidate.as_dict(), "score": score.as_dict()}
                 for candidate, score in self.history
             ],
             "pushes": [push.as_dict() for push in self.pushes],
@@ -709,16 +743,18 @@ class Playwright:
 
 
 def _score_reason(score):
-    parts = sorted(score.components.items(),
-                   key=lambda item: item[1], reverse=True)
+    parts = sorted(
+        score.components.items(), key=lambda item: item[1], reverse=True
+    )
     names = {
         "uncertainty": "неопределённость",
         "coherence": "связность",
         "novelty": "новизна",
         "stakes": "ставки",
     }
-    leading = ", ".join("%s %.2f" % (names[key], value)
-                        for key, value in parts[:2])
+    leading = ", ".join(
+        "%s %.2f" % (names[key], value) for key, value in parts[:2]
+    )
     return "ведущие мотивы: %s" % leading
 
 
@@ -738,8 +774,12 @@ def _build_automaton():
         Transition("t_sleep", "withdrawing", "dormant", "затишье"),
         Transition("t_skip_candidate", "watching", "dormant", "нет кандидата"),
     ]
-    return Automaton("Драматург", "Эпизодический соблазнитель акторов",
-                     states=states, transitions=transitions)
+    return Automaton(
+        "Драматург",
+        "Эпизодический соблазнитель акторов",
+        states=states,
+        transitions=transitions,
+    )
 
 
 def default_root():
@@ -757,7 +797,14 @@ def default_config():
 
 
 __all__ = [
-    "PlaywrightError", "DramaActor", "DramaticAction", "DramaticTemplate",
-    "DramaScore", "DramaPush", "PlaywrightConfig", "Playwright",
-    "default_config", "default_root",
+    "PlaywrightError",
+    "DramaActor",
+    "DramaticAction",
+    "DramaticTemplate",
+    "DramaScore",
+    "DramaPush",
+    "PlaywrightConfig",
+    "Playwright",
+    "default_config",
+    "default_root",
 ]

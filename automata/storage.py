@@ -1,10 +1,3 @@
-"""Хранилище автоматов: JSON-файлы в ``configs/automata/``.
-
-Один файл — один автомат. Запись атомарная (временный файл + ``os.replace``),
-кодировка UTF-8. Чтение не роняет список: повреждённый файл показывается
-отдельной записью с текстом ошибки.
-"""
-
 from __future__ import annotations
 
 import json
@@ -18,14 +11,13 @@ ROOT = Path(__file__).resolve().parents[1] / "configs" / "automata"
 
 
 class StoreError(RuntimeError):
-    """Ошибка чтения/записи файла автомата."""
+    pass
 
 
 class AutomataStore:
     def __init__(self, root=None):
         self.root = Path(root) if root is not None else ROOT
 
-    # --- пути -----------------------------------------------------------
     def _path(self, slug):
         slug = str(slug or "")
         if not slug or Path(slug).name != slug or slug in (".", ".."):
@@ -41,7 +33,6 @@ class AutomataStore:
         except StoreError:
             return False
 
-    # --- чтение ---------------------------------------------------------
     def load(self, slug):
         path = self._path(slug)
         try:
@@ -50,46 +41,48 @@ class AutomataStore:
         except FileNotFoundError:
             raise StoreError("файл не найден: %s" % path.name)
         except Exception as exc:
-            raise StoreError("не удалось прочитать %s: %s"
-                             % (path.name, exc))
+            raise StoreError("не удалось прочитать %s: %s" % (path.name, exc))
         try:
             return Automaton.from_dict(data)
         except AutomatonError as exc:
             raise StoreError("%s: %s" % (path.name, exc))
 
     def list_entries(self):
-        """Список ``{slug, name, states, transitions, updated, error}``."""
         if not self.root.is_dir():
             return []
         entries = []
         for path in sorted(self.root.glob("*.json")):
             slug = path.stem
             updated = time.strftime(
-                "%Y-%m-%d %H:%M", time.localtime(path.stat().st_mtime))
+                "%Y-%m-%d %H:%M", time.localtime(path.stat().st_mtime)
+            )
             try:
                 automaton = self.load(slug)
                 states, transitions = automaton.counts()
-                entries.append({
-                    "slug": slug,
-                    "name": automaton.name or slug,
-                    "states": states,
-                    "transitions": transitions,
-                    "updated": updated,
-                    "error": "",
-                })
+                entries.append(
+                    {
+                        "slug": slug,
+                        "name": automaton.name or slug,
+                        "states": states,
+                        "transitions": transitions,
+                        "updated": updated,
+                        "error": "",
+                    }
+                )
             except StoreError as exc:
-                entries.append({
-                    "slug": slug,
-                    "name": slug,
-                    "states": 0,
-                    "transitions": 0,
-                    "updated": updated,
-                    "error": str(exc),
-                })
+                entries.append(
+                    {
+                        "slug": slug,
+                        "name": slug,
+                        "states": 0,
+                        "transitions": 0,
+                        "updated": updated,
+                        "error": str(exc),
+                    }
+                )
         entries.sort(key=lambda item: (item["name"].lower(), item["slug"]))
         return entries
 
-    # --- запись ---------------------------------------------------------
     def _write(self, path, payload):
         self.ensure()
         tmp = path.with_name(path.name + ".tmp")
@@ -110,7 +103,6 @@ class AutomataStore:
         return candidate
 
     def save(self, automaton, slug=None):
-        """Записать автомат. Без ``slug`` имя файла выводится из названия."""
         if slug is None:
             slug = self.unique_slug(automaton.name)
         path = self._path(slug)

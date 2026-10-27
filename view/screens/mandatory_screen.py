@@ -1,25 +1,3 @@
-"""
-view/screens/mandatory_screen.py
-
-Экран обязательной сцены (утренний/вечерний осмотр).
-
-Фоновые ассеты и тексты берутся из configs/content/mandatory_scenes.json;
-при отсутствии файла или отдельных ключей используются встроенные
-фолбэки. Утренний осмотр выбирает фон по калькуляции потерь дивизии
-относительно порога поражения из сюжета: до 40% лимита — camp_fresh,
-до 80% — camp_wounded, дальше — camp_critical. Поэтому все три варианта
-остаются достижимыми и при лимите 20%, и при 25%, и при 45%. Вечерний
-осмотр использует фон hq_evening с более сильным затемнением. Текст и
-кнопки выводятся в полупрозрачной панели внизу экрана, чтобы игрок видел
-лагерь и его детали; затемнение фона минимальное.
-
-ESC игнорируется (escape_action = "none").
-При открытии создаётся автосейв в слот autosave.
-
-События экрана записываются в журнал operation_ozverin.log и
-дублируются в консоль.
-"""
-
 import pygame
 
 from view.support.camp_state import camp_state_for_loss
@@ -79,62 +57,19 @@ DEFAULT_SCENES = {
 
 
 def _load_scenes() -> dict:
-    """
-    Загружает данные обязательных сцен из конфига.
-
-    Читает configs/content/mandatory_scenes.json. При отсутствии
-    файла, ошибке парсинга или неверном типе возвращает пустой
-    словарь, и экран работает на встроенных фолбэках.
-
-    Returns:
-        dict: Данные сцен по идентификаторам.
-    """
     data = load_json("configs/content/mandatory_scenes.json", {}) or {}
     return data if isinstance(data, dict) else {}
 
 
 class MandatorySceneScreen(BaseScreen):
-    """
-    Экран обязательной сцены.
-
-    Блокирует действия игрока до завершения сцены. ESC не закрывает
-    экран (escape_action = "none"), клики вне кнопок игнорируются.
-    Фон и текст зависят от конфига и калькуляции потерь дивизии.
-
-    Attributes:
-        scene_id (str): Идентификатор сцены.
-        title (str): Заголовок сцены.
-        text (str): Текст сцены с подставленными потерями.
-        bg (pygame.Surface): Фоновая сцена лагеря.
-        camp_state (str | None): Состояние лагеря (fresh/wounded/
-            critical) для утренней сцены.
-        loss_percent (int): Округлённые потери дивизии в процентах.
-        btn_continue (Button | None): Кнопка «Продолжить».
-        btn_night_duty (Button | None): Кнопка «Ночное дежурство».
-        btn_sleep (Button | None): Кнопка «Спать».
-        forced_sleep (bool): Флаг принудительного сна.
-    """
 
     escape_action = "none"
 
     def __init__(self, app, scene_id):
-        """
-        Инициализирует экран обязательной сцены.
-
-        Сливает данные конфига с фолбэками, вычисляет потери дивизии,
-        выбирает фон и текст, создаёт кнопки и автосейв.
-
-        Args:
-            app: Экземпляр приложения (App).
-            scene_id (str): Идентификатор сцены
-                ("morning_inspection" или "evening_inspection").
-        """
         super().__init__(app)
         self.scene_id = scene_id
         cfg = _load_scenes().get(scene_id, {}) or {}
-        default = DEFAULT_SCENES.get(
-            scene_id, {"title": scene_id, "text": ""}
-        )
+        default = DEFAULT_SCENES.get(scene_id, {"title": scene_id, "text": ""})
         self.title = cfg.get("title") or default.get("title", scene_id)
         self.loss_percent = self._player_loss_percent()
         self.loss_limit_percent = self._loss_limit_percent()
@@ -211,12 +146,6 @@ class MandatorySceneScreen(BaseScreen):
         )
 
     def _player_loss_percent(self):
-        """Потери дивизии игрока в процентах.
-
-        Использует накопленный счётчик ``Detachment.losses``: текущая сила
-        может колебаться в бою, поэтому она не годится для отчёта о
-        безвозвратных потерях.
-        """
         st = self.app.engine.state
         if hasattr(st, "division_loss_percent"):
             return int(round(float(st.division_loss_percent())))
@@ -224,17 +153,11 @@ class MandatorySceneScreen(BaseScreen):
         return int(round(100.0 * float(st.read_voltage(p, "U_casualties"))))
 
     def _loss_limit_percent(self):
-        """Порог поражения дивизии в процентах из сюжетного конфига."""
         interp = getattr(self.app, "storyline_interpreter", None)
         storyline = getattr(interp, "storyline", {}) if interp else {}
         return loss_limit_percent(storyline)
 
     def _autosave(self):
-        """
-        Создаёт автосейв в слот autosave.
-
-        Исключения подавляются, чтобы не прерывать показ сцены.
-        """
         try:
             self.app.save_game("autosave")
             logger.info("Автосейв записан в слот autosave")
@@ -242,11 +165,6 @@ class MandatorySceneScreen(BaseScreen):
             logger.warning("Автосейв не выполнен: %s", exc)
 
     def finish_scene(self):
-        """
-        Завершает сцену без дополнительных действий.
-
-        Уведомляет time_system о завершении сцены и закрывает экран.
-        """
         ts = getattr(self.app, "time_system", None)
         if ts is not None:
             ts.complete_mandatory_scene(self.scene_id)
@@ -254,11 +172,6 @@ class MandatorySceneScreen(BaseScreen):
         self.app.manager.pop()
 
     def choose_night_duty(self):
-        """
-        Обрабатывает выбор ночного дежурства.
-
-        Завершает сцену, передаёт выбор в time_system и закрывает экран.
-        """
         ts = getattr(self.app, "time_system", None)
         if ts is not None:
             ts.complete_mandatory_scene(self.scene_id)
@@ -267,12 +180,6 @@ class MandatorySceneScreen(BaseScreen):
         self.app.manager.pop()
 
     def choose_sleep(self):
-        """
-        Обрабатывает выбор сна.
-
-        Завершает сцену, передаёт отказ от дежурства в time_system
-        и закрывает экран.
-        """
         ts = getattr(self.app, "time_system", None)
         if ts is not None:
             ts.complete_mandatory_scene(self.scene_id)
@@ -282,17 +189,6 @@ class MandatorySceneScreen(BaseScreen):
 
     @staticmethod
     def _wrap_text(text, font, max_width):
-        """
-        Переносит текст по ширине.
-
-        Args:
-            text (str): Исходный текст.
-            font (pygame.font.Font): Шрифт для измерения ширины.
-            max_width (int): Максимальная ширина строки в пикселях.
-
-        Returns:
-            list[str]: Список строк.
-        """
         lines, line = [], ""
         for w in text.split():
             test = (line + " " + w).strip()
@@ -305,15 +201,6 @@ class MandatorySceneScreen(BaseScreen):
         return lines
 
     def handle_event(self, event):
-        """
-        Обрабатывает события pygame для данного экрана.
-
-        События передаются только кнопкам сцены; клики вне кнопок
-        игнорируются, ESC не закрывает экран.
-
-        Args:
-            event (pygame.event.Event): Событие pygame.
-        """
         if self.btn_continue is not None:
             if self.btn_continue.handle_event(event):
                 return
@@ -325,26 +212,20 @@ class MandatorySceneScreen(BaseScreen):
                 return
 
     def draw(self, screen):
-        """
-        Отрисовывает экран обязательной сцены.
-
-        Порядок: фоновая сцена лагеря, лёгкое затемнение,
-        полупрозрачная панель внизу, заголовок, текст сцены с
-        переносом по ширине, кнопки управления.
-
-        Args:
-            screen (pygame.Surface): Поверхность для отрисовки.
-        """
         screen.blit(self.bg, (0, 0))
         dim = pygame.Surface((1280, 720), pygame.SRCALPHA)
         dim_alpha = 110 if self.scene_id == "evening_inspection" else DIM_ALPHA
         dim.fill((0, 0, 0, dim_alpha))
         screen.blit(dim, (0, 0))
-        panel = pygame.Surface((PANEL_RECT.width, PANEL_RECT.height), pygame.SRCALPHA)
+        panel = pygame.Surface(
+            (PANEL_RECT.width, PANEL_RECT.height), pygame.SRCALPHA
+        )
         panel.fill((10, 10, 20, 185))
         screen.blit(panel, PANEL_RECT.topleft)
         pygame.draw.rect(screen, (90, 90, 120), PANEL_RECT, 2, border_radius=8)
-        title_surf = self.app.font_body.render(self.title, True, (220, 200, 140))
+        title_surf = self.app.font_body.render(
+            self.title, True, (220, 200, 140)
+        )
         screen.blit(title_surf, TITLE_POS)
         draw_fitted(
             screen,

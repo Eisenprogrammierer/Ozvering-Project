@@ -1,9 +1,3 @@
-"""Сохранения UI-кампании.
-
-Файлы лежат в ``saves/campaign/`` и не пересекаются со слотами арены из
-``ui.save``. Сохраняется снимок ``CampaignState``, время и состояние сюжета.
-"""
-
 import json
 import os
 import time
@@ -48,22 +42,25 @@ def _jsonable(value):
     return value
 
 
-def save_game(state, time_system, slot_name, scenario_path=None,
-              storyline_snapshot=None, campaign_role=None,
-              campaign_preset=None):
-    """Записать снимок кампании. Вернуть путь к файлу."""
+def save_game(
+    state,
+    time_system,
+    slot_name,
+    scenario_path=None,
+    storyline_snapshot=None,
+    campaign_role=None,
+    campaign_preset=None,
+):
     _ensure_dir()
     payload = {
         "version": SAVE_VERSION,
         "updated": _now(),
         "scenario_path": scenario_path or "scenarios/mvp.json",
         "campaign": state.to_snapshot(),
-        "time_system": time_system.get_save_snapshot()
-        if time_system is not None else {},
+        "time_system": (
+            time_system.get_save_snapshot() if time_system is not None else {}
+        ),
         "storyline": storyline_snapshot,
-        # Роль и пресет — часть кампании, а не сюжета. Храним их рядом со
-        # снимком, чтобы старые сохранения без этих полей открывались как
-        # раньше.
         "campaign_role": _jsonable(campaign_role),
         "campaign_preset": _jsonable(campaign_preset),
     }
@@ -79,7 +76,6 @@ def save_game(state, time_system, slot_name, scenario_path=None,
 
 
 def load_game(slot_name):
-    """Прочитать сохранение или вернуть None."""
     path = _path(slot_name)
     if not path.exists():
         logger.warning("Сохранение не найдено: %s", path)
@@ -88,19 +84,17 @@ def load_game(slot_name):
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else None
-    except Exception as exc:                       # noqa: BLE001
+    except Exception as exc:
         logger.warning("Не удалось прочитать %s: %s", path, exc)
         return None
 
 
 def deserialize_world_state(state, snapshot):
-    """Применить снимок кампании к уже собранному состоянию."""
     state.apply_snapshot(snapshot or {})
     return state
 
 
 def list_saves():
-    """Список сохранений, новые первыми."""
     if not SAVES_DIR.is_dir():
         return []
     out = []
@@ -111,20 +105,21 @@ def list_saves():
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception:                          # noqa: BLE001
+        except Exception:
             continue
         timestamp = (data or {}).get("updated") or _now()
-        out.append({
-            "name": path.stem,
-            "timestamp": timestamp,
-            "path": str(path),
-        })
+        out.append(
+            {
+                "name": path.stem,
+                "timestamp": timestamp,
+                "path": str(path),
+            }
+        )
     out.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
     return out
 
 
 def delete_save(slot_name):
-    """Удалить сохранение. Вернуть True, если файл существовал."""
     path = _path(slot_name)
     try:
         path.unlink()
@@ -132,6 +127,6 @@ def delete_save(slot_name):
         return True
     except FileNotFoundError:
         return False
-    except Exception as exc:                       # noqa: BLE001
+    except Exception as exc:
         logger.warning("Не удалось удалить %s: %s", path, exc)
         return False

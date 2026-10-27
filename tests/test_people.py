@@ -1,5 +1,3 @@
-"""Тесты имён персонажей: реальные культуры и фэнтези (без pygame)."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -101,23 +99,54 @@ def test_people_layer_does_not_import_pygame():
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(Path(__file__).resolve().parents[1]),
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
 
 
 def test_naming_cli_generates_people_names():
     root = str(Path(__file__).resolve().parents[1])
     result = subprocess.run(
-        [sys.executable, "-m", "naming", "--person", "--culture", "russian",
-         "--gender", "f", "--count", "3", "--seed", "7"],
-        cwd=root, capture_output=True, text=True)
+        [
+            sys.executable,
+            "-m",
+            "naming",
+            "--person",
+            "--culture",
+            "russian",
+            "--gender",
+            "f",
+            "--count",
+            "3",
+            "--seed",
+            "7",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("\n") >= 3
 
     result = subprocess.run(
-        [sys.executable, "-m", "naming", "--person", "--fantasy",
-         "cyberpunk", "--count", "2", "--seed", "7", "--json"],
-        cwd=root, capture_output=True, text=True)
+        [
+            sys.executable,
+            "-m",
+            "naming",
+            "--person",
+            "--fantasy",
+            "cyberpunk",
+            "--count",
+            "2",
+            "--seed",
+            "7",
+            "--json",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("\n") >= 2
     assert "cyberpunk" in result.stdout

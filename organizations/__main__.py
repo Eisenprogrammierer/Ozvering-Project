@@ -1,11 +1,3 @@
-"""CLI: ``python3 -m organizations``.
-
-Без флагов печатает разбор четырёх эталонных сценариев. С ``--write`` пишет
-JSON-автоматы в ``configs/automata/`` (или в ``--out``) для редактора
-``automata``. С ``--json`` печатает один автомат целиком. С ``--runtime``
-прогоняет эталонный warfare-сценарий с организацией и печатает её состояние.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -33,14 +25,22 @@ def _run_runtime(turns=12):
     print("runtime: %s (%s)" % (info["name"], info["side"]))
     print(
         "  фаза: %s; приоритет: %s; уровень: %d; активных: %d/%d (%.0f%%)"
-        % (info["phase"], need, info["level"],
-           info["active_count"], info["initial_count"],
-           100.0 * info["willing_share"]))
+        % (
+            info["phase"],
+            need,
+            info["level"],
+            info["active_count"],
+            info["initial_count"],
+            100.0 * info["willing_share"],
+        )
+    )
     print(
         "  такт: %d; тактов симуляции: %d; победитель: %s"
-        % (info["tick"], summary["turn"], summary["winner"] or "—"))
+        % (info["tick"], summary["turn"], summary["winner"] or "—")
+    )
     events = [
-        event for event in summary["events"]
+        event
+        for event in summary["events"]
         if event["kind"].startswith("organization")
     ]
     for event in events:
@@ -53,28 +53,46 @@ def main(argv=None):
     slugs = [scenario.slug for scenario in scenarios]
     parser = argparse.ArgumentParser(
         prog="python3 -m organizations",
-        description="Аналитический генератор организаций-суперсистем")
+        description="Аналитический генератор организаций-суперсистем",
+    )
     parser.add_argument(
-        "--scenario", choices=["all"] + slugs, default="all",
-        help="какой эталонный сценарий обработать")
+        "--scenario",
+        choices=["all"] + slugs,
+        default="all",
+        help="какой эталонный сценарий обработать",
+    )
     parser.add_argument(
-        "--write", action="store_true",
-        help="записать автоматы в configs/automata/ (или --out)")
+        "--write",
+        action="store_true",
+        help="записать автоматы в configs/automata/ (или --out)",
+    )
     parser.add_argument(
-        "--out", default=str(_default_out()),
-        help="каталог для --write (по умолчанию configs/automata)")
+        "--out",
+        default=str(_default_out()),
+        help="каталог для --write (по умолчанию configs/automata)",
+    )
     parser.add_argument(
-        "--json", action="store_true",
-        help="напечатать JSON одного автомата (требует --scenario)")
+        "--json",
+        action="store_true",
+        help="напечатать JSON одного автомата (требует --scenario)",
+    )
     parser.add_argument(
-        "--name-seed", type=int, default=None,
-        help="seed естественного названия (по умолчанию — из разбора)")
+        "--name-seed",
+        type=int,
+        default=None,
+        help="seed естественного названия (по умолчанию — из разбора)",
+    )
     parser.add_argument(
-        "--runtime", action="store_true",
-        help="прогнать warfare-демо с OrganizationRuntime")
+        "--runtime",
+        action="store_true",
+        help="прогнать warfare-демо с OrganizationRuntime",
+    )
     parser.add_argument(
-        "--turns", type=int, default=12,
-        help="длина runtime-демо в тактах (по умолчанию 12)")
+        "--turns",
+        type=int,
+        default=12,
+        help="длина runtime-демо в тактах (по умолчанию 12)",
+    )
     args = parser.parse_args(argv)
 
     if args.runtime:
@@ -83,7 +101,8 @@ def main(argv=None):
         return _run_runtime(args.turns)
 
     selected = [
-        scenario for scenario in scenarios
+        scenario
+        for scenario in scenarios
         if args.scenario == "all" or scenario.slug == args.scenario
     ]
     if args.json and len(selected) != 1:
@@ -94,19 +113,27 @@ def main(argv=None):
         analysis = analyze_scenario(scenario)
         automaton = build_automaton(analysis, seed=args.name_seed)
         if args.json:
-            print(json.dumps(
-                automaton.to_dict(), ensure_ascii=False, indent=2))
+            print(
+                json.dumps(automaton.to_dict(), ensure_ascii=False, indent=2)
+            )
             continue
         slug = ""
         if store is not None:
-            slug = save_automaton(analysis, store, scenario.slug,
-                                  seed=args.name_seed)
+            slug = save_automaton(
+                analysis, store, scenario.slug, seed=args.name_seed
+            )
         print(
             "%-22s need=%-12s L=%d %-24s willing=%d/%d%s"
-            % (scenario.slug, analysis.need_ru, analysis.level,
-               analysis.archetype, analysis.active_count,
-               analysis.initial_count,
-               (" -> %s.json" % slug) if slug else ""))
+            % (
+                scenario.slug,
+                analysis.need_ru,
+                analysis.level,
+                analysis.archetype,
+                analysis.active_count,
+                analysis.initial_count,
+                (" -> %s.json" % slug) if slug else "",
+            )
+        )
         if args.write:
             print("  " + " | ".join(analysis.summary_lines()))
     return 0
