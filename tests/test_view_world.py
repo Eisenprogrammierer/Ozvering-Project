@@ -61,6 +61,20 @@ def _app_and_automaton():
     return app, automaton, pygame
 
 
+def test_automaton_select_office_click_selects_office():
+    app, automaton, pygame = _app_and_automaton()
+    automaton._select_node("knowledge_press")
+    rect, option = next(
+        (item for item in automaton._office_rows_rects() if item[1]["enabled"])
+    )
+    event = pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": rect.center}
+    )
+    automaton.handle_event(event)
+    assert automaton.selected_office_id == option["id"]
+    pygame.quit()
+
+
 def test_world_role_reaches_automaton_and_world_screens():
     app, automaton, pygame = _app_and_automaton()
     automaton._select_node("knowledge_press")

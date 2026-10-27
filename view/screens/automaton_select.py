@@ -234,7 +234,7 @@ class AutomatonSelectScreen(BaseScreen):
                 if node is not None:
                     self._select_node(node["id"])
                 return
-        for rect, option in self.office_rows_rects():
+        for rect, option in self._office_rows_rects():
             if rect.collidepoint(event.pos):
                 self._select_office(option["id"])
                 return

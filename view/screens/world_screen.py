@@ -560,7 +560,6 @@ class WorldScreen(BaseScreen):
         self._draw_panel(screen, RIGHT_RECT, "ПОСЛЕДСТВИЯ")
         y = RIGHT_RECT.y + 46
         action = self.engine.actions.get(self.selected_action_id)
-        target = self.engine.node(self.selected_target_id)
         if action is not None:
             preview = self.engine.preview(
                 action["id"], self.selected_target_id
