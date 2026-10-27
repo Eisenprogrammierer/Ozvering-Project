@@ -24,7 +24,11 @@ class SavesScene(Scene):
             return self.app.t("пусто", "empty")
         winner = data.get("winner")
         if data.get("finished"):
-            wname = {"RL": "RL", "UtilityAI": "UtilityAI"}.get(winner, "-")
+            wname = {
+                "RL": "RL",
+                "AI": "BDI",
+                "UtilityAI": "UtilityAI",
+            }.get(winner, "-")
             result = self.app.t("победа: %s" % wname, "winner: %s" % wname)
         else:
             result = self.app.t(

@@ -12,11 +12,11 @@ INTRO_PAGES = [
         "title": ("Две силы, один такт", "Two forces, one tick"),
         "body": (
             "На арене сходятся два автомата IPO: обучающийся RLAgent и "
-            "утилитарный UtilityAI. У каждого две метрики - сила (накопленный "
+            "адаптивный BDI-агент. У каждого две метрики - сила (накопленный "
             "ресурс и цель) и энергия (расходуемый запас способности сообщать "
             "работу).",
             "Two IPO automata meet on the arena: the learning RLAgent and the "
-            "utilitarian UtilityAI. Each has two metrics - force (accumulated "
+            "adaptive BDI agent. Each has two metrics - force (accumulated "
             "resource and goal) and energy (a spendable pool of the ability "
             "to "
             "communicate work).",

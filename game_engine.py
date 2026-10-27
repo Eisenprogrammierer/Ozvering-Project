@@ -188,7 +188,6 @@ try:
         ACTIONS,
         Agent,
         RLAgent,
-        UtilityAI,
         Environment,
         resolve_attack,
         check_capture,
@@ -202,6 +201,8 @@ try:
 except Exception as e:
     LOG.exc("ИМПОРТ SIMULATION НЕ УДАЛСЯ", e)
     raise
+
+from agents import PolicyAgent
 
 
 def compute_window_size():
@@ -635,7 +636,7 @@ class MatchEngine:
         self.rl_hist, self.ai_hist = [], []
 
         self.rl = RLAgent(q=q_table, profile=profile_rl)
-        self.ai = UtilityAI(profile=profile_ai)
+        self.ai = PolicyAgent(profile=profile_ai)
         self.with_env = with_env
         self.env = (
             Environment(members=[self.rl, self.ai]) if with_env else None
@@ -690,7 +691,7 @@ class MatchEngine:
             rl.force = max(1, rl.force - cap)
             rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
             ai.gain(cap)
-            return "UtilityAI", cap
+            return "AI", cap
         return None, 0
 
     def step_tick(self, forced_rl_action=None):
@@ -778,6 +779,7 @@ class MatchEngine:
             % (self.step, act_name, w_rl, ai_act, w_ai)
         )
 
+        ai_force_before = ai.force
         ev_rl = self._resolve_with_events(rl, ai, w_rl, "rl")
         ev_ai = self._resolve_with_events(ai, rl, w_ai, "ai")
         if w_rl:
@@ -788,6 +790,12 @@ class MatchEngine:
         rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
 
         winner, cap = self._check_capture()
+        observe_ai_reward = getattr(ai, "observe_reward", None)
+        if observe_ai_reward is not None:
+            observe_ai_reward(
+                ai.force - ai_force_before,
+                done=bool(winner),
+            )
         if winner:
             LOG.info(
                 "tick %s: CAPTURE - победитель %s (cap=%s)"
@@ -1668,7 +1676,9 @@ class GameApp:
                 L_.rl_card,
             ),
             (
-                self.L("UTILITY AI (скрипт)", "UTILITY AI (scripted)"),
+                self.L(
+                    "BDI AI (обучающийся)", "BDI AI (learning)"
+                ),
                 m.ai,
                 COL_AI,
                 m.last_ai_action,

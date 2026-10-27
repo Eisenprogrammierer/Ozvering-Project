@@ -3,6 +3,8 @@ import random
 
 import simulation as S
 
+from agents import PolicyAgent
+
 GRID_W, GRID_H = 11, 9
 TILE_W, TILE_H = 68, 34
 MOVE_RANGE = 2
@@ -77,7 +79,7 @@ class Commander:
 
     def __post_init__(self):
         self.agent = (
-            S.UtilityAI(profile=self.profile)
+            PolicyAgent(profile=self.profile)
             if self.ai
             else S.Agent(profile=self.profile)
         )
@@ -626,7 +628,16 @@ class BattlefieldModel:
             self.enemy.agent,
             self.dom_player,
             self.dom_enemy,
+            winner_ai="AI",
         )
+        observe_reward = getattr(
+            self.enemy.agent, "observe_reward", None
+        )
+        if observe_reward is not None:
+            observe_reward(
+                self.enemy.force - before_e,
+                done=bool(winner),
+            )
         if winner:
             self._set_winner(winner)
             return

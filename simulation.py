@@ -694,7 +694,14 @@ def dominates(att, dfn):
     )
 
 
-def check_capture(rl, ai, dom_rl=0, dom_ai=0):
+def check_capture(
+    rl,
+    ai,
+    dom_rl=0,
+    dom_ai=0,
+    winner_rl="RL",
+    winner_ai="UtilityAI",
+):
     dom_rl = dom_rl + 1 if dominates(rl, ai) else 0
     dom_ai = dom_ai + 1 if dominates(ai, rl) else 0
     if dom_rl >= CAPTURE_STREAK:
@@ -706,7 +713,7 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
 
         rl.new_entropy_lineage()
         ai.new_entropy_lineage()
-        return "RL", 0, 0
+        return winner_rl, 0, 0
     if dom_ai >= CAPTURE_STREAK:
         sev = 2.0 if rl.in_open else 1.0
         cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
@@ -715,7 +722,7 @@ def check_capture(rl, ai, dom_rl=0, dom_ai=0):
         ai.gain(cap)
         rl.new_entropy_lineage()
         ai.new_entropy_lineage()
-        return "UtilityAI", 0, 0
+        return winner_ai, 0, 0
     return None, dom_rl, dom_ai
 
 

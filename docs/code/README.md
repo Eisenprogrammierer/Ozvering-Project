@@ -8,6 +8,7 @@
 
 | Раздел | Файл |
 |---|---|
+| `agents`, `core41` | [AGENTS.md](../AGENTS.md) |
 | `automata` | [automata.md](automata.md) |
 | `campaign` | [campaign.md](campaign.md) |
 | `docs` | [docs.md](docs.md) |
