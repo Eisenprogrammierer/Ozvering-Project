@@ -1,0 +1,853 @@
+{
+  "schema": 1,
+  "title": "Хартия Агоры",
+  "subtitle": "Десять дней, чтобы превратить расколотый город в общий договор.",
+  "premise": "Вы — конкретный человек, а не государство. У вас есть мандат от своей коалиции, ограниченный запас влияния, казна и обязательства перед людьми, которые вас выдвинули. Город не принадлежит никому: его нужно убедить.",
+  "days": 10,
+  "actions_per_day": 3,
+  "opening_log": [
+    "Агора готовится к подписанию Хартии. Улицы, палаты и пристань ещё не решили, чей голос будет решающим.",
+    "Выберите, с кем говорить и что предложить. У каждого действия есть цена, риск и отложенный след."
+  ],
+  "resources": {
+    "legitimacy": {
+      "label": "Легитимность",
+      "short": "ЛЕГ",
+      "description": "Признание вашего мандата горожанами и институтами.",
+      "lose_below": 0.12
+    },
+    "influence": {
+      "label": "Влияние",
+      "short": "ВЛИ",
+      "description": "Политический капитал, который тратится на переговоры и назначения."
+    },
+    "treasury": {
+      "label": "Казна",
+      "short": "КАЗ",
+      "description": "Средства, которыми можно платить за патронаж и реформы."
+    },
+    "cohesion": {
+      "label": "Сплочённость",
+      "short": "СПЛ",
+      "description": "Способность вашей коалиции держаться вместе.",
+      "lose_below": 0.12
+    },
+    "charter": {
+      "label": "Хартия",
+      "short": "ХАР",
+      "description": "Готовность города принять общий текст Хартии.",
+      "win_at_least": 0.62
+    }
+  },
+  "goals": {
+    "win": [
+      {
+        "metric": "charter",
+        "at_least": 0.62
+      },
+      {
+        "metric": "legitimacy",
+        "at_least": 0.48
+      },
+      {
+        "metric": "cohesion",
+        "at_least": 0.38
+      }
+    ],
+    "lose": [
+      {
+        "metric": "legitimacy",
+        "at_most": 0.12
+      },
+      {
+        "metric": "cohesion",
+        "at_most": 0.12
+      },
+      {
+        "day_above": 10
+      }
+    ]
+  },
+  "type_labels": {
+    "character": "Персона",
+    "organization": "Организация",
+    "asset": "Имущество",
+    "institution": "Институт"
+  },
+  "stat_labels": {
+    "loyalty": "Лояльность",
+    "leverage": "Влиятельность",
+    "capacity": "Дееспособность",
+    "control": "Контроль",
+    "condition": "Состояние",
+    "support": "Поддержка",
+    "capture": "Захват"
+  },
+  "character_stats": {
+    "leader": {
+      "loyalty": 0.78,
+      "leverage": 0.82
+    },
+    "secretary": {
+      "loyalty": 0.66,
+      "leverage": 0.56
+    },
+    "treasurer": {
+      "loyalty": 0.62,
+      "leverage": 0.61
+    },
+    "press": {
+      "loyalty": 0.58,
+      "leverage": 0.64
+    },
+    "legal": {
+      "loyalty": 0.55,
+      "leverage": 0.67
+    },
+    "mediator": {
+      "loyalty": 0.6,
+      "leverage": 0.52
+    },
+    "archivist": {
+      "loyalty": 0.51,
+      "leverage": 0.59
+    },
+    "liaison": {
+      "loyalty": 0.5,
+      "leverage": 0.44
+    },
+    "line": {
+      "loyalty": 0.48,
+      "leverage": 0.38
+    }
+  },
+  "entities": [
+    {
+      "id": "charter_commission",
+      "name": "Комиссия по Хартии",
+      "type": "institution",
+      "subtype": "council",
+      "description": "Смешанная комиссия из делегатов собраний, палат и гильдий. Именно она выносит текст Хартии на подписание.",
+      "tags": [
+        "law",
+        "charter",
+        "institution"
+      ],
+      "stats": {
+        "support": 0.42,
+        "capture": 0.18
+      },
+      "hidden_agenda": "Часть делегатов готова поддержать любой текст, который сохранит их старые привилегии."
+    },
+    {
+      "id": "guild_court",
+      "name": "Третейский суд гильдий",
+      "type": "institution",
+      "subtype": "court",
+      "description": "Суд, который разбирает споры о контрактах, тарифах и доступе к пристани.",
+      "tags": [
+        "law",
+        "trade",
+        "institution"
+      ],
+      "stats": {
+        "support": 0.36,
+        "capture": 0.12
+      },
+      "hidden_agenda": "Судьи боятся, что публичные слушания лишат их монополии на толкование договоров."
+    },
+    {
+      "id": "press",
+      "name": "Печатный станок «Агора»",
+      "type": "asset",
+      "subtype": "equipment",
+      "description": "Городская типография. Она печатает и официальные обращения, и памфлеты, которые расходятся быстрее любых указов.",
+      "tags": [
+        "press",
+        "media",
+        "equipment"
+      ],
+      "stats": {
+        "control": 0.35,
+        "condition": 0.78
+      }
+    },
+    {
+      "id": "radio",
+      "name": "Городское радио «Меридиан»",
+      "type": "asset",
+      "subtype": "equipment",
+      "description": "Радиостанция на крыше магистрата. Её слушают в порту, в мастерских и на дальних пристанях.",
+      "tags": [
+        "media",
+        "equipment",
+        "radio"
+      ],
+      "stats": {
+        "control": 0.28,
+        "condition": 0.65
+      }
+    },
+    {
+      "id": "ledger",
+      "name": "Казначейские книги",
+      "type": "asset",
+      "subtype": "document",
+      "description": "Свод доходов, долгов и обязательств города. Кто владеет книгами, тот определяет, что считается долгом.",
+      "tags": [
+        "treasury",
+        "archive",
+        "document"
+      ],
+      "stats": {
+        "control": 0.55,
+        "condition": 0.9
+      }
+    },
+    {
+      "id": "archive",
+      "name": "Архив магистрата",
+      "type": "asset",
+      "subtype": "archive",
+      "description": "Старые протоколы, договоры и переписка. В архиве можно найти основания для реформы или компромат.",
+      "tags": [
+        "archive",
+        "intelligence",
+        "document"
+      ],
+      "stats": {
+        "control": 0.3,
+        "condition": 0.72
+      }
+    },
+    {
+      "id": "port",
+      "name": "Речная пристань",
+      "type": "asset",
+      "subtype": "site",
+      "description": "Главный узел торговли и рабочих мест. Пристань кормит город, но её хозяева не любят новых правил.",
+      "tags": [
+        "trade",
+        "site",
+        "labour"
+      ],
+      "stats": {
+        "control": 0.41,
+        "condition": 0.7
+      }
+    },
+    {
+      "id": "square",
+      "name": "Площадь Согласия",
+      "type": "asset",
+      "subtype": "venue",
+      "description": "Открытая площадь перед магистратом. Здесь говорят с городом напрямую, но здесь же собираются и недовольные.",
+      "tags": [
+        "public",
+        "venue",
+        "assembly"
+      ],
+      "stats": {
+        "control": 0.38,
+        "condition": 0.82
+      }
+    },
+    {
+      "id": "district_council",
+      "name": "Квартальные советы",
+      "type": "organization",
+      "subtype": "network",
+      "description": "Сеть соседских собраний, которые распределяют помощь и знают настроения улиц.",
+      "tags": [
+        "grassroots",
+        "network",
+        "society"
+      ],
+      "stats": {
+        "loyalty": 0.48,
+        "capacity": 0.62
+      },
+      "hidden_agenda": "Кварталы поддержат Хартию только в обмен на гарантии продовольствия и представительства."
+    },
+    {
+      "id": "river_guild",
+      "name": "Гильдия речников",
+      "type": "organization",
+      "subtype": "guild",
+      "description": "Союз лоцманов, грузчиков и судовладельцев. Без него пристань встанет через несколько дней.",
+      "tags": [
+        "guild",
+        "trade",
+        "labour"
+      ],
+      "stats": {
+        "loyalty": 0.42,
+        "capacity": 0.7
+      },
+      "hidden_agenda": "Гильдия требует закрепить в Хартии тарифную автономию и право на стачку."
+    }
+  ],
+  "actions": [
+    {
+      "id": "negotiate",
+      "label": "Открыть переговоры",
+      "description": "Сблизить позиции, обменявшись уступками и признанием интересов другой стороны.",
+      "target_types": [
+        "character",
+        "organization"
+      ],
+      "tags": [
+        "diplomacy",
+        "compromise"
+      ],
+      "cost": {
+        "influence": 0.06
+      },
+      "immediate": {
+        "target": {
+          "loyalty": 0.05
+        }
+      },
+      "success": {
+        "chance": 0.72,
+        "text": "Собеседник соглашается продолжить разговор и просит закрепить договорённость публично.",
+        "effects": {
+          "resources": {
+            "charter": 0.03
+          },
+          "target": {
+            "loyalty": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Переговоры утекают в прессу как торг за спиной города; доверие к вам падает.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.03
+          },
+          "target": {
+            "loyalty": -0.02
+          }
+        }
+      },
+      "delayed": {
+        "days": 2,
+        "text": "О договорённости вспоминают в другом квартале и требуют такой же уступки.",
+        "effects": {
+          "resources": {
+            "cohesion": -0.01
+          }
+        }
+      },
+      "cooldown_days": 1
+    },
+    {
+      "id": "appoint",
+      "label": "Назначить на должность",
+      "description": "Дать человеку официальный пост в комиссии или городской службе.",
+      "target_types": [
+        "character"
+      ],
+      "tags": [
+        "appointment",
+        "administration"
+      ],
+      "cost": {
+        "influence": 0.1,
+        "treasury": 0.04
+      },
+      "immediate": {
+        "target": {
+          "loyalty": 0.1,
+          "leverage": 0.04
+        }
+      },
+      "success": {
+        "chance": 0.76,
+        "text": "Назначение проходит, и новый чиновник приводит с собой небольшую сеть сторонников.",
+        "effects": {
+          "resources": {
+            "charter": 0.03,
+            "cohesion": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.24,
+        "text": "Собрание видит в назначении кумовство; часть делегатов демонстративно уходит.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.04,
+            "cohesion": -0.02
+          },
+          "target": {
+            "loyalty": -0.04
+          }
+        }
+      },
+      "obligations_add": [
+        "Провести публичное утверждение назначения до конца недели."
+      ],
+      "delayed": {
+        "days": 3,
+        "text": "Назначенец просит расширить полномочия, ссылаясь на обещанную поддержку.",
+        "effects": {
+          "resources": {
+            "influence": -0.02
+          }
+        }
+      },
+      "cooldown_days": 2
+    },
+    {
+      "id": "patronage",
+      "label": "Оказать патронаж",
+      "description": "Оплатить чужую проблему или проект в обмен на политическую поддержку.",
+      "target_types": [
+        "character",
+        "organization"
+      ],
+      "tags": [
+        "money",
+        "patronage",
+        "risk"
+      ],
+      "cost": {
+        "treasury": 0.09
+      },
+      "immediate": {
+        "target": {
+          "loyalty": 0.08
+        }
+      },
+      "success": {
+        "chance": 0.7,
+        "text": "Получатель благодарит публично, и его люди начинают работать на общий текст.",
+        "effects": {
+          "resources": {
+            "cohesion": 0.02,
+            "charter": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "В казначейских книгах находят лишнюю строку. Разговор о коррупции выходит на площадь.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.05
+          }
+        }
+      },
+      "obligations_add": [
+        "Отчитаться перед казначейской комиссией о расходе."
+      ],
+      "cooldown_days": 1
+    },
+    {
+      "id": "public_address",
+      "label": "Выступить публично",
+      "description": "Использовать типографию, радио или площадь, чтобы напрямую объяснить городу свою позицию.",
+      "target_types": [
+        "asset"
+      ],
+      "tags": [
+        "public",
+        "media",
+        "legitimacy"
+      ],
+      "cost": {
+        "influence": 0.04
+      },
+      "immediate": {
+        "resources": {
+          "legitimacy": 0.04
+        }
+      },
+      "success": {
+        "chance": 0.74,
+        "text": "Обращение расходится по кварталам; люди начинают обсуждать Хартию как общее дело.",
+        "effects": {
+          "resources": {
+            "charter": 0.03,
+            "cohesion": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.26,
+        "text": "Речь звучит как очередное обещание сверху; на площади её встречают свистом.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.03,
+            "cohesion": -0.01
+          }
+        }
+      },
+      "delayed": {
+        "days": 2,
+        "text": "Печатная версия речи становится поводом для спора о том, кто на самом деле её писал.",
+        "effects": {
+          "resources": {
+            "influence": -0.01
+          }
+        }
+      },
+      "cooldown_days": 2
+    },
+    {
+      "id": "reform",
+      "label": "Провести реформу",
+      "description": "Изменить правило работы института: порядок слушаний, состав комиссии или публичность решений.",
+      "target_types": [
+        "institution"
+      ],
+      "tags": [
+        "reform",
+        "institution",
+        "conflict"
+      ],
+      "cost": {
+        "influence": 0.12,
+        "treasury": 0.06
+      },
+      "immediate": {
+        "target": {
+          "support": 0.06
+        }
+      },
+      "success": {
+        "chance": 0.66,
+        "text": "Реформа проходит. Институт теряет часть старой автономии, но становится понятнее городу.",
+        "effects": {
+          "resources": {
+            "charter": 0.06,
+            "legitimacy": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.34,
+        "text": "Аппарат саботирует реформу: бумаги теряются, слушания переносятся, союзники расходятся.",
+        "effects": {
+          "resources": {
+            "cohesion": -0.04,
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "obligations_add": [
+        "Довести реформу до первого публичного слушания."
+      ],
+      "delayed": {
+        "days": 3,
+        "text": "Старые сотрудники института подают коллективное возражение.",
+        "effects": {
+          "resources": {
+            "influence": -0.02
+          }
+        }
+      },
+      "cooldown_days": 2
+    },
+    {
+      "id": "intelligence",
+      "label": "Собрать сведения",
+      "description": "Проверить архив, газетные подшивки или разговоры, чтобы узнать скрытые интересы собеседника.",
+      "target_types": [
+        "asset",
+        "character"
+      ],
+      "tags": [
+        "intelligence",
+        "risk",
+        "information"
+      ],
+      "cost": {
+        "influence": 0.05
+      },
+      "success": {
+        "chance": 0.7,
+        "text": "Вы находите документ, который объясняет, чего собеседник боится на самом деле.",
+        "effects": {
+          "reveal": true,
+          "resources": {
+            "charter": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Поиск замечают. Вас обвиняют в попытке копаться в чужой переписке.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "cooldown_days": 2
+    },
+    {
+      "id": "allocate",
+      "label": "Распределить средства",
+      "description": "Направить деньги или ресурсы туда, где они удержат коалицию от распада.",
+      "target_types": [
+        "organization",
+        "asset"
+      ],
+      "tags": [
+        "economy",
+        "allocation",
+        "cohesion"
+      ],
+      "cost": {
+        "treasury": 0.1
+      },
+      "immediate": {
+        "target": {
+          "loyalty": 0.05,
+          "capacity": 0.03
+        }
+      },
+      "success": {
+        "chance": 0.73,
+        "text": "Средства доходят вовремя. Получатели видят, что Хартия приносит не только слова.",
+        "effects": {
+          "resources": {
+            "cohesion": 0.05,
+            "legitimacy": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.27,
+        "text": "Распределение выглядит несправедливым; обиженный квартал выходит из переговоров.",
+        "effects": {
+          "resources": {
+            "cohesion": -0.03,
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "cooldown_days": 1
+    },
+    {
+      "id": "coalition",
+      "label": "Собрать коалицию",
+      "description": "Связать несколько организаций общим обязательством поддержать Хартию.",
+      "target_types": [
+        "organization",
+        "institution"
+      ],
+      "tags": [
+        "coalition",
+        "politics",
+        "charter"
+      ],
+      "cost": {
+        "influence": 0.13
+      },
+      "immediate": {
+        "target": {
+          "loyalty": 0.04
+        }
+      },
+      "success": {
+        "chance": 0.68,
+        "text": "Коалиция оформляется публично: несколько подписей под одним текстом меняют расстановку сил.",
+        "effects": {
+          "resources": {
+            "cohesion": 0.06,
+            "charter": 0.04
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.32,
+        "text": "Один из партнёров отказывается в последний момент, и остальные требуют пересмотра условий.",
+        "effects": {
+          "resources": {
+            "influence": -0.03,
+            "cohesion": -0.02
+          }
+        }
+      },
+      "obligations_add": [
+        "Согласовать с коалицией общий список поправок."
+      ],
+      "cooldown_days": 2
+    },
+    {
+      "id": "pressure",
+      "label": "Оказать давление",
+      "description": "Пригрозить судом, оглаской или потерей контракта, чтобы добиться уступки.",
+      "target_types": [
+        "character",
+        "organization"
+      ],
+      "tags": [
+        "coercion",
+        "risk",
+        "power"
+      ],
+      "cost": {
+        "influence": 0.07
+      },
+      "immediate": {
+        "resources": {
+          "legitimacy": -0.03
+        },
+        "target": {
+          "leverage": 0.04
+        }
+      },
+      "success": {
+        "chance": 0.58,
+        "text": "Собеседник уступает, но запоминает цену. В протоколе остаётся ваша угроза.",
+        "effects": {
+          "resources": {
+            "charter": 0.02
+          },
+          "target": {
+            "loyalty": -0.05
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.42,
+        "text": "Угроза становится публичной. Город видит в вас человека, который решает споры силой.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.05,
+            "cohesion": -0.03
+          },
+          "target": {
+            "loyalty": -0.03
+          }
+        }
+      },
+      "cooldown_days": 1
+    },
+    {
+      "id": "ratify",
+      "label": "Вынести Хартию на подписание",
+      "description": "Созвать комиссию и потребовать окончательного голосования по тексту.",
+      "target_types": [
+        "institution"
+      ],
+      "tags": [
+        "charter",
+        "final",
+        "votes"
+      ],
+      "cost": {
+        "influence": 0.08
+      },
+      "requires": {
+        "resource_min": {
+          "charter": 0.62
+        },
+        "target_min": {
+          "support": 0.4
+        }
+      },
+      "success": {
+        "chance": 0.85,
+        "text": "Комиссия принимает Хартию. Город получает общий текст, а вы — обязанность его исполнять.",
+        "effects": {
+          "resources": {
+            "legitimacy": 0.04
+          }
+        },
+        "ends_game": "win"
+      },
+      "failure": {
+        "chance": 0.15,
+        "text": "Голосование срывается. Противники требуют нового созыва и новых выборов.",
+        "effects": {
+          "resources": {
+            "legitimacy": -0.08,
+            "charter": -0.03
+          }
+        }
+      }
+    }
+  ],
+  "day_events": [
+    {
+      "text": "Улица требует ответа: кварталы приносят список нерешённых нужд.",
+      "effects": {
+        "resources": {
+          "legitimacy": -0.01,
+          "cohesion": 0.01
+        }
+      }
+    },
+    {
+      "text": "Казначейская комиссия задерживает смету, ссылаясь на старые долги.",
+      "effects": {
+        "resources": {
+          "treasury": -0.03
+        }
+      }
+    },
+    {
+      "text": "В газете выходит памфлет с обвинениями в сговоре.",
+      "effects": {
+        "resources": {
+          "influence": 0.01,
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "text": "Гильдии предлагают компромисс по тарифам в обмен на место в комиссии.",
+      "effects": {
+        "resources": {
+          "cohesion": 0.02
+        }
+      }
+    },
+    {
+      "text": "Порт закрывает один причал: грузчики ждут решения по Хартии.",
+      "effects": {
+        "resources": {
+          "treasury": -0.02,
+          "influence": 0.01
+        }
+      }
+    }
+  ],
+  "win_text": "Хартия принята. Она не делает город единым, но даёт ему общий язык.",
+  "lose_text": "Хартия не собрала достаточной поддержки. Город остаётся расколотым, а ваш мандат истекает.",
+  "daily": {
+    "influence": 0.12,
+    "treasury": 0.06
+  },
+  "subtype_labels": {
+    "coalition": "коалиция",
+    "network": "сеть",
+    "guild": "гильдия",
+    "equipment": "оборудование",
+    "document": "документ",
+    "archive": "архив",
+    "site": "место",
+    "venue": "площадь",
+    "council": "совет",
+    "court": "суд",
+    "leader": "лидер",
+    "secretary": "секретарь",
+    "treasurer": "казначей",
+    "press": "пресса",
+    "legal": "юрист",
+    "mediator": "посредник",
+    "archivist": "архив",
+    "liaison": "связной",
+    "line_1": "делегат",
+    "line_2": "делегат",
+    "line_3": "делегат",
+    "line_4": "делегат"
+  }
+}

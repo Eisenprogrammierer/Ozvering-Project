@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "template_id": "agora_charter",
+  "title": "Хартия Агоры",
+  "description": "Гранд-стратегическая кампания о согласовании городской Хартии. Игрок — конкретный человек во главе одной из двух гражданских коалиций; он действует через организации, людей, институты и городское имущество, а не через армию.",
+  "default_seed": 7,
+  "player_side": "red",
+  "enemy_side": "blue",
+  "faction_slots": {
+    "player": "red",
+    "enemy": "blue"
+  },
+  "scenario": {
+    "mode": "strategy",
+    "turns": 10,
+    "groups": {
+      "red": 2,
+      "blue": 2
+    },
+    "characters_per_group": 4,
+    "strategy_path": "configs/strategy/agora_charter.json"
+  },
+  "factions": {
+    "red": {
+      "id": "faction_red",
+      "name": "Северный союз",
+      "kind": "coalition",
+      "culture": "russian",
+      "role_title": "первое лицо союза",
+      "priority_needs": [
+        "status",
+        "knowledge",
+        "friendship"
+      ],
+      "goals": [
+        "провести Хартию через квартальные собрания",
+        "сохранить союз кооперативов и ремесленных гильдий",
+        "не отдать городскую казну под внешнее управление"
+      ],
+      "assets": {
+        "legitimacy": 0.56,
+        "influence": 0.52,
+        "treasury": 0.48,
+        "cohesion": 0.55,
+        "charter": 0.12
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Первое лицо союза",
+          "archetype": "citizen",
+          "force": 26.0
+        },
+        {
+          "id": "secretary",
+          "title": "Секретарь собрания",
+          "archetype": "citizen",
+          "force": 13.0
+        },
+        {
+          "id": "treasurer",
+          "title": "Хранитель казны",
+          "archetype": "citizen",
+          "force": 8.0
+        },
+        {
+          "id": "press",
+          "title": "Редактор «Северного вестника»",
+          "archetype": "citizen",
+          "force": 7.0
+        },
+        {
+          "id": "legal",
+          "title": "Юрист союза",
+          "archetype": "citizen",
+          "force": 5.0
+        },
+        {
+          "id": "mediator",
+          "title": "Посредник кварталов",
+          "archetype": "citizen",
+          "force": 4.0
+        },
+        {
+          "id": "archivist",
+          "title": "Хранитель архива",
+          "archetype": "citizen",
+          "force": 3.0
+        },
+        {
+          "id": "liaison",
+          "title": "Связной с пристанью",
+          "archetype": "citizen",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Делегат квартала",
+        "Секретарь комиссии",
+        "Счетовод",
+        "Посыльный"
+      ],
+      "organization": {
+        "id": "org_red",
+        "name": "Совет Севера",
+        "complete_weight": 0.84,
+        "leader_title": "председатель собрания"
+      },
+      "archetypes": {}
+    },
+    "blue": {
+      "id": "faction_blue",
+      "name": "Агорский консорциум",
+      "kind": "consortium",
+      "culture": "germanic",
+      "role_title": "председатель директории",
+      "priority_needs": [
+        "status",
+        "knowledge",
+        "friendship"
+      ],
+      "goals": [
+        "закрепить Хартию как договор палат и торговых домов",
+        "обеспечить порту свободу тарифов и гарантии сделок",
+        "не допустить пересмотра контрактов улицей"
+      ],
+      "assets": {
+        "legitimacy": 0.62,
+        "influence": 0.66,
+        "treasury": 0.71,
+        "cohesion": 0.49,
+        "charter": 0.14
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Председатель директории",
+          "archetype": "citizen",
+          "force": 26.0
+        },
+        {
+          "id": "secretary",
+          "title": "Директор по согласованию",
+          "archetype": "citizen",
+          "force": 13.0
+        },
+        {
+          "id": "treasurer",
+          "title": "Управляющий казной",
+          "archetype": "citizen",
+          "force": 8.0
+        },
+        {
+          "id": "press",
+          "title": "Редактор «Агорского курьера»",
+          "archetype": "citizen",
+          "force": 7.0
+        },
+        {
+          "id": "legal",
+          "title": "Корпоративный юрист",
+          "archetype": "citizen",
+          "force": 5.0
+        },
+        {
+          "id": "mediator",
+          "title": "Посланник палат",
+          "archetype": "citizen",
+          "force": 4.0
+        },
+        {
+          "id": "archivist",
+          "title": "Смотритель архива",
+          "archetype": "citizen",
+          "force": 3.0
+        },
+        {
+          "id": "liaison",
+          "title": "Связной пристани",
+          "archetype": "citizen",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Представитель палаты",
+        "Секретарь директории",
+        "Счетовод",
+        "Посыльный"
+      ],
+      "organization": {
+        "id": "org_blue",
+        "name": "Директория Агоры",
+        "complete_weight": 0.84,
+        "leader_title": "председатель директории"
+      },
+      "archetypes": {}
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "crossroads",
+      "spring",
+      "storm",
+      "ruins"
+    ],
+    "drift_chance": 0.12
+  },
+  "events": {
+    "categories": [
+      "politics",
+      "society",
+      "economy",
+      "culture",
+      "discovery"
+    ],
+    "count": 8,
+    "context": {
+      "place": "Агора",
+      "object": "архивная печать",
+      "cause": "пожар в порту",
+      "consequence": "торговые кварталы закрыли ворота",
+      "amount": "четыре квартала"
+    }
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}

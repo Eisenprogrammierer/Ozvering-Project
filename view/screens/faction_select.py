@@ -1,3 +1,5 @@
+import os
+
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
 from campaign import CampaignPresetGenerator
@@ -5,6 +7,7 @@ from view.support.log_journal import get_logger
 from view.support.storyline import load_storyline
 
 logger = get_logger("view.faction_select")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _wrap(font, text, max_width):
@@ -34,7 +37,15 @@ class FactionSelectScreen(BaseScreen):
         if self.role is not None and self.role.storyline_id:
             self.storyline = load_storyline(self.role.storyline_id)
         seed = app._campaign_seed(self.storyline or {})
-        generator = CampaignPresetGenerator(catalog=app.role_catalog)
+        template_path = (self.storyline or {}).get("campaign_template")
+        if template_path and not os.path.isabs(template_path):
+            template_path = os.path.normpath(
+                os.path.join(BASE_DIR, template_path)
+            )
+        generator = CampaignPresetGenerator(
+            catalog=app.role_catalog,
+            template_path=template_path or None,
+        )
         self.options = generator.faction_options(seed=seed)
         self.buttons = []
         self.option_buttons = {}
@@ -87,8 +98,8 @@ class FactionSelectScreen(BaseScreen):
         )
         screen.blit(title, title.get_rect(center=(640, 100)))
         subtitle = self.app.font_small.render(
-            "Мандат номинального лидера: выберите, чью волю вы будете "
-            "представлять.",
+            "Гражданский мандат: выберите, чью коалицию и чей голос вы "
+            "будете представлять.",
             True,
             (150, 150, 170),
         )
@@ -110,12 +121,18 @@ class FactionSelectScreen(BaseScreen):
                 if option["is_default"]
                 else "альтернативная сторона"
             )
+            groups = option.get("groups") or 0
+            support = option.get("support") or 0.0
             meta = self.app.font_small.render(
-                "%s · %s · %d рот · %s"
+                "%s · %s · опора: %d групп · поддержка %.0f%% · %s"
                 % (
                     option["side"].upper(),
-                    option["kind"],
-                    option["companies"],
+                    {
+                        "coalition": "коалиция",
+                        "consortium": "консорциум",
+                    }.get(option["kind"], option["kind"]),
+                    groups,
+                    100.0 * support,
                     side,
                 ),
                 True,
@@ -145,7 +162,7 @@ class FactionSelectScreen(BaseScreen):
                         (280, top + 110 + line_number * 18),
                     )
         note = self.app.font_tiny.render(
-            "Выбор меняет сторону игрока, состав ростера и текст мандата.",
+            "Выбор меняет сторону, доступных персонажей и текст мандата.",
             True,
             (110, 110, 130),
         )

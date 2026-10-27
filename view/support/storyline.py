@@ -126,6 +126,8 @@ def load_storyline(storyline_id):
         "title": main_data.get("title", storyline_id),
         "description": main_data.get("description", ""),
         "scenario_path": main_data.get("scenario_path", "scenarios/mvp.json"),
+        "campaign_template": main_data.get("campaign_template", ""),
+        "strategy_path": main_data.get("strategy_path", ""),
         "character_creation": char_data,
         "scenes": scenes_data.get("sequence", []),
         "win_conditions": main_data.get("win_conditions", []),
@@ -230,6 +232,27 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
         result = _all_enemies_destroyed(state)
     elif t == "all_player_units_destroyed":
         result = _all_player_units_destroyed(state)
+    elif t.startswith("strategy_"):
+        snapshot = storyline_state.get("strategy") or {}
+        resources = snapshot.get("resources") or {}
+        if t in (
+            "strategy_metric_at_least",
+            "strategy_metric_at_most",
+        ):
+            metric = str(condition.get("metric") or "")
+            value = float(resources.get(metric, 0.0))
+            threshold = float(condition.get("value", 0.0))
+            if t == "strategy_metric_at_least":
+                result = value >= threshold
+            else:
+                result = value <= threshold
+        elif t == "strategy_day_above":
+            day = int(snapshot.get("day", 1))
+            result = day > int(condition.get("value", 0))
+        elif t == "strategy_outcome":
+            result = snapshot.get("outcome") == condition.get("value")
+        else:
+            result = False
     else:
         result = False
     logger.debug("check_storyline_condition: тип=%s, результат=%s", t, result)

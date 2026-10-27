@@ -17,6 +17,13 @@ from .preset import (
     generate_preset,
     load_template,
 )
+from .strategy import (
+    DEFAULT_STRATEGY_PATH,
+    StrategyEngine,
+    StrategyError,
+    build_strategy,
+    load_strategy,
+)
 
 __all__ = [
     "SCHEMA",
@@ -34,4 +41,9 @@ __all__ = [
     "default_template_path",
     "generate_preset",
     "load_template",
+    "DEFAULT_STRATEGY_PATH",
+    "StrategyEngine",
+    "StrategyError",
+    "build_strategy",
+    "load_strategy",
 ]

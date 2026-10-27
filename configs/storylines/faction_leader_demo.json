@@ -1,90 +1,46 @@
 {
   "storyline_id": "faction_leader_demo",
-  "title": "Мандат фракции",
-  "description": "Кампания номинального лидера фракции-автомата: выберите фракцию, примите её мандат и удержите переправу, пока совет и автомат ведут свою игру.",
+  "title": "Хартия Агоры",
+  "description": "Гранд-стратегическая кампания: вы — конкретный человек во главе гражданской коалиции. Убедите организации, людей, институты и городское имущество поддержать общую Хартию. Автоматы здесь — только аналитические модели, а не роботы или боевые единицы.",
   "scenario_path": "scenarios/mvp.json",
+  "campaign_template": "configs/campaigns/agora_charter.json",
+  "strategy_path": "configs/strategy/agora_charter.json",
   "campaign_seed": 7,
   "scenes": "faction_leader_demo_scenes",
   "win_conditions": [
     {
-      "type": "any_of",
-      "conditions": [
-        {
-          "type": "day_at_least",
-          "value": 7
-        },
-        {
-          "type": "all_enemies_destroyed"
-        }
-      ]
+      "type": "strategy_outcome",
+      "value": "win"
     }
   ],
   "lose_conditions": [
     {
-      "type": "any_of",
-      "conditions": [
-        {
-          "type": "all_player_units_destroyed"
-        },
-        {
-          "type": "player_dead"
-        },
-        {
-          "type": "manpower_loss_above",
-          "value": 0.6
-        }
-      ]
+      "type": "strategy_outcome",
+      "value": "lose"
     }
   ],
   "win_scene": {
     "slides": [
       {
-        "image": "campaign/aftermath_council",
-        "text": "Переправа удержана. {player_organization_name} признаёт мандат {player_character_name}, но в коридорах уже считают, во что обошлась эта верность."
+        "image": "campaign/agora_charter",
+        "text": "Хартия принята. Вы не стали государством и не получили права говорить за всех. Вы получили более скромное и более прочное: общий текст, который город согласился обсуждать."
       },
       {
-        "image": "campaign/aftermath_automaton",
-        "text": "Автомат фракции фиксирует новый баланс страха, статуса и легитимности. Ваша номинальная власть стала чуть менее номинальной — ровно настолько, насколько это выгодно организации."
+        "image": "campaign/agora_square",
+        "text": "На площади Согласия ещё спорят. Но впервые за десять дней спорят о словах Хартии, а не о том, чей голос громче. Ваш мандат исполнен — и связан новыми обязательствами."
       }
     ]
   },
   "lose_scene": {
     "slides": [
       {
-        "image": "campaign/aftermath_ruins",
-        "text": "Переправа потеряна. {player_organization_name} отзывает мандат, а автомат фракции спокойно переписывает вашу роль в строку о временном исполняющем обязанности."
+        "image": "campaign/agora_empty",
+        "text": "Комиссия расходится, не приняв текст. Улицы возвращаются к старым обидам, палаты — к старым счетам. Ваша коалиция ещё существует, но говорить от её имени больше некому."
       },
       {
-        "image": "campaign/aftermath_council",
-        "text": "Вас не судят. Вас просто больше не называют лидером. В мире фракций-автоматов это и есть окончательный приговор."
+        "image": "campaign/agora_archive",
+        "text": "В архиве остаются протоколы, черновики и список людей, которые поверили в вашу Хартию. История не заканчивается, но этот мандат — заканчивается."
       }
     ]
-  },
-  "adjutant_orders": [
-    {
-      "id": "hold",
-      "label": "Удержать переправу",
-      "effect": {
-        "targets": ["player"],
-        "log": "Мандат фракции: удержать переправу любой ценой."
-      }
-    },
-    {
-      "id": "withdraw",
-      "label": "Отвести роты за реку",
-      "effect": {
-        "targets": ["player"],
-        "set_segments": {"order": "withdrawal"},
-        "log": "Мандат фракции: организованный отвод за реку."
-      }
-    },
-    {
-      "id": "night_ops",
-      "label": "Ночная политика",
-      "effect": {
-        "targets": ["player"],
-        "log": "Мандат фракции: ночные переговоры и разведка."
-      }
-    }
-  ]
+  }
 }

@@ -83,6 +83,8 @@ class App:
         self.scenario_path = "scenarios/mvp.json"
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
+        self.strategy = None
+        self.strategy_config = None
 
         from campaign import RoleCatalog
 
@@ -218,6 +220,8 @@ class App:
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None
+        self.strategy = None
+        self.strategy_config = None
         self.manager.push(RoleSelectScreen(self))
         logger.info("Запрошена новая игра: выбор роли")
 
@@ -240,8 +244,14 @@ class App:
         self.selected_role = role
         if faction_id is not None:
             self.selected_faction_id = faction_id
+        template_path = storyline.get("campaign_template") or None
+        if template_path and not os.path.isabs(template_path):
+            template_path = os.path.normpath(
+                os.path.join(BASE_DIR, "..", template_path)
+            )
         self.campaign_preset = CampaignPresetGenerator(
-            catalog=self.role_catalog
+            catalog=self.role_catalog,
+            template_path=template_path,
         ).generate(
             role_id=role.id,
             seed=self._campaign_seed(storyline),
@@ -327,6 +337,25 @@ class App:
             "enemy_companies",
             int(companies.get(self.campaign_preset.enemy_side, 0)),
         )
+        strategy_path = storyline.get("strategy_path") or (
+            self.campaign_preset.scenario.get("strategy_path")
+        )
+        if strategy_path:
+            from campaign.strategy import load_strategy
+
+            self.strategy_config = load_strategy(strategy_path)
+            interp.set_variable(
+                "strategy_title",
+                self.strategy_config.get("title", "Хартия"),
+            )
+            interp.set_variable(
+                "strategy_days",
+                self.strategy_config.get("days", 10),
+            )
+            interp.set_variable(
+                "strategy_actions_per_day",
+                self.strategy_config.get("actions_per_day", 3),
+            )
         interp.set_variable(
             "player_faction_goals", player_faction.get("goals") or []
         )
@@ -389,10 +418,14 @@ class App:
         elif scene_type == "mandatory_scene":
             self._play_mandatory_scene(scene)
         elif scene_type in ("rts_scene", "hq_scene"):
-
             self._play_gameplay(scene)
+        elif scene_type == "strategy":
+            self._play_strategy(scene)
         elif scene_type == "gameplay":
-            self._play_gameplay(scene)
+            if self._is_strategy_campaign():
+                self._play_strategy(scene)
+            else:
+                self._play_gameplay(scene)
         else:
             interp = self.storyline_interpreter
             if interp is not None:
@@ -469,6 +502,56 @@ class App:
             interp.advance()
             self._play_next_scene()
 
+    def _is_strategy_campaign(self):
+        preset = self.campaign_preset
+        if preset is not None:
+            if str(preset.scenario.get("mode") or "") == "strategy":
+                return True
+        interp = self.storyline_interpreter
+        if interp is not None:
+            storyline = interp.storyline or {}
+            if storyline.get("strategy_path"):
+                return True
+            scenes = storyline.get("scenes") or []
+            if any(scene.get("type") == "strategy" for scene in scenes):
+                return True
+        return False
+
+    def _play_strategy(self, scene):
+        interp = self.storyline_interpreter
+        snapshot = None
+        if interp is not None:
+            snapshot = (interp.state or {}).get("strategy")
+        path = scene.get("strategy_path")
+        if not path and interp is not None:
+            path = (interp.storyline or {}).get("strategy_path")
+        if not path and self.campaign_preset is not None:
+            path = self.campaign_preset.scenario.get("strategy_path")
+        self._open_strategy(snapshot=snapshot, path=path)
+
+    def _open_strategy(self, snapshot=None, path=None):
+        from campaign.strategy import StrategyEngine, load_strategy
+        from .screens.strategy_screen import StrategyScreen
+
+        if not path and self.campaign_preset is not None:
+            path = self.campaign_preset.scenario.get("strategy_path")
+        self.strategy_config = load_strategy(path)
+        self.strategy = StrategyEngine(
+            self.strategy_config,
+            preset=self.campaign_preset,
+            snapshot=snapshot,
+        )
+        interp = self.storyline_interpreter
+        if interp is not None:
+            interp.state["strategy"] = self.strategy.to_dict()
+        self.music.request_category("ambient")
+        self.manager.replace_all(StrategyScreen(self, self.strategy))
+        logger.info(
+            "Стратегическая кампания открыта: %s, день=%d",
+            self.strategy_config.get("title", "?"),
+            self.strategy.day,
+        )
+
     def _play_gameplay(self, scene):
         from .screens.rts_screen import RTSScreen
 
@@ -518,6 +601,8 @@ class App:
     def _return_to_menu(self):
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
+        self.strategy = None
+        self.strategy_config = None
         self.music.request_category("overture")
         from .screens.main_menu import MainMenuScreen
 
@@ -563,6 +648,12 @@ class App:
         storyline_snapshot = None
         if self.storyline_interpreter is not None:
             storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
+        if self.strategy is not None:
+            if storyline_snapshot is None:
+                storyline_snapshot = {"state": {}}
+            storyline_snapshot.setdefault("state", {})["strategy"] = (
+                self.strategy.to_dict()
+            )
         path = do_save(
             self.engine.state,
             self.time_system,
@@ -588,6 +679,8 @@ class App:
         scenario_path = snapshot.get("scenario_path", "scenarios/mvp.json")
         self.scenario_path = scenario_path
         self.pending_storyline_outcome = None
+        self.strategy = None
+        self.strategy_config = None
         from campaign.preset import CampaignPreset
         from campaign.roles import RoleSpec
 
@@ -641,12 +734,16 @@ class App:
 
         self.time_hud = TimeHUD(self)
         storyline_snapshot = snapshot.get("storyline", None)
+        strategy_snapshot = None
         if storyline_snapshot is not None:
             from view.support.storyline import (
                 load_storyline,
                 StorylineInterpreter,
             )
 
+            strategy_snapshot = (storyline_snapshot.get("state") or {}).get(
+                "strategy"
+            )
             storyline_id = storyline_snapshot.get("storyline_id")
             if storyline_id:
                 storyline = load_storyline(storyline_id)
@@ -657,10 +754,13 @@ class App:
                     self.storyline_interpreter.load_from_snapshot(
                         storyline_snapshot
                     )
-        from .screens.rts_screen import RTSScreen
+        if self._is_strategy_campaign() or strategy_snapshot is not None:
+            self._open_strategy(snapshot=strategy_snapshot)
+        else:
+            from .screens.rts_screen import RTSScreen
 
-        self.manager.replace_all(RTSScreen(self))
-        self.music.request_category("ambient")
+            self.manager.replace_all(RTSScreen(self))
+            self.music.request_category("ambient")
         logger.info("Загрузка выполнена: слот=%s", slot_name)
         return True
 

@@ -93,18 +93,16 @@ class RoleSelectScreen(BaseScreen):
             self.buttons[index].draw(screen)
             top = 278 + index * self.step
             mode = self.app.font_small.render(
-                "Режим: %s · фракция: %s"
+                "Режим: %s · опора: %s"
                 % (
-                    (
-                        "номинальное лидерство"
-                        if role.leadership == "nominal"
-                        else role.leadership
-                    ),
-                    (
-                        "автомат"
-                        if role.faction_kind == "automaton"
-                        else role.faction_kind
-                    ),
+                    {
+                        "nominal": "гражданский мандат",
+                        "civilian_mandate": "гражданский мандат",
+                    }.get(role.leadership, role.leadership),
+                    {
+                        "coalition": "коалиция",
+                        "automaton": "автомат",
+                    }.get(role.faction_kind, role.faction_kind),
                 ),
                 True,
                 (130, 165, 215),

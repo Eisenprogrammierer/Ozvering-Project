@@ -3,11 +3,11 @@
   "roles": [
     {
       "id": "faction_leader",
-      "label": "Номинальный лидер фракции",
-      "short_label": "Лидер фракции",
-      "description": "Вы возглавляете фракцию-автомат номинально: ваш персонаж считается её лидером, но повседневная воля фракции остаётся за её автоматом и организацией. Роль даёт доступ к политическим целям, ресурсам и внутренним кризисам фракции.",
+      "label": "Первое лицо коалиции",
+      "short_label": "Первое лицо",
+      "description": "Вы — конкретный человек, первое лицо гражданской коалиции. Ваш мандат ограничен согласием организаций и людей, а не волей государства. Вы ведёте переговоры, назначаете, распределяете средства и отвечаете перед теми, кто вас выдвинул.",
       "leadership": "nominal",
-      "faction_kind": "automaton",
+      "faction_kind": "coalition",
       "faction_slot": "player",
       "faction_choice": true,
       "storyline_id": "faction_leader_demo",
@@ -15,14 +15,14 @@
       "sort_order": 10,
       "grants": {
         "player_role": "faction_leader",
-        "leadership_mode": "nominal",
-        "faction_control": "automaton"
+        "leadership_mode": "civilian_mandate",
+        "faction_control": "coalition"
       },
       "tags": [
         "leadership",
-        "faction",
-        "automaton",
-        "nominal"
+        "coalition",
+        "civilian",
+        "mandate"
       ]
     }
   ]

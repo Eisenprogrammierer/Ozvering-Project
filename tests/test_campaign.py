@@ -53,12 +53,12 @@ def test_role_catalog_exposes_only_faction_leader():
     assert [role.id for role in available] == ["faction_leader"]
     role = catalog.default_role()
     assert role.leadership == "nominal"
-    assert role.faction_kind == "automaton"
+    assert role.faction_kind == "coalition"
     assert role.faction_slot == "player"
     assert role.faction_choice is True
     assert role.storyline_id == "faction_leader_demo"
     assert role.grants["player_role"] == "faction_leader"
-    assert role.grants["leadership_mode"] == "nominal"
+    assert role.grants["leadership_mode"] == "civilian_mandate"
     assert catalog.select("faction_leader") is role
 
 
@@ -286,7 +286,7 @@ def test_preset_roundtrip_and_storage(tmp_path, preset):
     minimal_role = dict(preset.as_dict())
     minimal_role["role"] = {"id": "faction_leader"}
     resolved = CampaignPreset.from_dict(minimal_role)
-    assert resolved.role.label == "Номинальный лидер фракции"
+    assert resolved.role.label == "Первое лицо коалиции"
     path = save_preset(preset, path=tmp_path / "preset.json")
     loaded = load_preset(path)
     assert loaded.as_dict() == preset.as_dict()
@@ -343,13 +343,17 @@ def test_faction_leader_storyline_skips_character_creation():
 
     storyline = load_storyline("faction_leader_demo")
     assert storyline is not None
-    assert storyline["title"] == "Мандат фракции"
+    assert storyline["title"] == "Хартия Агоры"
     assert storyline["character_creation"] == {}
     assert [scene["type"] for scene in storyline["scenes"]] == [
         "visual_novel",
         "document",
-        "gameplay",
+        "strategy",
     ]
+    assert storyline["campaign_template"] == (
+        "configs/campaigns/agora_charter.json"
+    )
+    assert storyline["strategy_path"] == "configs/strategy/agora_charter.json"
     assert storyline["scenes"][0]["slides"][0]["image"].startswith("campaign/")
 
 
@@ -438,7 +442,7 @@ def test_cli_lists_roles_and_generates_preset(tmp_path, capsys):
     assert campaign_main(["--list-roles"]) == 0
     output = capsys.readouterr().out
     assert "faction_leader" in output
-    assert "Номинальный лидер фракции" in output
+    assert "Первое лицо коалиции" in output
 
     out = tmp_path / "generated.json"
     assert (

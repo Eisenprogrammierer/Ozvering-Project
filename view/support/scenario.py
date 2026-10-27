@@ -333,9 +333,13 @@ def build_world(
     rosters = preset.roster_by_side() if preset is not None else None
     player_side = preset.player_side if preset is not None else "red"
     map_name = scenario.get("map_name", "valley_01")
-    sim = build_brigade_scenario(seed=seed, turns=turns, rosters=rosters)
+    strategy_mode = str(scenario.get("mode") or "") == "strategy"
+    if strategy_mode:
+        sim = W.WarfareSimulation(seed=seed, turns=turns)
+    else:
+        sim = build_brigade_scenario(seed=seed, turns=turns, rosters=rosters)
     snapshot_turn = int((campaign_snapshot or {}).get("turn", 0))
-    if snapshot_turn > 0:
+    if snapshot_turn > 0 and not strategy_mode:
         sim.run(turns=min(snapshot_turn, sim.max_turns))
     state = CampaignState(
         sim, player_side=player_side, content=content, map_name=map_name
