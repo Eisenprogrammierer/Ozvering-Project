@@ -1,0 +1,133 @@
+{
+  "steps": [
+    {
+      "text": "В Агоре после пожара снова спорят о власти. Но сначала — кто вы? Впишите имя, под которым вас будут знать в правительстве, церкви, гильдии или на улице.",
+      "input": {
+        "key": "name",
+        "placeholder": "Имя и фамилия",
+        "max_length": 32
+      }
+    },
+    {
+      "text": "Как к вам обращаться в документах?",
+      "choices": [
+        {"text": "Мужчина", "set_variable": "gender", "value": "male"},
+        {"text": "Женщина", "set_variable": "gender", "value": "female"},
+        {"text": "Не указывать", "set_variable": "gender", "value": "unspecified"}
+      ]
+    },
+    {
+      "text": "Где прошло ваше детство? Это место научило вас первым правилам: кому верить, чего бояться и чем платить.",
+      "choices": [
+        {"text": "Порт Агоры", "set_variable": "origin", "value": "port"},
+        {"text": "Старый квартал", "set_variable": "origin", "value": "old_quarter"},
+        {"text": "Пограничная дорога", "set_variable": "origin", "value": "frontier"},
+        {"text": "Церковный приют", "set_variable": "origin", "value": "church_orphanage"},
+        {"text": "Торговый дом", "set_variable": "origin", "value": "merchant_house"},
+        {"text": "Военный лагерь", "set_variable": "origin", "value": "army_camp"}
+      ]
+    },
+    {
+      "text": "В какой семье вы выросли? Это не только происхождение, но и первые обязательства, которые вы унаследовали.",
+      "choices": [
+        {"text": "Ремесленники", "set_variable": "family", "value": "artisan"},
+        {"text": "Клирики", "set_variable": "family", "value": "clergy"},
+        {"text": "Офицеры", "set_variable": "family", "value": "officer"},
+        {"text": "Купцы", "set_variable": "family", "value": "merchant"},
+        {"text": "Писцы", "set_variable": "family", "value": "clerk"},
+        {"text": "Работники", "set_variable": "family", "value": "labor"}
+      ]
+    },
+    {
+      "text": "Где вы получили образование? Оно определит не только знания, но и круг людей, которые будут считать вас своим.",
+      "choices": [
+        {"text": "Приходская школа", "set_variable": "education", "value": "parish_school"},
+        {"text": "Цеховое ученичество", "set_variable": "education", "value": "guild_apprenticeship"},
+        {"text": "Академия Агоры", "set_variable": "education", "value": "academy"},
+        {"text": "Военная школа", "set_variable": "education", "value": "military_school"},
+        {"text": "Семинария", "set_variable": "education", "value": "seminary"},
+        {"text": "Сам себе учитель", "set_variable": "education", "value": "self_taught"}
+      ]
+    },
+    {
+      "text": "Какое событие сформировало ваше отношение к власти? Его вспоминают, когда спорят о вас.",
+      "choices": [
+        {"text": "Пожар в порту", "set_variable": "formative", "value": "harbor_fire"},
+        {"text": "Пограничная война", "set_variable": "formative", "value": "border_war"},
+        {"text": "Церковный раскол", "set_variable": "formative", "value": "schism"},
+        {"text": "Хлебный бунт", "set_variable": "formative", "value": "bread_riot"},
+        {"text": "Политический процесс", "set_variable": "formative", "value": "trial"},
+        {"text": "Моровая година", "set_variable": "formative", "value": "plague"}
+      ]
+    },
+    {
+      "text": "Чему вы посвятили взрослую жизнь? Именно здесь вы начнёте искать должность.",
+      "choices": [
+        {"text": "Государственная служба", "set_variable": "vocation", "value": "state"},
+        {"text": "Церковное служение", "set_variable": "vocation", "value": "church"},
+        {"text": "Военная служба", "set_variable": "vocation", "value": "army"},
+        {"text": "Торговля и снабжение", "set_variable": "vocation", "value": "trade"},
+        {"text": "Знание и слово", "set_variable": "vocation", "value": "knowledge"},
+        {"text": "Забота и медицина", "set_variable": "vocation", "value": "care"},
+        {"text": "Публичное слово", "set_variable": "vocation", "value": "media"},
+        {"text": "Теневое ремесло", "set_variable": "vocation", "value": "underworld"}
+      ]
+    },
+    {
+      "text": "Что для вас важнее всего? Это не лозунг, а то, чем вы готовы платить за решение.",
+      "choices": [
+        {"text": "Порядок", "set_variable": "value", "value": "order"},
+        {"text": "Свобода", "set_variable": "value", "value": "freedom"},
+        {"text": "Вера", "set_variable": "value", "value": "faith"},
+        {"text": "Знание", "set_variable": "value", "value": "knowledge"},
+        {"text": "Милосердие", "set_variable": "value", "value": "mercy"},
+        {"text": "Выгода", "set_variable": "value", "value": "profit"},
+        {"text": "Честь", "set_variable": "value", "value": "honor"}
+      ]
+    },
+    {
+      "text": "И что вы поставите рядом с этим? Вторая ценность часто спорит с первой.",
+      "choices": [
+        {"text": "Порядок", "set_variable": "value2", "value": "order"},
+        {"text": "Свобода", "set_variable": "value2", "value": "freedom"},
+        {"text": "Вера", "set_variable": "value2", "value": "faith"},
+        {"text": "Знание", "set_variable": "value2", "value": "knowledge"},
+        {"text": "Милосердие", "set_variable": "value2", "value": "mercy"},
+        {"text": "Выгода", "set_variable": "value2", "value": "profit"},
+        {"text": "Честь", "set_variable": "value2", "value": "honor"}
+      ]
+    },
+    {
+      "text": "Какой недостаток признают за вами даже друзья?",
+      "choices": [
+        {"text": "Амбиция", "set_variable": "flaw", "value": "ambition"},
+        {"text": "Сомнение", "set_variable": "flaw", "value": "doubt"},
+        {"text": "Жадность", "set_variable": "flaw", "value": "greed"},
+        {"text": "Фанатизм", "set_variable": "flaw", "value": "zeal"},
+        {"text": "Жёсткость", "set_variable": "flaw", "value": "cruelty"},
+        {"text": "Наивность", "set_variable": "flaw", "value": "naivety"}
+      ]
+    },
+    {
+      "text": "Кто помог вам получить первый шанс? У покровителя всегда есть свой интерес.",
+      "choices": [
+        {"text": "Министр", "set_variable": "patron", "value": "minister"},
+        {"text": "Епископ", "set_variable": "patron", "value": "bishop"},
+        {"text": "Гильдмейстер", "set_variable": "patron", "value": "guildmaster"},
+        {"text": "Офицер", "set_variable": "patron", "value": "officer"},
+        {"text": "Редактор", "set_variable": "patron", "value": "editor"},
+        {"text": "Ночной хозяин", "set_variable": "patron", "value": "crime_boss"},
+        {"text": "Никто", "set_variable": "patron", "value": "none"}
+      ]
+    },
+    {
+      "text": "Что о вас говорят на улице? Репутация — это не правда, а то, во что город уже готов поверить.",
+      "choices": [
+        {"text": "Уважаемый человек", "set_variable": "reputation", "value": "respectable"},
+        {"text": "Спорная фигура", "set_variable": "reputation", "value": "controversial"},
+        {"text": "Никто не знает", "set_variable": "reputation", "value": "unknown"},
+        {"text": "Скандал ходит рядом", "set_variable": "reputation", "value": "notorious"}
+      ]
+    }
+  ]
+}

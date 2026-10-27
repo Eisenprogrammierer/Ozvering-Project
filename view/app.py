@@ -85,6 +85,9 @@ class App:
         self.pending_storyline_outcome = None
         self.strategy = None
         self.strategy_config = None
+        self.world = None
+        self.world_config = None
+        self.player_profile = None
 
         from campaign import RoleCatalog
 
@@ -222,6 +225,9 @@ class App:
         self.campaign_preset = None
         self.strategy = None
         self.strategy_config = None
+        self.world = None
+        self.world_config = None
+        self.player_profile = None
         self.manager.push(RoleSelectScreen(self))
         logger.info("Запрошена новая игра: выбор роли")
 
@@ -232,6 +238,69 @@ class App:
             )
         except (TypeError, ValueError):
             return 7
+
+    def _start_world_storyline(self, storyline, role):
+        from campaign.world import load_world
+        from view.support.storyline import StorylineInterpreter
+        from view.support.scenario import build_world
+        from view.support.world import CampaignEngine
+        from view.support.time_system import CampaignTimeSystem
+
+        self.campaign_preset = None
+        self.strategy = None
+        self.strategy_config = None
+        self.world = None
+        self.player_profile = None
+        self.scenario_path = storyline.get(
+            "scenario_path", "scenarios/mvp.json"
+        )
+        self.pending_storyline_outcome = None
+        state = build_world(
+            scenario_path=self.scenario_path,
+            content=self.content,
+            seed=self._campaign_seed(storyline),
+        )
+        self.state = state
+        self.engine = CampaignEngine(state)
+        self.engine.engagements = state.engagements
+        self.player_idx = state.player_idx
+        self.time_system = CampaignTimeSystem(
+            state, engine=self.engine, app=self
+        )
+        self.engine.time_system = self.time_system
+        from .ui.time_hud import TimeHUD
+
+        self.time_hud = TimeHUD(self)
+        self.storyline_interpreter = StorylineInterpreter(self, storyline)
+        interp = self.storyline_interpreter
+        for key, value in (role.grants or {}).items():
+            interp.set_variable(str(key), value)
+        interp.set_variable("player_role", role.id)
+        interp.set_variable("player_role_label", role.label)
+        self.world_config = load_world(storyline.get("world_path") or None)
+        interp.set_variable(
+            "world_title",
+            self.world_config.get("title", "Мир"),
+        )
+        interp.set_variable("world_days", self.world_config.get("days", 30))
+        interp.set_variable(
+            "world_actions_per_day",
+            self.world_config.get("actions_per_day", 3),
+        )
+        interp.set_variable(
+            "world_domains",
+            [
+                item.get("label", item.get("id"))
+                for item in self.world_config.get("domains", [])
+            ],
+        )
+        logger.info(
+            "Сюжет мира запущен: %s; роль=%s; мир=%s",
+            storyline.get("storyline_id", "?"),
+            role.id,
+            self.world_config.get("id"),
+        )
+        self._play_next_scene()
 
     def start_storyline(self, storyline, faction_id=None):
         from campaign import CampaignPresetGenerator
@@ -244,6 +313,9 @@ class App:
         self.selected_role = role
         if faction_id is not None:
             self.selected_faction_id = faction_id
+        if storyline.get("world_path"):
+            self._start_world_storyline(storyline, role)
+            return
         template_path = storyline.get("campaign_template") or None
         if template_path and not os.path.isabs(template_path):
             template_path = os.path.normpath(
@@ -409,6 +481,10 @@ class App:
         logger.debug("Запуск сцены: %s", scene_type)
         if scene_type == "character_creation":
             self._play_character_creation(scene)
+        elif scene_type == "automaton_choice":
+            self._play_automaton_choice(scene)
+        elif scene_type == "world":
+            self._play_world(scene)
         elif scene_type == "visual_novel":
             self._play_visual_novel(scene)
         elif scene_type == "document":
@@ -446,6 +522,49 @@ class App:
         from .screens.character_creation import CharacterCreationScreen
 
         self.manager.replace_all(CharacterCreationScreen(self, steps))
+
+    def _play_automaton_choice(self, scene):
+        interp = self.storyline_interpreter
+        if interp is None:
+            return
+        self.music.request_category("overture")
+        interp.advance()
+        from .screens.automaton_select import AutomatonSelectScreen
+
+        self.manager.replace_all(
+            AutomatonSelectScreen(self, scene.get("world_path") or None)
+        )
+
+    def _play_world(self, scene):
+        from campaign.world import WorldEngine, load_world
+        from .screens.world_screen import WorldScreen
+
+        interp = self.storyline_interpreter
+        snapshot = (interp.state or {}).get("world") if interp else None
+        config = self.world_config
+        if config is None:
+            path = scene.get("world_path")
+            if not path and interp is not None:
+                path = (interp.storyline or {}).get("world_path")
+            config = load_world(path or None)
+            self.world_config = config
+        profile = self.player_profile
+        if profile is None and snapshot:
+            profile = snapshot.get("profile")
+        if self.world is None:
+            self.world = WorldEngine(
+                config,
+                profile=profile,
+                seed=self._campaign_seed(interp.storyline if interp else {}),
+                snapshot=snapshot,
+            )
+        self.music.request_category("ambient")
+        self.manager.replace_all(WorldScreen(self, self.world))
+        logger.info(
+            "Экран мира открыт: день=%d, прикреплён=%s",
+            self.world.day,
+            self.world.attached,
+        )
 
     def _play_visual_novel(self, scene):
         from .screens.visual_novel import VisualNovelScreen
@@ -501,6 +620,17 @@ class App:
         if interp is not None:
             interp.advance()
             self._play_next_scene()
+
+    def _is_world_campaign(self):
+        interp = self.storyline_interpreter
+        if interp is not None:
+            storyline = interp.storyline or {}
+            if storyline.get("world_path"):
+                return True
+            scenes = storyline.get("scenes") or []
+            if any(scene.get("type") == "world" for scene in scenes):
+                return True
+        return self.world is not None
 
     def _is_strategy_campaign(self):
         preset = self.campaign_preset
@@ -603,6 +733,9 @@ class App:
         self.pending_storyline_outcome = None
         self.strategy = None
         self.strategy_config = None
+        self.world = None
+        self.world_config = None
+        self.player_profile = None
         self.music.request_category("overture")
         from .screens.main_menu import MainMenuScreen
 
@@ -651,9 +784,15 @@ class App:
         if self.strategy is not None:
             if storyline_snapshot is None:
                 storyline_snapshot = {"state": {}}
-            storyline_snapshot.setdefault("state", {})["strategy"] = (
-                self.strategy.to_dict()
-            )
+            storyline_snapshot.setdefault("state", {})[
+                "strategy"
+            ] = self.strategy.to_dict()
+        if self.world is not None:
+            if storyline_snapshot is None:
+                storyline_snapshot = {"state": {}}
+            storyline_snapshot.setdefault("state", {})[
+                "world"
+            ] = self.world.to_dict()
         path = do_save(
             self.engine.state,
             self.time_system,
@@ -681,6 +820,9 @@ class App:
         self.pending_storyline_outcome = None
         self.strategy = None
         self.strategy_config = None
+        self.world = None
+        self.world_config = None
+        self.player_profile = None
         from campaign.preset import CampaignPreset
         from campaign.roles import RoleSpec
 
@@ -735,15 +877,16 @@ class App:
         self.time_hud = TimeHUD(self)
         storyline_snapshot = snapshot.get("storyline", None)
         strategy_snapshot = None
+        world_snapshot = None
         if storyline_snapshot is not None:
             from view.support.storyline import (
                 load_storyline,
                 StorylineInterpreter,
             )
 
-            strategy_snapshot = (storyline_snapshot.get("state") or {}).get(
-                "strategy"
-            )
+            state_snapshot = storyline_snapshot.get("state") or {}
+            strategy_snapshot = state_snapshot.get("strategy")
+            world_snapshot = state_snapshot.get("world")
             storyline_id = storyline_snapshot.get("storyline_id")
             if storyline_id:
                 storyline = load_storyline(storyline_id)
@@ -754,7 +897,39 @@ class App:
                     self.storyline_interpreter.load_from_snapshot(
                         storyline_snapshot
                     )
-        if self._is_strategy_campaign() or strategy_snapshot is not None:
+        if world_snapshot is not None or self._is_world_campaign():
+            from campaign.world import WorldEngine, load_world
+            from .screens.automaton_select import AutomatonSelectScreen
+            from .screens.world_screen import WorldScreen
+
+            storyline = (
+                self.storyline_interpreter.storyline
+                if self.storyline_interpreter is not None
+                else {}
+            )
+            self.world_config = load_world(storyline.get("world_path") or None)
+            profile = (
+                world_snapshot.get("profile")
+                if world_snapshot is not None
+                else None
+            )
+            self.player_profile = profile
+            self.world = WorldEngine(
+                self.world_config,
+                profile=profile,
+                seed=self._campaign_seed(storyline),
+                snapshot=world_snapshot,
+            )
+            self.music.request_category("ambient")
+            if self.world.attached:
+                self.manager.replace_all(WorldScreen(self, self.world))
+            else:
+                self.manager.replace_all(
+                    AutomatonSelectScreen(
+                        self, storyline.get("world_path") or None
+                    )
+                )
+        elif self._is_strategy_campaign() or strategy_snapshot is not None:
             self._open_strategy(snapshot=strategy_snapshot)
         else:
             from .screens.rts_screen import RTSScreen

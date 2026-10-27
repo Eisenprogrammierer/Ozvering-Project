@@ -1,0 +1,5990 @@
+{
+  "id": "agora_world",
+  "title": "Агора: мир в движении",
+  "subtitle": "Семь сфер, несколько держав и церквей. Вы — должностное лицо.",
+  "days": 30,
+  "actions_per_day": 3,
+  "skill_labels": {
+    "administration": "управление",
+    "diplomacy": "переговоры",
+    "command": "командование",
+    "faith": "вера",
+    "trade": "торговля",
+    "scholarship": "знание",
+    "care": "забота",
+    "intrigue": "интрига",
+    "media": "публичность"
+  },
+  "stat_labels": {
+    "power": "сила",
+    "wealth": "казна",
+    "legitimacy": "легитимность",
+    "cohesion": "сплочённость",
+    "reach": "охват",
+    "capacity": "дееспособность",
+    "influence": "влияние",
+    "favor": "связи",
+    "evidence": "доказательства",
+    "standing": "репутация"
+  },
+  "domains": [
+    {
+      "id": "order",
+      "label": "Порядок",
+      "function": "order",
+      "levels": [
+        {
+          "id": "government",
+          "label": "Правительство",
+          "rank": 1
+        },
+        {
+          "id": "ministry",
+          "label": "Министерство",
+          "rank": 2
+        },
+        {
+          "id": "agency",
+          "label": "Агентство",
+          "rank": 3
+        },
+        {
+          "id": "precinct",
+          "label": "Местный пост",
+          "rank": 4
+        }
+      ]
+    },
+    {
+      "id": "meaning",
+      "label": "Смысл",
+      "function": "meaning",
+      "levels": [
+        {
+          "id": "patriarchate",
+          "label": "Патриархат",
+          "rank": 1
+        },
+        {
+          "id": "diocese",
+          "label": "Епархия",
+          "rank": 2
+        },
+        {
+          "id": "parish",
+          "label": "Приход",
+          "rank": 3
+        }
+      ]
+    },
+    {
+      "id": "provision",
+      "label": "Снабжение",
+      "function": "provision",
+      "levels": [
+        {
+          "id": "syndicate",
+          "label": "Синдикат",
+          "rank": 1
+        },
+        {
+          "id": "guild",
+          "label": "Гильдия",
+          "rank": 2
+        },
+        {
+          "id": "workshop",
+          "label": "Мастерская",
+          "rank": 3
+        }
+      ]
+    },
+    {
+      "id": "status",
+      "label": "Статус",
+      "function": "status",
+      "levels": [
+        {
+          "id": "house",
+          "label": "Дом",
+          "rank": 1
+        },
+        {
+          "id": "court",
+          "label": "Двор",
+          "rank": 2
+        },
+        {
+          "id": "retinue",
+          "label": "Свита",
+          "rank": 3
+        }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "label": "Знание",
+      "function": "knowledge",
+      "levels": [
+        {
+          "id": "academy",
+          "label": "Академия",
+          "rank": 1
+        },
+        {
+          "id": "faculty",
+          "label": "Факультет",
+          "rank": 2
+        },
+        {
+          "id": "department",
+          "label": "Кафедра",
+          "rank": 3
+        },
+        {
+          "id": "workshop",
+          "label": "Мастерская",
+          "rank": 4
+        }
+      ]
+    },
+    {
+      "id": "care",
+      "label": "Забота",
+      "function": "care",
+      "levels": [
+        {
+          "id": "order",
+          "label": "Орден",
+          "rank": 1
+        },
+        {
+          "id": "hospital",
+          "label": "Больница",
+          "rank": 2
+        },
+        {
+          "id": "clinic",
+          "label": "Клиника",
+          "rank": 3
+        }
+      ]
+    },
+    {
+      "id": "exchange",
+      "label": "Обмен",
+      "function": "exchange",
+      "levels": [
+        {
+          "id": "league",
+          "label": "Лига",
+          "rank": 1
+        },
+        {
+          "id": "house",
+          "label": "Торговый дом",
+          "rank": 2
+        },
+        {
+          "id": "shop",
+          "label": "Лавка",
+          "rank": 3
+        }
+      ]
+    }
+  ],
+  "polities": [
+    {
+      "id": "agora",
+      "label": "Республика Агора",
+      "kind": "state"
+    },
+    {
+      "id": "veren",
+      "label": "Королевство Верен",
+      "kind": "state"
+    },
+    {
+      "id": "lumen",
+      "label": "Церковь Света",
+      "kind": "church"
+    },
+    {
+      "id": "ash",
+      "label": "Церковь Пепельной Зари",
+      "kind": "church"
+    },
+    {
+      "id": "league",
+      "label": "Вольная торговая лига",
+      "kind": "trade"
+    },
+    {
+      "id": "academy",
+      "label": "Академия Агоры",
+      "kind": "knowledge"
+    },
+    {
+      "id": "care_order",
+      "label": "Орден Милосердия",
+      "kind": "care"
+    },
+    {
+      "id": "houses",
+      "label": "Дома и кланы",
+      "kind": "status"
+    },
+    {
+      "id": "press",
+      "label": "Слово Агоры",
+      "kind": "media"
+    },
+    {
+      "id": "underworld",
+      "label": "Ночные дома",
+      "kind": "crime"
+    }
+  ],
+  "offices": [
+    {
+      "id": "head_of_government",
+      "label": "Глава правительства",
+      "domain": "order",
+      "levels": [
+        "government"
+      ],
+      "rank": 1,
+      "authority": 0.92,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.42,
+          "diplomacy": 0.25
+        }
+      },
+      "connection_kinds": [
+        "government"
+      ]
+    },
+    {
+      "id": "state_advisor",
+      "label": "Государственный советник",
+      "domain": "order",
+      "levels": [
+        "government"
+      ],
+      "rank": 2,
+      "authority": 0.72,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.28
+        }
+      }
+    },
+    {
+      "id": "state_secretary",
+      "label": "Государственный секретарь",
+      "domain": "order",
+      "levels": [
+        "government"
+      ],
+      "rank": 3,
+      "authority": 0.38,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "minister",
+      "label": "Министр",
+      "domain": "order",
+      "levels": [
+        "ministry"
+      ],
+      "rank": 2,
+      "authority": 0.78,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.32
+        }
+      },
+      "connection_kinds": [
+        "government"
+      ]
+    },
+    {
+      "id": "deputy_minister",
+      "label": "Заместитель министра",
+      "domain": "order",
+      "levels": [
+        "ministry"
+      ],
+      "rank": 3,
+      "authority": 0.6,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.22
+        }
+      }
+    },
+    {
+      "id": "ministry_official",
+      "label": "Чиновник министерства",
+      "domain": "order",
+      "levels": [
+        "ministry"
+      ],
+      "rank": 4,
+      "authority": 0.34,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "agency_head",
+      "label": "Глава агентства",
+      "domain": "order",
+      "levels": [
+        "agency"
+      ],
+      "rank": 3,
+      "authority": 0.66,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.22
+        }
+      }
+    },
+    {
+      "id": "inspector",
+      "label": "Инспектор",
+      "domain": "order",
+      "levels": [
+        "agency"
+      ],
+      "rank": 4,
+      "authority": 0.48,
+      "skill": "command",
+      "requires": {
+        "skills": {
+          "command": 0.16
+        }
+      }
+    },
+    {
+      "id": "clerk",
+      "label": "Писарь",
+      "domain": "order",
+      "levels": [
+        "agency"
+      ],
+      "rank": 5,
+      "authority": 0.22,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "precinct_chief",
+      "label": "Начальник поста",
+      "domain": "order",
+      "levels": [
+        "precinct"
+      ],
+      "rank": 4,
+      "authority": 0.58,
+      "skill": "command",
+      "requires": {
+        "skills": {
+          "command": 0.18
+        }
+      }
+    },
+    {
+      "id": "watch_officer",
+      "label": "Офицер стражи",
+      "domain": "order",
+      "levels": [
+        "precinct"
+      ],
+      "rank": 5,
+      "authority": 0.42,
+      "skill": "command",
+      "requires": {
+        "skills": {
+          "command": 0.12
+        }
+      }
+    },
+    {
+      "id": "guard",
+      "label": "Стражник",
+      "domain": "order",
+      "levels": [
+        "precinct"
+      ],
+      "rank": 6,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "patriarch",
+      "label": "Патриарх",
+      "domain": "meaning",
+      "levels": [
+        "patriarchate"
+      ],
+      "rank": 1,
+      "authority": 0.95,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.48,
+          "diplomacy": 0.28
+        }
+      },
+      "connection_kinds": [
+        "church"
+      ]
+    },
+    {
+      "id": "synod_member",
+      "label": "Член синода",
+      "domain": "meaning",
+      "levels": [
+        "patriarchate"
+      ],
+      "rank": 2,
+      "authority": 0.75,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.32
+        }
+      }
+    },
+    {
+      "id": "chancery_clerk",
+      "label": "Канцелярский писарь",
+      "domain": "meaning",
+      "levels": [
+        "patriarchate"
+      ],
+      "rank": 4,
+      "authority": 0.28,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "bishop",
+      "label": "Епископ",
+      "domain": "meaning",
+      "levels": [
+        "diocese"
+      ],
+      "rank": 2,
+      "authority": 0.82,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.4,
+          "diplomacy": 0.22
+        }
+      },
+      "connection_kinds": [
+        "church"
+      ]
+    },
+    {
+      "id": "diocesan_chancellor",
+      "label": "Епархиальный канцлер",
+      "domain": "meaning",
+      "levels": [
+        "diocese"
+      ],
+      "rank": 3,
+      "authority": 0.56,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.22,
+          "administration": 0.18
+        }
+      }
+    },
+    {
+      "id": "priest",
+      "label": "Священник",
+      "domain": "meaning",
+      "levels": [
+        "diocese"
+      ],
+      "rank": 4,
+      "authority": 0.46,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.2
+        }
+      }
+    },
+    {
+      "id": "parish_priest",
+      "label": "Настоятель прихода",
+      "domain": "meaning",
+      "levels": [
+        "parish"
+      ],
+      "rank": 3,
+      "authority": 0.55,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.24
+        }
+      }
+    },
+    {
+      "id": "deacon",
+      "label": "Диакон",
+      "domain": "meaning",
+      "levels": [
+        "parish"
+      ],
+      "rank": 4,
+      "authority": 0.36,
+      "skill": "faith",
+      "requires": {
+        "skills": {
+          "faith": 0.14
+        }
+      }
+    },
+    {
+      "id": "reader",
+      "label": "Чтец",
+      "domain": "meaning",
+      "levels": [
+        "parish"
+      ],
+      "rank": 5,
+      "authority": 0.2,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "syndic",
+      "label": "Синдик",
+      "domain": "provision",
+      "levels": [
+        "syndicate"
+      ],
+      "rank": 1,
+      "authority": 0.88,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.4
+        }
+      },
+      "connection_kinds": [
+        "trade"
+      ]
+    },
+    {
+      "id": "board_member",
+      "label": "Член правления",
+      "domain": "provision",
+      "levels": [
+        "syndicate"
+      ],
+      "rank": 2,
+      "authority": 0.68,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.28
+        }
+      }
+    },
+    {
+      "id": "syndicate_clerk",
+      "label": "Писарь синдиката",
+      "domain": "provision",
+      "levels": [
+        "syndicate"
+      ],
+      "rank": 4,
+      "authority": 0.28,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "guildmaster",
+      "label": "Гильдмейстер",
+      "domain": "provision",
+      "levels": [
+        "guild"
+      ],
+      "rank": 2,
+      "authority": 0.76,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.3
+        }
+      },
+      "connection_kinds": [
+        "trade"
+      ]
+    },
+    {
+      "id": "warden",
+      "label": "Цеховой надзиратель",
+      "domain": "provision",
+      "levels": [
+        "guild"
+      ],
+      "rank": 3,
+      "authority": 0.54,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.2
+        }
+      }
+    },
+    {
+      "id": "guild_apprentice",
+      "label": "Подмастерье",
+      "domain": "provision",
+      "levels": [
+        "guild"
+      ],
+      "rank": 5,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "master",
+      "label": "Мастер",
+      "domain": "provision",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 3,
+      "authority": 0.62,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.24
+        }
+      }
+    },
+    {
+      "id": "journeyman",
+      "label": "Работник",
+      "domain": "provision",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 4,
+      "authority": 0.38,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.14
+        }
+      }
+    },
+    {
+      "id": "workshop_apprentice",
+      "label": "Ученик",
+      "domain": "provision",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 5,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "house_head",
+      "label": "Глава дома",
+      "domain": "status",
+      "levels": [
+        "house"
+      ],
+      "rank": 1,
+      "authority": 0.9,
+      "skill": "diplomacy",
+      "requires": {
+        "skills": {
+          "diplomacy": 0.4
+        }
+      },
+      "connection_kinds": [
+        "noble"
+      ]
+    },
+    {
+      "id": "steward",
+      "label": "Управляющий",
+      "domain": "status",
+      "levels": [
+        "house"
+      ],
+      "rank": 2,
+      "authority": 0.66,
+      "skill": "administration",
+      "requires": {
+        "skills": {
+          "administration": 0.24,
+          "diplomacy": 0.18
+        }
+      }
+    },
+    {
+      "id": "retainer",
+      "label": "Домашний слуга",
+      "domain": "status",
+      "levels": [
+        "house"
+      ],
+      "rank": 4,
+      "authority": 0.3,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "courtier",
+      "label": "Придворный",
+      "domain": "status",
+      "levels": [
+        "court"
+      ],
+      "rank": 2,
+      "authority": 0.72,
+      "skill": "diplomacy",
+      "requires": {
+        "skills": {
+          "diplomacy": 0.3,
+          "intrigue": 0.18
+        }
+      },
+      "connection_kinds": [
+        "court"
+      ]
+    },
+    {
+      "id": "agent",
+      "label": "Тайный агент",
+      "domain": "status",
+      "levels": [
+        "court"
+      ],
+      "rank": 3,
+      "authority": 0.55,
+      "skill": "intrigue",
+      "requires": {
+        "skills": {
+          "intrigue": 0.24
+        }
+      }
+    },
+    {
+      "id": "servant",
+      "label": "Слуга",
+      "domain": "status",
+      "levels": [
+        "court"
+      ],
+      "rank": 5,
+      "authority": 0.2,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "captain",
+      "label": "Капитан свиты",
+      "domain": "status",
+      "levels": [
+        "retinue"
+      ],
+      "rank": 3,
+      "authority": 0.65,
+      "skill": "command",
+      "requires": {
+        "skills": {
+          "command": 0.24
+        }
+      }
+    },
+    {
+      "id": "sworn_man",
+      "label": "Верный человек",
+      "domain": "status",
+      "levels": [
+        "retinue"
+      ],
+      "rank": 4,
+      "authority": 0.42,
+      "skill": "command",
+      "requires": {
+        "skills": {
+          "command": 0.14
+        }
+      }
+    },
+    {
+      "id": "client",
+      "label": "Клиент",
+      "domain": "status",
+      "levels": [
+        "retinue"
+      ],
+      "rank": 5,
+      "authority": 0.22,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "rector",
+      "label": "Ректор",
+      "domain": "knowledge",
+      "levels": [
+        "academy"
+      ],
+      "rank": 1,
+      "authority": 0.86,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.4
+        }
+      },
+      "connection_kinds": [
+        "academy"
+      ]
+    },
+    {
+      "id": "professor",
+      "label": "Профессор",
+      "domain": "knowledge",
+      "levels": [
+        "academy"
+      ],
+      "rank": 2,
+      "authority": 0.7,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.3
+        }
+      }
+    },
+    {
+      "id": "scholar",
+      "label": "Учёный",
+      "domain": "knowledge",
+      "levels": [
+        "academy"
+      ],
+      "rank": 4,
+      "authority": 0.38,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.18
+        }
+      }
+    },
+    {
+      "id": "dean",
+      "label": "Декан",
+      "domain": "knowledge",
+      "levels": [
+        "faculty"
+      ],
+      "rank": 2,
+      "authority": 0.74,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.3,
+          "administration": 0.18
+        }
+      }
+    },
+    {
+      "id": "lecturer",
+      "label": "Лектор",
+      "domain": "knowledge",
+      "levels": [
+        "faculty"
+      ],
+      "rank": 3,
+      "authority": 0.54,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.24
+        }
+      }
+    },
+    {
+      "id": "student",
+      "label": "Студент",
+      "domain": "knowledge",
+      "levels": [
+        "faculty"
+      ],
+      "rank": 5,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "chair",
+      "label": "Заведующий кафедрой",
+      "domain": "knowledge",
+      "levels": [
+        "department"
+      ],
+      "rank": 3,
+      "authority": 0.66,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.26
+        }
+      }
+    },
+    {
+      "id": "researcher",
+      "label": "Исследователь",
+      "domain": "knowledge",
+      "levels": [
+        "department"
+      ],
+      "rank": 4,
+      "authority": 0.45,
+      "skill": "scholarship",
+      "requires": {
+        "skills": {
+          "scholarship": 0.2
+        }
+      }
+    },
+    {
+      "id": "assistant",
+      "label": "Ассистент",
+      "domain": "knowledge",
+      "levels": [
+        "department"
+      ],
+      "rank": 5,
+      "authority": 0.22,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "editor",
+      "label": "Редактор",
+      "domain": "knowledge",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 3,
+      "authority": 0.7,
+      "skill": "media",
+      "requires": {
+        "skills": {
+          "media": 0.3,
+          "scholarship": 0.18
+        }
+      }
+    },
+    {
+      "id": "printer",
+      "label": "Печатник",
+      "domain": "knowledge",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 4,
+      "authority": 0.45,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.18,
+          "media": 0.12
+        }
+      }
+    },
+    {
+      "id": "press_apprentice",
+      "label": "Подмастерье печатни",
+      "domain": "knowledge",
+      "levels": [
+        "workshop"
+      ],
+      "rank": 5,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "care_director",
+      "label": "Директор ордена",
+      "domain": "care",
+      "levels": [
+        "order"
+      ],
+      "rank": 1,
+      "authority": 0.86,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.4
+        }
+      },
+      "connection_kinds": [
+        "care"
+      ]
+    },
+    {
+      "id": "physician",
+      "label": "Врач ордена",
+      "domain": "care",
+      "levels": [
+        "order"
+      ],
+      "rank": 2,
+      "authority": 0.68,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.3
+        }
+      }
+    },
+    {
+      "id": "warden_care",
+      "label": "Смотритель",
+      "domain": "care",
+      "levels": [
+        "order"
+      ],
+      "rank": 4,
+      "authority": 0.3,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.14
+        }
+      }
+    },
+    {
+      "id": "hospital_head",
+      "label": "Глава больницы",
+      "domain": "care",
+      "levels": [
+        "hospital"
+      ],
+      "rank": 2,
+      "authority": 0.72,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.3,
+          "administration": 0.18
+        }
+      }
+    },
+    {
+      "id": "doctor",
+      "label": "Доктор",
+      "domain": "care",
+      "levels": [
+        "hospital"
+      ],
+      "rank": 3,
+      "authority": 0.6,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.28
+        }
+      }
+    },
+    {
+      "id": "nurse",
+      "label": "Сестра милосердия",
+      "domain": "care",
+      "levels": [
+        "hospital"
+      ],
+      "rank": 4,
+      "authority": 0.36,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.16
+        }
+      }
+    },
+    {
+      "id": "clinic_head",
+      "label": "Глава клиники",
+      "domain": "care",
+      "levels": [
+        "clinic"
+      ],
+      "rank": 3,
+      "authority": 0.58,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.24
+        }
+      }
+    },
+    {
+      "id": "medic",
+      "label": "Лекарь",
+      "domain": "care",
+      "levels": [
+        "clinic"
+      ],
+      "rank": 4,
+      "authority": 0.42,
+      "skill": "care",
+      "requires": {
+        "skills": {
+          "care": 0.2
+        }
+      }
+    },
+    {
+      "id": "orderly",
+      "label": "Санитар",
+      "domain": "care",
+      "levels": [
+        "clinic"
+      ],
+      "rank": 5,
+      "authority": 0.2,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "exchange_head",
+      "label": "Глава лиги",
+      "domain": "exchange",
+      "levels": [
+        "league"
+      ],
+      "rank": 1,
+      "authority": 0.87,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.4
+        }
+      },
+      "connection_kinds": [
+        "trade"
+      ]
+    },
+    {
+      "id": "broker",
+      "label": "Брокер",
+      "domain": "exchange",
+      "levels": [
+        "league"
+      ],
+      "rank": 2,
+      "authority": 0.68,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.3,
+          "intrigue": 0.16
+        }
+      }
+    },
+    {
+      "id": "exchange_clerk",
+      "label": "Писарь лиги",
+      "domain": "exchange",
+      "levels": [
+        "league"
+      ],
+      "rank": 4,
+      "authority": 0.3,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "merchant",
+      "label": "Купец",
+      "domain": "exchange",
+      "levels": [
+        "house"
+      ],
+      "rank": 2,
+      "authority": 0.72,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.3
+        }
+      }
+    },
+    {
+      "id": "factor",
+      "label": "Фактор",
+      "domain": "exchange",
+      "levels": [
+        "house"
+      ],
+      "rank": 3,
+      "authority": 0.5,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.22
+        }
+      }
+    },
+    {
+      "id": "house_clerk",
+      "label": "Конторщик",
+      "domain": "exchange",
+      "levels": [
+        "house"
+      ],
+      "rank": 5,
+      "authority": 0.22,
+      "skill": "",
+      "requires": {}
+    },
+    {
+      "id": "shopkeeper",
+      "label": "Лавочник",
+      "domain": "exchange",
+      "levels": [
+        "shop"
+      ],
+      "rank": 3,
+      "authority": 0.6,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.26
+        }
+      }
+    },
+    {
+      "id": "shop_clerk",
+      "label": "Приказчик",
+      "domain": "exchange",
+      "levels": [
+        "shop"
+      ],
+      "rank": 4,
+      "authority": 0.38,
+      "skill": "trade",
+      "requires": {
+        "skills": {
+          "trade": 0.14
+        }
+      }
+    },
+    {
+      "id": "porter",
+      "label": "Носильщик",
+      "domain": "exchange",
+      "levels": [
+        "shop"
+      ],
+      "rank": 5,
+      "authority": 0.18,
+      "skill": "",
+      "requires": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agora_government",
+      "name": "Правительство Агоры",
+      "domain": "order",
+      "level": "government",
+      "parent": null,
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "capital",
+        "government"
+      ],
+      "description": "Совет министров и канцелярия Республики Агора.",
+      "stats": {
+        "power": 0.82,
+        "wealth": 0.66,
+        "legitimacy": 0.72,
+        "cohesion": 0.62,
+        "reach": 0.8,
+        "capacity": 0.7
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_ministry_interior",
+      "name": "Министерство внутренних дел",
+      "domain": "order",
+      "level": "ministry",
+      "parent": "agora_government",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "government",
+        "security"
+      ],
+      "description": "Полиция, надзор и городская стража.",
+      "stats": {
+        "power": 0.64,
+        "wealth": 0.58,
+        "legitimacy": 0.6,
+        "cohesion": 0.55,
+        "reach": 0.62,
+        "capacity": 0.58
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_watch",
+      "name": "Городская стража",
+      "domain": "order",
+      "level": "agency",
+      "parent": "agora_ministry_interior",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "security"
+      ],
+      "description": "Патрули, посты и порядок на улицах.",
+      "stats": {
+        "power": 0.45,
+        "wealth": 0.42,
+        "legitimacy": 0.45,
+        "cohesion": 0.48,
+        "reach": 0.48,
+        "capacity": 0.46
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_precinct_port",
+      "name": "Портовая стража",
+      "domain": "order",
+      "level": "precinct",
+      "parent": "agora_watch",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "port"
+      ],
+      "description": "Пост у портовых складов; здесь сходятся таможня, торговля и слухи.",
+      "stats": {
+        "power": 0.32,
+        "wealth": 0.32,
+        "legitimacy": 0.34,
+        "cohesion": 0.4,
+        "reach": 0.34,
+        "capacity": 0.38
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_ministry_finance",
+      "name": "Министерство казны",
+      "domain": "order",
+      "level": "ministry",
+      "parent": "agora_government",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "government",
+        "finance"
+      ],
+      "description": "Сборы, пошлины и казна республики.",
+      "stats": {
+        "power": 0.64,
+        "wealth": 0.58,
+        "legitimacy": 0.6,
+        "cohesion": 0.55,
+        "reach": 0.62,
+        "capacity": 0.58
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_tax_office",
+      "name": "Податное управление",
+      "domain": "order",
+      "level": "agency",
+      "parent": "agora_ministry_finance",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "finance"
+      ],
+      "description": "Налоги, недоимки и учёт городских доходов.",
+      "stats": {
+        "power": 0.45,
+        "wealth": 0.42,
+        "legitimacy": 0.45,
+        "cohesion": 0.48,
+        "reach": 0.48,
+        "capacity": 0.46
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_army_command",
+      "name": "Военный совет",
+      "domain": "order",
+      "level": "ministry",
+      "parent": "agora_government",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "government",
+        "military"
+      ],
+      "description": "Гарнизоны, набор и оборона Агоры.",
+      "stats": {
+        "power": 0.64,
+        "wealth": 0.58,
+        "legitimacy": 0.6,
+        "cohesion": 0.55,
+        "reach": 0.62,
+        "capacity": 0.58
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "agora_garrison",
+      "name": "Городской гарнизон",
+      "domain": "order",
+      "level": "agency",
+      "parent": "agora_army_command",
+      "polity": "agora",
+      "kind": "institution",
+      "tags": [
+        "military"
+      ],
+      "description": "Солдаты, арсеналы и патрули на стенах.",
+      "stats": {
+        "power": 0.45,
+        "wealth": 0.42,
+        "legitimacy": 0.45,
+        "cohesion": 0.48,
+        "reach": 0.48,
+        "capacity": 0.46
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "veren_crown",
+      "name": "Корона Верена",
+      "domain": "order",
+      "level": "government",
+      "parent": null,
+      "polity": "veren",
+      "kind": "institution",
+      "tags": [
+        "capital",
+        "government"
+      ],
+      "description": "Королевский двор и корона Верена.",
+      "stats": {
+        "power": 0.82,
+        "wealth": 0.66,
+        "legitimacy": 0.72,
+        "cohesion": 0.62,
+        "reach": 0.8,
+        "capacity": 0.7
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "veren_royal_army",
+      "name": "Королевская армия",
+      "domain": "order",
+      "level": "ministry",
+      "parent": "veren_crown",
+      "polity": "veren",
+      "kind": "institution",
+      "tags": [
+        "government",
+        "military"
+      ],
+      "description": "Полки, офицеры и королевский набор.",
+      "stats": {
+        "power": 0.64,
+        "wealth": 0.58,
+        "legitimacy": 0.6,
+        "cohesion": 0.55,
+        "reach": 0.62,
+        "capacity": 0.58
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "veren_frontier",
+      "name": "Пограничная застава",
+      "domain": "order",
+      "level": "agency",
+      "parent": "veren_royal_army",
+      "polity": "veren",
+      "kind": "institution",
+      "tags": [
+        "military",
+        "frontier"
+      ],
+      "description": "Застава на дороге, где заканчивается власть короны.",
+      "stats": {
+        "power": 0.45,
+        "wealth": 0.42,
+        "legitimacy": 0.45,
+        "cohesion": 0.48,
+        "reach": 0.48,
+        "capacity": 0.46
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "veren_treasury",
+      "name": "Королевская казна",
+      "domain": "order",
+      "level": "ministry",
+      "parent": "veren_crown",
+      "polity": "veren",
+      "kind": "institution",
+      "tags": [
+        "government",
+        "finance"
+      ],
+      "description": "Счётные книги, займы и королевские расходы.",
+      "stats": {
+        "power": 0.64,
+        "wealth": 0.58,
+        "legitimacy": 0.6,
+        "cohesion": 0.55,
+        "reach": 0.62,
+        "capacity": 0.58
+      },
+      "interests": {
+        "order": 0.86,
+        "status": 0.36,
+        "provision": 0.28
+      }
+    },
+    {
+      "id": "lumen_patriarchate",
+      "name": "Патриархат Света",
+      "domain": "meaning",
+      "level": "patriarchate",
+      "parent": null,
+      "polity": "lumen",
+      "kind": "institution",
+      "tags": [
+        "church",
+        "capital"
+      ],
+      "description": "Собор, синод и канцелярия Церкви Света.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.72,
+        "legitimacy": 0.86,
+        "cohesion": 0.72,
+        "reach": 0.82,
+        "capacity": 0.64
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "lumen_diocese_agora",
+      "name": "Епархия Агоры",
+      "domain": "meaning",
+      "level": "diocese",
+      "parent": "lumen_patriarchate",
+      "polity": "lumen",
+      "kind": "institution",
+      "tags": [
+        "church"
+      ],
+      "description": "Епископская кафедра Агоры и её приходы.",
+      "stats": {
+        "power": 0.5,
+        "wealth": 0.52,
+        "legitimacy": 0.72,
+        "cohesion": 0.64,
+        "reach": 0.62,
+        "capacity": 0.54
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "lumen_parish_square",
+      "name": "Приход Соборной площади",
+      "domain": "meaning",
+      "level": "parish",
+      "parent": "lumen_diocese_agora",
+      "polity": "lumen",
+      "kind": "institution",
+      "tags": [
+        "church"
+      ],
+      "description": "Приход у собора, где спорят о вере и городских делах.",
+      "stats": {
+        "power": 0.28,
+        "wealth": 0.3,
+        "legitimacy": 0.58,
+        "cohesion": 0.56,
+        "reach": 0.36,
+        "capacity": 0.42
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "lumen_parish_port",
+      "name": "Портовый приход",
+      "domain": "meaning",
+      "level": "parish",
+      "parent": "lumen_diocese_agora",
+      "polity": "lumen",
+      "kind": "institution",
+      "tags": [
+        "church",
+        "port"
+      ],
+      "description": "Приход среди моряков, грузчиков и портовых вдов.",
+      "stats": {
+        "power": 0.28,
+        "wealth": 0.3,
+        "legitimacy": 0.58,
+        "cohesion": 0.56,
+        "reach": 0.36,
+        "capacity": 0.42
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "ash_patriarchate",
+      "name": "Патриархат Пепельной Зари",
+      "domain": "meaning",
+      "level": "patriarchate",
+      "parent": null,
+      "polity": "ash",
+      "kind": "institution",
+      "tags": [
+        "church",
+        "capital"
+      ],
+      "description": "Старая церковь, помнящая пожар и раскол.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.72,
+        "legitimacy": 0.86,
+        "cohesion": 0.72,
+        "reach": 0.82,
+        "capacity": 0.64
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "ash_diocese_agora",
+      "name": "Епархия Пепельной Зари",
+      "domain": "meaning",
+      "level": "diocese",
+      "parent": "ash_patriarchate",
+      "polity": "ash",
+      "kind": "institution",
+      "tags": [
+        "church"
+      ],
+      "description": "Епархия, которая спорит с Церковью Света за кварталы.",
+      "stats": {
+        "power": 0.5,
+        "wealth": 0.52,
+        "legitimacy": 0.72,
+        "cohesion": 0.64,
+        "reach": 0.62,
+        "capacity": 0.54
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "ash_parish_docks",
+      "name": "Приход у доков",
+      "domain": "meaning",
+      "level": "parish",
+      "parent": "ash_diocese_agora",
+      "polity": "ash",
+      "kind": "institution",
+      "tags": [
+        "church",
+        "port"
+      ],
+      "description": "Приход докеров и старых ремесленников.",
+      "stats": {
+        "power": 0.28,
+        "wealth": 0.3,
+        "legitimacy": 0.58,
+        "cohesion": 0.56,
+        "reach": 0.36,
+        "capacity": 0.42
+      },
+      "interests": {
+        "meaning": 0.9,
+        "care": 0.42,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "provision_league",
+      "name": "Лига снабжения",
+      "domain": "provision",
+      "level": "syndicate",
+      "parent": null,
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade",
+        "food"
+      ],
+      "description": "Сеть складов, поставщиков и продовольственных контрактов.",
+      "stats": {
+        "power": 0.66,
+        "wealth": 0.82,
+        "legitimacy": 0.54,
+        "cohesion": 0.6,
+        "reach": 0.7,
+        "capacity": 0.62
+      },
+      "interests": {
+        "provision": 0.86,
+        "exchange": 0.5,
+        "care": 0.22
+      }
+    },
+    {
+      "id": "provision_grain_guild",
+      "name": "Хлебная гильдия",
+      "domain": "provision",
+      "level": "guild",
+      "parent": "provision_league",
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade",
+        "food"
+      ],
+      "description": "Пекарни, зерно и очередь у городских печей.",
+      "stats": {
+        "power": 0.48,
+        "wealth": 0.68,
+        "legitimacy": 0.46,
+        "cohesion": 0.56,
+        "reach": 0.52,
+        "capacity": 0.56
+      },
+      "interests": {
+        "provision": 0.86,
+        "exchange": 0.5,
+        "care": 0.22
+      }
+    },
+    {
+      "id": "provision_bakery",
+      "name": "Пекарня «Тёплый хлеб»",
+      "domain": "provision",
+      "level": "workshop",
+      "parent": "provision_grain_guild",
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade",
+        "food"
+      ],
+      "description": "Маленькая пекарня, где хлеб становится политикой.",
+      "stats": {
+        "power": 0.28,
+        "wealth": 0.46,
+        "legitimacy": 0.36,
+        "cohesion": 0.48,
+        "reach": 0.34,
+        "capacity": 0.46
+      },
+      "interests": {
+        "provision": 0.86,
+        "exchange": 0.5,
+        "care": 0.22
+      }
+    },
+    {
+      "id": "status_house_agora",
+      "name": "Дом Агоры",
+      "domain": "status",
+      "level": "house",
+      "parent": null,
+      "polity": "houses",
+      "kind": "institution",
+      "tags": [
+        "noble",
+        "capital"
+      ],
+      "description": "Старый городской дом, связанный с должностями и долгами.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.7,
+        "legitimacy": 0.66,
+        "cohesion": 0.58,
+        "reach": 0.64,
+        "capacity": 0.54
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "status_house_veren",
+      "name": "Дом Дален",
+      "domain": "status",
+      "level": "house",
+      "parent": null,
+      "polity": "houses",
+      "kind": "institution",
+      "tags": [
+        "noble",
+        "veren"
+      ],
+      "description": "Дом при королевском дворе, торгующий влиянием.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.7,
+        "legitimacy": 0.66,
+        "cohesion": 0.58,
+        "reach": 0.64,
+        "capacity": 0.54
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "status_retinue",
+      "name": "Свита Дома Агоры",
+      "domain": "status",
+      "level": "retinue",
+      "parent": "status_house_agora",
+      "polity": "houses",
+      "kind": "institution",
+      "tags": [
+        "noble"
+      ],
+      "description": "Клиенты, телохранители и люди, которые умеют быть полезными.",
+      "stats": {
+        "power": 0.4,
+        "wealth": 0.34,
+        "legitimacy": 0.42,
+        "cohesion": 0.5,
+        "reach": 0.34,
+        "capacity": 0.4
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "status_court_veren",
+      "name": "Двор Дален",
+      "domain": "status",
+      "level": "court",
+      "parent": "status_house_veren",
+      "polity": "houses",
+      "kind": "institution",
+      "tags": [
+        "noble",
+        "court"
+      ],
+      "description": "Приёмные залы, интриги и королевские милости.",
+      "stats": {
+        "power": 0.56,
+        "wealth": 0.58,
+        "legitimacy": 0.58,
+        "cohesion": 0.52,
+        "reach": 0.56,
+        "capacity": 0.48
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "knowledge_academy",
+      "name": "Академия Агоры",
+      "domain": "knowledge",
+      "level": "academy",
+      "parent": null,
+      "polity": "academy",
+      "kind": "institution",
+      "tags": [
+        "academy",
+        "capital"
+      ],
+      "description": "Библиотека, лекционные залы и люди, которые спорят о будущем.",
+      "stats": {
+        "power": 0.48,
+        "wealth": 0.54,
+        "legitimacy": 0.64,
+        "cohesion": 0.56,
+        "reach": 0.68,
+        "capacity": 0.62
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "knowledge_faculty_law",
+      "name": "Факультет права",
+      "domain": "knowledge",
+      "level": "faculty",
+      "parent": "knowledge_academy",
+      "polity": "academy",
+      "kind": "institution",
+      "tags": [
+        "academy"
+      ],
+      "description": "Толкователи законов и поставщики чиновников.",
+      "stats": {
+        "power": 0.36,
+        "wealth": 0.42,
+        "legitimacy": 0.5,
+        "cohesion": 0.5,
+        "reach": 0.52,
+        "capacity": 0.52
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "knowledge_department_letters",
+      "name": "Кафедра словесности",
+      "domain": "knowledge",
+      "level": "department",
+      "parent": "knowledge_faculty_law",
+      "polity": "academy",
+      "kind": "institution",
+      "tags": [
+        "academy"
+      ],
+      "description": "Тексты, архивы и медленная работа смысла.",
+      "stats": {
+        "power": 0.24,
+        "wealth": 0.3,
+        "legitimacy": 0.38,
+        "cohesion": 0.46,
+        "reach": 0.34,
+        "capacity": 0.44
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "knowledge_press",
+      "name": "Печатный станок «Слово»",
+      "domain": "knowledge",
+      "level": "workshop",
+      "parent": "knowledge_department_letters",
+      "polity": "press",
+      "kind": "asset",
+      "tags": [
+        "asset",
+        "media"
+      ],
+      "description": "Станок, который делает слова тиражом. Реформы здесь не проводят — здесь печатают.",
+      "stats": {
+        "power": 0.10000000000000003,
+        "wealth": 0.46,
+        "legitimacy": 0.18,
+        "cohesion": 0.48,
+        "reach": 0.16000000000000003,
+        "capacity": 0.46
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "knowledge_archive",
+      "name": "Городской архив",
+      "domain": "knowledge",
+      "level": "department",
+      "parent": "knowledge_academy",
+      "polity": "academy",
+      "kind": "asset",
+      "tags": [
+        "asset",
+        "archive"
+      ],
+      "description": "Документы, печати и память, которую можно использовать.",
+      "stats": {
+        "power": 0.1,
+        "wealth": 0.3,
+        "legitimacy": 0.2,
+        "cohesion": 0.46,
+        "reach": 0.16000000000000003,
+        "capacity": 0.44
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "knowledge_gazette",
+      "name": "Газета «Слово Агоры»",
+      "domain": "knowledge",
+      "level": "workshop",
+      "parent": null,
+      "polity": "press",
+      "kind": "asset",
+      "tags": [
+        "asset",
+        "media"
+      ],
+      "description": "Редакция, которая решает, что город прочитает утром.",
+      "stats": {
+        "power": 0.10000000000000003,
+        "wealth": 0.46,
+        "legitimacy": 0.18,
+        "cohesion": 0.48,
+        "reach": 0.16000000000000003,
+        "capacity": 0.46
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    },
+    {
+      "id": "care_order_core",
+      "name": "Орден Милосердия",
+      "domain": "care",
+      "level": "order",
+      "parent": null,
+      "polity": "care_order",
+      "kind": "institution",
+      "tags": [
+        "care",
+        "capital"
+      ],
+      "description": "Госпитали, приюты и люди, которых замечают только в беде.",
+      "stats": {
+        "power": 0.48,
+        "wealth": 0.58,
+        "legitimacy": 0.7,
+        "cohesion": 0.66,
+        "reach": 0.66,
+        "capacity": 0.58
+      },
+      "interests": {
+        "care": 0.9,
+        "meaning": 0.42,
+        "provision": 0.26
+      }
+    },
+    {
+      "id": "care_hospital",
+      "name": "Городская больница",
+      "domain": "care",
+      "level": "hospital",
+      "parent": "care_order_core",
+      "polity": "care_order",
+      "kind": "institution",
+      "tags": [
+        "care"
+      ],
+      "description": "Палаты, врачи и очередь у приёмного покоя.",
+      "stats": {
+        "power": 0.36,
+        "wealth": 0.46,
+        "legitimacy": 0.54,
+        "cohesion": 0.58,
+        "reach": 0.48,
+        "capacity": 0.52
+      },
+      "interests": {
+        "care": 0.9,
+        "meaning": 0.42,
+        "provision": 0.26
+      }
+    },
+    {
+      "id": "care_clinic_port",
+      "name": "Портовая клиника",
+      "domain": "care",
+      "level": "clinic",
+      "parent": "care_hospital",
+      "polity": "care_order",
+      "kind": "institution",
+      "tags": [
+        "care",
+        "port"
+      ],
+      "description": "Клиника для докеров, моряков и тех, кто не может заплатить.",
+      "stats": {
+        "power": 0.24,
+        "wealth": 0.32,
+        "legitimacy": 0.4,
+        "cohesion": 0.48,
+        "reach": 0.32,
+        "capacity": 0.42
+      },
+      "interests": {
+        "care": 0.9,
+        "meaning": 0.42,
+        "provision": 0.26
+      }
+    },
+    {
+      "id": "exchange_league",
+      "name": "Торговая лига Агоры",
+      "domain": "exchange",
+      "level": "league",
+      "parent": null,
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade",
+        "capital"
+      ],
+      "description": "Контракты, корабли и цены, которые слышно на всех улицах.",
+      "stats": {
+        "power": 0.62,
+        "wealth": 0.82,
+        "legitimacy": 0.52,
+        "cohesion": 0.58,
+        "reach": 0.76,
+        "capacity": 0.64
+      },
+      "interests": {
+        "exchange": 0.9,
+        "provision": 0.5,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "exchange_house",
+      "name": "Дом Морена",
+      "domain": "exchange",
+      "level": "house",
+      "parent": "exchange_league",
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade"
+      ],
+      "description": "Торговый дом с крепкими связями и длинной памятью.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.7,
+        "legitimacy": 0.66,
+        "cohesion": 0.58,
+        "reach": 0.64,
+        "capacity": 0.54
+      },
+      "interests": {
+        "exchange": 0.9,
+        "provision": 0.5,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "exchange_shop",
+      "name": "Лавка Морена",
+      "domain": "exchange",
+      "level": "shop",
+      "parent": "exchange_house",
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade"
+      ],
+      "description": "Лавка, где встречаются покупатель, слух и цена.",
+      "stats": {
+        "power": 0.26,
+        "wealth": 0.44,
+        "legitimacy": 0.34,
+        "cohesion": 0.46,
+        "reach": 0.34,
+        "capacity": 0.42
+      },
+      "interests": {
+        "exchange": 0.9,
+        "provision": 0.5,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "exchange_brokerage",
+      "name": "Брокерская контора",
+      "domain": "exchange",
+      "level": "house",
+      "parent": "exchange_league",
+      "polity": "league",
+      "kind": "institution",
+      "tags": [
+        "trade"
+      ],
+      "description": "Место, где договариваются о том, чего ещё нет.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.7,
+        "legitimacy": 0.66,
+        "cohesion": 0.58,
+        "reach": 0.64,
+        "capacity": 0.54
+      },
+      "interests": {
+        "exchange": 0.9,
+        "provision": 0.5,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "underworld_house",
+      "name": "Ночные дома",
+      "domain": "status",
+      "level": "house",
+      "parent": null,
+      "polity": "underworld",
+      "kind": "institution",
+      "tags": [
+        "crime"
+      ],
+      "description": "Теневые покровители, контрабанда и долги, которые не записывают.",
+      "stats": {
+        "power": 0.7,
+        "wealth": 0.7,
+        "legitimacy": 0.66,
+        "cohesion": 0.58,
+        "reach": 0.64,
+        "capacity": 0.54
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "underworld_retinue",
+      "name": "Ночная свита",
+      "domain": "status",
+      "level": "retinue",
+      "parent": "underworld_house",
+      "polity": "underworld",
+      "kind": "institution",
+      "tags": [
+        "crime"
+      ],
+      "description": "Люди, которые приходят после закрытия и уходят до стражи.",
+      "stats": {
+        "power": 0.4,
+        "wealth": 0.34,
+        "legitimacy": 0.42,
+        "cohesion": 0.5,
+        "reach": 0.34,
+        "capacity": 0.4
+      },
+      "interests": {
+        "status": 0.86,
+        "order": 0.42,
+        "exchange": 0.32
+      }
+    },
+    {
+      "id": "agora_port",
+      "name": "Порт Агоры",
+      "domain": "exchange",
+      "level": "shop",
+      "parent": "exchange_house",
+      "polity": "agora",
+      "kind": "asset",
+      "tags": [
+        "asset",
+        "port"
+      ],
+      "description": "Причалы, склады и ворота, через которые в город входит мир.",
+      "stats": {
+        "power": 0.1,
+        "wealth": 0.44,
+        "legitimacy": 0.16000000000000003,
+        "cohesion": 0.46,
+        "reach": 0.16000000000000003,
+        "capacity": 0.42
+      },
+      "interests": {
+        "exchange": 0.9,
+        "provision": 0.5,
+        "status": 0.3
+      }
+    },
+    {
+      "id": "agora_radio",
+      "name": "Радиостанция Агоры",
+      "domain": "knowledge",
+      "level": "workshop",
+      "parent": "knowledge_gazette",
+      "polity": "press",
+      "kind": "asset",
+      "tags": [
+        "asset",
+        "media"
+      ],
+      "description": "Голос, который можно услышать раньше, чем приказ.",
+      "stats": {
+        "power": 0.10000000000000003,
+        "wealth": 0.46,
+        "legitimacy": 0.18,
+        "cohesion": 0.48,
+        "reach": 0.16000000000000003,
+        "capacity": 0.46
+      },
+      "interests": {
+        "knowledge": 0.86,
+        "meaning": 0.3,
+        "exchange": 0.26
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "inspect",
+      "label": "Собрать сведения",
+      "category": "Общие действия",
+      "description": "Наблюдать за структурой, людьми и слухами, чтобы получить доказательства.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "intrigue": 0.1
+        }
+      },
+      "success": {
+        "chance": 0.78,
+        "text": "Сведения собраны: видно, где структура держится и где трещит.",
+        "effects": {
+          "player": {
+            "evidence": 0.14,
+            "standing": 0.01
+          },
+          "relation": 0.02
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Наблюдение заметили; доверия больше не стало.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.04
+        }
+      },
+      "success_chance": 0.78,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.25,
+        "status": 0.25,
+        "knowledge": 0.25,
+        "exchange": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "negotiate",
+      "label": "Провести переговоры",
+      "category": "Общие действия",
+      "description": "Сесть за стол с другой структурой и попробовать превратить интерес в agreement.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {
+        "skills": {
+          "diplomacy": 0.15
+        }
+      },
+      "success": {
+        "chance": 0.62,
+        "text": "Разговор закончился взаимной уступкой.",
+        "effects": {
+          "player": {
+            "favor": 0.05,
+            "standing": 0.02
+          },
+          "target": {
+            "legitimacy": 0.01
+          },
+          "relation": 0.12
+        }
+      },
+      "failure": {
+        "chance": 0.38,
+        "text": "Стороны разошлись, не услышав друг друга.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.06
+        }
+      },
+      "success_chance": 0.62,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.35,
+        "meaning": 0.35,
+        "provision": 0.35,
+        "status": 0.4,
+        "knowledge": 0.3,
+        "care": 0.35,
+        "exchange": 0.45
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "audience",
+      "label": "Запросить аудиенцию",
+      "category": "Общие действия",
+      "description": "Добиться встречи с вышестоящей структурой и напомнить о себе.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true,
+        "lineage": [
+          "parent",
+          "ancestor"
+        ]
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.7,
+        "text": "Вас выслушали и запомнили.",
+        "effects": {
+          "player": {
+            "favor": 0.04,
+            "standing": 0.01
+          },
+          "relation": 0.08
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Аудиенция вышла короткой и холодной.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.02
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.3,
+        "meaning": 0.3,
+        "status": 0.4,
+        "provision": 0.25,
+        "knowledge": 0.25,
+        "care": 0.25,
+        "exchange": 0.35
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "build_network",
+      "label": "Связать союзников",
+      "category": "Общие действия",
+      "description": "Собрать вокруг себя людей и структуры, готовые поддержать вашу линию.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "favor": 0.05,
+          "influence": 0.04
+        }
+      },
+      "requires": {
+        "player": {
+          "standing": 0.15
+        }
+      },
+      "success": {
+        "chance": 0.66,
+        "text": "Сеть выросла: теперь у вас есть кому позвонить.",
+        "effects": {
+          "player": {
+            "favor": 0.06,
+            "standing": 0.02
+          },
+          "relation": 0.1
+        }
+      },
+      "failure": {
+        "chance": 0.34,
+        "text": "Разговор о союзе остался разговором.",
+        "effects": {
+          "player": {
+            "favor": -0.03
+          },
+          "relation": -0.02
+        }
+      },
+      "success_chance": 0.66,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.45,
+        "order": 0.25,
+        "meaning": 0.25,
+        "exchange": 0.25,
+        "provision": 0.25,
+        "knowledge": 0.2,
+        "care": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "denounce",
+      "label": "Публично обвинить",
+      "category": "Общие действия",
+      "description": "Вынести чужую слабость на площадь, в газету или на кафедру.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "evidence": 0.1,
+          "influence": 0.04
+        }
+      },
+      "requires": {
+        "player": {
+          "evidence": 0.08
+        },
+        "skills": {
+          "media": 0.12
+        }
+      },
+      "success": {
+        "chance": 0.56,
+        "text": "Обвинение услышали; репутация цели пошатнулась.",
+        "effects": {
+          "target": {
+            "legitimacy": -0.08,
+            "capacity": -0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "chance": 0.44,
+        "text": "Обвинение обернулось против вас: доказательств не хватило.",
+        "effects": {
+          "player": {
+            "standing": -0.04
+          },
+          "relation": -0.1
+        }
+      },
+      "success_chance": 0.56,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.3,
+        "knowledge": 0.3,
+        "meaning": 0.2,
+        "order": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "sabotage",
+      "label": "Подорвать работу",
+      "category": "Общие действия",
+      "description": "Испортить чужую машину, документ или сделку так, чтобы виноватых не нашли.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.08,
+          "favor": 0.05
+        }
+      },
+      "requires": {
+        "skills": {
+          "intrigue": 0.28
+        }
+      },
+      "success": {
+        "chance": 0.48,
+        "text": "Работа цели сбилась; следов почти нет.",
+        "effects": {
+          "target": {
+            "capacity": -0.12,
+            "legitimacy": -0.04
+          },
+          "player": {
+            "evidence": 0.05
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "chance": 0.52,
+        "text": "След привёл к вам раньше, чем к результату.",
+        "effects": {
+          "player": {
+            "standing": -0.06
+          },
+          "relation": -0.15
+        }
+      },
+      "success_chance": 0.48,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.35,
+        "underworld": 0.4,
+        "exchange": 0.2,
+        "order": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "seek_promotion",
+      "label": "Просить повышение",
+      "category": "Карьера",
+      "description": "Обратиться к вышестоящей структуре за более высокой должностью.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "exclude_self": true,
+        "lineage": [
+          "parent",
+          "ancestor"
+        ]
+      },
+      "cost": {
+        "player": {
+          "influence": 0.1,
+          "favor": 0.08
+        }
+      },
+      "requires": {
+        "player": {
+          "standing": 0.3
+        },
+        "skills": {
+          "administration": 0.18
+        }
+      },
+      "success": {
+        "chance": 0.55,
+        "text": "Вас согласились рассмотреть на более высокую должность.",
+        "effects": {
+          "player": {
+            "standing": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.45,
+        "text": "В повышении отказали — пока.",
+        "effects": {
+          "player": {
+            "standing": -0.02
+          }
+        }
+      },
+      "success_chance": 0.55,
+      "ai": false,
+      "ai_weight": {},
+      "career": "promote",
+      "cooldown_days": 0,
+      "once": true
+    },
+    {
+      "id": "request_transfer",
+      "label": "Просить перевод",
+      "category": "Карьера",
+      "description": "Перейти в другую структуру, сохранив лицо и связи.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.06,
+          "favor": 0.04
+        }
+      },
+      "requires": {
+        "player": {
+          "standing": 0.25
+        }
+      },
+      "success": {
+        "chance": 0.6,
+        "text": "Перевод согласован.",
+        "effects": {
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Перевод отклонили.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.6,
+      "ai": false,
+      "ai_weight": {},
+      "career": "transfer",
+      "cooldown_days": 0,
+      "once": true
+    },
+    {
+      "id": "resign",
+      "label": "Оставить должность",
+      "category": "Карьера",
+      "description": "Уйти из структуры и завершить эту линию карьеры.",
+      "actor": {
+        "domains": [
+          "order",
+          "meaning",
+          "provision",
+          "status",
+          "knowledge",
+          "care",
+          "exchange"
+        ]
+      },
+      "target": {
+        "self": true
+      },
+      "cost": {},
+      "requires": {},
+      "success": {
+        "chance": 1.0,
+        "text": "Вы оставили должность.",
+        "effects": {}
+      },
+      "failure": {
+        "chance": 0.0,
+        "text": "",
+        "effects": {}
+      },
+      "success_chance": 1.0,
+      "ai": false,
+      "ai_weight": {},
+      "career": "resign",
+      "cooldown_days": 0,
+      "once": true
+    },
+    {
+      "id": "reform",
+      "label": "Провести реформу",
+      "category": "Порядок",
+      "description": "Перестроить подчинённое учреждение: правила, отчётность, полномочия.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "state_advisor",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.52
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "ministry",
+          "agency",
+          "precinct"
+        ],
+        "lineage": [
+          "child",
+          "descendant"
+        ],
+        "exclude_self": true,
+        "invalid_kind_reason": "Реформа применяется к учреждениям, а не к имуществу или станку."
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.06
+        },
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {
+        "skills": {
+          "administration": 0.24
+        },
+        "node": {
+          "legitimacy": 0.25
+        }
+      },
+      "success": {
+        "chance": 0.6,
+        "text": "Реформа принята: структура работает иначе, но не все довольны.",
+        "effects": {
+          "node": {
+            "capacity": 0.04
+          },
+          "target": {
+            "capacity": 0.12,
+            "cohesion": -0.03
+          },
+          "player": {
+            "standing": 0.04
+          },
+          "relation": 0.02
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Реформа увязла в согласованиях и обидах.",
+        "effects": {
+          "target": {
+            "capacity": -0.03,
+            "cohesion": -0.04
+          },
+          "player": {
+            "standing": -0.02
+          },
+          "relation": -0.04
+        }
+      },
+      "success_chance": 0.6,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.9,
+        "status": 0.25
+      },
+      "career": "",
+      "cooldown_days": 2,
+      "once": false
+    },
+    {
+      "id": "appoint",
+      "label": "Назначить служащего",
+      "category": "Порядок",
+      "description": "Поставить своего человека в подчинённую структуру.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "state_advisor",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.48
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "order"
+        ],
+        "lineage": [
+          "child",
+          "descendant"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.05
+        },
+        "node": {
+          "wealth": 0.03
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.7,
+        "text": "Назначение состоялось; структура стала ближе к вам.",
+        "effects": {
+          "target": {
+            "capacity": 0.08,
+            "cohesion": 0.02
+          },
+          "player": {
+            "favor": 0.04
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Кандидатуру отклонили или размыли.",
+        "effects": {
+          "target": {
+            "cohesion": -0.03
+          },
+          "player": {
+            "standing": -0.02
+          }
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.7,
+        "status": 0.4
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "dismiss_official",
+      "label": "Снять должностное лицо",
+      "category": "Порядок",
+      "description": "Убрать чужого человека с поста, не обязательно объясняя причины.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "state_advisor",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.52
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "order"
+        ],
+        "lineage": [
+          "child",
+          "descendant"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.06
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.62,
+        "text": "Человек снят; на его место приходит другой.",
+        "effects": {
+          "target": {
+            "capacity": -0.04,
+            "cohesion": -0.04
+          },
+          "node": {
+            "power": 0.02
+          },
+          "relation": -0.08
+        }
+      },
+      "failure": {
+        "chance": 0.38,
+        "text": "Снятие не согласовали, а вопрос запомнили.",
+        "effects": {
+          "player": {
+            "standing": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "success_chance": 0.62,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.55,
+        "status": 0.45
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "enforce_order",
+      "label": "Навести порядок",
+      "category": "Порядок",
+      "description": "Послать патрули, провести проверку или иначе показать силу закона.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "ministry",
+          "agency",
+          "precinct"
+        ],
+        "offices": [
+          "minister",
+          "deputy_minister",
+          "agency_head",
+          "inspector",
+          "precinct_chief",
+          "watch_officer"
+        ],
+        "min_authority": 0.3
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "power": 0.07
+        }
+      },
+      "requires": {
+        "node": {
+          "power": 0.2
+        }
+      },
+      "success": {
+        "chance": 0.65,
+        "text": "Порядок восстановлен, но улица запомнила цену.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.04,
+            "capacity": 0.04
+          },
+          "relation": -0.04
+        }
+      },
+      "failure": {
+        "chance": 0.35,
+        "text": "Сила не заменила порядка.",
+        "effects": {
+          "target": {
+            "legitimacy": -0.05
+          },
+          "player": {
+            "standing": -0.03
+          },
+          "relation": -0.08
+        }
+      },
+      "success_chance": 0.65,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.8,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "mobilize",
+      "label": "Провести мобилизацию",
+      "category": "Порядок",
+      "description": "Собрать людей под знамёна или на службу, не спрашивая всех.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.5
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "order"
+        ],
+        "lineage": [
+          "child",
+          "descendant"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.1
+        },
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.58,
+        "text": "Мобилизация дала людей — и недовольство.",
+        "effects": {
+          "target": {
+            "power": 0.13,
+            "cohesion": -0.04
+          },
+          "node": {
+            "power": 0.03
+          },
+          "relation": -0.06
+        }
+      },
+      "failure": {
+        "chance": 0.42,
+        "text": "Мобилизация провалилась: людей не хватило.",
+        "effects": {
+          "node": {
+            "legitimacy": -0.04
+          },
+          "player": {
+            "standing": -0.03
+          }
+        }
+      },
+      "success_chance": 0.58,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.8,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 2,
+      "once": false
+    },
+    {
+      "id": "tax",
+      "label": "Обложить сбором",
+      "category": "Порядок",
+      "description": "Взять с торговли или мастерской больше, чем они готовы отдать.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.45
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "legitimacy": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.62,
+        "text": "Сбор прошёл; казна пополнилась, а рынок нахмурился.",
+        "effects": {
+          "node": {
+            "wealth": 0.1
+          },
+          "target": {
+            "wealth": -0.08
+          },
+          "relation": -0.1,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.38,
+        "text": "Сбор вызвал сопротивление и ушёл в песок.",
+        "effects": {
+          "node": {
+            "legitimacy": -0.04
+          },
+          "player": {
+            "standing": -0.02
+          },
+          "relation": -0.08
+        }
+      },
+      "success_chance": 0.62,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.5,
+        "provision": 0.25,
+        "exchange": 0.35
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "amnesty",
+      "label": "Объявить амнистию",
+      "category": "Порядок",
+      "description": "Снять часть вины и напряжений, чтобы вернуть доверие.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "head_of_government",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.45
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "order"
+        ],
+        "lineage": [
+          "child",
+          "descendant"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.7,
+        "text": "Амнистия вернула часть доверия.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.06,
+            "capacity": 0.04
+          },
+          "node": {
+            "cohesion": 0.04
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Амнистию приняли за слабость.",
+        "effects": {
+          "target": {
+            "legitimacy": -0.02
+          },
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.4,
+        "meaning": 0.4,
+        "care": 0.35
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "garrison",
+      "label": "Разместить гарнизон",
+      "category": "Порядок",
+      "description": "Ввести людей с оружием в чужое пространство и назвать это защитой.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "ministry",
+          "agency",
+          "precinct"
+        ],
+        "offices": [
+          "minister",
+          "deputy_minister",
+          "agency_head",
+          "inspector",
+          "precinct_chief"
+        ],
+        "min_authority": 0.38
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "power": 0.09
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.6,
+        "text": "Гарнизон размещён; порядок держится на штыках.",
+        "effects": {
+          "target": {
+            "power": 0.06,
+            "legitimacy": 0.02,
+            "cohesion": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Размещение сорвалось; улица увидела слабость.",
+        "effects": {
+          "node": {
+            "legitimacy": -0.03
+          },
+          "player": {
+            "standing": -0.02
+          }
+        }
+      },
+      "success_chance": 0.6,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.75,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "martial_law",
+      "label": "Ввести чрезвычайное положение",
+      "category": "Порядок",
+      "description": "Подчинить город или структуру прямому приказу и комендантскому часу.",
+      "actor": {
+        "domains": [
+          "order"
+        ],
+        "levels": [
+          "government"
+        ],
+        "offices": [
+          "head_of_government",
+          "state_advisor"
+        ],
+        "min_authority": 0.65
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "legitimacy": 0.07
+        },
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.5,
+        "text": "Чрезвычайное положение введено; сопротивление ушло в подполье.",
+        "effects": {
+          "node": {
+            "power": 0.14
+          },
+          "target": {
+            "capacity": 0.08,
+            "legitimacy": -0.08,
+            "cohesion": -0.05
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "chance": 0.5,
+        "text": "Чрезвычайное положение не удержали; власть потеряла лицо.",
+        "effects": {
+          "node": {
+            "legitimacy": -0.08
+          },
+          "player": {
+            "standing": -0.05
+          }
+        }
+      },
+      "success_chance": 0.5,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.85,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 4,
+      "once": false
+    },
+    {
+      "id": "preach",
+      "label": "Произнести проповедь",
+      "category": "Смысл",
+      "description": "Обратиться к общине так, чтобы слова стали делом.",
+      "actor": {
+        "domains": [
+          "meaning"
+        ],
+        "levels": [
+          "diocese",
+          "parish"
+        ],
+        "offices": [
+          "bishop",
+          "diocesan_chancellor",
+          "priest",
+          "parish_priest",
+          "deacon"
+        ],
+        "min_authority": 0.25
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "requires": {
+        "skills": {
+          "faith": 0.18
+        }
+      },
+      "success": {
+        "chance": 0.72,
+        "text": "Проповедь услышали и передали дальше.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": 0.05
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Слова остались словами.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.01
+        }
+      },
+      "success_chance": 0.72,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.8,
+        "care": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "charity",
+      "label": "Провести благотворительность",
+      "category": "Смысл",
+      "description": "Раздать еду, кров или помощь там, где это заметят.",
+      "actor": {
+        "domains": [
+          "meaning",
+          "care"
+        ],
+        "levels": [
+          "patriarchate",
+          "diocese",
+          "parish",
+          "order",
+          "hospital",
+          "clinic"
+        ],
+        "offices": [
+          "patriarch",
+          "synod_member",
+          "bishop",
+          "diocesan_chancellor",
+          "priest",
+          "parish_priest",
+          "deacon",
+          "care_director",
+          "physician",
+          "hospital_head",
+          "doctor",
+          "clinic_head",
+          "medic"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.75,
+        "text": "Помощь дошла; ваше имя произнесли с благодарностью.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.04
+          },
+          "player": {
+            "standing": 0.03
+          },
+          "relation": 0.08
+        }
+      },
+      "failure": {
+        "chance": 0.25,
+        "text": "Помощь распределили плохо; вышло хуже, чем молчание.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.02
+        }
+      },
+      "success_chance": 0.75,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.6,
+        "care": 0.8
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "consecrate",
+      "label": "Освятить начинание",
+      "category": "Смысл",
+      "description": "Дать чужому делу религиозную легитимность — или отказать в ней.",
+      "actor": {
+        "domains": [
+          "meaning"
+        ],
+        "levels": [
+          "patriarchate",
+          "diocese"
+        ],
+        "offices": [
+          "patriarch",
+          "synod_member",
+          "bishop",
+          "diocesan_chancellor"
+        ],
+        "min_authority": 0.42
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "faith": 0.22
+        }
+      },
+      "success": {
+        "chance": 0.7,
+        "text": "Начинание получило благословение.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.07
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Благословение не дали; вопрос остался открытым.",
+        "effects": {
+          "relation": -0.03,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.7,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "schism",
+      "label": "Устроить раскол",
+      "category": "Смысл",
+      "description": "Разделить общину или структуру, чтобы забрать часть её силы.",
+      "actor": {
+        "domains": [
+          "meaning"
+        ],
+        "levels": [
+          "patriarchate",
+          "diocese"
+        ],
+        "offices": [
+          "patriarch",
+          "synod_member",
+          "bishop"
+        ],
+        "min_authority": 0.5
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "meaning"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "cohesion": 0.07
+        },
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.42,
+        "text": "Раскол состоялся; часть общины ушла за вами.",
+        "effects": {
+          "target": {
+            "cohesion": -0.12,
+            "legitimacy": -0.05
+          },
+          "node": {
+            "reach": 0.04
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "chance": 0.58,
+        "text": "Раскол не поддержали; вас назвали смутьяном.",
+        "effects": {
+          "player": {
+            "standing": -0.05
+          },
+          "relation": -0.15
+        }
+      },
+      "success_chance": 0.42,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.25,
+        "status": 0.4
+      },
+      "career": "",
+      "cooldown_days": 3,
+      "once": false
+    },
+    {
+      "id": "excommunicate",
+      "label": "Отлучить от общины",
+      "category": "Смысл",
+      "description": "Лишить человека или структуру церковного признания.",
+      "actor": {
+        "domains": [
+          "meaning"
+        ],
+        "levels": [
+          "patriarchate",
+          "diocese"
+        ],
+        "offices": [
+          "patriarch",
+          "synod_member",
+          "bishop"
+        ],
+        "min_authority": 0.48
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.06
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.55,
+        "text": "Отлучение объявлено; цель потеряла часть опоры.",
+        "effects": {
+          "target": {
+            "legitimacy": -0.08
+          },
+          "player": {
+            "standing": 0.01
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "chance": 0.45,
+        "text": "Отлучение не приняли; авторитет пострадал.",
+        "effects": {
+          "player": {
+            "standing": -0.03
+          },
+          "relation": -0.08
+        }
+      },
+      "success_chance": 0.55,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.35,
+        "status": 0.35
+      },
+      "career": "",
+      "cooldown_days": 2,
+      "once": false
+    },
+    {
+      "id": "pilgrimage",
+      "label": "Организовать паломничество",
+      "category": "Смысл",
+      "description": "Собрать людей в общем движении, которое укрепит и веру, и вашу репутацию.",
+      "actor": {
+        "domains": [
+          "meaning"
+        ],
+        "levels": [
+          "patriarchate",
+          "diocese",
+          "parish"
+        ],
+        "offices": [
+          "patriarch",
+          "synod_member",
+          "bishop",
+          "diocesan_chancellor",
+          "priest",
+          "parish_priest",
+          "deacon"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.72,
+        "text": "Паломничество собрало людей и укрепило общину.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "node": {
+            "cohesion": 0.04
+          },
+          "player": {
+            "standing": 0.03
+          },
+          "relation": 0.07
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Паломничество вышло малочисленным.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.72,
+      "ai": true,
+      "ai_weight": {
+        "meaning": 0.45,
+        "care": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "invest",
+      "label": "Вложить средства",
+      "category": "Снабжение и обмен",
+      "description": "Дать структуре деньги, склады или людей в обмен на долю влияния.",
+      "actor": {
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "levels": [
+          "syndicate",
+          "guild",
+          "workshop",
+          "league",
+          "house",
+          "shop"
+        ],
+        "offices": [
+          "syndic",
+          "board_member",
+          "guildmaster",
+          "warden",
+          "master",
+          "exchange_head",
+          "broker",
+          "merchant",
+          "factor",
+          "shopkeeper"
+        ],
+        "min_authority": 0.22
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.08
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.68,
+        "text": "Средства вложены; структура стала сильнее и ближе.",
+        "effects": {
+          "target": {
+            "capacity": 0.1,
+            "wealth": 0.04
+          },
+          "relation": 0.06,
+          "player": {
+            "favor": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.32,
+        "text": "Вложение не дало отдачи.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          },
+          "relation": -0.02
+        }
+      },
+      "success_chance": 0.68,
+      "ai": true,
+      "ai_weight": {
+        "provision": 0.7,
+        "exchange": 0.8
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "strike",
+      "label": "Организовать стачку",
+      "category": "Снабжение и обмен",
+      "description": "Остановить работу, чтобы показать, кто на самом деле держит город.",
+      "actor": {
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "levels": [
+          "guild",
+          "workshop",
+          "house",
+          "shop"
+        ],
+        "offices": [
+          "guildmaster",
+          "warden",
+          "master",
+          "journeyman",
+          "merchant",
+          "factor",
+          "shopkeeper",
+          "shop_clerk"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "cohesion": 0.06
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.58,
+        "text": "Работа остановилась; город почувствовал цену хлеба.",
+        "effects": {
+          "target": {
+            "wealth": -0.1,
+            "capacity": -0.06
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "chance": 0.42,
+        "text": "Стачка сорвалась; организаторы потеряли лицо.",
+        "effects": {
+          "player": {
+            "standing": -0.04
+          },
+          "node": {
+            "cohesion": -0.04
+          }
+        }
+      },
+      "success_chance": 0.58,
+      "ai": true,
+      "ai_weight": {
+        "provision": 0.6,
+        "exchange": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "embargo",
+      "label": "Ввести эмбарго",
+      "category": "Снабжение и обмен",
+      "description": "Перекрыть чужой торговле путь и заставить считаться с вашей ценой.",
+      "actor": {
+        "domains": [
+          "exchange",
+          "order"
+        ],
+        "levels": [
+          "league",
+          "house",
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "exchange_head",
+          "broker",
+          "merchant",
+          "head_of_government",
+          "minister"
+        ],
+        "min_authority": 0.45
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "other_polity": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.06
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.55,
+        "text": "Эмбарго ударило по чужому кошельку.",
+        "effects": {
+          "target": {
+            "wealth": -0.1
+          },
+          "node": {
+            "wealth": 0.03
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "chance": 0.45,
+        "text": "Эмбарго обошли; ваша репутация пострадала.",
+        "effects": {
+          "player": {
+            "standing": -0.03
+          },
+          "node": {
+            "wealth": -0.03
+          }
+        }
+      },
+      "success_chance": 0.55,
+      "ai": true,
+      "ai_weight": {
+        "exchange": 0.6,
+        "order": 0.3
+      },
+      "career": "",
+      "cooldown_days": 2,
+      "once": false
+    },
+    {
+      "id": "smuggle",
+      "label": "Провести тенью",
+      "category": "Снабжение и обмен",
+      "description": "Провезти, продать или скрыть то, что не должно проходить через ворота.",
+      "actor": {
+        "domains": [
+          "exchange",
+          "provision",
+          "status"
+        ],
+        "levels": [
+          "league",
+          "house",
+          "shop",
+          "guild",
+          "workshop",
+          "house",
+          "retinue"
+        ],
+        "offices": [
+          "broker",
+          "merchant",
+          "factor",
+          "shopkeeper",
+          "guildmaster",
+          "warden",
+          "house_head",
+          "steward",
+          "captain",
+          "sworn_man"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "intrigue": 0.22
+        }
+      },
+      "success": {
+        "chance": 0.62,
+        "text": "Тень прошла; деньги и сведения остались у вас.",
+        "effects": {
+          "node": {
+            "wealth": 0.08
+          },
+          "player": {
+            "favor": 0.04,
+            "evidence": 0.05
+          },
+          "target": {
+            "wealth": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.38,
+        "text": "Тень заметили; пришлось платить за молчание.",
+        "effects": {
+          "player": {
+            "standing": -0.05
+          },
+          "node": {
+            "legitimacy": -0.04
+          },
+          "relation": -0.05
+        }
+      },
+      "success_chance": 0.62,
+      "ai": true,
+      "ai_weight": {
+        "exchange": 0.5,
+        "status": 0.35,
+        "provision": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "contract",
+      "label": "Заключить контракт",
+      "category": "Снабжение и обмен",
+      "description": "Связать структуры обязательством, которое выгодно обеим сторонам.",
+      "actor": {
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "levels": [
+          "syndicate",
+          "guild",
+          "workshop",
+          "league",
+          "house",
+          "shop"
+        ],
+        "offices": [
+          "syndic",
+          "board_member",
+          "guildmaster",
+          "warden",
+          "master",
+          "exchange_head",
+          "broker",
+          "merchant",
+          "factor",
+          "shopkeeper"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.7,
+        "text": "Контракт подписан; у вас появилось обязательство и рычаг.",
+        "effects": {
+          "node": {
+            "wealth": 0.05
+          },
+          "target": {
+            "wealth": 0.02
+          },
+          "relation": 0.1,
+          "player": {
+            "favor": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Контракт не сложился.",
+        "effects": {
+          "relation": -0.05
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "exchange": 0.8,
+        "provision": 0.7
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "price_fix",
+      "label": "Зафиксировать цены",
+      "category": "Снабжение и обмен",
+      "description": "Установить цену, ниже или выше которой рынок не пойдёт.",
+      "actor": {
+        "domains": [
+          "exchange",
+          "order"
+        ],
+        "levels": [
+          "league",
+          "house",
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "exchange_head",
+          "broker",
+          "merchant",
+          "head_of_government",
+          "minister",
+          "deputy_minister"
+        ],
+        "min_authority": 0.35
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "legitimacy": 0.03
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.6,
+        "text": "Цена зафиксирована; рынок подчинился, но запомнил.",
+        "effects": {
+          "target": {
+            "wealth": -0.05,
+            "capacity": 0.04
+          },
+          "node": {
+            "legitimacy": 0.02
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Фиксация цен породила дефицит и слухи.",
+        "effects": {
+          "target": {
+            "cohesion": -0.04
+          },
+          "player": {
+            "standing": -0.02
+          }
+        }
+      },
+      "success_chance": 0.6,
+      "ai": true,
+      "ai_weight": {
+        "exchange": 0.5,
+        "order": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "fund_works",
+      "label": "Оплатить работы",
+      "category": "Снабжение и обмен",
+      "description": "Построить, починить или расширить чужую структуру за свой счёт.",
+      "actor": {
+        "domains": [
+          "provision",
+          "exchange"
+        ],
+        "levels": [
+          "syndicate",
+          "guild",
+          "workshop",
+          "league",
+          "house",
+          "shop"
+        ],
+        "offices": [
+          "syndic",
+          "board_member",
+          "guildmaster",
+          "warden",
+          "master",
+          "exchange_head",
+          "broker",
+          "merchant",
+          "factor",
+          "shopkeeper"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.1
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.72,
+        "text": "Работы оплачены; структура стала крепче.",
+        "effects": {
+          "target": {
+            "capacity": 0.12
+          },
+          "relation": 0.06,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Деньги ушли, а работа не сделана.",
+        "effects": {
+          "player": {
+            "standing": -0.02
+          },
+          "relation": -0.03
+        }
+      },
+      "success_chance": 0.72,
+      "ai": true,
+      "ai_weight": {
+        "provision": 0.55,
+        "exchange": 0.55
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "hoard",
+      "label": "Создать запас",
+      "category": "Снабжение и обмен",
+      "description": "Собрать резерв, который даст вашей структуре время в кризис.",
+      "actor": {
+        "domains": [
+          "provision"
+        ],
+        "levels": [
+          "syndicate",
+          "guild",
+          "workshop"
+        ],
+        "offices": [
+          "syndic",
+          "board_member",
+          "guildmaster",
+          "warden",
+          "master"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.8,
+        "text": "Запас создан; теперь есть чем переждать плохой день.",
+        "effects": {
+          "node": {
+            "capacity": 0.06,
+            "wealth": 0.03,
+            "cohesion": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Запас разошёлся быстрее, чем его считали.",
+        "effects": {
+          "node": {
+            "wealth": -0.02
+          }
+        }
+      },
+      "success_chance": 0.8,
+      "ai": true,
+      "ai_weight": {
+        "provision": 0.7,
+        "care": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "patronize",
+      "label": "Взять под покровительство",
+      "category": "Статус",
+      "description": "Обещать защиту и связи в обмен на верность.",
+      "actor": {
+        "domains": [
+          "status"
+        ],
+        "levels": [
+          "house",
+          "court",
+          "retinue"
+        ],
+        "offices": [
+          "house_head",
+          "steward",
+          "courtier",
+          "agent",
+          "captain",
+          "sworn_man"
+        ],
+        "min_authority": 0.25
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.05
+        },
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.7,
+        "text": "Покровительство приняли; теперь у вас есть клиент.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.02
+          },
+          "relation": 0.12,
+          "player": {
+            "favor": 0.05
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "От покровительства уклонились.",
+        "effects": {
+          "relation": -0.03,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.8,
+        "order": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "court_intrigue",
+      "label": "Плести интригу",
+      "category": "Статус",
+      "description": "Столкнуть чужие интересы и выйти из тени с выгодой.",
+      "actor": {
+        "domains": [
+          "status"
+        ],
+        "levels": [
+          "house",
+          "court",
+          "retinue"
+        ],
+        "offices": [
+          "house_head",
+          "steward",
+          "courtier",
+          "agent",
+          "captain",
+          "sworn_man",
+          "client"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.04
+        }
+      },
+      "requires": {
+        "skills": {
+          "intrigue": 0.22
+        }
+      },
+      "success": {
+        "chance": 0.55,
+        "text": "Интрига сработала; чужая опора пошатнулась.",
+        "effects": {
+          "target": {
+            "capacity": -0.06,
+            "legitimacy": -0.03
+          },
+          "player": {
+            "evidence": 0.08
+          },
+          "relation": -0.08
+        }
+      },
+      "failure": {
+        "chance": 0.45,
+        "text": "Интригу раскрыли; вы стали подозреваемым.",
+        "effects": {
+          "player": {
+            "standing": -0.04
+          },
+          "relation": -0.1
+        }
+      },
+      "success_chance": 0.55,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.75,
+        "order": 0.25
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "duel",
+      "label": "Вызвать на поединок",
+      "category": "Статус",
+      "description": "Решить спор честью, оружием или тем, что называют честью.",
+      "actor": {
+        "domains": [
+          "status"
+        ],
+        "levels": [
+          "house",
+          "court",
+          "retinue"
+        ],
+        "offices": [
+          "house_head",
+          "courtier",
+          "agent",
+          "captain",
+          "sworn_man"
+        ],
+        "min_authority": 0.3
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "command": 0.18
+        }
+      },
+      "success": {
+        "chance": 0.52,
+        "text": "Поединок выигран; ваш статус вырос.",
+        "effects": {
+          "target": {
+            "legitimacy": -0.03
+          },
+          "player": {
+            "standing": 0.04
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "chance": 0.48,
+        "text": "Поединок проигран; пришлось уступить.",
+        "effects": {
+          "player": {
+            "standing": -0.08
+          },
+          "relation": -0.1
+        }
+      },
+      "success_chance": 0.52,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.6,
+        "order": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "feast",
+      "label": "Устроить пир",
+      "category": "Статус",
+      "description": "Собрать нужных людей за столом, где легче говорить и обещать.",
+      "actor": {
+        "domains": [
+          "status"
+        ],
+        "levels": [
+          "house",
+          "court",
+          "retinue"
+        ],
+        "offices": [
+          "house_head",
+          "steward",
+          "courtier",
+          "captain"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.75,
+        "text": "Пир удался; связи стали теплее.",
+        "effects": {
+          "relation": 0.1,
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.02,
+            "favor": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.25,
+        "text": "Пир вышел пустым и дорогим.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.75,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.75,
+        "exchange": 0.3
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "marriage",
+      "label": "Скрепить союз браком",
+      "category": "Статус",
+      "description": "Связать два дома обязательством, которое переживёт разговор.",
+      "actor": {
+        "domains": [
+          "status"
+        ],
+        "levels": [
+          "house"
+        ],
+        "offices": [
+          "house_head",
+          "steward"
+        ],
+        "min_authority": 0.5
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution"
+        ],
+        "domains": [
+          "status"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.03
+        },
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.6,
+        "text": "Союз скреплён; два дома теперь связаны.",
+        "effects": {
+          "relation": 0.2,
+          "player": {
+            "favor": 0.06
+          },
+          "node": {
+            "legitimacy": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Брак не сложился; стороны сохранили обиду.",
+        "effects": {
+          "relation": -0.05,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.6,
+      "ai": true,
+      "ai_weight": {
+        "status": 0.8,
+        "order": 0.25
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": true
+    },
+    {
+      "id": "research",
+      "label": "Провести исследование",
+      "category": "Знание",
+      "description": "Потратить время и средства на знание, которое можно будет использовать.",
+      "actor": {
+        "domains": [
+          "knowledge"
+        ],
+        "levels": [
+          "academy",
+          "faculty",
+          "department",
+          "workshop"
+        ],
+        "offices": [
+          "rector",
+          "professor",
+          "scholar",
+          "dean",
+          "lecturer",
+          "chair",
+          "researcher",
+          "editor",
+          "printer"
+        ],
+        "min_authority": 0.18
+      },
+      "target": {
+        "self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "scholarship": 0.18
+        }
+      },
+      "success": {
+        "chance": 0.78,
+        "text": "Исследование дало результат.",
+        "effects": {
+          "node": {
+            "capacity": 0.08
+          },
+          "player": {
+            "evidence": 0.05,
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Исследование зашло в тупик.",
+        "effects": {
+          "node": {
+            "capacity": -0.02
+          }
+        }
+      },
+      "success_chance": 0.78,
+      "ai": true,
+      "ai_weight": {
+        "knowledge": 0.7
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "publish",
+      "label": "Опубликовать материал",
+      "category": "Знание",
+      "description": "Сделать текст, образ или слух частью городской повестки.",
+      "actor": {
+        "domains": [
+          "knowledge"
+        ],
+        "levels": [
+          "academy",
+          "faculty",
+          "department",
+          "workshop"
+        ],
+        "offices": [
+          "rector",
+          "professor",
+          "scholar",
+          "dean",
+          "lecturer",
+          "chair",
+          "researcher",
+          "editor",
+          "printer"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.03
+        },
+        "player": {
+          "influence": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "media": 0.18
+        }
+      },
+      "success": {
+        "chance": 0.7,
+        "text": "Материал вышел; его обсуждают.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": 0.05
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Материал не заметили или исказили.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.7,
+      "ai": true,
+      "ai_weight": {
+        "knowledge": 0.6,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 1,
+      "once": false
+    },
+    {
+      "id": "investigate",
+      "label": "Провести расследование",
+      "category": "Знание",
+      "description": "Собрать и напечатать то, что другие предпочли бы скрыть.",
+      "actor": {
+        "domains": [
+          "knowledge"
+        ],
+        "levels": [
+          "academy",
+          "faculty",
+          "department",
+          "workshop"
+        ],
+        "offices": [
+          "professor",
+          "scholar",
+          "dean",
+          "lecturer",
+          "chair",
+          "researcher",
+          "editor",
+          "printer"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {
+        "skills": {
+          "media": 0.2
+        }
+      },
+      "success": {
+        "chance": 0.6,
+        "text": "Расследование дало материал и доказательства.",
+        "effects": {
+          "player": {
+            "evidence": 0.15,
+            "standing": 0.02
+          },
+          "target": {
+            "legitimacy": -0.03
+          },
+          "relation": -0.03
+        }
+      },
+      "failure": {
+        "chance": 0.4,
+        "text": "Расследование упёрлось в стену.",
+        "effects": {
+          "player": {
+            "standing": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "success_chance": 0.6,
+      "ai": true,
+      "ai_weight": {
+        "knowledge": 0.5,
+        "status": 0.3
+      },
+      "career": "",
+      "cooldown_days": 2,
+      "once": false
+    },
+    {
+      "id": "censor",
+      "label": "Закрыть публикацию",
+      "category": "Знание",
+      "description": "Остановить чужой текст, спектакль или радиопередачу.",
+      "actor": {
+        "domains": [
+          "order",
+          "knowledge"
+        ],
+        "levels": [
+          "government",
+          "ministry",
+          "academy",
+          "faculty"
+        ],
+        "offices": [
+          "head_of_government",
+          "state_advisor",
+          "minister",
+          "deputy_minister",
+          "rector",
+          "dean",
+          "professor"
+        ],
+        "min_authority": 0.45
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "domains": [
+          "knowledge"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "legitimacy": 0.03
+        },
+        "player": {
+          "influence": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.58,
+        "text": "Публикация закрыта; тишина стоит доверия.",
+        "effects": {
+          "target": {
+            "capacity": -0.1,
+            "legitimacy": -0.04
+          },
+          "node": {
+            "power": 0.04
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "chance": 0.42,
+        "text": "Запрет вызвал обратный эффект.",
+        "effects": {
+          "player": {
+            "standing": -0.03
+          },
+          "target": {
+            "legitimacy": 0.04
+          },
+          "relation": -0.08
+        }
+      },
+      "success_chance": 0.58,
+      "ai": true,
+      "ai_weight": {
+        "order": 0.55,
+        "knowledge": 0.25
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "teach",
+      "label": "Обучить кадры",
+      "category": "Знание",
+      "description": "Передать людям навык, который останется в структуре.",
+      "actor": {
+        "domains": [
+          "knowledge"
+        ],
+        "levels": [
+          "academy",
+          "faculty",
+          "department",
+          "workshop"
+        ],
+        "offices": [
+          "rector",
+          "professor",
+          "scholar",
+          "dean",
+          "lecturer",
+          "chair",
+          "researcher",
+          "editor"
+        ],
+        "min_authority": 0.18
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.03
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.78,
+        "text": "Обучение прошло; структура стала компетентнее.",
+        "effects": {
+          "target": {
+            "capacity": 0.08
+          },
+          "node": {
+            "capacity": 0.02
+          },
+          "relation": 0.03
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Урок не усвоили.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.78,
+      "ai": true,
+      "ai_weight": {
+        "knowledge": 0.65,
+        "care": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "archive",
+      "label": "Собрать архив",
+      "category": "Знание",
+      "description": "Сохранить документы, которые однажды станут доказательством.",
+      "actor": {
+        "domains": [
+          "knowledge"
+        ],
+        "levels": [
+          "academy",
+          "faculty",
+          "department",
+          "workshop"
+        ],
+        "offices": [
+          "rector",
+          "professor",
+          "scholar",
+          "dean",
+          "lecturer",
+          "chair",
+          "researcher",
+          "editor",
+          "printer"
+        ],
+        "min_authority": 0.15
+      },
+      "target": {
+        "self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.02
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.82,
+        "text": "Архив пополнен; память стала оружием.",
+        "effects": {
+          "player": {
+            "evidence": 0.08
+          },
+          "node": {
+            "capacity": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.18,
+        "text": "Часть документов потерялась.",
+        "effects": {
+          "node": {
+            "capacity": -0.01
+          }
+        }
+      },
+      "success_chance": 0.82,
+      "ai": true,
+      "ai_weight": {
+        "knowledge": 0.4,
+        "status": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "treat",
+      "label": "Оказать помощь",
+      "category": "Забота",
+      "description": "Лечить, кормить или поддерживать тех, кто нужен структуре.",
+      "actor": {
+        "domains": [
+          "care"
+        ],
+        "levels": [
+          "order",
+          "hospital",
+          "clinic"
+        ],
+        "offices": [
+          "care_director",
+          "physician",
+          "warden_care",
+          "hospital_head",
+          "doctor",
+          "nurse",
+          "clinic_head",
+          "medic",
+          "orderly"
+        ],
+        "min_authority": 0.15
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.03
+        }
+      },
+      "requires": {
+        "skills": {
+          "care": 0.15
+        }
+      },
+      "success": {
+        "chance": 0.8,
+        "text": "Помощь оказана; люди это запомнили.",
+        "effects": {
+          "target": {
+            "capacity": 0.05,
+            "legitimacy": 0.03
+          },
+          "relation": 0.06,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Помощь пришла слишком поздно.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.8,
+      "ai": true,
+      "ai_weight": {
+        "care": 0.85,
+        "meaning": 0.2
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "quarantine",
+      "label": "Ввести карантин",
+      "category": "Забота",
+      "description": "Закрыть границы структуры, чтобы остановить беду ценой недовольства.",
+      "actor": {
+        "domains": [
+          "care",
+          "order"
+        ],
+        "levels": [
+          "order",
+          "hospital",
+          "clinic",
+          "government",
+          "ministry"
+        ],
+        "offices": [
+          "care_director",
+          "physician",
+          "hospital_head",
+          "doctor",
+          "clinic_head",
+          "head_of_government",
+          "minister"
+        ],
+        "min_authority": 0.35
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "same_polity": true,
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.04,
+          "legitimacy": 0.02
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.65,
+        "text": "Карантин сдержал беду, но недовольство осталось.",
+        "effects": {
+          "target": {
+            "capacity": 0.04,
+            "legitimacy": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "chance": 0.35,
+        "text": "Карантин не помог и обозлил людей.",
+        "effects": {
+          "player": {
+            "standing": -0.02
+          },
+          "target": {
+            "cohesion": -0.04
+          }
+        }
+      },
+      "success_chance": 0.65,
+      "ai": true,
+      "ai_weight": {
+        "care": 0.6,
+        "order": 0.5
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "relieve",
+      "label": "Организовать помощь",
+      "category": "Забота",
+      "description": "Собрать средства и людей для тех, кого кризис задел сильнее всех.",
+      "actor": {
+        "domains": [
+          "care",
+          "meaning"
+        ],
+        "levels": [
+          "order",
+          "hospital",
+          "clinic",
+          "patriarchate",
+          "diocese",
+          "parish"
+        ],
+        "offices": [
+          "care_director",
+          "physician",
+          "hospital_head",
+          "doctor",
+          "clinic_head",
+          "medic",
+          "patriarch",
+          "synod_member",
+          "bishop",
+          "diocesan_chancellor",
+          "priest",
+          "parish_priest",
+          "deacon"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "required": true,
+        "kinds": [
+          "institution",
+          "asset"
+        ],
+        "exclude_self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.06
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.72,
+        "text": "Помощь дошла; вы стали заметнее.",
+        "effects": {
+          "target": {
+            "legitimacy": 0.06
+          },
+          "relation": 0.08,
+          "player": {
+            "standing": 0.03
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Помощь распределили плохо.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.72,
+      "ai": true,
+      "ai_weight": {
+        "care": 0.75,
+        "meaning": 0.5
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    },
+    {
+      "id": "recruit_medics",
+      "label": "Собрать медиков",
+      "category": "Забота",
+      "description": "Набрать и обучить людей, без которых структура не выдержит кризиса.",
+      "actor": {
+        "domains": [
+          "care"
+        ],
+        "levels": [
+          "order",
+          "hospital",
+          "clinic"
+        ],
+        "offices": [
+          "care_director",
+          "physician",
+          "hospital_head",
+          "doctor",
+          "clinic_head"
+        ],
+        "min_authority": 0.2
+      },
+      "target": {
+        "self": true
+      },
+      "cost": {
+        "node": {
+          "wealth": 0.04
+        }
+      },
+      "requires": {},
+      "success": {
+        "chance": 0.75,
+        "text": "Медики собраны; у структуры появился резерв.",
+        "effects": {
+          "node": {
+            "capacity": 0.07,
+            "cohesion": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.25,
+        "text": "Набор не дал нужных людей.",
+        "effects": {
+          "node": {
+            "capacity": -0.01
+          }
+        }
+      },
+      "success_chance": 0.75,
+      "ai": true,
+      "ai_weight": {
+        "care": 0.7
+      },
+      "career": "",
+      "cooldown_days": 0,
+      "once": false
+    }
+  ],
+  "opening_log": [
+    "Агора просыпается после пожара в порту. Старые соглашения больше не держат.",
+    "На улицах спорят о хлебе, вере и том, кто имеет право говорить от имени города.",
+    "В соседнем Верене собирают полки. Церкви Света и Пепельной Зари делят кварталы."
+  ],
+  "daily": {
+    "node": {
+      "wealth": -0.002
+    },
+    "player": {
+      "influence": 0.004,
+      "standing": 0.001
+    }
+  },
+  "default_profile": {
+    "name": "Новый герой",
+    "skills": {
+      "administration": 0.12,
+      "diplomacy": 0.12,
+      "command": 0.12,
+      "faith": 0.12,
+      "trade": 0.12,
+      "scholarship": 0.12,
+      "care": 0.12,
+      "intrigue": 0.12,
+      "media": 0.12
+    },
+    "traits": [
+      "незаметный"
+    ],
+    "values": [
+      "достоинство"
+    ],
+    "connections": [],
+    "biography": []
+  }
+}

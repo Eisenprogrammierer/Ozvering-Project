@@ -1,0 +1,37 @@
+{
+  "storyline_id": "world_demo",
+  "title": "Агора: мир в движении",
+  "description": "Общий мир семи организационных сфер. Вы создаёте человека, выбираете автомат и уровень, а затем действуете как должностное лицо с ограниченными полномочиями. Каждый ход все структуры действуют по своим интересам.",
+  "scenario_path": "scenarios/mvp.json",
+  "world_path": "configs/worlds/agora_world.json",
+  "biography_path": "configs/worlds/biography.json",
+  "character_creation": "world_char",
+  "campaign_seed": 7,
+  "scenes": "world_demo_scenes",
+  "win_conditions": [],
+  "lose_conditions": [],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_square",
+        "text": "Вы удержались в должности до конца срока. Мир не стал справедливее, но в нём появился человек, который умеет действовать внутри чужих интересов."
+      },
+      {
+        "image": "campaign/agora_charter",
+        "text": "Ваша карьера — не победа над системой. Это след, который остался в её бумагах, улицах и памяти."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_archive",
+        "text": "Должность ушла раньше, чем вы успели закончить начатое. В архиве осталась папка с вашим именем и чужими подписями."
+      },
+      {
+        "image": "campaign/agora_port",
+        "text": "Мир продолжил движение без вас. Но у вас остался опыт: вы знаете, где проходят настоящие линии власти."
+      }
+    ]
+  }
+}

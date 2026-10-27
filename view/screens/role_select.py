@@ -30,7 +30,11 @@ class RoleSelectScreen(BaseScreen):
         super().__init__(app)
         self.panel = Panel((250, 70, 780, 580))
         self.buttons = []
-        self.roles = list(app.role_catalog.available_roles())
+        self.roles = [
+            role
+            for role in app.role_catalog.available_roles()
+            if "legacy" not in role.tags
+        ]
         self.empty = not self.roles
 
         self.step = 140 if len(self.roles) <= 1 else 112
@@ -62,6 +66,15 @@ class RoleSelectScreen(BaseScreen):
         self.app.selected_faction_id = None
         self.app.campaign_preset = None
         logger.info("Выбрана роль: %s (%s)", role.id, role.label)
+        if role.id == "world_actor" or role.storyline_id == "world_demo":
+            from view.support.storyline import load_storyline
+
+            storyline = load_storyline(role.storyline_id or "world_demo")
+            if storyline is None:
+                logger.error("Сюжет мира не найден: %s", role.storyline_id)
+                return
+            self.app.start_storyline(storyline)
+            return
         if role.faction_choice:
             from .faction_select import FactionSelectScreen
 
@@ -98,6 +111,7 @@ class RoleSelectScreen(BaseScreen):
                     {
                         "nominal": "гражданский мандат",
                         "civilian_mandate": "гражданский мандат",
+                        "official": "должностное лицо",
                     }.get(role.leadership, role.leadership),
                     {
                         "coalition": "коалиция",

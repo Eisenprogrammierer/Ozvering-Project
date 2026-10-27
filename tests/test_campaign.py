@@ -47,19 +47,27 @@ def test_campaign_layer_is_headless():
     assert result.returncode == 0, result.stderr
 
 
-def test_role_catalog_exposes_only_faction_leader():
+def test_role_catalog_exposes_world_actor_and_legacy_leader():
     catalog = RoleCatalog.load()
     available = catalog.available_roles()
-    assert [role.id for role in available] == ["faction_leader"]
+    assert [role.id for role in available] == [
+        "world_actor",
+        "faction_leader",
+    ]
     role = catalog.default_role()
-    assert role.leadership == "nominal"
-    assert role.faction_kind == "coalition"
-    assert role.faction_slot == "player"
-    assert role.faction_choice is True
-    assert role.storyline_id == "faction_leader_demo"
-    assert role.grants["player_role"] == "faction_leader"
-    assert role.grants["leadership_mode"] == "civilian_mandate"
-    assert catalog.select("faction_leader") is role
+    assert role.id == "world_actor"
+    assert role.leadership == "official"
+    assert role.faction_kind == "automaton"
+    assert role.faction_slot == "office"
+    assert role.faction_choice is False
+    assert role.storyline_id == "world_demo"
+    assert role.grants["player_role"] == "world_actor"
+    assert role.grants["leadership_mode"] == "limited_office"
+    assert catalog.select("world_actor") is role
+    legacy = catalog.select("faction_leader")
+    assert legacy.storyline_id == "faction_leader_demo"
+    assert legacy.faction_choice is True
+    assert "legacy" in legacy.tags
 
 
 def test_role_catalog_is_extensible_but_hides_unavailable_roles():
@@ -478,11 +486,13 @@ def test_role_select_screen_constructs_and_draws():
     screen = RoleSelectScreen(app)
     surface = pygame.Surface((1280, 720))
     screen.draw(surface)
-    assert [role.id for role in screen.roles] == ["faction_leader"]
-    screen.select("faction_leader")
-    assert app.selected_role.id == "faction_leader"
+    assert [role.id for role in screen.roles] == ["world_actor"]
+    screen.select("world_actor")
+    assert app.selected_role.id == "world_actor"
     assert app.selected_faction_id is None
-    assert app.manager.current.__class__.__name__ == "FactionSelectScreen"
+    assert app.campaign_preset is None
+    assert app.world_config is not None
+    assert app.manager.current.__class__.__name__ == "VisualNovelScreen"
 
 
 def test_faction_select_screen_constructs_and_draws():

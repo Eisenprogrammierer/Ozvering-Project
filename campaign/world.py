@@ -1,0 +1,1552 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+from .errors import CampaignError
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
+DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
+
+NODE_STATS = (
+    "power",
+    "wealth",
+    "legitimacy",
+    "cohesion",
+    "reach",
+    "capacity",
+)
+PLAYER_STATS = ("influence", "favor", "evidence", "standing")
+KIND_LABELS = {
+    "institution": "учреждение",
+    "asset": "имущество",
+    "person": "человек",
+    "network": "сеть",
+    "event": "событие",
+}
+SKILL_ORDER = (
+    "administration",
+    "diplomacy",
+    "command",
+    "faith",
+    "trade",
+    "scholarship",
+    "care",
+    "intrigue",
+    "media",
+)
+DOMAIN_SKILLS = {
+    "order": ("administration", "command"),
+    "meaning": ("faith", "diplomacy"),
+    "provision": ("trade", "administration"),
+    "status": ("diplomacy", "intrigue"),
+    "knowledge": ("scholarship", "media"),
+    "care": ("care", "diplomacy"),
+    "exchange": ("trade", "intrigue"),
+}
+
+
+class WorldError(CampaignError):
+    pass
+
+
+def _clamp(value, low=0.0, high=1.0):
+    return max(float(low), min(float(high), float(value)))
+
+
+def _as_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _as_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def _text(value, default=""):
+    if value is None:
+        return default
+    return str(value)
+
+
+def _read_json(path):
+    target = Path(path)
+    if not target.is_absolute():
+        target = ROOT / target
+    try:
+        with open(target, encoding="utf-8") as handle:
+            return json.load(handle)
+    except FileNotFoundError:
+        raise WorldError("файл мира не найден: %s" % target)
+    except Exception as exc:
+        raise WorldError("не удалось прочитать %s: %s" % (target, exc))
+
+
+def load_world(path=None):
+    data = _read_json(path if path is not None else DEFAULT_WORLD_PATH)
+    if not isinstance(data, dict):
+        raise WorldError("мир должен быть объектом")
+    return validate_world(data)
+
+
+def load_biography(path=None):
+    data = _read_json(path if path is not None else DEFAULT_BIOGRAPHY_PATH)
+    if not isinstance(data, dict):
+        raise WorldError("биография должна быть объектом")
+    return data
+
+
+def _validate_unique(items, label):
+    if not isinstance(items, list) or not items:
+        raise WorldError("%s должен быть непустым списком" % label)
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            raise WorldError("%s: элемент должен быть объектом" % label)
+        item_id = _text(item.get("id")).strip()
+        if not item_id:
+            raise WorldError("%s: пустой id" % label)
+        if item_id in seen:
+            raise WorldError("%s: повторяется id %r" % (label, item_id))
+        seen.add(item_id)
+
+
+def validate_world(data):
+    data = dict(data)
+    data["id"] = _text(data.get("id"), "world")
+    data["title"] = _text(data.get("title"), data["id"])
+    data["domains"] = list(data.get("domains") or [])
+    data["polities"] = list(data.get("polities") or [])
+    data["nodes"] = list(data.get("nodes") or [])
+    data["offices"] = list(data.get("offices") or [])
+    data["actions"] = list(data.get("actions") or [])
+    _validate_unique(data["domains"], "domains")
+    _validate_unique(data["polities"], "polities")
+    _validate_unique(data["nodes"], "nodes")
+    _validate_unique(data["offices"], "offices")
+    _validate_unique(data["actions"], "actions")
+
+    domain_index = {item["id"]: item for item in data["domains"]}
+    polity_index = {item["id"]: item for item in data["polities"]}
+    for domain in data["domains"]:
+        levels = domain.get("levels") or []
+        if not levels:
+            raise WorldError("%s: нет уровней" % domain["id"])
+        _validate_unique(levels, "domains.%s.levels" % domain["id"])
+        level_ids = {item["id"] for item in levels}
+        domain["level_index"] = {
+            item["id"]: int(item.get("rank", index + 1))
+            for index, item in enumerate(levels)
+        }
+        if len(level_ids) != len(levels):
+            raise WorldError("%s: повторяются уровни" % domain["id"])
+
+    for office in data["offices"]:
+        domain_id = _text(office.get("domain"))
+        if domain_id not in domain_index:
+            raise WorldError(
+                "%s: неизвестный домен %r" % (office["id"], domain_id)
+            )
+        levels = office.get("levels") or []
+        known = domain_index[domain_id]["level_index"]
+        for level in levels:
+            if level not in known and level != "*":
+                raise WorldError(
+                    "%s: неизвестный уровень %r" % (office["id"], level)
+                )
+
+    node_ids = {item["id"] for item in data["nodes"]}
+    for node in data["nodes"]:
+        domain_id = _text(node.get("domain"))
+        if domain_id not in domain_index:
+            raise WorldError(
+                "%s: неизвестный домен %r" % (node["id"], domain_id)
+            )
+        level = _text(node.get("level"))
+        if level not in domain_index[domain_id]["level_index"]:
+            raise WorldError(
+                "%s: неизвестный уровень %r" % (node["id"], level)
+            )
+        polity = _text(node.get("polity"))
+        if polity and polity not in polity_index:
+            raise WorldError(
+                "%s: неизвестная политика %r" % (node["id"], polity)
+            )
+        parent = node.get("parent")
+        if parent and parent not in node_ids:
+            raise WorldError(
+                "%s: неизвестный родитель %r" % (node["id"], parent)
+            )
+        if parent == node["id"]:
+            raise WorldError(
+                "%s: узел не может быть родителем себе" % node["id"]
+            )
+    for node in data["nodes"]:
+        parent = node.get("parent")
+        if not parent:
+            continue
+        seen = {node["id"]}
+        cursor = data["nodes"]
+        by_id = {item["id"]: item for item in cursor}
+        while parent:
+            if parent in seen:
+                raise WorldError("цикл иерархии у узла %s" % node["id"])
+            seen.add(parent)
+            parent = (by_id.get(parent) or {}).get("parent")
+    return data
+
+
+def _profile_connection_strength(profile, kinds=None):
+    best = 0.0
+    kinds = set(kinds or ())
+    for connection in profile.get("connections") or ():
+        if kinds and connection.get("kind") not in kinds:
+            continue
+        best = max(best, _as_float(connection.get("strength"), 0.0))
+    return best
+
+
+def _profile_skill(profile, key):
+    return _as_float((profile.get("skills") or {}).get(key), 0.0)
+
+
+def _add_skills(skills, addition):
+    for key, value in (addition or {}).items():
+        if key not in skills:
+            skills[key] = 0.0
+        skills[key] = _clamp(skills[key] + _as_float(value))
+
+
+def _add_connections(connections, additions, source):
+    for item in additions or ():
+        record = dict(item)
+        record.setdefault("id", "%s:%s" % (source, record.get("kind", "link")))
+        record["strength"] = _clamp(record.get("strength", 0.2))
+        connections.append(record)
+
+
+def build_player_profile(variables, biography=None, seed=0):
+    biography = biography or {}
+    variables = dict(variables or {})
+    tables = {
+        "origin": "origins",
+        "family": "families",
+        "education": "educations",
+        "formative": "formative_events",
+        "vocation": "vocations",
+        "value": "values",
+        "value2": "values",
+        "flaw": "flaws",
+        "patron": "patrons",
+        "reputation": "reputations",
+    }
+    default_name = _text(
+        variables.get("name"),
+        biography.get("default_name", "Новый герой"),
+    ).strip()
+    profile = {
+        "name": default_name or "Новый герой",
+        "gender": _text(variables.get("gender"), "unspecified"),
+        "origin": "",
+        "family": "",
+        "education": "",
+        "formative": "",
+        "vocation": "",
+        "values": [],
+        "flaw": "",
+        "patron": "",
+        "reputation": "",
+        "traits": [],
+        "skills": {key: 0.08 for key in SKILL_ORDER},
+        "connections": [],
+        "biography": [],
+        "seed": int(seed),
+    }
+    for variable, table_name in tables.items():
+        selected = _text(variables.get(variable))
+        entry = (biography.get(table_name) or {}).get(selected)
+        if not isinstance(entry, dict):
+            continue
+        label = _text(entry.get("label"), selected)
+        if variable in ("value", "value2"):
+            if label not in profile["values"]:
+                profile["values"].append(label)
+        else:
+            profile[variable] = label
+        _add_skills(profile["skills"], entry.get("skills"))
+        for trait in entry.get("traits") or ():
+            if trait not in profile["traits"]:
+                profile["traits"].append(str(trait))
+        _add_connections(
+            profile["connections"],
+            entry.get("connections"),
+            "%s:%s" % (table_name, selected),
+        )
+        text = _text(entry.get("text"))
+        if text:
+            profile["biography"].append(text)
+    if not profile["values"]:
+        profile["values"].append("достоинство")
+    if not profile["traits"]:
+        profile["traits"].append("незаметный")
+    profile["aptitudes"] = {
+        domain: _clamp(
+            sum(_profile_skill(profile, key) for key in keys)
+            / max(1, len(keys))
+        )
+        for domain, keys in DOMAIN_SKILLS.items()
+    }
+    return profile
+
+
+def normalize_profile(profile):
+    profile = dict(profile or {})
+    profile.setdefault("name", "Новый герой")
+    profile.setdefault("gender", "unspecified")
+    profile.setdefault("traits", [])
+    profile.setdefault("skills", {})
+    profile.setdefault("connections", [])
+    profile.setdefault("biography", [])
+    profile.setdefault("values", [])
+    profile.setdefault("aptitudes", {})
+    for key in SKILL_ORDER:
+        profile["skills"].setdefault(key, 0.08)
+    for domain, keys in DOMAIN_SKILLS.items():
+        profile["aptitudes"].setdefault(
+            domain,
+            _clamp(
+                sum(_profile_skill(profile, key) for key in keys)
+                / max(1, len(keys))
+            ),
+        )
+    return profile
+
+
+def office_profile_status(profile, office, skill_labels=None):
+    requirements = office.get("requires") or {}
+    skill_labels = skill_labels or {}
+    for skill, minimum in (requirements.get("skills") or {}).items():
+        if _profile_skill(profile, skill) + 1e-9 < _as_float(minimum):
+            return False, "нужен навык «%s» не ниже %.0f%%" % (
+                skill_labels.get(skill, skill),
+                100.0 * _as_float(minimum),
+            )
+    traits = requirements.get("traits_any") or []
+    if traits and not any(
+        item in (profile.get("traits") or []) for item in traits
+    ):
+        return False, "нужен один из признаков: %s" % ", ".join(traits)
+    values = requirements.get("values_any") or []
+    if values and not any(
+        item in (profile.get("values") or []) for item in values
+    ):
+        return False, "нужны ценности: %s" % ", ".join(values)
+    connection_kinds = requirements.get("connections_any") or []
+    if connection_kinds and not any(
+        item.get("kind") in connection_kinds
+        for item in (profile.get("connections") or ())
+    ):
+        return False, "нужна связь: %s" % ", ".join(connection_kinds)
+    return True, ""
+
+
+class WorldEngine:
+
+    def __init__(
+        self,
+        config,
+        profile=None,
+        node_id=None,
+        office_id=None,
+        seed=None,
+        snapshot=None,
+    ):
+        self.config = validate_world(dict(config))
+        self.seed = _as_int(
+            seed,
+            _as_int(snapshot.get("seed"), 7) if snapshot else 7,
+        )
+        self.days = max(1, _as_int(self.config.get("days"), 30))
+        self.actions_per_day = max(
+            1, _as_int(self.config.get("actions_per_day"), 3)
+        )
+        self.skill_labels = dict(self.config.get("skill_labels") or {})
+        self.stat_labels = dict(self.config.get("stat_labels") or {})
+        self.domain_labels = {
+            item["id"]: _text(item.get("label"), item["id"])
+            for item in self.config["domains"]
+        }
+        self.domain_index = {
+            item["id"]: item for item in self.config["domains"]
+        }
+        self.polities = {item["id"]: item for item in self.config["polities"]}
+        self.offices = {item["id"]: item for item in self.config["offices"]}
+        self.actions = {item["id"]: item for item in self.config["actions"]}
+        self.nodes = self._build_nodes()
+        self.node_order = [item["id"] for item in self.config["nodes"]]
+        self.profile = normalize_profile(
+            profile or self.config.get("default_profile") or {}
+        )
+        self.player_node_id = _text(node_id)
+        self.player_office_id = _text(office_id)
+        self.player_authority = 0.0
+        self.player_resources = {key: 0.0 for key in PLAYER_STATS}
+        self.day = 1
+        self.actions_left = self.actions_per_day
+        self.action_count = 0
+        self.cooldowns = {}
+        self.used_actions = []
+        self.log = []
+        self.last_result = None
+        self.outcome = None
+        self.finished = False
+        self.career_history = []
+        self.attached = False
+        if snapshot:
+            self.load_snapshot(snapshot)
+        else:
+            if self.player_node_id and self.player_office_id:
+                self.attach(self.player_node_id, self.player_office_id)
+            self._opening()
+
+    def _build_nodes(self):
+        nodes = {}
+        for raw in self.config["nodes"]:
+            node = {
+                "id": raw["id"],
+                "name": _text(raw.get("name"), raw["id"]),
+                "domain": raw["domain"],
+                "level": raw["level"],
+                "polity": _text(raw.get("polity")),
+                "kind": _text(raw.get("kind"), "institution"),
+                "parent": _text(raw.get("parent")),
+                "tags": list(raw.get("tags") or ()),
+                "description": _text(raw.get("description")),
+                "interests": dict(raw.get("interests") or {}),
+                "stats": {
+                    key: _clamp((raw.get("stats") or {}).get(key, 0.5))
+                    for key in NODE_STATS
+                },
+                "relations": {},
+                "children": [],
+            }
+            nodes[node["id"]] = node
+        for node in nodes.values():
+            parent = node.get("parent")
+            if parent and parent in nodes:
+                nodes[parent]["children"].append(node["id"])
+        for node in nodes.values():
+            for other in nodes.values():
+                if other["id"] == node["id"]:
+                    continue
+                base = 0.0
+                if node["polity"] and node["polity"] == other["polity"]:
+                    base += 0.15
+                if node["domain"] == other["domain"]:
+                    base += 0.1
+                if node["parent"] == other["id"]:
+                    base += 0.1
+                node["relations"][other["id"]] = _clamp(base, -1.0, 1.0)
+        return nodes
+
+    def _opening(self):
+        for text in self.config.get("opening_log") or ():
+            self.log.append(
+                {"day": self.day, "kind": "opening", "text": str(text)}
+            )
+
+    def domain_label(self, domain_id):
+        return self.domain_labels.get(domain_id, domain_id)
+
+    def kind_label(self, kind_id):
+        return KIND_LABELS.get(kind_id, kind_id)
+
+    def level_label(self, domain_id, level_id):
+        domain = self.domain_index.get(domain_id) or {}
+        for level in domain.get("levels") or ():
+            if level.get("id") == level_id:
+                return _text(level.get("label"), level_id)
+        return level_id
+
+    def node_level_label(self, node):
+        if not node:
+            return "—"
+        return self.level_label(node.get("domain"), node.get("level"))
+
+    def node(self, node_id):
+        return self.nodes.get(_text(node_id))
+
+    def node_label(self, node_id):
+        node = self.node(node_id)
+        return node["name"] if node else "—"
+
+    def node_path(self, node_id):
+        node = self.node(node_id)
+        if node is None:
+            return []
+        path = []
+        seen = set()
+        while node is not None and node["id"] not in seen:
+            path.append(node)
+            seen.add(node["id"])
+            node = self.node(node.get("parent"))
+        return list(reversed(path))
+
+    def node_depth(self, node_id):
+        return max(0, len(self.node_path(node_id)) - 1)
+
+    def is_descendant(self, node_id, ancestor_id):
+        node = self.node(node_id)
+        while node is not None:
+            if node["id"] == ancestor_id:
+                return node_id != ancestor_id
+            node = self.node(node.get("parent"))
+        return False
+
+    def relation(self, source_id, target_id):
+        source = self.node(source_id) or {}
+        return _as_float((source.get("relations") or {}).get(target_id), 0.0)
+
+    def office_templates_for_node(self, node):
+        if not node:
+            return []
+        result = []
+        for office in self.offices.values():
+            if office.get("domain") != node.get("domain"):
+                continue
+            levels = office.get("levels") or []
+            if node.get("level") not in levels and "*" not in levels:
+                continue
+            result.append(office)
+        return sorted(
+            result,
+            key=lambda item: (
+                _as_int(item.get("rank"), 99),
+                -_as_float(item.get("authority"), 0.0),
+                item["id"],
+            ),
+        )
+
+    def office_label(self, office_id):
+        office = self.offices.get(_text(office_id)) or {}
+        return _text(office.get("label"), office_id)
+
+    def head_office_for_node(self, node):
+        templates = self.office_templates_for_node(node)
+        if not templates:
+            return None
+        return templates[0]
+
+    def _office_authority(self, office, node, is_player=True):
+        base = _as_float(office.get("authority"), 0.5)
+        if not is_player:
+            return _clamp(base)
+        skill_key = _text(office.get("skill"))
+        skill = _profile_skill(self.profile, skill_key)
+        connection = _profile_connection_strength(
+            self.profile,
+            office.get("connection_kinds") or (),
+        )
+        return _clamp(base + 0.18 * skill + 0.10 * connection)
+
+    def office_options(self, node_id):
+        node = self.node(node_id)
+        if node is None:
+            return []
+        result = []
+        for office in self.office_templates_for_node(node):
+            enabled, reason = office_profile_status(
+                self.profile, office, self.skill_labels
+            )
+            result.append(
+                {
+                    "office": office,
+                    "id": office["id"],
+                    "label": _text(office.get("label"), office["id"]),
+                    "enabled": enabled,
+                    "reason": reason,
+                    "authority": self._office_authority(office, node),
+                    "rank": _as_int(office.get("rank"), 99),
+                }
+            )
+        return result
+
+    def attach(self, node_id, office_id):
+        node = self.node(node_id)
+        office = self.offices.get(_text(office_id))
+        if node is None:
+            return {"ok": False, "reason": "неизвестная структура"}
+        if office is None:
+            return {"ok": False, "reason": "неизвестная должность"}
+        options = {item["id"]: item for item in self.office_options(node_id)}
+        option = options.get(office["id"])
+        if option is None:
+            return {
+                "ok": False,
+                "reason": "должность не относится к этой структуре",
+            }
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason") or "должность недоступна",
+            }
+        self.player_node_id = node["id"]
+        self.player_office_id = office["id"]
+        self.player_authority = option["authority"]
+        aptitude = _as_float(
+            (self.profile.get("aptitudes") or {}).get(node["domain"]), 0.0
+        )
+        connection = _profile_connection_strength(
+            self.profile,
+            office.get("connection_kinds") or (),
+        )
+        self.player_resources = {
+            "influence": _clamp(0.22 + 0.25 * aptitude + 0.10 * connection),
+            "favor": _clamp(0.18 + 0.20 * connection),
+            "evidence": 0.0,
+            "standing": _clamp(0.28 + 0.25 * aptitude + 0.10 * connection),
+        }
+        self.attached = True
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "career",
+                "text": "%s занял должность «%s» в структуре «%s»."
+                % (
+                    self.profile.get("name", "Герой"),
+                    _text(office.get("label"), office["id"]),
+                    node["name"],
+                ),
+            }
+        )
+        return {"ok": True, "node": node, "office": office}
+
+    def _context(self, node, office, is_player=False):
+        if node is None or office is None:
+            return None
+        return {
+            "node": node,
+            "office": office,
+            "domain": node["domain"],
+            "level": node["level"],
+            "kind": node["kind"],
+            "polity": node["polity"],
+            "authority": self._office_authority(
+                office, node, is_player=is_player
+            ),
+            "is_player": bool(is_player),
+            "ai": not bool(is_player),
+        }
+
+    def player_context(self):
+        if not self.attached:
+            return None
+        node = self.node(self.player_node_id)
+        office = self.offices.get(self.player_office_id)
+        context = self._context(node, office, is_player=True)
+        if context is None:
+            return None
+        context["authority"] = self.player_authority
+        return context
+
+    def node_context(self, node_id):
+        node = self.node(node_id)
+        if node is None:
+            return None
+        office = self.head_office_for_node(node)
+        return self._context(node, office, is_player=False)
+
+    def player_office(self):
+        office = self.offices.get(self.player_office_id) or {}
+        node = self.node(self.player_node_id) or {}
+        return {
+            "id": office.get("id", ""),
+            "title": _text(office.get("label"), office.get("id", "—")),
+            "node_id": node.get("id", ""),
+            "node_name": node.get("name", "—"),
+            "domain": node.get("domain", ""),
+            "domain_label": self.domain_label(node.get("domain", "")),
+            "level": node.get("level", ""),
+            "level_label": self.node_level_label(node),
+            "authority": self.player_authority,
+            "rank": _as_int(office.get("rank"), 99),
+        }
+
+    def _reason_actor(self, action, context):
+        spec = action.get("actor") or {}
+        domains = spec.get("domains") or []
+        if domains and context["domain"] not in domains:
+            return "действие относится к другой сфере: %s" % ", ".join(
+                self.domain_label(item) for item in domains
+            )
+        levels = spec.get("levels") or []
+        if levels and context["level"] not in levels:
+            return "должность не того уровня: нужно %s" % ", ".join(
+                self.level_label(context["domain"], item) for item in levels
+            )
+        offices = spec.get("offices") or []
+        if offices and context["office"].get("id") not in offices:
+            return "ваша должность не даёт этого права"
+        kinds = spec.get("kinds") or []
+        if kinds and context["kind"] not in kinds:
+            return "этот тип структуры не может так действовать: нужно %s" % (
+                ", ".join(self.kind_label(item) for item in kinds)
+            )
+        if context["authority"] + 1e-9 < _as_float(
+            spec.get("min_authority"), 0.0
+        ):
+            return "недостаточно полномочий: нужно %.0f%%" % (
+                100.0 * _as_float(spec.get("min_authority"), 0.0)
+            )
+        tags = spec.get("tags_any") or []
+        if tags and not any(
+            tag in context["node"].get("tags", ()) for tag in tags
+        ):
+            return "нужен признак структуры: %s" % ", ".join(tags)
+        return ""
+
+    def _reason_target(self, action, context, target):
+        spec = action.get("target") or {}
+        if spec.get("self"):
+            if target is not None and target["id"] != context["node"]["id"]:
+                return "действие выполняется для вашей собственной должности"
+            return ""
+        if not spec.get("required", True):
+            return ""
+        if target is None:
+            return "нужно выбрать цель"
+        if spec.get("exclude_self") and target["id"] == context["node"]["id"]:
+            return "нельзя выбрать собственную структуру"
+        kinds = spec.get("kinds") or []
+        if kinds and target["kind"] not in kinds:
+            return _text(
+                spec.get("invalid_kind_reason"),
+                "цель не того типа: нужно %s"
+                % ", ".join(self.kind_label(item) for item in kinds),
+            )
+        domains = spec.get("domains") or []
+        if domains and target["domain"] not in domains:
+            return "цель относится к другой сфере: %s" % ", ".join(
+                self.domain_label(item) for item in domains
+            )
+        levels = spec.get("levels") or []
+        if levels and target["level"] not in levels:
+            return "цель не того уровня: нужно %s" % ", ".join(
+                self.level_label(target["domain"], item) for item in levels
+            )
+        polities = spec.get("polities") or []
+        if polities and target["polity"] not in polities:
+            return "цель находится в другой политии"
+        if spec.get("same_polity") and target["polity"] != context["polity"]:
+            return "цель должна быть в вашей политии"
+        if spec.get("other_polity") and target["polity"] == context["polity"]:
+            return "цель должна быть вне вашей политии"
+        lineage = spec.get("lineage") or []
+        if lineage:
+            relation = "self" if target["id"] == context["node"]["id"] else ""
+            if not relation and target["id"] in context["node"].get(
+                "children", []
+            ):
+                relation = "child"
+            if not relation and self.is_descendant(
+                target["id"], context["node"]["id"]
+            ):
+                relation = "descendant"
+            if not relation and context["node"].get("parent") == target["id"]:
+                relation = "parent"
+            if not relation and self.is_descendant(
+                context["node"]["id"], target["id"]
+            ):
+                relation = "ancestor"
+            if relation not in lineage:
+                return "цель вне нужной ветви иерархии"
+        return ""
+
+    def _reason_requirements(self, action, context, target):
+        requires = action.get("requires") or {}
+        if context.get("is_player"):
+            for key, minimum in (requires.get("player") or {}).items():
+                if _as_float(
+                    self.player_resources.get(key), 0.0
+                ) + 1e-9 < _as_float(minimum):
+                    return (
+                        "нужно больше личного ресурса «%s»"
+                        % self.stat_label(key)
+                    )
+            for skill, minimum in (requires.get("skills") or {}).items():
+                if _profile_skill(self.profile, skill) + 1e-9 < _as_float(
+                    minimum
+                ):
+                    return "нужен навык «%s» не ниже %.0f%%" % (
+                        self.skill_labels.get(skill, skill),
+                        100.0 * _as_float(minimum),
+                    )
+        for key, minimum in (requires.get("node") or {}).items():
+            if _as_float(
+                context["node"]["stats"].get(key), 0.0
+            ) + 1e-9 < _as_float(minimum):
+                return "у структуры мало ресурса «%s»" % self.stat_label(key)
+        if target is not None:
+            for key, minimum in (requires.get("target") or {}).items():
+                if _as_float(target["stats"].get(key), 0.0) + 1e-9 < _as_float(
+                    minimum
+                ):
+                    return "у цели мало ресурса «%s»" % self.stat_label(key)
+            relation_min = requires.get("relation_min")
+            if relation_min is not None:
+                value = self.relation(context["node"]["id"], target["id"])
+                if value + 1e-9 < _as_float(relation_min):
+                    return "слишком плохие отношения с целью"
+        return ""
+
+    def _reason_cost(self, action, context):
+        for key, value in (action.get("cost") or {}).get("node", {}).items():
+            if _as_float(
+                context["node"]["stats"].get(key), 0.0
+            ) + 1e-9 < _as_float(value):
+                return "недостаточно ресурса структуры «%s»" % self.stat_label(
+                    key
+                )
+        if context.get("is_player"):
+            for key, value in (
+                (action.get("cost") or {}).get("player", {}).items()
+            ):
+                if _as_float(
+                    self.player_resources.get(key), 0.0
+                ) + 1e-9 < _as_float(value):
+                    return (
+                        "недостаточно личного ресурса «%s»"
+                        % self.stat_label(key)
+                    )
+        return ""
+
+    def validate(self, action_id, target_id=None, context=None):
+        action = self.actions.get(_text(action_id))
+        context = context or self.player_context()
+        if action is None:
+            return False, "неизвестное действие"
+        if context is None:
+            return False, "сначала выберите должность"
+        target = self.node(target_id) if target_id else None
+        if (action.get("target") or {}).get("self"):
+            target = context["node"]
+        reason = self._reason_actor(action, context)
+        if reason:
+            return False, reason
+        reason = self._reason_target(action, context, target)
+        if reason:
+            return False, reason
+        reason = self._reason_requirements(action, context, target)
+        if reason:
+            return False, reason
+        reason = self._reason_cost(action, context)
+        if reason:
+            return False, reason
+        if not context.get("ai"):
+            cooldown = _as_int(action.get("cooldown_days"), 0)
+            if cooldown:
+                key = "%s:%s" % (
+                    action["id"],
+                    target["id"] if target else "",
+                )
+                last_day = self.cooldowns.get(key)
+                if (
+                    last_day is not None
+                    and self.day - int(last_day) < cooldown
+                ):
+                    return False, "повтор не раньше дня %d" % (
+                        int(last_day) + cooldown
+                    )
+            if self.actions_left <= 0:
+                return False, "действия на сегодня исчерпаны"
+            if action.get("once") and action["id"] in self.used_actions:
+                return False, "действие уже использовано"
+        return True, ""
+
+    def action_options(self, target_id=None, include_disabled=True):
+        context = self.player_context()
+        if context is None:
+            return []
+        result = []
+        for action in self.actions.values():
+            self_target = bool((action.get("target") or {}).get("self"))
+            target = context["node"] if self_target else self.node(target_id)
+            enabled, reason = self.validate(
+                action["id"], target["id"] if target else None, context
+            )
+            if not enabled and not include_disabled:
+                continue
+            result.append(
+                {
+                    "action": action,
+                    "id": action["id"],
+                    "label": _text(action.get("label"), action["id"]),
+                    "enabled": enabled,
+                    "reason": reason,
+                    "self": self_target,
+                    "target_id": target["id"] if target else "",
+                    "cost": self._cost_text(action),
+                }
+            )
+        return result
+
+    def available_actions(self, target_id=None):
+        return [
+            item["id"]
+            for item in self.action_options(target_id, include_disabled=False)
+        ]
+
+    def _cost_text(self, action):
+        cost = action.get("cost") or {}
+        parts = []
+        for key, value in (cost.get("node") or {}).items():
+            parts.append(
+                "%s −%.0f%%" % (self.stat_label(key), 100.0 * _as_float(value))
+            )
+        for key, value in (cost.get("player") or {}).items():
+            parts.append(
+                "%s −%.0f%%" % (self.stat_label(key), 100.0 * _as_float(value))
+            )
+        return ", ".join(parts) or "без прямой платы"
+
+    def stat_label(self, key):
+        return self.stat_labels.get(key, key)
+
+    def _effect_lines(self, effects):
+        lines = []
+        if not effects:
+            return lines
+        for section, label in (
+            ("node", "структура"),
+            ("target", "цель"),
+            ("player", "вы"),
+        ):
+            for key, value in (effects.get(section) or {}).items():
+                amount = _as_float(value)
+                if abs(amount) < 1e-9:
+                    continue
+                lines.append(
+                    "%s: %s %s%.0f%%"
+                    % (
+                        label,
+                        self.stat_label(key),
+                        "+" if amount > 0 else "",
+                        100.0 * amount,
+                    )
+                )
+        return lines
+
+    def preview(self, action_id, target_id=None):
+        action = self.actions.get(_text(action_id))
+        if action is None:
+            return None
+        context = self.player_context()
+        target = (
+            context["node"]
+            if action.get("target", {}).get("self") and context
+            else self.node(target_id)
+        )
+        enabled, reason = self.validate(
+            action["id"], target["id"] if target else None, context
+        )
+        success = action.get("success") or {}
+        failure = action.get("failure") or {}
+        return {
+            "action": action,
+            "target": target,
+            "target_label": target["name"] if target else "своя должность",
+            "enabled": enabled,
+            "reason": reason,
+            "cost": self._cost_text(action),
+            "immediate": self._effect_lines(action.get("immediate")),
+            "success_chance": _as_float(
+                success.get("chance"), action.get("success_chance", 0.6)
+            ),
+            "success_text": _text(success.get("text")),
+            "success_effects": self._effect_lines(success.get("effects")),
+            "failure_chance": _as_float(
+                failure.get("chance"),
+                max(0.0, 1.0 - _as_float(action.get("success_chance"), 0.6)),
+            ),
+            "failure_text": _text(failure.get("text")),
+            "failure_effects": self._effect_lines(failure.get("effects")),
+        }
+
+    def _apply_stat_map(self, node, changes):
+        if node is None:
+            return []
+        changed = []
+        for key, value in (changes or {}).items():
+            if key not in node["stats"]:
+                continue
+            before = node["stats"][key]
+            node["stats"][key] = _clamp(before + _as_float(value))
+            delta = node["stats"][key] - before
+            if abs(delta) > 1e-9:
+                changed.append(
+                    ("%s · %s" % (node["name"], self.stat_label(key)), delta)
+                )
+        return changed
+
+    def _apply_player_map(self, changes):
+        changed = []
+        for key, value in (changes or {}).items():
+            if key not in self.player_resources:
+                continue
+            before = self.player_resources[key]
+            self.player_resources[key] = _clamp(before + _as_float(value))
+            delta = self.player_resources[key] - before
+            if abs(delta) > 1e-9:
+                changed.append((self.stat_label(key), delta))
+        return changed
+
+    def _apply_effects(self, effects, context, target, is_player=True):
+        effects = effects or {}
+        changed = []
+        changed.extend(
+            self._apply_stat_map(context["node"], effects.get("node"))
+        )
+        changed.extend(self._apply_stat_map(target, effects.get("target")))
+        if is_player:
+            changed.extend(self._apply_player_map(effects.get("player")))
+        relation = _as_float(effects.get("relation"), 0.0)
+        if target is not None and abs(relation) > 1e-9:
+            source = context["node"]
+            current = self.relation(source["id"], target["id"])
+            value = _clamp(current + relation, -1.0, 1.0)
+            source["relations"][target["id"]] = value
+            target["relations"][source["id"]] = value
+        return self._merge_changes(changed)
+
+    @staticmethod
+    def _merge_changes(changed):
+        merged = {}
+        for label, value in changed:
+            merged[label] = merged.get(label, 0.0) + float(value)
+        return [
+            (label, value)
+            for label, value in merged.items()
+            if abs(value) > 1e-9
+        ]
+
+    def _roll(self, token):
+        digest = hashlib.sha256(
+            ("%s:%s" % (self.seed, token)).encode("utf-8")
+        ).hexdigest()
+        return int(digest[:12], 16) / float(16**12)
+
+    def _pay_cost(self, action, context):
+        for key, value in (action.get("cost") or {}).get("node", {}).items():
+            if key in context["node"]["stats"]:
+                context["node"]["stats"][key] = _clamp(
+                    context["node"]["stats"][key] - _as_float(value)
+                )
+        if context.get("is_player"):
+            for key, value in (
+                (action.get("cost") or {}).get("player", {}).items()
+            ):
+                if key in self.player_resources:
+                    self.player_resources[key] = _clamp(
+                        self.player_resources[key] - _as_float(value)
+                    )
+
+    def _career_target_available(self, action, target):
+        if not target:
+            return False, "нужна цель"
+        office_kind = action.get("career")
+        if office_kind not in ("promote", "transfer"):
+            return True, ""
+        options = self.office_options(target["id"])
+        if not options:
+            return False, "в цели нет подходящей должности"
+        if office_kind == "promote":
+            current_rank = _as_int(
+                self.offices.get(self.player_office_id, {}).get("rank"), 99
+            )
+            candidates = [
+                item
+                for item in options
+                if item.get("enabled") and item["rank"] < current_rank
+            ]
+            if not candidates:
+                return False, "нет вакансии выше вашей должности"
+        else:
+            candidates = [item for item in options if item.get("enabled")]
+            if not candidates:
+                return False, "нет доступной должности в цели"
+        return True, ""
+
+    def _career_transition(self, action, target):
+        kind = action.get("career")
+        if kind == "resign":
+            self.outcome = "lose"
+            self.finished = True
+            self.career_history.append(
+                {
+                    "day": self.day,
+                    "kind": "resign",
+                    "from": self.player_node_id,
+                    "to": "",
+                }
+            )
+            return "Вы оставили должность. Кампания завершена."
+        if kind not in ("promote", "transfer") or target is None:
+            return ""
+        options = [
+            item
+            for item in self.office_options(target["id"])
+            if item.get("enabled")
+        ]
+        if kind == "promote":
+            current_rank = _as_int(
+                self.offices.get(self.player_office_id, {}).get("rank"), 99
+            )
+            options = [item for item in options if item["rank"] < current_rank]
+        if not options:
+            return "Вакансия не открылась."
+        chosen = sorted(
+            options,
+            key=lambda item: (item["rank"], -item["authority"]),
+        )[0]
+        previous_node = self.player_node_id
+        previous_office = self.player_office_id
+        self.player_node_id = target["id"]
+        self.player_office_id = chosen["id"]
+        self.player_authority = chosen["authority"]
+        self.career_history.append(
+            {
+                "day": self.day,
+                "kind": kind,
+                "from": previous_node,
+                "to": target["id"],
+                "office_from": previous_office,
+                "office_to": chosen["id"],
+            }
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "career",
+                "text": "Новая должность: %s в структуре %s."
+                % (chosen["label"], target["name"]),
+            }
+        )
+        return "Новая должность: %s." % chosen["label"]
+
+    def execute(self, action_id, target_id=None):
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        action = self.actions.get(_text(action_id))
+        if action is None:
+            return {"ok": False, "reason": "неизвестное действие"}
+        context = self.player_context()
+        if context is None:
+            return {"ok": False, "reason": "сначала выберите должность"}
+        target = (
+            context["node"]
+            if action.get("target", {}).get("self")
+            else self.node(target_id)
+        )
+        enabled, reason = self.validate(
+            action["id"], target["id"] if target else None, context
+        )
+        if not enabled:
+            return {"ok": False, "reason": reason}
+        if action.get("career"):
+            available, career_reason = self._career_target_available(
+                action, target
+            )
+            if not available:
+                return {"ok": False, "reason": career_reason}
+        self._pay_cost(action, context)
+        changed = self._apply_effects(
+            action.get("immediate"), context, target, is_player=True
+        )
+        success = action.get("success") or {}
+        failure = action.get("failure") or {}
+        chance = _as_float(
+            success.get("chance"), action.get("success_chance", 0.6)
+        )
+        roll = self._roll(
+            "player:%s:%s:%s:%s"
+            % (
+                self.day,
+                action["id"],
+                target["id"] if target else "-",
+                self.action_count,
+            )
+        )
+        outcome = "success" if roll < chance else "failure"
+        branch = success if outcome == "success" else failure
+        changed.extend(
+            self._apply_effects(
+                branch.get("effects"), context, target, is_player=True
+            )
+        )
+        career_text = ""
+        if outcome == "success" and action.get("career"):
+            career_text = self._career_transition(action, target)
+        if outcome == "failure" and action.get("career") == "resign":
+            career_text = self._career_transition(action, target)
+        self.actions_left = max(0, self.actions_left - 1)
+        self.action_count += 1
+        cooldown = _as_int(action.get("cooldown_days"), 0)
+        if cooldown:
+            self.cooldowns[
+                "%s:%s" % (action["id"], target["id"] if target else "")
+            ] = self.day
+        if action.get("once"):
+            self.used_actions.append(action["id"])
+        text = _text(branch.get("text"), action.get("description", ""))
+        if career_text:
+            text = "%s %s" % (text, career_text) if text else career_text
+        result = {
+            "ok": True,
+            "action": action["id"],
+            "action_label": _text(action.get("label"), action["id"]),
+            "target": target["id"] if target else "",
+            "target_label": target["name"] if target else "своя должность",
+            "outcome": outcome,
+            "text": text,
+            "changes": changed,
+            "day": self.day,
+        }
+        self.last_result = result
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": outcome,
+                "text": "%s → %s: %s"
+                % (
+                    result["action_label"],
+                    result["target_label"],
+                    text,
+                ),
+            }
+        )
+        self._check_dismissal()
+        return result
+
+    def _ai_targets(self, action, context):
+        spec = action.get("target") or {}
+        if spec.get("self"):
+            return [context["node"]]
+        if not spec.get("required", True):
+            return [None]
+        result = []
+        for node in self.nodes.values():
+            if node["id"] == context["node"]["id"]:
+                if spec.get("exclude_self"):
+                    continue
+            reason = self._reason_target(action, context, node)
+            if not reason:
+                result.append(node)
+        return result
+
+    def _ai_score(self, action, context, target):
+        weight = action.get("ai_weight") or {}
+        score = 0.0
+        interests = context["node"].get("interests") or {}
+        for key, value in weight.items():
+            score += _as_float(interests.get(key), 0.0) * _as_float(value)
+        if not weight:
+            score = 0.2
+        if target is not None:
+            score += 0.15 * self.relation(context["node"]["id"], target["id"])
+            if target.get("polity") == context["node"].get("polity"):
+                score += 0.05
+        token = "ai:%s:%s:%s:%s" % (
+            self.day,
+            context["node"]["id"],
+            action["id"],
+            target["id"] if target else "-",
+        )
+        score += 0.20 * self._roll(token)
+        for key, value in (action.get("cost") or {}).get("node", {}).items():
+            score -= 0.10 * _as_float(value)
+            if _as_float(context["node"]["stats"].get(key), 0.0) < 0.2:
+                score -= 0.3
+        return score
+
+    def _ai_action(self, node_id):
+        context = self.node_context(node_id)
+        if context is None:
+            return None
+        best = None
+        for action in self.actions.values():
+            if not action.get("ai", True):
+                continue
+            if action.get("target", {}).get("self"):
+                candidates = [context["node"]]
+            else:
+                candidates = self._ai_targets(action, context)
+            for target in candidates:
+                enabled, _reason = self.validate(
+                    action["id"],
+                    target["id"] if target else None,
+                    context,
+                )
+                if not enabled:
+                    continue
+                score = self._ai_score(action, context, target)
+                if best is None or score > best[0]:
+                    best = (score, action, target)
+        if best is None:
+            return None
+        _score, action, target = best
+        self._pay_cost(action, context)
+        changed = self._apply_effects(
+            action.get("immediate"), context, target, is_player=False
+        )
+        success = action.get("success") or {}
+        failure = action.get("failure") or {}
+        chance = _as_float(
+            success.get("chance"), action.get("success_chance", 0.6)
+        )
+        roll = self._roll(
+            "ai:%s:%s:%s:%s"
+            % (
+                self.day,
+                node_id,
+                action["id"],
+                target["id"] if target else "-",
+            )
+        )
+        outcome = "success" if roll < chance else "failure"
+        branch = success if outcome == "success" else failure
+        changed.extend(
+            self._apply_effects(
+                branch.get("effects"), context, target, is_player=False
+            )
+        )
+        text = _text(branch.get("text"), action.get("description", ""))
+        entry = {
+            "day": self.day,
+            "kind": "world",
+            "source": context["node"]["id"],
+            "target": target["id"] if target else "",
+            "text": "%s: %s %s"
+            % (
+                context["node"]["name"],
+                _text(action.get("label"), action["id"]).lower(),
+                "— %s" % text if text else "",
+            ),
+            "changes": changed,
+        }
+        self.log.append(entry)
+        return entry
+
+    def _check_dismissal(self):
+        if self.finished or not self.attached:
+            return
+        node = self.node(self.player_node_id)
+        if node is None:
+            self.outcome = "lose"
+            self.finished = True
+            return
+        if self.player_resources["standing"] <= 0.05:
+            self.outcome = "lose"
+            self.finished = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "career",
+                    "text": "Вы потеряли опору и должность.",
+                }
+            )
+        elif node["stats"]["legitimacy"] <= 0.08:
+            self.outcome = "lose"
+            self.finished = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "career",
+                    "text": "Структура потеряла легитимность; вас отстранили.",
+                }
+            )
+
+    def end_day(self):
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        events = []
+        for node_id in self.node_order:
+            entry = self._ai_action(node_id)
+            if entry is not None:
+                events.append(entry)
+        daily = self.config.get("daily") or {}
+        changed = []
+        for key, value in (daily.get("node") or {}).items():
+            for node in self.nodes.values():
+                if key in node["stats"]:
+                    before = node["stats"][key]
+                    node["stats"][key] = _clamp(before + _as_float(value))
+                    delta = node["stats"][key] - before
+                    if abs(delta) > 1e-9:
+                        changed.append(
+                            (
+                                "%s · %s"
+                                % (node["name"], self.stat_label(key)),
+                                delta,
+                            )
+                        )
+        if daily.get("player"):
+            changed.extend(self._apply_player_map(daily.get("player")))
+        self.day += 1
+        self.actions_left = self.actions_per_day
+        if self.day > self.days and self.outcome is None:
+            self.outcome = (
+                "win" if self.player_resources["standing"] >= 0.35 else "lose"
+            )
+            self.finished = True
+        self._check_dismissal()
+        summary = "Мир сделал ход: %d событий." % len(events)
+        result = {
+            "ok": True,
+            "day": self.day,
+            "text": summary,
+            "events": events,
+            "changes": self._merge_changes(changed),
+        }
+        self.last_result = {
+            "ok": True,
+            "action": "end_day",
+            "action_label": "Завершение дня",
+            "target": "",
+            "target_label": "",
+            "outcome": "day",
+            "text": summary,
+            "changes": result["changes"],
+            "day": self.day,
+        }
+        self.log.append({"day": self.day, "kind": "day", "text": summary})
+        return result
+
+    def world_outcome(self):
+        return {
+            "outcome": self.outcome,
+            "finished": self.finished,
+            "day": self.day,
+            "standing": self.player_resources["standing"],
+        }
+
+    def to_dict(self):
+        return {
+            "world_id": self.config.get("id"),
+            "seed": self.seed,
+            "day": self.day,
+            "days": self.days,
+            "actions_left": self.actions_left,
+            "action_count": self.action_count,
+            "profile": dict(self.profile),
+            "player": {
+                "node_id": self.player_node_id,
+                "office_id": self.player_office_id,
+                "authority": self.player_authority,
+                "resources": dict(self.player_resources),
+                "career_history": list(self.career_history),
+            },
+            "nodes": {
+                node_id: {
+                    "stats": dict(node["stats"]),
+                    "relations": dict(node["relations"]),
+                }
+                for node_id, node in self.nodes.items()
+            },
+            "cooldowns": dict(self.cooldowns),
+            "used_actions": list(self.used_actions),
+            "log": list(self.log),
+            "last_result": self.last_result,
+            "outcome": self.outcome,
+            "finished": self.finished,
+            "attached": self.attached,
+        }
+
+    def load_snapshot(self, snapshot):
+        if not snapshot:
+            return
+        self.seed = _as_int(snapshot.get("seed"), self.seed)
+        self.day = max(1, _as_int(snapshot.get("day"), 1))
+        self.days = max(1, _as_int(snapshot.get("days"), self.days))
+        self.actions_left = _as_int(
+            snapshot.get("actions_left"), self.actions_per_day
+        )
+        self.action_count = _as_int(snapshot.get("action_count"), 0)
+        if snapshot.get("profile"):
+            self.profile = normalize_profile(snapshot["profile"])
+        player = snapshot.get("player") or {}
+        self.player_node_id = _text(player.get("node_id"))
+        self.player_office_id = _text(player.get("office_id"))
+        self.player_authority = _as_float(player.get("authority"), 0.0)
+        for key, value in (player.get("resources") or {}).items():
+            if key in self.player_resources:
+                self.player_resources[key] = _clamp(value)
+        self.career_history = list(player.get("career_history") or [])
+        for node_id, saved in (snapshot.get("nodes") or {}).items():
+            node = self.nodes.get(node_id)
+            if node is None:
+                continue
+            for key, value in (saved.get("stats") or {}).items():
+                if key in node["stats"]:
+                    node["stats"][key] = _clamp(value)
+            for other_id, value in (saved.get("relations") or {}).items():
+                if other_id in self.nodes:
+                    node["relations"][other_id] = _clamp(value, -1.0, 1.0)
+        self.cooldowns = {
+            str(key): _as_int(value)
+            for key, value in (snapshot.get("cooldowns") or {}).items()
+        }
+        self.used_actions = list(snapshot.get("used_actions") or [])
+        self.log = list(snapshot.get("log") or [])
+        self.last_result = snapshot.get("last_result")
+        self.outcome = snapshot.get("outcome")
+        self.finished = bool(snapshot.get("finished", False))
+        self.attached = bool(
+            snapshot.get("attached")
+            or (self.player_node_id and self.player_office_id)
+        )
+
+    def sorted_nodes(self):
+        return [self.nodes[node_id] for node_id in self.node_order]
+
+
+def build_world(
+    config,
+    profile=None,
+    node_id=None,
+    office_id=None,
+    seed=None,
+    snapshot=None,
+):
+    return WorldEngine(
+        config,
+        profile=profile,
+        node_id=node_id,
+        office_id=office_id,
+        seed=seed,
+        snapshot=snapshot,
+    )
+
+
+__all__ = [
+    "DEFAULT_BIOGRAPHY_PATH",
+    "DEFAULT_WORLD_PATH",
+    "DOMAIN_SKILLS",
+    "NODE_STATS",
+    "PLAYER_STATS",
+    "WorldEngine",
+    "WorldError",
+    "build_player_profile",
+    "build_world",
+    "load_biography",
+    "load_world",
+    "normalize_profile",
+    "office_profile_status",
+    "validate_world",
+]

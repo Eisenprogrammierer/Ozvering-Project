@@ -2,6 +2,30 @@
   "schema": 1,
   "roles": [
     {
+      "id": "world_actor",
+      "label": "Должностное лицо",
+      "short_label": "Должностное лицо",
+      "description": "Вы создаёте конкретного человека и занимаете должность внутри одного из автоматов: государства, церкви, предприятия, общины или иной структуры. Полномочия ограничены уровнем и должностью, а мир действует сам.",
+      "leadership": "official",
+      "faction_kind": "automaton",
+      "faction_slot": "office",
+      "faction_choice": false,
+      "storyline_id": "world_demo",
+      "available": true,
+      "sort_order": 0,
+      "grants": {
+        "player_role": "world_actor",
+        "leadership_mode": "limited_office",
+        "faction_control": "office"
+      },
+      "tags": [
+        "world",
+        "office",
+        "biography",
+        "automaton"
+      ]
+    },
+    {
       "id": "faction_leader",
       "label": "Первое лицо коалиции",
       "short_label": "Первое лицо",
@@ -22,7 +46,8 @@
         "leadership",
         "coalition",
         "civilian",
-        "mandate"
+        "mandate",
+        "legacy"
       ]
     }
   ]

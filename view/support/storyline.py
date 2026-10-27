@@ -128,6 +128,9 @@ def load_storyline(storyline_id):
         "scenario_path": main_data.get("scenario_path", "scenarios/mvp.json"),
         "campaign_template": main_data.get("campaign_template", ""),
         "strategy_path": main_data.get("strategy_path", ""),
+        "world_path": main_data.get("world_path", ""),
+        "biography_path": main_data.get("biography_path", ""),
+        "campaign_seed": main_data.get("campaign_seed", 7),
         "character_creation": char_data,
         "scenes": scenes_data.get("sequence", []),
         "win_conditions": main_data.get("win_conditions", []),
@@ -232,6 +235,41 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
         result = _all_enemies_destroyed(state)
     elif t == "all_player_units_destroyed":
         result = _all_player_units_destroyed(state)
+    elif t.startswith("world_"):
+        snapshot = storyline_state.get("world") or {}
+        player = snapshot.get("player") or {}
+        resources = player.get("resources") or {}
+        if t == "world_outcome":
+            result = snapshot.get("outcome") == condition.get("value")
+        elif t == "world_day_above":
+            result = int(snapshot.get("day", 1)) > int(
+                condition.get("value", 0)
+            )
+        elif t == "world_day_at_least":
+            result = int(snapshot.get("day", 1)) >= int(
+                condition.get("value", 0)
+            )
+        elif t == "world_standing_at_least":
+            result = float(resources.get("standing", 0.0)) >= float(
+                condition.get("value", 0.0)
+            )
+        elif t in (
+            "world_node_stat_at_least",
+            "world_node_stat_at_most",
+        ):
+            node_id = str(condition.get("node") or "")
+            stat = str(condition.get("stat") or "")
+            nodes = snapshot.get("nodes") or {}
+            value = float(
+                ((nodes.get(node_id) or {}).get("stats") or {}).get(stat, 0.0)
+            )
+            threshold = float(condition.get("value", 0.0))
+            if t == "world_node_stat_at_least":
+                result = value >= threshold
+            else:
+                result = value <= threshold
+        else:
+            result = False
     elif t.startswith("strategy_"):
         snapshot = storyline_state.get("strategy") or {}
         resources = snapshot.get("resources") or {}
