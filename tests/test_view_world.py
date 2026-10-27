@@ -93,7 +93,11 @@ def test_world_role_reaches_automaton_and_world_screens():
     app._play_next_scene()
     screen = app.manager.current
     assert screen.__class__.__name__ == "WorldScreen"
-    assert screen.selected_target_id == "knowledge_press"
+    assert screen.main_tab == "organizations"
+    assert screen.selected_target_id in [
+        item["id"] for item in screen.engine.organization_groups()["allied"]
+    ]
+    assert screen.engine.node(screen.selected_target_id) is not None
     assert len(screen._action_options()) == 47
     surface = pygame.Surface((1280, 720))
     screen.draw(surface)
@@ -155,6 +159,131 @@ def test_world_screen_executes_action_and_advances_day():
     assert engine.day == 2
     assert screen.last_result["outcome"] == "day"
     screen.draw(surface)
+    pygame.quit()
+
+
+def test_world_screen_tabs_character_actions_and_personality():
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from campaign.world import (
+        WorldEngine,
+        build_player_profile,
+        load_biography,
+        load_world,
+    )
+    from view.app import App
+    from view.screens.world_screen import WorldScreen
+
+    variables = {
+        "name": "Ирина Свет",
+        "origin": "port",
+        "family": "clerk",
+        "education": "academy",
+        "formative": "harbor_fire",
+        "vocation": "state",
+        "value": "order",
+        "value2": "knowledge",
+        "flaw": "ambition",
+        "patron": "minister",
+        "reputation": "respectable",
+    }
+    profile = build_player_profile(
+        variables, biography=load_biography(), seed=7
+    )
+    engine = WorldEngine(
+        load_world(),
+        profile=profile,
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=7,
+    )
+    app = App()
+    screen = WorldScreen(app, engine)
+    surface = pygame.Surface((1280, 720))
+    assert screen.main_tab == "organizations"
+    assert screen.selected_target_id != engine.player_node_id
+    assert screen.selected_target_id in [
+        item["id"] for item in engine.organization_groups()["allied"]
+    ]
+    assert any(
+        item["enabled"] and not (item["action"] or {}).get("career")
+        for item in screen._action_options()
+    )
+
+    screen._set_subtab(1)
+    screen.draw(surface)
+    assert screen._active_organizations() == []
+    assert screen.selected_target_id is None
+
+    screen._set_main_tab("characters")
+    screen._set_subtab(0)
+    screen.draw(surface)
+    assert screen._active_characters()
+    assert screen.entity_rows
+
+    character = screen._active_characters()[0]
+    screen._select_character(character["id"])
+    screen.draw(surface)
+    assert screen.action_rows
+    option = next(item for item in screen._action_options() if item["enabled"])
+    screen._select_action(option)
+    screen.draw(surface)
+    assert screen.selected_action_id == option["id"]
+    screen._execute_selected()
+    assert screen.last_result["context"] == "character"
+
+    screen._set_main_tab("personality")
+    screen._set_subtab(1)
+    screen.draw(surface)
+    assert screen.skill_rows
+    screen._select_skill("administration")
+    screen.draw(surface)
+    assert screen.selected_skill_id == "administration"
+
+    screen._set_subtab(2)
+    screen.draw(surface)
+    assert screen.item_rows
+    item_id = screen.item_rows[0][1]
+    screen._select_item(item_id)
+    screen.draw(surface)
+    assert screen.selected_item_id == item_id
+    pygame.quit()
+
+
+def test_world_art_prefers_real_assets_and_falls_back():
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    pygame.display.init()
+    pygame.font.init()
+    pygame.display.set_mode((64, 64))
+    from view.ui.asset_loader import AssetLoader
+    from view.ui.world_art import WorldArt
+
+    assert AssetLoader.USE_PLACEHOLDERS is True
+    assert AssetLoader.asset_exists("items/map") is True
+    assert AssetLoader.asset_exists("characters/nobody") is False
+
+    real = AssetLoader.load_asset("items/map", (32, 32))
+    placeholder = AssetLoader.load("items/map", (32, 32))
+    assert real.get_size() == (32, 32)
+    assert pygame.image.tobytes(real, "RGBA") != pygame.image.tobytes(
+        placeholder, "RGBA"
+    )
+
+    fallback = AssetLoader.load_asset("characters/nobody", (32, 40))
+    assert fallback.get_size() == (32, 40)
+
+    art = WorldArt("agora_world")
+    assert art.portrait("nobody", (24, 30)).get_size() == (24, 30)
+    assert art.skill_icon("administration", (20, 20)).get_size() == (20, 20)
+    assert art.background((64, 64)).get_size() == (64, 64)
+
+    tiled = WorldArt("agora_world")
+    tile_path = os.path.join(AssetLoader.IMAGES_DIR, "items", "map.png")
+    tiled._tile_files = lambda: [tile_path]
+    assert tiled.background((256, 128)).get_size() == (256, 128)
     pygame.quit()
 
 

@@ -5986,5 +5986,666 @@
     ],
     "connections": [],
     "biography": []
-  }
+  },
+  "characters": [
+    {
+      "id": "mira_svet",
+      "name": "Мира Свет",
+      "role": "сестра · портовая счетовод",
+      "circle": "close",
+      "affinity": 0.84,
+      "trust": 0.78,
+      "node_id": "agora_ministry_finance",
+      "tags": [
+        "семья",
+        "друг"
+      ],
+      "description": "Ведёт счета портовых артелей и знает, где в казне расходятся цифры."
+    },
+    {
+      "id": "arsen_svet",
+      "name": "Арсен Свет",
+      "role": "отец · старший писец",
+      "circle": "close",
+      "affinity": 0.73,
+      "trust": 0.69,
+      "node_id": "agora_government",
+      "tags": [
+        "семья"
+      ],
+      "description": "Тридцать лет переписывает бумаги канцелярии и не любит громких обещаний."
+    },
+    {
+      "id": "lidia_kor",
+      "name": "Лидия Кор",
+      "role": "подруга · учительница",
+      "circle": "close",
+      "affinity": 0.76,
+      "trust": 0.72,
+      "node_id": "knowledge_department_letters",
+      "tags": [
+        "друг"
+      ],
+      "description": "Учит детей порта читать и собирает слухи раньше, чем их напечатают."
+    },
+    {
+      "id": "tomas_grim",
+      "name": "Томас Грим",
+      "role": "старый товарищ · сержант стражи",
+      "circle": "close",
+      "affinity": 0.68,
+      "trust": 0.63,
+      "node_id": "agora_watch",
+      "tags": [
+        "друг"
+      ],
+      "description": "Служит в ночных патрулях и помнит старые долги лучше, чем уставы."
+    },
+    {
+      "id": "vera_lan",
+      "name": "Вера Лан",
+      "role": "наставница · архивист",
+      "circle": "close",
+      "affinity": 0.64,
+      "trust": 0.61,
+      "node_id": "knowledge_archive",
+      "tags": [
+        "наставник"
+      ],
+      "description": "Нашла вам первую службу и умеет отличить полезный документ от красивого."
+    },
+    {
+      "id": "sol_kim",
+      "name": "Сол Ким",
+      "role": "двоюродный брат · лоцман",
+      "circle": "close",
+      "affinity": 0.59,
+      "trust": 0.54,
+      "node_id": "agora_port",
+      "tags": [
+        "семья"
+      ],
+      "description": "Проводит корабли через мелководье и привозит вести из чужих гаваней."
+    },
+    {
+      "id": "ian_vest",
+      "name": "Иан Вест",
+      "role": "соперник · секретарь канцелярии",
+      "circle": "companion",
+      "affinity": -0.18,
+      "trust": -0.08,
+      "node_id": "agora_government",
+      "tags": [
+        "соперник"
+      ],
+      "description": "Ждёт вашей ошибки так же старательно, как пишет чужие письма."
+    },
+    {
+      "id": "elena_vir",
+      "name": "Елена Вир",
+      "role": "соперница · начальница отдела",
+      "circle": "companion",
+      "affinity": -0.24,
+      "trust": -0.18,
+      "node_id": "agora_ministry_interior",
+      "tags": [
+        "соперник"
+      ],
+      "description": "Держит в руках городские списки и не любит, когда их читают без спроса."
+    },
+    {
+      "id": "marta_rey",
+      "name": "Марта Рей",
+      "role": "знакомая · журналистка",
+      "circle": "companion",
+      "affinity": 0.07,
+      "trust": 0.09,
+      "node_id": "knowledge_gazette",
+      "tags": [
+        "знакомая",
+        "пресса"
+      ],
+      "description": "Меняет слова на тираж и всегда проверяет, чем можно подтвердить слух."
+    },
+    {
+      "id": "kasper_dors",
+      "name": "Каспер Дорс",
+      "role": "ночной посредник",
+      "circle": "companion",
+      "affinity": -0.37,
+      "trust": -0.31,
+      "node_id": "underworld_house",
+      "tags": [
+        "враг",
+        "тень"
+      ],
+      "description": "Знает, кто кому платит, и предлагает помощь только с двойным дном."
+    },
+    {
+      "id": "bruno_holt",
+      "name": "Бруно Хольт",
+      "role": "конкурент · торговый агент",
+      "circle": "companion",
+      "affinity": -0.13,
+      "trust": 0.0,
+      "node_id": "exchange_house",
+      "tags": [
+        "конкурент"
+      ],
+      "description": "Считает ваши связи своими будущими убытками и торгуется до последнего."
+    },
+    {
+      "id": "oskar_ren",
+      "name": "Оскар Рен",
+      "role": "недруг · офицер гарнизона",
+      "circle": "companion",
+      "affinity": -0.29,
+      "trust": -0.25,
+      "node_id": "agora_garrison",
+      "tags": [
+        "недруг"
+      ],
+      "description": "Помнит отказ, которого вы не давали, и повторяет его при каждом удобном случае."
+    },
+    {
+      "id": "sara_mel",
+      "name": "Сара Мел",
+      "role": "курьер канцелярии",
+      "circle": "acquaintance",
+      "affinity": 0.12,
+      "trust": 0.16,
+      "node_id": "agora_government",
+      "tags": [
+        "знакомство"
+      ],
+      "description": "Разносит пакеты быстрее, чем чиновники успевают их подписать."
+    },
+    {
+      "id": "dorian_falk",
+      "name": "Дориан Фальк",
+      "role": "клерк податного управления",
+      "circle": "acquaintance",
+      "affinity": 0.08,
+      "trust": 0.12,
+      "node_id": "agora_tax_office",
+      "tags": [
+        "знакомство"
+      ],
+      "description": "Знает недоимки по именам и готов обсуждать их только шёпотом."
+    },
+    {
+      "id": "nora_lin",
+      "name": "Нора Лин",
+      "role": "врач городской больницы",
+      "circle": "acquaintance",
+      "affinity": 0.16,
+      "trust": 0.21,
+      "node_id": "care_hospital",
+      "tags": [
+        "знакомство",
+        "медик"
+      ],
+      "description": "Видит последствия решений раньше, чем о них напишут в газетах."
+    },
+    {
+      "id": "gideon_ash",
+      "name": "Гидеон Эш",
+      "role": "проповедник у доков",
+      "circle": "acquaintance",
+      "affinity": 0.05,
+      "trust": 0.06,
+      "node_id": "ash_parish_docks",
+      "tags": [
+        "знакомство",
+        "церковь"
+      ],
+      "description": "Собирает вокруг себя тех, кому нечего терять, и умеет говорить вовремя."
+    },
+    {
+      "id": "lukas_bor",
+      "name": "Лукас Бор",
+      "role": "вожак грузчиков",
+      "circle": "acquaintance",
+      "affinity": 0.11,
+      "trust": 0.09,
+      "node_id": "provision_league",
+      "tags": [
+        "знакомство",
+        "артель"
+      ],
+      "description": "Держит доки в работе и помнит, кто обещал хлеб, а кто только говорил."
+    },
+    {
+      "id": "isolda_ven",
+      "name": "Изольда Вен",
+      "role": "аристократка · хозяйка салона",
+      "circle": "acquaintance",
+      "affinity": 0.06,
+      "trust": 0.03,
+      "node_id": "status_house_agora",
+      "tags": [
+        "знакомство",
+        "статус"
+      ],
+      "description": "Приглашает нужных людей к столу и оценивает их по тому, с кем они пришли."
+    },
+    {
+      "id": "pavel_krug",
+      "name": "Павел Круг",
+      "role": "типограф · мастер набора",
+      "circle": "acquaintance",
+      "affinity": 0.19,
+      "trust": 0.13,
+      "node_id": "knowledge_press",
+      "tags": [
+        "знакомство",
+        "печать"
+      ],
+      "description": "Может задержать тираж, ускорить его или сделать так, чтобы его не заметили."
+    },
+    {
+      "id": "rut_ada",
+      "name": "Рут Ада",
+      "role": "радистка городской станции",
+      "circle": "acquaintance",
+      "affinity": 0.1,
+      "trust": 0.11,
+      "node_id": "agora_radio",
+      "tags": [
+        "знакомство",
+        "связь"
+      ],
+      "description": "Слышит чужие разговоры и знает цену тишине в эфире."
+    }
+  ],
+  "character_actions": [
+    {
+      "id": "heart_to_heart",
+      "label": "Поговорить по душам",
+      "description": "Выслушать человека и напомнить, что за должностью стоит живой собеседник.",
+      "circles": [
+        "close",
+        "companion",
+        "acquaintance"
+      ],
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "requires": {},
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.82,
+        "text": "Разговор получился теплее, чем вы рассчитывали.",
+        "effects": {
+          "affinity": 0.07,
+          "trust": 0.05
+        }
+      },
+      "failure": {
+        "chance": 0.18,
+        "text": "Слова прозвучали не вовремя, и разговор быстро угас.",
+        "effects": {
+          "affinity": -0.02,
+          "trust": -0.01
+        }
+      },
+      "success_chance": 0.82
+    },
+    {
+      "id": "offer_help",
+      "label": "Предложить помощь",
+      "description": "Потратить своё время и связи на чужую трудность, не требуя немедленной выгоды.",
+      "circles": [
+        "close",
+        "companion",
+        "acquaintance"
+      ],
+      "cost": {
+        "player": {
+          "favor": 0.02
+        }
+      },
+      "requires": {},
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.72,
+        "text": "Помощь приняли и запомнили.",
+        "effects": {
+          "affinity": 0.05,
+          "trust": 0.09,
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Помощь выглядела как одолжение, и это задело собеседника.",
+        "effects": {
+          "affinity": -0.01,
+          "trust": -0.03
+        }
+      },
+      "success_chance": 0.72
+    },
+    {
+      "id": "ask_favor",
+      "label": "Попросить услугу",
+      "description": "Обратиться с личной просьбой, опираясь на уже накопленное доверие.",
+      "circles": [
+        "close",
+        "companion",
+        "acquaintance"
+      ],
+      "cost": {
+        "player": {
+          "favor": 0.03
+        }
+      },
+      "requires": {
+        "character": {
+          "trust": 0.25
+        }
+      },
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.58,
+        "text": "Услугу обещали оказать, хотя и не сразу.",
+        "effects": {
+          "affinity": -0.01,
+          "trust": -0.04,
+          "player": {
+            "favor": 0.07
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.42,
+        "text": "Просьба оказалась слишком тяжёлой для этой связи.",
+        "effects": {
+          "affinity": -0.06,
+          "trust": -0.05,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "success_chance": 0.58
+    },
+    {
+      "id": "share_news",
+      "label": "Поделиться сведениями",
+      "description": "Обменять собранные доказательства на расположение и полезный слух.",
+      "circles": [
+        "close",
+        "companion",
+        "acquaintance"
+      ],
+      "cost": {
+        "player": {
+          "evidence": 0.04
+        }
+      },
+      "requires": {},
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.7,
+        "text": "Сведения оказались к месту, и собеседник стал сговорчивее.",
+        "effects": {
+          "affinity": 0.04,
+          "trust": 0.02,
+          "player": {
+            "favor": 0.05
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.3,
+        "text": "Новость уже знали, а вашу осведомлённость сочли неудобной.",
+        "effects": {
+          "affinity": -0.03,
+          "player": {
+            "standing": -0.02
+          }
+        }
+      },
+      "success_chance": 0.7
+    },
+    {
+      "id": "lean_on",
+      "label": "Надавить",
+      "description": "Использовать должность как рычаг там, где убеждение уже не работает.",
+      "circles": [
+        "companion",
+        "acquaintance"
+      ],
+      "cost": {
+        "player": {
+          "influence": 0.05
+        }
+      },
+      "requires": {},
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.46,
+        "text": "Собеседник уступил, но запомнил цену уступки.",
+        "effects": {
+          "affinity": -0.1,
+          "trust": -0.08,
+          "player": {
+            "favor": 0.09,
+            "evidence": 0.04
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.54,
+        "text": "Давление встретило упрямство, и разговор вышел за рамки приличий.",
+        "effects": {
+          "affinity": -0.14,
+          "trust": -0.1,
+          "player": {
+            "standing": -0.04
+          }
+        }
+      },
+      "success_chance": 0.46
+    },
+    {
+      "id": "support_ambition",
+      "label": "Поддержать начинание",
+      "description": "Вложить связи в чужую ambition, чтобы получить союзника на будущее.",
+      "circles": [
+        "close",
+        "companion"
+      ],
+      "cost": {
+        "player": {
+          "favor": 0.04
+        }
+      },
+      "requires": {
+        "character": {
+          "affinity": 0.4
+        }
+      },
+      "cooldown_days": 0,
+      "once": false,
+      "success": {
+        "chance": 0.65,
+        "text": "Начинание получило опору, а вы — ещё одного должника.",
+        "effects": {
+          "affinity": 0.09,
+          "trust": 0.07,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.35,
+        "text": "Поддержка ушла в песок; собеседник предпочёл не рисковать.",
+        "effects": {
+          "affinity": -0.03,
+          "trust": -0.02
+        }
+      },
+      "success_chance": 0.65
+    }
+  ],
+  "items": [
+    {
+      "id": "service_folder",
+      "label": "Служебная папка",
+      "icon": "items/folder_middle",
+      "always": true,
+      "description": "Плотная папка с текущими бумагами. Без неё служба выглядит подозрительно."
+    },
+    {
+      "id": "pocket_notebook",
+      "label": "Карманная книжка",
+      "icon": "items/notebook_closed",
+      "always": true,
+      "description": "Короткие записи, имена и обещания, которые нельзя доверять памяти."
+    },
+    {
+      "id": "personal_seal",
+      "label": "Личная печать",
+      "icon": "items/trade_seal",
+      "always": true,
+      "description": "Небольшая печать с вашим знаком. Превращает слова в документ."
+    },
+    {
+      "id": "pocket_map",
+      "label": "Карта города",
+      "icon": "items/map",
+      "domains": [
+        "order",
+        "provision",
+        "exchange"
+      ],
+      "description": "Портовые кварталы, посты и короткие дороги, о которых не пишут в путеводителях."
+    },
+    {
+      "id": "field_glasses",
+      "label": "Полевой бинокль",
+      "icon": "items/binoculars_closed",
+      "domains": [
+        "order"
+      ],
+      "description": "Помогает наблюдать за улицей, не подходя слишком близко."
+    },
+    {
+      "id": "radio_set",
+      "label": "Радиоприёмник",
+      "icon": "items/radio_closed",
+      "domains": [
+        "order",
+        "meaning",
+        "status",
+        "knowledge"
+      ],
+      "description": "Ловит официальные сводки и то, что говорят между строк."
+    },
+    {
+      "id": "sealed_orders",
+      "label": "Пакет с печатью",
+      "icon": "items/folder_closed",
+      "domains": [
+        "order",
+        "status"
+      ],
+      "description": "Приказ, который можно открыть только в нужной комнате и при нужных свидетелях."
+    },
+    {
+      "id": "open_ledger",
+      "label": "Открытый гроссбух",
+      "icon": "items/notebook_open",
+      "domains": [
+        "provision",
+        "exchange"
+      ],
+      "description": "Счета, накладные и пометки на полях, которые иногда важнее итоговой суммы."
+    },
+    {
+      "id": "press_folder",
+      "label": "Папка редакции",
+      "icon": "items/folder_open",
+      "domains": [
+        "knowledge"
+      ],
+      "description": "Черновики, гранки и список тем, которые пока не решаются печатать."
+    },
+    {
+      "id": "medical_bag",
+      "label": "Медицинская сумка",
+      "icon": "items/medical_bag",
+      "domains": [
+        "care"
+      ],
+      "description": "Бинты, настойки и несколько инструментов для срочного случая."
+    },
+    {
+      "id": "prayer_book",
+      "label": "Молитвенник",
+      "icon": "items/prayer_book",
+      "domains": [
+        "meaning"
+      ],
+      "description": "Книга с закладками на местах, где легче говорить с людьми, чем с небом."
+    }
+  ],
+  "skill_tree": {
+    "branches": [
+      {
+        "id": "power",
+        "label": "Власть",
+        "description": "Управлять людьми, приказами и чужими ожиданиями.",
+        "skills": [
+          "administration",
+          "command",
+          "diplomacy"
+        ]
+      },
+      {
+        "id": "word",
+        "label": "Слово",
+        "description": "Убеждать, объяснять и оставлять след в чужой памяти.",
+        "skills": [
+          "scholarship",
+          "media",
+          "faith"
+        ]
+      },
+      {
+        "id": "craft",
+        "label": "Дело",
+        "description": "Считать, выхаживать и разбираться в скрытых мотивах.",
+        "skills": [
+          "trade",
+          "care",
+          "intrigue"
+        ]
+      }
+    ],
+    "descriptions": {
+      "administration": "Бумаги, сроки и порядок, без которых структура теряет форму.",
+      "command": "Умение отдавать приказ так, чтобы его исполнили.",
+      "diplomacy": "Разговор, после которого стороны не считают себя проигравшими.",
+      "scholarship": "Чтение источников и способность заметить противоречие.",
+      "media": "Публичность, слухи, тиражи и умение говорить от имени города.",
+      "faith": "Смысл, обряд и доверие тех, кто ищет опору выше должности.",
+      "trade": "Цена, обмен и понимание того, кому что выгодно.",
+      "care": "Внимание к слабым местам людей и структур.",
+      "intrigue": "Тайные связи, давление и умение не оставлять следов."
+    }
+  },
+  "max_items": 6
 }

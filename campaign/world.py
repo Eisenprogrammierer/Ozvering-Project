@@ -26,6 +26,20 @@ KIND_LABELS = {
     "network": "сеть",
     "event": "событие",
 }
+CHARACTER_CIRCLES = {
+    "close": "ближний круг",
+    "companion": "попутчики",
+    "acquaintance": "знакомства",
+}
+ORGANIZATION_CATEGORIES = {
+    "allied": "союзные",
+    "hostile": "враждебные",
+    "neutral": "нейтральные",
+}
+CHARACTER_STAT_LABELS = {
+    "affinity": "расположение",
+    "trust": "доверие",
+}
 SKILL_ORDER = (
     "administration",
     "diplomacy",
@@ -127,11 +141,22 @@ def validate_world(data):
     data["nodes"] = list(data.get("nodes") or [])
     data["offices"] = list(data.get("offices") or [])
     data["actions"] = list(data.get("actions") or [])
+    data["characters"] = list(data.get("characters") or [])
+    data["character_actions"] = list(data.get("character_actions") or [])
+    data["items"] = list(data.get("items") or [])
+    data["skill_tree"] = dict(data.get("skill_tree") or {})
     _validate_unique(data["domains"], "domains")
     _validate_unique(data["polities"], "polities")
     _validate_unique(data["nodes"], "nodes")
     _validate_unique(data["offices"], "offices")
     _validate_unique(data["actions"], "actions")
+    for key, label in (
+        ("characters", "characters"),
+        ("character_actions", "character_actions"),
+        ("items", "items"),
+    ):
+        if data[key]:
+            _validate_unique(data[key], label)
 
     domain_index = {item["id"]: item for item in data["domains"]}
     polity_index = {item["id"]: item for item in data["polities"]}
@@ -200,6 +225,24 @@ def validate_world(data):
                 raise WorldError("цикл иерархии у узла %s" % node["id"])
             seen.add(parent)
             parent = (by_id.get(parent) or {}).get("parent")
+    for character in data["characters"]:
+        circle = _text(character.get("circle"), "acquaintance")
+        if circle not in CHARACTER_CIRCLES:
+            raise WorldError(
+                "%s: неизвестный круг общения %r" % (character["id"], circle)
+            )
+        node_id = _text(character.get("node_id"))
+        if node_id and node_id not in node_ids:
+            raise WorldError(
+                "%s: неизвестная структура %r" % (character["id"], node_id)
+            )
+    for action in data["character_actions"]:
+        circles = action.get("circles") or ()
+        for circle in circles:
+            if circle not in CHARACTER_CIRCLES:
+                raise WorldError(
+                    "%s: неизвестный круг общения %r" % (action["id"], circle)
+                )
     return data
 
 
@@ -389,6 +432,20 @@ class WorldEngine:
         self.polities = {item["id"]: item for item in self.config["polities"]}
         self.offices = {item["id"]: item for item in self.config["offices"]}
         self.actions = {item["id"]: item for item in self.config["actions"]}
+        self.character_order = [
+            item["id"] for item in self.config["characters"]
+        ]
+        self.characters = {
+            item["id"]: self._build_character(item)
+            for item in self.config["characters"]
+        }
+        self.character_actions = {
+            item["id"]: item for item in self.config["character_actions"]
+        }
+        self.item_order = [item["id"] for item in self.config["items"]]
+        self.item_catalog = {
+            item["id"]: dict(item) for item in self.config["items"]
+        }
         self.nodes = self._build_nodes()
         self.node_order = [item["id"] for item in self.config["nodes"]]
         self.profile = normalize_profile(
@@ -398,6 +455,7 @@ class WorldEngine:
         self.player_office_id = _text(office_id)
         self.player_authority = 0.0
         self.player_resources = {key: 0.0 for key in PLAYER_STATS}
+        self.player_item_ids = []
         self.day = 1
         self.actions_left = self.actions_per_day
         self.action_count = 0
@@ -455,6 +513,20 @@ class WorldEngine:
                     base += 0.1
                 node["relations"][other["id"]] = _clamp(base, -1.0, 1.0)
         return nodes
+
+    @staticmethod
+    def _build_character(raw):
+        return {
+            "id": raw["id"],
+            "name": _text(raw.get("name"), raw["id"]),
+            "role": _text(raw.get("role")),
+            "circle": _text(raw.get("circle"), "acquaintance"),
+            "affinity": _clamp(raw.get("affinity", 0.0), -1.0, 1.0),
+            "trust": _clamp(raw.get("trust", 0.0), -1.0, 1.0),
+            "node_id": _text(raw.get("node_id")),
+            "tags": list(raw.get("tags") or ()),
+            "description": _text(raw.get("description")),
+        }
 
     def _opening(self):
         for text in self.config.get("opening_log") or ():
@@ -614,6 +686,7 @@ class WorldEngine:
             "standing": _clamp(0.28 + 0.25 * aptitude + 0.10 * connection),
         }
         self.attached = True
+        self._refresh_items()
         self.log.append(
             {
                 "day": self.day,
@@ -678,6 +751,347 @@ class WorldEngine:
             "authority": self.player_authority,
             "rank": _as_int(office.get("rank"), 99),
         }
+
+    def character(self, character_id):
+        return self.characters.get(_text(character_id))
+
+    def character_circle_label(self, circle_id):
+        return CHARACTER_CIRCLES.get(circle_id, circle_id)
+
+    def characters_by_circle(self, circle_id):
+        circle_id = _text(circle_id)
+        return [
+            self.characters[character_id]
+            for character_id in self.character_order
+            if self.characters[character_id]["circle"] == circle_id
+        ]
+
+    def character_relation(self, character_id):
+        character = self.character(character_id) or {}
+        return _as_float(character.get("affinity"), 0.0)
+
+    def character_trust(self, character_id):
+        character = self.character(character_id) or {}
+        return _as_float(character.get("trust"), 0.0)
+
+    def organization_category(self, node_id):
+        node = self.node(node_id)
+        if node is None:
+            return ""
+        if not self.attached:
+            return "neutral"
+        if node["id"] == self.player_node_id:
+            return "allied"
+        if node.get("kind") == "asset":
+            return ""
+        if self.is_descendant(node["id"], self.player_node_id):
+            return "allied"
+        relation = self.relation(self.player_node_id, node["id"])
+        if relation >= 0.22:
+            return "allied"
+        if relation <= -0.15:
+            return "hostile"
+        return "neutral"
+
+    def organization_groups(self):
+        groups = {key: [] for key in ORGANIZATION_CATEGORIES}
+        for node in self.sorted_nodes():
+            if (
+                node.get("kind") == "asset"
+                and node["id"] != self.player_node_id
+            ):
+                continue
+            category = self.organization_category(node["id"])
+            if category:
+                groups[category].append(node)
+        return groups
+
+    def _refresh_items(self):
+        self.player_item_ids = []
+        if not self.attached:
+            return
+        node = self.node(self.player_node_id) or {}
+        domain = node.get("domain", "")
+        for item_id in self.item_order:
+            item = self.item_catalog[item_id]
+            domains = item.get("domains") or ()
+            if item.get("always") or (domains and domain in domains):
+                self.player_item_ids.append(item_id)
+                continue
+            min_skills = item.get("min_skills") or {}
+            if min_skills and all(
+                _profile_skill(self.profile, key) + 1e-9 >= _as_float(value)
+                for key, value in min_skills.items()
+            ):
+                self.player_item_ids.append(item_id)
+        limit = max(1, _as_int(self.config.get("max_items"), 6))
+        self.player_item_ids = self.player_item_ids[:limit]
+
+    def player_items(self):
+        return [
+            dict(self.item_catalog[item_id])
+            for item_id in self.player_item_ids
+            if item_id in self.item_catalog
+        ]
+
+    def skill_tree(self):
+        raw_tree = self.config.get("skill_tree") or {}
+        branches = raw_tree.get("branches") or []
+        descriptions = raw_tree.get("descriptions") or {}
+        result = []
+        for branch in branches:
+            skills = []
+            for skill_id in branch.get("skills") or ():
+                if skill_id not in self.skill_labels:
+                    continue
+                skills.append(
+                    {
+                        "id": skill_id,
+                        "label": self.skill_labels[skill_id],
+                        "value": _profile_skill(self.profile, skill_id),
+                        "description": _text(descriptions.get(skill_id)),
+                    }
+                )
+            if skills:
+                result.append(
+                    {
+                        "id": branch.get("id", ""),
+                        "label": _text(branch.get("label"), ""),
+                        "description": _text(branch.get("description")),
+                        "skills": skills,
+                    }
+                )
+        return result
+
+    def _character_reason_cost(self, action):
+        context = self.player_context()
+        if context is None:
+            return "сначала выберите должность"
+        return self._reason_cost(action, context)
+
+    def _reason_character(self, action, character):
+        circles = action.get("circles") or ()
+        if circles and character["circle"] not in circles:
+            return "этот шаг не подходит для такой связи"
+        requires = action.get("requires") or {}
+        for key, minimum in (requires.get("character") or {}).items():
+            current = _as_float(character.get(key), 0.0)
+            if current + 1e-9 < _as_float(minimum):
+                label = CHARACTER_STAT_LABELS.get(key, key)
+                return "недостаточно: %s" % label
+        for key, minimum in (requires.get("player") or {}).items():
+            if _as_float(
+                self.player_resources.get(key), 0.0
+            ) + 1e-9 < _as_float(minimum):
+                return "нужно больше личного ресурса «%s»" % self.stat_label(
+                    key
+                )
+        for skill, minimum in (requires.get("skills") or {}).items():
+            if _profile_skill(self.profile, skill) + 1e-9 < _as_float(minimum):
+                return "нужен навык «%s»" % self.skill_labels.get(skill, skill)
+        reason = self._character_reason_cost(action)
+        if reason:
+            return reason
+        if self.actions_left <= 0:
+            return "действия на сегодня исчерпаны"
+        if action.get("once") and action["id"] in self.used_actions:
+            return "действие уже использовано"
+        cooldown = _as_int(action.get("cooldown_days"), 0)
+        if cooldown:
+            key = "character:%s:%s" % (action["id"], character["id"])
+            last_day = self.cooldowns.get(key)
+            if last_day is not None and self.day - int(last_day) < cooldown:
+                return "повтор не раньше дня %d" % (int(last_day) + cooldown)
+        return ""
+
+    def character_action_options(self, character_id):
+        character = self.character(character_id)
+        if character is None:
+            return []
+        result = []
+        for action in self.character_actions.values():
+            reason = self._reason_character(action, character)
+            success = action.get("success") or {}
+            result.append(
+                {
+                    "action": action,
+                    "id": action["id"],
+                    "label": _text(action.get("label"), action["id"]),
+                    "enabled": not reason,
+                    "reason": reason,
+                    "cost": self._cost_text(action),
+                    "chance": _as_float(
+                        success.get("chance"),
+                        action.get("success_chance", 0.6),
+                    ),
+                    "character_id": character["id"],
+                    "character_name": character["name"],
+                }
+            )
+        return result
+
+    def character_preview(self, action_id, character_id):
+        action = self.character_actions.get(_text(action_id))
+        character = self.character(character_id)
+        if action is None:
+            return None
+        reason = (
+            self._reason_character(action, character)
+            if character is not None
+            else "собеседник не найден"
+        )
+        success = action.get("success") or {}
+        failure = action.get("failure") or {}
+        return {
+            "action": action,
+            "character": character,
+            "target_label": (
+                character["name"] if character is not None else "—"
+            ),
+            "enabled": not reason,
+            "reason": reason,
+            "cost": self._cost_text(action),
+            "immediate": self._effect_lines(action.get("immediate")),
+            "success_chance": _as_float(
+                success.get("chance"),
+                action.get("success_chance", 0.6),
+            ),
+            "success_text": _text(success.get("text")),
+            "success_effects": self._effect_lines(success.get("effects")),
+            "failure_chance": _as_float(
+                failure.get("chance"),
+                max(
+                    0.0,
+                    1.0 - _as_float(action.get("success_chance"), 0.6),
+                ),
+            ),
+            "failure_text": _text(failure.get("text")),
+            "failure_effects": self._effect_lines(failure.get("effects")),
+            "immediate_map": action.get("immediate") or {},
+            "success_effects_map": success.get("effects") or {},
+            "failure_effects_map": failure.get("effects") or {},
+        }
+
+    def _apply_character_effects(self, effects, character):
+        effects = effects or {}
+        changed = []
+        for key in ("affinity", "trust"):
+            if key not in effects:
+                continue
+            before = _as_float(character.get(key), 0.0)
+            character[key] = _clamp(
+                before + _as_float(effects.get(key)), -1.0, 1.0
+            )
+            delta = character[key] - before
+            if abs(delta) > 1e-9:
+                changed.append(
+                    (
+                        "%s · %s"
+                        % (
+                            character["name"],
+                            CHARACTER_STAT_LABELS.get(key, key),
+                        ),
+                        delta,
+                    )
+                )
+        changed.extend(self._apply_player_map(effects.get("player")))
+        node_relation = _as_float(effects.get("node_relation"), 0.0)
+        if (
+            abs(node_relation) > 1e-9
+            and self.attached
+            and character.get("node_id")
+            and self.node(character["node_id"]) is not None
+        ):
+            target = self.node(character["node_id"])
+            current = self.relation(self.player_node_id, target["id"])
+            value = _clamp(current + node_relation, -1.0, 1.0)
+            source = self.node(self.player_node_id)
+            if source is not None:
+                source["relations"][target["id"]] = value
+            target["relations"][self.player_node_id] = value
+            changed.append(
+                (
+                    "%s · отношения" % target["name"],
+                    value - current,
+                )
+            )
+        return self._merge_changes(changed)
+
+    def execute_character_action(self, action_id, character_id):
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        action = self.character_actions.get(_text(action_id))
+        character = self.character(character_id)
+        if action is None:
+            return {"ok": False, "reason": "неизвестное действие"}
+        if character is None:
+            return {"ok": False, "reason": "собеседник не найден"}
+        reason = self._reason_character(action, character)
+        if reason:
+            return {"ok": False, "reason": reason}
+        context = self.player_context()
+        if context is None:
+            return {"ok": False, "reason": "сначала выберите должность"}
+        self._pay_cost(action, context)
+        changed = self._apply_character_effects(
+            action.get("immediate"), character
+        )
+        success = action.get("success") or {}
+        failure = action.get("failure") or {}
+        chance = _as_float(
+            success.get("chance"), action.get("success_chance", 0.6)
+        )
+        roll = self._roll(
+            "character:%s:%s:%s:%s"
+            % (
+                self.day,
+                action["id"],
+                character["id"],
+                self.action_count,
+            )
+        )
+        outcome = "success" if roll < chance else "failure"
+        branch = success if outcome == "success" else failure
+        changed.extend(
+            self._apply_character_effects(branch.get("effects"), character)
+        )
+        self.actions_left = max(0, self.actions_left - 1)
+        self.action_count += 1
+        cooldown = _as_int(action.get("cooldown_days"), 0)
+        if cooldown:
+            self.cooldowns[
+                "character:%s:%s" % (action["id"], character["id"])
+            ] = self.day
+        if action.get("once"):
+            self.used_actions.append(action["id"])
+        text = _text(branch.get("text"), action.get("description", ""))
+        result = {
+            "ok": True,
+            "action": action["id"],
+            "action_label": _text(action.get("label"), action["id"]),
+            "target": character["id"],
+            "target_label": character["name"],
+            "outcome": outcome,
+            "text": text,
+            "changes": changed,
+            "day": self.day,
+            "context": "character",
+        }
+        self.last_result = result
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": outcome,
+                "text": "%s → %s: %s"
+                % (
+                    result["action_label"],
+                    character["name"],
+                    text,
+                ),
+            }
+        )
+        self._check_dismissal()
+        return result
 
     def _reason_actor(self, action, context):
         spec = action.get("actor") or {}
@@ -977,6 +1391,9 @@ class WorldEngine:
             ),
             "failure_text": _text(failure.get("text")),
             "failure_effects": self._effect_lines(failure.get("effects")),
+            "immediate_map": action.get("immediate") or {},
+            "success_effects_map": success.get("effects") or {},
+            "failure_effects_map": failure.get("effects") or {},
         }
 
     def _apply_stat_map(self, node, changes):
@@ -1120,6 +1537,7 @@ class WorldEngine:
         self.player_node_id = target["id"]
         self.player_office_id = chosen["id"]
         self.player_authority = chosen["authority"]
+        self._refresh_items()
         self.career_history.append(
             {
                 "day": self.day,
@@ -1451,6 +1869,14 @@ class WorldEngine:
                 "authority": self.player_authority,
                 "resources": dict(self.player_resources),
                 "career_history": list(self.career_history),
+                "items": list(self.player_item_ids),
+            },
+            "characters": {
+                character_id: {
+                    "affinity": character["affinity"],
+                    "trust": character["trust"],
+                }
+                for character_id, character in self.characters.items()
             },
             "nodes": {
                 node_id: {
@@ -1488,6 +1914,22 @@ class WorldEngine:
             if key in self.player_resources:
                 self.player_resources[key] = _clamp(value)
         self.career_history = list(player.get("career_history") or [])
+        if "items" in player:
+            self.player_item_ids = [
+                str(item_id)
+                for item_id in (player.get("items") or ())
+                if str(item_id) in self.item_catalog
+            ]
+        for character_id, saved in (snapshot.get("characters") or {}).items():
+            character = self.characters.get(character_id)
+            if character is None:
+                continue
+            character["affinity"] = _clamp(
+                saved.get("affinity", character["affinity"]), -1.0, 1.0
+            )
+            character["trust"] = _clamp(
+                saved.get("trust", character["trust"]), -1.0, 1.0
+            )
         for node_id, saved in (snapshot.get("nodes") or {}).items():
             node = self.nodes.get(node_id)
             if node is None:
@@ -1511,6 +1953,8 @@ class WorldEngine:
             snapshot.get("attached")
             or (self.player_node_id and self.player_office_id)
         )
+        if "items" not in player and self.attached:
+            self._refresh_items()
 
     def sorted_nodes(self):
         return [self.nodes[node_id] for node_id in self.node_order]

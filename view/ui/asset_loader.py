@@ -6,7 +6,7 @@ import pygame
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 IMAGES_DIR = os.path.join(BASE_DIR, "assets", "images")
-SUPPORTED_EXTENSIONS = (".png", ".jpg", ".jpeg")
+SUPPORTED_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 PRESENTATION_PATH = os.path.join(
     BASE_DIR, "configs", "view", "presentation.json"
 )
@@ -57,12 +57,12 @@ class AssetLoader:
     def _direct_path(name):
         if "." in os.path.basename(name):
             path = os.path.join(AssetLoader.IMAGES_DIR, name)
-            if os.path.exists(path):
+            if os.path.isfile(path):
                 logger.debug("Прямой путь найден: %s", path)
                 return path
         for ext in ("",) + SUPPORTED_EXTENSIONS:
             path = os.path.join(AssetLoader.IMAGES_DIR, name + ext)
-            if os.path.exists(path):
+            if os.path.isfile(path):
                 logger.debug("Прямой путь найден: %s", path)
                 return path
         return None
@@ -104,6 +104,10 @@ class AssetLoader:
         return path
 
     @staticmethod
+    def asset_exists(name):
+        return AssetLoader._resolve_path(str(name)) is not None
+
+    @staticmethod
     def load(name, size=None):
         key = (name, size)
         if key in AssetLoader._cache:
@@ -120,17 +124,41 @@ class AssetLoader:
             AssetLoader._cache[key] = img
             logger.info("Плейсхолдер: %s", name)
             return img
+        img = AssetLoader._load_file(name, size)
+        AssetLoader._cache[key] = img
+        return img
+
+    @staticmethod
+    def load_asset(name, size=None):
+        key = ("asset", name, size)
+        if key in AssetLoader._cache:
+            logger.debug("Кэш предпочтительного ассета: %s", name)
+            return AssetLoader._cache[key]
+        img = AssetLoader._load_file(name, size)
+        AssetLoader._cache[key] = img
+        return img
+
+    @staticmethod
+    def _load_file(name, size=None):
         path = AssetLoader._resolve_path(name)
         img = None
         if path is not None:
             try:
-                img = pygame.image.load(path).convert_alpha()
+                raw = pygame.image.load(path)
             except Exception:
-                img = pygame.image.load(path).convert()
+                raw = None
+            if raw is not None:
+                try:
+                    img = raw.convert_alpha()
+                except Exception:
+                    try:
+                        img = raw.convert()
+                    except Exception:
+                        img = raw
         if img is None:
             from .placeholders import make_placeholder
 
-            logger.warning(
+            logger.debug(
                 "Не найден ассет: %s в %s — создан плейсхолдер",
                 name,
                 AssetLoader.IMAGES_DIR,
@@ -144,5 +172,4 @@ class AssetLoader:
             logger.info("Загружен ассет: %s", name)
         if size is not None and img.get_size() != tuple(size):
             img = pygame.transform.smoothscale(img, size)
-        AssetLoader._cache[key] = img
         return img

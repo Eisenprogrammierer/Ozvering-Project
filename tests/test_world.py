@@ -317,3 +317,103 @@ def test_world_layer_is_headless():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_characters_have_circles_actions_and_qualitative_preview():
+    engine = _engine()
+    close = engine.characters_by_circle("close")
+    assert len(close) >= 5
+    assert all(item["circle"] == "close" for item in close)
+    assert engine.character_circle_label("close") == "ближний круг"
+
+    options = engine.character_action_options("mira_svet")
+    assert {item["id"] for item in options} >= {
+        "heart_to_heart",
+        "offer_help",
+        "ask_favor",
+    }
+    assert any(item["enabled"] for item in options)
+    assert any(not item["enabled"] and item["reason"] for item in options)
+
+    preview = engine.character_preview("heart_to_heart", "mira_svet")
+    assert preview["enabled"] is True
+    assert preview["success_effects_map"]["affinity"] > 0
+    assert preview["failure_effects_map"]
+
+    before_actions = engine.actions_left
+    before_affinity = engine.character_relation("mira_svet")
+    result = engine.execute_character_action("heart_to_heart", "mira_svet")
+    assert result["ok"] is True
+    assert result["context"] == "character"
+    assert result["target"] == "mira_svet"
+    assert engine.actions_left == before_actions - 1
+    assert engine.character_relation("mira_svet") != before_affinity
+    assert engine.last_result == result
+
+
+def test_character_actions_and_items_survive_snapshot_roundtrip():
+    engine = _engine()
+    engine.execute_character_action("heart_to_heart", "mira_svet")
+    snapshot = json.loads(json.dumps(engine.to_dict()))
+    assert snapshot["characters"]["mira_svet"]
+    assert snapshot["player"]["items"] == engine.player_item_ids
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+    assert restored.character_relation(
+        "mira_svet"
+    ) == engine.character_relation("mira_svet")
+    assert restored.character_trust("mira_svet") == engine.character_trust(
+        "mira_svet"
+    )
+    assert restored.player_item_ids == engine.player_item_ids
+    assert restored.player_items()
+
+    legacy = json.loads(json.dumps(engine.to_dict()))
+    legacy["player"].pop("items")
+    legacy.pop("characters")
+    legacy_engine = WorldEngine(load_world(), snapshot=legacy)
+    assert legacy_engine.player_items()
+    assert legacy_engine.character("mira_svet") is not None
+
+
+def test_organization_categories_follow_relations_and_keep_player_node():
+    engine = _engine()
+    groups = engine.organization_groups()
+    assert engine.organization_category(engine.player_node_id) == "allied"
+    assert engine.player_node_id in [item["id"] for item in groups["allied"]]
+    for category, nodes in groups.items():
+        if category == "allied":
+            continue
+        assert all(item["kind"] != "asset" for item in nodes)
+
+    press = _engine("knowledge_press", "printer")
+    press_allied = press.organization_groups()["allied"]
+    assert press.player_node_id in [item["id"] for item in press_allied]
+    assert all(
+        item["kind"] != "asset" or item["id"] == press.player_node_id
+        for item in press_allied
+    )
+
+    target = groups["neutral"][0]
+    source = engine.node(engine.player_node_id)
+    target_node = engine.node(target["id"])
+    source["relations"][target["id"]] = -0.5
+    target_node["relations"][engine.player_node_id] = -0.5
+    assert engine.organization_category(target["id"]) == "hostile"
+    assert target["id"] in [
+        item["id"] for item in engine.organization_groups()["hostile"]
+    ]
+
+
+def test_items_and_skill_tree_are_derived_from_office_and_profile():
+    engine = _engine()
+    items = engine.player_items()
+    assert items
+    assert any(item["id"] == "service_folder" for item in items)
+    assert all(item.get("label") for item in items)
+
+    tree = engine.skill_tree()
+    assert len(tree) == 3
+    skills = [skill for branch in tree for skill in branch["skills"]]
+    assert {skill["id"] for skill in skills} == set(engine.skill_labels)
+    assert all(0.0 <= skill["value"] <= 1.0 for skill in skills)
+    assert all(skill.get("description") for skill in skills)
