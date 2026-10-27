@@ -262,11 +262,11 @@ def test_world_art_prefers_real_assets_and_falls_back():
     from view.ui.world_art import WorldArt
 
     assert AssetLoader.USE_PLACEHOLDERS is True
-    assert AssetLoader.asset_exists("items/map") is True
+    assert AssetLoader.asset_exists("items/folder_open") is True
     assert AssetLoader.asset_exists("characters/nobody") is False
 
-    real = AssetLoader.load_asset("items/map", (32, 32))
-    placeholder = AssetLoader.load("items/map", (32, 32))
+    real = AssetLoader.load_asset("items/folder_open", (32, 32))
+    placeholder = AssetLoader.load("items/folder_open", (32, 32))
     assert real.get_size() == (32, 32)
     assert pygame.image.tobytes(real, "RGBA") != pygame.image.tobytes(
         placeholder, "RGBA"
@@ -281,7 +281,9 @@ def test_world_art_prefers_real_assets_and_falls_back():
     assert art.background((64, 64)).get_size() == (64, 64)
 
     tiled = WorldArt("agora_world")
-    tile_path = os.path.join(AssetLoader.IMAGES_DIR, "items", "map.png")
+    tile_path = os.path.join(
+        AssetLoader.IMAGES_DIR, "items", "folder_open.png"
+    )
     tiled._tile_files = lambda: [tile_path]
     assert tiled.background((256, 128)).get_size() == (256, 128)
     pygame.quit()

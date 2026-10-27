@@ -6502,57 +6502,11 @@
   ],
   "items": [
     {
-      "id": "service_folder",
-      "label": "Служебная папка",
-      "icon": "items/folder_middle",
-      "always": true,
-      "description": "Плотная папка с текущими бумагами. Без неё служба выглядит подозрительно."
-    },
-    {
-      "id": "pocket_notebook",
-      "label": "Карманная книжка",
-      "icon": "items/notebook_closed",
-      "always": true,
-      "description": "Короткие записи, имена и обещания, которые нельзя доверять памяти."
-    },
-    {
       "id": "personal_seal",
       "label": "Личная печать",
       "icon": "items/trade_seal",
       "always": true,
       "description": "Небольшая печать с вашим знаком. Превращает слова в документ."
-    },
-    {
-      "id": "pocket_map",
-      "label": "Карта города",
-      "icon": "items/map",
-      "domains": [
-        "order",
-        "provision",
-        "exchange"
-      ],
-      "description": "Портовые кварталы, посты и короткие дороги, о которых не пишут в путеводителях."
-    },
-    {
-      "id": "field_glasses",
-      "label": "Полевой бинокль",
-      "icon": "items/binoculars_closed",
-      "domains": [
-        "order"
-      ],
-      "description": "Помогает наблюдать за улицей, не подходя слишком близко."
-    },
-    {
-      "id": "radio_set",
-      "label": "Радиоприёмник",
-      "icon": "items/radio_closed",
-      "domains": [
-        "order",
-        "meaning",
-        "status",
-        "knowledge"
-      ],
-      "description": "Ловит официальные сводки и то, что говорят между строк."
     },
     {
       "id": "sealed_orders",

@@ -408,8 +408,15 @@ def test_items_and_skill_tree_are_derived_from_office_and_profile():
     engine = _engine()
     items = engine.player_items()
     assert items
-    assert any(item["id"] == "service_folder" for item in items)
+    assert any(item["id"] == "personal_seal" for item in items)
     assert all(item.get("label") for item in items)
+    assert not {
+        "service_folder",
+        "pocket_notebook",
+        "pocket_map",
+        "field_glasses",
+        "radio_set",
+    } & {item["id"] for item in items}
 
     tree = engine.skill_tree()
     assert len(tree) == 3
