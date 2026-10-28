@@ -2,6 +2,7 @@ import pytest
 
 from agents import BDIPolicy
 from core41 import (
+    CAPTURE_STREAK,
     Action,
     ArenaAgent,
     ArenaMatch,
@@ -160,7 +161,9 @@ def test_duel_world_terminal_uses_health_not_force():
 def test_capture_does_not_touch_health():
     rl = ArenaAgent("rl", force=100, energy=100, health=100)
     ai = ArenaAgent("ai", force=40, energy=10, health=100)
-    winner, _dom_rl, _dom_ai = check_capture(rl, ai, dom_rl=19)
+    winner, _dom_rl, _dom_ai = check_capture(
+        rl, ai, dom_rl=CAPTURE_STREAK - 1
+    )
     assert winner == "RL"
     assert ai.health == 100
 

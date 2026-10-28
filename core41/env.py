@@ -2,26 +2,54 @@
 
 `DuelEnv` — минимальная дуэль `force`-канала из раннего среза.
 `ArenaEnv` — среда активной арены: те же `ArenaAgent`, `CORE_ACTIONS`,
-захват и награда, что видит игрок в `ArenaMatch`. Для обучения используйте
-`ArenaEnv(auto_learn=False)`, чтобы политика обновлялась внешним циклом, а
-не внутри матча.
+захват и награда, что видит игрок в `ArenaMatch`. Среда всегда создаёт матч
+с `auto_learn=False`: политики обновляет внешний цикл обучения, поэтому
+`Transition` одной и той же стороны не учитывается дважды.
+
+Обе среды дают симметричный доступ к сторонам через `observe(side)` и
+`legal_actions(side)`, где `side` — `"rl"`/`"ai"` (для `DuelEnv` также
+принимаются легаси-имена `"agent"`/`"opponent"`). Это нужно для self-play:
+у каждой стороны своё наблюдение, действие и награда.
 """
 
 from .arena import ArenaMatch
 from .duel import DuelWorld
 
 
+def _side_id(side):
+    side = str(side).lower()
+    if side in ("rl", "agent"):
+        return "agent"
+    if side in ("ai", "opponent"):
+        return "opponent"
+    raise ValueError("unknown side: %r" % (side,))
+
+
 class DuelEnv:
 
     def __init__(self, seed=0, max_steps=200):
         self.world = DuelWorld(seed=seed, max_steps=max_steps)
+        self.last_rewards = {}
+        self.last_observations = {}
 
     @property
     def action_space(self):
         return self.world.legal_actions("agent")
 
+    def observe(self, side="rl"):
+        return self.world.observe(_side_id(side))
+
+    def legal_actions(self, side="rl"):
+        return self.world.legal_actions(_side_id(side))
+
     def reset(self, seed=None):
-        return self.world.reset(seed)
+        observation = self.world.reset(seed)
+        self.last_rewards = {"agent": 0.0, "opponent": 0.0}
+        self.last_observations = {
+            "agent": observation,
+            "opponent": self.world.observe("opponent"),
+        }
+        return observation
 
     def step(self, action, opponent_action=None):
         if opponent_action is None:
@@ -32,6 +60,8 @@ class DuelEnv:
         observations, rewards, done, info = self.world.step(
             {"agent": action, "opponent": opponent_action}
         )
+        self.last_rewards = dict(rewards)
+        self.last_observations = dict(observations)
         truncated = bool(
             done
             and self.world.time >= self.world.max_steps
@@ -81,6 +111,7 @@ class ArenaEnv:
         self.sickness_ai = float(sickness_ai)
         self.with_env = bool(with_env)
         self.match = None
+        self.last_rewards = {"rl": 0.0, "ai": 0.0}
         self.reset(seed=self.seed)
 
     @property
@@ -89,15 +120,28 @@ class ArenaEnv:
             return ()
         return self.match.rl.actions()
 
-    def legal_actions(self, side="rl"):
+    def _agents(self, side="rl"):
         if self.match is None:
-            return ()
-        agent = self.match.rl if side == "rl" else self.match.ai
+            raise RuntimeError("ArenaEnv используется до reset()")
+        side = str(side).lower()
+        if side in ("rl", "agent"):
+            return self.match.rl, self.match.ai
+        if side in ("ai", "opponent"):
+            return self.match.ai, self.match.rl
+        raise ValueError("unknown side: %r" % (side,))
+
+    def observe(self, side="rl"):
+        agent, other = self._agents(side)
+        return agent.observe(other)
+
+    def legal_actions(self, side="rl"):
+        agent, _other = self._agents(side)
         return agent.actions()
 
     def reset(self, seed=None):
         if seed is not None:
             self.seed = int(seed)
+        self.last_rewards = {"rl": 0.0, "ai": 0.0}
         self.match = ArenaMatch(
             seed=self.seed,
             steps=self.steps,
@@ -136,6 +180,7 @@ class ArenaEnv:
             forced_rl_action=action,
             forced_ai_action=opponent_action,
         )
+        self.last_rewards = dict(match.last_rewards)
         observation = match.rl.observe(match.ai)
         reward = float(match.last_rewards["rl"])
         done = bool(match.finished)

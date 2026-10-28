@@ -1,6 +1,8 @@
 from .legacy import PolicyAgent
 from .policies import (
     BDIPolicy,
+    FEATURE_COUNT,
+    MLPPolicy,
     QTablePolicy,
     RandomPolicy,
     default_actions,
@@ -10,6 +12,8 @@ from .policies import (
 )
 __all__ = [
     "BDIPolicy",
+    "FEATURE_COUNT",
+    "MLPPolicy",
     "PolicyAgent",
     "QTablePolicy",
     "RandomPolicy",

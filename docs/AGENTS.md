@@ -199,7 +199,12 @@
 - `ArenaEnv` по умолчанию создаёт матч с `auto_learn=False`: действия
   выбирает и `Transition` обрабатывает внешний цикл обучения;
 - `BattlefieldModel` обновляет BDI-политику противника после дуэли;
-- награда — изменение силы, энергии и здоровья, а не внешняя команда.
+- награда — изменение силы, энергии, здоровья и болезни плюс терминальный
+  бонус за победу/поражение:
+  `F` и `H` нормированы на максимумы, стоимость `E` — `0.6·ΔE/E_max`,
+  снятие своей болезни — `+1.0·Δsickness`, заражение противника —
+  `+0.5·Δsickness`, победа `+1.0`, поражение `-1.0` (`reward_delta`,
+  `terminal_reward` в `core41/arena.py`).
 
 Это online-обучение на коротких партиях. Оно не заменяет офлайн-тренировку и
 не гарантирует сильную политику.
@@ -221,16 +226,36 @@ venv/bin/python -m agents.train --episodes 500 --seed 0
 venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 ```
 
+Обучение по умолчанию идёт в self-play: обе стороны получают собственный
+`Transition` и обновляют свои политики. Отключить обучение противника можно
+флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
+
+После обучения CLI по умолчанию играет held-out матрицу силы: политика
+против `bdi`, `qtable` и `random` на отдельных seed'ах, без исследования и
+без обновления весов. Параметры:
+
+```bash
+venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+    --eval-episodes 50 --eval-seed 100000 \
+    --eval-opponents bdi,qtable,random \
+    --out saves/bdi.json --eval-out saves/eval.json
+```
+
+`--eval-episodes 0` выключает оценку. Матрица также доступна из Python:
+`agents.train.evaluate(policy, opponent, ...)` и
+`agents.train.evaluate_matrix(policies, opponents, ...)`. Оценка никогда не
+вызывает `observe()` и не меняет веса.
+
 С сохранением весов:
 
 ```bash
 venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
 ```
 
-CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`).
-`BDIPolicy` умеет `save/load`; обе политики — `state_dict/load_state_dict`.
-`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`
-или `QTablePolicy`.
+CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`,
+`policy_updates`, `opponent_updates`, `eval`). `BDIPolicy` умеет `save/load`;
+обе политики — `state_dict/load_state_dict`. `agents.load_policy(path)`
+читает `kind` из файла и возвращает `BDIPolicy` или `QTablePolicy`.
 
 Загрузить чекпойнт в активную сцену можно явно:
 
@@ -254,7 +279,8 @@ agent = ArenaAgent("player", policy=policy, seed=0)
 
 Старый `PolicyAgent` по-прежнему умеет `load_policy("saves/bdi.json")` для
 легаси-моста. Автопоиска чекпойнта нет: путь передаётся явно. Оценка качества
-загруженной политики и production-выбор чекпойнта — следующий шаг.
+загруженной политики есть в `agents.train.evaluate`; production-выбор
+чекпойнта по матрице силы — следующий шаг.
 
 ---
 
@@ -301,7 +327,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
 - Нет PyTorch-зависимости; текущие политики линейные/табличные.
 - Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
-  явно через `--checkpoint`, автопоиска и оценки качества нет.
+  явно через `--checkpoint`. Матрица силы для выбора чекпойнта считается
+  вручную (`agents.train.evaluate_matrix`), автопоиска нет.
 - `UtilityAI` не удалён: он нужен как воспроизводимый baseline.
 
 Следующий инженерный шаг — перенести `core41` и `SimulationClock` в

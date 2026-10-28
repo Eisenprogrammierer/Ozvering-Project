@@ -2,8 +2,9 @@ import json
 
 import pytest
 
-from agents import BDIPolicy, QTablePolicy, load_policy
+from agents import BDIPolicy, MLPPolicy, QTablePolicy, load_policy
 from core41 import Action, Observation
+from core41.types import Transition
 from ui.battlefield import BattlefieldModel
 
 
@@ -59,6 +60,32 @@ def test_load_policy_detects_qtable_checkpoint(tmp_path):
     assert isinstance(loaded, QTablePolicy)
     assert loaded.table[loaded.key(observation, action)] == pytest.approx(
         1.25
+    )
+
+
+def test_load_policy_detects_mlp_checkpoint(tmp_path):
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.3)
+    source = MLPPolicy(seed=3, epsilon=0.0)
+    source.observe(
+        Transition(
+            observation=observation,
+            action=action,
+            reward=0.2,
+            next_observation=observation,
+            done=False,
+            next_actions=(action,),
+        )
+    )
+    path = tmp_path / "mlp.json"
+    source.save(str(path))
+
+    loaded = load_policy(str(path), seed=9)
+
+    assert isinstance(loaded, MLPPolicy)
+    assert loaded.weights1 == source.weights1
+    assert loaded.score(observation, action) == pytest.approx(
+        source.score(observation, action)
     )
 
 

@@ -1,5 +1,6 @@
 import random
 
+from .arena import reward_delta, terminal_reward
 from .model import (
     PRESSURE_PER_WORK,
     REST_FORCE,
@@ -152,8 +153,18 @@ class DuelWorld:
 
     def step(self, actions):
         actions = actions or {}
-        agent_before = (self.agent.force, self.agent.energy)
-        opponent_before = (self.opponent.force, self.opponent.energy)
+        agent_before = (
+            self.agent.force,
+            self.agent.energy,
+            self.agent.health,
+            self.agent.sickness,
+        )
+        opponent_before = (
+            self.opponent.force,
+            self.opponent.energy,
+            self.opponent.health,
+            self.opponent.sickness,
+        )
         agent_result = self._perform(
             self.agent, self.opponent, actions.get("agent", Action("REST"))
         )
@@ -165,21 +176,11 @@ class DuelWorld:
         self.agent.decay_pressure()
         self.opponent.decay_pressure()
         self.time += 1
-        reward_agent = (
-            (self.agent.force - agent_before[0]) / self.agent.max_force
-            + (opponent_before[0] - self.opponent.force)
-            / self.opponent.max_force
-            - 0.6
-            * (agent_before[1] - self.agent.energy)
-            / self.agent.max_energy
+        reward_agent = reward_delta(
+            self.agent, agent_before, self.opponent, opponent_before
         )
-        reward_opponent = (
-            (self.opponent.force - opponent_before[0])
-            / self.opponent.max_force
-            + (agent_before[0] - self.agent.force) / self.agent.max_force
-            - 0.6
-            * (opponent_before[1] - self.opponent.energy)
-            / self.opponent.max_energy
+        reward_opponent = reward_delta(
+            self.opponent, opponent_before, self.agent, agent_before
         )
         done = False
         winner = None
@@ -206,6 +207,12 @@ class DuelWorld:
                 winner = "opponent"
             else:
                 winner = "draw"
+        winner_side = {"agent": "RL", "opponent": "AI"}.get(
+            winner, winner
+        )
+        if done:
+            reward_agent += terminal_reward(winner_side, "rl")
+            reward_opponent += terminal_reward(winner_side, "ai")
         info = {
             "agent": agent_result,
             "opponent": opponent_result,

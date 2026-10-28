@@ -1,25 +1,38 @@
 import json
+import math
 import random
 
 import pytest
 
 import simulation as S
-from agents import BDIPolicy, PolicyAgent, QTablePolicy, RandomPolicy
-from agents.train import train
+from agents import (
+    BDIPolicy,
+    MLPPolicy,
+    PolicyAgent,
+    QTablePolicy,
+    RandomPolicy,
+    make_policy,
+)
+from agents.train import evaluate, train
 from core41 import (
     Action,
     ArenaAgent,
     ArenaEnv,
     ArenaMatch,
     Automaton,
+    CAPTURE_STREAK,
     CORE_ACTIONS,
     DuelEnv,
     DuelWorld,
     Observation,
+    REWARD_TERMINAL_LOSS,
+    REWARD_TERMINAL_WIN,
     Work,
     action_from_index,
     check_capture,
+    reward_delta,
     run_duel_tick,
+    terminal_reward,
 )
 from core41.types import Transition
 
@@ -161,6 +174,43 @@ def test_qtable_policy_round_trip():
     assert loaded.table == policy.table
 
 
+def test_mlp_policy_is_function_approximation_and_round_trips():
+    policy = MLPPolicy(seed=7, epsilon=0.0)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    before = [row[:] for row in policy.weights1]
+    policy.observe(
+        Transition(
+            observation=observation,
+            action=action,
+            reward=0.3,
+            next_observation=observation,
+            done=False,
+            next_actions=(action,),
+        )
+    )
+    assert policy.updates == 1
+    assert policy.weights1 != before
+    assert all(
+        math.isfinite(value)
+        for row in policy.weights1
+        for value in row
+    )
+    state = json.loads(json.dumps(policy.state_dict()))
+    loaded = MLPPolicy(seed=7)
+    loaded.load_state_dict(state)
+    assert loaded.hidden == policy.hidden
+    assert loaded.weights1 == policy.weights1
+    assert loaded.weights2 == policy.weights2
+    assert loaded.score(observation, action) == pytest.approx(
+        policy.score(observation, action)
+    )
+
+
+def test_make_policy_exposes_mlp():
+    assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+
+
 def test_random_policy_is_total():
     policy = RandomPolicy(seed=2)
     actions = (Action("REST", form="rest"),)
@@ -193,6 +243,52 @@ def test_core_training_smoke():
     assert stats["episodes"] == 2
     assert stats["wins"] + stats["losses"] + stats["draws"] == 2
     assert isinstance(policy, BDIPolicy)
+
+
+def test_self_play_updates_both_policies_once_per_tick():
+    policy, stats = train(
+        episodes=2,
+        seed=13,
+        max_steps=20,
+        self_play=True,
+    )
+    assert stats["self_play"] is True
+    assert stats["policy_updates"] > 0
+    assert stats["opponent_updates"] > 0
+    assert policy.updates == stats["policy_updates"]
+
+
+def test_evaluate_uses_held_out_seed_and_does_not_learn():
+    policy = BDIPolicy(seed=4, epsilon=0.0)
+    opponent = RandomPolicy(seed=5)
+    weights_before = list(policy.weights)
+    stats = evaluate(
+        policy,
+        opponent,
+        episodes=2,
+        seed=9000,
+        max_steps=20,
+    )
+    assert stats["seed"] == 9000
+    assert stats["episodes"] == 2
+    assert stats["wins"] + stats["losses"] + stats["draws"] == 2
+    assert policy.weights == weights_before
+
+
+def test_training_eval_matrix_uses_separate_opponents():
+    _policy, stats = train(
+        episodes=1,
+        seed=21,
+        max_steps=10,
+        eval_episodes=1,
+        eval_seed=7000,
+        eval_opponents=("random",),
+    )
+    assert len(stats["eval"]) == 1
+    row = stats["eval"][0]
+    assert row["policy"] == "bdi"
+    assert row["opponent"] == "random"
+    assert row["seed"] == 7000
 
 
 def test_arena_actions_are_generic_work_forms():
@@ -244,6 +340,45 @@ def test_arena_match_runs_and_updates_both_policies():
     assert first.ai.policy.updates == 30
     assert first.rl_hist == second.rl_hist
     assert first.ai_hist == second.ai_hist
+
+
+def test_reward_terminal_bonus_for_winner_and_loser():
+    match = ArenaMatch(
+        seed=2,
+        steps=10,
+        rl_policy=RandomPolicy(seed=2),
+        ai_policy=RandomPolicy(seed=3),
+    )
+    match.ai.health = 0.0
+    match.step_tick(
+        forced_rl_action=Action("REST", form="rest"),
+        forced_ai_action=Action("REST", form="rest"),
+    )
+    assert match.winner == "RL"
+    assert match.last_rewards["rl"] >= REWARD_TERMINAL_WIN
+    assert match.last_rewards["ai"] <= REWARD_TERMINAL_LOSS
+    assert terminal_reward("RL", "rl") == REWARD_TERMINAL_WIN
+    assert terminal_reward("RL", "ai") == REWARD_TERMINAL_LOSS
+    assert terminal_reward("draw", "rl") == 0.0
+
+
+def test_reward_delta_values_treatment_and_sickness():
+    me = Automaton(id="me", force=100.0, energy=100.0, health=100.0)
+    other = Automaton(id="other", force=100.0, energy=100.0, health=100.0)
+    me.sickness = 0.5
+    other.sickness = 0.0
+    before = (100.0, 100.0, 100.0, 0.5)
+    other_before = (100.0, 100.0, 100.0, 0.0)
+
+    me.energy = 90.0
+    me.sickness = 0.42
+    reward = reward_delta(me, before, other, other_before)
+    # -0.6 * 10/100 за TREAT + 1.0 * 0.08 за снятую болезнь.
+    assert reward == pytest.approx(-0.06 + 0.08)
+
+    other.sickness = 0.25
+    reward = reward_delta(me, before, other, other_before)
+    assert reward == pytest.approx(-0.06 + 0.08 + 0.5 * 0.25)
 
 
 def test_arena_env_matches_active_arena_and_does_not_learn_internally():
@@ -321,7 +456,7 @@ def test_arena_capture_is_a_projection_not_typed_energy():
     rl = ArenaAgent("rl", force=100, energy=100)
     ai = ArenaAgent("ai", force=40, energy=10)
     winner, dom_rl, dom_ai = check_capture(
-        rl, ai, dom_rl=19, dom_ai=0
+        rl, ai, dom_rl=CAPTURE_STREAK - 1, dom_ai=0
     )
     assert winner == "RL"
     assert dom_rl == 0 and dom_ai == 0

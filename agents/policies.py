@@ -1,5 +1,6 @@
 import ast
 import json
+import math
 import random
 
 from core41.model import TREAT_ENERGY_FRACTION
@@ -61,6 +62,9 @@ def features(observation, action):
         float(getattr(observation, "opponent_sickness", 0.0)),
         is_treat,
     )
+
+
+FEATURE_COUNT = 18
 
 
 def dot(left, right):
@@ -360,11 +364,166 @@ class QTablePolicy:
         self.discount = float(state.get("discount", self.discount))
 
 
+class MLPPolicy:
+    """Небольшая нейросетевая Q-политика без внешних зависимостей.
+
+    Это function approximation для роста ёмкости: один скрытый слой `tanh`
+    и линейный выход. Вход — те же 18 признаков, что у `BDIPolicy`, поэтому
+    политика совместима с `ArenaEnv` и `DuelEnv`. Обучение — online TD(0):
+    цель `reward + discount * max_a Q(next, a)`, обратное распространение
+    только по выбранному действию. `BDIPolicy` и `QTablePolicy` остаются
+    baseline и не меняются.
+    """
+
+    def __init__(
+        self,
+        seed=0,
+        learning_rate=0.01,
+        discount=0.94,
+        epsilon=0.22,
+        min_epsilon=0.03,
+        hidden=16,
+    ):
+        self.rng = random.Random(seed)
+        self.learning_rate = float(learning_rate)
+        self.discount = float(discount)
+        self.epsilon = float(epsilon)
+        self.min_epsilon = float(min_epsilon)
+        self.hidden = int(hidden)
+        self.updates = 0
+        self.weights1 = [
+            [self.rng.uniform(-0.05, 0.05) for _ in range(FEATURE_COUNT)]
+            for _ in range(self.hidden)
+        ]
+        self.bias1 = [0.0 for _ in range(self.hidden)]
+        self.weights2 = [
+            self.rng.uniform(-0.05, 0.05) for _ in range(self.hidden)
+        ]
+        self.bias2 = 0.0
+
+    def _forward(self, vector):
+        hidden = []
+        for index in range(self.hidden):
+            value = self.bias1[index] + dot(
+                self.weights1[index], vector
+            )
+            hidden.append(math.tanh(value))
+        output = self.bias2 + dot(self.weights2, hidden)
+        return output, hidden
+
+    def score(self, observation, action):
+        output, _hidden = self._forward(features(observation, action))
+        return output
+
+    def act(self, observation, actions, explore=True):
+        actions = tuple(actions)
+        if not actions:
+            return Action("REST", form="rest")
+        if explore and self.rng.random() < self.epsilon:
+            return self.rng.choice(actions)
+        return max(actions, key=lambda item: self.score(observation, item))
+
+    def observe(self, transition):
+        vector = features(transition.observation, transition.action)
+        current, hidden = self._forward(vector)
+        if transition.done:
+            target = 0.0
+        else:
+            next_actions = transition.next_actions
+            if not next_actions:
+                next_actions = default_actions(
+                    transition.next_observation
+                )
+            target = max(
+                self.score(transition.next_observation, candidate)
+                for candidate in next_actions
+            )
+        error = transition.reward + self.discount * target - current
+        error = max(-5.0, min(5.0, error))
+
+        hidden_deltas = [
+            error * self.weights2[index] * (1.0 - hidden[index] ** 2)
+            for index in range(self.hidden)
+        ]
+        for index in range(self.hidden):
+            self.weights2[index] += (
+                self.learning_rate * error * hidden[index]
+            )
+        self.bias2 += self.learning_rate * error
+        for index in range(self.hidden):
+            delta = self.learning_rate * hidden_deltas[index]
+            row = self.weights1[index]
+            for feature_index, value in enumerate(vector):
+                row[feature_index] += delta * value
+            self.bias1[index] += delta
+        self.updates += 1
+        self.epsilon = max(self.min_epsilon, self.epsilon * 0.9995)
+
+    def state_dict(self):
+        return {
+            "kind": "mlp",
+            "feature_count": FEATURE_COUNT,
+            "hidden": self.hidden,
+            "weights1": [list(row) for row in self.weights1],
+            "bias1": list(self.bias1),
+            "weights2": list(self.weights2),
+            "bias2": self.bias2,
+            "epsilon": self.epsilon,
+            "updates": self.updates,
+            "learning_rate": self.learning_rate,
+            "discount": self.discount,
+        }
+
+    def load_state_dict(self, state):
+        if not state:
+            return
+        hidden = int(state.get("hidden", self.hidden))
+        weights1 = state.get("weights1")
+        if (
+            weights1
+            and len(weights1) == hidden
+            and all(len(row) == FEATURE_COUNT for row in weights1)
+        ):
+            self.hidden = hidden
+            self.weights1 = [
+                [float(value) for value in row] for row in weights1
+            ]
+            self.bias1 = [
+                float(value)
+                for value in state.get(
+                    "bias1", [0.0 for _ in range(hidden)]
+                )
+            ]
+            self.weights2 = [
+                float(value)
+                for value in state.get(
+                    "weights2", [0.0 for _ in range(hidden)]
+                )
+            ]
+            self.bias2 = float(state.get("bias2", 0.0))
+        self.epsilon = float(state.get("epsilon", self.epsilon))
+        self.updates = int(state.get("updates", self.updates))
+        self.learning_rate = float(
+            state.get("learning_rate", self.learning_rate)
+        )
+        self.discount = float(state.get("discount", self.discount))
+
+    def save(self, path):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.state_dict(), handle, ensure_ascii=False)
+
+    def load(self, path):
+        with open(path, encoding="utf-8") as handle:
+            self.load_state_dict(json.load(handle))
+
+
 def make_policy(name, seed=0):
     if name in ("bdi", "adaptive"):
         return BDIPolicy(seed=seed)
     if name in ("qtable", "q"):
         return QTablePolicy(seed=seed)
+    if name in ("mlp", "neural", "nn"):
+        return MLPPolicy(seed=seed)
     if name in ("random", "none"):
         return RandomPolicy(seed=seed)
     return None
@@ -378,6 +537,8 @@ def load_policy(path, seed=0, kind=None):
         policy = BDIPolicy(seed=seed)
     elif policy_kind == "qtable":
         policy = QTablePolicy(seed=seed)
+    elif policy_kind == "mlp":
+        policy = MLPPolicy(seed=seed)
     else:
         raise ValueError(
             "unknown policy checkpoint %r (kind=%r)"
@@ -385,4 +546,3 @@ def load_policy(path, seed=0, kind=None):
         )
     policy.load_state_dict(state)
     return policy
-    raise ValueError("unknown policy")

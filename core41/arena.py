@@ -32,7 +32,9 @@ CORE_ACTIONS = (
 )
 
 CAPTURE_RATIO = 1.5
-CAPTURE_STREAK = 20
+# 22 такта удержания — калибровка после смены награды: при 20 захват
+# выходил за верхнюю полосу на больном срезе, при 23 — за нижнюю/по таймауту.
+CAPTURE_STREAK = 22
 CAPTURE_FRAC = 0.10
 L_STEP = 10.0
 
@@ -41,6 +43,54 @@ PROFILE_SKILLS = {
     "ZEALOT": (0.68, 0.05),
     "ORTHODOX": (0.55, 0.10),
 }
+
+# Награда арены. Единицы — доли максимумов соответствующей шкалы, поэтому
+# шаг награды сравним между `F`, `E`, `H` и `sickness`.
+REWARD_ENERGY_COST = 0.6
+REWARD_SICKNESS_SELF = 1.0
+REWARD_SICKNESS_OPPONENT = 0.5
+REWARD_TERMINAL_WIN = 1.0
+REWARD_TERMINAL_LOSS = -1.0
+
+
+def _energy(agent):
+    value = getattr(agent, "energy_pool", None)
+    if value is None:
+        value = agent.energy
+    return float(value)
+
+
+def reward_delta(me, before, other, other_before):
+    """Пошаговая награда: F, H, стоимость E и динамика sickness.
+
+    `before`/`other_before` — кортежи `(force, energy, health, sickness)`.
+    """
+    return (
+        (me.force - before[0]) / max(1.0, me.max_force)
+        + (other_before[0] - other.force) / max(1.0, other.max_force)
+        - REWARD_ENERGY_COST
+        * (before[1] - _energy(me))
+        / max(1.0, me.max_energy)
+        + (me.health - before[2]) / max(1.0, me.max_health)
+        + (other_before[2] - other.health)
+        / max(1.0, other.max_health)
+        + REWARD_SICKNESS_SELF
+        * (before[3] - me.sickness)
+        / SICKNESS_MAX
+        + REWARD_SICKNESS_OPPONENT
+        * (other.sickness - other_before[3])
+        / SICKNESS_MAX
+    )
+
+
+def terminal_reward(winner, side):
+    """Терминальный бонус для стороны `rl`/`ai`."""
+    if winner in (None, "draw"):
+        return 0.0
+    won = (winner == "RL" and side == "rl") or (
+        winner == "AI" and side == "ai"
+    )
+    return REWARD_TERMINAL_WIN if won else REWARD_TERMINAL_LOSS
 
 
 def action_from_index(index):
@@ -606,8 +656,18 @@ class ArenaMatch:
             ai_action = self._coerce_action(forced_ai_action)
             ai.record_action(ai_action, rl, ai_obs)
 
-        rl_before = (rl.force, rl.energy_pool, rl.health)
-        ai_before = (ai.force, ai.energy_pool, ai.health)
+        rl_before = (
+            rl.force,
+            rl.energy_pool,
+            rl.health,
+            rl.sickness,
+        )
+        ai_before = (
+            ai.force,
+            ai.energy_pool,
+            ai.health,
+            ai.sickness,
+        )
 
         rl_result = self._perform(rl, ai, rl_action)
         ai_result = self._perform(ai, rl, ai_action)
@@ -619,7 +679,6 @@ class ArenaMatch:
 
         reward_rl = self._reward(rl, rl_before, ai, ai_before)
         reward_ai = self._reward(ai, ai_before, rl, rl_before)
-        self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         terminal = self._check_terminal()
         if not terminal:
@@ -635,6 +694,11 @@ class ArenaMatch:
                 self.winner = capture_winner
                 self.finished = True
                 terminal = True
+
+        if terminal:
+            reward_rl += terminal_reward(self.winner, "rl")
+            reward_ai += terminal_reward(self.winner, "ai")
+        self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         rl_next = rl.observe(ai)
         ai_next = ai.observe(rl)
@@ -669,14 +733,7 @@ class ArenaMatch:
         self.ai_hist.append(ai.force)
 
     def _reward(self, me, before, other, other_before):
-        return (
-            (me.force - before[0]) / max(1.0, me.rest_ceiling)
-            + (other_before[0] - other.force) / max(1.0, other.rest_ceiling)
-            - 0.6 * (before[1] - me.energy_pool) / max(1.0, me.unit.max_energy)
-            + (me.health - before[2]) / max(1.0, me.max_health)
-            + (other_before[2] - other.health)
-            / max(1.0, other.max_health)
-        )
+        return reward_delta(me, before, other, other_before)
 
     def _perform(self, attacker, defender, action):
         return _perform(attacker, defender, action, self)
