@@ -93,22 +93,29 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
 ```
 
 CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`).
-`BDIPolicy` и `QTablePolicy` умеют `save/load` через `state_dict()`.
+`BDIPolicy` умеет `save/load`; обе политики — `state_dict/load_state_dict`.
+`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`
+или `QTablePolicy`.
 
-Загрузить веса в агента можно так:
+Загрузить чекпойнт в активную сцену можно явно:
+
+```bash
+python3 main.py --checkpoint saves/bdi.json
+python3 main.py --arena --checkpoint saves/bdi.json
+python3 main.py --scene battlefield --checkpoint saves/bdi.json
+```
 
 ```python
-from agents import BDIPolicy
+from agents import load_policy
 from core41 import ArenaAgent
 
-policy = BDIPolicy()
-policy.load("saves/bdi.json")
+policy = load_policy("saves/bdi.json", seed=0)
 agent = ArenaAgent("player", policy=policy, seed=0)
 ```
 
 Старый `PolicyAgent` по-прежнему умеет `load_policy("saves/bdi.json")` для
-легаси-моста. Автоматическая загрузка чекпойнта в игру пока не включена: это
-следующий шаг, после появления стабильного формата и оценки качества.
+легаси-моста. Автопоиска чекпойнта нет: путь передаётся явно. Оценка качества
+загруженной политики и production-выбор чекпойнта — следующий шаг.
 
 ---
 
@@ -144,7 +151,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
   фасаде, но `env=None`.
 - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
 - Нет PyTorch-зависимости; текущие политики линейные/табличные.
-- Нет автоматической загрузки production-чекпойнта в игру.
+- Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
+  явно через `--checkpoint`, автопоиска и оценки качества нет.
 - `UtilityAI` не удалён: он нужен как воспроизводимый baseline.
 
 Следующий инженерный шаг — перенести `core41` в кампанийный runtime, закрыть

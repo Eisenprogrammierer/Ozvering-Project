@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 import random
+import warnings
 
-from agents import BDIPolicy
+from agents import BDIPolicy, load_policy
 from core41 import (
     Action,
     ArenaAgent,
@@ -81,12 +82,21 @@ class Commander:
     stance: str = "balanced"
     ai: bool = False
     seed: int = 0
+    checkpoint: str = ""
     agent: ArenaAgent = field(init=False, repr=False)
 
     def __post_init__(self):
-        policy = (
-            BDIPolicy(seed=self.seed) if self.ai else None
-        )
+        policy = None
+        if self.ai:
+            policy = BDIPolicy(seed=self.seed)
+            if self.checkpoint:
+                try:
+                    policy = load_policy(self.checkpoint, seed=self.seed)
+                except Exception as exc:
+                    warnings.warn(
+                        "AI checkpoint %r не загружен: %s"
+                        % (self.checkpoint, exc)
+                    )
         self.agent = ArenaAgent(
             self.side,
             policy=policy,
@@ -452,9 +462,11 @@ class BattlefieldModel:
         player_profile="CANON",
         enemy_profile="CANON",
         with_env=True,
+        checkpoint="",
     ):
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
+        self.checkpoint = checkpoint or ""
         self.player = Commander(
             "Капитан",
             "player",
@@ -469,6 +481,7 @@ class BattlefieldModel:
             portrait="portrait_enemy",
             ai=True,
             seed=self.seed + 1,
+            checkpoint=self.checkpoint,
         )
         self.units = {
             "player": Unit(

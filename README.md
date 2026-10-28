@@ -421,6 +421,7 @@ python3 main.py               # игра (старт — главное меню
 python3 main.py --view        # кампанийный интерфейс view (лагерь + RTS-карта)
 python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
+python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-политику в активные сцены
 ```
 
 `game_engine.py` — слой «основное игровое поле» (арена + HUD дуэли
@@ -441,8 +442,10 @@ python3 main.py --arena       # арена отдельно (то же, что g
 `core41` даёт одну универсальную энергию, обработчики, `DuelEnv` и runtime
 активной арены (`ArenaAgent`, `ArenaMatch`), а `BDIPolicy`/`QTablePolicy` —
 обучаемые политики. `PolicyAgent` остаётся легаси-мостом для старых тестов и
-экспериментов. Подробности и ограничения — [`docs/AGENTS.md`](docs/AGENTS.md);
-активные сцены больше не импортируют `simulation.py`. Сохранения и настройки —
+экспериментов. `agents.load_policy(path)` определяет формат чекпойнта;
+`--checkpoint` загружает BDI-политику в арену и поле боя. Подробности и
+ограничения — [`docs/AGENTS.md`](docs/AGENTS.md); активные сцены больше не
+импортируют `simulation.py`. Сохранения и настройки —
 в `saves/` (в репозиторий не попадают). Подробности сценного слоя —
 [`docs/UI.md`](docs/UI.md), история движка — [`GAME_ENGINE_CHANGES.md`](GAME_ENGINE_CHANGES.md).
 

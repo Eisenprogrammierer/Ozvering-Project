@@ -13,12 +13,13 @@ FPS = getattr(ge, "FPS", 60)
 
 class App:
 
-    def __init__(self, fullscreen=None, seed=0):
+    def __init__(self, fullscreen=None, seed=0, checkpoint=""):
         ge.LOG.info("ui.App: инициализация сценного слоя")
         ge.init_pygame_minimal()
         self.save = SaveManager(log=ge.LOG)
         self.settings = self.save.settings
         self.seed = seed
+        self.checkpoint = checkpoint or ""
         self.fullscreen = bool(
             self.settings.get("fullscreen", False)
             if fullscreen is None
@@ -160,7 +161,13 @@ def main(argv=None):
             start_scene = argv[argv.index("--scene") + 1]
         except IndexError:
             start_scene = None
-    app = App(fullscreen=fullscreen)
+    checkpoint = ""
+    if "--checkpoint" in argv:
+        try:
+            checkpoint = argv[argv.index("--checkpoint") + 1]
+        except IndexError:
+            checkpoint = ""
+    app = App(fullscreen=fullscreen, checkpoint=checkpoint)
     if start_scene:
         app.go(start_scene)
     return app.run()

@@ -153,7 +153,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `warfare.py` | войсковые автоматы: персонажи (BDI, 16 потребностей, черты), отделения, станы, приказы, заградотряды, подкрепления |
 | `game_engine.py` | арена + HUD (PyGame) на `core41.arena`, без типизированной энергии |
 | `core41/` | 4-2-1-срез: `Automaton`, `DuelWorld`, `ArenaAgent`, `ArenaMatch`, `DuelEnv` |
-| `agents/` | обучаемые политики `BDIPolicy`/`QTablePolicy`, легаси-мост `PolicyAgent` |
+| `agents/` | обучаемые политики `BDIPolicy`/`QTablePolicy`, `load_policy`, легаси-мост `PolicyAgent`, `--checkpoint` в активных сценах |
 | `main.py` | единая точка входа: игра (`ui`), кампания (`--view`), редактор автоматов (`--automata`) или арена (`--arena`) |
 | `ui/` | сценный слой: меню/настройки/сохранения/нарратив/поле/пауза |
 | `ui/battlefield.py` | чистая логика RTS: изометрия, приказы, CP, ролевые диалоги; дуэли через `core41` (без pygame) |

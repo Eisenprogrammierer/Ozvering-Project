@@ -328,4 +328,22 @@ def make_policy(name, seed=0):
         return QTablePolicy(seed=seed)
     if name in ("random", "none"):
         return RandomPolicy(seed=seed)
+    return None
+
+
+def load_policy(path, seed=0, kind=None):
+    with open(path, encoding="utf-8") as handle:
+        state = json.load(handle)
+    policy_kind = kind or state.get("kind")
+    if policy_kind == "bdi":
+        policy = BDIPolicy(seed=seed)
+    elif policy_kind == "qtable":
+        policy = QTablePolicy(seed=seed)
+    else:
+        raise ValueError(
+            "unknown policy checkpoint %r (kind=%r)"
+            % (path, policy_kind)
+        )
+    policy.load_state_dict(state)
+    return policy
     raise ValueError("unknown policy")

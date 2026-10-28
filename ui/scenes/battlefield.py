@@ -30,7 +30,9 @@ class BattlefieldScene(Scene):
         if self.model is None or new:
             use_seed = int(seed if seed is not None else self.app.new_seed())
             self.model = BattlefieldModel(
-                seed=use_seed, player_profile=player_profile
+                seed=use_seed,
+                player_profile=player_profile,
+                checkpoint=getattr(self.app, "checkpoint", ""),
             )
             self.move_mode = True
             self.show_help = False

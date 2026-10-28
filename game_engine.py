@@ -189,7 +189,7 @@ except Exception as e:
     LOG.exc("ИМПОРТ CORE41 RUNTIME НЕ УДАЛСЯ", e)
     raise
 
-from agents import BDIPolicy, QTablePolicy
+from agents import BDIPolicy, QTablePolicy, load_policy
 
 
 def compute_window_size():
@@ -576,6 +576,20 @@ class Layout:
         )
 
 
+def _ai_policy(checkpoint, seed):
+    if checkpoint:
+        try:
+            policy = load_policy(checkpoint, seed=seed)
+            LOG.info("AI checkpoint загружен: %s" % checkpoint)
+            return policy
+        except Exception as exc:
+            LOG.warn(
+                "AI checkpoint %s не загружен (%r) - используется новая BDI"
+                % (checkpoint, exc)
+            )
+    return BDIPolicy(seed=seed)
+
+
 class MatchEngine:
 
     def __init__(
@@ -586,6 +600,7 @@ class MatchEngine:
         q_table=None,
         profile_rl="CANON",
         profile_ai="CANON",
+        checkpoint="",
     ):
         LOG.info(
             "MatchEngine: core41 runtime seed=%s steps=%s profiles=%s/%s"
@@ -594,11 +609,12 @@ class MatchEngine:
         self.seed = int(seed)
         self.steps_total = int(steps)
         self.with_env = bool(with_env)
+        self.checkpoint = checkpoint or ""
         self.core = ArenaMatch(
             seed=self.seed,
             steps=self.steps_total,
             rl_policy=QTablePolicy(seed=self.seed, table=q_table),
-            ai_policy=BDIPolicy(seed=self.seed ^ 0xB01),
+            ai_policy=_ai_policy(self.checkpoint, self.seed ^ 0xB01),
             profile_rl=profile_rl,
             profile_ai=profile_ai,
         )
@@ -1004,6 +1020,7 @@ class GameApp:
         with_env=True,
         profile_rl="CANON",
         profile_ai="CANON",
+        checkpoint="",
     ):
         LOG.info("GameApp: init_pygame_minimal() (video+font, без аудио)...")
         init_pygame_minimal()
@@ -1094,6 +1111,7 @@ class GameApp:
         self.with_env = with_env
         self.profile_rl = profile_rl
         self.profile_ai = profile_ai
+        self.checkpoint = checkpoint or ""
         self.match = MatchEngine(
             seed=self.game_seed,
             steps=steps,
@@ -1101,6 +1119,7 @@ class GameApp:
             q_table=self.q_table,
             profile_rl=profile_rl,
             profile_ai=profile_ai,
+            checkpoint=self.checkpoint,
         )
 
         self.action_idx = 0
@@ -1312,6 +1331,7 @@ class GameApp:
             q_table=self.q_table,
             profile_rl=self.profile_rl,
             profile_ai=self.profile_ai,
+            checkpoint=self.checkpoint,
         )
         self.paused = True
         LOG.info(
@@ -2132,23 +2152,12 @@ def main():
         "Окружение: python=%s executable=%s cwd=%s"
         % (sys.version.split()[0], sys.executable, os.getcwd())
     )
-    try:
-        import simulation
-
-        LOG.info(
-            "simulation.py: файл=%s mtime=%s"
-            % (
-                getattr(simulation, "__file__", "?"),
-                _time_mod.strftime(
-                    "%Y-%m-%d %H:%M:%S",
-                    _time_mod.localtime(
-                        os.path.getmtime(getattr(simulation, "__file__", "."))
-                    ),
-                ),
-            )
-        )
-    except Exception as e:
-        LOG.debug("диагностика simulation недоступна: %s" % e)
+    checkpoint = ""
+    if "--checkpoint" in sys.argv:
+        index = sys.argv.index("--checkpoint")
+        if index + 1 < len(sys.argv):
+            checkpoint = sys.argv[index + 1]
+        LOG.info("main(): AI checkpoint=%r" % checkpoint)
 
     init_pygame_minimal()
     fonts = FontSet()
@@ -2170,7 +2179,7 @@ def main():
             "FontSet готов: native pygame.font, кириллица=%s"
             % fonts.cyrillic_ok
         )
-    app = GameApp(fonts=fonts)
+    app = GameApp(fonts=fonts, checkpoint=checkpoint)
     app.run()
     LOG.info("main(): штатное завершение, rc=0")
     return 0

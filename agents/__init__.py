@@ -5,6 +5,7 @@ from .policies import (
     RandomPolicy,
     default_actions,
     features,
+    load_policy,
     make_policy,
 )
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "RandomPolicy",
     "default_actions",
     "features",
+    "load_policy",
     "make_policy",
 ]
