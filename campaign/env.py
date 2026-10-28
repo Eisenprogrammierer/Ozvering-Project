@@ -117,6 +117,7 @@ class CampaignEnv:
         seed=0,
         max_days=None,
         snapshot=None,
+        sickness=0.0,
     ):
         self.config = dict(config or load_world())
         self.seed = int(seed)
@@ -127,12 +128,62 @@ class CampaignEnv:
         self._start_node = node_id
         self._start_office = office_id
         self._start_snapshot = snapshot
+        # Стартовая болезнь героя для доменной рандомизации (проблема №7);
+        # применяется в _build_engine как переопределение конфига `condition`.
+        self._start_sickness = max(0.0, min(1.0, float(sickness)))
         self.engine = None
         self.last_transition = None
         # Одиночный агент (проблема №6): оппонента нет, цикл обучения
         # (`agents.train`) использует для этой среды кампанейный эпизод.
         self.single_agent = True
         self.reset(seed=self.seed)
+
+    def randomize_draw(
+        self,
+        rng=None,
+        skill_jitter=0.0,
+        sickness_min=0.0,
+        sickness_max=0.6,
+    ):
+        """Сэмплировать домен кампании (проблема готовности №7).
+
+        Возвращает словарь для `apply_domain`: джиттер навыков профиля
+        (`skill_jitter` — относительная величина, 0.25 = ±25%) и стартовая
+        болезнь героя. Профиль строится поверх `default_profile` конфига,
+        поэтому среда остаётся самодостаточной на любом валидном мире.
+        """
+        import random as _random
+
+        from .world import SKILL_ORDER
+
+        rng = rng or _random.Random()
+        base = dict(self.config.get("default_profile") or {})
+        skills = dict(base.get("skills") or {})
+        if skill_jitter > 0.0:
+            for key in SKILL_ORDER:
+                value = float(skills.get(key, 0.08))
+                low = max(0.0, value * (1.0 - float(skill_jitter)))
+                high = min(1.0, value * (1.0 + float(skill_jitter)))
+                skills[key] = round(rng.uniform(low, high), 4)
+        base["skills"] = skills
+        return {
+            "profile": base,
+            "sickness": round(
+                rng.uniform(
+                    max(0.0, float(sickness_min)),
+                    max(max(0.0, float(sickness_min)), min(1.0, float(sickness_max))),
+                ),
+                4,
+            ),
+        }
+
+    def apply_domain(self, profile=None, sickness=None):
+        """Применить домен кампании и пересоздать движок (`reset`)."""
+        if profile is not None:
+            self._start_profile = dict(profile)
+        if sickness is not None:
+            self._start_sickness = max(0.0, min(1.0, float(sickness)))
+        return self.reset()
 
     # ------------------------------------------------------------------
     # Построение движка и стартовой позиции
@@ -171,8 +222,15 @@ class CampaignEnv:
         office_id = self._start_office
         if not (node_id and office_id) and not self._start_snapshot:
             node_id, office_id = self._default_start()
+        config = dict(self.config)
+        # Стартовая болезнь героя для доменной рандомизации (проблема №7):
+        # переопределяем `condition` конфига, не мутируя исходный словарь.
+        if self._start_sickness > 0.0:
+            condition = dict(config.get("condition") or {})
+            condition["sickness"] = self._start_sickness
+            config["condition"] = condition
         return WorldEngine(
-            dict(self.config),
+            config,
             profile=self._start_profile,
             node_id=node_id,
             office_id=office_id,

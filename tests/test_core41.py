@@ -621,3 +621,124 @@ def test_active_arena_match_engine_uses_core41_runtime():
     assert len(match.rl_hist) == 8
     assert match.rl.defense in ("force", "info", "REST")
     assert ge.ACTIONS == CORE_ACTIONS
+
+
+# ---------------------------------------------------------------------------
+# Доменная рандомизация (проблема готовности №7)
+# ---------------------------------------------------------------------------
+
+
+def test_randomize_draw_is_deterministic_and_in_range():
+    import random
+
+    from core41 import randomize_draw
+
+    first = randomize_draw(
+        rng=random.Random(5),
+        profiles=("CANON", "ZEALOT"),
+        health_factors=("aging",),
+        sickness_min=0.1,
+        sickness_max=0.4,
+        health_min=0.8,
+        health_max=1.2,
+    )
+    second = randomize_draw(
+        rng=random.Random(5),
+        profiles=("CANON", "ZEALOT"),
+        health_factors=("aging",),
+        sickness_min=0.1,
+        sickness_max=0.4,
+        health_min=0.8,
+        health_max=1.2,
+    )
+    assert first == second
+    assert first["profile_rl"] in ("CANON", "ZEALOT")
+    assert 0.1 <= first["sickness_rl"] <= 0.4
+    assert 0.8 <= first["health_factors_rl"]["aging"] <= 1.2
+    # Неизвестный профиль — явная ошибка, а не молчаливый CANON.
+    try:
+        randomize_draw(profiles=("NOPE",))
+        raise AssertionError("unknown profile accepted")
+    except ValueError:
+        pass
+
+
+def test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys():
+    from core41 import ArenaEnv
+
+    env = ArenaEnv(seed=1, steps=40)
+    observation = env.apply_domain(
+        profile_rl="ZEALOT",
+        sickness_ai=0.3,
+        health_factors_rl={"aging": 1.1},
+    )
+    assert observation is not None
+    assert env.profile_rl == "ZEALOT"
+    assert env.sickness_ai == 0.3
+    assert env.match.rl.profile == "ZEALOT"
+    try:
+        env.apply_domain(bogus=1)
+        raise AssertionError("unknown domain key accepted")
+    except ValueError:
+        pass
+
+
+def test_train_domain_randomize_is_reproducible_and_skips_duel():
+    from agents.train import train
+
+    opts = {
+        "profiles": ("CANON", "ZEALOT"),
+        "health_factors": ("aging",),
+        "sickness_min": 0.0,
+        "sickness_max": 0.5,
+        "health_min": 0.75,
+        "health_max": 1.25,
+        "skill_jitter": 0.0,
+    }
+    results = []
+    for _ in range(2):
+        _policy, stats = train(
+            episodes=3,
+            seed=11,
+            policy_name="bdi",
+            opponent_name="random",
+            max_steps=25,
+            env_name="arena",
+            eval_episodes=0,
+            domain_randomize=True,
+            domain_opts=opts,
+        )
+        results.append(stats)
+    assert results[0]["domain_randomize"] is True
+    assert results[0] == results[1]
+    # duel — легаси-срез без доменов: фича честно не применяется.
+    _policy, duel_stats = train(
+        episodes=2,
+        seed=1,
+        policy_name="bdi",
+        opponent_name="random",
+        max_steps=20,
+        env_name="duel",
+        eval_episodes=0,
+        domain_randomize=True,
+        domain_opts=opts,
+    )
+    assert duel_stats["domain_randomize"] is False
+
+
+def test_campaign_env_domain_sickness_reaches_engine():
+    import random
+
+    from campaign.env import CampaignEnv
+
+    env = CampaignEnv(seed=3, max_days=4)
+    assert env.engine.player_condition()["sickness"] == 0.0
+    draw = env.randomize_draw(
+        rng=random.Random(9), skill_jitter=0.2, sickness_min=0.2, sickness_max=0.5
+    )
+    env.apply_domain(**draw)
+    condition = env.engine.player_condition()
+    assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
+    # Стартовый config среды не мутируется: второй движок без домена чист.
+    fresh = CampaignEnv(seed=3, max_days=4)
+    assert fresh.engine.player_condition()["sickness"] == 0.0

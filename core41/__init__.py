@@ -25,7 +25,7 @@ from .clock import (
     speed_label,
 )
 from .duel import DuelWorld
-from .env import ArenaEnv, DuelEnv
+from .env import ArenaEnv, DuelEnv, randomize_draw
 from .model import (
     CONTAGION_CHANCE,
     CONTAGION_SEVERITY,
@@ -85,6 +85,7 @@ __all__ = [
     "MAX_CATCHUP_TICKS",
     "Observation",
     "PROFILE_SKILLS",
+    "randomize_draw",
     "REWARD_ENERGY_COST",
     "REWARD_SICKNESS_OPPONENT",
     "REWARD_SICKNESS_SELF",

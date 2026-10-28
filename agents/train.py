@@ -11,19 +11,34 @@ Self-play: обе стороны получают собственный `Transi
 политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
 же такт не учитывается дважды. Оценка (`evaluate`) всегда идёт на отдельных
 held-out seed'ах, без исследования и без обновления весов.
+
+Доменная рандомизация (проблема готовности №7): флаги `--domain-randomize`
+и компания (`--profiles`, `--sickness-min/max`, `--health-factors`,
+`--health-min/max`, `--skill-jitter`) заставляют цикл обучения перед каждым
+эпизодом брать новый домен через `randomize_draw(rng)` среды и применять
+его через `apply_domain(...)`. Draw детерминирован rng'ом с зерном
+`seed + 7919`: одна и та же команда даёт одну и ту же последовательность
+доменов. Held-out оценка по умолчанию идёт на фиксированном каноническом
+домене — иначе матрица силы несравнима между запусками; для оценки по
+распределению нужен явный `--eval-domain-randomize` (усреднение по новым
+доменам того же распределения).
 """
 
 import argparse
 import json
 import os
+import random
 
-from core41 import ArenaEnv, DuelEnv
+from core41 import ArenaEnv, DuelEnv, randomize_draw
 from core41.types import CampaignAction, Transition
 
 from .policies import load_policy, make_policy
 
 WINNERS_RL = ("RL", "agent")
 WINNERS_AI = ("AI", "opponent")
+# Сдвиг зерна доменного rng от игрового seed: разные потоки случайности,
+# воспроизводимые одним и тем же --seed.
+DOMAIN_SEED_SALT = 7919
 
 
 def _make_env(
@@ -49,6 +64,38 @@ def _make_env(
         opponent_policy=opponent,
         **kwargs,
     )
+
+
+def _domain_draw(env, env_name, domain_rng, domain_opts):
+    """Один доменный draw (проблема №7) в виде kwargs для `apply_domain`.
+
+    `duel` — легаси-срез без доменных параметров: возвращаем None, чтобы
+    цикл обучения честно пропускал рандомизацию, а не молча её имитировал.
+    """
+    if env_name == "duel":
+        return None
+    if env_name == "campaign":
+        return env.randomize_draw(
+            rng=domain_rng,
+            skill_jitter=domain_opts.get("skill_jitter", 0.0),
+            sickness_min=domain_opts.get("sickness_min", 0.0),
+            sickness_max=domain_opts.get("sickness_max", 0.6),
+        )
+    return randomize_draw(
+        rng=domain_rng,
+        profiles=domain_opts.get("profiles", ()),
+        health_factors=domain_opts.get("health_factors", ()),
+        sickness_min=domain_opts.get("sickness_min", 0.0),
+        sickness_max=domain_opts.get("sickness_max", 0.6),
+        health_min=domain_opts.get("health_min", 0.75),
+        health_max=domain_opts.get("health_max", 1.25),
+    )
+
+
+def _apply_domain(env, draw):
+    if draw is None:
+        return
+    env.apply_domain(**draw)
 
 
 def _reward_for(env, side):
@@ -187,11 +234,18 @@ def evaluate(
     max_steps=160,
     env_name="arena",
     env_kwargs=None,
+    domain_opts=None,
 ):
     """Оценить `policy` против `opponent` на held-out seed'ах.
 
     Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
     оценка идёт против детерминированного среза мира `WorldEngine`.
+
+    По умолчанию оценка идёт на фиксированном домене из `env_kwargs` —
+    иначе матрица силы несравнима между запусками. Если `domain_opts`
+    задан (не None), каждый эпизод получает новый домен из того же
+    распределения, что и обучение (усреднение по распределению,
+    проблема №7); зерно доменов — отдельное от обучающего.
     """
     env = _make_env(
         env_name,
@@ -201,8 +255,13 @@ def evaluate(
         opponent,
         env_kwargs,
     )
+    domain_rng = (
+        random.Random(seed + DOMAIN_SEED_SALT) if domain_opts is not None else None
+    )
     wins = losses = draws = 0
     for episode in range(episodes):
+        if domain_rng is not None:
+            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
         info = _play_episode(
             env,
             policy,
@@ -242,11 +301,14 @@ def evaluate_matrix(
     max_steps=160,
     env_name="arena",
     env_kwargs=None,
+    domain_opts=None,
 ):
     """Матрица силы: каждая политика против каждого оппонента.
 
     `policies` и `opponents` — словари `{name: policy}` или пары
     `(name, policy)`. Оценка не меняет веса и не использует exploration.
+    `domain_opts` (проблема №7) — усреднение по распределению доменов;
+    по умолчанию None — фиксированный канонический домен.
     """
     rows = []
     for policy_name, policy in _named(policies):
@@ -259,6 +321,7 @@ def evaluate_matrix(
                 max_steps=max_steps,
                 env_name=env_name,
                 env_kwargs=env_kwargs,
+                domain_opts=domain_opts,
             )
             row = {"policy": policy_name, "opponent": opponent_name}
             row.update(stats)
@@ -280,6 +343,9 @@ def train(
     eval_opponents=(),
     resume=None,
     resume_opponent=None,
+    domain_randomize=False,
+    domain_opts=None,
+    eval_domain_randomize=False,
 ):
     # --resume (проблема готовности №5): чекпойнт загружается явно,
     # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
@@ -300,10 +366,18 @@ def train(
         env_kwargs,
     )
     single_agent = bool(getattr(env, "single_agent", False))
+    # Доменная рандомизация (проблема №7): rng с солью от seed — одна и та
+    # же команда воспроизводит ту же последовательность доменов. `duel` —
+    # легаси-срез без доменов: честно сообщаем в stats, что фича не сработала.
+    domain_opts = dict(domain_opts or {})
+    use_domain = bool(domain_randomize) and env_name != "duel"
+    domain_rng = random.Random(seed + DOMAIN_SEED_SALT) if use_domain else None
     wins = 0
     losses = 0
     draws = 0
     for episode in range(episodes):
+        if domain_rng is not None:
+            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
         info = _play_episode(
             env,
             policy,
@@ -325,6 +399,7 @@ def train(
         "self_play": bool(self_play and not single_agent),
         "policy_updates": int(getattr(policy, "updates", 0)),
         "resumed_from": resume or "",
+        "domain_randomize": use_domain,
     }
     if not single_agent:
         stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
@@ -337,6 +412,7 @@ def train(
             name: make_policy(name, seed=eval_seed + index)
             for index, name in enumerate(names)
         }
+        eval_domain_opts = domain_opts if eval_domain_randomize else None
         stats["eval"] = evaluate_matrix(
             {policy_name: policy},
             opponents,
@@ -345,7 +421,11 @@ def train(
             max_steps=max_steps,
             env_name=env_name,
             env_kwargs=env_kwargs,
+            domain_opts=eval_domain_opts,
         )
+        if eval_domain_randomize:
+            for row in stats["eval"]:
+                row["domain_randomized"] = True
     return policy, stats
 
 
@@ -398,6 +478,64 @@ def main(argv=None):
         default="",
         help="явный чекпойнт стартовых весов политики противника",
     )
+    # Доменная рандомизация (проблема готовности №7).
+    parser.add_argument(
+        "--domain-randomize",
+        action="store_true",
+        help=(
+            "новый домен перед каждым обучающим эпизодом (arena/campaign); "
+            "для --env duel игнорируется (легаси-срез без доменов)"
+        ),
+    )
+    parser.add_argument(
+        "--eval-domain-randomize",
+        action="store_true",
+        help=(
+            "усреднять held-out оценку по распределению доменов; по "
+            "умолчанию оценка идёт на фиксированном каноническом домене, "
+            "чтобы матрица силы была сравнима между запусками"
+        ),
+    )
+    parser.add_argument(
+        "--profiles",
+        default="",
+        help="профили арены для жеребьёвки через запятую (CANON,ZEALOT,ORTHODOX)",
+    )
+    parser.add_argument(
+        "--sickness-min",
+        type=float,
+        default=0.0,
+        help="нижняя граница стартовой болезни в домене",
+    )
+    parser.add_argument(
+        "--sickness-max",
+        type=float,
+        default=0.6,
+        help="верхняя граница стартовой болезни в домене",
+    )
+    parser.add_argument(
+        "--health-factors",
+        default="",
+        help="факторы здоровья с джиттером через запятую (aging,illness,stress,care)",
+    )
+    parser.add_argument(
+        "--health-min",
+        type=float,
+        default=0.75,
+        help="нижний множитель выбираемых health-факторов",
+    )
+    parser.add_argument(
+        "--health-max",
+        type=float,
+        default=1.25,
+        help="верхний множитель выбираемых health-факторов",
+    )
+    parser.add_argument(
+        "--skill-jitter",
+        type=float,
+        default=0.0,
+        help="относительный джиттер навыков профиля кампании (0.25 = ±25%)",
+    )
     parser.add_argument("--out", default="")
     parser.add_argument("--eval-out", default="")
     args = parser.parse_args(argv)
@@ -406,6 +544,23 @@ def main(argv=None):
         for name in args.eval_opponents.split(",")
         if name.strip()
     )
+    domain_opts = {
+        "profiles": tuple(
+            name.strip().upper()
+            for name in args.profiles.split(",")
+            if name.strip()
+        ),
+        "health_factors": tuple(
+            name.strip()
+            for name in args.health_factors.split(",")
+            if name.strip()
+        ),
+        "sickness_min": args.sickness_min,
+        "sickness_max": args.sickness_max,
+        "health_min": args.health_min,
+        "health_max": args.health_max,
+        "skill_jitter": args.skill_jitter,
+    }
     policy, stats = train(
         episodes=args.episodes,
         seed=args.seed,
@@ -419,6 +574,9 @@ def main(argv=None):
         eval_opponents=eval_opponents,
         resume=args.resume or None,
         resume_opponent=args.resume_opponent or None,
+        domain_randomize=args.domain_randomize,
+        domain_opts=domain_opts,
+        eval_domain_randomize=args.eval_domain_randomize,
     )
     print(json.dumps(stats, ensure_ascii=False))
     if args.out:
