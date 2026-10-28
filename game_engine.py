@@ -1,6 +1,5 @@
 import math
 import os
-import random
 import subprocess
 import sys
 import time as _time_mod
@@ -180,29 +179,17 @@ except ImportError:
 
 
 try:
-    from simulation import (
-        PARAMETERS,
-        PROFILES,
-        MULT,
-        TYPES,
-        ACTIONS,
-        Agent,
-        RLAgent,
-        Environment,
-        resolve_attack,
-        check_capture,
-        p_success,
-    )
+    from core41 import ArenaMatch, CORE_ACTIONS as ACTIONS, CAPTURE_STREAK
 
     LOG.info(
-        "simulation импортирован: ACTIONS=%s profiles=%s"
-        % ([a[0] for a in ACTIONS], list(PROFILES))
+        "core41 runtime импортирован: ACTIONS=%s"
+        % ([a[0] for a in ACTIONS],)
     )
 except Exception as e:
-    LOG.exc("ИМПОРТ SIMULATION НЕ УДАЛСЯ", e)
+    LOG.exc("ИМПОРТ CORE41 RUNTIME НЕ УДАЛСЯ", e)
     raise
 
-from agents import PolicyAgent
+from agents import BDIPolicy, QTablePolicy
 
 
 def compute_window_size():
@@ -256,17 +243,25 @@ FPS = 60
 
 
 DEFENSE_COLORS = {
+    "force": (220, 80, 50),
+    "info": (70, 130, 220),
+    "REST": (140, 140, 140),
     "FIRE": (220, 80, 50),
     "WATER": (70, 130, 220),
     "EARTH": (90, 170, 90),
 }
 ACTION_LABELS = {
+    "force": "УДАР",
+    "info": "ДАВЛЕНИЕ",
+    "REST": "ПОКОЙ",
     "FIRE": "АТАКА-1",
     "WATER": "АТАКА-2",
     "EARTH": "АТАКА-3",
-    "REST": "ПОКОЙ",
 }
 DEFENSE_LABELS = {
+    "force": "F",
+    "info": "I",
+    "REST": "-",
     "FIRE": "A",
     "WATER": "B",
     "EARTH": "C",
@@ -581,28 +576,6 @@ class Layout:
         )
 
 
-def _detect_form_intention_arity(cls):
-    import inspect
-
-    try:
-        sig = inspect.signature(cls.form_intention)
-        n = 0
-        for prm in sig.parameters.values():
-            if prm.kind in (prm.POSITIONAL_ONLY, prm.POSITIONAL_OR_KEYWORD):
-                n += 1
-        LOG.debug(
-            "_detect_form_intention_arity(%s): параметры=%s -> арность=%s"
-            % (cls.__name__, list(sig.parameters), n)
-        )
-        return n
-    except Exception as exc:
-        LOG.warn(
-            "_detect_form_intention_arity: интроспекция не удалась (%r); "
-            "использую сигнатуру по умолчанию form_intention(eps)" % exc
-        )
-        return 2
-
-
 class MatchEngine:
 
     def __init__(
@@ -615,84 +588,71 @@ class MatchEngine:
         profile_ai="CANON",
     ):
         LOG.info(
-            "MatchEngine: новая партия seed=%s steps=%s env=%s "
-            "profiles=%s/%s" % (seed, steps, with_env, profile_rl, profile_ai)
+            "MatchEngine: core41 runtime seed=%s steps=%s profiles=%s/%s"
+            % (seed, steps, profile_rl, profile_ai)
         )
-        self.seed = seed
-        self.rng = random.Random(seed)
-
-        self._rl_rng = random.Random(seed ^ 0x5EED)
-
-        self._fi_arity = _detect_form_intention_arity(RLAgent)
-        LOG.debug(
-            "MatchEngine: сигнатура RLAgent.form_intention: "
-            "арность=%s (3 - принимает rng параметром)" % self._fi_arity
+        self.seed = int(seed)
+        self.steps_total = int(steps)
+        self.with_env = bool(with_env)
+        self.core = ArenaMatch(
+            seed=self.seed,
+            steps=self.steps_total,
+            rl_policy=QTablePolicy(seed=self.seed, table=q_table),
+            ai_policy=BDIPolicy(seed=self.seed ^ 0xB01),
+            profile_rl=profile_rl,
+            profile_ai=profile_ai,
         )
-        self.steps_total = steps
-        self.step = 0
-        self.winner = None
-        self.finished = False
-        self.events = []
-        self.rl_hist, self.ai_hist = [], []
+        self.rl = self.core.rl
+        self.ai = self.core.ai
+        self.env = None
 
-        self.rl = RLAgent(q=q_table, profile=profile_rl)
-        self.ai = PolicyAgent(profile=profile_ai)
-        self.with_env = with_env
-        self.env = (
-            Environment(members=[self.rl, self.ai]) if with_env else None
-        )
+    @property
+    def step(self):
+        return self.core.step
 
-        self.dom_rl = 0
-        self.dom_ai = 0
+    @property
+    def winner(self):
+        return self.core.winner
 
-        self.rl_rest_ticks = 0
-        self.ai_rest_ticks = 0
+    @property
+    def finished(self):
+        return self.core.finished
 
-        self.last_rl_action = ("REST", 0)
-        self.last_ai_action = ("REST", 0)
+    @property
+    def events(self):
+        return self.core.events
 
-    def _check_capture(self):
-        rl, ai = self.rl, self.ai
-        from simulation import (
-            CAPTURE_RATIO,
-            CAPTURE_STREAK,
-            CAPTURE_FRAC,
-            L_STEP,
-        )
+    @property
+    def rl_hist(self):
+        return self.core.rl_hist
 
-        self.dom_rl = (
-            self.dom_rl + 1
-            if (
-                rl.energy_pool >= CAPTURE_RATIO * ai.energy_pool
-                and rl.force > ai.force
-            )
-            else 0
-        )
-        self.dom_ai = (
-            self.dom_ai + 1
-            if (
-                ai.energy_pool >= CAPTURE_RATIO * rl.energy_pool
-                and ai.force > rl.force
-            )
-            else 0
-        )
-        if self.dom_rl >= CAPTURE_STREAK:
-            self.dom_rl = self.dom_ai = 0
-            sev = 2.0 if ai.in_open else 1.0
-            cap = int(ai.force * min(CAPTURE_FRAC * sev, 0.5))
-            ai.force = max(1, ai.force - cap)
-            ai.rest_units = max(0.0, ai.rest_units - cap / L_STEP)
-            rl.gain(cap)
-            return "RL", cap
-        if self.dom_ai >= CAPTURE_STREAK:
-            self.dom_ai = self.dom_rl = 0
-            sev = 2.0 if rl.in_open else 1.0
-            cap = int(rl.force * min(CAPTURE_FRAC * sev, 0.5))
-            rl.force = max(1, rl.force - cap)
-            rl.rest_units = max(0.0, rl.rest_units - cap / L_STEP)
-            ai.gain(cap)
-            return "AI", cap
-        return None, 0
+    @property
+    def ai_hist(self):
+        return self.core.ai_hist
+
+    @property
+    def dom_rl(self):
+        return self.core.dom_rl
+
+    @property
+    def dom_ai(self):
+        return self.core.dom_ai
+
+    @property
+    def rl_rest_ticks(self):
+        return self.core.rl_rest_ticks
+
+    @property
+    def ai_rest_ticks(self):
+        return self.core.ai_rest_ticks
+
+    @property
+    def last_rl_action(self):
+        return self.core.last_rl_action
+
+    @property
+    def last_ai_action(self):
+        return self.core.last_ai_action
 
     def step_tick(self, forced_rl_action=None):
         if self.finished:
@@ -701,197 +661,21 @@ class MatchEngine:
                 "(winner=%s step=%s)" % (self.winner, self.step)
             )
             return
-        rl, ai, env = self.rl, self.ai, self.env
-        rng = self.rng
-        self.events = []
-
-        rl.sense(ai, rng)
-        ai.sense(rl, rng)
-
-        rl.rotate_defense(rng)
-        ai.rotate_defense(rng)
-        if env is not None:
-            env.rotate_defense(rng)
-
-        rl.upkeep()
-        ai.upkeep()
-        rl.tick_energy()
-        ai.tick_energy()
-        rl.tick_input_state()
-        ai.tick_input_state()
-        if env is not None:
-            env.tick()
-
-        eps = (
-            rl.epsilon()
-            if hasattr(rl, "epsilon")
-            else max(0.05, 1.0 - self.step / 300)
-        )
+        self.core.step_tick(forced_rl_action=forced_rl_action)
         LOG.debug(
-            "tick %s: фаза намерений eps=%.3f forced=%s"
-            % (self.step, eps, forced_rl_action)
-        )
-        if forced_rl_action is not None:
-            a_idx = int(forced_rl_action) % len(ACTIONS)
-            LOG.debug(
-                "tick %s: RL действует по команде игрока: idx=%s"
-                % (self.step, a_idx)
-            )
-
-            st_probe = rl.skey()
-            if st_probe not in rl.Q:
-                rl.Q[st_probe] = [0.0] * len(ACTIONS)
-        else:
-
-            if self._fi_arity == 3:
-                a_idx = rl.form_intention(eps, self._rl_rng)
-            else:
-                import simulation as _sim
-
-                _saved = _sim.random
-                _sim.random = self._rl_rng
-                try:
-                    a_idx = rl.form_intention(eps)
-                finally:
-                    _sim.random = _saved
-        act_name, frac = ACTIONS[a_idx]
-        st_before = rl.skey()
-        f_before = rl.force
-
-        if rl.rest_if_starving():
-            w_rl = 0
-            act_name = "REST"
-            LOG.debug("tick %s: RL рефлекс голода -> REST" % self.step)
-        else:
-            w_rl = rl.commit(act_name, rl.energy_pool * frac)
-        self.last_rl_action = (act_name, w_rl)
-
-        ai_act, ai_work = ai.form_intention()
-        if ai.rest_if_starving():
-            w_ai = 0
-            ai_act = "REST"
-            LOG.debug("tick %s: AI рефлекс голода -> REST" % self.step)
-        else:
-            w_ai = ai.commit(ai_act, ai_work)
-        self.last_ai_action = (ai_act, w_ai)
-        LOG.debug(
-            "tick %s: RL act=%s work=%s | AI act=%s work=%s"
-            % (self.step, act_name, w_rl, ai_act, w_ai)
-        )
-
-        ai_force_before = ai.force
-        ev_rl = self._resolve_with_events(rl, ai, w_rl, "rl")
-        ev_ai = self._resolve_with_events(ai, rl, w_ai, "ai")
-        if w_rl:
-            self.events.append(ev_rl)
-        if w_ai:
-            self.events.append(ev_ai)
-
-        rl.learn(st_before, a_idx, rl.force - f_before, rl.skey())
-
-        winner, cap = self._check_capture()
-        observe_ai_reward = getattr(ai, "observe_reward", None)
-        if observe_ai_reward is not None:
-            observe_ai_reward(
-                ai.force - ai_force_before,
-                done=bool(winner),
-            )
-        if winner:
-            LOG.info(
-                "tick %s: CAPTURE - победитель %s (cap=%s)"
-                % (self.step, winner, cap)
-            )
-            self.events.append(
-                {"kind": "capture", "winner": winner, "cap": cap}
-            )
-            self.winner = winner
-            self.finished = True
-
-        self.rl_hist.append(rl.force)
-        self.ai_hist.append(ai.force)
-        if w_rl == 0:
-            self.rl_rest_ticks += 1
-        if w_ai == 0:
-            self.ai_rest_ticks += 1
-        self.step += 1
-        if not self.finished and self.step >= self.steps_total:
-            LOG.info(
-                "tick %s: лимит шагов (%s) - партия без решения"
-                % (self.step, self.steps_total)
-            )
-            self.finished = True
-        LOG.debug(
-            "tick %s -> F(RL)=%.1f F(AI)=%.1f E(RL)=%s E(AI)=%s "
-            "env.F=%.1f env.open=%s RL.open=%s AI.open=%s finished=%s"
+            "tick %s -> F(RL)=%.1f F(AI)=%.1f E(RL)=%.1f E(AI)=%.1f "
+            "open(RL)=%s open(AI)=%s finished=%s"
             % (
                 self.step,
-                rl.force,
-                ai.force,
-                rl.energy_pool,
-                ai.energy_pool,
-                env.force if env else -1,
-                env.in_open if env else False,
-                rl.in_open,
-                ai.in_open,
+                self.rl.force,
+                self.ai.force,
+                self.rl.energy_pool,
+                self.ai.energy_pool,
+                self.rl.in_open,
+                self.ai.in_open,
                 self.finished,
             )
         )
-
-    def _resolve_with_events(self, att, dfn, work, who):
-        f_att_before = att.force
-        res = {
-            "kind": "transfer",
-            "frm": who,
-            "work": work,
-            "hit": False,
-            "gained": 0,
-            "type": att.last_act if work else "REST",
-        }
-
-        captured = {}
-
-        class _ProbeRng:
-            def __init__(self, base):
-                self._base = base
-                self._first_done = False
-
-            def random(self):
-                v = self._base.random()
-                if not self._first_done:
-                    captured["hit_roll"] = v
-                    self._first_done = True
-                return v
-
-            def __getattr__(self, name):
-                return getattr(self._base, name)
-
-        probe = _ProbeRng(self.rng)
-        resolve_attack(att, dfn, work, probe, self.env)
-        p = (
-            p_success(att.last_act, work, dfn.defense, dfn.last_work)
-            if work
-            else 1.0
-        )
-
-        if work and captured.get("hit_roll", 1.0) < p:
-            res["hit"] = True
-        delta = att.force - f_att_before
-        cost = int(PARAMETERS["COST_FRACTION"] * work)
-        if res["hit"]:
-            res["gained"] = max(0, int(delta + cost))
-        LOG.debug(
-            "transfer %s: type=%s work=%s p=%.2f roll=%s hit=%s gained=%s"
-            % (
-                who,
-                res["type"],
-                work,
-                p,
-                captured.get("hit_roll"),
-                res["hit"],
-                res["gained"],
-            )
-        )
-        return res
 
 
 _GLYPHS_ASCII = {
@@ -1791,10 +1575,34 @@ class GameApp:
                 ),
             )
             blit_row(
-                f"members: {len(e.members)} bonus: "
-                f"{PARAMETERS['ENV_BONUS'] if e.in_open else 0:+.2f}",
+                f"members: {len(e.members)} bonus: {0.0:+.2f}",
                 COL_DIM,
             )
+        else:
+            r = card(L_.env_card, border=(60, 64, 74))
+            x, y = r.x + 8, r.y + 5
+            dy = max(12, (r.height - 10) // 3)
+            for txt, col in (
+                (
+                    self.L("СРЕДА: без актора", "ENVIRONMENT: none"),
+                    COL_DIM,
+                ),
+                (
+                    self.L(
+                        "core41: две стороны, один такт",
+                        "core41: two sides, one tick",
+                    ),
+                    COL_DIM,
+                ),
+                (
+                    f"steps={m.step}/{m.steps_total}",
+                    COL_DIM,
+                ),
+            ):
+                t_ = self.font_s.render(txt, True, col)
+                if y + t_.get_height() <= r.bottom - 2:
+                    s.blit(t_, (x, y))
+                y += dy
 
         r = card(L_.status_zone, border=(60, 64, 74))
         x, y = r.x + 8, r.y + 5
@@ -1817,17 +1625,19 @@ class GameApp:
             s.blit(t_, (x, y))
         y += dy
         t_ = small.render(
-            f"profiles: RL p={m.rl.p} AI p={m.ai.p}", True, COL_DIM
+            f"profiles: {m.rl.profile}/{m.ai.profile}", True, COL_DIM
         )
         if t_.get_width() > bw:
-            t_ = small.render(f"p: RL={m.rl.p} AI={m.ai.p}", True, COL_DIM)
+            t_ = small.render(
+                f"{m.rl.profile[:3]}/{m.ai.profile[:3]}", True, COL_DIM
+            )
         if y + t_.get_height() <= r.bottom - 2:
             s.blit(t_, (x, y))
         y += dy
         streak = max(m.dom_rl, m.dom_ai)
         if streak:
             who = "RL dominates" if m.dom_rl else "AI dominates"
-            frac = streak / PARAMETERS["CAPTURE_STREAK"]
+            frac = streak / CAPTURE_STREAK
             if y + 20 <= r.bottom - 2:
                 pygame.draw.rect(s, (50, 52, 60), (x, y + 2, bw, 7))
                 pygame.draw.rect(s, COL_OPEN, (x, y + 2, int(bw * frac), 7))
@@ -2100,7 +1910,7 @@ class GameApp:
         )
         tag = (
             self.L(
-                "ВЫБРАНО ИГРОКОМ (клик или 1-7)", "PLAYER PICK (click or 1-7)"
+                "ВЫБРАНО ИГРОКОМ (клик или 1-5)", "PLAYER PICK (click or 1-5)"
             )
             if self.manual_mode
             else self.L(
@@ -2200,13 +2010,12 @@ class GameApp:
                 "TAB / кнопка STEP - один такт (работает и в паузе!)",
                 "+/- или стрелки / SPEED - темп   M / MODE - режим "
                 "игрок/наблюдатель",
-                "1..7 или клик по плитке - действие RL (сразу видно выбор)",
+                "1..5 или клик по плитке - действие RL (сразу видно выбор)",
                 "F1/H - скрыть справку   ESC/Q или кнопка QUIT - выход",
                 "",
-                "Круг = автомат (радиус ~ log F, рамка = тип защиты).",
+                "Круг = автомат (радиус ~ log F, рамка = форма работы).",
                 "Кольцо = давление на вход w_adopt/ON(F); жёлтая пульсация -",
-                "открытое окно Шмитта. Золотая рамка экрана - окно "
-                "конъюнктуры среды.",
+                "открытое окно Шмитта.",
                 "Три колонки HUD: метрики | арена+действия | кнопки+график.",
             ]
         else:
@@ -2214,13 +2023,13 @@ class GameApp:
                 "SPACE / START button - pause/run    R / RESET - new match",
                 "TAB / STEP button - single tick (works while paused!)",
                 "+/- or arrows / SPEED - rate   M / MODE - observe/manual",
-                "1..7 or click a tile - pick RL action (selection is "
+                "1..5 or click a tile - pick RL action (selection is "
                 "highlighted)",
                 "F1/H - toggle help   ESC/Q or QUIT button - quit",
                 "",
-                "Circle = automaton (radius ~ log F, outline = defense type).",
+                "Circle = automaton (radius ~ log F, outline = work form).",
                 "Ring = input pressure w_adopt/ON(F); yellow pulse =",
-                "open Schmitt window. Golden frame = environment window.",
+                "open Schmitt window.",
                 "Three columns: metrics | arena+actions | buttons+graph.",
             ]
         L_ = self.layout

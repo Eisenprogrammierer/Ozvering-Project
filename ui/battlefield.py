@@ -1,9 +1,14 @@
 from dataclasses import dataclass, field
 import random
 
-import simulation as S
-
-from agents import PolicyAgent
+from agents import BDIPolicy
+from core41 import (
+    Action,
+    ArenaAgent,
+    PROFILE_SKILLS,
+    check_capture,
+    run_duel_tick,
+)
 
 GRID_W, GRID_H = 11, 9
 TILE_W, TILE_H = 68, 34
@@ -75,13 +80,18 @@ class Commander:
     morale: int = 70
     stance: str = "balanced"
     ai: bool = False
-    agent: S.Agent = field(init=False, repr=False)
+    seed: int = 0
+    agent: ArenaAgent = field(init=False, repr=False)
 
     def __post_init__(self):
-        self.agent = (
-            PolicyAgent(profile=self.profile)
-            if self.ai
-            else S.Agent(profile=self.profile)
+        policy = (
+            BDIPolicy(seed=self.seed) if self.ai else None
+        )
+        self.agent = ArenaAgent(
+            self.side,
+            policy=policy,
+            profile=self.profile,
+            seed=self.seed,
         )
 
     @property
@@ -97,17 +107,25 @@ class Commander:
         return max(1.0, self.agent.rest_ceiling)
 
     @property
+    def max_energy(self):
+        return max(1.0, self.agent.max_energy)
+
+    @property
     def force_ratio(self):
         return self.force / self.ceiling
 
     def set_profile(self, profile):
-        if profile not in S.PROFILES:
+        if profile not in PROFILE_SKILLS:
             return
         self.profile = profile
         self.agent.set_profile(profile)
 
     def intention(self):
-        return self.agent.form_intention() if self.ai else ("REST", 0)
+        if not self.ai:
+            return "REST", 0
+        action = self.agent.last_action
+        name = action.form if action.kind == "WORK" else "REST"
+        return name, self.agent.last_work
 
 
 @dataclass
@@ -438,7 +456,11 @@ class BattlefieldModel:
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
         self.player = Commander(
-            "Капитан", "player", player_profile, portrait="portrait_player"
+            "Капитан",
+            "player",
+            player_profile,
+            portrait="portrait_player",
+            seed=self.seed,
         )
         self.enemy = Commander(
             "Визави",
@@ -446,6 +468,7 @@ class BattlefieldModel:
             enemy_profile,
             portrait="portrait_enemy",
             ai=True,
+            seed=self.seed + 1,
         )
         self.units = {
             "player": Unit(
@@ -466,13 +489,15 @@ class BattlefieldModel:
         self.winner_side = None
         self.dom_player = 0
         self.dom_enemy = 0
-        self.env = S.Environment() if with_env else None
+        self.env = None
+        self.with_env = bool(with_env)
         self.log = []
         self.roleplay = RoleplayState(self)
         self._attack_used = False
         self._low_force_seen = False
         self._message = ("", "")
         self._enemy_rest = False
+        self.last_events = []
         self._log(
             "Развёртывание: займите высоту или вынудите противника "
             "раскрыть вход.",
@@ -597,47 +622,67 @@ class BattlefieldModel:
             self._enemy_move()
             self._end_turn()
 
-    def _player_intent(self, me, opp, rng):
-        act, frac = getattr(self, "_player_act", ("REST", 0.0))
-        work = int(me.energy_pool * frac) if frac > 0 else 0
-        return act, work
-
-    def _enemy_intent(self, me, opp, rng):
-        if self._enemy_rest:
-            return "REST", 0
-        return self.enemy.intention()
+    def _action_for_order(self, act, frac):
+        if act == "REST" or frac <= 0:
+            return Action("REST", form="rest")
+        form = act if act in ("force", "info") else "force"
+        return Action("WORK", form=form, fraction=float(frac))
 
     def _duel(
         self, player_act, player_frac, label, finish=True, enemy_rest=False
     ):
-        before_p, before_e = self.player.force, self.enemy.force
-        self._player_act = (player_act, player_frac)
-        self._enemy_rest = enemy_rest
-        S.run_tick(
-            self.player.agent,
-            self.enemy.agent,
-            self._player_intent,
-            self._enemy_intent,
-            self.rng,
-            self.env,
-        )
+        before_p = self.player.force
+        before_e = self.enemy.force
+        before_e_energy = self.enemy.energy
+
+        player_action = self._action_for_order(player_act, player_frac)
+        if enemy_rest:
+            enemy_action = self.enemy.agent.record_action(
+                Action("REST", form="rest"), self.player.agent
+            )
+        else:
+            enemy_action, _ = self.enemy.agent.choose_action(
+                self.player.agent, explore=True
+            )
+
         self._enemy_rest = False
+        events, _player_result, _enemy_result = run_duel_tick(
+            self.player.agent,
+            player_action,
+            self.enemy.agent,
+            enemy_action,
+            self.rng,
+            left_id="player",
+            right_id="enemy",
+        )
+        self.last_events = events
         self._sync_morale(before_p, before_e)
-        winner, self.dom_player, self.dom_enemy = S.check_capture(
+
+        winner, self.dom_player, self.dom_enemy = check_capture(
             self.player.agent,
             self.enemy.agent,
             self.dom_player,
             self.dom_enemy,
-            winner_ai="AI",
         )
-        observe_reward = getattr(
-            self.enemy.agent, "observe_reward", None
+        if winner is None:
+            if self.enemy.force <= 0:
+                winner = "RL"
+            elif self.player.force <= 0:
+                winner = "AI"
+
+        reward_enemy = (
+            (self.enemy.force - before_e) / self.enemy.ceiling
+            + (before_p - self.player.force) / self.player.ceiling
+            - 0.6 * (before_e_energy - self.enemy.energy)
+            / self.enemy.max_energy
         )
-        if observe_reward is not None:
-            observe_reward(
-                self.enemy.force - before_e,
-                done=bool(winner),
-            )
+        self.enemy.agent.learn(
+            reward_enemy,
+            self.enemy.agent.observe(self.player.agent),
+            done=bool(winner),
+            opponent=self.player.agent,
+        )
+
         if winner:
             self._set_winner(winner)
             return

@@ -241,12 +241,18 @@ class BDIPolicy:
 
 class QTablePolicy:
 
-    def __init__(self, seed=0, learning_rate=0.1, discount=0.94):
+    def __init__(
+        self,
+        seed=0,
+        learning_rate=0.1,
+        discount=0.94,
+        table=None,
+    ):
         self.rng = random.Random(seed)
         self.learning_rate = float(learning_rate)
         self.discount = float(discount)
         self.epsilon = 0.22
-        self.table = {}
+        self.table = table if table is not None else {}
 
     def key(self, observation, action):
         return (

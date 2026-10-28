@@ -1,7 +1,5 @@
 import pygame
 
-import simulation as S
-
 from .. import theme, widgets
 from ..battlefield import (
     ATTACK_ORDERS,
@@ -528,9 +526,7 @@ class BattlefieldScene(Scene):
             t("сила %d" % cmd.force, "force %d" % cmd.force),
         )
         y += 20
-        energy_ratio = min(
-            1.0, cmd.energy / max(1, S.E_MAX_MULT * max(1, cmd.agent.regen))
-        )
+        energy_ratio = min(1.0, cmd.energy / max(1.0, cmd.max_energy))
         self._bar(
             s,
             pygame.Rect(info_x, y, info_w, 14),

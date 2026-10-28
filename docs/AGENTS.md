@@ -1,7 +1,7 @@
 # Обучаемые агенты и RL-срез
 
 **Статус:** текущая реализация. Это первый слой, а не полная миграция мира.
-**Дата:** 2026-10-27
+**Дата:** 2026-10-28
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
 [`MODEL.md`](MODEL.md).
@@ -22,6 +22,9 @@
 - `DuelWorld` — два автомата, обработчики, давление, окно входа,
   логистическая вероятность успеха;
 - `DuelEnv` — Gym-подобный интерфейс `reset/step` для обучения;
+- `arena.py` — runtime активной арены: `ArenaAgent`, `ArenaMatch`,
+  `run_duel_tick`, `check_capture`, формы `force`/`info` и UI-совместимый
+  фасад (`force`, `energy_pool`, `defense`, `w_adopt`, `Q`, истории);
 - `Action`, `Observation`, `Transition` — общий контракт агентского слоя.
 
 `core41` не является полным миром: в нём нет кампании, здоровья, смерти,
@@ -33,30 +36,41 @@
   TD-оценкой; обновляется online;
 - `QTablePolicy` — табличный baseline;
 - `RandomPolicy` — baseline для сравнения;
-- `PolicyAgent` — мост к текущему `simulation.Agent`; его использует арена;
+- `PolicyAgent` — совместимый мост к `simulation.Agent` для легаси-тестов и
+  экспериментов; активные сцены его больше не создают;
 - `agents.train` — CLI обучения на `DuelEnv`.
 
 `PolicyAgent` сохраняет API `simulation.Agent` (`force`, `energy_pool`,
-`sense`, `form_intention`, `rest_if_starving` и т.д.), поэтому UI и
-`game_engine.py` не пришлось переписывать целиком.
+`sense`, `form_intention`, `rest_if_starving` и т.д.), поэтому старые тесты и
+эксперименты можно запускать без переписывания. Активная арена использует
+`ArenaAgent` и одну универсальную энергию.
 
 ---
 
 ## 2. Что изменилось в игре
 
-Активный противник в `game_engine.py` и `ui/battlefield.py` — `PolicyAgent`.
-`UtilityAI` больше не создаётся в игровом потоке; он остаётся в
-`simulation.py` как baseline и используется историческими экспериментами и
-`tests/test_canon.py`.
+Обе активные сцены работают на `core41`:
 
-`simulation.check_capture` получил необязательные метки победителя
-(`winner_rl`, `winner_ai`). Значения по умолчанию сохранены для легаси-тестов;
-арена передаёт `winner_ai="AI"`.
+- `game_engine.MatchEngine` создаёт `ArenaMatch`; RL-сторона — `QTablePolicy`
+  (Q-learning), BDI-сторона — `BDIPolicy`. `PolicyAgent`, `RLAgent` и
+  типизированная энергия в игровой поток не входят;
+- `ui/battlefield.Commander` создаёт `ArenaAgent`; человек управляет своей
+  стороной, противник использует `BDIPolicy`;
+- дуэль на тактическом поле идёт через `core41.run_duel_tick`, захват — через
+  `core41.check_capture`;
+- `UtilityAI` больше не создаётся в игровом потоке; он остаётся в
+  `simulation.py` как baseline для `tests/test_canon.py` и исторических
+  экспериментов.
+
+`simulation.check_capture` сохраняет необязательные метки победителя
+(`winner_rl`, `winner_ai`) для легаси-тестов. Активные сцены используют
+`core41.check_capture`, а `simulation.py` не импортируется из `game_engine.py`
+и `ui/battlefield.py`.
 
 Обучение в игре:
 
-- `MatchEngine` вызывает `PolicyAgent.observe_reward(...)` после такта;
-- `BattlefieldModel` делает то же после дуэли;
+- `ArenaMatch` обновляет обе политики после каждого такта;
+- `BattlefieldModel` обновляет BDI-политику противника после дуэли;
 - награда — изменение силы и энергии, а не внешняя команда.
 
 Это online-обучение на коротких партиях. Оно не заменяет офлайн-тренировку и
@@ -84,15 +98,17 @@ CLI печатает JSON со статистикой (`wins`, `losses`, `draws`
 Загрузить веса в агента можно так:
 
 ```python
-from agents import BDIPolicy, PolicyAgent
+from agents import BDIPolicy
+from core41 import ArenaAgent
 
-agent = PolicyAgent()
-agent.policy = BDIPolicy()
-agent.load_policy("saves/bdi.json")
+policy = BDIPolicy()
+policy.load("saves/bdi.json")
+agent = ArenaAgent("player", policy=policy, seed=0)
 ```
 
-Автоматическая загрузка чекпойнта в игру пока не включена: это следующий шаг,
-после появления стабильного формата и оценки качества.
+Старый `PolicyAgent` по-прежнему умеет `load_policy("saves/bdi.json")` для
+легаси-моста. Автоматическая загрузка чекпойнта в игру пока не включена: это
+следующий шаг, после появления стабильного формата и оценки качества.
 
 ---
 
@@ -100,11 +116,13 @@ agent.load_policy("saves/bdi.json")
 
 ```text
 Observation: F/E свои и противника, давление, окно входа, время, формы
-Action:      REST | WORK(form, fraction)
+Action:      REST | WORK(form, fraction), form = force | info
 Transition:  observation, action, reward, next_observation, done, next_actions
 ```
 
-`Policy`-объект должен уметь:
+`ArenaAgent` — это автомат плюс политика. Он не хранит типизированную
+энергию: `energy_pool` — проекция единственного `E`, а `form` выбирает канал
+работы. `Policy`-объект должен уметь:
 
 - `act(observation, actions, explore=True) -> Action`;
 - `observe(transition) -> None`;
@@ -118,14 +136,17 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 ## 5. Ограничения и следующий шаг
 
 - `simulation.py` всё ещё использует контекстные фазы `WATER/FIRE/EARTH`;
-  `PolicyAgent` работает поверх этого легаси-моста.
-- `core41` — дуэль, а не мир; `campaign/world.py` не мигрирован.
+  это легаси-канон и baseline, но не активный игровой поток.
+- `core41.arena` — дуэль/арена, а не мир; `campaign/world.py` не мигрирован.
 - Нет здоровья, смерти, распада организации, реального времени и
   production-планировщика.
+- Нет отдельного актора среды в новом runtime; флаг `with_env` сохранён в
+  фасаде, но `env=None`.
 - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
 - Нет PyTorch-зависимости; текущие политики линейные/табличные.
+- Нет автоматической загрузки production-чекпойнта в игру.
 - `UtilityAI` не удалён: он нужен как воспроизводимый baseline.
 
-Следующий инженерный шаг — сделать `core41` runtime-ом кампании, затем
-подключить `PolicyAgent` к её циклам и только после этого обучать
-production-модель.
+Следующий инженерный шаг — перенести `core41` в кампанийный runtime, закрыть
+здоровье/смерть и реальное время, затем подключить production-чекпойнт BDI к
+активным сценам.

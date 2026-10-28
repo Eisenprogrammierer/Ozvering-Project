@@ -1,6 +1,7 @@
 import random
 
 import simulation as S
+from core41 import ArenaAgent
 from ui import battlefield as B
 
 
@@ -45,11 +46,12 @@ def test_attack_requires_contact_and_resolves_model_tick():
     m.player_unit.col, m.player_unit.row = 5, 4
     m.enemy_unit.col, m.enemy_unit.row = 6, 4
     m.command_points = 3
-    before = (m.player.force, m.enemy.force)
+    before_energy = m.player.energy
     ok, _, _ = m.issue_order("ATTACK")
     assert ok
-    after = (m.player.force, m.enemy.force)
-    assert after != before
+    assert m.player.energy < before_energy
+    assert m.player.agent.last_action.kind == "WORK"
+    assert m.last_events
     assert m.turn >= 2
 
 
@@ -72,3 +74,11 @@ def test_objective_owner_and_bonus():
     cp = m.command_points
     m._end_turn()
     assert m.command_points > cp
+
+
+def test_battlefield_uses_core41_runtime():
+    m = B.BattlefieldModel(seed=0)
+    assert m.env is None
+    assert isinstance(m.player.agent, ArenaAgent)
+    assert isinstance(m.enemy.agent, ArenaAgent)
+    assert not hasattr(m.enemy.agent, "energy_types")
