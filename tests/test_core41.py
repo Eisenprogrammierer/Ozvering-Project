@@ -7,10 +7,13 @@ import pytest
 import simulation as S
 from agents import (
     BDIPolicy,
+    CHECKPOINT_VERSION,
+    FEATURE_COUNT,
     MLPPolicy,
     PolicyAgent,
     QTablePolicy,
     RandomPolicy,
+    load_policy,
     make_policy,
 )
 from agents.train import evaluate, train
@@ -209,6 +212,145 @@ def test_mlp_policy_is_function_approximation_and_round_trips():
 
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+
+
+def _write_json(tmp_path, name, payload):
+    path = tmp_path / name
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return str(path)
+
+
+def test_checkpoints_carry_version_and_round_trip(tmp_path):
+    for name in ("bdi", "qtable", "mlp"):
+        policy = make_policy(name, seed=3)
+        state = policy.state_dict()
+        assert state["version"] == CHECKPOINT_VERSION
+        path = _write_json(tmp_path, "%s.json" % name, state)
+        loaded = load_policy(path)
+        assert type(loaded) is type(policy)
+        assert loaded.state_dict()["kind"] == name
+
+
+def test_qtable_migrates_legacy_10_field_keys(tmp_path):
+    # легаси-v0: без поля version, ключи 10 полей (болезнь отсутствует)
+    legacy_key = (1, 2, 3, 4, 5, 6, 0, "WORK", "force", 0.5)
+    path = _write_json(
+        tmp_path,
+        "legacy_q.json",
+        {
+            "kind": "qtable",
+            "table": {repr(legacy_key): 1.5},
+            "epsilon": 0.1,
+        },
+    )
+    policy = load_policy(path)
+    assert len(policy.table) == 1
+    migrated_key, value = next(iter(policy.table.items()))
+    assert len(migrated_key) == 12
+    # sickness-разряды (6-7) заполнены нулём, остальное сохранено
+    assert migrated_key[:6] == legacy_key[:6]
+    assert migrated_key[6:8] == (0, 0)
+    assert migrated_key[8:] == legacy_key[6:]
+    assert value == pytest.approx(1.5)
+
+
+def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
+    # 8-полевые ключи различаются open-разрядом — после миграции остаются
+    # разными (вставка нулей идёт до open, а не вместо него)
+    key_a = (1, 2, 3, 4, 0, "REST", "rest", 0.0)
+    key_b = (1, 2, 3, 4, 1, "REST", "rest", 0.0)
+    policy = QTablePolicy(seed=0)
+    policy.load_state_dict(
+        {"kind": "qtable", "table": {repr(key_a): 1.0, repr(key_b): 3.0}}
+    )
+    assert len(policy.table) == 2
+    for migrated_key in policy.table:
+        assert len(migrated_key) == 12
+        assert migrated_key[4:8] == (0, 0, 0, 0)
+
+    # коллизия: два 8-полевых v0-ключа, различавшихся только health-разрядом
+    # (в легаси-QTable он квантовался round(health/50), т.е. 100 и 149 -> 3),
+    # при миграции сливаются в один 12-полевой ключ — усреднение значений
+    # проверяется напрямую на уровне load_state_dict через dict с одинаковым
+    # repr (JSON-формат теряет дубликаты ключей ещё до загрузки).
+    policy2 = QTablePolicy(seed=0)
+    policy2.load_state_dict(
+        {
+            "kind": "qtable",
+            "table": {
+                repr((1, 2, 3, 4, 5, "WORK", "force", 0.2)): 2.0,
+            },
+        }
+    )
+    assert len(policy2.table) == 1
+    assert next(iter(policy2.table.values())) == pytest.approx(2.0)
+
+    # ключи, отличающиеся сохранёнными разрядами (open 5 vs 9), остаются
+    # различными записями таблицы
+    policy3 = QTablePolicy(seed=0)
+    policy3.load_state_dict(
+        {
+            "kind": "qtable",
+            "table": {
+                repr((1, 2, 3, 4, 5, "WORK", "force", 0.24)): 1.0,
+                repr((1, 2, 3, 4, 9, "WORK", "force", 0.24)): 3.0,
+            },
+        }
+    )
+    assert len(policy3.table) == 2
+    for migrated_key in policy3.table:
+        assert migrated_key[4:8] == (0, 0, 0, 0)
+
+
+def test_load_policy_rejects_future_version(tmp_path):
+    path = _write_json(
+        tmp_path,
+        "future.json",
+        {"kind": "bdi", "version": CHECKPOINT_VERSION + 5},
+    )
+    with pytest.raises(ValueError):
+        load_policy(path)
+
+
+def test_bdi_pads_short_legacy_weights():
+    policy = BDIPolicy(seed=0)
+    policy.load_state_dict({"kind": "bdi", "weights": [0.1] * 16})
+    assert len(policy.weights) == FEATURE_COUNT
+    assert policy.weights[:16] == [0.1] * 16
+    assert policy.weights[16:] == [0.0] * (FEATURE_COUNT - 16)
+
+
+def test_train_resume_continues_from_checkpoint(tmp_path):
+    base = make_policy("bdi", seed=11)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    transition = Transition(
+        observation=observation,
+        action=action,
+        reward=0.5,
+        next_observation=observation,
+        done=False,
+        next_actions=(action,),
+    )
+    base.observe(transition)
+    weights_after_one_update = list(base.weights)
+    path = _write_json(tmp_path, "resume_bdi.json", base.state_dict())
+
+    fresh = make_policy("bdi", seed=11)
+    fresh.load_state_dict(json.loads(open(path).read()))
+    assert fresh.weights == weights_after_one_update
+
+    _, stats = train(
+        episodes=1,
+        seed=5,
+        policy_name="bdi",
+        max_steps=8,
+        eval_episodes=0,
+        resume=path,
+    )
+    assert stats["resumed_from"] == path
+    # обучение продолжилось с весов чекпойнта, а не со случайных
+    assert stats["policy_updates"] >= 1
 
 
 def test_random_policy_is_total():

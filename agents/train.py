@@ -16,7 +16,7 @@ import os
 from core41 import ArenaEnv, DuelEnv
 from core41.types import Transition
 
-from .policies import make_policy
+from .policies import load_policy, make_policy
 
 WINNERS_RL = ("RL", "agent")
 WINNERS_AI = ("AI", "opponent")
@@ -212,9 +212,19 @@ def train(
     eval_episodes=0,
     eval_seed=None,
     eval_opponents=(),
+    resume=None,
+    resume_opponent=None,
 ):
-    policy = make_policy(policy_name, seed=seed)
-    opponent = make_policy(opponent_name, seed=seed + 1)
+    # --resume (проблема готовности №5): чекпойнт загружается явно,
+    # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
+    if resume:
+        policy = load_policy(resume, seed=seed)
+    else:
+        policy = make_policy(policy_name, seed=seed)
+    if resume_opponent:
+        opponent = load_policy(resume_opponent, seed=seed + 1)
+    else:
+        opponent = make_policy(opponent_name, seed=seed + 1)
     env = _make_env(
         env_name,
         seed,
@@ -248,6 +258,7 @@ def train(
         "self_play": bool(self_play),
         "policy_updates": int(getattr(policy, "updates", 0)),
         "opponent_updates": int(getattr(opponent, "updates", 0)),
+        "resumed_from": resume or "",
     }
 
     if eval_episodes:
@@ -302,8 +313,19 @@ def main(argv=None):
     )
     parser.add_argument(
         "--eval-opponents",
-        default="bdi,qtable,random",
+        default="bdi,qtable,random,mlp",
         help="имена оппонентов для матрицы силы через запятую",
+    )
+    parser.add_argument(
+        "--resume",
+        default="",
+        help="явный чекпойнт стартовых весов обучаемой политики "
+        "(без автопоиска; формат v0 мигрируется)",
+    )
+    parser.add_argument(
+        "--resume-opponent",
+        default="",
+        help="явный чекпойнт стартовых весов политики противника",
     )
     parser.add_argument("--out", default="")
     parser.add_argument("--eval-out", default="")
@@ -324,6 +346,8 @@ def main(argv=None):
         eval_episodes=args.eval_episodes,
         eval_seed=args.eval_seed,
         eval_opponents=eval_opponents,
+        resume=args.resume or None,
+        resume_opponent=args.resume_opponent or None,
     )
     print(json.dumps(stats, ensure_ascii=False))
     if args.out:

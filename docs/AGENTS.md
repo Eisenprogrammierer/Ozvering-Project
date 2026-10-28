@@ -231,13 +231,13 @@ venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
 
 После обучения CLI по умолчанию играет held-out матрицу силы: политика
-против `bdi`, `qtable` и `random` на отдельных seed'ах, без исследования и
-без обновления весов. Параметры:
+против `bdi`, `qtable`, `random` и `mlp` на отдельных seed'ах, без
+исследования и без обновления весов. Параметры:
 
 ```bash
 venv/bin/python -m agents.train --episodes 2000 --seed 0 \
     --eval-episodes 50 --eval-seed 100000 \
-    --eval-opponents bdi,qtable,random \
+    --eval-opponents bdi,qtable,random,mlp \
     --out saves/bdi.json --eval-out saves/eval.json
 ```
 
@@ -253,9 +253,19 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
 ```
 
 CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`,
-`policy_updates`, `opponent_updates`, `eval`). `BDIPolicy` умеет `save/load`;
-обе политики — `state_dict/load_state_dict`. `agents.load_policy(path)`
-читает `kind` из файла и возвращает `BDIPolicy` или `QTablePolicy`.
+`policy_updates`, `opponent_updates`, `resumed_from`, `eval`). `BDIPolicy`
+умеет `save/load`; все политики — `state_dict/load_state_dict`.
+`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`,
+`QTablePolicy` или `MLPPolicy`.
+
+Продолжить обучение с чекпойнта можно флагами `--resume`/`--resume-opponent`
+(проблема готовности №5): загрузка явная, автопоиска нет:
+
+```bash
+venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+    --resume saves/bdi.json --resume-opponent saves/qtable.json \
+    --out saves/bdi.json
+```
 
 Загрузить чекпойнт в активную сцену можно явно:
 
@@ -303,6 +313,28 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 Этого достаточно для подключения будущей нейросетевой политики без изменения
 игрового цикла.
 
+### Ёмкость политик и версии чекпойнтов (проблемы готовности №4–№5)
+
+Активный набор политик в `agents/policies.py`:
+
+| kind      | ёмкость                          | обучение                        | роль                    |
+|-----------|----------------------------------|---------------------------------|-------------------------|
+| `bdi`     | линейные веса 18×6               | online градиент по признакам    | baseline AI             |
+| `qtable`  | таблица, ключ 12 полей           | tabular Q(λ)-подобный TD        | baseline RL             |
+| `mlp`     | tanh-hidden=16, DQN-lite         | online TD(0), target=max next   | function approximation  |
+| `random`  | нет весов                        | нет                             | спарринг/нижняя граница |
+
+`MLPPolicy` использует те же 18 признаков, что `BDIPolicy`, совместима с
+`ArenaEnv`/`DuelEnv` и не требует PyTorch; `bdi`/`qtable` остаются неизменным
+baseline. Формат чекпойнта версионирован: `CHECKPOINT_VERSION = 1` пишется в
+поле `version` каждого `state_dict()`; файлы без поля трактуются как v0
+(`checkpoint_version()`). При загрузке v0 `QTablePolicy` мигрирует легаси-ключи
+8/10 → 12 полей (отсутствующие sickness-поля заполняются нулём, коллизии
+усредняются), `BDIPolicy` дополняет 16-мерный вектор веса до 18 обнулёнными
+признаками болезни. `load_policy` отказывается читать файлы с версией выше
+поддерживаемой. Старые шкалы и ранние сейвы при этом не ломаются: миграция
+происходит только в памяти загруженной политики.
+
 ---
 
 ## 5. Ограничения и следующий шаг
@@ -325,7 +357,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 - Нет отдельного актора среды в новом runtime; флаг `with_env` сохранён в
   фасаде, но `env=None`.
 - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
-- Нет PyTorch-зависимости; текущие политики линейные/табличные.
+- Нет PyTorch-зависимости; `MLPPolicy` — собственный tanh-MLP (DQN-lite) без
+  внешних библиотек, `bdi`/`qtable` остаются линейной/табличной baseline.
 - Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
   явно через `--checkpoint`. Матрица силы для выбора чекпойнта считается
   вручную (`agents.train.evaluate_matrix`), автопоиска нет.
@@ -333,4 +366,7 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 
 Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
 кампанийный real-time-планировщик, затем добавить средовые источники болезни.
-Калибровку здоровья после миграции нужно повторить на новых политиках.
+Калибровку здоровья после миграции нужно повторить на новых политиках
+(`mlp`). Проблемы готовности к обучению №4 (ёмкость политик) и №5
+(версионирование чекпойнтов, миграция легаси-ключей, `--resume`) закрыты;
+остались №6 (среда кампании/RTS) и №7 (доменная рандомизация).

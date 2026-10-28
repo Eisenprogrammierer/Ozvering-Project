@@ -6,6 +6,38 @@ import random
 from core41.model import TREAT_ENERGY_FRACTION
 from core41.types import Action, Observation, Transition
 
+# Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
+# ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
+# QTable и до появления MLPPolicy. Текущий формат — v1:
+#   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
+#     полей (недостающие sickness-поля заполняются нулём);
+#   - BDI: 18 признаков; при загрузке v0 вектор веса 16 дополняется нулями;
+#   - MLP: v1 — первый сетевой baseline, миграции из v0 не существует.
+CHECKPOINT_VERSION = 1
+LEGACY_CHECKPOINT_VERSION = 0
+
+
+def _migrate_qtable_key(key):
+    """Приводит легаси-ключ QTable (8 или 10 полей) к 12-полевому формату.
+
+    Порядок полей v0 совпадает с v1, кроме пропущенных индексов 6-7
+    (self_sickness/opponent_sickness) в 10-полевом варианте и их отсутствия
+    в 8-полевом. Миграция вставляет нули на позиции болезни, сохраняя
+    остальные разряды, чтобы старые таблицы не обнулялись молча.
+    """
+    key = tuple(key)
+    if len(key) == 12:
+        return key
+    if len(key) == 10:
+        # v0 (10 полей): force/energy x2, health x2, open, kind, form, fraction
+        head, tail = key[:6], key[6:]
+        return head + (0, 0) + tail
+    if len(key) == 8:
+        # самый ранний v0: без здоровья и болезни
+        head, tail = key[:4], key[4:]
+        return head + (0, 0, 0, 0) + tail
+    raise ValueError("unsupported qtable key length: %d" % len(key))
+
 COUNTERS = {
     ("FIRE", "EARTH"),
     ("EARTH", "WATER"),
@@ -85,7 +117,10 @@ class RandomPolicy:
         return None
 
     def state_dict(self):
-        return {"kind": "random"}
+        return {
+            "kind": "random",
+            "version": CHECKPOINT_VERSION,
+        }
 
     def load_state_dict(self, state):
         return None
@@ -215,6 +250,7 @@ class BDIPolicy:
     def state_dict(self):
         return {
             "kind": "bdi",
+            "version": CHECKPOINT_VERSION,
             "weights": list(self.weights),
             "beliefs": dict(self.beliefs),
             "desires": dict(self.desires),
@@ -341,6 +377,7 @@ class QTablePolicy:
     def state_dict(self):
         return {
             "kind": "qtable",
+            "version": CHECKPOINT_VERSION,
             "table": {
                 repr(key): value for key, value in self.table.items()
             },
@@ -352,11 +389,21 @@ class QTablePolicy:
     def load_state_dict(self, state):
         if not state:
             return
+        # Версия не указана — легаси-v0; ключи мигрируются по длине
+        # (8/10 -> 12), чтобы старые таблицы не терялись молча.
         table = state.get("table", {})
-        self.table = {
-            tuple(ast.literal_eval(key)): float(value)
-            for key, value in table.items()
-        }
+        migrated = {}
+        for key, value in table.items():
+            parsed = _migrate_qtable_key(ast.literal_eval(key))
+            merged = float(value)
+            # Коллизия при слиянии v0-разрядов болезни (несколько старых
+            # ключей могут дать один новый) — берём среднее, а не перезапись.
+            if parsed in migrated:
+                old_value, count = migrated[parsed]
+                migrated[parsed] = ((old_value * count + merged) / (count + 1), count + 1)
+            else:
+                migrated[parsed] = (merged, 1)
+        self.table = {key: value for key, (value, _count) in migrated.items()}
         self.epsilon = float(state.get("epsilon", self.epsilon))
         self.learning_rate = float(
             state.get("learning_rate", self.learning_rate)
@@ -462,6 +509,7 @@ class MLPPolicy:
     def state_dict(self):
         return {
             "kind": "mlp",
+            "version": CHECKPOINT_VERSION,
             "feature_count": FEATURE_COUNT,
             "hidden": self.hidden,
             "weights1": [list(row) for row in self.weights1],
@@ -529,10 +577,24 @@ def make_policy(name, seed=0):
     return None
 
 
+def checkpoint_version(state):
+    """Версия формата чекпойнта; отсутствующее поле ``version`` = v0."""
+    try:
+        return int(state.get("version", LEGACY_CHECKPOINT_VERSION))
+    except (TypeError, ValueError):
+        return LEGACY_CHECKPOINT_VERSION
+
+
 def load_policy(path, seed=0, kind=None):
     with open(path, encoding="utf-8") as handle:
         state = json.load(handle)
     policy_kind = kind or state.get("kind")
+    version = checkpoint_version(state)
+    if version > CHECKPOINT_VERSION:
+        raise ValueError(
+            "checkpoint %r has version %d, this build supports up to %d"
+            % (path, version, CHECKPOINT_VERSION)
+        )
     if policy_kind == "bdi":
         policy = BDIPolicy(seed=seed)
     elif policy_kind == "qtable":

@@ -125,14 +125,22 @@
   `--eval-seed`) и матрица силы `evaluate_matrix()` против
   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
-- [ ] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite) уже
-  зарегистрирован в `make_policy`/`load_policy`; нужно включить его в
-  `--eval-opponents` по умолчанию, добавить тест качества обучения и
-  документацию baseline vs MLP.
-- [ ] **№5 Версионирование чекпойнтов.** Добавить `version/schema` в
-  `state_dict()` политик, миграцию старых Q-ключей (8/10 → 12 полей) при
-  загрузке и флаг `--resume` в `agents.train`. Обратная совместимость:
-  файлы без `version` трактуются как v0.
+- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite: target-копия,
+  epsilon-decay, сохранение через `state_dict`) зарегистрирован в
+  `make_policy`/`load_policy`, включён в `--eval-opponents` по умолчанию
+  (`bdi,qtable,random,mlp`); тесты качества обучения —
+  `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task` и др.
+  Раздел baseline vs MLP — в `docs/BASELINE.md`/`docs/AGENTS.md`.
+- [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 1` пишется в
+  `state_dict()` всех политик; файлы без `version` трактуются как v0. При
+  загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
+  коллизии усредняются), BDI дополняет 16-мерный вектор веса до 18;
+  `checkpoint_version()` вычитает версию, `load_policy` отказывается грузить
+  будущие версии. Флаги `--resume`/`--resume-opponent` в `agents.train`
+  загружают чекпойнты явно (автопоиска нет). Тесты —
+  `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
+  `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
+  `test_train_resume_continues_from_checkpoint`.
 - [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
   с контрактом reset/step/observation/action/reward; открытые вопросы §7
   №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
