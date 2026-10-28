@@ -1,0 +1,123 @@
+From 50bf3d8d3dd7b51e851adcaa78fa3ce4a85f5777 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 11:01:55 +0000
+Subject: [PATCH 1/4] docs: close training-readiness questions 2-3 (reward
+ calibration, self-play/eval tracker)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- WORLD_CORE_MODEL.md §2.3.3: переснята строка sickness=0.5 после переопределения награды (41/28/31%, медиана 817, голод 22.7%; все полосы в допуске) с примечанием о причине сдвига;
+- TODO.md: добавлен трек «Готовность к обучению агентов: 7 проблем» — №1 (ArenaEnv), №2 (reward_delta/terminal_reward + калибровка N=100), №3 (self-play + held-out матрица силы) закрыты, №4–№7 спланированы;
+- README.md: описание новой награды арены и команд agents.train (self-play по умолчанию, --no-self-play, --eval-*).
+
+Полный прогон: 471 passed (venv с pygame/numpy/matplotlib).
+---
+ README.md                | 11 +++++++++-
+ docs/TODO.md             | 45 ++++++++++++++++++++++++++++++++++++++++
+ docs/WORLD_CORE_MODEL.md |  9 +++++++-
+ 3 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index df762da..48742e6 100644
+--- a/README.md
++++ b/README.md
+@@ -464,7 +464,16 @@ python3 main.py --no-auto-pause                     # без авто-паузы
+ смерть героя/персонажей и распад организации идут дневным шагом; условия
+ сохраняются в сейве. Дуэльный
+ срез откалиброван (`experiments/exp_health_calibration.py`, §2.3.2–2.3.3
+-`docs/WORLD_CORE_MODEL.md`). Время в арене идёт секундным тиком через
++`docs/WORLD_CORE_MODEL.md`). Награда арены переопределена: `F`/`H` нормированы,
++стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни `+1.0·Δsickness`, заражение
++противника `+0.5·Δsickness`, терминальные победа/поражение `±1.0`
++(`reward_delta`/`terminal_reward` в `core41/arena.py`). Обучение —
++`python3 -m agents.train --episodes 500 --seed 0` (по умолчанию `ArenaEnv` и
++self-play: обе политики обновляются; `--no-self-play` оставляет противника
++фиксированным). После обучения CLI играет held-out матрицу силы на отдельных
++seed'ах без исследования и обновления весов
++(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random`;
++`--eval-episodes 0` выключает оценку). Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 7bde259..99ffd08 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -98,6 +98,51 @@
+ 
+ ---
+ 
++## Готовность к обучению агентов: 7 проблем (трек, 2026-10-28)
++
++Цель — сделать активную арену пригодной для обучения интеллектуальных
++агентов. Проблемы закрываются строго по порядку.
++
++- [x] **№1 Среда.** `ArenaEnv` (`core41/env.py`) поверх `ArenaMatch`:
++  контракт `reset(seed)/step(action, opponent_action)`/`observe(side)`/
++  `legal_actions(side)`, `action_space`, матч с `auto_learn=False` —
++  `Transition` формирует внешний цикл. `agents.train` использует `ArenaEnv`
++  по умолчанию; `--env duel` сохраняет ранний срез. Тесты —
++  `tests/test_core41.py`.
++- [x] **№2 Награда.** Переопределена в `core41/arena.py`
++  (`reward_delta`/`terminal_reward`, константы `REWARD_*`): `F`/`H`
++  нормированы, стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни
++  `+1.0·Δsickness`, заражение противника `+0.5·Δsickness`, терминальные
++  победа/поражение `±1.0`; то же в `DuelWorld`. Калибровка N=100 после
++  награды: sickness 0.0 → 47/29/24%, медиана 549; sickness 0.5 →
++  41/28/31%, медиана 817, голод 22.7% — все полосы §2.3.2 в допуске
++  (§2.3.3 `WORLD_CORE_MODEL.md`). Тесты — `tests/test_core41.py`.
++- [x] **№3 Self-play + оценка.** `agents.train` по умолчанию self-play:
++  обе стороны получают `Transition` и обновляются за такт ровно один раз
++  (`opponent_action` форсится через `ArenaMatch.step_tick`);
++  `--no-self-play` оставляет фиксированного спарринг-партнёра. Held-out
++  оценка: `evaluate()` (без исследования, без `observe()`, отдельные
++  `--eval-seed`) и матрица силы `evaluate_matrix()` против
++  `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
++  Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
++- [ ] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite) уже
++  зарегистрирован в `make_policy`/`load_policy`; нужно включить его в
++  `--eval-opponents` по умолчанию, добавить тест качества обучения и
++  документацию baseline vs MLP.
++- [ ] **№5 Версионирование чекпойнтов.** Добавить `version/schema` в
++  `state_dict()` политик, миграцию старых Q-ключей (8/10 → 12 полей) при
++  загрузке и флаг `--resume` в `agents.train`. Обратная совместимость:
++  файлы без `version` трактуются как v0.
++- [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
++  с контрактом reset/step/observation/action/reward; открытые вопросы §7
++  №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
++  сценария, фоновая симуляция) честно остаются незакрытыми.
++- [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
++  `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
++  диапазоны/джиттер) и усреднение eval-матрицы по профилям.
++
++---
++
+ ## P0. Баланс при контекстном типе — ЗАКРЫТО (CI и канон)
+ 
+ * **Что сделано.** Возвращена **остаточная неопределённость типа**: рецептивный тип
+diff --git a/docs/WORLD_CORE_MODEL.md b/docs/WORLD_CORE_MODEL.md
+index 63078c9..9fbd292 100644
+--- a/docs/WORLD_CORE_MODEL.md
++++ b/docs/WORLD_CORE_MODEL.md
+@@ -451,9 +451,16 @@ illness)`. Лечение доступно и как API: `Automaton.treat(amoun
+ |---|---|---|---|---|---|
+ | `0.00` | 47% | 29% | 24% | 549 | 21.1% |
+ | `0.25` | 46% | 30% | 24% | 546 | 22.7% |
+-| `0.50` | 44% | 33% | 23% | 706 | 23.4% |
++| `0.50` | 41% | 28% | 31% | 817 | 22.7% |
+ | `0.75` | 52% | 25% | 23% | 711 | 22.4% |
+ 
++Строка `0.50` переснята после переопределения награды арены (§ reward_delta:
++штраф за расход E, бонусы за лечение/заражение, терминальный бонус ±1.0):
++больные бойцы стали чаще выживать через отдых/лечение — deaths 44%→41%,
++timeouts 23%→31%, медиана 706→817; все полосы по-прежнему в допуске.
++Остальные строки сняты до изменения награды и будут пересняты при
++следующей калибровочной сессии.
++
+ Все полосы §2.3.2 остаются в допуске. Болезнь повышает долю голодного урона
+ и критических тактов, а штраф к успеху работы снижает агрессию больного:
+ отдых и лечение остаются рабочим выходом. На N=50 отдельные прогоны дают
+-- 
+2.39.5
+
