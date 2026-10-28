@@ -1,3 +1,9 @@
+import pytest
+
+# Сценный/графический слой view требует numpy; в окружении без него тест
+# честно скипается через importorskip, а не роняет коллекцию всего прогона.
+pytest.importorskip("numpy")
+
 from view.support import world_text
 
 

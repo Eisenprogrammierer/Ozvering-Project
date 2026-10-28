@@ -1,5 +1,10 @@
 import pytest
 
+# Сценный/графический слой view требует numpy; в окружении без него тест
+# честно скипается через importorskip, а не роняет коллекцию всего прогона.
+pytest.importorskip("numpy")
+
+
 from view.support.geometry import (
     BREACH_PRESSURE_TICKS,
     HOLD_DEFENDER_DAILY,
