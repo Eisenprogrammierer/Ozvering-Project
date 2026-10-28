@@ -222,6 +222,7 @@ def test_narrative_to_game_and_autosave(app, tmp_path):
     nar._skip()
     game = app.manager.current
     assert game.name == "game" and game.view is not None
+    game.view.set_speed(16)
     game.view.paused = False
     for _ in range(20):
         _frame(app)
@@ -233,6 +234,7 @@ def test_pause_overlay_keeps_match(app, tmp_path):
     app.save.dir = tmp_path
     app.go("game", new=True)
     game = app.manager.current
+    game.view.set_speed(16)
     game.view.paused = False
     for _ in range(5):
         _frame(app)
@@ -243,6 +245,39 @@ def test_pause_overlay_keeps_match(app, tmp_path):
     app.pop()
     assert app.manager.current is game
     assert app.manager.current.view.match.step >= step
+
+
+def test_game_scene_real_time_clock(app):
+    app.go("game", new=True)
+    game = app.manager.current
+    view = game.view
+    view.set_speed(16)
+    view.paused = False
+    before = view.match.step
+    view.update(0.5)
+    assert view.match.step == before + 8
+
+
+def test_game_scene_auto_pauses_on_critical_health(app):
+    app.go("game", new=True)
+    view = app.manager.current.view
+    view.set_speed(16)
+    view.paused = False
+    view.match.ai.health = 10.0
+    view.update(0.1)
+    assert view.paused
+    assert view.clock.pause_reason == "critical_health"
+    view.match.ai.health = 100.0
+    view.paused = False
+    view.update(0.1)
+    assert "ai" not in view._critical_low
+    view.match.ai.health = 10.0
+    view.update(0.1)
+    assert view.paused
+    assert view.clock.pause_reason == "critical_health"
+    view.match.ai.health = 100.0
+    view.paused = False
+    view.update(0.1)
 
 
 def test_save_slot_from_pause_and_load(app, tmp_path):

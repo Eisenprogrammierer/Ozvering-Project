@@ -179,7 +179,14 @@ except ImportError:
 
 
 try:
-    from core41 import ArenaMatch, CORE_ACTIONS as ACTIONS, CAPTURE_STREAK
+    from core41 import (
+        ArenaMatch,
+        CORE_ACTIONS as ACTIONS,
+        CAPTURE_STREAK,
+        DEFAULT_SPEED,
+        SimulationClock,
+        normalize_speed,
+    )
 
     LOG.info(
         "core41 runtime импортирован: ACTIONS=%s"
@@ -240,6 +247,7 @@ def quit_pygame():
 SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
+CRITICAL_HEALTH = 25.0
 
 
 DEFENSE_COLORS = {
@@ -1041,6 +1049,8 @@ class GameApp:
         profile_ai="CANON",
         checkpoint="",
         health_factors=None,
+        speed=DEFAULT_SPEED,
+        auto_pause=True,
     ):
         LOG.info("GameApp: init_pygame_minimal() (video+font, без аудио)...")
         init_pygame_minimal()
@@ -1113,11 +1123,11 @@ class GameApp:
 
         self.L = L
 
+        self.clock = SimulationClock(speed=speed, auto_pause=auto_pause)
+        self._critical_low = set()
         self.paused = True
         self.manual_mode = False
         self.show_help = True
-        self.ticks_per_sec = 8.0
-        self.acc = 0.0
         self.time = 0.0
         self._flash_until = 0.0
         self._btn_flash = ""
@@ -1155,13 +1165,68 @@ class GameApp:
             % (self.game_seed, len(self.buttons))
         )
 
+    @property
+    def paused(self):
+        return self.clock.paused
+
+    @paused.setter
+    def paused(self, value):
+        self.clock.set_paused(value)
+
+    @property
+    def ticks_per_sec(self):
+        return self.clock.ticks_per_sec
+
+    @property
+    def speed(self):
+        return self.clock.speed
+
+    @speed.setter
+    def speed(self, value):
+        self.clock.set_speed(value)
+
+    def set_speed(self, value):
+        speed = self.clock.set_speed(value)
+        LOG.info("SPEED -> %s" % self.clock.label)
+        self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
+        return speed
+
+    def _maybe_auto_pause(self):
+        if not self.clock.auto_pause:
+            return False
+        if self.match.finished:
+            self.clock.pause("match_finished")
+            LOG.info(
+                "AUTO-PAUSE: партия завершена (winner=%s)"
+                % self.match.winner
+            )
+            return True
+        for side in ("rl", "ai"):
+            agent = getattr(self.match, side)
+            if agent.health > CRITICAL_HEALTH:
+                self._critical_low.discard(side)
+                continue
+            if side in self._critical_low:
+                continue
+            self._critical_low.add(side)
+            self.clock.pause("critical_health")
+            LOG.warn(
+                "AUTO-PAUSE: %s health=%.1f <= %.1f"
+                % (side, agent.health, CRITICAL_HEALTH)
+            )
+            return True
+        return False
+
     def _press(self, name):
         LOG.info("команда: %s (источник: клавиша/клик)" % name)
         if name == "QUIT":
             return False
         if name == "START":
-            self.paused = not self.paused
-            LOG.info("START/PAUSE -> paused=%s" % self.paused)
+            self.clock.toggle_pause()
+            LOG.info(
+                "START/PAUSE -> paused=%s speed=%s"
+                % (self.paused, self.clock.label)
+            )
             self._btn_flash, self._flash_until = "START", self.time + 0.35
         elif name == "STEP":
             if not self.match.finished:
@@ -1178,12 +1243,18 @@ class GameApp:
                     "(winner=%s) - нажмите RESET" % self.match.winner
                 )
         elif name == "SLOWER":
-            self.ticks_per_sec = max(0.5, self.ticks_per_sec / 1.5)
-            LOG.info("SPEED -> %.1f тик/с" % self.ticks_per_sec)
+            self.clock.slower()
+            LOG.info(
+                "SPEED -> %s (selected %sx)"
+                % (self.clock.label, int(self.clock.selected_speed))
+            )
             self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
         elif name == "FASTER":
-            self.ticks_per_sec = min(60.0, self.ticks_per_sec * 1.5)
-            LOG.info("SPEED -> %.1f тик/с" % self.ticks_per_sec)
+            self.clock.faster()
+            LOG.info(
+                "SPEED -> %s (selected %sx)"
+                % (self.clock.label, int(self.clock.selected_speed))
+            )
             self._btn_flash, self._flash_until = "SPEED", self.time + 0.35
         elif name == "MODE":
             self.manual_mode = not self.manual_mode
@@ -1357,6 +1428,8 @@ class GameApp:
             health_factors=self.health_factors,
         )
         self.paused = True
+        self._critical_low.clear()
+        self.clock.reset_counters()
         LOG.info(
             "RESET завершён: paused=True seed=%s (Q-таблица перенесена, "
             "%s состояний)" % (self.game_seed, len(self.q_table))
@@ -1368,6 +1441,8 @@ class GameApp:
         while n < int(resume_tick) and not self.match.finished:
             self.match.step_tick()
             n += 1
+        self.clock.reset_counters()
+        self.clock.ticks = n
         LOG.info(
             "start_match: seed=%s -> tick=%s finished=%s winner=%s"
             % (seed, self.match.step, self.match.finished, self.match.winner)
@@ -1384,6 +1459,8 @@ class GameApp:
             "with_env": bool(self.with_env),
             "profile_rl": self.profile_rl,
             "profile_ai": self.profile_ai,
+            "speed": self.clock.selected_speed,
+            "paused": self.paused,
         }
 
     def on_resize(self, w, h):
@@ -1403,19 +1480,18 @@ class GameApp:
         LOG.set_sim_time(self.time)
         if self.paused or self.match.finished:
             return
-        self.acc += dt * self.ticks_per_sec
+        due = self.clock.advance(dt)
         n = 0
-        while self.acc >= 1.0:
-            self.acc -= 1.0
+        while n < due:
             forced = self.action_idx if self.manual_mode else None
             self.match.step_tick(forced_rl_action=forced)
             n += 1
-            if self.match.finished:
+            if self._maybe_auto_pause() or self.match.finished:
                 break
         if n and LOG.level >= 3:
             LOG.debug(
-                "update: тактов за кадр=%s tick=%s acc=%.2f"
-                % (n, self.match.step, self.acc)
+                "update: тактов за кадр=%s tick=%s acc=%.2f speed=%s"
+                % (n, self.match.step, self.clock.acc, self.clock.label)
             )
 
     def draw(self, surface=None):
@@ -1894,9 +1970,15 @@ class GameApp:
     def draw_caption(self, s, m):
         L_ = self.layout
         r = L_.caption_rect
-        st = "PAUSE" if self.paused else f"RUN {self.ticks_per_sec:.1f}/s"
+        if self.paused:
+            st = "PAUSE %s" % self.clock.selected_label
+        else:
+            st = "RUN %s  %.1fs/tick" % (
+                self.clock.label,
+                self.clock.seconds_per_tick or 0.0,
+            )
         if m.finished:
-            st = "FINISHED"
+            st = "FINISHED %s" % self.clock.selected_label
         t = self.font_s.render(st, True, COL_DIM if self.paused else COL_OPEN)
         if t.get_width() <= r.width - 4:
             s.blit(t, (r.x + 2, r.y + 1))
@@ -2051,8 +2133,8 @@ class GameApp:
             lines = [
                 "SPACE / кнопка START - пауза/пуск   R / RESET - новая партия",
                 "TAB / кнопка STEP - один такт (работает и в паузе!)",
-                "+/- или стрелки / SPEED - темп   M / MODE - режим "
-                "игрок/наблюдатель",
+                "+/- или стрелки / SPEED - скорость: 1x/2x/4x/8x/16x",
+                "M / MODE - режим игрок/наблюдатель",
                 "1..5 или клик по плитке - действие RL (сразу видно выбор)",
                 "F1/H - скрыть справку   ESC/Q или кнопка QUIT - выход",
                 "",
@@ -2065,7 +2147,8 @@ class GameApp:
             lines = [
                 "SPACE / START button - pause/run    R / RESET - new match",
                 "TAB / STEP button - single tick (works while paused!)",
-                "+/- or arrows / SPEED - rate   M / MODE - observe/manual",
+                "+/- or arrows / SPEED - 1x/2x/4x/8x/16x",
+                "M / MODE - observe/manual",
                 "1..5 or click a tile - pick RL action (selection is "
                 "highlighted)",
                 "F1/H - toggle help   ESC/Q or QUIT button - quit",
@@ -2156,11 +2239,17 @@ class GameApp:
                     "партия: tick=%s step_finished=%s"
                     % (self.match.step, self.match.finished)
                 )
+            active = True
             try:
-                self.draw()
-            except Exception as e:
-                LOG.exc("draw (отрисовка кадра)", e, key="draw")
-                LOG.warn("кадр не отрисован - цикл продолжается")
+                active = bool(pygame.display.get_active())
+            except Exception:
+                active = True
+            if active:
+                try:
+                    self.draw()
+                except Exception as e:
+                    LOG.exc("draw (отрисовка кадра)", e, key="draw")
+                    LOG.warn("кадр не отрисован - цикл продолжается")
         LOG.info(
             "главный цикл завершён (кадров=%s, финальный tick=%s)"
             % (frame, self.match.step)
@@ -2187,6 +2276,16 @@ def main():
         if index + 1 < len(sys.argv):
             health_factors = parse_health_factors(sys.argv[index + 1])
         LOG.info("main(): health_factors=%r" % health_factors)
+    speed = DEFAULT_SPEED
+    if "--speed" in sys.argv:
+        index = sys.argv.index("--speed")
+        if index + 1 < len(sys.argv):
+            try:
+                speed = normalize_speed(sys.argv[index + 1])
+            except ValueError:
+                speed = DEFAULT_SPEED
+        LOG.info("main(): speed=%s" % speed)
+    auto_pause = "--no-auto-pause" not in sys.argv
 
     init_pygame_minimal()
     fonts = FontSet()
@@ -2212,6 +2311,8 @@ def main():
         fonts=fonts,
         checkpoint=checkpoint,
         health_factors=health_factors,
+        speed=speed,
+        auto_pause=auto_pause,
     )
     app.run()
     LOG.info("main(): штатное завершение, rc=0")

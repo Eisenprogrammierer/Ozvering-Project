@@ -8,6 +8,15 @@ from .arena import (
     check_capture,
     run_duel_tick,
 )
+from .clock import (
+    BASE_TICK_SECONDS,
+    DEFAULT_SPEED,
+    MAX_CATCHUP_TICKS,
+    SPEEDS,
+    SimulationClock,
+    normalize_speed,
+    speed_label,
+)
 from .duel import DuelWorld
 from .env import DuelEnv
 from .model import (
@@ -28,22 +37,29 @@ __all__ = [
     "ArenaAgent",
     "ArenaMatch",
     "Automaton",
+    "BASE_TICK_SECONDS",
     "CAPTURE_STREAK",
     "CORE_ACTIONS",
     "DEFAULT_HEALTH_FACTORS",
+    "DEFAULT_SPEED",
+    "DuelEnv",
+    "DuelWorld",
     "HEALTH_DAMAGE_RATIO",
     "HEALTH_FACTOR_MAX",
     "HEALTH_MAX",
     "HEALTH_REST_REGEN",
     "HEALTH_STARVE_DECAY",
-    "PROFILE_SKILLS",
-    "DuelEnv",
-    "DuelWorld",
+    "MAX_CATCHUP_TICKS",
     "Observation",
+    "PROFILE_SKILLS",
+    "SPEEDS",
+    "SimulationClock",
     "Transition",
     "Work",
     "action_from_index",
     "check_capture",
+    "normalize_speed",
     "run_duel_tick",
+    "speed_label",
     "success_probability",
 ]

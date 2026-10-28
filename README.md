@@ -423,6 +423,8 @@ python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
 python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-политику в активные сцены
 python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
+python3 main.py --speed 4                           # 1x/2x/4x/8x/16x
+python3 main.py --no-auto-pause                     # без авто-паузы
 ```
 
 `game_engine.py` — слой «основное игровое поле» (арена + HUD дуэли
@@ -445,7 +447,11 @@ python3 main.py --health-factors aging=1.5,illness=2  # множители зд�
 обучаемые политики. Здоровье — отдельное состояние `S` (`H=100`): отдых
 восстанавливает его, голод и переполнение урона после `F=0` уменьшают; смерть
 наступает при `H<=0`. Множители `aging/illness/stress/care` задаются через
-`--health-factors`. `PolicyAgent` остаётся легаси-мостом для старых тестов и
+`--health-factors`. Время в арене идёт секундным тиком через
+`core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+критическом здоровье и завершении партии, ограниченный догон после
+сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+остаётся легаси-мостом для старых тестов и
 экспериментов. `agents.load_policy(path)` определяет формат чекпойнта;
 `--checkpoint` загружает BDI-политику в арену и поле боя. Подробности и
 ограничения — [`docs/AGENTS.md`](docs/AGENTS.md); активные сцены больше не

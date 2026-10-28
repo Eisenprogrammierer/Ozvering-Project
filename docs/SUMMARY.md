@@ -118,6 +118,8 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
   Здоровье — отдельное `S` (`H=100`): отдых `+0.5/тик`, голод `-1/тик`,
   переполнение урона после `F=0`; смерть при `H<=0`. Множители
   `aging/illness/stress/care` доступны через `--health-factors`.
+  Реальное время — `core41.SimulationClock`: тик 1 с, скорости
+  `pause/1x/2x/4x/8x/16x`, авто-пауза и ограниченный догон.
   `game_engine.py` и `ui/battlefield.py` работают через этот слой.
 * **`PolicyAgent`** — адаптивный BDI-агент с линейной TD-политикой и
   online-обновлением; совместимый мост к легаси `simulation.Agent` и старым
@@ -155,7 +157,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `lod.py` | LOD-1/2/3: аналитическая интеграция времени, mean-field, экспериментальный раннер |
 | `warfare.py` | войсковые автоматы: персонажи (BDI, 16 потребностей, черты), отделения, станы, приказы, заградотряды, подкрепления |
 | `game_engine.py` | арена + HUD (PyGame) на `core41.arena`, без типизированной энергии |
-| `core41/` | 4-2-1-срез: `Automaton`, `DuelWorld`, `ArenaAgent`, `ArenaMatch`, `DuelEnv` |
+| `core41/` | 4-2-1-срез: `Automaton`, `DuelWorld`, `ArenaAgent`, `ArenaMatch`, `DuelEnv`, `SimulationClock` |
 | `agents/` | обучаемые политики `BDIPolicy`/`QTablePolicy`, `load_policy`, легаси-мост `PolicyAgent`, `--checkpoint` в активных сценах |
 | `main.py` | единая точка входа: игра (`ui`), кампания (`--view`), редактор автоматов (`--automata`) или арена (`--arena`) |
 | `ui/` | сценный слой: меню/настройки/сохранения/нарратив/поле/пауза |

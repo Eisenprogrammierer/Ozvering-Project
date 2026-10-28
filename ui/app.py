@@ -19,6 +19,8 @@ class App:
         seed=0,
         checkpoint="",
         health_factors=None,
+        speed=None,
+        auto_pause=True,
     ):
         ge.LOG.info("ui.App: инициализация сценного слоя")
         ge.init_pygame_minimal()
@@ -27,6 +29,8 @@ class App:
         self.seed = seed
         self.checkpoint = checkpoint or ""
         self.health_factors = dict(health_factors or {})
+        self.speed = speed
+        self.auto_pause = bool(auto_pause)
         self.fullscreen = bool(
             self.settings.get("fullscreen", False)
             if fullscreen is None
@@ -182,10 +186,21 @@ def main(argv=None):
             )
         except IndexError:
             health_factors = {}
+    speed = None
+    if "--speed" in argv:
+        try:
+            speed = ge.normalize_speed(
+                argv[argv.index("--speed") + 1]
+            )
+        except (IndexError, ValueError):
+            speed = None
+    auto_pause = "--no-auto-pause" not in argv
     app = App(
         fullscreen=fullscreen,
         checkpoint=checkpoint,
         health_factors=health_factors,
+        speed=speed,
+        auto_pause=auto_pause,
     )
     if start_scene:
         app.go(start_scene)

@@ -33,6 +33,11 @@ class GameScene(Scene):
             "GameScene: старт партии seed=%s resume_tick=%s (new=%s)"
             % (progress_seed, resume_tick, new)
         )
+        speed = getattr(self.app, "speed", None)
+        if speed is None and save_data:
+            speed = save_data.get("speed")
+        if speed is None:
+            speed = ge.DEFAULT_SPEED
         self.view = ge.GameApp(
             fonts=self.app.fonts,
             screen=self.app.screen,
@@ -40,6 +45,8 @@ class GameScene(Scene):
             seed=progress_seed,
             checkpoint=getattr(self.app, "checkpoint", ""),
             health_factors=getattr(self.app, "health_factors", {}),
+            speed=speed,
+            auto_pause=getattr(self.app, "auto_pause", True),
         )
         if resume_tick > 0:
             self.view.start_match(seed=progress_seed, resume_tick=resume_tick)
