@@ -16,6 +16,12 @@ HEALTH_STARVE_DECAY = 1.0
 HEALTH_DAMAGE_RATIO = 0.70
 HEALTH_FACTOR_MAX = 10.0
 
+SICKNESS_MAX = 1.0
+SICKNESS_HEALTH_DECAY = 1.5
+SICKNESS_DAMAGE_BONUS = 0.5
+SICKNESS_PROGRESS = 0.004
+SICKNESS_REST_RECOVERY = 0.01
+
 DEFAULT_HEALTH_FACTORS = {
     "aging": 1.0,
     "illness": 1.0,
@@ -62,6 +68,7 @@ class Automaton:
     health_factors: dict = field(
         default_factory=lambda: dict(DEFAULT_HEALTH_FACTORS)
     )
+    sickness: float = 0.0
 
     @property
     def F(self):
@@ -76,12 +83,21 @@ class Automaton:
         return self.health <= 0.0
 
     @property
+    def is_sick(self):
+        return self.sickness > 0.0
+
+    @property
     def health_ratio(self):
         return self.health / max(1.0, self.max_health)
 
     def health_factor(self, name):
         value = float(self.health_factors.get(name, 1.0))
         return max(0.0, min(HEALTH_FACTOR_MAX, value))
+
+    def set_health_factor(self, name, value):
+        value = max(0.0, min(HEALTH_FACTOR_MAX, float(value)))
+        self.health_factors[str(name)] = value
+        return value
 
     def health_decay_multiplier(self):
         return min(
@@ -99,11 +115,39 @@ class Automaton:
         )
 
     def health_damage_multiplier(self):
+        frailty = min(
+            HEALTH_FACTOR_MAX,
+            self.health_factor("aging")
+            * self.health_factor("illness"),
+        )
+        return frailty * self.sickness_damage_multiplier()
+
+    def sickness_damage_multiplier(self):
+        return 1.0 + SICKNESS_DAMAGE_BONUS * self.sickness
+
+    def health_sickness_multiplier(self):
         return min(
             HEALTH_FACTOR_MAX,
             self.health_factor("aging")
             * self.health_factor("illness"),
         )
+
+    def infect(self, severity):
+        severity = max(0.0, min(SICKNESS_MAX, float(severity)))
+        self.sickness = max(self.sickness, severity)
+        return self.sickness
+
+    def treat(self, amount):
+        amount = max(0.0, float(amount))
+        if amount <= 0.0 or self.sickness <= 0.0:
+            return self.sickness
+        care = self.health_factor("care")
+        illness = max(0.25, self.health_factor("illness"))
+        self.sickness = max(
+            0.0,
+            self.sickness - amount * care / illness,
+        )
+        return self.sickness
 
     def apply_force_damage(self, damage):
         damage = max(0.0, float(damage))
@@ -128,6 +172,27 @@ class Automaton:
             self.health += (
                 HEALTH_REST_REGEN * self.health_regen_multiplier()
             )
+        if self.sickness > 0.0:
+            severity = self.sickness
+            self.health -= (
+                SICKNESS_HEALTH_DECAY
+                * severity
+                * self.health_sickness_multiplier()
+            )
+            if resting:
+                recovery = (
+                    SICKNESS_REST_RECOVERY
+                    * self.health_factor("care")
+                    / max(0.25, self.health_factor("illness"))
+                )
+                self.sickness = max(0.0, severity - recovery)
+            else:
+                progress = (
+                    SICKNESS_PROGRESS * self.health_decay_multiplier()
+                )
+                self.sickness = min(
+                    SICKNESS_MAX, severity + progress
+                )
         self.health = max(0.0, min(self.max_health, self.health))
         return self.health
 

@@ -84,6 +84,7 @@ class Commander:
     seed: int = 0
     checkpoint: str = ""
     health_factors: dict = field(default_factory=dict)
+    initial_sickness: float = 0.0
     agent: ArenaAgent = field(init=False, repr=False)
 
     def __post_init__(self):
@@ -104,6 +105,7 @@ class Commander:
             profile=self.profile,
             seed=self.seed,
             health_factors=self.health_factors,
+            sickness=self.initial_sickness,
         )
 
     @property
@@ -121,6 +123,10 @@ class Commander:
     @property
     def health_ratio(self):
         return self.agent.health_ratio
+
+    @property
+    def sickness(self):
+        return self.agent.sickness
 
     @property
     def is_dead(self):
@@ -478,6 +484,7 @@ class BattlefieldModel:
         with_env=True,
         checkpoint="",
         health_factors=None,
+        sickness=0.0,
     ):
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
@@ -490,6 +497,7 @@ class BattlefieldModel:
             portrait="portrait_player",
             seed=self.seed,
             health_factors=factors,
+            initial_sickness=sickness,
         )
         self.enemy = Commander(
             "Визави",
@@ -500,6 +508,7 @@ class BattlefieldModel:
             seed=self.seed + 1,
             checkpoint=self.checkpoint,
             health_factors=factors,
+            initial_sickness=sickness,
         )
         self.units = {
             "player": Unit(
@@ -869,12 +878,14 @@ class BattlefieldModel:
                 "profile": self.player.profile,
                 "morale": self.player.morale,
                 "health": self.player.health,
+                "sickness": self.player.sickness,
                 "pos": list(self.player_unit.pos),
             },
             "enemy": {
                 "profile": self.enemy.profile,
                 "morale": self.enemy.morale,
                 "health": self.enemy.health,
+                "sickness": self.enemy.sickness,
                 "pos": list(self.enemy_unit.pos),
             },
             "objective_owner": self.objective_owner,

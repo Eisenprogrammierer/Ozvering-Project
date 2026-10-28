@@ -38,6 +38,11 @@ class GameScene(Scene):
             speed = save_data.get("speed")
         if speed is None:
             speed = ge.DEFAULT_SPEED
+        sickness = getattr(self.app, "sickness", None)
+        if sickness is None and save_data:
+            sickness = save_data.get("sickness")
+        if sickness is None:
+            sickness = 0.0
         self.view = ge.GameApp(
             fonts=self.app.fonts,
             screen=self.app.screen,
@@ -45,6 +50,7 @@ class GameScene(Scene):
             seed=progress_seed,
             checkpoint=getattr(self.app, "checkpoint", ""),
             health_factors=getattr(self.app, "health_factors", {}),
+            sickness=sickness,
             speed=speed,
             auto_pause=getattr(self.app, "auto_pause", True),
         )

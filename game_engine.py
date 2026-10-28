@@ -185,6 +185,7 @@ try:
         CAPTURE_STREAK,
         DEFAULT_SPEED,
         HEALTH_CRITICAL,
+        SICKNESS_MAX,
         SimulationClock,
         normalize_speed,
     )
@@ -624,6 +625,7 @@ class MatchEngine:
         profile_ai="CANON",
         checkpoint="",
         health_factors=None,
+        sickness=0.0,
     ):
         LOG.info(
             "MatchEngine: core41 runtime seed=%s steps=%s profiles=%s/%s"
@@ -634,6 +636,7 @@ class MatchEngine:
         self.with_env = bool(with_env)
         self.checkpoint = checkpoint or ""
         self.health_factors = dict(health_factors or {})
+        self.sickness = max(0.0, min(SICKNESS_MAX, float(sickness)))
         self.core = ArenaMatch(
             seed=self.seed,
             steps=self.steps_total,
@@ -643,6 +646,8 @@ class MatchEngine:
             profile_ai=profile_ai,
             health_factors_rl=self.health_factors,
             health_factors_ai=self.health_factors,
+            sickness_rl=self.sickness,
+            sickness_ai=self.sickness,
         )
         self.rl = self.core.rl
         self.ai = self.core.ai
@@ -706,7 +711,8 @@ class MatchEngine:
         self.core.step_tick(forced_rl_action=forced_rl_action)
         LOG.debug(
             "tick %s -> F(RL)=%.1f F(AI)=%.1f E(RL)=%.1f E(AI)=%.1f "
-            "H(RL)=%.1f H(AI)=%.1f open(RL)=%s open(AI)=%s finished=%s"
+            "H(RL)=%.1f H(AI)=%.1f S(RL)=%.2f S(AI)=%.2f "
+            "open(RL)=%s open(AI)=%s finished=%s"
             % (
                 self.step,
                 self.rl.force,
@@ -715,6 +721,8 @@ class MatchEngine:
                 self.ai.energy_pool,
                 self.rl.health,
                 self.ai.health,
+                self.rl.sickness,
+                self.ai.sickness,
                 self.rl.in_open,
                 self.ai.in_open,
                 self.finished,
@@ -1050,6 +1058,7 @@ class GameApp:
         profile_ai="CANON",
         checkpoint="",
         health_factors=None,
+        sickness=0.0,
         speed=DEFAULT_SPEED,
         auto_pause=True,
     ):
@@ -1144,6 +1153,7 @@ class GameApp:
         self.profile_ai = profile_ai
         self.checkpoint = checkpoint or ""
         self.health_factors = dict(health_factors or {})
+        self.sickness = max(0.0, min(SICKNESS_MAX, float(sickness)))
         self.match = MatchEngine(
             seed=self.game_seed,
             steps=steps,
@@ -1153,6 +1163,7 @@ class GameApp:
             profile_ai=profile_ai,
             checkpoint=self.checkpoint,
             health_factors=self.health_factors,
+            sickness=self.sickness,
         )
 
         self.action_idx = 0
@@ -1427,6 +1438,7 @@ class GameApp:
             profile_ai=self.profile_ai,
             checkpoint=self.checkpoint,
             health_factors=self.health_factors,
+            sickness=self.sickness,
         )
         self.paused = True
         self._critical_low.clear()
@@ -1460,6 +1472,7 @@ class GameApp:
             "with_env": bool(self.with_env),
             "profile_rl": self.profile_rl,
             "profile_ai": self.profile_ai,
+            "sickness": self.sickness,
             "speed": self.clock.selected_speed,
             "paused": self.paused,
         }
@@ -1608,6 +1621,10 @@ class GameApp:
                     COL_TEXT,
                 ),
             ]
+            if ag.sickness > 0.0:
+                rows.append(
+                    (f"sick {ag.sickness:.2f}", (230, 170, 90))
+                )
             on = ag.schmitt_on()
             win = ("OPEN " + str(ag.open_timer)) if ag.in_open else "closed"
             rows.append(
@@ -2277,6 +2294,18 @@ def main():
         if index + 1 < len(sys.argv):
             health_factors = parse_health_factors(sys.argv[index + 1])
         LOG.info("main(): health_factors=%r" % health_factors)
+    sickness = 0.0
+    if "--sickness" in sys.argv:
+        index = sys.argv.index("--sickness")
+        if index + 1 < len(sys.argv):
+            try:
+                sickness = max(
+                    0.0,
+                    min(SICKNESS_MAX, float(sys.argv[index + 1])),
+                )
+            except ValueError:
+                sickness = 0.0
+        LOG.info("main(): sickness=%.2f" % sickness)
     speed = DEFAULT_SPEED
     if "--speed" in sys.argv:
         index = sys.argv.index("--speed")
@@ -2312,6 +2341,7 @@ def main():
         fonts=fonts,
         checkpoint=checkpoint,
         health_factors=health_factors,
+        sickness=sickness,
         speed=speed,
         auto_pause=auto_pause,
     )

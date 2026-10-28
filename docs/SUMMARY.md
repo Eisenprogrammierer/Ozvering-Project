@@ -118,8 +118,10 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
   Здоровье — отдельное `S` (`H=100`): отдых `+0.75/тик`, голод `-1/тик`,
   переполнение урона с коэффициентом `0.70` после `F=0`; смерть при `H<=0`.
   Множители
-  `aging/illness/stress/care` доступны через `--health-factors`. Дуэльный
-  срез откалиброван: `experiments/exp_health_calibration.py`.
+  `aging/illness/stress/care` доступны через `--health-factors`. Болезнь —
+  отдельное `sickness ∈ [0,1]`: прогресс без отдыха, урон здоровью,
+  восстановление отдыхом и `treat()`, начальное значение через `--sickness`.
+  Дуэльный срез откалиброван: `experiments/exp_health_calibration.py`.
   Реальное время — `core41.SimulationClock`: тик 1 с, скорости
   `pause/1x/2x/4x/8x/16x`, авто-пауза и ограниченный догон.
   `game_engine.py` и `ui/battlefield.py` работают через этот слой.

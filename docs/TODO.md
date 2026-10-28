@@ -15,8 +15,11 @@
 > чекпойнт BDI/QTable загружается явно через `--checkpoint`/`load_policy`.
 > Здоровье — отдельное `S` (`H=100`): отдых/голод/переполнение урона,
 > смерть при `H<=0`, множители `aging/illness/stress/care` через
-> `--health-factors`. Дуэльная калибровка здоровья —
-> `experiments/exp_health_calibration.py` и §2.3.2 `WORLD_CORE_MODEL.md`.
+> `--health-factors`. Болезнь — процесс `sickness ∈ [0,1]`:
+> прогресс без отдыха, восстановление отдыхом и `treat()`, начальное
+> значение через `--sickness`; отдельного действия лечения пока нет.
+> Дуэльная калибровка здоровья — `experiments/exp_health_calibration.py`
+> (`--sickness`) и §2.3.2–2.3.3 `WORLD_CORE_MODEL.md`.
 > Время арены — `core41.SimulationClock`: тик 1 с,
 > скорости `pause/1x/2x/4x/8x/16x`, авто-пауза, `--speed`/`--no-auto-pause`.
 > `UtilityAI` остаётся baseline и частью канона

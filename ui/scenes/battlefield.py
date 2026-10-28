@@ -34,6 +34,7 @@ class BattlefieldScene(Scene):
                 player_profile=player_profile,
                 checkpoint=getattr(self.app, "checkpoint", ""),
                 health_factors=getattr(self.app, "health_factors", {}),
+                sickness=getattr(self.app, "sickness", None) or 0.0,
             )
             self.move_mode = True
             self.show_help = False

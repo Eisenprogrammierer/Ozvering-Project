@@ -10,6 +10,7 @@ from .model import (
     PRESSURE_PER_WORK,
     REST_FORCE,
     REST_REGEN,
+    SICKNESS_MAX,
     Automaton,
     success_probability,
 )
@@ -136,6 +137,7 @@ class ArenaAgent:
         health=HEALTH_MAX,
         max_health=HEALTH_MAX,
         health_factors=None,
+        sickness=0.0,
     ):
         self.id = str(agent_id)
         self.profile = str(profile)
@@ -157,6 +159,7 @@ class ArenaAgent:
             health=float(health),
             max_health=float(max_health),
             health_factors=factors,
+            sickness=max(0.0, min(SICKNESS_MAX, float(sickness))),
             inputs=FORMS,
             outputs=FORMS,
             skills={
@@ -228,6 +231,26 @@ class ArenaAgent:
     def is_dead(self):
         return self.unit.is_dead
 
+    @property
+    def sickness(self):
+        return float(self.unit.sickness)
+
+    @sickness.setter
+    def sickness(self, value):
+        self.unit.sickness = max(
+            0.0, min(SICKNESS_MAX, float(value))
+        )
+
+    @property
+    def is_sick(self):
+        return self.unit.is_sick
+
+    def infect(self, severity):
+        return self.unit.infect(severity)
+
+    def treat(self, amount):
+        return self.unit.treat(amount)
+
     def set_health_factor(self, name, value):
         self.unit.health_factors[str(name)] = max(
             0.0, min(HEALTH_FACTOR_MAX, float(value))
@@ -288,6 +311,7 @@ class ArenaAgent:
         self.unit.force = self.unit.max_force
         self.unit.energy = self.unit.max_energy
         self.unit.health = self.unit.max_health
+        self.unit.sickness = 0.0
         self.unit.state["pressure"] = 0.0
         self.last_action = Action("REST", form="rest")
         self.last_act = "REST"
@@ -442,6 +466,8 @@ class ArenaMatch:
         profile_ai="CANON",
         health_factors_rl=None,
         health_factors_ai=None,
+        sickness_rl=0.0,
+        sickness_ai=0.0,
         with_env=False,
     ):
         self.seed = int(seed)
@@ -467,6 +493,7 @@ class ArenaMatch:
             profile=profile_rl,
             seed=self.seed ^ 0x5EED,
             health_factors=health_factors_rl,
+            sickness=sickness_rl,
         )
         self.ai = ArenaAgent(
             "ai",
@@ -474,6 +501,7 @@ class ArenaMatch:
             profile=profile_ai,
             seed=self.seed ^ 0xA11E,
             health_factors=health_factors_ai,
+            sickness=sickness_ai,
         )
 
     def step_tick(self, forced_rl_action=None):

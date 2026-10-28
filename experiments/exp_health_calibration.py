@@ -7,6 +7,7 @@
     python3 experiments/exp_health_calibration.py --seeds 100 --steps 2000
     python3 experiments/exp_health_calibration.py \
         --set HEALTH_DAMAGE_RATIO=0.75,HEALTH_REST_REGEN=0.8
+    python3 experiments/exp_health_calibration.py --sickness 0.5
 
 Скрипт не меняет код: константы `core41.model` подменяются только на время
 пакета партий и затем восстанавливаются. Цели калибровки и результаты —
@@ -76,17 +77,19 @@ def metering():
         model.Automaton.apply_force_damage = _ORIG_DAMAGE
 
 
-def _make_match(seed, steps):
+def _make_match(seed, steps, sickness=0.0):
     return ArenaMatch(
         seed=seed,
         steps=steps,
         rl_policy=QTablePolicy(seed=seed),
         ai_policy=BDIPolicy(seed=seed ^ 0xB01),
+        sickness_rl=sickness,
+        sickness_ai=sickness,
     )
 
 
-def run_match(seed, steps):
-    match = _make_match(seed, steps)
+def run_match(seed, steps, sickness=0.0):
+    match = _make_match(seed, steps, sickness)
     critical_ticks = 0
     recoveries = 0
     below = {"rl": False, "ai": False}
@@ -128,16 +131,18 @@ def _restore(saved):
         setattr(model, name, value)
 
 
-def run_batch(seeds, steps, overrides, label):
+def run_batch(seeds, steps, overrides, label, sickness=0.0):
     saved = _with_overrides(overrides)
     _METER["starve"] = 0.0
     _METER["damage"] = 0.0
     try:
         with metering():
-            rows = [run_match(seed, steps) for seed in range(seeds)]
+            rows = [
+                run_match(seed, steps, sickness) for seed in range(seeds)
+            ]
     finally:
         _restore(saved)
-    _report(label, rows, seeds, steps)
+    _report(label, rows, seeds, steps, sickness)
     return rows
 
 
@@ -145,7 +150,7 @@ def _share(count, total):
     return count / max(1, total)
 
 
-def _report(label, rows, seeds, steps):
+def _report(label, rows, seeds, steps, sickness=0.0):
     counts = {
         cause: sum(1 for row in rows if row["cause"] == cause)
         for cause in ("death", "capture", "timeout")
@@ -161,8 +166,8 @@ def _report(label, rows, seeds, steps):
     recoveries = statistics.mean(row["recoveries"] for row in rows)
 
     print(
-        "\n=== %s (N=%d, steps=%d) ==="
-        % (label, seeds, steps)
+        "\n=== %s (N=%d, steps=%d, sickness=%.2f) ==="
+        % (label, seeds, steps, sickness)
     )
     for cause in ("death", "capture", "timeout"):
         print(
@@ -240,17 +245,33 @@ def main(argv=None):
         action="store_true",
         help="показать старую калибровку (1.0/0.5) для сравнения",
     )
+    parser.add_argument(
+        "--sickness",
+        type=float,
+        default=0.0,
+        help="начальная болезнь обоих бойцов [0..1]",
+    )
     args = parser.parse_args(argv)
     if args.seeds < 1 or args.steps < 1:
         parser.error("--seeds и --steps должны быть положительными")
+    if not 0.0 <= args.sickness <= 1.0:
+        parser.error("--sickness должен быть в диапазоне [0..1]")
     try:
         overrides = parse_overrides(args.overrides)
     except ValueError as error:
         parser.error(str(error))
 
     if args.baseline:
-        run_batch(args.seeds, args.steps, BASELINE, "baseline: 1.0/0.5")
-    run_batch(args.seeds, args.steps, overrides, "текущая калибровка")
+        run_batch(
+            args.seeds, args.steps, BASELINE, "baseline: 1.0/0.5", args.sickness
+        )
+    run_batch(
+        args.seeds,
+        args.steps,
+        overrides,
+        "текущая калибровка",
+        args.sickness,
+    )
     return 0
 
 

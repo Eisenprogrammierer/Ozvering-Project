@@ -402,6 +402,7 @@ python3 experiments/exp_g1_keffect_window.py     # G1: окно K_EFFECT (N=12 +
 python3 experiments/exp_g2_profiles.py           # G2: профили p<1 и их компенсации
 python3 experiments/exp_p1_rl_boost.py           # P1: потолок табличного RL
 python3 experiments/exp_health_calibration.py    # калибровка здоровья core41
+python3 experiments/exp_health_calibration.py --sickness 0.5  # калибровка с болезнью
 python3 experiments/exp_warfare.py               # войсковые автоматы (код 0/1)
 ```
 
@@ -424,6 +425,7 @@ python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
 python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-политику в активные сцены
 python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
+python3 main.py --sickness 0.5                      # начальная болезнь 0..1
 python3 main.py --speed 4                           # 1x/2x/4x/8x/16x
 python3 main.py --no-auto-pause                     # без авто-паузы
 ```
@@ -448,8 +450,10 @@ python3 main.py --no-auto-pause                     # без авто-паузы
 обучаемые политики. Здоровье — отдельное состояние `S` (`H=100`): отдых
 `+0.75/тик` восстанавливает его, голод `-1/тик` и переполнение урона с
 коэффициентом `0.70` после `F=0` уменьшают; смерть наступает при `H<=0`. Множители
-`aging/illness/stress/care` задаются через `--health-factors`. Дуэльный срез
-откалиброван (`experiments/exp_health_calibration.py`, §2.3.2
+`aging/illness/stress/care` задаются через `--health-factors`. Болезнь —
+процесс `sickness ∈ [0,1]`: без отдыха прогрессирует и наносит урон, отдых и
+`treat()` снижают её, начальное значение — `--sickness`. Дуэльный срез
+откалиброван (`experiments/exp_health_calibration.py`, §2.3.2–2.3.3
 `docs/WORLD_CORE_MODEL.md`). Время в арене идёт секундным тиком через
 `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
 критическом здоровье и завершении партии, ограниченный догон после

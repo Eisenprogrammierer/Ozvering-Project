@@ -19,6 +19,7 @@ class App:
         seed=0,
         checkpoint="",
         health_factors=None,
+        sickness=None,
         speed=None,
         auto_pause=True,
     ):
@@ -29,6 +30,7 @@ class App:
         self.seed = seed
         self.checkpoint = checkpoint or ""
         self.health_factors = dict(health_factors or {})
+        self.sickness = sickness
         self.speed = speed
         self.auto_pause = bool(auto_pause)
         self.fullscreen = bool(
@@ -186,6 +188,18 @@ def main(argv=None):
             )
         except IndexError:
             health_factors = {}
+    sickness = None
+    if "--sickness" in argv:
+        try:
+            sickness = max(
+                0.0,
+                min(
+                    ge.SICKNESS_MAX,
+                    float(argv[argv.index("--sickness") + 1]),
+                ),
+            )
+        except (IndexError, ValueError):
+            sickness = None
     speed = None
     if "--speed" in argv:
         try:
@@ -199,6 +213,7 @@ def main(argv=None):
         fullscreen=fullscreen,
         checkpoint=checkpoint,
         health_factors=health_factors,
+        sickness=sickness,
         speed=speed,
         auto_pause=auto_pause,
     )

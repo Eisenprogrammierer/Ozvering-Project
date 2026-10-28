@@ -21,6 +21,7 @@ python3 main.py --arena       # арена отдельно (автономны�
 python3 main.py --interaction # экран взаимодействий (объект → действие → исход)
 python3 main.py --checkpoint saves/bdi.json  # BDI-политика в активных сценах
 python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
+python3 main.py --sickness 0.5                       # начальная болезнь 0..1
 python3 main.py --speed 4                     # 1x/2x/4x/8x/16x
 python3 main.py --no-auto-pause               # без авто-паузы
 python3 -m ui --scene game    # сразу открыть экран игры (отладка)
@@ -153,7 +154,10 @@ interaction/         # чистая доменно-нейтральная мод
 * здоровье командира — отдельная шкала `H`: HUD арены показывает `H=...`,
   панель поля боя — бар «здоровье». `--health-factors` или
   `BattlefieldModel(health_factors=...)` задают `aging/illness/stress/care`;
-  смерть при `H<=0` завершает бой, а `F=0` — ещё нет;
+  смерть при `H<=0` завершает бой, а `F=0` — ещё нет. Болезнь —
+  `sickness ∈ [0,1]`: HUD арены показывает `sick ...`, начальное значение
+  задаётся `--sickness` или `BattlefieldModel(sickness=...)`; отдельной
+  кнопки лечения пока нет — болезнь снижается отдыхом;
 * время арены идёт через `core41.SimulationClock`: один такт = 1 с при `1x`,
   скорости `pause/1x/2x/4x/8x/16x`, авто-пауза и догон не более 64 тактов
   за кадр. При потере фокуса отрисовка пропускается, `update` продолжается;
