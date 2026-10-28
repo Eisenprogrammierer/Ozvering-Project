@@ -21,6 +21,7 @@ from .duel import DuelWorld
 from .env import DuelEnv
 from .model import (
     DEFAULT_HEALTH_FACTORS,
+    HEALTH_CRITICAL,
     HEALTH_DAMAGE_RATIO,
     HEALTH_FACTOR_MAX,
     HEALTH_MAX,
@@ -44,6 +45,7 @@ __all__ = [
     "DEFAULT_SPEED",
     "DuelEnv",
     "DuelWorld",
+    "HEALTH_CRITICAL",
     "HEALTH_DAMAGE_RATIO",
     "HEALTH_FACTOR_MAX",
     "HEALTH_MAX",

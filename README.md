@@ -401,6 +401,7 @@ python3 experiments/exp_sensitivity_f2_f3.py     # F2/F3/C1: чувствите�
 python3 experiments/exp_g1_keffect_window.py     # G1: окно K_EFFECT (N=12 + N=40)
 python3 experiments/exp_g2_profiles.py           # G2: профили p<1 и их компенсации
 python3 experiments/exp_p1_rl_boost.py           # P1: потолок табличного RL
+python3 experiments/exp_health_calibration.py    # калибровка здоровья core41
 python3 experiments/exp_warfare.py               # войсковые автоматы (код 0/1)
 ```
 
@@ -445,9 +446,11 @@ python3 main.py --no-auto-pause                     # без авто-паузы
 `core41` даёт одну универсальную энергию, обработчики, `DuelEnv` и runtime
 активной арены (`ArenaAgent`, `ArenaMatch`), а `BDIPolicy`/`QTablePolicy` —
 обучаемые политики. Здоровье — отдельное состояние `S` (`H=100`): отдых
-восстанавливает его, голод и переполнение урона после `F=0` уменьшают; смерть
-наступает при `H<=0`. Множители `aging/illness/stress/care` задаются через
-`--health-factors`. Время в арене идёт секундным тиком через
+`+0.75/тик` восстанавливает его, голод `-1/тик` и переполнение урона с
+коэффициентом `0.70` после `F=0` уменьшают; смерть наступает при `H<=0`. Множители
+`aging/illness/stress/care` задаются через `--health-factors`. Дуэльный срез
+откалиброван (`experiments/exp_health_calibration.py`, §2.3.2
+`docs/WORLD_CORE_MODEL.md`). Время в арене идёт секундным тиком через
 `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
 критическом здоровье и завершении партии, ограниченный догон после
 сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`

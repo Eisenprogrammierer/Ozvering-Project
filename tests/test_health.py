@@ -7,6 +7,10 @@ from core41 import (
     ArenaMatch,
     Automaton,
     DuelWorld,
+    HEALTH_CRITICAL,
+    HEALTH_DAMAGE_RATIO,
+    HEALTH_MAX,
+    HEALTH_REST_REGEN,
     check_capture,
     run_duel_tick,
 )
@@ -17,6 +21,23 @@ def _duel(left_action, right_action, **kwargs):
     right = ArenaAgent("right", **kwargs)
     run_duel_tick(left, left_action, right, right_action)
     return left, right
+
+
+def test_calibrated_health_constants():
+    assert HEALTH_MAX == 100.0
+    assert HEALTH_CRITICAL == 25.0
+    assert HEALTH_REST_REGEN == 0.75
+    assert HEALTH_DAMAGE_RATIO == 0.70
+    assert HEALTH_MAX / HEALTH_REST_REGEN == pytest.approx(400.0 / 3.0)
+    critical_to_full = (HEALTH_MAX - HEALTH_CRITICAL) / HEALTH_REST_REGEN
+    assert critical_to_full == pytest.approx(100.0)
+
+
+def test_critical_health_is_shared_by_engine_and_core():
+    pytest.importorskip("pygame")
+    import game_engine as ge
+
+    assert ge.CRITICAL_HEALTH == HEALTH_CRITICAL
 
 
 def test_health_is_separate_from_force_and_energy():
@@ -35,8 +56,8 @@ def test_rest_regenerates_health_slowly():
         health=50,
         energy=50,
     )
-    assert left.health == pytest.approx(50.5)
-    assert right.health == pytest.approx(50.5)
+    assert left.health == pytest.approx(50.75)
+    assert right.health == pytest.approx(50.75)
 
 
 def test_empty_energy_decays_health():
@@ -55,9 +76,9 @@ def test_force_overflow_damages_health():
     absorbed, overflow, health_damage = unit.apply_force_damage(20)
     assert absorbed == 5
     assert overflow == 15
-    assert health_damage == 15
+    assert health_damage == pytest.approx(10.5)
     assert unit.force == 0
-    assert unit.health == 85
+    assert unit.health == pytest.approx(89.5)
     assert not unit.is_dead
 
 
@@ -81,7 +102,7 @@ def test_health_factors_scale_decay_regen_and_damage():
 
     unit.energy = 50
     unit.tick_health(resting=True)
-    assert unit.health == pytest.approx(97.0 + 0.5 * 2.0 / 3.0)
+    assert unit.health == pytest.approx(97.0 + 0.75 * 2.0 / 3.0)
 
 
 def test_health_factors_are_clamped():

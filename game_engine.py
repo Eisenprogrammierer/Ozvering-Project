@@ -184,6 +184,7 @@ try:
         CORE_ACTIONS as ACTIONS,
         CAPTURE_STREAK,
         DEFAULT_SPEED,
+        HEALTH_CRITICAL,
         SimulationClock,
         normalize_speed,
     )
@@ -247,7 +248,7 @@ def quit_pygame():
 SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
-CRITICAL_HEALTH = 25.0
+CRITICAL_HEALTH = HEALTH_CRITICAL
 
 
 DEFENSE_COLORS = {
