@@ -226,18 +226,37 @@ venv/bin/python -m agents.train --episodes 500 --seed 0
 venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 ```
 
+Дневной кампанейный срез (проблема готовности №6) выбирается флагом
+`--env campaign`: там один агент без оппонента и без self-play, действие —
+`CampaignAction` (`END_DAY` плюс ordinary/heal-ход `WorldEngine`), награда —
+`campaign_reward()` из дельт положения/организации/здоровья/болезни с
+терминальным бонусом исхода ±1.0; горизонт `max_days` — усечение, а не
+поражение (вопрос №30 открыт):
+
+```bash
+venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
+    --policy bdi
+```
+
+Кампанейные наблюдения проходят через `campaign_features()` (те же 18
+признаков), поэтому `bdi`/`mlp` работают без правок; для таблиц есть
+отдельный вид `qtable-campaign` — его ключ строится из дневных разрядов и
+не смешивается с аренной Q-таблицей. Персистентность среды:
+`CampaignEnv.state_dict()/load_state_dict()` сохраняют снимок мира, сид и
+горизонт.
+
 Обучение по умолчанию идёт в self-play: обе стороны получают собственный
 `Transition` и обновляют свои политики. Отключить обучение противника можно
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
 
 После обучения CLI по умолчанию играет held-out матрицу силы: политика
-против `bdi`, `qtable` и `random` на отдельных seed'ах, без исследования и
-без обновления весов. Параметры:
+против `bdi`, `qtable`, `random` и `mlp` на отдельных seed'ах, без
+исследования и без обновления весов. Параметры:
 
 ```bash
 venv/bin/python -m agents.train --episodes 2000 --seed 0 \
     --eval-episodes 50 --eval-seed 100000 \
-    --eval-opponents bdi,qtable,random \
+    --eval-opponents bdi,qtable,random,mlp \
     --out saves/bdi.json --eval-out saves/eval.json
 ```
 
@@ -253,9 +272,42 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
 ```
 
 CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`,
-`policy_updates`, `opponent_updates`, `eval`). `BDIPolicy` умеет `save/load`;
-обе политики — `state_dict/load_state_dict`. `agents.load_policy(path)`
-читает `kind` из файла и возвращает `BDIPolicy` или `QTablePolicy`.
+`policy_updates`, `opponent_updates`, `resumed_from`, `eval`). `BDIPolicy`
+умеет `save/load`; все политики — `state_dict/load_state_dict`.
+`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`,
+`QTablePolicy` или `MLPPolicy`.
+
+Продолжить обучение с чекпойнта можно флагами `--resume`/`--resume-opponent`
+(проблема готовности №5): загрузка явная, автопоиска нет:
+
+```bash
+venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+    --resume saves/bdi.json --resume-opponent saves/qtable.json \
+    --out saves/bdi.json
+```
+
+Доменная рандомизация (проблема готовности №7): `--domain-randomize` берёт
+перед каждым обучающим эпизодом новый домен — профили арены, стартовую
+болезнь сторон, множители health-факторов (`arena`) или джиттер навыков и
+болезнь героя (`campaign`). Диапазоны задаются флагами; жеребьёвка
+детерминирована `--seed` (отдельный rng с солью 7919), поэтому запуск
+воспроизводим. Для `--env duel` флаг честно игнорируется (легаси-срез без
+доменных параметров, в статистике `domain_randomize: false`):
+
+```bash
+venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+    --domain-randomize \
+    --profiles CANON,ZEALOT,ORTHODOX \
+    --sickness-min 0.0 --sickness-max 0.6 \
+    --health-factors aging,illness,stress,care \
+    --health-min 0.75 --health-max 1.25 \
+    --skill-jitter 0.25          # только для --env campaign
+```
+
+Held-out оценка по умолчанию идёт на фиксированном каноническом домене —
+иначе матрица силы несравнима между запусками. Явный
+`--eval-domain-randomize` усредняет оценку по распределению доменов
+(строки матрицы получают `domain_randomized: true`).
 
 Загрузить чекпойнт в активную сцену можно явно:
 
@@ -303,13 +355,38 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 Этого достаточно для подключения будущей нейросетевой политики без изменения
 игрового цикла.
 
+### Ёмкость политик и версии чекпойнтов (проблемы готовности №4–№5)
+
+Активный набор политик в `agents/policies.py`:
+
+| kind      | ёмкость                          | обучение                        | роль                    |
+|-----------|----------------------------------|---------------------------------|-------------------------|
+| `bdi`     | линейные веса 18×6               | online градиент по признакам    | baseline AI             |
+| `qtable`  | таблица, ключ 12 полей           | tabular Q(λ)-подобный TD        | baseline RL             |
+| `mlp`     | tanh-hidden=16, DQN-lite         | online TD(0), target=max next   | function approximation  |
+| `random`  | нет весов                        | нет                             | спарринг/нижняя граница |
+
+`MLPPolicy` использует те же 18 признаков, что `BDIPolicy`, совместима с
+`ArenaEnv`/`DuelEnv` и не требует PyTorch; `bdi`/`qtable` остаются неизменным
+baseline. Формат чекпойнта версионирован: `CHECKPOINT_VERSION = 1` пишется в
+поле `version` каждого `state_dict()`; файлы без поля трактуются как v0
+(`checkpoint_version()`). При загрузке v0 `QTablePolicy` мигрирует легаси-ключи
+8/10 → 12 полей (отсутствующие sickness-поля заполняются нулём, коллизии
+усредняются), `BDIPolicy` дополняет 16-мерный вектор веса до 18 обнулёнными
+признаками болезни. `load_policy` отказывается читать файлы с версией выше
+поддерживаемой. Старые шкалы и ранние сейвы при этом не ломаются: миграция
+происходит только в памяти загруженной политики.
+
 ---
 
 ## 5. Ограничения и следующий шаг
 
 - `simulation.py` всё ещё использует контекстные фазы `WATER/FIRE/EARTH`;
   это легаси-канон и baseline, но не активный игровой поток.
-- `core41.arena` — дуэль/арена, а не мир; `campaign/world.py` не мигрирован.
+- `core41.arena` — дуэль/арена, а не мир; `campaign/world.py` не мигрирован
+  в core41-энергию: кампанейный срез живёт на собственных шкалах
+  (`standing/power/cohesion/...`) и подключён к обучению через
+  `CampaignEnv` (проблема №6) как отдельная среда, без смешивания с ареной.
 - Здоровье/смерть откалиброваны для дуэльного среза; болезнь, контактная
   передача и лечение реализованы в `core41` как процесс и шестое действие
   `TREAT`. `health`/`sickness` сохраняются в сейве и переносятся через
@@ -325,7 +402,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 - Нет отдельного актора среды в новом runtime; флаг `with_env` сохранён в
   фасаде, но `env=None`.
 - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
-- Нет PyTorch-зависимости; текущие политики линейные/табличные.
+- Нет PyTorch-зависимости; `MLPPolicy` — собственный tanh-MLP (DQN-lite) без
+  внешних библиотек, `bdi`/`qtable` остаются линейной/табличной baseline.
 - Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
   явно через `--checkpoint`. Матрица силы для выбора чекпойнта считается
   вручную (`agents.train.evaluate_matrix`), автопоиска нет.
@@ -333,4 +411,10 @@ Transition:  observation, action, reward, next_observation, done, next_actions
 
 Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
 кампанийный real-time-планировщик, затем добавить средовые источники болезни.
-Калибровку здоровья после миграции нужно повторить на новых политиках.
+Калибровку здоровья после миграции нужно повторить на новых политиках
+(`mlp`). Проблемы готовности к обучению №1–№7 закрыты по порядку: ArenaEnv,
+награда, self-play/eval, ёмкость политик, версионирование чекпойнтов,
+CampaignEnv, доменная рандомизация. Открытые вопросы §7 в docs/TODO.md
+(№28 распад организации, №29 увольнение как смена роли, №30 финалы
+бесконечного сценария, №31 фоновая симуляция) остаются незакрытыми и
+честно отмечены в документации CampaignEnv.

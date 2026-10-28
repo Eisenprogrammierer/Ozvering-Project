@@ -29,4 +29,9 @@ jobs:
         run: python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view automata interaction organizations experiments
 
       - name: Тесты (pytest)
+        env:
+          # Headless-окружение GitHub runner: pygame инициализирует виде/аудио
+          # только через dummy-драйверы, иначе GUI-тесты падают на старте.
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
         run: pytest -q

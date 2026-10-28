@@ -10,10 +10,73 @@
 `legal_actions(side)`, где `side` — `"rl"`/`"ai"` (для `DuelEnv` также
 принимаются легаси-имена `"agent"`/`"opponent"`). Это нужно для self-play:
 у каждой стороны своё наблюдение, действие и награда.
+
+Доменная рандомизация (проблема готовности №7): перед матчем можно вызвать
+`randomize_draw(rng)`, и он вернёт словарь параметров `ArenaEnv` (профили,
+стартовая болезнь, множители здоровья), распределение которого ограничено
+флагами CLI `agents.train`. Draw детерминирован rng'ом вызывающего цикла:
+один и тот же seed обучения даёт одну и ту же последовательность доменов,
+поэтому воспроизводимость сохраняется без скрытых состояний среды.
 """
 
-from .arena import ArenaMatch
+import random
+
+from .arena import PROFILE_SKILLS, ArenaMatch
 from .duel import DuelWorld
+from .model import DEFAULT_HEALTH_FACTORS, HEALTH_FACTOR_MAX, SICKNESS_MAX
+
+# Диапазоны доменной рандомизации по умолчанию (проблема №7). Широкие, но
+# физически осмысленные: sickness ∈ [0, 0.6] оставляет TREAT нетривиальным
+# выбором, health-факторы ±25% вокруг канона, aging/illness/stress/care
+# ограничены сверху HEALTH_FACTOR_MAX внутри Automaton.health_factor().
+DRIFT_SICKNESS_MIN = 0.0
+DRIFT_SICKNESS_MAX = 0.6
+DRIFT_HEALTH_MIN = 0.75
+DRIFT_HEALTH_MAX = 1.25
+
+
+def _clamp_unit(value):
+    return max(0.0, min(1.0, float(value)))
+
+
+def randomize_draw(
+    rng=None,
+    profiles=(),
+    health_factors=(),
+    sickness_min=DRIFT_SICKNESS_MIN,
+    sickness_max=DRIFT_SICKNESS_MAX,
+    health_min=DRIFT_HEALTH_MIN,
+    health_max=DRIFT_HEALTH_MAX,
+):
+    """Сэмплировать один домен арены (параметры конструктора `ArenaEnv`).
+
+    - `profiles` — кортеж имён профилей (`CANON`/`ZEALOT`/`ORTHODOX`);
+      пусто — только `CANON` (без джиттера профиля);
+    - `health_factors` — имена факторов (`aging`, `illness`, `stress`,
+      `care`), которым назначается случайный множитель; пусто — факторы
+      остаются каноническими;
+    - sickness и health-множители берутся из указанных диапазонов.
+    """
+    rng = rng or random.Random()
+    names = tuple(str(name).upper() for name in profiles) or ("CANON",)
+    unknown = [name for name in names if name not in PROFILE_SKILLS]
+    if unknown:
+        raise ValueError("неизвестные профили: %r" % (unknown,))
+    lo_s = _clamp_unit(sickness_min)
+    hi_s = max(lo_s, _clamp_unit(sickness_max))
+    lo_h = max(0.05, float(health_min))
+    hi_h = min(float(HEALTH_FACTOR_MAX), max(lo_h, float(health_max)))
+    factors = {}
+    for factor in health_factors:
+        factors[str(factor)] = round(rng.uniform(lo_h, hi_h), 4)
+    return {
+        "profile_rl": rng.choice(names),
+        "profile_ai": rng.choice(names),
+        "sickness_rl": round(rng.uniform(lo_s, hi_s), 4),
+        "sickness_ai": round(rng.uniform(lo_s, hi_s), 4),
+        "health_factors_rl": dict(factors),
+        "health_factors_ai": dict(factors),
+    }
 
 
 def _side_id(side):
@@ -113,6 +176,34 @@ class ArenaEnv:
         self.match = None
         self.last_rewards = {"rl": 0.0, "ai": 0.0}
         self.reset(seed=self.seed)
+
+    def apply_domain(self, **kwargs):
+        """Применить словарь домена (`randomize_draw`) и пересоздать матч.
+
+        Принимаются только параметры конструктора; неизвестные ключи —
+        ошибка (защита от опечаток в CLI-пробросе проблемы №7).
+        """
+        allowed = {
+            "profile_rl",
+            "profile_ai",
+            "health_factors_rl",
+            "health_factors_ai",
+            "sickness_rl",
+            "sickness_ai",
+        }
+        unknown = set(kwargs) - allowed
+        if unknown:
+            raise ValueError(
+                "неизвестные параметры домена: %r" % (sorted(unknown),)
+            )
+        for key, value in kwargs.items():
+            if key.startswith("health_factors"):
+                setattr(self, key, dict(value or {}))
+            elif key.startswith("profile"):
+                setattr(self, key, str(value))
+            else:
+                setattr(self, key, float(value))
+        return self.reset()
 
     @property
     def action_space(self):

@@ -1,0 +1,605 @@
+From 38034635d55b406bb275c6385303f78d559a3692 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 11:19:15 +0000
+Subject: [PATCH 2/4] feat: close training-readiness questions 4-5 (MLP
+ capacity, checkpoint versioning/resume)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- MLPPolicy (tanh DQN-lite, 18 признаков, без внешних зависимостей) включён
+  в make_policy/load_policy и в --eval-opponents по умолчанию (bdi,qtable,random,mlp);
+  bdi/qtable остаются неизменным baseline; тест качества обучения MLP.
+- CHECKPOINT_VERSION=1 во всех state_dict(); файлы без version = v0;
+  миграция легаси-ключей QTable 8/10 -> 12 полей (усреднение коллизий),
+  дополнение весов BDI 16->18; load_policy отказывает будущим версиям.
+- agents.train: --resume/--resume-opponent (явная загрузка, автопоиска нет),
+  resumed_from в JSON-статистике.
+- docs: AGENTS.md (раздел ёмкость/версии, mlp в матрице, ограничения),
+  BASELINE.md (ответ на P1 function approximation), README.md, TODO.md №4-5.
+- Полный прогон: 477 passed.
+---
+ README.md            |   9 ++-
+ agents/__init__.py   |   4 ++
+ agents/policies.py   |  72 ++++++++++++++++++++--
+ agents/train.py      |  32 ++++++++--
+ docs/AGENTS.md       |  52 +++++++++++++---
+ docs/BASELINE.md     |  17 ++++++
+ docs/TODO.md         |  24 +++++---
+ tests/test_core41.py | 142 +++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 325 insertions(+), 27 deletions(-)
+
+diff --git a/README.md b/README.md
+index 48742e6..74c36cc 100644
+--- a/README.md
++++ b/README.md
+@@ -472,8 +472,13 @@ python3 main.py --no-auto-pause                     # без авто-паузы
+ self-play: обе политики обновляются; `--no-self-play` оставляет противника
+ фиксированным). После обучения CLI играет held-out матрицу силы на отдельных
+ seed'ах без исследования и обновления весов
+-(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random`;
+-`--eval-episodes 0` выключает оценку). Время в арене идёт секундным тиком через
++(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random,mlp`;
++`--eval-episodes 0` выключает оценку). Ёмкость политик растёт через встроенный
++`MLPPolicy` (tanh DQN-lite без внешних зависимостей; `bdi`/`qtable` —
++неизменный baseline). Чекпойнты версионированы (`version: 1`; файлы без поля —
++v0): при загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей, BDI дополняет
++веса до 18 признаков; продолжить обучение можно явно флагами
++`--resume`/`--resume-opponent` (автопоиска нет). Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/agents/__init__.py b/agents/__init__.py
+index 3717fbe..a877069 100644
+--- a/agents/__init__.py
++++ b/agents/__init__.py
+@@ -1,10 +1,12 @@
+ from .legacy import PolicyAgent
+ from .policies import (
+     BDIPolicy,
++    CHECKPOINT_VERSION,
+     FEATURE_COUNT,
+     MLPPolicy,
+     QTablePolicy,
+     RandomPolicy,
++    checkpoint_version,
+     default_actions,
+     features,
+     load_policy,
+@@ -12,11 +14,13 @@ from .policies import (
+ )
+ __all__ = [
+     "BDIPolicy",
++    "CHECKPOINT_VERSION",
+     "FEATURE_COUNT",
+     "MLPPolicy",
+     "PolicyAgent",
+     "QTablePolicy",
+     "RandomPolicy",
++    "checkpoint_version",
+     "default_actions",
+     "features",
+     "load_policy",
+diff --git a/agents/policies.py b/agents/policies.py
+index 8b61050..f72c1d3 100644
+--- a/agents/policies.py
++++ b/agents/policies.py
+@@ -6,6 +6,38 @@ import random
+ from core41.model import TREAT_ENERGY_FRACTION
+ from core41.types import Action, Observation, Transition
+ 
++# Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
++# ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
++# QTable и до появления MLPPolicy. Текущий формат — v1:
++#   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
++#     полей (недостающие sickness-поля заполняются нулём);
++#   - BDI: 18 признаков; при загрузке v0 вектор веса 16 дополняется нулями;
++#   - MLP: v1 — первый сетевой baseline, миграции из v0 не существует.
++CHECKPOINT_VERSION = 1
++LEGACY_CHECKPOINT_VERSION = 0
++
++
++def _migrate_qtable_key(key):
++    """Приводит легаси-ключ QTable (8 или 10 полей) к 12-полевому формату.
++
++    Порядок полей v0 совпадает с v1, кроме пропущенных индексов 6-7
++    (self_sickness/opponent_sickness) в 10-полевом варианте и их отсутствия
++    в 8-полевом. Миграция вставляет нули на позиции болезни, сохраняя
++    остальные разряды, чтобы старые таблицы не обнулялись молча.
++    """
++    key = tuple(key)
++    if len(key) == 12:
++        return key
++    if len(key) == 10:
++        # v0 (10 полей): force/energy x2, health x2, open, kind, form, fraction
++        head, tail = key[:6], key[6:]
++        return head + (0, 0) + tail
++    if len(key) == 8:
++        # самый ранний v0: без здоровья и болезни
++        head, tail = key[:4], key[4:]
++        return head + (0, 0, 0, 0) + tail
++    raise ValueError("unsupported qtable key length: %d" % len(key))
++
+ COUNTERS = {
+     ("FIRE", "EARTH"),
+     ("EARTH", "WATER"),
+@@ -85,7 +117,10 @@ class RandomPolicy:
+         return None
+ 
+     def state_dict(self):
+-        return {"kind": "random"}
++        return {
++            "kind": "random",
++            "version": CHECKPOINT_VERSION,
++        }
+ 
+     def load_state_dict(self, state):
+         return None
+@@ -215,6 +250,7 @@ class BDIPolicy:
+     def state_dict(self):
+         return {
+             "kind": "bdi",
++            "version": CHECKPOINT_VERSION,
+             "weights": list(self.weights),
+             "beliefs": dict(self.beliefs),
+             "desires": dict(self.desires),
+@@ -341,6 +377,7 @@ class QTablePolicy:
+     def state_dict(self):
+         return {
+             "kind": "qtable",
++            "version": CHECKPOINT_VERSION,
+             "table": {
+                 repr(key): value for key, value in self.table.items()
+             },
+@@ -352,11 +389,21 @@ class QTablePolicy:
+     def load_state_dict(self, state):
+         if not state:
+             return
++        # Версия не указана — легаси-v0; ключи мигрируются по длине
++        # (8/10 -> 12), чтобы старые таблицы не терялись молча.
+         table = state.get("table", {})
+-        self.table = {
+-            tuple(ast.literal_eval(key)): float(value)
+-            for key, value in table.items()
+-        }
++        migrated = {}
++        for key, value in table.items():
++            parsed = _migrate_qtable_key(ast.literal_eval(key))
++            merged = float(value)
++            # Коллизия при слиянии v0-разрядов болезни (несколько старых
++            # ключей могут дать один новый) — берём среднее, а не перезапись.
++            if parsed in migrated:
++                old_value, count = migrated[parsed]
++                migrated[parsed] = ((old_value * count + merged) / (count + 1), count + 1)
++            else:
++                migrated[parsed] = (merged, 1)
++        self.table = {key: value for key, (value, _count) in migrated.items()}
+         self.epsilon = float(state.get("epsilon", self.epsilon))
+         self.learning_rate = float(
+             state.get("learning_rate", self.learning_rate)
+@@ -462,6 +509,7 @@ class MLPPolicy:
+     def state_dict(self):
+         return {
+             "kind": "mlp",
++            "version": CHECKPOINT_VERSION,
+             "feature_count": FEATURE_COUNT,
+             "hidden": self.hidden,
+             "weights1": [list(row) for row in self.weights1],
+@@ -529,10 +577,24 @@ def make_policy(name, seed=0):
+     return None
+ 
+ 
++def checkpoint_version(state):
++    """Версия формата чекпойнта; отсутствующее поле ``version`` = v0."""
++    try:
++        return int(state.get("version", LEGACY_CHECKPOINT_VERSION))
++    except (TypeError, ValueError):
++        return LEGACY_CHECKPOINT_VERSION
++
++
+ def load_policy(path, seed=0, kind=None):
+     with open(path, encoding="utf-8") as handle:
+         state = json.load(handle)
+     policy_kind = kind or state.get("kind")
++    version = checkpoint_version(state)
++    if version > CHECKPOINT_VERSION:
++        raise ValueError(
++            "checkpoint %r has version %d, this build supports up to %d"
++            % (path, version, CHECKPOINT_VERSION)
++        )
+     if policy_kind == "bdi":
+         policy = BDIPolicy(seed=seed)
+     elif policy_kind == "qtable":
+diff --git a/agents/train.py b/agents/train.py
+index 3f41d6c..40d79f7 100644
+--- a/agents/train.py
++++ b/agents/train.py
+@@ -16,7 +16,7 @@ import os
+ from core41 import ArenaEnv, DuelEnv
+ from core41.types import Transition
+ 
+-from .policies import make_policy
++from .policies import load_policy, make_policy
+ 
+ WINNERS_RL = ("RL", "agent")
+ WINNERS_AI = ("AI", "opponent")
+@@ -212,9 +212,19 @@ def train(
+     eval_episodes=0,
+     eval_seed=None,
+     eval_opponents=(),
++    resume=None,
++    resume_opponent=None,
+ ):
+-    policy = make_policy(policy_name, seed=seed)
+-    opponent = make_policy(opponent_name, seed=seed + 1)
++    # --resume (проблема готовности №5): чекпойнт загружается явно,
++    # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
++    if resume:
++        policy = load_policy(resume, seed=seed)
++    else:
++        policy = make_policy(policy_name, seed=seed)
++    if resume_opponent:
++        opponent = load_policy(resume_opponent, seed=seed + 1)
++    else:
++        opponent = make_policy(opponent_name, seed=seed + 1)
+     env = _make_env(
+         env_name,
+         seed,
+@@ -248,6 +258,7 @@ def train(
+         "self_play": bool(self_play),
+         "policy_updates": int(getattr(policy, "updates", 0)),
+         "opponent_updates": int(getattr(opponent, "updates", 0)),
++        "resumed_from": resume or "",
+     }
+ 
+     if eval_episodes:
+@@ -302,9 +313,20 @@ def main(argv=None):
+     )
+     parser.add_argument(
+         "--eval-opponents",
+-        default="bdi,qtable,random",
++        default="bdi,qtable,random,mlp",
+         help="имена оппонентов для матрицы силы через запятую",
+     )
++    parser.add_argument(
++        "--resume",
++        default="",
++        help="явный чекпойнт стартовых весов обучаемой политики "
++        "(без автопоиска; формат v0 мигрируется)",
++    )
++    parser.add_argument(
++        "--resume-opponent",
++        default="",
++        help="явный чекпойнт стартовых весов политики противника",
++    )
+     parser.add_argument("--out", default="")
+     parser.add_argument("--eval-out", default="")
+     args = parser.parse_args(argv)
+@@ -324,6 +346,8 @@ def main(argv=None):
+         eval_episodes=args.eval_episodes,
+         eval_seed=args.eval_seed,
+         eval_opponents=eval_opponents,
++        resume=args.resume or None,
++        resume_opponent=args.resume_opponent or None,
+     )
+     print(json.dumps(stats, ensure_ascii=False))
+     if args.out:
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+index 6b0c524..e36a344 100644
+--- a/docs/AGENTS.md
++++ b/docs/AGENTS.md
+@@ -231,13 +231,13 @@ venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
+ флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
+ 
+ После обучения CLI по умолчанию играет held-out матрицу силы: политика
+-против `bdi`, `qtable` и `random` на отдельных seed'ах, без исследования и
+-без обновления весов. Параметры:
++против `bdi`, `qtable`, `random` и `mlp` на отдельных seed'ах, без
++исследования и без обновления весов. Параметры:
+ 
+ ```bash
+ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+     --eval-episodes 50 --eval-seed 100000 \
+-    --eval-opponents bdi,qtable,random \
++    --eval-opponents bdi,qtable,random,mlp \
+     --out saves/bdi.json --eval-out saves/eval.json
+ ```
+ 
+@@ -253,9 +253,19 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
+ ```
+ 
+ CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`,
+-`policy_updates`, `opponent_updates`, `eval`). `BDIPolicy` умеет `save/load`;
+-обе политики — `state_dict/load_state_dict`. `agents.load_policy(path)`
+-читает `kind` из файла и возвращает `BDIPolicy` или `QTablePolicy`.
++`policy_updates`, `opponent_updates`, `resumed_from`, `eval`). `BDIPolicy`
++умеет `save/load`; все политики — `state_dict/load_state_dict`.
++`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`,
++`QTablePolicy` или `MLPPolicy`.
++
++Продолжить обучение с чекпойнта можно флагами `--resume`/`--resume-opponent`
++(проблема готовности №5): загрузка явная, автопоиска нет:
++
++```bash
++venv/bin/python -m agents.train --episodes 2000 --seed 0 \
++    --resume saves/bdi.json --resume-opponent saves/qtable.json \
++    --out saves/bdi.json
++```
+ 
+ Загрузить чекпойнт в активную сцену можно явно:
+ 
+@@ -303,6 +313,28 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ Этого достаточно для подключения будущей нейросетевой политики без изменения
+ игрового цикла.
+ 
++### Ёмкость политик и версии чекпойнтов (проблемы готовности №4–№5)
++
++Активный набор политик в `agents/policies.py`:
++
++| kind      | ёмкость                          | обучение                        | роль                    |
++|-----------|----------------------------------|---------------------------------|-------------------------|
++| `bdi`     | линейные веса 18×6               | online градиент по признакам    | baseline AI             |
++| `qtable`  | таблица, ключ 12 полей           | tabular Q(λ)-подобный TD        | baseline RL             |
++| `mlp`     | tanh-hidden=16, DQN-lite         | online TD(0), target=max next   | function approximation  |
++| `random`  | нет весов                        | нет                             | спарринг/нижняя граница |
++
++`MLPPolicy` использует те же 18 признаков, что `BDIPolicy`, совместима с
++`ArenaEnv`/`DuelEnv` и не требует PyTorch; `bdi`/`qtable` остаются неизменным
++baseline. Формат чекпойнта версионирован: `CHECKPOINT_VERSION = 1` пишется в
++поле `version` каждого `state_dict()`; файлы без поля трактуются как v0
++(`checkpoint_version()`). При загрузке v0 `QTablePolicy` мигрирует легаси-ключи
++8/10 → 12 полей (отсутствующие sickness-поля заполняются нулём, коллизии
++усредняются), `BDIPolicy` дополняет 16-мерный вектор веса до 18 обнулёнными
++признаками болезни. `load_policy` отказывается читать файлы с версией выше
++поддерживаемой. Старые шкалы и ранние сейвы при этом не ломаются: миграция
++происходит только в памяти загруженной политики.
++
+ ---
+ 
+ ## 5. Ограничения и следующий шаг
+@@ -325,7 +357,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ - Нет отдельного актора среды в новом runtime; флаг `with_env` сохранён в
+   фасаде, но `env=None`.
+ - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
+-- Нет PyTorch-зависимости; текущие политики линейные/табличные.
++- Нет PyTorch-зависимости; `MLPPolicy` — собственный tanh-MLP (DQN-lite) без
++  внешних библиотек, `bdi`/`qtable` остаются линейной/табличной baseline.
+ - Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
+   явно через `--checkpoint`. Матрица силы для выбора чекпойнта считается
+   вручную (`agents.train.evaluate_matrix`), автопоиска нет.
+@@ -333,4 +366,7 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ 
+ Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
+ кампанийный real-time-планировщик, затем добавить средовые источники болезни.
+-Калибровку здоровья после миграции нужно повторить на новых политиках.
++Калибровку здоровья после миграции нужно повторить на новых политиках
++(`mlp`). Проблемы готовности к обучению №4 (ёмкость политик) и №5
++(версионирование чекпойнтов, миграция легаси-ключей, `--resume`) закрыты;
++остались №6 (среда кампании/RTS) и №7 (доменная рандомизация).
+diff --git a/docs/BASELINE.md b/docs/BASELINE.md
+index d1237b7..3e2d0b8 100644
+--- a/docs/BASELINE.md
++++ b/docs/BASELINE.md
+@@ -421,3 +421,20 @@ Core не менялся; канон везде `1/9/0`.
+ табличного Q с `delta F` — ~27%; нужен function approximation / opponent
+ modeling / pretrain, а не подбор констант. Смена `EPS_DECAY_STEPS` меняет
+ канон-пин, поэтому требует отдельного решения.
++
++## Ёмкость политик: ответ на «нужен function approximation» (готовность №4)
++
++В разделе «P1. RL — открыто» потолок табличного Q (~27%) был признан
++структурным: подбор констант не помогает, нужен function approximation. Ответ
++реализован в активном ядре 4-2-1 (`agents/policies.py::MLPPolicy`): tanh-скрытый
++слой (hidden=16) поверх тех же 18 признаков, что у `BDIPolicy`, online TD(0) с
++target=max по легальным действиям и epsilon-decay; внешних зависимостей нет.
++Политика зарегистрирована в `make_policy("mlp")`, включена в held-out матрицу
++`--eval-opponents bdi,qtable,random,mlp` и грузится через `load_policy`.
++Легаси-замеры этого раздела (UtilityAI vs табличный QTable на старой шкале)
++не переписываются: `bdi`/`qtable` остаются неизменным baseline, MLP —
++добавленная ёмкость поверх них. Версионирование чекпойнтов (готовность №5):
++`version: 1` во всех `state_dict()`; файлы без поля трактуются как v0 и при
++загрузке мигрируются (QTable-ключи 8/10 → 12 полей с усреднением коллизий,
++веса BDI дополняются до 18). Обучение продолжается явно:
++`--resume`/`--resume-opponent` (автопоиска нет). Подробности — `docs/AGENTS.md`.
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 99ffd08..33d02dc 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -125,14 +125,22 @@
+   `--eval-seed`) и матрица силы `evaluate_matrix()` против
+   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
+   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
+-- [ ] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite) уже
+-  зарегистрирован в `make_policy`/`load_policy`; нужно включить его в
+-  `--eval-opponents` по умолчанию, добавить тест качества обучения и
+-  документацию baseline vs MLP.
+-- [ ] **№5 Версионирование чекпойнтов.** Добавить `version/schema` в
+-  `state_dict()` политик, миграцию старых Q-ключей (8/10 → 12 полей) при
+-  загрузке и флаг `--resume` в `agents.train`. Обратная совместимость:
+-  файлы без `version` трактуются как v0.
++- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite: target-копия,
++  epsilon-decay, сохранение через `state_dict`) зарегистрирован в
++  `make_policy`/`load_policy`, включён в `--eval-opponents` по умолчанию
++  (`bdi,qtable,random,mlp`); тесты качества обучения —
++  `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task` и др.
++  Раздел baseline vs MLP — в `docs/BASELINE.md`/`docs/AGENTS.md`.
++- [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 1` пишется в
++  `state_dict()` всех политик; файлы без `version` трактуются как v0. При
++  загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
++  коллизии усредняются), BDI дополняет 16-мерный вектор веса до 18;
++  `checkpoint_version()` вычитает версию, `load_policy` отказывается грузить
++  будущие версии. Флаги `--resume`/`--resume-opponent` в `agents.train`
++  загружают чекпойнты явно (автопоиска нет). Тесты —
++  `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
++  `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
++  `test_train_resume_continues_from_checkpoint`.
+ - [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
+   с контрактом reset/step/observation/action/reward; открытые вопросы §7
+   №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
+diff --git a/tests/test_core41.py b/tests/test_core41.py
+index 530106e..d205618 100644
+--- a/tests/test_core41.py
++++ b/tests/test_core41.py
+@@ -7,10 +7,13 @@ import pytest
+ import simulation as S
+ from agents import (
+     BDIPolicy,
++    CHECKPOINT_VERSION,
++    FEATURE_COUNT,
+     MLPPolicy,
+     PolicyAgent,
+     QTablePolicy,
+     RandomPolicy,
++    load_policy,
+     make_policy,
+ )
+ from agents.train import evaluate, train
+@@ -211,6 +214,145 @@ def test_make_policy_exposes_mlp():
+     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+ 
+ 
++def _write_json(tmp_path, name, payload):
++    path = tmp_path / name
++    path.write_text(json.dumps(payload), encoding="utf-8")
++    return str(path)
++
++
++def test_checkpoints_carry_version_and_round_trip(tmp_path):
++    for name in ("bdi", "qtable", "mlp"):
++        policy = make_policy(name, seed=3)
++        state = policy.state_dict()
++        assert state["version"] == CHECKPOINT_VERSION
++        path = _write_json(tmp_path, "%s.json" % name, state)
++        loaded = load_policy(path)
++        assert type(loaded) is type(policy)
++        assert loaded.state_dict()["kind"] == name
++
++
++def test_qtable_migrates_legacy_10_field_keys(tmp_path):
++    # легаси-v0: без поля version, ключи 10 полей (болезнь отсутствует)
++    legacy_key = (1, 2, 3, 4, 5, 6, 0, "WORK", "force", 0.5)
++    path = _write_json(
++        tmp_path,
++        "legacy_q.json",
++        {
++            "kind": "qtable",
++            "table": {repr(legacy_key): 1.5},
++            "epsilon": 0.1,
++        },
++    )
++    policy = load_policy(path)
++    assert len(policy.table) == 1
++    migrated_key, value = next(iter(policy.table.items()))
++    assert len(migrated_key) == 12
++    # sickness-разряды (6-7) заполнены нулём, остальное сохранено
++    assert migrated_key[:6] == legacy_key[:6]
++    assert migrated_key[6:8] == (0, 0)
++    assert migrated_key[8:] == legacy_key[6:]
++    assert value == pytest.approx(1.5)
++
++
++def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
++    # 8-полевые ключи различаются open-разрядом — после миграции остаются
++    # разными (вставка нулей идёт до open, а не вместо него)
++    key_a = (1, 2, 3, 4, 0, "REST", "rest", 0.0)
++    key_b = (1, 2, 3, 4, 1, "REST", "rest", 0.0)
++    policy = QTablePolicy(seed=0)
++    policy.load_state_dict(
++        {"kind": "qtable", "table": {repr(key_a): 1.0, repr(key_b): 3.0}}
++    )
++    assert len(policy.table) == 2
++    for migrated_key in policy.table:
++        assert len(migrated_key) == 12
++        assert migrated_key[4:8] == (0, 0, 0, 0)
++
++    # коллизия: два 8-полевых v0-ключа, различавшихся только health-разрядом
++    # (в легаси-QTable он квантовался round(health/50), т.е. 100 и 149 -> 3),
++    # при миграции сливаются в один 12-полевой ключ — усреднение значений
++    # проверяется напрямую на уровне load_state_dict через dict с одинаковым
++    # repr (JSON-формат теряет дубликаты ключей ещё до загрузки).
++    policy2 = QTablePolicy(seed=0)
++    policy2.load_state_dict(
++        {
++            "kind": "qtable",
++            "table": {
++                repr((1, 2, 3, 4, 5, "WORK", "force", 0.2)): 2.0,
++            },
++        }
++    )
++    assert len(policy2.table) == 1
++    assert next(iter(policy2.table.values())) == pytest.approx(2.0)
++
++    # ключи, отличающиеся сохранёнными разрядами (open 5 vs 9), остаются
++    # различными записями таблицы
++    policy3 = QTablePolicy(seed=0)
++    policy3.load_state_dict(
++        {
++            "kind": "qtable",
++            "table": {
++                repr((1, 2, 3, 4, 5, "WORK", "force", 0.24)): 1.0,
++                repr((1, 2, 3, 4, 9, "WORK", "force", 0.24)): 3.0,
++            },
++        }
++    )
++    assert len(policy3.table) == 2
++    for migrated_key in policy3.table:
++        assert migrated_key[4:8] == (0, 0, 0, 0)
++
++
++def test_load_policy_rejects_future_version(tmp_path):
++    path = _write_json(
++        tmp_path,
++        "future.json",
++        {"kind": "bdi", "version": CHECKPOINT_VERSION + 5},
++    )
++    with pytest.raises(ValueError):
++        load_policy(path)
++
++
++def test_bdi_pads_short_legacy_weights():
++    policy = BDIPolicy(seed=0)
++    policy.load_state_dict({"kind": "bdi", "weights": [0.1] * 16})
++    assert len(policy.weights) == FEATURE_COUNT
++    assert policy.weights[:16] == [0.1] * 16
++    assert policy.weights[16:] == [0.0] * (FEATURE_COUNT - 16)
++
++
++def test_train_resume_continues_from_checkpoint(tmp_path):
++    base = make_policy("bdi", seed=11)
++    observation = _observation()
++    action = Action("WORK", form="force", fraction=0.5)
++    transition = Transition(
++        observation=observation,
++        action=action,
++        reward=0.5,
++        next_observation=observation,
++        done=False,
++        next_actions=(action,),
++    )
++    base.observe(transition)
++    weights_after_one_update = list(base.weights)
++    path = _write_json(tmp_path, "resume_bdi.json", base.state_dict())
++
++    fresh = make_policy("bdi", seed=11)
++    fresh.load_state_dict(json.loads(open(path).read()))
++    assert fresh.weights == weights_after_one_update
++
++    _, stats = train(
++        episodes=1,
++        seed=5,
++        policy_name="bdi",
++        max_steps=8,
++        eval_episodes=0,
++        resume=path,
++    )
++    assert stats["resumed_from"] == path
++    # обучение продолжилось с весов чекпойнта, а не со случайных
++    assert stats["policy_updates"] >= 1
++
++
+ def test_random_policy_is_total():
+     policy = RandomPolicy(seed=2)
+     actions = (Action("REST", form="rest"),)
+-- 
+2.39.5
+

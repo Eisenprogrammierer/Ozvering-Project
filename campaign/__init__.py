@@ -24,10 +24,20 @@ from .strategy import (
     build_strategy,
     load_strategy,
 )
+from .env import (
+    END_DAY,
+    CampaignEnv,
+    campaign_reward,
+    terminal_campaign_reward,
+)
 
 __all__ = [
     "SCHEMA",
     "CampaignError",
+    "END_DAY",
+    "CampaignEnv",
+    "campaign_reward",
+    "terminal_campaign_reward",
     "RoleError",
     "RoleSpec",
     "RoleCatalog",

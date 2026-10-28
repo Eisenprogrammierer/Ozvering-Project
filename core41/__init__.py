@@ -25,7 +25,7 @@ from .clock import (
     speed_label,
 )
 from .duel import DuelWorld
-from .env import ArenaEnv, DuelEnv
+from .env import ArenaEnv, DuelEnv, randomize_draw
 from .model import (
     CONTAGION_CHANCE,
     CONTAGION_SEVERITY,
@@ -51,7 +51,13 @@ from .model import (
     success_probability,
     transmit_sickness,
 )
-from .types import Action, Observation, Transition
+from .types import (
+    Action,
+    CampaignAction,
+    CampaignObservation,
+    Observation,
+    Transition,
+)
 
 __all__ = [
     "Action",
@@ -61,6 +67,8 @@ __all__ = [
     "Automaton",
     "BASE_TICK_SECONDS",
     "CAPTURE_STREAK",
+    "CampaignAction",
+    "CampaignObservation",
     "CORE_ACTIONS",
     "CONTAGION_CHANCE",
     "CONTAGION_SEVERITY",
@@ -77,6 +85,7 @@ __all__ = [
     "MAX_CATCHUP_TICKS",
     "Observation",
     "PROFILE_SKILLS",
+    "randomize_draw",
     "REWARD_ENERGY_COST",
     "REWARD_SICKNESS_OPPONENT",
     "REWARD_SICKNESS_SELF",

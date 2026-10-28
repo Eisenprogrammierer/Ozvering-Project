@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pytest
 
+# Сценный/графический слой view требует numpy; в окружении без него тест
+# честно скипается через importorskip, а не роняет коллекцию всего прогона.
+pytest.importorskip("numpy")
+
+
 from campaign.world import (
     DOMAIN_SKILLS,
     WorldEngine,

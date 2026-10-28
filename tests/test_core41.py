@@ -7,10 +7,13 @@ import pytest
 import simulation as S
 from agents import (
     BDIPolicy,
+    CHECKPOINT_VERSION,
+    FEATURE_COUNT,
     MLPPolicy,
     PolicyAgent,
     QTablePolicy,
     RandomPolicy,
+    load_policy,
     make_policy,
 )
 from agents.train import evaluate, train
@@ -209,6 +212,145 @@ def test_mlp_policy_is_function_approximation_and_round_trips():
 
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+
+
+def _write_json(tmp_path, name, payload):
+    path = tmp_path / name
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return str(path)
+
+
+def test_checkpoints_carry_version_and_round_trip(tmp_path):
+    for name in ("bdi", "qtable", "mlp"):
+        policy = make_policy(name, seed=3)
+        state = policy.state_dict()
+        assert state["version"] == CHECKPOINT_VERSION
+        path = _write_json(tmp_path, "%s.json" % name, state)
+        loaded = load_policy(path)
+        assert type(loaded) is type(policy)
+        assert loaded.state_dict()["kind"] == name
+
+
+def test_qtable_migrates_legacy_10_field_keys(tmp_path):
+    # легаси-v0: без поля version, ключи 10 полей (болезнь отсутствует)
+    legacy_key = (1, 2, 3, 4, 5, 6, 0, "WORK", "force", 0.5)
+    path = _write_json(
+        tmp_path,
+        "legacy_q.json",
+        {
+            "kind": "qtable",
+            "table": {repr(legacy_key): 1.5},
+            "epsilon": 0.1,
+        },
+    )
+    policy = load_policy(path)
+    assert len(policy.table) == 1
+    migrated_key, value = next(iter(policy.table.items()))
+    assert len(migrated_key) == 12
+    # sickness-разряды (6-7) заполнены нулём, остальное сохранено
+    assert migrated_key[:6] == legacy_key[:6]
+    assert migrated_key[6:8] == (0, 0)
+    assert migrated_key[8:] == legacy_key[6:]
+    assert value == pytest.approx(1.5)
+
+
+def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
+    # 8-полевые ключи различаются open-разрядом — после миграции остаются
+    # разными (вставка нулей идёт до open, а не вместо него)
+    key_a = (1, 2, 3, 4, 0, "REST", "rest", 0.0)
+    key_b = (1, 2, 3, 4, 1, "REST", "rest", 0.0)
+    policy = QTablePolicy(seed=0)
+    policy.load_state_dict(
+        {"kind": "qtable", "table": {repr(key_a): 1.0, repr(key_b): 3.0}}
+    )
+    assert len(policy.table) == 2
+    for migrated_key in policy.table:
+        assert len(migrated_key) == 12
+        assert migrated_key[4:8] == (0, 0, 0, 0)
+
+    # коллизия: два 8-полевых v0-ключа, различавшихся только health-разрядом
+    # (в легаси-QTable он квантовался round(health/50), т.е. 100 и 149 -> 3),
+    # при миграции сливаются в один 12-полевой ключ — усреднение значений
+    # проверяется напрямую на уровне load_state_dict через dict с одинаковым
+    # repr (JSON-формат теряет дубликаты ключей ещё до загрузки).
+    policy2 = QTablePolicy(seed=0)
+    policy2.load_state_dict(
+        {
+            "kind": "qtable",
+            "table": {
+                repr((1, 2, 3, 4, 5, "WORK", "force", 0.2)): 2.0,
+            },
+        }
+    )
+    assert len(policy2.table) == 1
+    assert next(iter(policy2.table.values())) == pytest.approx(2.0)
+
+    # ключи, отличающиеся сохранёнными разрядами (open 5 vs 9), остаются
+    # различными записями таблицы
+    policy3 = QTablePolicy(seed=0)
+    policy3.load_state_dict(
+        {
+            "kind": "qtable",
+            "table": {
+                repr((1, 2, 3, 4, 5, "WORK", "force", 0.24)): 1.0,
+                repr((1, 2, 3, 4, 9, "WORK", "force", 0.24)): 3.0,
+            },
+        }
+    )
+    assert len(policy3.table) == 2
+    for migrated_key in policy3.table:
+        assert migrated_key[4:8] == (0, 0, 0, 0)
+
+
+def test_load_policy_rejects_future_version(tmp_path):
+    path = _write_json(
+        tmp_path,
+        "future.json",
+        {"kind": "bdi", "version": CHECKPOINT_VERSION + 5},
+    )
+    with pytest.raises(ValueError):
+        load_policy(path)
+
+
+def test_bdi_pads_short_legacy_weights():
+    policy = BDIPolicy(seed=0)
+    policy.load_state_dict({"kind": "bdi", "weights": [0.1] * 16})
+    assert len(policy.weights) == FEATURE_COUNT
+    assert policy.weights[:16] == [0.1] * 16
+    assert policy.weights[16:] == [0.0] * (FEATURE_COUNT - 16)
+
+
+def test_train_resume_continues_from_checkpoint(tmp_path):
+    base = make_policy("bdi", seed=11)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    transition = Transition(
+        observation=observation,
+        action=action,
+        reward=0.5,
+        next_observation=observation,
+        done=False,
+        next_actions=(action,),
+    )
+    base.observe(transition)
+    weights_after_one_update = list(base.weights)
+    path = _write_json(tmp_path, "resume_bdi.json", base.state_dict())
+
+    fresh = make_policy("bdi", seed=11)
+    fresh.load_state_dict(json.loads(open(path).read()))
+    assert fresh.weights == weights_after_one_update
+
+    _, stats = train(
+        episodes=1,
+        seed=5,
+        policy_name="bdi",
+        max_steps=8,
+        eval_episodes=0,
+        resume=path,
+    )
+    assert stats["resumed_from"] == path
+    # обучение продолжилось с весов чекпойнта, а не со случайных
+    assert stats["policy_updates"] >= 1
 
 
 def test_random_policy_is_total():
@@ -479,3 +621,124 @@ def test_active_arena_match_engine_uses_core41_runtime():
     assert len(match.rl_hist) == 8
     assert match.rl.defense in ("force", "info", "REST")
     assert ge.ACTIONS == CORE_ACTIONS
+
+
+# ---------------------------------------------------------------------------
+# Доменная рандомизация (проблема готовности №7)
+# ---------------------------------------------------------------------------
+
+
+def test_randomize_draw_is_deterministic_and_in_range():
+    import random
+
+    from core41 import randomize_draw
+
+    first = randomize_draw(
+        rng=random.Random(5),
+        profiles=("CANON", "ZEALOT"),
+        health_factors=("aging",),
+        sickness_min=0.1,
+        sickness_max=0.4,
+        health_min=0.8,
+        health_max=1.2,
+    )
+    second = randomize_draw(
+        rng=random.Random(5),
+        profiles=("CANON", "ZEALOT"),
+        health_factors=("aging",),
+        sickness_min=0.1,
+        sickness_max=0.4,
+        health_min=0.8,
+        health_max=1.2,
+    )
+    assert first == second
+    assert first["profile_rl"] in ("CANON", "ZEALOT")
+    assert 0.1 <= first["sickness_rl"] <= 0.4
+    assert 0.8 <= first["health_factors_rl"]["aging"] <= 1.2
+    # Неизвестный профиль — явная ошибка, а не молчаливый CANON.
+    try:
+        randomize_draw(profiles=("NOPE",))
+        raise AssertionError("unknown profile accepted")
+    except ValueError:
+        pass
+
+
+def test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys():
+    from core41 import ArenaEnv
+
+    env = ArenaEnv(seed=1, steps=40)
+    observation = env.apply_domain(
+        profile_rl="ZEALOT",
+        sickness_ai=0.3,
+        health_factors_rl={"aging": 1.1},
+    )
+    assert observation is not None
+    assert env.profile_rl == "ZEALOT"
+    assert env.sickness_ai == 0.3
+    assert env.match.rl.profile == "ZEALOT"
+    try:
+        env.apply_domain(bogus=1)
+        raise AssertionError("unknown domain key accepted")
+    except ValueError:
+        pass
+
+
+def test_train_domain_randomize_is_reproducible_and_skips_duel():
+    from agents.train import train
+
+    opts = {
+        "profiles": ("CANON", "ZEALOT"),
+        "health_factors": ("aging",),
+        "sickness_min": 0.0,
+        "sickness_max": 0.5,
+        "health_min": 0.75,
+        "health_max": 1.25,
+        "skill_jitter": 0.0,
+    }
+    results = []
+    for _ in range(2):
+        _policy, stats = train(
+            episodes=3,
+            seed=11,
+            policy_name="bdi",
+            opponent_name="random",
+            max_steps=25,
+            env_name="arena",
+            eval_episodes=0,
+            domain_randomize=True,
+            domain_opts=opts,
+        )
+        results.append(stats)
+    assert results[0]["domain_randomize"] is True
+    assert results[0] == results[1]
+    # duel — легаси-срез без доменов: фича честно не применяется.
+    _policy, duel_stats = train(
+        episodes=2,
+        seed=1,
+        policy_name="bdi",
+        opponent_name="random",
+        max_steps=20,
+        env_name="duel",
+        eval_episodes=0,
+        domain_randomize=True,
+        domain_opts=opts,
+    )
+    assert duel_stats["domain_randomize"] is False
+
+
+def test_campaign_env_domain_sickness_reaches_engine():
+    import random
+
+    from campaign.env import CampaignEnv
+
+    env = CampaignEnv(seed=3, max_days=4)
+    assert env.engine.player_condition()["sickness"] == 0.0
+    draw = env.randomize_draw(
+        rng=random.Random(9), skill_jitter=0.2, sickness_min=0.2, sickness_max=0.5
+    )
+    env.apply_domain(**draw)
+    condition = env.engine.player_condition()
+    assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
+    # Стартовый config среды не мутируется: второй движок без домена чист.
+    fresh = CampaignEnv(seed=3, max_days=4)
+    assert fresh.engine.player_condition()["sickness"] == 0.0

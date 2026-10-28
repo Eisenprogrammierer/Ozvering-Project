@@ -1,0 +1,769 @@
+From a49d7d533ab03be33019de72e34a056272f7648e Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 12:17:31 +0000
+Subject: [PATCH 4/4] feat: close training-readiness question 7 (domain
+ randomization in train CLI)
+
+---
+ README.md            |   9 ++-
+ agents/train.py      | 160 ++++++++++++++++++++++++++++++++++++++++++-
+ campaign/env.py      |  60 +++++++++++++++-
+ core41/__init__.py   |   3 +-
+ core41/env.py        |  93 ++++++++++++++++++++++++-
+ docs/AGENTS.md       |  32 ++++++++-
+ docs/TODO.md         |  23 ++++++-
+ tests/test_core41.py | 121 ++++++++++++++++++++++++++++++++
+ 8 files changed, 490 insertions(+), 11 deletions(-)
+
+diff --git a/README.md b/README.md
+index 67fea83..e0c65e3 100644
+--- a/README.md
++++ b/README.md
+@@ -482,7 +482,14 @@ v0): при загрузке QTable мигрирует легаси-ключи 8
+ обучению через `CampaignEnv` (`--env campaign`, проблема №6): одиночный агент,
+ награда из дельт положения/организации/здоровья/болезни и терминальный бонус
+ исхода, горизонт дней — усечение; открытые вопросы §7 №28–31 при этом честно
+-не закрыты. Время в арене идёт секундным тиком через
++не закрыты. Доменная рандомизация (проблема №7): `--domain-randomize` перед
++каждым обучающим эпизодом (arena/campaign) жребует новый домен — профили
++(`--profiles CANON,ZEALOT`), стартовую болезнь (`--sickness-min/max`),
++health-факторы с джиттером (`--health-factors`, `--health-min/max`) и джиттер
++навыков кампании (`--skill-jitter`); draw детерминирован зерном запуска. Held-out
++оценка по умолчанию идёт на фиксированном каноническом домене (матрица силы
++сравнима между запусками); усреднение по распределению — `--eval-domain-randomize`.
++Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/agents/train.py b/agents/train.py
+index 44b0a64..4bfab45 100644
+--- a/agents/train.py
++++ b/agents/train.py
+@@ -11,19 +11,34 @@ Self-play: обе стороны получают собственный `Transi
+ политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
+ же такт не учитывается дважды. Оценка (`evaluate`) всегда идёт на отдельных
+ held-out seed'ах, без исследования и без обновления весов.
++
++Доменная рандомизация (проблема готовности №7): флаги `--domain-randomize`
++и компания (`--profiles`, `--sickness-min/max`, `--health-factors`,
++`--health-min/max`, `--skill-jitter`) заставляют цикл обучения перед каждым
++эпизодом брать новый домен через `randomize_draw(rng)` среды и применять
++его через `apply_domain(...)`. Draw детерминирован rng'ом с зерном
++`seed + 7919`: одна и та же команда даёт одну и ту же последовательность
++доменов. Held-out оценка по умолчанию идёт на фиксированном каноническом
++домене — иначе матрица силы несравнима между запусками; для оценки по
++распределению нужен явный `--eval-domain-randomize` (усреднение по новым
++доменам того же распределения).
+ """
+ 
+ import argparse
+ import json
+ import os
++import random
+ 
+-from core41 import ArenaEnv, DuelEnv
++from core41 import ArenaEnv, DuelEnv, randomize_draw
+ from core41.types import CampaignAction, Transition
+ 
+ from .policies import load_policy, make_policy
+ 
+ WINNERS_RL = ("RL", "agent")
+ WINNERS_AI = ("AI", "opponent")
++# Сдвиг зерна доменного rng от игрового seed: разные потоки случайности,
++# воспроизводимые одним и тем же --seed.
++DOMAIN_SEED_SALT = 7919
+ 
+ 
+ def _make_env(
+@@ -51,6 +66,38 @@ def _make_env(
+     )
+ 
+ 
++def _domain_draw(env, env_name, domain_rng, domain_opts):
++    """Один доменный draw (проблема №7) в виде kwargs для `apply_domain`.
++
++    `duel` — легаси-срез без доменных параметров: возвращаем None, чтобы
++    цикл обучения честно пропускал рандомизацию, а не молча её имитировал.
++    """
++    if env_name == "duel":
++        return None
++    if env_name == "campaign":
++        return env.randomize_draw(
++            rng=domain_rng,
++            skill_jitter=domain_opts.get("skill_jitter", 0.0),
++            sickness_min=domain_opts.get("sickness_min", 0.0),
++            sickness_max=domain_opts.get("sickness_max", 0.6),
++        )
++    return randomize_draw(
++        rng=domain_rng,
++        profiles=domain_opts.get("profiles", ()),
++        health_factors=domain_opts.get("health_factors", ()),
++        sickness_min=domain_opts.get("sickness_min", 0.0),
++        sickness_max=domain_opts.get("sickness_max", 0.6),
++        health_min=domain_opts.get("health_min", 0.75),
++        health_max=domain_opts.get("health_max", 1.25),
++    )
++
++
++def _apply_domain(env, draw):
++    if draw is None:
++        return
++    env.apply_domain(**draw)
++
++
+ def _reward_for(env, side):
+     """Награда стороны с учётом разных ключей `ArenaEnv`/`DuelEnv`."""
+     rewards = getattr(env, "last_rewards", {}) or {}
+@@ -187,11 +234,18 @@ def evaluate(
+     max_steps=160,
+     env_name="arena",
+     env_kwargs=None,
++    domain_opts=None,
+ ):
+     """Оценить `policy` против `opponent` на held-out seed'ах.
+ 
+     Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
+     оценка идёт против детерминированного среза мира `WorldEngine`.
++
++    По умолчанию оценка идёт на фиксированном домене из `env_kwargs` —
++    иначе матрица силы несравнима между запусками. Если `domain_opts`
++    задан (не None), каждый эпизод получает новый домен из того же
++    распределения, что и обучение (усреднение по распределению,
++    проблема №7); зерно доменов — отдельное от обучающего.
+     """
+     env = _make_env(
+         env_name,
+@@ -201,8 +255,13 @@ def evaluate(
+         opponent,
+         env_kwargs,
+     )
++    domain_rng = (
++        random.Random(seed + DOMAIN_SEED_SALT) if domain_opts is not None else None
++    )
+     wins = losses = draws = 0
+     for episode in range(episodes):
++        if domain_rng is not None:
++            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+         info = _play_episode(
+             env,
+             policy,
+@@ -242,11 +301,14 @@ def evaluate_matrix(
+     max_steps=160,
+     env_name="arena",
+     env_kwargs=None,
++    domain_opts=None,
+ ):
+     """Матрица силы: каждая политика против каждого оппонента.
+ 
+     `policies` и `opponents` — словари `{name: policy}` или пары
+     `(name, policy)`. Оценка не меняет веса и не использует exploration.
++    `domain_opts` (проблема №7) — усреднение по распределению доменов;
++    по умолчанию None — фиксированный канонический домен.
+     """
+     rows = []
+     for policy_name, policy in _named(policies):
+@@ -259,6 +321,7 @@ def evaluate_matrix(
+                 max_steps=max_steps,
+                 env_name=env_name,
+                 env_kwargs=env_kwargs,
++                domain_opts=domain_opts,
+             )
+             row = {"policy": policy_name, "opponent": opponent_name}
+             row.update(stats)
+@@ -280,6 +343,9 @@ def train(
+     eval_opponents=(),
+     resume=None,
+     resume_opponent=None,
++    domain_randomize=False,
++    domain_opts=None,
++    eval_domain_randomize=False,
+ ):
+     # --resume (проблема готовности №5): чекпойнт загружается явно,
+     # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
+@@ -300,10 +366,18 @@ def train(
+         env_kwargs,
+     )
+     single_agent = bool(getattr(env, "single_agent", False))
++    # Доменная рандомизация (проблема №7): rng с солью от seed — одна и та
++    # же команда воспроизводит ту же последовательность доменов. `duel` —
++    # легаси-срез без доменов: честно сообщаем в stats, что фича не сработала.
++    domain_opts = dict(domain_opts or {})
++    use_domain = bool(domain_randomize) and env_name != "duel"
++    domain_rng = random.Random(seed + DOMAIN_SEED_SALT) if use_domain else None
+     wins = 0
+     losses = 0
+     draws = 0
+     for episode in range(episodes):
++        if domain_rng is not None:
++            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+         info = _play_episode(
+             env,
+             policy,
+@@ -325,6 +399,7 @@ def train(
+         "self_play": bool(self_play and not single_agent),
+         "policy_updates": int(getattr(policy, "updates", 0)),
+         "resumed_from": resume or "",
++        "domain_randomize": use_domain,
+     }
+     if not single_agent:
+         stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
+@@ -337,6 +412,7 @@ def train(
+             name: make_policy(name, seed=eval_seed + index)
+             for index, name in enumerate(names)
+         }
++        eval_domain_opts = domain_opts if eval_domain_randomize else None
+         stats["eval"] = evaluate_matrix(
+             {policy_name: policy},
+             opponents,
+@@ -345,7 +421,11 @@ def train(
+             max_steps=max_steps,
+             env_name=env_name,
+             env_kwargs=env_kwargs,
++            domain_opts=eval_domain_opts,
+         )
++        if eval_domain_randomize:
++            for row in stats["eval"]:
++                row["domain_randomized"] = True
+     return policy, stats
+ 
+ 
+@@ -398,6 +478,64 @@ def main(argv=None):
+         default="",
+         help="явный чекпойнт стартовых весов политики противника",
+     )
++    # Доменная рандомизация (проблема готовности №7).
++    parser.add_argument(
++        "--domain-randomize",
++        action="store_true",
++        help=(
++            "новый домен перед каждым обучающим эпизодом (arena/campaign); "
++            "для --env duel игнорируется (легаси-срез без доменов)"
++        ),
++    )
++    parser.add_argument(
++        "--eval-domain-randomize",
++        action="store_true",
++        help=(
++            "усреднять held-out оценку по распределению доменов; по "
++            "умолчанию оценка идёт на фиксированном каноническом домене, "
++            "чтобы матрица силы была сравнима между запусками"
++        ),
++    )
++    parser.add_argument(
++        "--profiles",
++        default="",
++        help="профили арены для жеребьёвки через запятую (CANON,ZEALOT,ORTHODOX)",
++    )
++    parser.add_argument(
++        "--sickness-min",
++        type=float,
++        default=0.0,
++        help="нижняя граница стартовой болезни в домене",
++    )
++    parser.add_argument(
++        "--sickness-max",
++        type=float,
++        default=0.6,
++        help="верхняя граница стартовой болезни в домене",
++    )
++    parser.add_argument(
++        "--health-factors",
++        default="",
++        help="факторы здоровья с джиттером через запятую (aging,illness,stress,care)",
++    )
++    parser.add_argument(
++        "--health-min",
++        type=float,
++        default=0.75,
++        help="нижний множитель выбираемых health-факторов",
++    )
++    parser.add_argument(
++        "--health-max",
++        type=float,
++        default=1.25,
++        help="верхний множитель выбираемых health-факторов",
++    )
++    parser.add_argument(
++        "--skill-jitter",
++        type=float,
++        default=0.0,
++        help="относительный джиттер навыков профиля кампании (0.25 = ±25%)",
++    )
+     parser.add_argument("--out", default="")
+     parser.add_argument("--eval-out", default="")
+     args = parser.parse_args(argv)
+@@ -406,6 +544,23 @@ def main(argv=None):
+         for name in args.eval_opponents.split(",")
+         if name.strip()
+     )
++    domain_opts = {
++        "profiles": tuple(
++            name.strip().upper()
++            for name in args.profiles.split(",")
++            if name.strip()
++        ),
++        "health_factors": tuple(
++            name.strip()
++            for name in args.health_factors.split(",")
++            if name.strip()
++        ),
++        "sickness_min": args.sickness_min,
++        "sickness_max": args.sickness_max,
++        "health_min": args.health_min,
++        "health_max": args.health_max,
++        "skill_jitter": args.skill_jitter,
++    }
+     policy, stats = train(
+         episodes=args.episodes,
+         seed=args.seed,
+@@ -419,6 +574,9 @@ def main(argv=None):
+         eval_opponents=eval_opponents,
+         resume=args.resume or None,
+         resume_opponent=args.resume_opponent or None,
++        domain_randomize=args.domain_randomize,
++        domain_opts=domain_opts,
++        eval_domain_randomize=args.eval_domain_randomize,
+     )
+     print(json.dumps(stats, ensure_ascii=False))
+     if args.out:
+diff --git a/campaign/env.py b/campaign/env.py
+index dd7673f..c8bbd2e 100644
+--- a/campaign/env.py
++++ b/campaign/env.py
+@@ -117,6 +117,7 @@ class CampaignEnv:
+         seed=0,
+         max_days=None,
+         snapshot=None,
++        sickness=0.0,
+     ):
+         self.config = dict(config or load_world())
+         self.seed = int(seed)
+@@ -127,6 +128,9 @@ class CampaignEnv:
+         self._start_node = node_id
+         self._start_office = office_id
+         self._start_snapshot = snapshot
++        # Стартовая болезнь героя для доменной рандомизации (проблема №7);
++        # применяется в _build_engine как переопределение конфига `condition`.
++        self._start_sickness = max(0.0, min(1.0, float(sickness)))
+         self.engine = None
+         self.last_transition = None
+         # Одиночный агент (проблема №6): оппонента нет, цикл обучения
+@@ -134,6 +138,53 @@ class CampaignEnv:
+         self.single_agent = True
+         self.reset(seed=self.seed)
+ 
++    def randomize_draw(
++        self,
++        rng=None,
++        skill_jitter=0.0,
++        sickness_min=0.0,
++        sickness_max=0.6,
++    ):
++        """Сэмплировать домен кампании (проблема готовности №7).
++
++        Возвращает словарь для `apply_domain`: джиттер навыков профиля
++        (`skill_jitter` — относительная величина, 0.25 = ±25%) и стартовая
++        болезнь героя. Профиль строится поверх `default_profile` конфига,
++        поэтому среда остаётся самодостаточной на любом валидном мире.
++        """
++        import random as _random
++
++        from .world import SKILL_ORDER
++
++        rng = rng or _random.Random()
++        base = dict(self.config.get("default_profile") or {})
++        skills = dict(base.get("skills") or {})
++        if skill_jitter > 0.0:
++            for key in SKILL_ORDER:
++                value = float(skills.get(key, 0.08))
++                low = max(0.0, value * (1.0 - float(skill_jitter)))
++                high = min(1.0, value * (1.0 + float(skill_jitter)))
++                skills[key] = round(rng.uniform(low, high), 4)
++        base["skills"] = skills
++        return {
++            "profile": base,
++            "sickness": round(
++                rng.uniform(
++                    max(0.0, float(sickness_min)),
++                    max(max(0.0, float(sickness_min)), min(1.0, float(sickness_max))),
++                ),
++                4,
++            ),
++        }
++
++    def apply_domain(self, profile=None, sickness=None):
++        """Применить домен кампании и пересоздать движок (`reset`)."""
++        if profile is not None:
++            self._start_profile = dict(profile)
++        if sickness is not None:
++            self._start_sickness = max(0.0, min(1.0, float(sickness)))
++        return self.reset()
++
+     # ------------------------------------------------------------------
+     # Построение движка и стартовой позиции
+     # ------------------------------------------------------------------
+@@ -171,8 +222,15 @@ class CampaignEnv:
+         office_id = self._start_office
+         if not (node_id and office_id) and not self._start_snapshot:
+             node_id, office_id = self._default_start()
++        config = dict(self.config)
++        # Стартовая болезнь героя для доменной рандомизации (проблема №7):
++        # переопределяем `condition` конфига, не мутируя исходный словарь.
++        if self._start_sickness > 0.0:
++            condition = dict(config.get("condition") or {})
++            condition["sickness"] = self._start_sickness
++            config["condition"] = condition
+         return WorldEngine(
+-            dict(self.config),
++            config,
+             profile=self._start_profile,
+             node_id=node_id,
+             office_id=office_id,
+diff --git a/core41/__init__.py b/core41/__init__.py
+index 882aaf3..341de5d 100644
+--- a/core41/__init__.py
++++ b/core41/__init__.py
+@@ -25,7 +25,7 @@ from .clock import (
+     speed_label,
+ )
+ from .duel import DuelWorld
+-from .env import ArenaEnv, DuelEnv
++from .env import ArenaEnv, DuelEnv, randomize_draw
+ from .model import (
+     CONTAGION_CHANCE,
+     CONTAGION_SEVERITY,
+@@ -85,6 +85,7 @@ __all__ = [
+     "MAX_CATCHUP_TICKS",
+     "Observation",
+     "PROFILE_SKILLS",
++    "randomize_draw",
+     "REWARD_ENERGY_COST",
+     "REWARD_SICKNESS_OPPONENT",
+     "REWARD_SICKNESS_SELF",
+diff --git a/core41/env.py b/core41/env.py
+index 8670278..7b9e707 100644
+--- a/core41/env.py
++++ b/core41/env.py
+@@ -10,10 +10,73 @@
+ `legal_actions(side)`, где `side` — `"rl"`/`"ai"` (для `DuelEnv` также
+ принимаются легаси-имена `"agent"`/`"opponent"`). Это нужно для self-play:
+ у каждой стороны своё наблюдение, действие и награда.
++
++Доменная рандомизация (проблема готовности №7): перед матчем можно вызвать
++`randomize_draw(rng)`, и он вернёт словарь параметров `ArenaEnv` (профили,
++стартовая болезнь, множители здоровья), распределение которого ограничено
++флагами CLI `agents.train`. Draw детерминирован rng'ом вызывающего цикла:
++один и тот же seed обучения даёт одну и ту же последовательность доменов,
++поэтому воспроизводимость сохраняется без скрытых состояний среды.
+ """
+ 
+-from .arena import ArenaMatch
++import random
++
++from .arena import PROFILE_SKILLS, ArenaMatch
+ from .duel import DuelWorld
++from .model import DEFAULT_HEALTH_FACTORS, HEALTH_FACTOR_MAX, SICKNESS_MAX
++
++# Диапазоны доменной рандомизации по умолчанию (проблема №7). Широкие, но
++# физически осмысленные: sickness ∈ [0, 0.6] оставляет TREAT нетривиальным
++# выбором, health-факторы ±25% вокруг канона, aging/illness/stress/care
++# ограничены сверху HEALTH_FACTOR_MAX внутри Automaton.health_factor().
++DRIFT_SICKNESS_MIN = 0.0
++DRIFT_SICKNESS_MAX = 0.6
++DRIFT_HEALTH_MIN = 0.75
++DRIFT_HEALTH_MAX = 1.25
++
++
++def _clamp_unit(value):
++    return max(0.0, min(1.0, float(value)))
++
++
++def randomize_draw(
++    rng=None,
++    profiles=(),
++    health_factors=(),
++    sickness_min=DRIFT_SICKNESS_MIN,
++    sickness_max=DRIFT_SICKNESS_MAX,
++    health_min=DRIFT_HEALTH_MIN,
++    health_max=DRIFT_HEALTH_MAX,
++):
++    """Сэмплировать один домен арены (параметры конструктора `ArenaEnv`).
++
++    - `profiles` — кортеж имён профилей (`CANON`/`ZEALOT`/`ORTHODOX`);
++      пусто — только `CANON` (без джиттера профиля);
++    - `health_factors` — имена факторов (`aging`, `illness`, `stress`,
++      `care`), которым назначается случайный множитель; пусто — факторы
++      остаются каноническими;
++    - sickness и health-множители берутся из указанных диапазонов.
++    """
++    rng = rng or random.Random()
++    names = tuple(str(name).upper() for name in profiles) or ("CANON",)
++    unknown = [name for name in names if name not in PROFILE_SKILLS]
++    if unknown:
++        raise ValueError("неизвестные профили: %r" % (unknown,))
++    lo_s = _clamp_unit(sickness_min)
++    hi_s = max(lo_s, _clamp_unit(sickness_max))
++    lo_h = max(0.05, float(health_min))
++    hi_h = min(float(HEALTH_FACTOR_MAX), max(lo_h, float(health_max)))
++    factors = {}
++    for factor in health_factors:
++        factors[str(factor)] = round(rng.uniform(lo_h, hi_h), 4)
++    return {
++        "profile_rl": rng.choice(names),
++        "profile_ai": rng.choice(names),
++        "sickness_rl": round(rng.uniform(lo_s, hi_s), 4),
++        "sickness_ai": round(rng.uniform(lo_s, hi_s), 4),
++        "health_factors_rl": dict(factors),
++        "health_factors_ai": dict(factors),
++    }
+ 
+ 
+ def _side_id(side):
+@@ -114,6 +177,34 @@ class ArenaEnv:
+         self.last_rewards = {"rl": 0.0, "ai": 0.0}
+         self.reset(seed=self.seed)
+ 
++    def apply_domain(self, **kwargs):
++        """Применить словарь домена (`randomize_draw`) и пересоздать матч.
++
++        Принимаются только параметры конструктора; неизвестные ключи —
++        ошибка (защита от опечаток в CLI-пробросе проблемы №7).
++        """
++        allowed = {
++            "profile_rl",
++            "profile_ai",
++            "health_factors_rl",
++            "health_factors_ai",
++            "sickness_rl",
++            "sickness_ai",
++        }
++        unknown = set(kwargs) - allowed
++        if unknown:
++            raise ValueError(
++                "неизвестные параметры домена: %r" % (sorted(unknown),)
++            )
++        for key, value in kwargs.items():
++            if key.startswith("health_factors"):
++                setattr(self, key, dict(value or {}))
++            elif key.startswith("profile"):
++                setattr(self, key, str(value))
++            else:
++                setattr(self, key, float(value))
++        return self.reset()
++
+     @property
+     def action_space(self):
+         if self.match is None:
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+index 7971231..275d231 100644
+--- a/docs/AGENTS.md
++++ b/docs/AGENTS.md
+@@ -286,6 +286,29 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+     --out saves/bdi.json
+ ```
+ 
++Доменная рандомизация (проблема готовности №7): `--domain-randomize` берёт
++перед каждым обучающим эпизодом новый домен — профили арены, стартовую
++болезнь сторон, множители health-факторов (`arena`) или джиттер навыков и
++болезнь героя (`campaign`). Диапазоны задаются флагами; жеребьёвка
++детерминирована `--seed` (отдельный rng с солью 7919), поэтому запуск
++воспроизводим. Для `--env duel` флаг честно игнорируется (легаси-срез без
++доменных параметров, в статистике `domain_randomize: false`):
++
++```bash
++venv/bin/python -m agents.train --episodes 2000 --seed 0 \
++    --domain-randomize \
++    --profiles CANON,ZEALOT,ORTHODOX \
++    --sickness-min 0.0 --sickness-max 0.6 \
++    --health-factors aging,illness,stress,care \
++    --health-min 0.75 --health-max 1.25 \
++    --skill-jitter 0.25          # только для --env campaign
++```
++
++Held-out оценка по умолчанию идёт на фиксированном каноническом домене —
++иначе матрица силы несравнима между запусками. Явный
++`--eval-domain-randomize` усредняет оценку по распределению доменов
++(строки матрицы получают `domain_randomized: true`).
++
+ Загрузить чекпойнт в активную сцену можно явно:
+ 
+ ```bash
+@@ -389,6 +412,9 @@ baseline. Формат чекпойнта версионирован: `CHECKPOIN
+ Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
+ кампанийный real-time-планировщик, затем добавить средовые источники болезни.
+ Калибровку здоровья после миграции нужно повторить на новых политиках
+-(`mlp`). Проблемы готовности к обучению №4 (ёмкость политик) и №5
+-(версионирование чекпойнтов, миграция легаси-ключей, `--resume`) закрыты;
+-остались №6 (среда кампании/RTS) и №7 (доменная рандомизация).
++(`mlp`). Проблемы готовности к обучению №1–№7 закрыты по порядку: ArenaEnv,
++награда, self-play/eval, ёмкость политик, версионирование чекпойнтов,
++CampaignEnv, доменная рандомизация. Открытые вопросы §7 в docs/TODO.md
++(№28 распад организации, №29 увольнение как смена роли, №30 финалы
++бесконечного сценария, №31 фоновая симуляция) остаются незакрытыми и
++честно отмечены в документации CampaignEnv.
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 845385c..e1fe5bd 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -157,9 +157,26 @@
+   роли, финалы бесконечного сценария, фоновая симуляция) честно остаются
+   незакрытыми — в наблюдении они зафиксированы флагами `collapsed`/
+   `dismissed`/`outcome`. Тесты — `tests/test_campaign_env.py` (18 passed).
+-- [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
+-  `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
+-  диапазоны/джиттер) и усреднение eval-матрицы по профилям.
++- [x] **№7 Доменная рандомизация.** `randomize_draw(rng, ...)` (`core41/env.py`)
++  и метод `CampaignEnv.randomize_draw` жребуют один домен (профили арены,
++  стартовая болезнь сторон/героя, множители health-факторов, джиттер навыков);
++  `ArenaEnv.apply_domain`/`CampaignEnv.apply_domain` применяют словарь и
++  пересоздают матч/движок, отвергая неизвестные ключи. В CLI `agents.train` —
++  флаги `--domain-randomize`, `--profiles`, `--sickness-min/--sickness-max`,
++  `--health-factors`, `--health-min/--health-max`, `--skill-jitter`; перед
++  каждым обучающим эпизодом берётся новый домен из rng с солью
++  `seed + DOMAIN_SEED_SALT` (запуск воспроизводим; в статистике —
++  `domain_randomize`). Held-out оценка по умолчанию идёт на фиксированном
++  каноническом домене (матрица силы сравнима между запусками); явный
++  `--eval-domain-randomize` усредняет её по распределению (строки матрицы с
++  `domain_randomized: true`). Для `--env duel` (легаси-срез) рандомизация
++  честно игнорируется. Стартовая болезнь кампании передаётся в движок через
++  копию `config["condition"]` без мутации исходного конфига. Тесты —
++  `tests/test_core41.py::test_randomize_draw_is_deterministic_and_in_range`,
++  `test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys`,
++  `test_train_domain_randomize_is_reproducible_and_skips_duel`,
++  `test_campaign_env_domain_sickness_reaches_engine`. Раздел в
++  `docs/AGENTS.md` — «Доменная рандомизация».
+ 
+ ---
+ 
+diff --git a/tests/test_core41.py b/tests/test_core41.py
+index d205618..9bef915 100644
+--- a/tests/test_core41.py
++++ b/tests/test_core41.py
+@@ -621,3 +621,124 @@ def test_active_arena_match_engine_uses_core41_runtime():
+     assert len(match.rl_hist) == 8
+     assert match.rl.defense in ("force", "info", "REST")
+     assert ge.ACTIONS == CORE_ACTIONS
++
++
++# ---------------------------------------------------------------------------
++# Доменная рандомизация (проблема готовности №7)
++# ---------------------------------------------------------------------------
++
++
++def test_randomize_draw_is_deterministic_and_in_range():
++    import random
++
++    from core41 import randomize_draw
++
++    first = randomize_draw(
++        rng=random.Random(5),
++        profiles=("CANON", "ZEALOT"),
++        health_factors=("aging",),
++        sickness_min=0.1,
++        sickness_max=0.4,
++        health_min=0.8,
++        health_max=1.2,
++    )
++    second = randomize_draw(
++        rng=random.Random(5),
++        profiles=("CANON", "ZEALOT"),
++        health_factors=("aging",),
++        sickness_min=0.1,
++        sickness_max=0.4,
++        health_min=0.8,
++        health_max=1.2,
++    )
++    assert first == second
++    assert first["profile_rl"] in ("CANON", "ZEALOT")
++    assert 0.1 <= first["sickness_rl"] <= 0.4
++    assert 0.8 <= first["health_factors_rl"]["aging"] <= 1.2
++    # Неизвестный профиль — явная ошибка, а не молчаливый CANON.
++    try:
++        randomize_draw(profiles=("NOPE",))
++        raise AssertionError("unknown profile accepted")
++    except ValueError:
++        pass
++
++
++def test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys():
++    from core41 import ArenaEnv
++
++    env = ArenaEnv(seed=1, steps=40)
++    observation = env.apply_domain(
++        profile_rl="ZEALOT",
++        sickness_ai=0.3,
++        health_factors_rl={"aging": 1.1},
++    )
++    assert observation is not None
++    assert env.profile_rl == "ZEALOT"
++    assert env.sickness_ai == 0.3
++    assert env.match.rl.profile == "ZEALOT"
++    try:
++        env.apply_domain(bogus=1)
++        raise AssertionError("unknown domain key accepted")
++    except ValueError:
++        pass
++
++
++def test_train_domain_randomize_is_reproducible_and_skips_duel():
++    from agents.train import train
++
++    opts = {
++        "profiles": ("CANON", "ZEALOT"),
++        "health_factors": ("aging",),
++        "sickness_min": 0.0,
++        "sickness_max": 0.5,
++        "health_min": 0.75,
++        "health_max": 1.25,
++        "skill_jitter": 0.0,
++    }
++    results = []
++    for _ in range(2):
++        _policy, stats = train(
++            episodes=3,
++            seed=11,
++            policy_name="bdi",
++            opponent_name="random",
++            max_steps=25,
++            env_name="arena",
++            eval_episodes=0,
++            domain_randomize=True,
++            domain_opts=opts,
++        )
++        results.append(stats)
++    assert results[0]["domain_randomize"] is True
++    assert results[0] == results[1]
++    # duel — легаси-срез без доменов: фича честно не применяется.
++    _policy, duel_stats = train(
++        episodes=2,
++        seed=1,
++        policy_name="bdi",
++        opponent_name="random",
++        max_steps=20,
++        env_name="duel",
++        eval_episodes=0,
++        domain_randomize=True,
++        domain_opts=opts,
++    )
++    assert duel_stats["domain_randomize"] is False
++
++
++def test_campaign_env_domain_sickness_reaches_engine():
++    import random
++
++    from campaign.env import CampaignEnv
++
++    env = CampaignEnv(seed=3, max_days=4)
++    assert env.engine.player_condition()["sickness"] == 0.0
++    draw = env.randomize_draw(
++        rng=random.Random(9), skill_jitter=0.2, sickness_min=0.2, sickness_max=0.5
++    )
++    env.apply_domain(**draw)
++    condition = env.engine.player_condition()
++    assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
++    # Стартовый config среды не мутируется: второй движок без домена чист.
++    fresh = CampaignEnv(seed=3, max_days=4)
++    assert fresh.engine.player_condition()["sickness"] == 0.0
+-- 
+2.39.5
+

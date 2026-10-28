@@ -1,0 +1,3044 @@
+From 50bf3d8d3dd7b51e851adcaa78fa3ce4a85f5777 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 11:01:55 +0000
+Subject: [PATCH 1/4] docs: close training-readiness questions 2-3 (reward
+ calibration, self-play/eval tracker)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- WORLD_CORE_MODEL.md §2.3.3: переснята строка sickness=0.5 после переопределения награды (41/28/31%, медиана 817, голод 22.7%; все полосы в допуске) с примечанием о причине сдвига;
+- TODO.md: добавлен трек «Готовность к обучению агентов: 7 проблем» — №1 (ArenaEnv), №2 (reward_delta/terminal_reward + калибровка N=100), №3 (self-play + held-out матрица силы) закрыты, №4–№7 спланированы;
+- README.md: описание новой награды арены и команд agents.train (self-play по умолчанию, --no-self-play, --eval-*).
+
+Полный прогон: 471 passed (venv с pygame/numpy/matplotlib).
+---
+ README.md                | 11 +++++++++-
+ docs/TODO.md             | 45 ++++++++++++++++++++++++++++++++++++++++
+ docs/WORLD_CORE_MODEL.md |  9 +++++++-
+ 3 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index df762da..48742e6 100644
+--- a/README.md
++++ b/README.md
+@@ -464,7 +464,16 @@ python3 main.py --no-auto-pause                     # без авто-паузы
+ смерть героя/персонажей и распад организации идут дневным шагом; условия
+ сохраняются в сейве. Дуэльный
+ срез откалиброван (`experiments/exp_health_calibration.py`, §2.3.2–2.3.3
+-`docs/WORLD_CORE_MODEL.md`). Время в арене идёт секундным тиком через
++`docs/WORLD_CORE_MODEL.md`). Награда арены переопределена: `F`/`H` нормированы,
++стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни `+1.0·Δsickness`, заражение
++противника `+0.5·Δsickness`, терминальные победа/поражение `±1.0`
++(`reward_delta`/`terminal_reward` в `core41/arena.py`). Обучение —
++`python3 -m agents.train --episodes 500 --seed 0` (по умолчанию `ArenaEnv` и
++self-play: обе политики обновляются; `--no-self-play` оставляет противника
++фиксированным). После обучения CLI играет held-out матрицу силы на отдельных
++seed'ах без исследования и обновления весов
++(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random`;
++`--eval-episodes 0` выключает оценку). Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 7bde259..99ffd08 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -98,6 +98,51 @@
+ 
+ ---
+ 
++## Готовность к обучению агентов: 7 проблем (трек, 2026-10-28)
++
++Цель — сделать активную арену пригодной для обучения интеллектуальных
++агентов. Проблемы закрываются строго по порядку.
++
++- [x] **№1 Среда.** `ArenaEnv` (`core41/env.py`) поверх `ArenaMatch`:
++  контракт `reset(seed)/step(action, opponent_action)`/`observe(side)`/
++  `legal_actions(side)`, `action_space`, матч с `auto_learn=False` —
++  `Transition` формирует внешний цикл. `agents.train` использует `ArenaEnv`
++  по умолчанию; `--env duel` сохраняет ранний срез. Тесты —
++  `tests/test_core41.py`.
++- [x] **№2 Награда.** Переопределена в `core41/arena.py`
++  (`reward_delta`/`terminal_reward`, константы `REWARD_*`): `F`/`H`
++  нормированы, стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни
++  `+1.0·Δsickness`, заражение противника `+0.5·Δsickness`, терминальные
++  победа/поражение `±1.0`; то же в `DuelWorld`. Калибровка N=100 после
++  награды: sickness 0.0 → 47/29/24%, медиана 549; sickness 0.5 →
++  41/28/31%, медиана 817, голод 22.7% — все полосы §2.3.2 в допуске
++  (§2.3.3 `WORLD_CORE_MODEL.md`). Тесты — `tests/test_core41.py`.
++- [x] **№3 Self-play + оценка.** `agents.train` по умолчанию self-play:
++  обе стороны получают `Transition` и обновляются за такт ровно один раз
++  (`opponent_action` форсится через `ArenaMatch.step_tick`);
++  `--no-self-play` оставляет фиксированного спарринг-партнёра. Held-out
++  оценка: `evaluate()` (без исследования, без `observe()`, отдельные
++  `--eval-seed`) и матрица силы `evaluate_matrix()` против
++  `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
++  Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
++- [ ] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite) уже
++  зарегистрирован в `make_policy`/`load_policy`; нужно включить его в
++  `--eval-opponents` по умолчанию, добавить тест качества обучения и
++  документацию baseline vs MLP.
++- [ ] **№5 Версионирование чекпойнтов.** Добавить `version/schema` в
++  `state_dict()` политик, миграцию старых Q-ключей (8/10 → 12 полей) при
++  загрузке и флаг `--resume` в `agents.train`. Обратная совместимость:
++  файлы без `version` трактуются как v0.
++- [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
++  с контрактом reset/step/observation/action/reward; открытые вопросы §7
++  №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
++  сценария, фоновая симуляция) честно остаются незакрытыми.
++- [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
++  `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
++  диапазоны/джиттер) и усреднение eval-матрицы по профилям.
++
++---
++
+ ## P0. Баланс при контекстном типе — ЗАКРЫТО (CI и канон)
+ 
+ * **Что сделано.** Возвращена **остаточная неопределённость типа**: рецептивный тип
+diff --git a/docs/WORLD_CORE_MODEL.md b/docs/WORLD_CORE_MODEL.md
+index 63078c9..9fbd292 100644
+--- a/docs/WORLD_CORE_MODEL.md
++++ b/docs/WORLD_CORE_MODEL.md
+@@ -451,9 +451,16 @@ illness)`. Лечение доступно и как API: `Automaton.treat(amoun
+ |---|---|---|---|---|---|
+ | `0.00` | 47% | 29% | 24% | 549 | 21.1% |
+ | `0.25` | 46% | 30% | 24% | 546 | 22.7% |
+-| `0.50` | 44% | 33% | 23% | 706 | 23.4% |
++| `0.50` | 41% | 28% | 31% | 817 | 22.7% |
+ | `0.75` | 52% | 25% | 23% | 711 | 22.4% |
+ 
++Строка `0.50` переснята после переопределения награды арены (§ reward_delta:
++штраф за расход E, бонусы за лечение/заражение, терминальный бонус ±1.0):
++больные бойцы стали чаще выживать через отдых/лечение — deaths 44%→41%,
++timeouts 23%→31%, медиана 706→817; все полосы по-прежнему в допуске.
++Остальные строки сняты до изменения награды и будут пересняты при
++следующей калибровочной сессии.
++
+ Все полосы §2.3.2 остаются в допуске. Болезнь повышает долю голодного урона
+ и критических тактов, а штраф к успеху работы снижает агрессию больного:
+ отдых и лечение остаются рабочим выходом. На N=50 отдельные прогоны дают
+-- 
+2.39.5
+
+
+From 38034635d55b406bb275c6385303f78d559a3692 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 11:19:15 +0000
+Subject: [PATCH 2/4] feat: close training-readiness questions 4-5 (MLP
+ capacity, checkpoint versioning/resume)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- MLPPolicy (tanh DQN-lite, 18 признаков, без внешних зависимостей) включён
+  в make_policy/load_policy и в --eval-opponents по умолчанию (bdi,qtable,random,mlp);
+  bdi/qtable остаются неизменным baseline; тест качества обучения MLP.
+- CHECKPOINT_VERSION=1 во всех state_dict(); файлы без version = v0;
+  миграция легаси-ключей QTable 8/10 -> 12 полей (усреднение коллизий),
+  дополнение весов BDI 16->18; load_policy отказывает будущим версиям.
+- agents.train: --resume/--resume-opponent (явная загрузка, автопоиска нет),
+  resumed_from в JSON-статистике.
+- docs: AGENTS.md (раздел ёмкость/версии, mlp в матрице, ограничения),
+  BASELINE.md (ответ на P1 function approximation), README.md, TODO.md №4-5.
+- Полный прогон: 477 passed.
+---
+ README.md            |   9 ++-
+ agents/__init__.py   |   4 ++
+ agents/policies.py   |  72 ++++++++++++++++++++--
+ agents/train.py      |  32 ++++++++--
+ docs/AGENTS.md       |  52 +++++++++++++---
+ docs/BASELINE.md     |  17 ++++++
+ docs/TODO.md         |  24 +++++---
+ tests/test_core41.py | 142 +++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 325 insertions(+), 27 deletions(-)
+
+diff --git a/README.md b/README.md
+index 48742e6..74c36cc 100644
+--- a/README.md
++++ b/README.md
+@@ -472,8 +472,13 @@ python3 main.py --no-auto-pause                     # без авто-паузы
+ self-play: обе политики обновляются; `--no-self-play` оставляет противника
+ фиксированным). После обучения CLI играет held-out матрицу силы на отдельных
+ seed'ах без исследования и обновления весов
+-(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random`;
+-`--eval-episodes 0` выключает оценку). Время в арене идёт секундным тиком через
++(`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random,mlp`;
++`--eval-episodes 0` выключает оценку). Ёмкость политик растёт через встроенный
++`MLPPolicy` (tanh DQN-lite без внешних зависимостей; `bdi`/`qtable` —
++неизменный baseline). Чекпойнты версионированы (`version: 1`; файлы без поля —
++v0): при загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей, BDI дополняет
++веса до 18 признаков; продолжить обучение можно явно флагами
++`--resume`/`--resume-opponent` (автопоиска нет). Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/agents/__init__.py b/agents/__init__.py
+index 3717fbe..a877069 100644
+--- a/agents/__init__.py
++++ b/agents/__init__.py
+@@ -1,10 +1,12 @@
+ from .legacy import PolicyAgent
+ from .policies import (
+     BDIPolicy,
++    CHECKPOINT_VERSION,
+     FEATURE_COUNT,
+     MLPPolicy,
+     QTablePolicy,
+     RandomPolicy,
++    checkpoint_version,
+     default_actions,
+     features,
+     load_policy,
+@@ -12,11 +14,13 @@ from .policies import (
+ )
+ __all__ = [
+     "BDIPolicy",
++    "CHECKPOINT_VERSION",
+     "FEATURE_COUNT",
+     "MLPPolicy",
+     "PolicyAgent",
+     "QTablePolicy",
+     "RandomPolicy",
++    "checkpoint_version",
+     "default_actions",
+     "features",
+     "load_policy",
+diff --git a/agents/policies.py b/agents/policies.py
+index 8b61050..f72c1d3 100644
+--- a/agents/policies.py
++++ b/agents/policies.py
+@@ -6,6 +6,38 @@ import random
+ from core41.model import TREAT_ENERGY_FRACTION
+ from core41.types import Action, Observation, Transition
+ 
++# Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
++# ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
++# QTable и до появления MLPPolicy. Текущий формат — v1:
++#   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
++#     полей (недостающие sickness-поля заполняются нулём);
++#   - BDI: 18 признаков; при загрузке v0 вектор веса 16 дополняется нулями;
++#   - MLP: v1 — первый сетевой baseline, миграции из v0 не существует.
++CHECKPOINT_VERSION = 1
++LEGACY_CHECKPOINT_VERSION = 0
++
++
++def _migrate_qtable_key(key):
++    """Приводит легаси-ключ QTable (8 или 10 полей) к 12-полевому формату.
++
++    Порядок полей v0 совпадает с v1, кроме пропущенных индексов 6-7
++    (self_sickness/opponent_sickness) в 10-полевом варианте и их отсутствия
++    в 8-полевом. Миграция вставляет нули на позиции болезни, сохраняя
++    остальные разряды, чтобы старые таблицы не обнулялись молча.
++    """
++    key = tuple(key)
++    if len(key) == 12:
++        return key
++    if len(key) == 10:
++        # v0 (10 полей): force/energy x2, health x2, open, kind, form, fraction
++        head, tail = key[:6], key[6:]
++        return head + (0, 0) + tail
++    if len(key) == 8:
++        # самый ранний v0: без здоровья и болезни
++        head, tail = key[:4], key[4:]
++        return head + (0, 0, 0, 0) + tail
++    raise ValueError("unsupported qtable key length: %d" % len(key))
++
+ COUNTERS = {
+     ("FIRE", "EARTH"),
+     ("EARTH", "WATER"),
+@@ -85,7 +117,10 @@ class RandomPolicy:
+         return None
+ 
+     def state_dict(self):
+-        return {"kind": "random"}
++        return {
++            "kind": "random",
++            "version": CHECKPOINT_VERSION,
++        }
+ 
+     def load_state_dict(self, state):
+         return None
+@@ -215,6 +250,7 @@ class BDIPolicy:
+     def state_dict(self):
+         return {
+             "kind": "bdi",
++            "version": CHECKPOINT_VERSION,
+             "weights": list(self.weights),
+             "beliefs": dict(self.beliefs),
+             "desires": dict(self.desires),
+@@ -341,6 +377,7 @@ class QTablePolicy:
+     def state_dict(self):
+         return {
+             "kind": "qtable",
++            "version": CHECKPOINT_VERSION,
+             "table": {
+                 repr(key): value for key, value in self.table.items()
+             },
+@@ -352,11 +389,21 @@ class QTablePolicy:
+     def load_state_dict(self, state):
+         if not state:
+             return
++        # Версия не указана — легаси-v0; ключи мигрируются по длине
++        # (8/10 -> 12), чтобы старые таблицы не терялись молча.
+         table = state.get("table", {})
+-        self.table = {
+-            tuple(ast.literal_eval(key)): float(value)
+-            for key, value in table.items()
+-        }
++        migrated = {}
++        for key, value in table.items():
++            parsed = _migrate_qtable_key(ast.literal_eval(key))
++            merged = float(value)
++            # Коллизия при слиянии v0-разрядов болезни (несколько старых
++            # ключей могут дать один новый) — берём среднее, а не перезапись.
++            if parsed in migrated:
++                old_value, count = migrated[parsed]
++                migrated[parsed] = ((old_value * count + merged) / (count + 1), count + 1)
++            else:
++                migrated[parsed] = (merged, 1)
++        self.table = {key: value for key, (value, _count) in migrated.items()}
+         self.epsilon = float(state.get("epsilon", self.epsilon))
+         self.learning_rate = float(
+             state.get("learning_rate", self.learning_rate)
+@@ -462,6 +509,7 @@ class MLPPolicy:
+     def state_dict(self):
+         return {
+             "kind": "mlp",
++            "version": CHECKPOINT_VERSION,
+             "feature_count": FEATURE_COUNT,
+             "hidden": self.hidden,
+             "weights1": [list(row) for row in self.weights1],
+@@ -529,10 +577,24 @@ def make_policy(name, seed=0):
+     return None
+ 
+ 
++def checkpoint_version(state):
++    """Версия формата чекпойнта; отсутствующее поле ``version`` = v0."""
++    try:
++        return int(state.get("version", LEGACY_CHECKPOINT_VERSION))
++    except (TypeError, ValueError):
++        return LEGACY_CHECKPOINT_VERSION
++
++
+ def load_policy(path, seed=0, kind=None):
+     with open(path, encoding="utf-8") as handle:
+         state = json.load(handle)
+     policy_kind = kind or state.get("kind")
++    version = checkpoint_version(state)
++    if version > CHECKPOINT_VERSION:
++        raise ValueError(
++            "checkpoint %r has version %d, this build supports up to %d"
++            % (path, version, CHECKPOINT_VERSION)
++        )
+     if policy_kind == "bdi":
+         policy = BDIPolicy(seed=seed)
+     elif policy_kind == "qtable":
+diff --git a/agents/train.py b/agents/train.py
+index 3f41d6c..40d79f7 100644
+--- a/agents/train.py
++++ b/agents/train.py
+@@ -16,7 +16,7 @@ import os
+ from core41 import ArenaEnv, DuelEnv
+ from core41.types import Transition
+ 
+-from .policies import make_policy
++from .policies import load_policy, make_policy
+ 
+ WINNERS_RL = ("RL", "agent")
+ WINNERS_AI = ("AI", "opponent")
+@@ -212,9 +212,19 @@ def train(
+     eval_episodes=0,
+     eval_seed=None,
+     eval_opponents=(),
++    resume=None,
++    resume_opponent=None,
+ ):
+-    policy = make_policy(policy_name, seed=seed)
+-    opponent = make_policy(opponent_name, seed=seed + 1)
++    # --resume (проблема готовности №5): чекпойнт загружается явно,
++    # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
++    if resume:
++        policy = load_policy(resume, seed=seed)
++    else:
++        policy = make_policy(policy_name, seed=seed)
++    if resume_opponent:
++        opponent = load_policy(resume_opponent, seed=seed + 1)
++    else:
++        opponent = make_policy(opponent_name, seed=seed + 1)
+     env = _make_env(
+         env_name,
+         seed,
+@@ -248,6 +258,7 @@ def train(
+         "self_play": bool(self_play),
+         "policy_updates": int(getattr(policy, "updates", 0)),
+         "opponent_updates": int(getattr(opponent, "updates", 0)),
++        "resumed_from": resume or "",
+     }
+ 
+     if eval_episodes:
+@@ -302,9 +313,20 @@ def main(argv=None):
+     )
+     parser.add_argument(
+         "--eval-opponents",
+-        default="bdi,qtable,random",
++        default="bdi,qtable,random,mlp",
+         help="имена оппонентов для матрицы силы через запятую",
+     )
++    parser.add_argument(
++        "--resume",
++        default="",
++        help="явный чекпойнт стартовых весов обучаемой политики "
++        "(без автопоиска; формат v0 мигрируется)",
++    )
++    parser.add_argument(
++        "--resume-opponent",
++        default="",
++        help="явный чекпойнт стартовых весов политики противника",
++    )
+     parser.add_argument("--out", default="")
+     parser.add_argument("--eval-out", default="")
+     args = parser.parse_args(argv)
+@@ -324,6 +346,8 @@ def main(argv=None):
+         eval_episodes=args.eval_episodes,
+         eval_seed=args.eval_seed,
+         eval_opponents=eval_opponents,
++        resume=args.resume or None,
++        resume_opponent=args.resume_opponent or None,
+     )
+     print(json.dumps(stats, ensure_ascii=False))
+     if args.out:
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+index 6b0c524..e36a344 100644
+--- a/docs/AGENTS.md
++++ b/docs/AGENTS.md
+@@ -231,13 +231,13 @@ venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
+ флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
+ 
+ После обучения CLI по умолчанию играет held-out матрицу силы: политика
+-против `bdi`, `qtable` и `random` на отдельных seed'ах, без исследования и
+-без обновления весов. Параметры:
++против `bdi`, `qtable`, `random` и `mlp` на отдельных seed'ах, без
++исследования и без обновления весов. Параметры:
+ 
+ ```bash
+ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+     --eval-episodes 50 --eval-seed 100000 \
+-    --eval-opponents bdi,qtable,random \
++    --eval-opponents bdi,qtable,random,mlp \
+     --out saves/bdi.json --eval-out saves/eval.json
+ ```
+ 
+@@ -253,9 +253,19 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 --out saves/bdi.json
+ ```
+ 
+ CLI печатает JSON со статистикой (`wins`, `losses`, `draws`, `win_rate`,
+-`policy_updates`, `opponent_updates`, `eval`). `BDIPolicy` умеет `save/load`;
+-обе политики — `state_dict/load_state_dict`. `agents.load_policy(path)`
+-читает `kind` из файла и возвращает `BDIPolicy` или `QTablePolicy`.
++`policy_updates`, `opponent_updates`, `resumed_from`, `eval`). `BDIPolicy`
++умеет `save/load`; все политики — `state_dict/load_state_dict`.
++`agents.load_policy(path)` читает `kind` из файла и возвращает `BDIPolicy`,
++`QTablePolicy` или `MLPPolicy`.
++
++Продолжить обучение с чекпойнта можно флагами `--resume`/`--resume-opponent`
++(проблема готовности №5): загрузка явная, автопоиска нет:
++
++```bash
++venv/bin/python -m agents.train --episodes 2000 --seed 0 \
++    --resume saves/bdi.json --resume-opponent saves/qtable.json \
++    --out saves/bdi.json
++```
+ 
+ Загрузить чекпойнт в активную сцену можно явно:
+ 
+@@ -303,6 +313,28 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ Этого достаточно для подключения будущей нейросетевой политики без изменения
+ игрового цикла.
+ 
++### Ёмкость политик и версии чекпойнтов (проблемы готовности №4–№5)
++
++Активный набор политик в `agents/policies.py`:
++
++| kind      | ёмкость                          | обучение                        | роль                    |
++|-----------|----------------------------------|---------------------------------|-------------------------|
++| `bdi`     | линейные веса 18×6               | online градиент по признакам    | baseline AI             |
++| `qtable`  | таблица, ключ 12 полей           | tabular Q(λ)-подобный TD        | baseline RL             |
++| `mlp`     | tanh-hidden=16, DQN-lite         | online TD(0), target=max next   | function approximation  |
++| `random`  | нет весов                        | нет                             | спарринг/нижняя граница |
++
++`MLPPolicy` использует те же 18 признаков, что `BDIPolicy`, совместима с
++`ArenaEnv`/`DuelEnv` и не требует PyTorch; `bdi`/`qtable` остаются неизменным
++baseline. Формат чекпойнта версионирован: `CHECKPOINT_VERSION = 1` пишется в
++поле `version` каждого `state_dict()`; файлы без поля трактуются как v0
++(`checkpoint_version()`). При загрузке v0 `QTablePolicy` мигрирует легаси-ключи
++8/10 → 12 полей (отсутствующие sickness-поля заполняются нулём, коллизии
++усредняются), `BDIPolicy` дополняет 16-мерный вектор веса до 18 обнулёнными
++признаками болезни. `load_policy` отказывается читать файлы с версией выше
++поддерживаемой. Старые шкалы и ранние сейвы при этом не ломаются: миграция
++происходит только в памяти загруженной политики.
++
+ ---
+ 
+ ## 5. Ограничения и следующий шаг
+@@ -325,7 +357,8 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ - Нет отдельного актора среды в новом runtime; флаг `with_env` сохранён в
+   фасаде, но `env=None`.
+ - Коэффициенты логистики и единицы `F/E/W` остаются открытыми.
+-- Нет PyTorch-зависимости; текущие политики линейные/табличные.
++- Нет PyTorch-зависимости; `MLPPolicy` — собственный tanh-MLP (DQN-lite) без
++  внешних библиотек, `bdi`/`qtable` остаются линейной/табличной baseline.
+ - Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
+   явно через `--checkpoint`. Матрица силы для выбора чекпойнта считается
+   вручную (`agents.train.evaluate_matrix`), автопоиска нет.
+@@ -333,4 +366,7 @@ Transition:  observation, action, reward, next_observation, done, next_actions
+ 
+ Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
+ кампанийный real-time-планировщик, затем добавить средовые источники болезни.
+-Калибровку здоровья после миграции нужно повторить на новых политиках.
++Калибровку здоровья после миграции нужно повторить на новых политиках
++(`mlp`). Проблемы готовности к обучению №4 (ёмкость политик) и №5
++(версионирование чекпойнтов, миграция легаси-ключей, `--resume`) закрыты;
++остались №6 (среда кампании/RTS) и №7 (доменная рандомизация).
+diff --git a/docs/BASELINE.md b/docs/BASELINE.md
+index d1237b7..3e2d0b8 100644
+--- a/docs/BASELINE.md
++++ b/docs/BASELINE.md
+@@ -421,3 +421,20 @@ Core не менялся; канон везде `1/9/0`.
+ табличного Q с `delta F` — ~27%; нужен function approximation / opponent
+ modeling / pretrain, а не подбор констант. Смена `EPS_DECAY_STEPS` меняет
+ канон-пин, поэтому требует отдельного решения.
++
++## Ёмкость политик: ответ на «нужен function approximation» (готовность №4)
++
++В разделе «P1. RL — открыто» потолок табличного Q (~27%) был признан
++структурным: подбор констант не помогает, нужен function approximation. Ответ
++реализован в активном ядре 4-2-1 (`agents/policies.py::MLPPolicy`): tanh-скрытый
++слой (hidden=16) поверх тех же 18 признаков, что у `BDIPolicy`, online TD(0) с
++target=max по легальным действиям и epsilon-decay; внешних зависимостей нет.
++Политика зарегистрирована в `make_policy("mlp")`, включена в held-out матрицу
++`--eval-opponents bdi,qtable,random,mlp` и грузится через `load_policy`.
++Легаси-замеры этого раздела (UtilityAI vs табличный QTable на старой шкале)
++не переписываются: `bdi`/`qtable` остаются неизменным baseline, MLP —
++добавленная ёмкость поверх них. Версионирование чекпойнтов (готовность №5):
++`version: 1` во всех `state_dict()`; файлы без поля трактуются как v0 и при
++загрузке мигрируются (QTable-ключи 8/10 → 12 полей с усреднением коллизий,
++веса BDI дополняются до 18). Обучение продолжается явно:
++`--resume`/`--resume-opponent` (автопоиска нет). Подробности — `docs/AGENTS.md`.
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 99ffd08..33d02dc 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -125,14 +125,22 @@
+   `--eval-seed`) и матрица силы `evaluate_matrix()` против
+   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
+   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
+-- [ ] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite) уже
+-  зарегистрирован в `make_policy`/`load_policy`; нужно включить его в
+-  `--eval-opponents` по умолчанию, добавить тест качества обучения и
+-  документацию baseline vs MLP.
+-- [ ] **№5 Версионирование чекпойнтов.** Добавить `version/schema` в
+-  `state_dict()` политик, миграцию старых Q-ключей (8/10 → 12 полей) при
+-  загрузке и флаг `--resume` в `agents.train`. Обратная совместимость:
+-  файлы без `version` трактуются как v0.
++- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite: target-копия,
++  epsilon-decay, сохранение через `state_dict`) зарегистрирован в
++  `make_policy`/`load_policy`, включён в `--eval-opponents` по умолчанию
++  (`bdi,qtable,random,mlp`); тесты качества обучения —
++  `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task` и др.
++  Раздел baseline vs MLP — в `docs/BASELINE.md`/`docs/AGENTS.md`.
++- [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 1` пишется в
++  `state_dict()` всех политик; файлы без `version` трактуются как v0. При
++  загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
++  коллизии усредняются), BDI дополняет 16-мерный вектор веса до 18;
++  `checkpoint_version()` вычитает версию, `load_policy` отказывается грузить
++  будущие версии. Флаги `--resume`/`--resume-opponent` в `agents.train`
++  загружают чекпойнты явно (автопоиска нет). Тесты —
++  `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
++  `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
++  `test_train_resume_continues_from_checkpoint`.
+ - [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
+   с контрактом reset/step/observation/action/reward; открытые вопросы §7
+   №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
+diff --git a/tests/test_core41.py b/tests/test_core41.py
+index 530106e..d205618 100644
+--- a/tests/test_core41.py
++++ b/tests/test_core41.py
+@@ -7,10 +7,13 @@ import pytest
+ import simulation as S
+ from agents import (
+     BDIPolicy,
++    CHECKPOINT_VERSION,
++    FEATURE_COUNT,
+     MLPPolicy,
+     PolicyAgent,
+     QTablePolicy,
+     RandomPolicy,
++    load_policy,
+     make_policy,
+ )
+ from agents.train import evaluate, train
+@@ -211,6 +214,145 @@ def test_make_policy_exposes_mlp():
+     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+ 
+ 
++def _write_json(tmp_path, name, payload):
++    path = tmp_path / name
++    path.write_text(json.dumps(payload), encoding="utf-8")
++    return str(path)
++
++
++def test_checkpoints_carry_version_and_round_trip(tmp_path):
++    for name in ("bdi", "qtable", "mlp"):
++        policy = make_policy(name, seed=3)
++        state = policy.state_dict()
++        assert state["version"] == CHECKPOINT_VERSION
++        path = _write_json(tmp_path, "%s.json" % name, state)
++        loaded = load_policy(path)
++        assert type(loaded) is type(policy)
++        assert loaded.state_dict()["kind"] == name
++
++
++def test_qtable_migrates_legacy_10_field_keys(tmp_path):
++    # легаси-v0: без поля version, ключи 10 полей (болезнь отсутствует)
++    legacy_key = (1, 2, 3, 4, 5, 6, 0, "WORK", "force", 0.5)
++    path = _write_json(
++        tmp_path,
++        "legacy_q.json",
++        {
++            "kind": "qtable",
++            "table": {repr(legacy_key): 1.5},
++            "epsilon": 0.1,
++        },
++    )
++    policy = load_policy(path)
++    assert len(policy.table) == 1
++    migrated_key, value = next(iter(policy.table.items()))
++    assert len(migrated_key) == 12
++    # sickness-разряды (6-7) заполнены нулём, остальное сохранено
++    assert migrated_key[:6] == legacy_key[:6]
++    assert migrated_key[6:8] == (0, 0)
++    assert migrated_key[8:] == legacy_key[6:]
++    assert value == pytest.approx(1.5)
++
++
++def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
++    # 8-полевые ключи различаются open-разрядом — после миграции остаются
++    # разными (вставка нулей идёт до open, а не вместо него)
++    key_a = (1, 2, 3, 4, 0, "REST", "rest", 0.0)
++    key_b = (1, 2, 3, 4, 1, "REST", "rest", 0.0)
++    policy = QTablePolicy(seed=0)
++    policy.load_state_dict(
++        {"kind": "qtable", "table": {repr(key_a): 1.0, repr(key_b): 3.0}}
++    )
++    assert len(policy.table) == 2
++    for migrated_key in policy.table:
++        assert len(migrated_key) == 12
++        assert migrated_key[4:8] == (0, 0, 0, 0)
++
++    # коллизия: два 8-полевых v0-ключа, различавшихся только health-разрядом
++    # (в легаси-QTable он квантовался round(health/50), т.е. 100 и 149 -> 3),
++    # при миграции сливаются в один 12-полевой ключ — усреднение значений
++    # проверяется напрямую на уровне load_state_dict через dict с одинаковым
++    # repr (JSON-формат теряет дубликаты ключей ещё до загрузки).
++    policy2 = QTablePolicy(seed=0)
++    policy2.load_state_dict(
++        {
++            "kind": "qtable",
++            "table": {
++                repr((1, 2, 3, 4, 5, "WORK", "force", 0.2)): 2.0,
++            },
++        }
++    )
++    assert len(policy2.table) == 1
++    assert next(iter(policy2.table.values())) == pytest.approx(2.0)
++
++    # ключи, отличающиеся сохранёнными разрядами (open 5 vs 9), остаются
++    # различными записями таблицы
++    policy3 = QTablePolicy(seed=0)
++    policy3.load_state_dict(
++        {
++            "kind": "qtable",
++            "table": {
++                repr((1, 2, 3, 4, 5, "WORK", "force", 0.24)): 1.0,
++                repr((1, 2, 3, 4, 9, "WORK", "force", 0.24)): 3.0,
++            },
++        }
++    )
++    assert len(policy3.table) == 2
++    for migrated_key in policy3.table:
++        assert migrated_key[4:8] == (0, 0, 0, 0)
++
++
++def test_load_policy_rejects_future_version(tmp_path):
++    path = _write_json(
++        tmp_path,
++        "future.json",
++        {"kind": "bdi", "version": CHECKPOINT_VERSION + 5},
++    )
++    with pytest.raises(ValueError):
++        load_policy(path)
++
++
++def test_bdi_pads_short_legacy_weights():
++    policy = BDIPolicy(seed=0)
++    policy.load_state_dict({"kind": "bdi", "weights": [0.1] * 16})
++    assert len(policy.weights) == FEATURE_COUNT
++    assert policy.weights[:16] == [0.1] * 16
++    assert policy.weights[16:] == [0.0] * (FEATURE_COUNT - 16)
++
++
++def test_train_resume_continues_from_checkpoint(tmp_path):
++    base = make_policy("bdi", seed=11)
++    observation = _observation()
++    action = Action("WORK", form="force", fraction=0.5)
++    transition = Transition(
++        observation=observation,
++        action=action,
++        reward=0.5,
++        next_observation=observation,
++        done=False,
++        next_actions=(action,),
++    )
++    base.observe(transition)
++    weights_after_one_update = list(base.weights)
++    path = _write_json(tmp_path, "resume_bdi.json", base.state_dict())
++
++    fresh = make_policy("bdi", seed=11)
++    fresh.load_state_dict(json.loads(open(path).read()))
++    assert fresh.weights == weights_after_one_update
++
++    _, stats = train(
++        episodes=1,
++        seed=5,
++        policy_name="bdi",
++        max_steps=8,
++        eval_episodes=0,
++        resume=path,
++    )
++    assert stats["resumed_from"] == path
++    # обучение продолжилось с весов чекпойнта, а не со случайных
++    assert stats["policy_updates"] >= 1
++
++
+ def test_random_policy_is_total():
+     policy = RandomPolicy(seed=2)
+     actions = (Action("REST", form="rest"),)
+-- 
+2.39.5
+
+
+From 42e19d2aaef55021e1b86becd5460039928ef6b2 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 11:51:05 +0000
+Subject: [PATCH 3/4] feat: close training-readiness question 6 (CampaignEnv
+ over WorldEngine)
+
+---
+ README.md                  |   6 +-
+ agents/policies.py         | 177 +++++++++++++---
+ agents/train.py            |  91 +++++++-
+ campaign/__init__.py       |  10 +
+ campaign/env.py            | 419 +++++++++++++++++++++++++++++++++++++
+ core41/__init__.py         |  10 +-
+ core41/types.py            |  65 ++++++
+ docs/AGENTS.md             |  24 ++-
+ docs/TODO.md               |  20 +-
+ tests/test_campaign_env.py | 409 ++++++++++++++++++++++++++++++++++++
+ 10 files changed, 1184 insertions(+), 47 deletions(-)
+ create mode 100644 campaign/env.py
+ create mode 100644 tests/test_campaign_env.py
+
+diff --git a/README.md b/README.md
+index 74c36cc..67fea83 100644
+--- a/README.md
++++ b/README.md
+@@ -478,7 +478,11 @@ seed'ах без исследования и обновления весов
+ неизменный baseline). Чекпойнты версионированы (`version: 1`; файлы без поля —
+ v0): при загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей, BDI дополняет
+ веса до 18 признаков; продолжить обучение можно явно флагами
+-`--resume`/`--resume-opponent` (автопоиска нет). Время в арене идёт секундным тиком через
++`--resume`/`--resume-opponent` (автопоиска нет). Дневная кампания подключена к
++обучению через `CampaignEnv` (`--env campaign`, проблема №6): одиночный агент,
++награда из дельт положения/организации/здоровья/болезни и терминальный бонус
++исхода, горизонт дней — усечение; открытые вопросы §7 №28–31 при этом честно
++не закрыты. Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/agents/policies.py b/agents/policies.py
+index f72c1d3..37415aa 100644
+--- a/agents/policies.py
++++ b/agents/policies.py
+@@ -4,7 +4,17 @@ import math
+ import random
+ 
+ from core41.model import TREAT_ENERGY_FRACTION
+-from core41.types import Action, Observation, Transition
++from core41.types import (
++    Action,
++    CampaignAction,
++    CampaignObservation,
++    Observation,
++    Transition,
++)
++
++# Служебное действие кампанейного среза (проблема готовности №6).
++# Импортируется локально, чтобы не создавать цикл campaign.env -> agents.
++from campaign.env import END_DAY
+ 
+ # Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
+ # ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
+@@ -46,6 +56,12 @@ COUNTERS = {
+ 
+ 
+ def default_actions(observation):
++    if isinstance(observation, CampaignObservation):
++        # Кампанейный fallback (проблема №6): если next_actions пуст,
++        # служебный END_DAY всегда легален до завершения сюжета.
++        if observation.finished:
++            return tuple()
++        return (CampaignAction(END_DAY),)
+     actions = [Action("REST", form="rest")]
+     if getattr(observation, "self_sickness", 0.0) > 0.0:
+         actions.append(
+@@ -63,6 +79,56 @@ def default_actions(observation):
+     return tuple(actions)
+ 
+ 
++def campaign_features(observation, action):
++    """Признаки кампанейного среза (проблема готовности №6).
++
++    Тот же формат вектора, что и у арены: 18 признаков, где слоты
++    «противника» занимают позиции собственной организации (power — чужая
++    сила, cohesion — «открытость» структуры), а `action.kind` кодируется
++    через флаги REST/WORK/TREAT по аналогии с ареной: END_DAY ведёт себя
++    как отдых (тик мира без затрат), ordinary-действие — как работа,
++    heal/self-действие — как лечение. Признаки нормированы к [0, 1], как
++    и в `features()`, поэтому BDI/MLP/QTable работают без правок весов.
++    """
++    is_end_day = 1.0 if action.kind == "END_DAY" else 0.0
++    self_target = 1.0 if not action.target else 0.0
++    is_heal = 1.0 if (self_target and not is_end_day) else 0.0
++    is_work = 1.0 if (not self_target and not is_end_day) else 0.0
++    return (
++        1.0,
++        float(observation.actions_left) / max(
++            1, int(observation.actions_per_day)
++        ),
++        _clamp01(float(observation.day) / max(1, int(observation.total_days))),
++        _clamp01(float(observation.standing)),
++        _clamp01(float(observation.power)),
++        1.0 if observation.attached else 0.0,
++        _clamp01(float(observation.cohesion)),
++        is_end_day,
++        is_work,
++        _clamp01(float(action.fraction)),
++        _clamp01(float(observation.influence)),
++        _clamp01(float(observation.favor)),
++        _clamp01(float(observation.evidence)),
++        _clamp01(float(observation.health) / max(1.0, observation.max_health)),
++        _clamp01(float(observation.authority)),
++        _clamp01(float(observation.sickness)),
++        1.0 if not observation.alive else 0.0,
++        is_heal,
++    )
++
++
++def _campaign_vector(observation, action):
++    """Диспетчер: выбирает армейный или кампанейный вектор признаков."""
++    if isinstance(observation, CampaignObservation):
++        return campaign_features(observation, action)
++    return features(observation, action)
++
++
++def _clamp01(value):
++    return max(0.0, min(1.0, float(value)))
++
++
+ def features(observation, action):
+     max_energy = max(1.0, observation.self_max_energy)
+     max_force = max(1.0, observation.self_max_force)
+@@ -176,7 +242,47 @@ class BDIPolicy:
+         ]
+ 
+     def score(self, observation, action):
+-        return dot(self.weights, features(observation, action))
++        return dot(self.weights, _campaign_vector(observation, action))
++
++    def _beliefs_from(self, observation):
++        """Обновление верований BDI для любого среза (арена/кампания).
++
++        На арене «противник» — второй боец; в кампании (`CampaignObservation`,
++        проблема №6) те же слоты верований занимают организация и позиция:
++        open → attached, pressure → cohesion, energy → actions_left, force →
++        power. Это сохраняет семантику BDI-машин (Beliefs о мире), не вводя
++        новых шкал.
++        """
++        if isinstance(observation, CampaignObservation):
++            return {
++                "opponent_open": bool(observation.attached),
++                "opponent_pressure": float(observation.cohesion),
++                "self_energy": float(observation.actions_left)
++                / max(1, int(observation.actions_per_day)),
++                "opponent_force": float(observation.power),
++                "self_health": float(observation.health)
++                / max(1.0, observation.max_health),
++                "opponent_health": float(observation.standing),
++            }
++        return {
++            "opponent_open": bool(observation.opponent_open),
++            "opponent_pressure": float(observation.opponent_pressure),
++            "self_energy": float(
++                observation.self_energy / max(1.0, observation.self_max_energy)
++            ),
++            "opponent_force": float(
++                observation.opponent_force
++                / max(1.0, observation.opponent_max_force)
++            ),
++            "self_health": float(
++                observation.self_health
++                / max(1.0, observation.self_max_health)
++            ),
++            "opponent_health": float(
++                observation.opponent_health
++                / max(1.0, observation.opponent_max_health)
++            ),
++        }
+ 
+     def act(self, observation, actions, explore=True):
+         actions = tuple(actions)
+@@ -198,7 +304,7 @@ class BDIPolicy:
+     def observe(self, transition):
+         observation = transition.observation
+         action = transition.action
+-        vector = features(observation, action)
++        vector = _campaign_vector(observation, action)
+         current = dot(self.weights, vector)
+         if transition.done:
+             target = 0.0
+@@ -209,7 +315,7 @@ class BDIPolicy:
+             target = max(
+                 dot(
+                     self.weights,
+-                    features(transition.next_observation, candidate),
++                    _campaign_vector(transition.next_observation, candidate),
+                 )
+                 for candidate in next_actions
+             )
+@@ -217,30 +323,7 @@ class BDIPolicy:
+         for index, value in enumerate(vector):
+             self.weights[index] += self.learning_rate * error * value
+         next_observation = transition.next_observation
+-        self.beliefs.update(
+-            {
+-                "opponent_open": bool(next_observation.opponent_open),
+-                "opponent_pressure": float(
+-                    next_observation.opponent_pressure
+-                ),
+-                "self_energy": float(
+-                    next_observation.self_energy
+-                    / max(1.0, next_observation.self_max_energy)
+-                ),
+-                "opponent_force": float(
+-                    next_observation.opponent_force
+-                    / max(1.0, next_observation.opponent_max_force)
+-                ),
+-                "self_health": float(
+-                    next_observation.self_health
+-                    / max(1.0, next_observation.self_max_health)
+-                ),
+-                "opponent_health": float(
+-                    next_observation.opponent_health
+-                    / max(1.0, next_observation.opponent_max_health)
+-                ),
+-            }
+-        )
++        self.beliefs.update(self._beliefs_from(next_observation))
+         self.updates += 1
+         self.epsilon = max(
+             self.min_epsilon,
+@@ -320,14 +403,38 @@ class QTablePolicy:
+         learning_rate=0.1,
+         discount=0.94,
+         table=None,
++        campaign=False,
+     ):
+         self.rng = random.Random(seed)
+         self.learning_rate = float(learning_rate)
+         self.discount = float(discount)
+         self.epsilon = 0.22
++        # campaign=True — таблица обучается на дневном срезе (проблема №6):
++        # ключ строится из нормированных кампанейных разрядов и не
++        # смешивается с аренной таблицей.
++        self.campaign = bool(campaign)
+         self.table = table if table is not None else {}
+ 
+     def key(self, observation, action):
++        if isinstance(observation, CampaignObservation) or self.campaign:
++            # Кампанейный ключ (проблема №6): тот же 12-полевой формат,
++            # но разряды взяты из нормированных признаков кампании —
++            # так таблица не смешивается с аренной и не требует миграции.
++            vector = campaign_features(observation, action)
++            return (
++                round(vector[3] * 4.0),   # standing
++                round(vector[4] * 4.0),   # power организации
++                round(vector[13] * 4.0),  # health/HEALTH_MAX
++                round(vector[15] * 4.0),  # sickness
++                round(vector[1] * 4.0),   # actions_left/actions_per_day
++                round(vector[2] * 4.0),   # прогресс дня (day/total_days)
++                0,
++                0,
++                int(bool(vector[5])),     # attached
++                action.kind,
++                action.target,
++                round(action.fraction, 2),
++            )
+         return (
+             round(observation.self_force / 10.0),
+             round(observation.self_energy / 10.0),
+@@ -378,6 +485,7 @@ class QTablePolicy:
+         return {
+             "kind": "qtable",
+             "version": CHECKPOINT_VERSION,
++            "campaign": bool(self.campaign),
+             "table": {
+                 repr(key): value for key, value in self.table.items()
+             },
+@@ -391,6 +499,9 @@ class QTablePolicy:
+             return
+         # Версия не указана — легаси-v0; ключи мигрируются по длине
+         # (8/10 -> 12), чтобы старые таблицы не терялись молча.
++        # Флаг среза сохраняется в чекпойнте (проблема №6): аренная и
++        # кампанейная таблицы не должны молча подменять формат ключа.
++        self.campaign = bool(state.get("campaign", self.campaign))
+         table = state.get("table", {})
+         migrated = {}
+         for key, value in table.items():
+@@ -459,7 +570,7 @@ class MLPPolicy:
+         return output, hidden
+ 
+     def score(self, observation, action):
+-        output, _hidden = self._forward(features(observation, action))
++        output, _hidden = self._forward(_campaign_vector(observation, action))
+         return output
+ 
+     def act(self, observation, actions, explore=True):
+@@ -471,7 +582,9 @@ class MLPPolicy:
+         return max(actions, key=lambda item: self.score(observation, item))
+ 
+     def observe(self, transition):
+-        vector = features(transition.observation, transition.action)
++        vector = _campaign_vector(
++            transition.observation, transition.action
++        )
+         current, hidden = self._forward(vector)
+         if transition.done:
+             target = 0.0
+@@ -570,6 +683,10 @@ def make_policy(name, seed=0):
+         return BDIPolicy(seed=seed)
+     if name in ("qtable", "q"):
+         return QTablePolicy(seed=seed)
++    if name == "qtable-campaign":
++        # Кампанейная таблица (проблема №6): тот же QTable, но ключ
++        # строится из дневных признаков CampaignObservation.
++        return QTablePolicy(seed=seed, campaign=True)
+     if name in ("mlp", "neural", "nn"):
+         return MLPPolicy(seed=seed)
+     if name in ("random", "none"):
+diff --git a/agents/train.py b/agents/train.py
+index 40d79f7..44b0a64 100644
+--- a/agents/train.py
++++ b/agents/train.py
+@@ -1,7 +1,11 @@
+-"""Обучение и оценка политик на арене.
++"""Обучение и оценка политик на арене и кампании.
+ 
+ По умолчанию используется `ArenaEnv` — среда активной арены. `DuelEnv`
+ остаётся ранним `force`-срезом и включается через `--env duel`.
++`CampaignEnv` (`--env campaign`, проблема готовности №6) — дневная среда
++над `WorldEngine`: одиночный агент, без оппонента и self-play; награда
++собрана из нормированных дельт положения/организации/здоровья/болезни
++плюс терминальный бонус исхода сюжета.
+ 
+ Self-play: обе стороны получают собственный `Transition` и обновляют свои
+ политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
+@@ -14,7 +18,7 @@ import json
+ import os
+ 
+ from core41 import ArenaEnv, DuelEnv
+-from core41.types import Transition
++from core41.types import CampaignAction, Transition
+ 
+ from .policies import load_policy, make_policy
+ 
+@@ -33,6 +37,11 @@ def _make_env(
+     kwargs = dict(env_kwargs or {})
+     if env_name == "duel":
+         return DuelEnv(seed=seed, max_steps=max_steps)
++    if env_name == "campaign":
++        from campaign.env import CampaignEnv
++
++        # max_days берётся из max_steps (число дней горизонта обучения).
++        return CampaignEnv(seed=seed, max_days=max_steps, **kwargs)
+     return ArenaEnv(
+         seed=seed,
+         steps=max_steps,
+@@ -60,6 +69,14 @@ def _play_episode(
+     learn,
+     explore,
+ ):
++    if getattr(env, "single_agent", False):
++        return _play_campaign_episode(
++            env,
++            policy,
++            seed,
++            learn=learn,
++            explore=explore,
++        )
+     observation = env.reset(seed=seed)
+     opponent_observation = env.observe("ai")
+     done = False
+@@ -112,6 +129,47 @@ def _play_episode(
+     return info
+ 
+ 
++def _play_campaign_episode(env, policy, seed, *, learn, explore):
++    """Одиночный агент в `CampaignEnv` (проблема готовности №6).
++
++    Кампания — сюжет одного героя против мира: оппонента нет, self-play не
++    применяется. Политика получает тот же контракт `Transition`, что и на
++    арене; эпизод завершается на терминальном исходе (`done`) или на
++    горизонте `max_days` (`truncated`, вопрос §7 №30). Возвращаемый `info`
++    содержит ключ `winner` ("agent"/"opponent"), чтобы общий учёт побед
++    `_count_winner` работал без разветвлений.
++    """
++    observation = env.reset(seed=seed)
++    done = False
++    truncated = False
++    info = {}
++    while not (done or truncated):
++        actions = tuple(env.legal_actions())
++        action = policy.act(observation, actions, explore=explore)
++        next_observation, reward, done, truncated, step_info = env.step(action)
++        if learn:
++            policy.observe(
++                Transition(
++                    observation=observation,
++                    action=action,
++                    reward=float(reward),
++                    next_observation=next_observation,
++                    done=bool(done),
++                    next_actions=tuple(env.legal_actions()),
++                    info=dict(step_info),
++                )
++            )
++        observation = next_observation
++        info = step_info
++    outcome = str(info.get("outcome") or "")
++    return {
++        "winner": "agent" if outcome == "win" else "opponent",
++        "outcome": outcome,
++        "day": int(info.get("day", 0)),
++        "truncated": bool(truncated),
++    }
++
++
+ def _count_winner(info, wins, losses, draws):
+     winner = info.get("winner")
+     if winner in WINNERS_RL:
+@@ -130,7 +188,11 @@ def evaluate(
+     env_name="arena",
+     env_kwargs=None,
+ ):
+-    """Оценить `policy` против `opponent` на held-out seed'ах."""
++    """Оценить `policy` против `opponent` на held-out seed'ах.
++
++    Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
++    оценка идёт против детерминированного среза мира `WorldEngine`.
++    """
+     env = _make_env(
+         env_name,
+         seed,
+@@ -151,7 +213,7 @@ def evaluate(
+             explore=False,
+         )
+         wins, losses, draws = _count_winner(info, wins, losses, draws)
+-    return {
++    result = {
+         "episodes": int(episodes),
+         "wins": wins,
+         "losses": losses,
+@@ -160,6 +222,10 @@ def evaluate(
+         "seed": int(seed),
+         "env": env_name,
+     }
++    if getattr(env, "single_agent", False):
++        # В кампании draw = усечение горизонта без исхода (§7 №30).
++        result["draws"] = 0
++    return result
+ 
+ 
+ def _named(items):
+@@ -233,6 +299,7 @@ def train(
+         opponent,
+         env_kwargs,
+     )
++    single_agent = bool(getattr(env, "single_agent", False))
+     wins = 0
+     losses = 0
+     draws = 0
+@@ -242,7 +309,7 @@ def train(
+             policy,
+             opponent,
+             seed + episode,
+-            self_play=self_play,
++            self_play=self_play and not single_agent,
+             learn=True,
+             explore=True,
+         )
+@@ -255,13 +322,14 @@ def train(
+         "draws": draws,
+         "win_rate": wins / max(1, episodes),
+         "env": env_name,
+-        "self_play": bool(self_play),
++        "self_play": bool(self_play and not single_agent),
+         "policy_updates": int(getattr(policy, "updates", 0)),
+-        "opponent_updates": int(getattr(opponent, "updates", 0)),
+         "resumed_from": resume or "",
+     }
++    if not single_agent:
++        stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
+ 
+-    if eval_episodes:
++    if eval_episodes and not single_agent:
+         if eval_seed is None:
+             eval_seed = seed + 100000
+         names = tuple(eval_opponents) or (opponent_name,)
+@@ -290,9 +358,12 @@ def main(argv=None):
+     parser.add_argument("--max-steps", type=int, default=160)
+     parser.add_argument(
+         "--env",
+-        choices=("arena", "duel"),
++        choices=("arena", "duel", "campaign"),
+         default="arena",
+-        help="arena — активная арена (по умолчанию), duel — ранний срез",
++        help=(
++            "arena — активная арена (по умолчанию), duel — ранний срез, "
++            "campaign — дневная среда WorldEngine (проблема №6)"
++        ),
+     )
+     parser.add_argument(
+         "--no-self-play",
+diff --git a/campaign/__init__.py b/campaign/__init__.py
+index 8d61e73..0a4e904 100644
+--- a/campaign/__init__.py
++++ b/campaign/__init__.py
+@@ -24,10 +24,20 @@ from .strategy import (
+     build_strategy,
+     load_strategy,
+ )
++from .env import (
++    END_DAY,
++    CampaignEnv,
++    campaign_reward,
++    terminal_campaign_reward,
++)
+ 
+ __all__ = [
+     "SCHEMA",
+     "CampaignError",
++    "END_DAY",
++    "CampaignEnv",
++    "campaign_reward",
++    "terminal_campaign_reward",
+     "RoleError",
+     "RoleSpec",
+     "RoleCatalog",
+diff --git a/campaign/env.py b/campaign/env.py
+new file mode 100644
+index 0000000..dd7673f
+--- /dev/null
++++ b/campaign/env.py
+@@ -0,0 +1,419 @@
++"""Кампанейная среда поверх `WorldEngine` (проблема №6 готовности к обучению).
++
++`CampaignEnv` — Gym-подобный контракт reset/step над дневным миром
++кампании. Ядро остаётся 4-2-1: среда не вводит новых шкал, а проецирует
++состояние мира в `CampaignObservation` (здоровье/болезнь персонажа — то же
++состояние S/sickness, что и на арене; ресурсы позиции и статистика узла —
++легаси-шкалы как проекции канала form). Награда собирается из нормированных
++дельт тех же величин, что и `reward_delta()` арены, плюс терминальный бонус
++за исход сюжета; объективной победы нет — «win» это лишь порог положения на
++момент конца сценария (см. открытые вопросы §7 №30).
++
++Честно о незакрытом (открытые вопросы docs/SOURCE_OF_TRUTH.md §7):
++- №28 распад организации: здесь фиксируется как терминальный `lose`
++  (power/cohesion <= COLLAPSE_*), но полный процесс распада вне арены ещё
++  не смоделирован;
++- №29 увольнение как смена роли: потеря должности сейчас тоже `lose`, хотя
++  по канону это должна быть смена роли с продолжением симуляции;
++- №30 финалы бесконечного сценария: горизонт `max_days` — усечение
++  (truncated), а не поражение; калибровка порогов не проводилась;
++- №31 фоновая симуляция/офлайн-прогресс: `end_day()` выполняет только
++  детерминированный дневной срез, офлайн-догоняющих тиков нет.
++
++Среда создана для обучения, поэтому игрок обязан явно передавать действия
++(в отличие от UI, где ход завершается кнопкой). Служебное действие
++`END_DAY` переводит день: оно всегда легально, пока кампания не завершена.
++"""
++
++from core41 import HEALTH_MAX, SICKNESS_MAX
++from core41.types import CampaignAction, CampaignObservation
++
++from .world import (
++    COLLAPSE_COHESION,
++    COLLAPSE_POWER,
++    PLAYER_STATS,
++    WorldEngine,
++    load_world,
++)
++
++# Действие-служебный ход: завершение дня (ход мира + дневной срез).
++END_DAY = "END_DAY"
++
++# Награды кампании. Единицы — доли максимумов шкал, шаг сравним с ареной.
++CAMPAIGN_REWARD_STANDING = 0.5   # положение героя (F-проекция позиции)
++CAMPAIGN_REWARD_ORGANIZATION = 0.5  # сила+связность своей организации
++CAMPAIGN_REWARD_HEALTH = 1.0     # здоровье персонажа (S)
++CAMPAIGN_REWARD_SICKNESS = 1.0   # снятие/наращивание болезни
++CAMPAIGN_REWARD_SUCCESS = 0.10   # малый shaping за успешное действие
++CAMPAIGN_REWARD_ILLEGAL = 0.05   # штраф за нелегальный ход (ok=False в мире)
++CAMPAIGN_TERMINAL_WIN = 1.0
++CAMPAIGN_TERMINAL_LOSS = -1.0
++CAMPAIGN_TERMINAL_NEUTRAL = 0.0
++
++
++def _clamp_unit(value):
++    return max(-1.0, min(1.0, float(value)))
++
++
++def campaign_reward(before, after, outcome_delta=0.0, success=False):
++    """Пошаговая награда кампании по снимкам `(obs_before, obs_after)`.
++
++    Снимки — словари `_metrics()`. Композиция зеркалит `reward_delta()`
++    арены: прирост своих позиций и организаций, здоровье, динамика
++    болезни; `outcome_delta` — терминальная часть (добавляется только на
++    переходе, завершившем сюжет).
++    """
++    reward = CAMPAIGN_REWARD_STANDING * (
++        after["standing"] - before["standing"]
++    )
++    organization = (after["power"] + after["cohesion"]) - (
++        before["power"] + before["cohesion"]
++    )
++    reward += 0.5 * CAMPAIGN_REWARD_ORGANIZATION * organization
++    reward += CAMPAIGN_REWARD_HEALTH * (
++        (after["health"] - before["health"]) / max(1.0, HEALTH_MAX)
++    )
++    reward -= CAMPAIGN_REWARD_SICKNESS * (
++        (after["sickness"] - before["sickness"]) / max(1e-9, SICKNESS_MAX)
++    )
++    if success:
++        reward += CAMPAIGN_REWARD_SUCCESS
++    reward += outcome_delta
++    return reward
++
++
++def terminal_campaign_reward(outcome):
++    """Терминальный бонус по исходу сюжета (без объективной победы)."""
++    if outcome == "win":
++        return CAMPAIGN_TERMINAL_WIN
++    if outcome == "lose":
++        return CAMPAIGN_TERMINAL_LOSS
++    return CAMPAIGN_TERMINAL_NEUTRAL
++
++
++class CampaignEnv:
++    """Gym-подобная среда над `WorldEngine` для обучения политиками ядра.
++
++    Параметры:
++    - `config` — словарь мира (по умолчанию `load_world()`);
++    - `profile`/`node_id`/`office_id` — стартовая позиция героя; по
++      умолчанию используется `default_profile` конфига и первый головной
++      узел с его головной должностью, чтобы среда была самодостаточной;
++    - `seed` — зерно детерминированных бросков `WorldEngine._roll`;
++    - `max_days` — жёсткий горизонт усечения (truncated), не поражение.
++
++    Контракт: `reset(seed=None) -> CampaignObservation`;
++    `step(action: CampaignAction) -> (obs, reward, done, truncated, info)`;
++    `action_space` — кортеж `(kind, target)` пар; `legal_actions()` —
++    легальные на текущем ходу пары вместе со служебным `END_DAY`.
++    """
++
++    def __init__(
++        self,
++        config=None,
++        profile=None,
++        node_id=None,
++        office_id=None,
++        seed=0,
++        max_days=None,
++        snapshot=None,
++    ):
++        self.config = dict(config or load_world())
++        self.seed = int(seed)
++        self.max_days = (
++            int(max_days) if max_days is not None else int(self.config.get("days", 30))
++        )
++        self._start_profile = profile
++        self._start_node = node_id
++        self._start_office = office_id
++        self._start_snapshot = snapshot
++        self.engine = None
++        self.last_transition = None
++        # Одиночный агент (проблема №6): оппонента нет, цикл обучения
++        # (`agents.train`) использует для этой среды кампанейный эпизод.
++        self.single_agent = True
++        self.reset(seed=self.seed)
++
++    # ------------------------------------------------------------------
++    # Построение движка и стартовой позиции
++    # ------------------------------------------------------------------
++
++    def _default_start(self):
++        """Старт без явного узла: первый корневой узел + его head-должность.
++
++        Пробуемattach по очереди: если `default_profile` не подходит под
++        требования первой должности, берём следующий корневой узел. Так
++        среда самодостаточна на любом валидном конфиге мира.
++        """
++        probe = WorldEngine(
++            dict(self.config),
++            profile=self._start_profile,
++            seed=self.seed,
++        )
++        for candidate_id in probe.node_order:
++            node = probe.node(candidate_id)
++            if node is None or node.get("parent"):
++                continue
++            templates = probe.office_templates_for_node(node)
++            for template in templates:
++                trial = WorldEngine(
++                    dict(self.config),
++                    profile=self._start_profile,
++                    seed=self.seed,
++                )
++                result = trial.attach(candidate_id, template["id"])
++                if result.get("ok"):
++                    return candidate_id, template["id"]
++        return None, None
++
++    def _build_engine(self, seed):
++        node_id = self._start_node
++        office_id = self._start_office
++        if not (node_id and office_id) and not self._start_snapshot:
++            node_id, office_id = self._default_start()
++        return WorldEngine(
++            dict(self.config),
++            profile=self._start_profile,
++            node_id=node_id,
++            office_id=office_id,
++            seed=seed,
++            snapshot=self._start_snapshot,
++        )
++
++    # ------------------------------------------------------------------
++    # Наблюдения и метрики
++    # ------------------------------------------------------------------
++
++    def _node_stats(self):
++        node = self.engine.node(self.engine.player_node_id)
++        stats = (node or {}).get("stats") or {}
++        return {
++            key: float(stats.get(key, 0.0))
++            for key in ("power", "wealth", "legitimacy", "cohesion", "reach", "capacity")
++        }
++
++    def _metrics(self):
++        engine = self.engine
++        condition = engine.player_condition()
++        stats = self._node_stats()
++        metrics = {
++            "day": engine.day,
++            "actions_left": engine.actions_left,
++            "health": condition["health"],
++            "sickness": condition["sickness"],
++            "alive": condition["alive"],
++            "authority": float(engine.player_authority),
++            "finished": bool(engine.finished),
++            "outcome": engine.outcome or "",
++            "attached": bool(engine.attached),
++            "collapsed": bool(
++                engine.finished
++                and engine.outcome == "lose"
++                and (
++                    stats["power"] <= COLLAPSE_POWER
++                    or stats["cohesion"] <= COLLAPSE_COHESION
++                )
++            ),
++        }
++        for key in PLAYER_STATS:
++            metrics[key] = float(engine.player_resources.get(key, 0.0))
++        metrics.update(stats)
++        return metrics
++
++    def observe(self):
++        """Текущее наблюдение игрока (плоское, нормированное)."""
++        engine = self.engine
++        metrics = self._metrics()
++        dismissed = bool(
++            engine.finished
++            and engine.outcome == "lose"
++            and not metrics["collapsed"]
++            and (metrics["standing"] <= 0.05 or metrics["legitimacy"] <= 0.08)
++        )
++        return CampaignObservation(
++            day=int(metrics["day"]),
++            total_days=int(self.max_days),
++            actions_left=int(metrics["actions_left"]),
++            actions_per_day=int(engine.actions_per_day),
++            health=float(metrics["health"]),
++            max_health=float(HEALTH_MAX),
++            sickness=float(metrics["sickness"]),
++            alive=bool(metrics["alive"]),
++            influence=_clamp_unit(metrics["influence"]),
++            favor=_clamp_unit(metrics["favor"]),
++            evidence=_clamp_unit(metrics["evidence"]),
++            standing=_clamp_unit(metrics["standing"]),
++            authority=_clamp_unit(metrics["authority"]),
++            power=_clamp_unit(metrics["power"]),
++            wealth=_clamp_unit(metrics["wealth"]),
++            legitimacy=_clamp_unit(metrics["legitimacy"]),
++            cohesion=_clamp_unit(metrics["cohesion"]),
++            reach=_clamp_unit(metrics["reach"]),
++            capacity=_clamp_unit(metrics["capacity"]),
++            attached=bool(metrics["attached"]),
++            finished=bool(metrics["finished"]),
++            outcome=str(metrics["outcome"]),
++            collapsed=bool(metrics["collapsed"]),
++            dismissed=dismissed,
++            time=float(metrics["day"]),
++            extra={"seed": engine.seed},
++        )
++
++    # ------------------------------------------------------------------
++    # Пространство действий
++    # ------------------------------------------------------------------
++
++    def legal_actions(self):
++        """Легальные пары `(kind, target)` + служебный `END_DAY`.
++
++        Кампания позволяет действовать только по одному узлу-цели за раз
++        (как в UI: выбранный адресат). Для среды цель фиксируется полем
++        `target_id`; по умолчанию — первый доступный союзный/нейтральный
++        узел, отличный от собственного. Career-действия в MVP исключены:
++        они меняют идентичность агента и относятся к вопросу №29.
++        """
++        engine = self.engine
++        actions = [CampaignAction(END_DAY)]
++        if engine.finished:
++            return tuple(actions)
++        target_id = self._target_id()
++        if target_id is None:
++            return tuple(actions)
++        for action_id in engine.available_actions(target_id):
++            action = engine.actions[action_id]
++            if action.get("career"):
++                continue
++            self_target = bool((action.get("target") or {}).get("self"))
++            actions.append(
++                CampaignAction(
++                    action_id,
++                    target="" if self_target else target_id,
++                )
++            )
++        return tuple(actions)
++
++    def _target_id(self):
++        engine = self.engine
++        groups = engine.organization_groups()
++        for group in ("allied", "neutral", "hostile"):
++            candidates = [
++                item["id"]
++                for item in groups.get(group, [])
++                if item["id"] != engine.player_node_id
++            ]
++            if candidates:
++                return candidates[0]
++        return None
++
++    @property
++    def action_space(self):
++        return self.legal_actions()
++
++    # ------------------------------------------------------------------
++    # Core контракт
++    # ------------------------------------------------------------------
++
++    def reset(self, seed=None):
++        if seed is not None:
++            self.seed = int(seed)
++        self.engine = self._build_engine(self.seed)
++        self.last_transition = None
++        return self.observe()
++
++    def step(self, action):
++        engine = self.engine
++        if engine is None:
++            raise RuntimeError("CampaignEnv.step() вызван до reset()")
++        if engine.finished:
++            raise RuntimeError("CampaignEnv.step() после завершения кампании")
++        if isinstance(action, str):
++            action = CampaignAction(action)
++        before = self._metrics()
++        success = False
++        if action.kind == END_DAY:
++            result = engine.end_day()
++        else:
++            result = engine.execute(action.kind, action.target or None)
++            success = bool(result.get("ok")) and result.get("outcome") == "success"
++        # Действие вне правил (например, политика выбрала нелегальный ход):
++        # WorldEngine вернул ok=False — это не исключение, а нулевой шаг со
++        # штрафом за потерянную инициативу; цикл обучения получает корректный
++        # Transition и учится не повторять недопустимые действия.
++        illegal = not bool(result.get("ok"))
++        after = self._metrics()
++        done = bool(engine.finished)
++        horizon = bool(after["day"] > self.max_days)
++        truncated = bool(horizon and not done)
++        outcome_delta = 0.0
++        if done:
++            outcome_delta = terminal_campaign_reward(engine.outcome)
++        reward = campaign_reward(before, after, outcome_delta, success)
++        if illegal:
++            # Малый штраф за нелегальный ход: переход не изменил мир, но
++            # политика должна отличать такие шаги (symmetric с REWARD-логикой
++            # арены, где недопустимое действие не встречается — там легальность
++            # гарантирует среда).
++            reward -= CAMPAIGN_REWARD_ILLEGAL
++        observation = self.observe()
++        info = {
++            "result": result,
++            "outcome": engine.outcome,
++            "day": engine.day,
++            "metrics": after,
++            "outcome_delta": outcome_delta,
++            "success": success,
++            "illegal": illegal,
++            "horizon": horizon,
++        }
++        transition_ready = bool(done or truncated)
++        self.last_transition = {
++            "observation": observation,
++            "reward": reward,
++            "done": done,
++            "truncated": truncated,
++            "info": info,
++            "terminal": transition_ready,
++        }
++        if transition_ready:
++            # Горизонт без терминального исхода: помечаем сюжет оконченным
++            # для цикла обучения, не трогая состояние движка (вопрос №30).
++            pass
++        return observation, reward, done, truncated, info
++
++    # ------------------------------------------------------------------
++    # Персистентность (для resume и Сейва арены-кампании)
++    # ------------------------------------------------------------------
++
++    def state_dict(self):
++        return {
++            "kind": "campaign_env",
++            "version": 1,
++            "seed": self.seed,
++            "max_days": self.max_days,
++            "snapshot": self.engine.to_dict(),
++        }
++
++    def load_state_dict(self, state):
++        snapshot = dict(state.get("snapshot") or {})
++        self.seed = int(state.get("seed", self.seed))
++        self.max_days = int(state.get("max_days", self.max_days))
++        self._start_snapshot = snapshot
++        self.engine = self._build_engine(self.seed)
++        return self.observe()
++
++
++__all__ = [
++    "CAMPAIGN_REWARD_HEALTH",
++    "CAMPAIGN_REWARD_ILLEGAL",
++    "CAMPAIGN_REWARD_ORGANIZATION",
++    "CAMPAIGN_REWARD_SICKNESS",
++    "CAMPAIGN_REWARD_STANDING",
++    "CAMPAIGN_REWARD_SUCCESS",
++    "CAMPAIGN_TERMINAL_LOSS",
++    "CAMPAIGN_TERMINAL_NEUTRAL",
++    "CAMPAIGN_TERMINAL_WIN",
++    "END_DAY",
++    "CampaignEnv",
++    "campaign_reward",
++    "terminal_campaign_reward",
++]
+diff --git a/core41/__init__.py b/core41/__init__.py
+index 7c28c32..882aaf3 100644
+--- a/core41/__init__.py
++++ b/core41/__init__.py
+@@ -51,7 +51,13 @@ from .model import (
+     success_probability,
+     transmit_sickness,
+ )
+-from .types import Action, Observation, Transition
++from .types import (
++    Action,
++    CampaignAction,
++    CampaignObservation,
++    Observation,
++    Transition,
++)
+ 
+ __all__ = [
+     "Action",
+@@ -61,6 +67,8 @@ __all__ = [
+     "Automaton",
+     "BASE_TICK_SECONDS",
+     "CAPTURE_STREAK",
++    "CampaignAction",
++    "CampaignObservation",
+     "CORE_ACTIONS",
+     "CONTAGION_CHANCE",
+     "CONTAGION_SEVERITY",
+diff --git a/core41/types.py b/core41/types.py
+index 8ec450a..8e6c10b 100644
+--- a/core41/types.py
++++ b/core41/types.py
+@@ -49,3 +49,68 @@ class Transition:
+     done: bool
+     next_actions: tuple = ()
+     info: dict = field(default_factory=dict)
++
++
++@dataclass(frozen=True)
++class CampaignAction:
++    """Действие кампанейного среза (проблема №6 готовности к обучению).
++
++    Кампания живёт на дневном такте `WorldEngine`, а не на секундном тике
++    арены, поэтому использует отдельный тип действия поверх того же
++    контракта Work/Action/Observation/Transition:
++
++    - ``kind`` — идентификатор действия из конфига мира (``inspect``,
++      ``reform``, …) либо служебный ``END_DAY`` (ход мира и дневной срез);
++    - ``target`` — id узла-цели (пусто для self-действий и ``END_DAY``);
++    - ``form``/``fraction`` — зарезервированы под будущую проекцию
++      кампанейных ресурсов на каналы ядра; в текущем MVP не используются.
++    """
++
++    kind: str = "END_DAY"
++    target: str = ""
++    form: str = ""
++    fraction: float = 0.0
++
++
++@dataclass(frozen=True)
++class CampaignObservation:
++    """Наблюдение игрока-автомата в кампании (плоское, нормированное).
++
++    Все величины приведены к [0, 1] там, где это возможно, чтобы тот же
++    пайплайн признаков, что и на арене, мог работать без правок. Поля
++    соответствуют открытым вопросам §7 (28–31): распад организации и
++    потеря должности наблюдаются через ``power``/``cohesion``/``standing``
++    и флаги ``collapsed``/``dismissed``; финалы бесконечного сценария
++    помечены как ``truncated``-состояния среды, а не объективной победы.
++    """
++
++    day: int = 1
++    total_days: int = 1
++    actions_left: int = 0
++    actions_per_day: int = 1
++    # Состояние персонажа (health/sickness — то же ядро, что и на арене).
++    health: float = 100.0
++    max_health: float = 100.0
++    sickness: float = 0.0
++    alive: bool = True
++    # Ресурсы позиции (легаси-шкалы как проекции ядра: F-канал позиции).
++    influence: float = 0.0
++    favor: float = 0.0
++    evidence: float = 0.0
++    standing: float = 0.0
++    authority: float = 0.0
++    # Статистика собственной организации (узел должности).
++    power: float = 0.0
++    wealth: float = 0.0
++    legitimacy: float = 0.0
++    cohesion: float = 0.0
++    reach: float = 0.0
++    capacity: float = 0.0
++    # Признаки завершения сюжета.
++    attached: bool = False
++    finished: bool = False
++    outcome: str = ""
++    collapsed: bool = False
++    dismissed: bool = False
++    time: float = 0.0
++    extra: dict = field(default_factory=dict)
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+index e36a344..7971231 100644
+--- a/docs/AGENTS.md
++++ b/docs/AGENTS.md
+@@ -226,6 +226,25 @@ venv/bin/python -m agents.train --episodes 500 --seed 0
+ venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
+ ```
+ 
++Дневной кампанейный срез (проблема готовности №6) выбирается флагом
++`--env campaign`: там один агент без оппонента и без self-play, действие —
++`CampaignAction` (`END_DAY` плюс ordinary/heal-ход `WorldEngine`), награда —
++`campaign_reward()` из дельт положения/организации/здоровья/болезни с
++терминальным бонусом исхода ±1.0; горизонт `max_days` — усечение, а не
++поражение (вопрос №30 открыт):
++
++```bash
++venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
++    --policy bdi
++```
++
++Кампанейные наблюдения проходят через `campaign_features()` (те же 18
++признаков), поэтому `bdi`/`mlp` работают без правок; для таблиц есть
++отдельный вид `qtable-campaign` — его ключ строится из дневных разрядов и
++не смешивается с аренной Q-таблицей. Персистентность среды:
++`CampaignEnv.state_dict()/load_state_dict()` сохраняют снимок мира, сид и
++горизонт.
++
+ Обучение по умолчанию идёт в self-play: обе стороны получают собственный
+ `Transition` и обновляют свои политики. Отключить обучение противника можно
+ флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
+@@ -341,7 +360,10 @@ baseline. Формат чекпойнта версионирован: `CHECKPOIN
+ 
+ - `simulation.py` всё ещё использует контекстные фазы `WATER/FIRE/EARTH`;
+   это легаси-канон и baseline, но не активный игровой поток.
+-- `core41.arena` — дуэль/арена, а не мир; `campaign/world.py` не мигрирован.
++- `core41.arena` — дуэль/арена, а не мир; `campaign/world.py` не мигрирован
++  в core41-энергию: кампанейный срез живёт на собственных шкалах
++  (`standing/power/cohesion/...`) и подключён к обучению через
++  `CampaignEnv` (проблема №6) как отдельная среда, без смешивания с ареной.
+ - Здоровье/смерть откалиброваны для дуэльного среза; болезнь, контактная
+   передача и лечение реализованы в `core41` как процесс и шестое действие
+   `TREAT`. `health`/`sickness` сохраняются в сейве и переносятся через
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 33d02dc..845385c 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -141,10 +141,22 @@
+   `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
+   `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
+   `test_train_resume_continues_from_checkpoint`.
+-- [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
+-  с контрактом reset/step/observation/action/reward; открытые вопросы §7
+-  №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
+-  сценария, фоновая симуляция) честно остаются незакрытыми.
++- [x] **№6 Среда кампании/RTS.** Первый `CampaignEnv` (`campaign/env.py`)
++  поверх дневного `WorldEngine`: контракт `reset(seed)/step(CampaignAction)`
++  /`observe()`/`legal_actions()` + Gym-кортеж `(obs, reward, done, truncated,
++  info)`; плоское нормированное `CampaignObservation` (core41/types.py),
++  награда `campaign_reward()` из дельт standing/power/cohesion/health/sickness
++  + терминальный бонус исхода (`terminal_campaign_reward`, ±1.0), штраф за
++  нелегальный ход; горизонт `max_days` — усечение (truncated), не поражение
++  (вопрос №30 остаётся открытым). Одиночный агент: self-play отключён,
++  `--env campaign` в `agents.train`; политики принимают кампанейные
++  наблюдения через `campaign_features()` (18 признаков, тот же формат),
++  `make_policy("qtable-campaign")` — отдельная таблица, не смешиваемая с
++  ареной; персистентность среды через снимок мира (`state_dict/load_state_
++  dict`). Открытые вопросы §7 №28–31 (распад организации, увольнение-смена-
++  роли, финалы бесконечного сценария, фоновая симуляция) честно остаются
++  незакрытыми — в наблюдении они зафиксированы флагами `collapsed`/
++  `dismissed`/`outcome`. Тесты — `tests/test_campaign_env.py` (18 passed).
+ - [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
+   `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
+   диапазоны/джиттер) и усреднение eval-матрицы по профилям.
+diff --git a/tests/test_campaign_env.py b/tests/test_campaign_env.py
+new file mode 100644
+index 0000000..e50b432
+--- /dev/null
++++ b/tests/test_campaign_env.py
+@@ -0,0 +1,409 @@
++"""Тесты кампанейной среды `CampaignEnv` (проблема готовности №6).
++
++Среда — Gym-подобный контракт reset/step над дневным `WorldEngine`:
++плоское нормированное наблюдение, награда из дельт положения/организации/
++здоровья/болезни + терминальный бонус исхода, одиночный агент (без оппонента
++и self-play), персистентность через снимок мира. Открытые вопросы §7 (28–31)
++здесь фиксируются как наблюдаемые флаги, но не считаются закрытыми.
++"""
++
++import json
++
++import pytest
++
++from agents import BDIPolicy, QTablePolicy, make_policy
++from agents.policies import campaign_features
++from agents.train import evaluate, train
++from campaign.env import (
++    CAMPAIGN_REWARD_ILLEGAL,
++    END_DAY,
++    CampaignEnv,
++    campaign_reward,
++    terminal_campaign_reward,
++)
++from core41.types import (
++    Action,
++    CampaignAction,
++    CampaignObservation,
++    Observation,
++    Transition,
++)
++
++
++def _run_random(env, rng, limit=80):
++    """Прогон случайной политики до done/truncated; возвращает (steps, info)."""
++    steps = 0
++    info = {}
++    while steps < limit:
++        actions = tuple(env.legal_actions())
++        action = rng.choice(actions)
++        _obs, _reward, done, truncated, info = env.step(action)
++        steps += 1
++        if done or truncated:
++            break
++    return steps, info
++
++
++# ---------------------------------------------------------------------------
++# Контракт среды
++# ---------------------------------------------------------------------------
++
++
++def test_campaign_env_reset_returns_flat_normalized_observation():
++    env = CampaignEnv(seed=1, max_days=6)
++    observation = env.reset(seed=1)
++    assert isinstance(observation, CampaignObservation)
++    assert observation.day == 1
++    assert observation.total_days == 6
++    assert observation.attached is True
++    assert observation.alive is True
++    assert 0.0 <= observation.sickness <= 1.0
++    assert observation.health == pytest.approx(100.0)
++    # Нормированные поля в [0, 1].
++    for name in (
++        "influence",
++        "favor",
++        "evidence",
++        "standing",
++        "authority",
++        "power",
++        "cohesion",
++    ):
++        value = getattr(observation, name)
++        assert -1.0 <= value <= 1.0, name
++
++
++def test_campaign_env_legal_actions_always_include_end_day():
++    env = CampaignEnv(seed=2, max_days=5)
++    env.reset(seed=2)
++    actions = tuple(env.legal_actions())
++    kinds = {action.kind for action in actions}
++    assert END_DAY in kinds
++    assert env.action_space == actions
++    # Career-действия исключены из MVP (вопрос №29).
++    career_ids = {
++        action_id
++        for action_id, action in env.engine.actions.items()
++        if action.get("career")
++    }
++    assert kinds.isdisjoint(career_ids)
++
++
++def test_campaign_env_is_deterministic_per_seed():
++    def rollout(seed):
++        env = CampaignEnv(seed=seed, max_days=4)
++        env.reset(seed=seed)
++        trace = []
++        for _ in range(10):
++            actions = tuple(env.legal_actions())
++            _obs, reward, done, truncated, info = env.step(actions[-1])
++            trace.append((round(reward, 6), done, truncated, info["day"]))
++            if done or truncated:
++                break
++        return trace
++
++    assert rollout(7) == rollout(7)
++
++
++def test_campaign_env_truncates_at_horizon_without_outcome():
++    env = CampaignEnv(seed=1, max_days=2)
++    env.reset(seed=1)
++    truncated_seen = False
++    for _ in range(30):
++        _obs, _reward, done, truncated, info = env.step(CampaignAction(END_DAY))
++        if truncated:
++            truncated_seen = True
++            assert done is False
++            assert info["horizon"] is True
++            assert env.engine.finished is False
++            break
++        if done:
++            break
++    assert truncated_seen
++
++
++def test_campaign_env_step_after_finish_raises():
++    env = CampaignEnv(seed=2, max_days=3)
++    env.reset(seed=2)
++    steps = 0
++    while not env.engine.finished and steps < 60:
++        actions = tuple(env.legal_actions())
++        env.step(actions[-1])
++        steps += 1
++    assert env.engine.finished
++    with pytest.raises(RuntimeError):
++        env.step(CampaignAction(END_DAY))
++
++
++def test_campaign_env_accepts_plain_string_action():
++    env = CampaignEnv(seed=5, max_days=5)
++    env.reset(seed=5)
++    observation, reward, done, truncated, info = env.step(END_DAY)
++    assert isinstance(observation, CampaignObservation)
++    assert info["result"]["ok"] is True
++    assert env.last_transition["observation"] is observation
++
++
++def test_campaign_env_illegal_action_penalizes_without_exception():
++    env = CampaignEnv(seed=5, max_days=5)
++    env.reset(seed=5)
++    before = env._metrics()["standing"]
++    observation, reward, done, truncated, info = env.step(
++        CampaignAction("no_such_action", target="no_such_node")
++    )
++    assert info["illegal"] is True
++    assert info["result"]["ok"] is False
++    assert reward <= -CAMPAIGN_REWARD_ILLEGAL + 1e-9
++    assert env._metrics()["standing"] == pytest.approx(before)
++    assert not done or env.engine.finished
++
++
++# ---------------------------------------------------------------------------
++# Награда
++# ---------------------------------------------------------------------------
++
++
++def test_campaign_reward_composition_matches_formula():
++    before = {
++        "standing": 0.20,
++        "power": 0.50,
++        "cohesion": 0.50,
++        "health": 100.0,
++        "sickness": 0.0,
++    }
++    after = {
++        "standing": 0.40,
++        "power": 0.60,
++        "cohesion": 0.50,
++        "health": 90.0,
++        "sickness": 0.20,
++    }
++    # 0.5*0.2 + 0.25*0.1 - 0.1 - 0.2 = -0.175
++    assert campaign_reward(before, after) == pytest.approx(-0.175)
++    # успех даёт малый shaping, терминал — исход сюжета
++    assert campaign_reward(before, after, success=True) == pytest.approx(
++        -0.175 + 0.10
++    )
++    assert campaign_reward(
++        before, after, outcome_delta=terminal_campaign_reward("win")
++    ) == pytest.approx(-0.175 + 1.0)
++
++
++def test_terminal_campaign_reward_maps_outcomes():
++    assert terminal_campaign_reward("win") == 1.0
++    assert terminal_campaign_reward("lose") == -1.0
++    assert terminal_campaign_reward("") == 0.0
++    assert terminal_campaign_reward(None) == 0.0
++
++
++def test_campaign_env_terminal_step_carries_outcome_bonus():
++    # Ищем сид, при котором кампания завершается естественным исходом
++    # (смерть героя или распад организации) до горизонта max_days:
++    # именно на таком терминальном шаге должен появиться outcome_bonus.
++    found = False
++    for seed in range(1, 40):
++        env = CampaignEnv(seed=seed, max_days=30)
++        env.reset(seed=seed)
++        last = None
++        steps = 0
++        while steps < 400:
++            actions = tuple(env.legal_actions())
++            result = env.step(actions[-1])
++            steps += 1
++            last = result
++            if result[2] or result[3]:
++                break
++        _obs, _reward, done, truncated, info = last
++        if not done:
++            continue
++        assert truncated is False
++        assert info["outcome"] in ("win", "lose")
++        assert info["outcome_delta"] == terminal_campaign_reward(info["outcome"])
++        found = True
++        break
++    assert found, "ни один сид из 1..39 не довёл кампанию до терминального исхода"
++
++
++def test_campaign_env_horizon_truncates_without_outcome_bonus():
++    # Горизонт max_days без естественного финала — усечение (truncated),
++    # а не поражение; терминальный бонус на таком шаге отсутствует (№30).
++    env = CampaignEnv(seed=7, max_days=2)
++    env.reset(seed=7)
++    last = None
++    for _ in range(30):
++        result = env.step(CampaignAction(END_DAY))
++        last = result
++        if result[2] or result[3]:
++            break
++    _obs, _reward, done, truncated, info = last
++    assert done is False
++    assert truncated is True
++    assert info["horizon"] is True
++    assert info["outcome_delta"] == 0.0
++
++
++# ---------------------------------------------------------------------------
++# Персистентность
++# ---------------------------------------------------------------------------
++
++
++def test_campaign_env_state_dict_round_trip_restores_progress():
++    env = CampaignEnv(seed=3, max_days=8)
++    env.reset(seed=3)
++    env.step(CampaignAction(END_DAY))
++    day_before = env.engine.day
++    state = env.state_dict()
++    assert state["kind"] == "campaign_env"
++    assert state["version"] == 1
++    assert json.dumps(state)  # сериализуется в JSON без правок
++
++    restored = CampaignEnv(seed=99, max_days=99)
++    observation = restored.load_state_dict(state)
++    assert restored.engine.day == day_before == observation.day
++    assert restored.seed == 3
++    assert restored.max_days == 8
++
++
++# ---------------------------------------------------------------------------
++# Политики на кампанейном срезе
++# ---------------------------------------------------------------------------
++
++
++def test_campaign_features_vector_shape_and_flags():
++    observation = CampaignObservation(
++        day=2,
++        total_days=10,
++        actions_left=2,
++        actions_per_day=3,
++        health=80.0,
++        sickness=0.3,
++        standing=0.4,
++        power=0.6,
++        cohesion=0.5,
++        attached=True,
++    )
++    end_day = campaign_features(observation, CampaignAction(END_DAY))
++    work = campaign_features(observation, CampaignAction("inspect", target="n"))
++    heal = campaign_features(observation, CampaignAction("build_network"))
++    assert len(end_day) == len(work) == len(heal) == 18
++    # Флаги действия: slot7 END_DAY, slot8 работа (с целью), slot17 self-ход.
++    assert (end_day[7], end_day[8], end_day[17]) == (1.0, 0.0, 0.0)
++    assert (work[7], work[8], work[17]) == (0.0, 1.0, 0.0)
++    assert (heal[7], heal[8], heal[17]) == (0.0, 0.0, 1.0)
++    # Все признаки нормированы к [0, 1].
++    assert all(-1e-9 <= value <= 1.0 + 1e-9 for value in work)
++
++
++def test_bdi_policy_acts_and_learns_on_campaign_observation():
++    policy = BDIPolicy(seed=1, epsilon=0.0)
++    observation = CampaignObservation(day=1, total_days=5, actions_left=2)
++    actions = (CampaignAction(END_DAY),)
++    chosen = policy.act(observation, actions, explore=False)
++    assert chosen.kind == END_DAY
++    before_updates = policy.updates
++    policy.observe(
++        Transition(
++            observation=observation,
++            action=chosen,
++            reward=0.1,
++            next_observation=observation,
++            done=False,
++            next_actions=actions,
++            info={},
++        )
++    )
++    assert policy.updates == before_updates + 1
++
++
++def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
++    arena_table = QTablePolicy(seed=1)
++    campaign_table = make_policy("qtable-campaign", seed=1)
++    assert campaign_table.campaign is True
++    assert arena_table.campaign is False
++    observation = CampaignObservation(day=1, total_days=5)
++    action = CampaignAction(END_DAY)
++    key = campaign_table.key(observation, action)
++    assert len(key) == 12
++    assert key[9] == END_DAY
++    # Кампанейная таблица не смешивается с ареной: аренный ключ строится
++    # из энергетических разрядов дуэли (self_force/self_energy/...), а
++    # кампанейный — из нормированных дневных признаков; поля action.kind
++    # при этом различаются ("END_DAY" против "build_network").
++    arena_obs = Observation(
++        self_force=50.0,
++        self_energy=40.0,
++        self_max_force=100.0,
++        self_max_energy=100.0,
++        opponent_force=30.0,
++        opponent_energy=20.0,
++        opponent_max_force=100.0,
++        opponent_max_energy=100.0,
++        opponent_pressure=0.0,
++        opponent_open=False,
++        time=1.0,
++        self_health=80.0,
++        opponent_health=60.0,
++    )
++    arena_key = arena_table.key(arena_obs, Action("WORK", form="force"))
++    # campaign-объект с тем же действием даёт другой ключ: таблицы не
++    # смешиваются даже при совпадении action.kind.
++    campaign_same_action = campaign_table.key(observation, Action("WORK", form="force"))
++    assert campaign_same_action != arena_key
++    assert key[9] == END_DAY and arena_key[9] == "WORK"
++    # Флаг среза сохраняется в чекпойнте и возвращается при загрузке.
++    path = tmp_path / "qtable-campaign.json"
++    state = campaign_table.state_dict()
++    assert state["campaign"] is True
++    with open(path, "w", encoding="utf-8") as handle:
++        json.dump(state, handle)
++    loaded = QTablePolicy(seed=9)
++    with open(path, encoding="utf-8") as handle:
++        loaded.load_state_dict(json.load(handle))
++    assert loaded.campaign is True
++
++
++# ---------------------------------------------------------------------------
++# Цикл обучения (single-agent episode)
++# ---------------------------------------------------------------------------
++
++
++def test_train_campaign_single_agent_no_self_play():
++    _policy, stats = train(
++        episodes=2,
++        seed=0,
++        policy_name="bdi",
++        max_steps=4,
++        env_name="campaign",
++        eval_episodes=0,
++    )
++    assert stats["env"] == "campaign"
++    assert stats["self_play"] is False
++    assert stats["policy_updates"] > 0
++    assert "opponent_updates" not in stats
++
++
++def test_evaluate_campaign_ignores_opponent_and_counts_outcomes():
++    result = evaluate(
++        make_policy("bdi", seed=2),
++        make_policy("random", seed=3),
++        episodes=2,
++        seed=500000,
++        max_steps=4,
++        env_name="campaign",
++    )
++    assert result["env"] == "campaign"
++    assert result["episodes"] == 2
++    # draw в кампании = усечение горизонта (§7 №30), считается отдельно.
++    assert result["wins"] + result["losses"] == 2
++    assert result["draws"] == 0
++
++
++def test_campaign_env_smoke_with_random_policy():
++    import random
++
++    env = CampaignEnv(seed=11, max_days=6)
++    env.reset(seed=11)
++    rng = random.Random(11)
++    steps, info = _run_random(env, rng)
++    assert steps >= 1
++    assert "outcome" in info or "day" in info
+-- 
+2.39.5
+
+
+From a49d7d533ab03be33019de72e34a056272f7648e Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 28 Oct 2026 12:17:31 +0000
+Subject: [PATCH 4/4] feat: close training-readiness question 7 (domain
+ randomization in train CLI)
+
+---
+ README.md            |   9 ++-
+ agents/train.py      | 160 ++++++++++++++++++++++++++++++++++++++++++-
+ campaign/env.py      |  60 +++++++++++++++-
+ core41/__init__.py   |   3 +-
+ core41/env.py        |  93 ++++++++++++++++++++++++-
+ docs/AGENTS.md       |  32 ++++++++-
+ docs/TODO.md         |  23 ++++++-
+ tests/test_core41.py | 121 ++++++++++++++++++++++++++++++++
+ 8 files changed, 490 insertions(+), 11 deletions(-)
+
+diff --git a/README.md b/README.md
+index 67fea83..e0c65e3 100644
+--- a/README.md
++++ b/README.md
+@@ -482,7 +482,14 @@ v0): при загрузке QTable мигрирует легаси-ключи 8
+ обучению через `CampaignEnv` (`--env campaign`, проблема №6): одиночный агент,
+ награда из дельт положения/организации/здоровья/болезни и терминальный бонус
+ исхода, горизонт дней — усечение; открытые вопросы §7 №28–31 при этом честно
+-не закрыты. Время в арене идёт секундным тиком через
++не закрыты. Доменная рандомизация (проблема №7): `--domain-randomize` перед
++каждым обучающим эпизодом (arena/campaign) жребует новый домен — профили
++(`--profiles CANON,ZEALOT`), стартовую болезнь (`--sickness-min/max`),
++health-факторы с джиттером (`--health-factors`, `--health-min/max`) и джиттер
++навыков кампании (`--skill-jitter`); draw детерминирован зерном запуска. Held-out
++оценка по умолчанию идёт на фиксированном каноническом домене (матрица силы
++сравнима между запусками); усреднение по распределению — `--eval-domain-randomize`.
++Время в арене идёт секундным тиком через
+ `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
+ критическом здоровье, критической болезни и завершении партии, ограниченный
+ догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+diff --git a/agents/train.py b/agents/train.py
+index 44b0a64..4bfab45 100644
+--- a/agents/train.py
++++ b/agents/train.py
+@@ -11,19 +11,34 @@ Self-play: обе стороны получают собственный `Transi
+ политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
+ же такт не учитывается дважды. Оценка (`evaluate`) всегда идёт на отдельных
+ held-out seed'ах, без исследования и без обновления весов.
++
++Доменная рандомизация (проблема готовности №7): флаги `--domain-randomize`
++и компания (`--profiles`, `--sickness-min/max`, `--health-factors`,
++`--health-min/max`, `--skill-jitter`) заставляют цикл обучения перед каждым
++эпизодом брать новый домен через `randomize_draw(rng)` среды и применять
++его через `apply_domain(...)`. Draw детерминирован rng'ом с зерном
++`seed + 7919`: одна и та же команда даёт одну и ту же последовательность
++доменов. Held-out оценка по умолчанию идёт на фиксированном каноническом
++домене — иначе матрица силы несравнима между запусками; для оценки по
++распределению нужен явный `--eval-domain-randomize` (усреднение по новым
++доменам того же распределения).
+ """
+ 
+ import argparse
+ import json
+ import os
++import random
+ 
+-from core41 import ArenaEnv, DuelEnv
++from core41 import ArenaEnv, DuelEnv, randomize_draw
+ from core41.types import CampaignAction, Transition
+ 
+ from .policies import load_policy, make_policy
+ 
+ WINNERS_RL = ("RL", "agent")
+ WINNERS_AI = ("AI", "opponent")
++# Сдвиг зерна доменного rng от игрового seed: разные потоки случайности,
++# воспроизводимые одним и тем же --seed.
++DOMAIN_SEED_SALT = 7919
+ 
+ 
+ def _make_env(
+@@ -51,6 +66,38 @@ def _make_env(
+     )
+ 
+ 
++def _domain_draw(env, env_name, domain_rng, domain_opts):
++    """Один доменный draw (проблема №7) в виде kwargs для `apply_domain`.
++
++    `duel` — легаси-срез без доменных параметров: возвращаем None, чтобы
++    цикл обучения честно пропускал рандомизацию, а не молча её имитировал.
++    """
++    if env_name == "duel":
++        return None
++    if env_name == "campaign":
++        return env.randomize_draw(
++            rng=domain_rng,
++            skill_jitter=domain_opts.get("skill_jitter", 0.0),
++            sickness_min=domain_opts.get("sickness_min", 0.0),
++            sickness_max=domain_opts.get("sickness_max", 0.6),
++        )
++    return randomize_draw(
++        rng=domain_rng,
++        profiles=domain_opts.get("profiles", ()),
++        health_factors=domain_opts.get("health_factors", ()),
++        sickness_min=domain_opts.get("sickness_min", 0.0),
++        sickness_max=domain_opts.get("sickness_max", 0.6),
++        health_min=domain_opts.get("health_min", 0.75),
++        health_max=domain_opts.get("health_max", 1.25),
++    )
++
++
++def _apply_domain(env, draw):
++    if draw is None:
++        return
++    env.apply_domain(**draw)
++
++
+ def _reward_for(env, side):
+     """Награда стороны с учётом разных ключей `ArenaEnv`/`DuelEnv`."""
+     rewards = getattr(env, "last_rewards", {}) or {}
+@@ -187,11 +234,18 @@ def evaluate(
+     max_steps=160,
+     env_name="arena",
+     env_kwargs=None,
++    domain_opts=None,
+ ):
+     """Оценить `policy` против `opponent` на held-out seed'ах.
+ 
+     Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
+     оценка идёт против детерминированного среза мира `WorldEngine`.
++
++    По умолчанию оценка идёт на фиксированном домене из `env_kwargs` —
++    иначе матрица силы несравнима между запусками. Если `domain_opts`
++    задан (не None), каждый эпизод получает новый домен из того же
++    распределения, что и обучение (усреднение по распределению,
++    проблема №7); зерно доменов — отдельное от обучающего.
+     """
+     env = _make_env(
+         env_name,
+@@ -201,8 +255,13 @@ def evaluate(
+         opponent,
+         env_kwargs,
+     )
++    domain_rng = (
++        random.Random(seed + DOMAIN_SEED_SALT) if domain_opts is not None else None
++    )
+     wins = losses = draws = 0
+     for episode in range(episodes):
++        if domain_rng is not None:
++            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+         info = _play_episode(
+             env,
+             policy,
+@@ -242,11 +301,14 @@ def evaluate_matrix(
+     max_steps=160,
+     env_name="arena",
+     env_kwargs=None,
++    domain_opts=None,
+ ):
+     """Матрица силы: каждая политика против каждого оппонента.
+ 
+     `policies` и `opponents` — словари `{name: policy}` или пары
+     `(name, policy)`. Оценка не меняет веса и не использует exploration.
++    `domain_opts` (проблема №7) — усреднение по распределению доменов;
++    по умолчанию None — фиксированный канонический домен.
+     """
+     rows = []
+     for policy_name, policy in _named(policies):
+@@ -259,6 +321,7 @@ def evaluate_matrix(
+                 max_steps=max_steps,
+                 env_name=env_name,
+                 env_kwargs=env_kwargs,
++                domain_opts=domain_opts,
+             )
+             row = {"policy": policy_name, "opponent": opponent_name}
+             row.update(stats)
+@@ -280,6 +343,9 @@ def train(
+     eval_opponents=(),
+     resume=None,
+     resume_opponent=None,
++    domain_randomize=False,
++    domain_opts=None,
++    eval_domain_randomize=False,
+ ):
+     # --resume (проблема готовности №5): чекпойнт загружается явно,
+     # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
+@@ -300,10 +366,18 @@ def train(
+         env_kwargs,
+     )
+     single_agent = bool(getattr(env, "single_agent", False))
++    # Доменная рандомизация (проблема №7): rng с солью от seed — одна и та
++    # же команда воспроизводит ту же последовательность доменов. `duel` —
++    # легаси-срез без доменов: честно сообщаем в stats, что фича не сработала.
++    domain_opts = dict(domain_opts or {})
++    use_domain = bool(domain_randomize) and env_name != "duel"
++    domain_rng = random.Random(seed + DOMAIN_SEED_SALT) if use_domain else None
+     wins = 0
+     losses = 0
+     draws = 0
+     for episode in range(episodes):
++        if domain_rng is not None:
++            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+         info = _play_episode(
+             env,
+             policy,
+@@ -325,6 +399,7 @@ def train(
+         "self_play": bool(self_play and not single_agent),
+         "policy_updates": int(getattr(policy, "updates", 0)),
+         "resumed_from": resume or "",
++        "domain_randomize": use_domain,
+     }
+     if not single_agent:
+         stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
+@@ -337,6 +412,7 @@ def train(
+             name: make_policy(name, seed=eval_seed + index)
+             for index, name in enumerate(names)
+         }
++        eval_domain_opts = domain_opts if eval_domain_randomize else None
+         stats["eval"] = evaluate_matrix(
+             {policy_name: policy},
+             opponents,
+@@ -345,7 +421,11 @@ def train(
+             max_steps=max_steps,
+             env_name=env_name,
+             env_kwargs=env_kwargs,
++            domain_opts=eval_domain_opts,
+         )
++        if eval_domain_randomize:
++            for row in stats["eval"]:
++                row["domain_randomized"] = True
+     return policy, stats
+ 
+ 
+@@ -398,6 +478,64 @@ def main(argv=None):
+         default="",
+         help="явный чекпойнт стартовых весов политики противника",
+     )
++    # Доменная рандомизация (проблема готовности №7).
++    parser.add_argument(
++        "--domain-randomize",
++        action="store_true",
++        help=(
++            "новый домен перед каждым обучающим эпизодом (arena/campaign); "
++            "для --env duel игнорируется (легаси-срез без доменов)"
++        ),
++    )
++    parser.add_argument(
++        "--eval-domain-randomize",
++        action="store_true",
++        help=(
++            "усреднять held-out оценку по распределению доменов; по "
++            "умолчанию оценка идёт на фиксированном каноническом домене, "
++            "чтобы матрица силы была сравнима между запусками"
++        ),
++    )
++    parser.add_argument(
++        "--profiles",
++        default="",
++        help="профили арены для жеребьёвки через запятую (CANON,ZEALOT,ORTHODOX)",
++    )
++    parser.add_argument(
++        "--sickness-min",
++        type=float,
++        default=0.0,
++        help="нижняя граница стартовой болезни в домене",
++    )
++    parser.add_argument(
++        "--sickness-max",
++        type=float,
++        default=0.6,
++        help="верхняя граница стартовой болезни в домене",
++    )
++    parser.add_argument(
++        "--health-factors",
++        default="",
++        help="факторы здоровья с джиттером через запятую (aging,illness,stress,care)",
++    )
++    parser.add_argument(
++        "--health-min",
++        type=float,
++        default=0.75,
++        help="нижний множитель выбираемых health-факторов",
++    )
++    parser.add_argument(
++        "--health-max",
++        type=float,
++        default=1.25,
++        help="верхний множитель выбираемых health-факторов",
++    )
++    parser.add_argument(
++        "--skill-jitter",
++        type=float,
++        default=0.0,
++        help="относительный джиттер навыков профиля кампании (0.25 = ±25%)",
++    )
+     parser.add_argument("--out", default="")
+     parser.add_argument("--eval-out", default="")
+     args = parser.parse_args(argv)
+@@ -406,6 +544,23 @@ def main(argv=None):
+         for name in args.eval_opponents.split(",")
+         if name.strip()
+     )
++    domain_opts = {
++        "profiles": tuple(
++            name.strip().upper()
++            for name in args.profiles.split(",")
++            if name.strip()
++        ),
++        "health_factors": tuple(
++            name.strip()
++            for name in args.health_factors.split(",")
++            if name.strip()
++        ),
++        "sickness_min": args.sickness_min,
++        "sickness_max": args.sickness_max,
++        "health_min": args.health_min,
++        "health_max": args.health_max,
++        "skill_jitter": args.skill_jitter,
++    }
+     policy, stats = train(
+         episodes=args.episodes,
+         seed=args.seed,
+@@ -419,6 +574,9 @@ def main(argv=None):
+         eval_opponents=eval_opponents,
+         resume=args.resume or None,
+         resume_opponent=args.resume_opponent or None,
++        domain_randomize=args.domain_randomize,
++        domain_opts=domain_opts,
++        eval_domain_randomize=args.eval_domain_randomize,
+     )
+     print(json.dumps(stats, ensure_ascii=False))
+     if args.out:
+diff --git a/campaign/env.py b/campaign/env.py
+index dd7673f..c8bbd2e 100644
+--- a/campaign/env.py
++++ b/campaign/env.py
+@@ -117,6 +117,7 @@ class CampaignEnv:
+         seed=0,
+         max_days=None,
+         snapshot=None,
++        sickness=0.0,
+     ):
+         self.config = dict(config or load_world())
+         self.seed = int(seed)
+@@ -127,6 +128,9 @@ class CampaignEnv:
+         self._start_node = node_id
+         self._start_office = office_id
+         self._start_snapshot = snapshot
++        # Стартовая болезнь героя для доменной рандомизации (проблема №7);
++        # применяется в _build_engine как переопределение конфига `condition`.
++        self._start_sickness = max(0.0, min(1.0, float(sickness)))
+         self.engine = None
+         self.last_transition = None
+         # Одиночный агент (проблема №6): оппонента нет, цикл обучения
+@@ -134,6 +138,53 @@ class CampaignEnv:
+         self.single_agent = True
+         self.reset(seed=self.seed)
+ 
++    def randomize_draw(
++        self,
++        rng=None,
++        skill_jitter=0.0,
++        sickness_min=0.0,
++        sickness_max=0.6,
++    ):
++        """Сэмплировать домен кампании (проблема готовности №7).
++
++        Возвращает словарь для `apply_domain`: джиттер навыков профиля
++        (`skill_jitter` — относительная величина, 0.25 = ±25%) и стартовая
++        болезнь героя. Профиль строится поверх `default_profile` конфига,
++        поэтому среда остаётся самодостаточной на любом валидном мире.
++        """
++        import random as _random
++
++        from .world import SKILL_ORDER
++
++        rng = rng or _random.Random()
++        base = dict(self.config.get("default_profile") or {})
++        skills = dict(base.get("skills") or {})
++        if skill_jitter > 0.0:
++            for key in SKILL_ORDER:
++                value = float(skills.get(key, 0.08))
++                low = max(0.0, value * (1.0 - float(skill_jitter)))
++                high = min(1.0, value * (1.0 + float(skill_jitter)))
++                skills[key] = round(rng.uniform(low, high), 4)
++        base["skills"] = skills
++        return {
++            "profile": base,
++            "sickness": round(
++                rng.uniform(
++                    max(0.0, float(sickness_min)),
++                    max(max(0.0, float(sickness_min)), min(1.0, float(sickness_max))),
++                ),
++                4,
++            ),
++        }
++
++    def apply_domain(self, profile=None, sickness=None):
++        """Применить домен кампании и пересоздать движок (`reset`)."""
++        if profile is not None:
++            self._start_profile = dict(profile)
++        if sickness is not None:
++            self._start_sickness = max(0.0, min(1.0, float(sickness)))
++        return self.reset()
++
+     # ------------------------------------------------------------------
+     # Построение движка и стартовой позиции
+     # ------------------------------------------------------------------
+@@ -171,8 +222,15 @@ class CampaignEnv:
+         office_id = self._start_office
+         if not (node_id and office_id) and not self._start_snapshot:
+             node_id, office_id = self._default_start()
++        config = dict(self.config)
++        # Стартовая болезнь героя для доменной рандомизации (проблема №7):
++        # переопределяем `condition` конфига, не мутируя исходный словарь.
++        if self._start_sickness > 0.0:
++            condition = dict(config.get("condition") or {})
++            condition["sickness"] = self._start_sickness
++            config["condition"] = condition
+         return WorldEngine(
+-            dict(self.config),
++            config,
+             profile=self._start_profile,
+             node_id=node_id,
+             office_id=office_id,
+diff --git a/core41/__init__.py b/core41/__init__.py
+index 882aaf3..341de5d 100644
+--- a/core41/__init__.py
++++ b/core41/__init__.py
+@@ -25,7 +25,7 @@ from .clock import (
+     speed_label,
+ )
+ from .duel import DuelWorld
+-from .env import ArenaEnv, DuelEnv
++from .env import ArenaEnv, DuelEnv, randomize_draw
+ from .model import (
+     CONTAGION_CHANCE,
+     CONTAGION_SEVERITY,
+@@ -85,6 +85,7 @@ __all__ = [
+     "MAX_CATCHUP_TICKS",
+     "Observation",
+     "PROFILE_SKILLS",
++    "randomize_draw",
+     "REWARD_ENERGY_COST",
+     "REWARD_SICKNESS_OPPONENT",
+     "REWARD_SICKNESS_SELF",
+diff --git a/core41/env.py b/core41/env.py
+index 8670278..7b9e707 100644
+--- a/core41/env.py
++++ b/core41/env.py
+@@ -10,10 +10,73 @@
+ `legal_actions(side)`, где `side` — `"rl"`/`"ai"` (для `DuelEnv` также
+ принимаются легаси-имена `"agent"`/`"opponent"`). Это нужно для self-play:
+ у каждой стороны своё наблюдение, действие и награда.
++
++Доменная рандомизация (проблема готовности №7): перед матчем можно вызвать
++`randomize_draw(rng)`, и он вернёт словарь параметров `ArenaEnv` (профили,
++стартовая болезнь, множители здоровья), распределение которого ограничено
++флагами CLI `agents.train`. Draw детерминирован rng'ом вызывающего цикла:
++один и тот же seed обучения даёт одну и ту же последовательность доменов,
++поэтому воспроизводимость сохраняется без скрытых состояний среды.
+ """
+ 
+-from .arena import ArenaMatch
++import random
++
++from .arena import PROFILE_SKILLS, ArenaMatch
+ from .duel import DuelWorld
++from .model import DEFAULT_HEALTH_FACTORS, HEALTH_FACTOR_MAX, SICKNESS_MAX
++
++# Диапазоны доменной рандомизации по умолчанию (проблема №7). Широкие, но
++# физически осмысленные: sickness ∈ [0, 0.6] оставляет TREAT нетривиальным
++# выбором, health-факторы ±25% вокруг канона, aging/illness/stress/care
++# ограничены сверху HEALTH_FACTOR_MAX внутри Automaton.health_factor().
++DRIFT_SICKNESS_MIN = 0.0
++DRIFT_SICKNESS_MAX = 0.6
++DRIFT_HEALTH_MIN = 0.75
++DRIFT_HEALTH_MAX = 1.25
++
++
++def _clamp_unit(value):
++    return max(0.0, min(1.0, float(value)))
++
++
++def randomize_draw(
++    rng=None,
++    profiles=(),
++    health_factors=(),
++    sickness_min=DRIFT_SICKNESS_MIN,
++    sickness_max=DRIFT_SICKNESS_MAX,
++    health_min=DRIFT_HEALTH_MIN,
++    health_max=DRIFT_HEALTH_MAX,
++):
++    """Сэмплировать один домен арены (параметры конструктора `ArenaEnv`).
++
++    - `profiles` — кортеж имён профилей (`CANON`/`ZEALOT`/`ORTHODOX`);
++      пусто — только `CANON` (без джиттера профиля);
++    - `health_factors` — имена факторов (`aging`, `illness`, `stress`,
++      `care`), которым назначается случайный множитель; пусто — факторы
++      остаются каноническими;
++    - sickness и health-множители берутся из указанных диапазонов.
++    """
++    rng = rng or random.Random()
++    names = tuple(str(name).upper() for name in profiles) or ("CANON",)
++    unknown = [name for name in names if name not in PROFILE_SKILLS]
++    if unknown:
++        raise ValueError("неизвестные профили: %r" % (unknown,))
++    lo_s = _clamp_unit(sickness_min)
++    hi_s = max(lo_s, _clamp_unit(sickness_max))
++    lo_h = max(0.05, float(health_min))
++    hi_h = min(float(HEALTH_FACTOR_MAX), max(lo_h, float(health_max)))
++    factors = {}
++    for factor in health_factors:
++        factors[str(factor)] = round(rng.uniform(lo_h, hi_h), 4)
++    return {
++        "profile_rl": rng.choice(names),
++        "profile_ai": rng.choice(names),
++        "sickness_rl": round(rng.uniform(lo_s, hi_s), 4),
++        "sickness_ai": round(rng.uniform(lo_s, hi_s), 4),
++        "health_factors_rl": dict(factors),
++        "health_factors_ai": dict(factors),
++    }
+ 
+ 
+ def _side_id(side):
+@@ -114,6 +177,34 @@ class ArenaEnv:
+         self.last_rewards = {"rl": 0.0, "ai": 0.0}
+         self.reset(seed=self.seed)
+ 
++    def apply_domain(self, **kwargs):
++        """Применить словарь домена (`randomize_draw`) и пересоздать матч.
++
++        Принимаются только параметры конструктора; неизвестные ключи —
++        ошибка (защита от опечаток в CLI-пробросе проблемы №7).
++        """
++        allowed = {
++            "profile_rl",
++            "profile_ai",
++            "health_factors_rl",
++            "health_factors_ai",
++            "sickness_rl",
++            "sickness_ai",
++        }
++        unknown = set(kwargs) - allowed
++        if unknown:
++            raise ValueError(
++                "неизвестные параметры домена: %r" % (sorted(unknown),)
++            )
++        for key, value in kwargs.items():
++            if key.startswith("health_factors"):
++                setattr(self, key, dict(value or {}))
++            elif key.startswith("profile"):
++                setattr(self, key, str(value))
++            else:
++                setattr(self, key, float(value))
++        return self.reset()
++
+     @property
+     def action_space(self):
+         if self.match is None:
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+index 7971231..275d231 100644
+--- a/docs/AGENTS.md
++++ b/docs/AGENTS.md
+@@ -286,6 +286,29 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
+     --out saves/bdi.json
+ ```
+ 
++Доменная рандомизация (проблема готовности №7): `--domain-randomize` берёт
++перед каждым обучающим эпизодом новый домен — профили арены, стартовую
++болезнь сторон, множители health-факторов (`arena`) или джиттер навыков и
++болезнь героя (`campaign`). Диапазоны задаются флагами; жеребьёвка
++детерминирована `--seed` (отдельный rng с солью 7919), поэтому запуск
++воспроизводим. Для `--env duel` флаг честно игнорируется (легаси-срез без
++доменных параметров, в статистике `domain_randomize: false`):
++
++```bash
++venv/bin/python -m agents.train --episodes 2000 --seed 0 \
++    --domain-randomize \
++    --profiles CANON,ZEALOT,ORTHODOX \
++    --sickness-min 0.0 --sickness-max 0.6 \
++    --health-factors aging,illness,stress,care \
++    --health-min 0.75 --health-max 1.25 \
++    --skill-jitter 0.25          # только для --env campaign
++```
++
++Held-out оценка по умолчанию идёт на фиксированном каноническом домене —
++иначе матрица силы несравнима между запусками. Явный
++`--eval-domain-randomize` усредняет оценку по распределению доменов
++(строки матрицы получают `domain_randomized: true`).
++
+ Загрузить чекпойнт в активную сцену можно явно:
+ 
+ ```bash
+@@ -389,6 +412,9 @@ baseline. Формат чекпойнта версионирован: `CHECKPOIN
+ Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
+ кампанийный real-time-планировщик, затем добавить средовые источники болезни.
+ Калибровку здоровья после миграции нужно повторить на новых политиках
+-(`mlp`). Проблемы готовности к обучению №4 (ёмкость политик) и №5
+-(версионирование чекпойнтов, миграция легаси-ключей, `--resume`) закрыты;
+-остались №6 (среда кампании/RTS) и №7 (доменная рандомизация).
++(`mlp`). Проблемы готовности к обучению №1–№7 закрыты по порядку: ArenaEnv,
++награда, self-play/eval, ёмкость политик, версионирование чекпойнтов,
++CampaignEnv, доменная рандомизация. Открытые вопросы §7 в docs/TODO.md
++(№28 распад организации, №29 увольнение как смена роли, №30 финалы
++бесконечного сценария, №31 фоновая симуляция) остаются незакрытыми и
++честно отмечены в документации CampaignEnv.
+diff --git a/docs/TODO.md b/docs/TODO.md
+index 845385c..e1fe5bd 100644
+--- a/docs/TODO.md
++++ b/docs/TODO.md
+@@ -157,9 +157,26 @@
+   роли, финалы бесконечного сценария, фоновая симуляция) честно остаются
+   незакрытыми — в наблюдении они зафиксированы флагами `collapsed`/
+   `dismissed`/`outcome`. Тесты — `tests/test_campaign_env.py` (18 passed).
+-- [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
+-  `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
+-  диапазоны/джиттер) и усреднение eval-матрицы по профилям.
++- [x] **№7 Доменная рандомизация.** `randomize_draw(rng, ...)` (`core41/env.py`)
++  и метод `CampaignEnv.randomize_draw` жребуют один домен (профили арены,
++  стартовая болезнь сторон/героя, множители health-факторов, джиттер навыков);
++  `ArenaEnv.apply_domain`/`CampaignEnv.apply_domain` применяют словарь и
++  пересоздают матч/движок, отвергая неизвестные ключи. В CLI `agents.train` —
++  флаги `--domain-randomize`, `--profiles`, `--sickness-min/--sickness-max`,
++  `--health-factors`, `--health-min/--health-max`, `--skill-jitter`; перед
++  каждым обучающим эпизодом берётся новый домен из rng с солью
++  `seed + DOMAIN_SEED_SALT` (запуск воспроизводим; в статистике —
++  `domain_randomize`). Held-out оценка по умолчанию идёт на фиксированном
++  каноническом домене (матрица силы сравнима между запусками); явный
++  `--eval-domain-randomize` усредняет её по распределению (строки матрицы с
++  `domain_randomized: true`). Для `--env duel` (легаси-срез) рандомизация
++  честно игнорируется. Стартовая болезнь кампании передаётся в движок через
++  копию `config["condition"]` без мутации исходного конфига. Тесты —
++  `tests/test_core41.py::test_randomize_draw_is_deterministic_and_in_range`,
++  `test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys`,
++  `test_train_domain_randomize_is_reproducible_and_skips_duel`,
++  `test_campaign_env_domain_sickness_reaches_engine`. Раздел в
++  `docs/AGENTS.md` — «Доменная рандомизация».
+ 
+ ---
+ 
+diff --git a/tests/test_core41.py b/tests/test_core41.py
+index d205618..9bef915 100644
+--- a/tests/test_core41.py
++++ b/tests/test_core41.py
+@@ -621,3 +621,124 @@ def test_active_arena_match_engine_uses_core41_runtime():
+     assert len(match.rl_hist) == 8
+     assert match.rl.defense in ("force", "info", "REST")
+     assert ge.ACTIONS == CORE_ACTIONS
++
++
++# ---------------------------------------------------------------------------
++# Доменная рандомизация (проблема готовности №7)
++# ---------------------------------------------------------------------------
++
++
++def test_randomize_draw_is_deterministic_and_in_range():
++    import random
++
++    from core41 import randomize_draw
++
++    first = randomize_draw(
++        rng=random.Random(5),
++        profiles=("CANON", "ZEALOT"),
++        health_factors=("aging",),
++        sickness_min=0.1,
++        sickness_max=0.4,
++        health_min=0.8,
++        health_max=1.2,
++    )
++    second = randomize_draw(
++        rng=random.Random(5),
++        profiles=("CANON", "ZEALOT"),
++        health_factors=("aging",),
++        sickness_min=0.1,
++        sickness_max=0.4,
++        health_min=0.8,
++        health_max=1.2,
++    )
++    assert first == second
++    assert first["profile_rl"] in ("CANON", "ZEALOT")
++    assert 0.1 <= first["sickness_rl"] <= 0.4
++    assert 0.8 <= first["health_factors_rl"]["aging"] <= 1.2
++    # Неизвестный профиль — явная ошибка, а не молчаливый CANON.
++    try:
++        randomize_draw(profiles=("NOPE",))
++        raise AssertionError("unknown profile accepted")
++    except ValueError:
++        pass
++
++
++def test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys():
++    from core41 import ArenaEnv
++
++    env = ArenaEnv(seed=1, steps=40)
++    observation = env.apply_domain(
++        profile_rl="ZEALOT",
++        sickness_ai=0.3,
++        health_factors_rl={"aging": 1.1},
++    )
++    assert observation is not None
++    assert env.profile_rl == "ZEALOT"
++    assert env.sickness_ai == 0.3
++    assert env.match.rl.profile == "ZEALOT"
++    try:
++        env.apply_domain(bogus=1)
++        raise AssertionError("unknown domain key accepted")
++    except ValueError:
++        pass
++
++
++def test_train_domain_randomize_is_reproducible_and_skips_duel():
++    from agents.train import train
++
++    opts = {
++        "profiles": ("CANON", "ZEALOT"),
++        "health_factors": ("aging",),
++        "sickness_min": 0.0,
++        "sickness_max": 0.5,
++        "health_min": 0.75,
++        "health_max": 1.25,
++        "skill_jitter": 0.0,
++    }
++    results = []
++    for _ in range(2):
++        _policy, stats = train(
++            episodes=3,
++            seed=11,
++            policy_name="bdi",
++            opponent_name="random",
++            max_steps=25,
++            env_name="arena",
++            eval_episodes=0,
++            domain_randomize=True,
++            domain_opts=opts,
++        )
++        results.append(stats)
++    assert results[0]["domain_randomize"] is True
++    assert results[0] == results[1]
++    # duel — легаси-срез без доменов: фича честно не применяется.
++    _policy, duel_stats = train(
++        episodes=2,
++        seed=1,
++        policy_name="bdi",
++        opponent_name="random",
++        max_steps=20,
++        env_name="duel",
++        eval_episodes=0,
++        domain_randomize=True,
++        domain_opts=opts,
++    )
++    assert duel_stats["domain_randomize"] is False
++
++
++def test_campaign_env_domain_sickness_reaches_engine():
++    import random
++
++    from campaign.env import CampaignEnv
++
++    env = CampaignEnv(seed=3, max_days=4)
++    assert env.engine.player_condition()["sickness"] == 0.0
++    draw = env.randomize_draw(
++        rng=random.Random(9), skill_jitter=0.2, sickness_min=0.2, sickness_max=0.5
++    )
++    env.apply_domain(**draw)
++    condition = env.engine.player_condition()
++    assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
++    # Стартовый config среды не мутируется: второй движок без домена чист.
++    fresh = CampaignEnv(seed=3, max_days=4)
++    assert fresh.engine.player_condition()["sickness"] == 0.0
+-- 
+2.39.5
+
