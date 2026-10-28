@@ -1,14 +1,21 @@
 import pytest
 
+from agents import BDIPolicy, default_actions
+from agents.policies import features
 from core41 import (
+    Action,
     ArenaAgent,
     ArenaMatch,
     Automaton,
+    DuelWorld,
     SICKNESS_DAMAGE_BONUS,
     SICKNESS_HEALTH_DECAY,
     SICKNESS_MAX,
     SICKNESS_PROGRESS,
     SICKNESS_REST_RECOVERY,
+    SICKNESS_TREAT_RATE,
+    TREAT_ENERGY_FRACTION,
+    run_duel_tick,
 )
 
 
@@ -120,3 +127,85 @@ def test_match_engine_passes_sickness():
     assert match.rl.sickness == 0.5
     assert match.ai.sickness == 0.5
     assert match.sickness == 0.5
+
+
+def test_treat_action_spends_energy_and_reduces_sickness():
+    left = ArenaAgent("patient", energy=50, sickness=0.5)
+    right = ArenaAgent("other")
+    _events, result, _other = run_duel_tick(
+        left,
+        Action("TREAT", form="care", fraction=TREAT_ENERGY_FRACTION),
+        right,
+        Action("REST", form="rest"),
+    )
+    assert result["kind"] == "treat"
+    assert result["spent"] == pytest.approx(
+        TREAT_ENERGY_FRACTION * left.unit.max_energy
+    )
+    assert left.energy_pool == pytest.approx(50 - result["spent"])
+    assert left.sickness == pytest.approx(
+        0.5 - SICKNESS_TREAT_RATE + SICKNESS_PROGRESS
+    )
+    assert left.last_act == "TREAT"
+
+
+def test_treat_without_sickness_only_spends_energy():
+    left = ArenaAgent("healthy", energy=50)
+    right = ArenaAgent("other")
+    run_duel_tick(
+        left,
+        Action("TREAT", form="care", fraction=TREAT_ENERGY_FRACTION),
+        right,
+        Action("REST", form="rest"),
+    )
+    assert left.energy_pool == pytest.approx(
+        50 - TREAT_ENERGY_FRACTION * left.unit.max_energy
+    )
+    assert left.sickness == 0.0
+
+
+def test_duel_world_offers_treat_only_when_sick():
+    world = DuelWorld(seed=1)
+    healthy = {
+        action.kind for action in world.legal_actions("agent")
+    }
+    assert "TREAT" not in healthy
+    world.agent.sickness = 0.4
+    sick = {action.kind for action in world.legal_actions("agent")}
+    assert "TREAT" in sick
+
+
+def test_observation_exposes_both_sickness_values():
+    left = ArenaAgent("left", sickness=0.6)
+    right = ArenaAgent("right", sickness=0.3)
+    observation = left.observe(right)
+    assert observation.self_sickness == pytest.approx(0.6)
+    assert observation.opponent_sickness == pytest.approx(0.3)
+
+
+def test_policies_see_sickness_and_can_treat():
+    left = ArenaAgent("left", sickness=0.4)
+    right = ArenaAgent("right")
+    observation = left.observe(right)
+    actions = default_actions(observation)
+    assert any(action.kind == "TREAT" for action in actions)
+    for action in actions:
+        assert len(features(observation, action)) == len(
+            BDIPolicy().weights
+        )
+
+    healthy = ArenaAgent("healthy").observe(right)
+    assert not any(
+        action.kind == "TREAT" for action in default_actions(healthy)
+    )
+
+
+def test_arena_agent_actions_include_treat_only_when_sick():
+    healthy = ArenaAgent("healthy")
+    assert len(healthy.actions()) == 5
+    assert all(action.kind != "TREAT" for action in healthy.actions())
+
+    sick = ArenaAgent("sick", sickness=0.3)
+    kinds = [action.kind for action in sick.actions()]
+    assert kinds.count("TREAT") == 1
+    assert len(kinds) == 6

@@ -195,11 +195,15 @@ def test_core_training_smoke():
 
 
 def test_arena_actions_are_generic_work_forms():
-    assert len(CORE_ACTIONS) == 5
+    assert len(CORE_ACTIONS) == 6
     for index, (name, fraction) in enumerate(CORE_ACTIONS):
         action = action_from_index(index)
         if name == "REST":
             assert action.kind == "REST"
+        elif name == "TREAT":
+            assert action.kind == "TREAT"
+            assert action.form == "care"
+            assert action.fraction == fraction
         else:
             assert action.kind == "WORK"
             assert action.form == name

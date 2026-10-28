@@ -7,6 +7,7 @@ from core41 import (
     Action,
     ArenaAgent,
     PROFILE_SKILLS,
+    TREAT_ENERGY_FRACTION,
     check_capture,
     run_duel_tick,
 )
@@ -20,7 +21,7 @@ MAX_CP = 9
 
 ATTACK = "ATTACK"
 ATTACK_ORDERS = (ATTACK,)
-ORDERS = ATTACK_ORDERS + ("REST", "HOLD")
+ORDERS = ATTACK_ORDERS + ("REST", "HOLD", "TREAT")
 
 
 def clamp(value, low, high):
@@ -154,7 +155,12 @@ class Commander:
         if not self.ai:
             return "REST", 0
         action = self.agent.last_action
-        name = action.form if action.kind == "WORK" else "REST"
+        if action.kind == "WORK":
+            name = action.form
+        elif action.kind == "TREAT":
+            name = "TREAT"
+        else:
+            name = "REST"
         return name, self.agent.last_work
 
 
@@ -651,6 +657,18 @@ class BattlefieldModel:
             else:
                 self._duel("REST", 0.0, "HOLD", finish=False, enemy_rest=True)
                 self._after_player_action("HOLD", duel=False)
+        elif order == "TREAT":
+            if self.contact:
+                self._duel("TREAT", TREAT_ENERGY_FRACTION, "TREAT", finish=True)
+            else:
+                self._duel(
+                    "TREAT",
+                    TREAT_ENERGY_FRACTION,
+                    "TREAT",
+                    finish=False,
+                    enemy_rest=True,
+                )
+                self._after_player_action("TREAT", duel=False)
         return True, "Приказ принят.", "Order accepted."
 
     def end_turn(self):
@@ -665,6 +683,8 @@ class BattlefieldModel:
     def _action_for_order(self, act, frac):
         if act == "REST" or frac <= 0:
             return Action("REST", form="rest")
+        if act == "TREAT":
+            return Action("TREAT", form="care", fraction=float(frac))
         form = act if act in ("force", "info") else "force"
         return Action("WORK", form=form, fraction=float(frac))
 

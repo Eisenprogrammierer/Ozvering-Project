@@ -10,7 +10,9 @@ from .model import (
     PRESSURE_PER_WORK,
     REST_FORCE,
     REST_REGEN,
+    SICKNESS_TREAT_RATE,
     SICKNESS_MAX,
+    TREAT_ENERGY_FRACTION,
     Automaton,
     success_probability,
 )
@@ -21,6 +23,7 @@ FRACTIONS = (0.3, 0.7)
 
 CORE_ACTIONS = (
     ("REST", 0.0),
+    ("TREAT", TREAT_ENERGY_FRACTION),
     ("force", FRACTIONS[0]),
     ("force", FRACTIONS[1]),
     ("info", FRACTIONS[0]),
@@ -43,7 +46,17 @@ def action_from_index(index):
     name, fraction = CORE_ACTIONS[int(index) % len(CORE_ACTIONS)]
     if name == "REST":
         return Action("REST", form="rest")
+    if name == "TREAT":
+        return Action("TREAT", form="care", fraction=fraction)
     return Action("WORK", form=name, fraction=fraction)
+
+
+def _action_tag(action):
+    if action.kind == "WORK":
+        return action.form
+    if action.kind == "TREAT":
+        return "TREAT"
+    return "REST"
 
 
 def _default_action(observation):
@@ -66,6 +79,24 @@ class _RestPolicy:
 
 def _perform(attacker, defender, action, world):
     attacker.last_action = action
+    if action.kind == "TREAT":
+        amount = min(
+            attacker.energy_pool,
+            max(0.0, min(1.0, action.fraction))
+            * attacker.unit.max_energy,
+        )
+        attacker.energy_pool -= amount
+        if amount > 0.0 and attacker.unit.sickness > 0.0:
+            attacker.unit.treat(SICKNESS_TREAT_RATE)
+        attacker.unit.tick_health(resting=False)
+        return {
+            "kind": "treat",
+            "spent": amount,
+            "success": True,
+            "damage": 0.0,
+            "form": "care",
+            "treated": float(attacker.unit.sickness),
+        }
     if action.kind != "WORK":
         attacker.unit.energy = min(
             attacker.unit.max_energy,
@@ -267,7 +298,7 @@ class ArenaAgent:
 
     @property
     def defense(self):
-        if self.last_action.kind == "WORK":
+        if self.last_action.kind in ("WORK", "TREAT"):
             return self.last_action.form
         return "force"
 
@@ -321,9 +352,12 @@ class ArenaAgent:
         self._last_action = None
 
     def actions(self):
-        return tuple(
-            action_from_index(index) for index in range(len(CORE_ACTIONS))
-        )
+        actions = [action_from_index(0)]
+        if self.sickness > 0.0:
+            actions.append(action_from_index(1))
+        for index in range(2, len(CORE_ACTIONS)):
+            actions.append(action_from_index(index))
+        return tuple(actions)
 
     def observe(self, opponent):
         other = opponent.unit if hasattr(opponent, "unit") else opponent
@@ -352,8 +386,10 @@ class ArenaAgent:
             ),
             self_health=self.health,
             self_max_health=self.max_health,
+            self_sickness=self.sickness,
             opponent_health=float(other.health),
             opponent_max_health=float(other.max_health),
+            opponent_sickness=float(other.sickness),
         )
         return observation
 
@@ -564,11 +600,11 @@ class ArenaMatch:
         self.events.extend(self._event("ai", ai, ai_result))
 
         self.last_rl_action = (
-            rl_action.form if rl_action.kind == "WORK" else "REST",
+            _action_tag(rl_action),
             float(rl_result.get("spent", 0.0)),
         )
         self.last_ai_action = (
-            ai_action.form if ai_action.kind == "WORK" else "REST",
+            _action_tag(ai_action),
             float(ai_result.get("spent", 0.0)),
         )
         rl.last_act = self.last_rl_action[0]
@@ -648,10 +684,8 @@ def run_duel_tick(
     right_result = match.perform(right, left, right_action)
     left.last_action = left_action
     right.last_action = right_action
-    left.last_act = left_action.form if left_action.kind == "WORK" else "REST"
-    right.last_act = (
-        right_action.form if right_action.kind == "WORK" else "REST"
-    )
+    left.last_act = _action_tag(left_action)
+    right.last_act = _action_tag(right_action)
     left.last_work = float(left_result.get("spent", 0.0))
     right.last_work = float(right_result.get("spent", 0.0))
     left.unit.decay_pressure()

@@ -2,6 +2,7 @@ import ast
 import json
 import random
 
+from core41.model import TREAT_ENERGY_FRACTION
 from core41.types import Action, Observation, Transition
 
 COUNTERS = {
@@ -13,6 +14,14 @@ COUNTERS = {
 
 def default_actions(observation):
     actions = [Action("REST", form="rest")]
+    if getattr(observation, "self_sickness", 0.0) > 0.0:
+        actions.append(
+            Action(
+                "TREAT",
+                form="care",
+                fraction=TREAT_ENERGY_FRACTION,
+            )
+        )
     for form in observation.forms:
         for fraction in (0.25, 0.5, 0.75):
             actions.append(
@@ -27,6 +36,8 @@ def features(observation, action):
     opponent_energy = max(1.0, observation.opponent_max_energy)
     opponent_force = max(1.0, observation.opponent_max_force)
     is_rest = 1.0 if action.kind == "REST" else 0.0
+    is_work = 1.0 if action.kind == "WORK" else 0.0
+    is_treat = 1.0 if action.kind == "TREAT" else 0.0
     return (
         1.0,
         observation.self_energy / max_energy,
@@ -36,7 +47,7 @@ def features(observation, action):
         1.0 if observation.opponent_open else 0.0,
         min(1.0, observation.opponent_pressure / 8.0),
         is_rest,
-        1.0 - is_rest,
+        is_work,
         action.fraction,
         1.0 if action.form == "force" else 0.0,
         1.0 if action.form == "info" else 0.0,
@@ -46,6 +57,9 @@ def features(observation, action):
         observation.self_health / max(1.0, observation.self_max_health),
         observation.opponent_health
         / max(1.0, observation.opponent_max_health),
+        float(getattr(observation, "self_sickness", 0.0)),
+        float(getattr(observation, "opponent_sickness", 0.0)),
+        is_treat,
     )
 
 
@@ -117,6 +131,9 @@ class BDIPolicy:
             0.6,
             1.2,
             -0.6,
+            -0.6,
+            0.2,
+            0.4,
         ]
 
     def score(self, observation, action):
@@ -215,8 +232,11 @@ class BDIPolicy:
         if not state:
             return
         weights = state.get("weights")
-        if weights is not None and len(weights) == len(self.weights):
-            self.weights = [float(value) for value in weights]
+        if weights is not None:
+            values = [float(value) for value in weights]
+            if len(values) < len(self.weights):
+                values.extend([0.0] * (len(self.weights) - len(values)))
+            self.weights = values[: len(self.weights)]
         beliefs = state.get("beliefs")
         if beliefs:
             self.beliefs = dict(beliefs)
@@ -275,6 +295,10 @@ class QTablePolicy:
             round(observation.opponent_energy / 10.0),
             round(observation.self_health / 20.0),
             round(observation.opponent_health / 20.0),
+            round(float(getattr(observation, "self_sickness", 0.0)) * 4.0),
+            round(
+                float(getattr(observation, "opponent_sickness", 0.0)) * 4.0
+            ),
             int(observation.opponent_open),
             action.kind,
             action.form,

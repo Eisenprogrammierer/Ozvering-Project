@@ -121,6 +121,9 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
   `aging/illness/stress/care` доступны через `--health-factors`. Болезнь —
   отдельное `sickness ∈ [0,1]`: прогресс без отдыха, урон здоровью,
   восстановление отдыхом и `treat()`, начальное значение через `--sickness`.
+  Лечение — шестое действие `TREAT` (`CORE_ACTIONS` из шести); политики
+  видят болезнь в `Observation`, а `TREAT` предлагается только при
+  `sickness > 0`.
   Дуэльный срез откалиброван: `experiments/exp_health_calibration.py`.
   Реальное время — `core41.SimulationClock`: тик 1 с, скорости
   `pause/1x/2x/4x/8x/16x`, авто-пауза и ограниченный догон.

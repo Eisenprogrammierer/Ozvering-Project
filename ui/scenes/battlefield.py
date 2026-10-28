@@ -116,6 +116,7 @@ class BattlefieldScene(Scene):
             enabled=enabled,
         )
         y += 44
+        bw = (width - 3 * gap) // 4
         self._button(
             t("ПОКОЙ", "REST"),
             lambda: self._order("REST"),
@@ -123,15 +124,21 @@ class BattlefieldScene(Scene):
             enabled=not m.winner,
         )
         self._button(
+            t("ЛЕЧЕНИЕ", "TREAT"),
+            lambda: self._order("TREAT"),
+            (x + bw + gap, y, bw, 36),
+            enabled=not m.winner and m.player.sickness > 0.0,
+        )
+        self._button(
             t("ДЕРЖАТЬ", "HOLD"),
             lambda: self._order("HOLD"),
-            (x + bw + gap, y, bw, 36),
+            (x + 2 * (bw + gap), y, bw, 36),
             enabled=not m.winner,
         )
         self._button(
             t("ХОД", "END TURN"),
             self._end_turn,
-            (x + 2 * (bw + gap), y, bw, 36),
+            (x + 3 * (bw + gap), y, bw, 36),
             enabled=not m.winner,
         )
         y += 44
@@ -249,6 +256,9 @@ class BattlefieldScene(Scene):
                 return True
             if e.key == pygame.K_r:
                 self._order("REST")
+                return True
+            if e.key == pygame.K_t:
+                self._order("TREAT")
                 return True
             if e.key == pygame.K_h:
                 self._order("HOLD")

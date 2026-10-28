@@ -34,8 +34,10 @@ class Observation:
     opponent_defense: str = ""
     self_health: float = 100.0
     self_max_health: float = 100.0
+    self_sickness: float = 0.0
     opponent_health: float = 100.0
     opponent_max_health: float = 100.0
+    opponent_sickness: float = 0.0
 
 
 @dataclass(frozen=True)

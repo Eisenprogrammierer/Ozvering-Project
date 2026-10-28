@@ -4,6 +4,8 @@ from .model import (
     PRESSURE_PER_WORK,
     REST_FORCE,
     REST_REGEN,
+    SICKNESS_TREAT_RATE,
+    TREAT_ENERGY_FRACTION,
     Automaton,
     success_probability,
 )
@@ -86,6 +88,23 @@ class DuelWorld:
         return self.observe("agent")
 
     def _perform(self, attacker, defender, action):
+        if action.kind == "TREAT":
+            amount = min(
+                attacker.energy,
+                max(0.0, min(1.0, action.fraction))
+                * attacker.max_energy,
+            )
+            attacker.energy -= amount
+            if amount > 0.0 and attacker.sickness > 0.0:
+                attacker.treat(SICKNESS_TREAT_RATE)
+            attacker.tick_health(resting=False)
+            return {
+                "kind": "treat",
+                "spent": amount,
+                "success": True,
+                "damage": 0.0,
+                "form": "care",
+            }
         if action.kind == "REST":
             attacker.energy = min(
                 attacker.max_energy, attacker.energy + REST_REGEN
@@ -218,8 +237,10 @@ class DuelWorld:
             forms=forms,
             self_health=me.health,
             self_max_health=me.max_health,
+            self_sickness=me.sickness,
             opponent_health=other.health,
             opponent_max_health=other.max_health,
+            opponent_sickness=other.sickness,
         )
 
     def legal_actions(self, agent_id="agent"):
@@ -230,6 +251,14 @@ class DuelWorld:
         else:
             raise ValueError("unknown automaton")
         actions = [Action("REST", form="rest")]
+        if me.sickness > 0.0:
+            actions.append(
+                Action(
+                    "TREAT",
+                    form="care",
+                    fraction=TREAT_ENERGY_FRACTION,
+                )
+            )
         for form in me.outputs:
             if not other.can_receive(form):
                 continue
