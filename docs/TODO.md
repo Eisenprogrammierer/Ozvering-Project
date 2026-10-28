@@ -141,10 +141,22 @@
   `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
   `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
   `test_train_resume_continues_from_checkpoint`.
-- [ ] **№6 Среда кампании/RTS.** Первый `CampaignEnv` поверх `WorldEngine`
-  с контрактом reset/step/observation/action/reward; открытые вопросы §7
-  №28–31 (распад организации, увольнение-смена-роли, финалы бесконечного
-  сценария, фоновая симуляция) честно остаются незакрытыми.
+- [x] **№6 Среда кампании/RTS.** Первый `CampaignEnv` (`campaign/env.py`)
+  поверх дневного `WorldEngine`: контракт `reset(seed)/step(CampaignAction)`
+  /`observe()`/`legal_actions()` + Gym-кортеж `(obs, reward, done, truncated,
+  info)`; плоское нормированное `CampaignObservation` (core41/types.py),
+  награда `campaign_reward()` из дельт standing/power/cohesion/health/sickness
+  + терминальный бонус исхода (`terminal_campaign_reward`, ±1.0), штраф за
+  нелегальный ход; горизонт `max_days` — усечение (truncated), не поражение
+  (вопрос №30 остаётся открытым). Одиночный агент: self-play отключён,
+  `--env campaign` в `agents.train`; политики принимают кампанейные
+  наблюдения через `campaign_features()` (18 признаков, тот же формат),
+  `make_policy("qtable-campaign")` — отдельная таблица, не смешиваемая с
+  ареной; персистентность среды через снимок мира (`state_dict/load_state_
+  dict`). Открытые вопросы §7 №28–31 (распад организации, увольнение-смена-
+  роли, финалы бесконечного сценария, фоновая симуляция) честно остаются
+  незакрытыми — в наблюдении они зафиксированы флагами `collapsed`/
+  `dismissed`/`outcome`. Тесты — `tests/test_campaign_env.py` (18 passed).
 - [ ] **№7 Доменная рандомизация.** Проброс в CLI `train` параметров
   `ArenaEnv` (`--sickness-rl/--sickness-ai`, `--health-factors`, профили,
   диапазоны/джиттер) и усреднение eval-матрицы по профилям.

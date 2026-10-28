@@ -4,7 +4,17 @@ import math
 import random
 
 from core41.model import TREAT_ENERGY_FRACTION
-from core41.types import Action, Observation, Transition
+from core41.types import (
+    Action,
+    CampaignAction,
+    CampaignObservation,
+    Observation,
+    Transition,
+)
+
+# Служебное действие кампанейного среза (проблема готовности №6).
+# Импортируется локально, чтобы не создавать цикл campaign.env -> agents.
+from campaign.env import END_DAY
 
 # Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
 # ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
@@ -46,6 +56,12 @@ COUNTERS = {
 
 
 def default_actions(observation):
+    if isinstance(observation, CampaignObservation):
+        # Кампанейный fallback (проблема №6): если next_actions пуст,
+        # служебный END_DAY всегда легален до завершения сюжета.
+        if observation.finished:
+            return tuple()
+        return (CampaignAction(END_DAY),)
     actions = [Action("REST", form="rest")]
     if getattr(observation, "self_sickness", 0.0) > 0.0:
         actions.append(
@@ -61,6 +77,56 @@ def default_actions(observation):
                 Action("WORK", form=form, fraction=fraction)
             )
     return tuple(actions)
+
+
+def campaign_features(observation, action):
+    """Признаки кампанейного среза (проблема готовности №6).
+
+    Тот же формат вектора, что и у арены: 18 признаков, где слоты
+    «противника» занимают позиции собственной организации (power — чужая
+    сила, cohesion — «открытость» структуры), а `action.kind` кодируется
+    через флаги REST/WORK/TREAT по аналогии с ареной: END_DAY ведёт себя
+    как отдых (тик мира без затрат), ordinary-действие — как работа,
+    heal/self-действие — как лечение. Признаки нормированы к [0, 1], как
+    и в `features()`, поэтому BDI/MLP/QTable работают без правок весов.
+    """
+    is_end_day = 1.0 if action.kind == "END_DAY" else 0.0
+    self_target = 1.0 if not action.target else 0.0
+    is_heal = 1.0 if (self_target and not is_end_day) else 0.0
+    is_work = 1.0 if (not self_target and not is_end_day) else 0.0
+    return (
+        1.0,
+        float(observation.actions_left) / max(
+            1, int(observation.actions_per_day)
+        ),
+        _clamp01(float(observation.day) / max(1, int(observation.total_days))),
+        _clamp01(float(observation.standing)),
+        _clamp01(float(observation.power)),
+        1.0 if observation.attached else 0.0,
+        _clamp01(float(observation.cohesion)),
+        is_end_day,
+        is_work,
+        _clamp01(float(action.fraction)),
+        _clamp01(float(observation.influence)),
+        _clamp01(float(observation.favor)),
+        _clamp01(float(observation.evidence)),
+        _clamp01(float(observation.health) / max(1.0, observation.max_health)),
+        _clamp01(float(observation.authority)),
+        _clamp01(float(observation.sickness)),
+        1.0 if not observation.alive else 0.0,
+        is_heal,
+    )
+
+
+def _campaign_vector(observation, action):
+    """Диспетчер: выбирает армейный или кампанейный вектор признаков."""
+    if isinstance(observation, CampaignObservation):
+        return campaign_features(observation, action)
+    return features(observation, action)
+
+
+def _clamp01(value):
+    return max(0.0, min(1.0, float(value)))
 
 
 def features(observation, action):
@@ -176,7 +242,47 @@ class BDIPolicy:
         ]
 
     def score(self, observation, action):
-        return dot(self.weights, features(observation, action))
+        return dot(self.weights, _campaign_vector(observation, action))
+
+    def _beliefs_from(self, observation):
+        """Обновление верований BDI для любого среза (арена/кампания).
+
+        На арене «противник» — второй боец; в кампании (`CampaignObservation`,
+        проблема №6) те же слоты верований занимают организация и позиция:
+        open → attached, pressure → cohesion, energy → actions_left, force →
+        power. Это сохраняет семантику BDI-машин (Beliefs о мире), не вводя
+        новых шкал.
+        """
+        if isinstance(observation, CampaignObservation):
+            return {
+                "opponent_open": bool(observation.attached),
+                "opponent_pressure": float(observation.cohesion),
+                "self_energy": float(observation.actions_left)
+                / max(1, int(observation.actions_per_day)),
+                "opponent_force": float(observation.power),
+                "self_health": float(observation.health)
+                / max(1.0, observation.max_health),
+                "opponent_health": float(observation.standing),
+            }
+        return {
+            "opponent_open": bool(observation.opponent_open),
+            "opponent_pressure": float(observation.opponent_pressure),
+            "self_energy": float(
+                observation.self_energy / max(1.0, observation.self_max_energy)
+            ),
+            "opponent_force": float(
+                observation.opponent_force
+                / max(1.0, observation.opponent_max_force)
+            ),
+            "self_health": float(
+                observation.self_health
+                / max(1.0, observation.self_max_health)
+            ),
+            "opponent_health": float(
+                observation.opponent_health
+                / max(1.0, observation.opponent_max_health)
+            ),
+        }
 
     def act(self, observation, actions, explore=True):
         actions = tuple(actions)
@@ -198,7 +304,7 @@ class BDIPolicy:
     def observe(self, transition):
         observation = transition.observation
         action = transition.action
-        vector = features(observation, action)
+        vector = _campaign_vector(observation, action)
         current = dot(self.weights, vector)
         if transition.done:
             target = 0.0
@@ -209,7 +315,7 @@ class BDIPolicy:
             target = max(
                 dot(
                     self.weights,
-                    features(transition.next_observation, candidate),
+                    _campaign_vector(transition.next_observation, candidate),
                 )
                 for candidate in next_actions
             )
@@ -217,30 +323,7 @@ class BDIPolicy:
         for index, value in enumerate(vector):
             self.weights[index] += self.learning_rate * error * value
         next_observation = transition.next_observation
-        self.beliefs.update(
-            {
-                "opponent_open": bool(next_observation.opponent_open),
-                "opponent_pressure": float(
-                    next_observation.opponent_pressure
-                ),
-                "self_energy": float(
-                    next_observation.self_energy
-                    / max(1.0, next_observation.self_max_energy)
-                ),
-                "opponent_force": float(
-                    next_observation.opponent_force
-                    / max(1.0, next_observation.opponent_max_force)
-                ),
-                "self_health": float(
-                    next_observation.self_health
-                    / max(1.0, next_observation.self_max_health)
-                ),
-                "opponent_health": float(
-                    next_observation.opponent_health
-                    / max(1.0, next_observation.opponent_max_health)
-                ),
-            }
-        )
+        self.beliefs.update(self._beliefs_from(next_observation))
         self.updates += 1
         self.epsilon = max(
             self.min_epsilon,
@@ -320,14 +403,38 @@ class QTablePolicy:
         learning_rate=0.1,
         discount=0.94,
         table=None,
+        campaign=False,
     ):
         self.rng = random.Random(seed)
         self.learning_rate = float(learning_rate)
         self.discount = float(discount)
         self.epsilon = 0.22
+        # campaign=True — таблица обучается на дневном срезе (проблема №6):
+        # ключ строится из нормированных кампанейных разрядов и не
+        # смешивается с аренной таблицей.
+        self.campaign = bool(campaign)
         self.table = table if table is not None else {}
 
     def key(self, observation, action):
+        if isinstance(observation, CampaignObservation) or self.campaign:
+            # Кампанейный ключ (проблема №6): тот же 12-полевой формат,
+            # но разряды взяты из нормированных признаков кампании —
+            # так таблица не смешивается с аренной и не требует миграции.
+            vector = campaign_features(observation, action)
+            return (
+                round(vector[3] * 4.0),   # standing
+                round(vector[4] * 4.0),   # power организации
+                round(vector[13] * 4.0),  # health/HEALTH_MAX
+                round(vector[15] * 4.0),  # sickness
+                round(vector[1] * 4.0),   # actions_left/actions_per_day
+                round(vector[2] * 4.0),   # прогресс дня (day/total_days)
+                0,
+                0,
+                int(bool(vector[5])),     # attached
+                action.kind,
+                action.target,
+                round(action.fraction, 2),
+            )
         return (
             round(observation.self_force / 10.0),
             round(observation.self_energy / 10.0),
@@ -378,6 +485,7 @@ class QTablePolicy:
         return {
             "kind": "qtable",
             "version": CHECKPOINT_VERSION,
+            "campaign": bool(self.campaign),
             "table": {
                 repr(key): value for key, value in self.table.items()
             },
@@ -391,6 +499,9 @@ class QTablePolicy:
             return
         # Версия не указана — легаси-v0; ключи мигрируются по длине
         # (8/10 -> 12), чтобы старые таблицы не терялись молча.
+        # Флаг среза сохраняется в чекпойнте (проблема №6): аренная и
+        # кампанейная таблицы не должны молча подменять формат ключа.
+        self.campaign = bool(state.get("campaign", self.campaign))
         table = state.get("table", {})
         migrated = {}
         for key, value in table.items():
@@ -459,7 +570,7 @@ class MLPPolicy:
         return output, hidden
 
     def score(self, observation, action):
-        output, _hidden = self._forward(features(observation, action))
+        output, _hidden = self._forward(_campaign_vector(observation, action))
         return output
 
     def act(self, observation, actions, explore=True):
@@ -471,7 +582,9 @@ class MLPPolicy:
         return max(actions, key=lambda item: self.score(observation, item))
 
     def observe(self, transition):
-        vector = features(transition.observation, transition.action)
+        vector = _campaign_vector(
+            transition.observation, transition.action
+        )
         current, hidden = self._forward(vector)
         if transition.done:
             target = 0.0
@@ -570,6 +683,10 @@ def make_policy(name, seed=0):
         return BDIPolicy(seed=seed)
     if name in ("qtable", "q"):
         return QTablePolicy(seed=seed)
+    if name == "qtable-campaign":
+        # Кампанейная таблица (проблема №6): тот же QTable, но ключ
+        # строится из дневных признаков CampaignObservation.
+        return QTablePolicy(seed=seed, campaign=True)
     if name in ("mlp", "neural", "nn"):
         return MLPPolicy(seed=seed)
     if name in ("random", "none"):

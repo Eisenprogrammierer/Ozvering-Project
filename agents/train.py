@@ -1,7 +1,11 @@
-"""Обучение и оценка политик на арене.
+"""Обучение и оценка политик на арене и кампании.
 
 По умолчанию используется `ArenaEnv` — среда активной арены. `DuelEnv`
 остаётся ранним `force`-срезом и включается через `--env duel`.
+`CampaignEnv` (`--env campaign`, проблема готовности №6) — дневная среда
+над `WorldEngine`: одиночный агент, без оппонента и self-play; награда
+собрана из нормированных дельт положения/организации/здоровья/болезни
+плюс терминальный бонус исхода сюжета.
 
 Self-play: обе стороны получают собственный `Transition` и обновляют свои
 политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
@@ -14,7 +18,7 @@ import json
 import os
 
 from core41 import ArenaEnv, DuelEnv
-from core41.types import Transition
+from core41.types import CampaignAction, Transition
 
 from .policies import load_policy, make_policy
 
@@ -33,6 +37,11 @@ def _make_env(
     kwargs = dict(env_kwargs or {})
     if env_name == "duel":
         return DuelEnv(seed=seed, max_steps=max_steps)
+    if env_name == "campaign":
+        from campaign.env import CampaignEnv
+
+        # max_days берётся из max_steps (число дней горизонта обучения).
+        return CampaignEnv(seed=seed, max_days=max_steps, **kwargs)
     return ArenaEnv(
         seed=seed,
         steps=max_steps,
@@ -60,6 +69,14 @@ def _play_episode(
     learn,
     explore,
 ):
+    if getattr(env, "single_agent", False):
+        return _play_campaign_episode(
+            env,
+            policy,
+            seed,
+            learn=learn,
+            explore=explore,
+        )
     observation = env.reset(seed=seed)
     opponent_observation = env.observe("ai")
     done = False
@@ -112,6 +129,47 @@ def _play_episode(
     return info
 
 
+def _play_campaign_episode(env, policy, seed, *, learn, explore):
+    """Одиночный агент в `CampaignEnv` (проблема готовности №6).
+
+    Кампания — сюжет одного героя против мира: оппонента нет, self-play не
+    применяется. Политика получает тот же контракт `Transition`, что и на
+    арене; эпизод завершается на терминальном исходе (`done`) или на
+    горизонте `max_days` (`truncated`, вопрос §7 №30). Возвращаемый `info`
+    содержит ключ `winner` ("agent"/"opponent"), чтобы общий учёт побед
+    `_count_winner` работал без разветвлений.
+    """
+    observation = env.reset(seed=seed)
+    done = False
+    truncated = False
+    info = {}
+    while not (done or truncated):
+        actions = tuple(env.legal_actions())
+        action = policy.act(observation, actions, explore=explore)
+        next_observation, reward, done, truncated, step_info = env.step(action)
+        if learn:
+            policy.observe(
+                Transition(
+                    observation=observation,
+                    action=action,
+                    reward=float(reward),
+                    next_observation=next_observation,
+                    done=bool(done),
+                    next_actions=tuple(env.legal_actions()),
+                    info=dict(step_info),
+                )
+            )
+        observation = next_observation
+        info = step_info
+    outcome = str(info.get("outcome") or "")
+    return {
+        "winner": "agent" if outcome == "win" else "opponent",
+        "outcome": outcome,
+        "day": int(info.get("day", 0)),
+        "truncated": bool(truncated),
+    }
+
+
 def _count_winner(info, wins, losses, draws):
     winner = info.get("winner")
     if winner in WINNERS_RL:
@@ -130,7 +188,11 @@ def evaluate(
     env_name="arena",
     env_kwargs=None,
 ):
-    """Оценить `policy` против `opponent` на held-out seed'ах."""
+    """Оценить `policy` против `opponent` на held-out seed'ах.
+
+    Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
+    оценка идёт против детерминированного среза мира `WorldEngine`.
+    """
     env = _make_env(
         env_name,
         seed,
@@ -151,7 +213,7 @@ def evaluate(
             explore=False,
         )
         wins, losses, draws = _count_winner(info, wins, losses, draws)
-    return {
+    result = {
         "episodes": int(episodes),
         "wins": wins,
         "losses": losses,
@@ -160,6 +222,10 @@ def evaluate(
         "seed": int(seed),
         "env": env_name,
     }
+    if getattr(env, "single_agent", False):
+        # В кампании draw = усечение горизонта без исхода (§7 №30).
+        result["draws"] = 0
+    return result
 
 
 def _named(items):
@@ -233,6 +299,7 @@ def train(
         opponent,
         env_kwargs,
     )
+    single_agent = bool(getattr(env, "single_agent", False))
     wins = 0
     losses = 0
     draws = 0
@@ -242,7 +309,7 @@ def train(
             policy,
             opponent,
             seed + episode,
-            self_play=self_play,
+            self_play=self_play and not single_agent,
             learn=True,
             explore=True,
         )
@@ -255,13 +322,14 @@ def train(
         "draws": draws,
         "win_rate": wins / max(1, episodes),
         "env": env_name,
-        "self_play": bool(self_play),
+        "self_play": bool(self_play and not single_agent),
         "policy_updates": int(getattr(policy, "updates", 0)),
-        "opponent_updates": int(getattr(opponent, "updates", 0)),
         "resumed_from": resume or "",
     }
+    if not single_agent:
+        stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
 
-    if eval_episodes:
+    if eval_episodes and not single_agent:
         if eval_seed is None:
             eval_seed = seed + 100000
         names = tuple(eval_opponents) or (opponent_name,)
@@ -290,9 +358,12 @@ def main(argv=None):
     parser.add_argument("--max-steps", type=int, default=160)
     parser.add_argument(
         "--env",
-        choices=("arena", "duel"),
+        choices=("arena", "duel", "campaign"),
         default="arena",
-        help="arena — активная арена (по умолчанию), duel — ранний срез",
+        help=(
+            "arena — активная арена (по умолчанию), duel — ранний срез, "
+            "campaign — дневная среда WorldEngine (проблема №6)"
+        ),
     )
     parser.add_argument(
         "--no-self-play",

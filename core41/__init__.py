@@ -51,7 +51,13 @@ from .model import (
     success_probability,
     transmit_sickness,
 )
-from .types import Action, Observation, Transition
+from .types import (
+    Action,
+    CampaignAction,
+    CampaignObservation,
+    Observation,
+    Transition,
+)
 
 __all__ = [
     "Action",
@@ -61,6 +67,8 @@ __all__ = [
     "Automaton",
     "BASE_TICK_SECONDS",
     "CAPTURE_STREAK",
+    "CampaignAction",
+    "CampaignObservation",
     "CORE_ACTIONS",
     "CONTAGION_CHANCE",
     "CONTAGION_SEVERITY",
