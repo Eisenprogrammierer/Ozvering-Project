@@ -576,6 +576,19 @@ class Layout:
         )
 
 
+def parse_health_factors(text):
+    factors = {}
+    for part in str(text or "").split(","):
+        if "=" not in part:
+            continue
+        name, value = part.split("=", 1)
+        name = name.strip()
+        if not name:
+            continue
+        factors[name] = float(value)
+    return factors
+
+
 def _ai_policy(checkpoint, seed):
     if checkpoint:
         try:
@@ -601,6 +614,7 @@ class MatchEngine:
         profile_rl="CANON",
         profile_ai="CANON",
         checkpoint="",
+        health_factors=None,
     ):
         LOG.info(
             "MatchEngine: core41 runtime seed=%s steps=%s profiles=%s/%s"
@@ -610,6 +624,7 @@ class MatchEngine:
         self.steps_total = int(steps)
         self.with_env = bool(with_env)
         self.checkpoint = checkpoint or ""
+        self.health_factors = dict(health_factors or {})
         self.core = ArenaMatch(
             seed=self.seed,
             steps=self.steps_total,
@@ -617,6 +632,8 @@ class MatchEngine:
             ai_policy=_ai_policy(self.checkpoint, self.seed ^ 0xB01),
             profile_rl=profile_rl,
             profile_ai=profile_ai,
+            health_factors_rl=self.health_factors,
+            health_factors_ai=self.health_factors,
         )
         self.rl = self.core.rl
         self.ai = self.core.ai
@@ -680,13 +697,15 @@ class MatchEngine:
         self.core.step_tick(forced_rl_action=forced_rl_action)
         LOG.debug(
             "tick %s -> F(RL)=%.1f F(AI)=%.1f E(RL)=%.1f E(AI)=%.1f "
-            "open(RL)=%s open(AI)=%s finished=%s"
+            "H(RL)=%.1f H(AI)=%.1f open(RL)=%s open(AI)=%s finished=%s"
             % (
                 self.step,
                 self.rl.force,
                 self.ai.force,
                 self.rl.energy_pool,
                 self.ai.energy_pool,
+                self.rl.health,
+                self.ai.health,
                 self.rl.in_open,
                 self.ai.in_open,
                 self.finished,
@@ -1021,6 +1040,7 @@ class GameApp:
         profile_rl="CANON",
         profile_ai="CANON",
         checkpoint="",
+        health_factors=None,
     ):
         LOG.info("GameApp: init_pygame_minimal() (video+font, без аудио)...")
         init_pygame_minimal()
@@ -1112,6 +1132,7 @@ class GameApp:
         self.profile_rl = profile_rl
         self.profile_ai = profile_ai
         self.checkpoint = checkpoint or ""
+        self.health_factors = dict(health_factors or {})
         self.match = MatchEngine(
             seed=self.game_seed,
             steps=steps,
@@ -1120,6 +1141,7 @@ class GameApp:
             profile_rl=profile_rl,
             profile_ai=profile_ai,
             checkpoint=self.checkpoint,
+            health_factors=self.health_factors,
         )
 
         self.action_idx = 0
@@ -1332,6 +1354,7 @@ class GameApp:
             profile_rl=self.profile_rl,
             profile_ai=self.profile_ai,
             checkpoint=self.checkpoint,
+            health_factors=self.health_factors,
         )
         self.paused = True
         LOG.info(
@@ -1499,7 +1522,7 @@ class GameApp:
                 (title, acc),
                 (
                     f"F={ag.force:6.1f} E={ag.energy_pool:4.0f} "
-                    f"reg={ag.regen}",
+                    f"H={ag.health:4.0f}",
                     COL_TEXT,
                 ),
                 (
@@ -2158,6 +2181,12 @@ def main():
         if index + 1 < len(sys.argv):
             checkpoint = sys.argv[index + 1]
         LOG.info("main(): AI checkpoint=%r" % checkpoint)
+    health_factors = {}
+    if "--health-factors" in sys.argv:
+        index = sys.argv.index("--health-factors")
+        if index + 1 < len(sys.argv):
+            health_factors = parse_health_factors(sys.argv[index + 1])
+        LOG.info("main(): health_factors=%r" % health_factors)
 
     init_pygame_minimal()
     fonts = FontSet()
@@ -2179,7 +2208,11 @@ def main():
             "FontSet готов: native pygame.font, кириллица=%s"
             % fonts.cyrillic_ok
         )
-    app = GameApp(fonts=fonts, checkpoint=checkpoint)
+    app = GameApp(
+        fonts=fonts,
+        checkpoint=checkpoint,
+        health_factors=health_factors,
+    )
     app.run()
     LOG.info("main(): штатное завершение, rc=0")
     return 0

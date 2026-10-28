@@ -39,6 +39,7 @@ class GameScene(Scene):
             on_escape=self._on_escape,
             seed=progress_seed,
             checkpoint=getattr(self.app, "checkpoint", ""),
+            health_factors=getattr(self.app, "health_factors", {}),
         )
         if resume_tick > 0:
             self.view.start_match(seed=progress_seed, resume_tick=resume_tick)

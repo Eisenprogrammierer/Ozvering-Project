@@ -422,6 +422,7 @@ python3 main.py --view        # кампанийный интерфейс view (
 python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
 python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-политику в активные сцены
+python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
 ```
 
 `game_engine.py` — слой «основное игровое поле» (арена + HUD дуэли
@@ -441,7 +442,10 @@ python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-поли�
 Целевой 4-2-1-срез и обучаемые агенты вынесены в `core41/` и `agents/`:
 `core41` даёт одну универсальную энергию, обработчики, `DuelEnv` и runtime
 активной арены (`ArenaAgent`, `ArenaMatch`), а `BDIPolicy`/`QTablePolicy` —
-обучаемые политики. `PolicyAgent` остаётся легаси-мостом для старых тестов и
+обучаемые политики. Здоровье — отдельное состояние `S` (`H=100`): отдых
+восстанавливает его, голод и переполнение урона после `F=0` уменьшают; смерть
+наступает при `H<=0`. Множители `aging/illness/stress/care` задаются через
+`--health-factors`. `PolicyAgent` остаётся легаси-мостом для старых тестов и
 экспериментов. `agents.load_policy(path)` определяет формат чекпойнта;
 `--checkpoint` загружает BDI-политику в арену и поле боя. Подробности и
 ограничения — [`docs/AGENTS.md`](docs/AGENTS.md); активные сцены больше не

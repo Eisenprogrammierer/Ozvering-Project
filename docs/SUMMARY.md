@@ -115,6 +115,9 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
   Оставлен baseline/экспериментам; активная арена использует `core41`.
 * **`ArenaAgent` / `ArenaMatch`** — runtime активной арены: одна универсальная
   энергия, формы `force`/`info`, QTable/BDI-политики, события и захват.
+  Здоровье — отдельное `S` (`H=100`): отдых `+0.5/тик`, голод `-1/тик`,
+  переполнение урона после `F=0`; смерть при `H<=0`. Множители
+  `aging/illness/stress/care` доступны через `--health-factors`.
   `game_engine.py` и `ui/battlefield.py` работают через этот слой.
 * **`PolicyAgent`** — адаптивный BDI-агент с линейной TD-политикой и
   online-обновлением; совместимый мост к легаси `simulation.Agent` и старым

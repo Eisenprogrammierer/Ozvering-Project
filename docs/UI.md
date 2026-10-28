@@ -20,6 +20,7 @@ python3 main.py --fullscreen  # (или -f) полноэкранный режи�
 python3 main.py --arena       # арена отдельно (автономный game_engine)
 python3 main.py --interaction # экран взаимодействий (объект → действие → исход)
 python3 main.py --checkpoint saves/bdi.json  # BDI-политика в активных сценах
+python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
 python3 -m ui --scene game    # сразу открыть экран игры (отладка)
 ```
 
@@ -144,6 +145,10 @@ interaction/         # чистая доменно-нейтральная мод
   внутренние имена `simulation.py`, которые остались только в каноне;
 * очки команд (CP) — тактический ресурс UI: движение/атака тратят, ход и
   занятая высота восполняют; высота даёт мораль, но не меняет физику модели;
+* здоровье командира — отдельная шкала `H`: HUD арены показывает `H=...`,
+  панель поля боя — бар «здоровье». `--health-factors` или
+  `BattlefieldModel(health_factors=...)` задают `aging/illness/stress/care`;
+  смерть при `H<=0` завершает бой, а `F=0` — ещё нет;
 * бой считается `core41.run_duel_tick` с `ArenaAgent`/`BDIPolicy` на стороне
   противника, захват — `core41.check_capture`; канон `simulation.py` и его пин
   не затрагиваются. `UtilityAI` больше не создаётся в арене и остаётся

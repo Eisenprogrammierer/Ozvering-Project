@@ -13,9 +13,11 @@
 > **Обновление 2026-10-28.** Активные сцены (`game_engine.py`,
 > `ui/battlefield.py`) работают на `core41.arena` и не создают `UtilityAI`;
 > чекпойнт BDI/QTable загружается явно через `--checkpoint`/`load_policy`.
-> `UtilityAI` остаётся baseline и частью канона `run_batch(10)`. Новый слой
-> описан в [`AGENTS.md`](AGENTS.md). Пункт P1 ниже относится к легаси-канону
-> `simulation.py` и не отменяет новый слой.
+> Здоровье — отдельное `S` (`H=100`): отдых/голод/переполнение урона,
+> смерть при `H<=0`, множители `aging/illness/stress/care` через
+> `--health-factors`. `UtilityAI` остаётся baseline и частью канона
+> `run_batch(10)`. Новый слой описан в [`AGENTS.md`](AGENTS.md). Пункт P1 ниже
+> относится к легаси-канону `simulation.py` и не отменяет новый слой.
 
 Контекст:
 * спецификация модели и раздел «Открытые вопросы» — [`MODEL.md`](MODEL.md) §15;

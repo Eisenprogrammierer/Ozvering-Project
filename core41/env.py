@@ -25,8 +25,8 @@ class DuelEnv:
         truncated = bool(
             done
             and self.world.time >= self.world.max_steps
-            and self.world.agent.force > 0
-            and self.world.opponent.force > 0
+            and not self.world.agent.is_dead
+            and not self.world.opponent.is_dead
         )
         return (
             observations["agent"],

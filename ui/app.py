@@ -13,13 +13,20 @@ FPS = getattr(ge, "FPS", 60)
 
 class App:
 
-    def __init__(self, fullscreen=None, seed=0, checkpoint=""):
+    def __init__(
+        self,
+        fullscreen=None,
+        seed=0,
+        checkpoint="",
+        health_factors=None,
+    ):
         ge.LOG.info("ui.App: инициализация сценного слоя")
         ge.init_pygame_minimal()
         self.save = SaveManager(log=ge.LOG)
         self.settings = self.save.settings
         self.seed = seed
         self.checkpoint = checkpoint or ""
+        self.health_factors = dict(health_factors or {})
         self.fullscreen = bool(
             self.settings.get("fullscreen", False)
             if fullscreen is None
@@ -167,7 +174,19 @@ def main(argv=None):
             checkpoint = argv[argv.index("--checkpoint") + 1]
         except IndexError:
             checkpoint = ""
-    app = App(fullscreen=fullscreen, checkpoint=checkpoint)
+    health_factors = {}
+    if "--health-factors" in argv:
+        try:
+            health_factors = ge.parse_health_factors(
+                argv[argv.index("--health-factors") + 1]
+            )
+        except IndexError:
+            health_factors = {}
+    app = App(
+        fullscreen=fullscreen,
+        checkpoint=checkpoint,
+        health_factors=health_factors,
+    )
     if start_scene:
         app.go(start_scene)
     return app.run()

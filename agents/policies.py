@@ -43,6 +43,9 @@ def features(observation, action):
         1.0
         if (action.form, observation.opponent_defense) in COUNTERS
         else 0.0,
+        observation.self_health / max(1.0, observation.self_max_health),
+        observation.opponent_health
+        / max(1.0, observation.opponent_max_health),
     )
 
 
@@ -112,6 +115,8 @@ class BDIPolicy:
             0.3,
             0.0,
             0.6,
+            1.2,
+            -0.6,
         ]
 
     def score(self, observation, action):
@@ -169,6 +174,14 @@ class BDIPolicy:
                 "opponent_force": float(
                     next_observation.opponent_force
                     / max(1.0, next_observation.opponent_max_force)
+                ),
+                "self_health": float(
+                    next_observation.self_health
+                    / max(1.0, next_observation.self_max_health)
+                ),
+                "opponent_health": float(
+                    next_observation.opponent_health
+                    / max(1.0, next_observation.opponent_max_health)
                 ),
             }
         )
@@ -260,6 +273,8 @@ class QTablePolicy:
             round(observation.self_energy / 10.0),
             round(observation.opponent_force / 10.0),
             round(observation.opponent_energy / 10.0),
+            round(observation.self_health / 20.0),
+            round(observation.opponent_health / 20.0),
             int(observation.opponent_open),
             action.kind,
             action.form,

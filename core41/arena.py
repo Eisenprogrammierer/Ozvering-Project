@@ -3,6 +3,9 @@ from __future__ import annotations
 import random
 
 from .model import (
+    DEFAULT_HEALTH_FACTORS,
+    HEALTH_FACTOR_MAX,
+    HEALTH_MAX,
     OPEN_PRESSURE,
     PRESSURE_PER_WORK,
     REST_FORCE,
@@ -72,6 +75,7 @@ def _perform(attacker, defender, action, world):
             attacker.unit.force + REST_FORCE,
         )
         attacker.unit.state["pressure"] = attacker.unit.pressure() * 0.5
+        attacker.unit.tick_health(resting=True)
         return {
             "kind": "rest",
             "spent": 0.0,
@@ -85,6 +89,7 @@ def _perform(attacker, defender, action, world):
     )
     if amount <= 0.0:
         attacker.unit.state["pressure"] = attacker.unit.pressure() * 0.5
+        attacker.unit.tick_health(resting=True)
         return {
             "kind": "rest",
             "spent": 0.0,
@@ -98,6 +103,7 @@ def _perform(attacker, defender, action, world):
     result["kind"] = "work"
     result["spent"] = amount
     result["form"] = work.form
+    attacker.unit.tick_health(resting=False)
     return result
 
 
@@ -127,6 +133,9 @@ class ArenaAgent:
         energy=100.0,
         max_force=100.0,
         max_energy=100.0,
+        health=HEALTH_MAX,
+        max_health=HEALTH_MAX,
+        health_factors=None,
     ):
         self.id = str(agent_id)
         self.profile = str(profile)
@@ -136,12 +145,18 @@ class ArenaAgent:
         skill, authority = PROFILE_SKILLS.get(
             self.profile, PROFILE_SKILLS["CANON"]
         )
+        factors = dict(DEFAULT_HEALTH_FACTORS)
+        if health_factors:
+            factors.update(health_factors)
         self.unit = Automaton(
             id=self.id,
             force=float(force),
             energy=float(energy),
             max_force=float(max_force),
             max_energy=float(max_energy),
+            health=float(health),
+            max_health=float(max_health),
+            health_factors=factors,
             inputs=FORMS,
             outputs=FORMS,
             skills={
@@ -194,6 +209,36 @@ class ArenaAgent:
         return self.energy_pool / max(1.0, self.max_energy)
 
     @property
+    def health(self):
+        return float(self.unit.health)
+
+    @health.setter
+    def health(self, value):
+        self.unit.health = max(0.0, min(self.unit.max_health, float(value)))
+
+    @property
+    def max_health(self):
+        return float(self.unit.max_health)
+
+    @property
+    def health_ratio(self):
+        return self.unit.health_ratio
+
+    @property
+    def is_dead(self):
+        return self.unit.is_dead
+
+    def set_health_factor(self, name, value):
+        self.unit.health_factors[str(name)] = max(
+            0.0, min(HEALTH_FACTOR_MAX, float(value))
+        )
+        return self.unit.health_factors[str(name)]
+
+    def set_health_factors(self, factors):
+        for name, value in dict(factors).items():
+            self.set_health_factor(name, value)
+
+    @property
     def regen(self):
         return int(REST_REGEN)
 
@@ -242,6 +287,7 @@ class ArenaAgent:
             self.rng = random.Random(self.seed)
         self.unit.force = self.unit.max_force
         self.unit.energy = self.unit.max_energy
+        self.unit.health = self.unit.max_health
         self.unit.state["pressure"] = 0.0
         self.last_action = Action("REST", form="rest")
         self.last_act = "REST"
@@ -280,6 +326,10 @@ class ArenaAgent:
                 if hasattr(opponent, "defense")
                 else ""
             ),
+            self_health=self.health,
+            self_max_health=self.max_health,
+            opponent_health=float(other.health),
+            opponent_max_health=float(other.max_health),
         )
         return observation
 
@@ -352,6 +402,7 @@ class ArenaAgent:
         success = rng.random() < chance
         damage = 0.0
         gain = 0.0
+        health_damage = 0.0
         if success:
             base = 0.55 if form == "force" else 0.30
             scale = 0.30 if form == "force" else 0.15
@@ -359,7 +410,9 @@ class ArenaAgent:
                 0.0,
                 work.amount * (base - scale * target.resistance(form)),
             )
-            target.force = max(0.0, target.force - damage)
+            _absorbed, _overflow, health_damage = target.apply_force_damage(
+                damage
+            )
             gain = min(
                 source.max_force - source.force, damage * 0.20
             )
@@ -370,6 +423,7 @@ class ArenaAgent:
             "energy": work.amount * 0.12,
             "force": damage,
             "damage": damage,
+            "health": health_damage,
             "gain": gain,
             "pressure": pressure,
             "chance": chance,
@@ -386,6 +440,8 @@ class ArenaMatch:
         ai_policy=None,
         profile_rl="CANON",
         profile_ai="CANON",
+        health_factors_rl=None,
+        health_factors_ai=None,
         with_env=False,
     ):
         self.seed = int(seed)
@@ -410,12 +466,14 @@ class ArenaMatch:
             policy=rl_policy,
             profile=profile_rl,
             seed=self.seed ^ 0x5EED,
+            health_factors=health_factors_rl,
         )
         self.ai = ArenaAgent(
             "ai",
             policy=ai_policy,
             profile=profile_ai,
             seed=self.seed ^ 0xA11E,
+            health_factors=health_factors_ai,
         )
 
     def step_tick(self, forced_rl_action=None):
@@ -440,8 +498,8 @@ class ArenaMatch:
 
         ai_action, _ = ai.choose_action(rl, explore=True)
 
-        rl_before = (rl.force, rl.energy_pool)
-        ai_before = (ai.force, ai.energy_pool)
+        rl_before = (rl.force, rl.energy_pool, rl.health)
+        ai_before = (ai.force, ai.energy_pool, ai.health)
 
         rl_result = self._perform(rl, ai, rl_action)
         ai_result = self._perform(ai, rl, ai_action)
@@ -505,6 +563,9 @@ class ArenaMatch:
             (me.force - before[0]) / max(1.0, me.rest_ceiling)
             + (other_before[0] - other.force) / max(1.0, other.rest_ceiling)
             - 0.6 * (before[1] - me.energy_pool) / max(1.0, me.unit.max_energy)
+            + (me.health - before[2]) / max(1.0, me.max_health)
+            + (other_before[2] - other.health)
+            / max(1.0, other.max_health)
         )
 
     def _perform(self, attacker, defender, action):
@@ -517,20 +578,20 @@ class ArenaMatch:
         if self.finished:
             return True
         rl, ai = self.rl, self.ai
-        if rl.force <= 0.0 and ai.force <= 0.0:
+        if rl.is_dead and ai.is_dead:
             self.winner = "draw"
-        elif rl.force <= 0.0:
+        elif rl.is_dead:
             self.winner = "AI"
-        elif ai.force <= 0.0:
+        elif ai.is_dead:
             self.winner = "RL"
         if self.winner is not None:
             self.finished = True
             return True
         if self.step >= self.steps_total:
             self.finished = True
-            if rl.force > ai.force:
+            if (rl.force, rl.health) > (ai.force, ai.health):
                 self.winner = "RL"
-            elif ai.force > rl.force:
+            elif (ai.force, ai.health) > (rl.force, rl.health):
                 self.winner = "AI"
             else:
                 self.winner = None

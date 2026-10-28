@@ -33,6 +33,7 @@ class BattlefieldScene(Scene):
                 seed=use_seed,
                 player_profile=player_profile,
                 checkpoint=getattr(self.app, "checkpoint", ""),
+                health_factors=getattr(self.app, "health_factors", {}),
             )
             self.move_mode = True
             self.show_help = False
@@ -535,6 +536,14 @@ class BattlefieldScene(Scene):
             energy_ratio,
             theme.OK,
             t("пул %d" % cmd.energy, "pool %d" % cmd.energy),
+        )
+        y += 20
+        self._bar(
+            s,
+            pygame.Rect(info_x, y, info_w, 14),
+            cmd.health_ratio,
+            theme.WARN,
+            t("здоровье %d" % cmd.health, "health %d" % cmd.health),
         )
         y += 20
         self._bar(

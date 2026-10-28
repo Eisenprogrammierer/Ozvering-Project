@@ -83,6 +83,7 @@ class Commander:
     ai: bool = False
     seed: int = 0
     checkpoint: str = ""
+    health_factors: dict = field(default_factory=dict)
     agent: ArenaAgent = field(init=False, repr=False)
 
     def __post_init__(self):
@@ -102,6 +103,7 @@ class Commander:
             policy=policy,
             profile=self.profile,
             seed=self.seed,
+            health_factors=self.health_factors,
         )
 
     @property
@@ -111,6 +113,18 @@ class Commander:
     @property
     def energy(self):
         return self.agent.energy_pool
+
+    @property
+    def health(self):
+        return self.agent.health
+
+    @property
+    def health_ratio(self):
+        return self.agent.health_ratio
+
+    @property
+    def is_dead(self):
+        return self.agent.is_dead
 
     @property
     def ceiling(self):
@@ -463,16 +477,19 @@ class BattlefieldModel:
         enemy_profile="CANON",
         with_env=True,
         checkpoint="",
+        health_factors=None,
     ):
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
         self.checkpoint = checkpoint or ""
+        factors = dict(health_factors or {})
         self.player = Commander(
             "Капитан",
             "player",
             player_profile,
             portrait="portrait_player",
             seed=self.seed,
+            health_factors=factors,
         )
         self.enemy = Commander(
             "Визави",
@@ -482,6 +499,7 @@ class BattlefieldModel:
             ai=True,
             seed=self.seed + 1,
             checkpoint=self.checkpoint,
+            health_factors=factors,
         )
         self.units = {
             "player": Unit(
@@ -646,6 +664,8 @@ class BattlefieldModel:
     ):
         before_p = self.player.force
         before_e = self.enemy.force
+        before_p_health = self.player.health
+        before_e_health = self.enemy.health
         before_e_energy = self.enemy.energy
 
         player_action = self._action_for_order(player_act, player_frac)
@@ -678,15 +698,20 @@ class BattlefieldModel:
             self.dom_enemy,
         )
         if winner is None:
-            if self.enemy.force <= 0:
+            if self.enemy.is_dead:
                 winner = "RL"
-            elif self.player.force <= 0:
+            elif self.player.is_dead:
                 winner = "AI"
 
         reward_enemy = (
             (self.enemy.force - before_e) / self.enemy.ceiling
             + (before_p - self.player.force) / self.player.ceiling
-            - 0.6 * (before_e_energy - self.enemy.energy)
+            + (self.enemy.health - before_e_health)
+            / self.enemy.agent.max_health
+            + (before_p_health - self.player.health)
+            / self.player.agent.max_health
+            - 0.6
+            * (before_e_energy - self.enemy.energy)
             / self.enemy.max_energy
         )
         self.enemy.agent.learn(
@@ -843,11 +868,13 @@ class BattlefieldModel:
             "player": {
                 "profile": self.player.profile,
                 "morale": self.player.morale,
+                "health": self.player.health,
                 "pos": list(self.player_unit.pos),
             },
             "enemy": {
                 "profile": self.enemy.profile,
                 "morale": self.enemy.morale,
+                "health": self.enemy.health,
                 "pos": list(self.enemy_unit.pos),
             },
             "objective_owner": self.objective_owner,

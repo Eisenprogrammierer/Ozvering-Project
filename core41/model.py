@@ -9,6 +9,19 @@ PRESSURE_PER_WORK = 0.30
 REST_REGEN = 14.0
 REST_FORCE = 0.6
 
+HEALTH_MAX = 100.0
+HEALTH_REST_REGEN = 0.5
+HEALTH_STARVE_DECAY = 1.0
+HEALTH_DAMAGE_RATIO = 1.0
+HEALTH_FACTOR_MAX = 10.0
+
+DEFAULT_HEALTH_FACTORS = {
+    "aging": 1.0,
+    "illness": 1.0,
+    "stress": 1.0,
+    "care": 1.0,
+}
+
 
 def sigmoid(value):
     if value < -60.0:
@@ -43,6 +56,11 @@ class Automaton:
     state: dict = field(default_factory=lambda: {"pressure": 0.0})
     handlers: dict = field(default_factory=dict)
     relations: dict = field(default_factory=dict)
+    health: float = HEALTH_MAX
+    max_health: float = HEALTH_MAX
+    health_factors: dict = field(
+        default_factory=lambda: dict(DEFAULT_HEALTH_FACTORS)
+    )
 
     @property
     def F(self):
@@ -51,6 +69,66 @@ class Automaton:
     @property
     def E(self):
         return self.energy
+
+    @property
+    def is_dead(self):
+        return self.health <= 0.0
+
+    @property
+    def health_ratio(self):
+        return self.health / max(1.0, self.max_health)
+
+    def health_factor(self, name):
+        value = float(self.health_factors.get(name, 1.0))
+        return max(0.0, min(HEALTH_FACTOR_MAX, value))
+
+    def health_decay_multiplier(self):
+        return min(
+            HEALTH_FACTOR_MAX,
+            self.health_factor("aging")
+            * self.health_factor("illness")
+            * self.health_factor("stress"),
+        )
+
+    def health_regen_multiplier(self):
+        illness = max(0.25, self.health_factor("illness"))
+        return min(
+            HEALTH_FACTOR_MAX,
+            self.health_factor("care") / illness,
+        )
+
+    def health_damage_multiplier(self):
+        return min(
+            HEALTH_FACTOR_MAX,
+            self.health_factor("aging")
+            * self.health_factor("illness"),
+        )
+
+    def apply_force_damage(self, damage):
+        damage = max(0.0, float(damage))
+        absorbed = min(self.force, damage)
+        self.force = max(0.0, self.force - absorbed)
+        overflow = max(0.0, damage - absorbed)
+        health_damage = (
+            overflow * HEALTH_DAMAGE_RATIO * self.health_damage_multiplier()
+        )
+        if health_damage:
+            self.health = max(0.0, self.health - health_damage)
+        return absorbed, overflow, health_damage
+
+    def tick_health(self, resting=False):
+        if self.health <= 0.0:
+            return 0.0
+        if self.energy <= 0.0:
+            self.health -= (
+                HEALTH_STARVE_DECAY * self.health_decay_multiplier()
+            )
+        elif resting:
+            self.health += (
+                HEALTH_REST_REGEN * self.health_regen_multiplier()
+            )
+        self.health = max(0.0, min(self.max_health, self.health))
+        return self.health
 
     def can_receive(self, form):
         return form in self.inputs

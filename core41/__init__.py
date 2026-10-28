@@ -10,7 +10,17 @@ from .arena import (
 )
 from .duel import DuelWorld
 from .env import DuelEnv
-from .model import Automaton, Work, success_probability
+from .model import (
+    DEFAULT_HEALTH_FACTORS,
+    HEALTH_DAMAGE_RATIO,
+    HEALTH_FACTOR_MAX,
+    HEALTH_MAX,
+    HEALTH_REST_REGEN,
+    HEALTH_STARVE_DECAY,
+    Automaton,
+    Work,
+    success_probability,
+)
 from .types import Action, Observation, Transition
 
 __all__ = [
@@ -20,6 +30,12 @@ __all__ = [
     "Automaton",
     "CAPTURE_STREAK",
     "CORE_ACTIONS",
+    "DEFAULT_HEALTH_FACTORS",
+    "HEALTH_DAMAGE_RATIO",
+    "HEALTH_FACTOR_MAX",
+    "HEALTH_MAX",
+    "HEALTH_REST_REGEN",
+    "HEALTH_STARVE_DECAY",
     "PROFILE_SKILLS",
     "DuelEnv",
     "DuelWorld",

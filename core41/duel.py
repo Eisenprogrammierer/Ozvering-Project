@@ -52,11 +52,14 @@ class DuelWorld:
         success = self.rng.random() < chance
         damage = 0.0
         gain = 0.0
+        health_damage = 0.0
         if success:
             damage = work.amount * (
                 0.55 - 0.30 * target.resistance(work.form)
             )
-            target.force = max(0.0, target.force - damage)
+            _absorbed, _overflow, health_damage = target.apply_force_damage(
+                damage
+            )
             gain = min(
                 source.max_force - source.force, damage * 0.20
             )
@@ -66,6 +69,7 @@ class DuelWorld:
             "success": success,
             "energy": work.amount * 0.12,
             "force": damage,
+            "health": health_damage,
             "gain": gain,
             "pressure": work.amount * PRESSURE_PER_WORK,
             "chance": chance,
@@ -90,6 +94,7 @@ class DuelWorld:
                 attacker.max_force, attacker.force + REST_FORCE
             )
             attacker.state["pressure"] = attacker.pressure() * 0.5
+            attacker.tick_health(resting=True)
             return {
                 "kind": "rest",
                 "spent": 0.0,
@@ -102,6 +107,7 @@ class DuelWorld:
         )
         if amount <= 0.0:
             attacker.state["pressure"] = attacker.pressure() * 0.5
+            attacker.tick_health(resting=True)
             return {
                 "kind": "rest",
                 "spent": 0.0,
@@ -115,6 +121,7 @@ class DuelWorld:
         result["kind"] = "work"
         result["spent"] = amount
         result["form"] = form
+        attacker.tick_health(resting=False)
         return result
 
     def step(self, actions):
@@ -150,20 +157,26 @@ class DuelWorld:
         )
         done = False
         winner = None
-        if self.agent.force <= 0.0 and self.opponent.force <= 0.0:
+        if self.agent.is_dead and self.opponent.is_dead:
             done = True
             winner = "draw"
-        elif self.agent.force <= 0.0:
+        elif self.agent.is_dead:
             done = True
             winner = "opponent"
-        elif self.opponent.force <= 0.0:
+        elif self.opponent.is_dead:
             done = True
             winner = "agent"
         elif self.time >= self.max_steps:
             done = True
-            if self.agent.force > self.opponent.force:
+            if (self.agent.force, self.agent.health) > (
+                self.opponent.force,
+                self.opponent.health,
+            ):
                 winner = "agent"
-            elif self.opponent.force > self.agent.force:
+            elif (self.opponent.force, self.opponent.health) > (
+                self.agent.force,
+                self.agent.health,
+            ):
                 winner = "opponent"
             else:
                 winner = "draw"
@@ -203,6 +216,10 @@ class DuelWorld:
             opponent_open=other.is_open(),
             time=float(self.time),
             forms=forms,
+            self_health=me.health,
+            self_max_health=me.max_health,
+            opponent_health=other.health,
+            opponent_max_health=other.max_health,
         )
 
     def legal_actions(self, agent_id="agent"):
