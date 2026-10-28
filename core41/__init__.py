@@ -20,6 +20,8 @@ from .clock import (
 from .duel import DuelWorld
 from .env import DuelEnv
 from .model import (
+    CONTAGION_CHANCE,
+    CONTAGION_SEVERITY,
     DEFAULT_HEALTH_FACTORS,
     HEALTH_CRITICAL,
     HEALTH_DAMAGE_RATIO,
@@ -34,10 +36,13 @@ from .model import (
     SICKNESS_PROGRESS,
     SICKNESS_REST_RECOVERY,
     SICKNESS_TREAT_RATE,
+    SICKNESS_WORK_FLOOR,
+    SICKNESS_WORK_PENALTY,
     TREAT_ENERGY_FRACTION,
     Automaton,
     Work,
     success_probability,
+    transmit_sickness,
 )
 from .types import Action, Observation, Transition
 
@@ -49,6 +54,8 @@ __all__ = [
     "BASE_TICK_SECONDS",
     "CAPTURE_STREAK",
     "CORE_ACTIONS",
+    "CONTAGION_CHANCE",
+    "CONTAGION_SEVERITY",
     "DEFAULT_HEALTH_FACTORS",
     "DEFAULT_SPEED",
     "DuelEnv",
@@ -69,6 +76,8 @@ __all__ = [
     "SICKNESS_PROGRESS",
     "SICKNESS_REST_RECOVERY",
     "SICKNESS_TREAT_RATE",
+    "SICKNESS_WORK_FLOOR",
+    "SICKNESS_WORK_PENALTY",
     "SPEEDS",
     "TREAT_ENERGY_FRACTION",
     "SimulationClock",
@@ -80,4 +89,5 @@ __all__ = [
     "run_duel_tick",
     "speed_label",
     "success_probability",
+    "transmit_sickness",
 ]

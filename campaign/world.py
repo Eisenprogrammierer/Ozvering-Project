@@ -4,11 +4,19 @@ import hashlib
 import json
 from pathlib import Path
 
+from core41 import HEALTH_MAX, SICKNESS_MAX
+
 from .errors import CampaignError
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
 DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
+
+CAMPAIGN_HEALTH_REGEN = 1.0
+CAMPAIGN_SICKNESS_PROGRESS = 0.01
+CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
+COLLAPSE_POWER = 0.05
+COLLAPSE_COHESION = 0.05
 
 NODE_STATS = (
     "power",
@@ -456,6 +464,18 @@ class WorldEngine:
         self.player_authority = 0.0
         self.player_resources = {key: 0.0 for key in PLAYER_STATS}
         self.player_item_ids = []
+        condition = self.config.get("condition") or {}
+        self.player_health = _clamp(
+            _as_float(condition.get("health"), HEALTH_MAX),
+            0.0,
+            HEALTH_MAX,
+        )
+        self.player_sickness = _clamp(
+            _as_float(condition.get("sickness"), 0.0),
+            0.0,
+            SICKNESS_MAX,
+        )
+        self.player_alive = self.player_health > 0.0
         self.day = 1
         self.actions_left = self.actions_per_day
         self.action_count = 0
@@ -516,6 +536,11 @@ class WorldEngine:
 
     @staticmethod
     def _build_character(raw):
+        health = _clamp(
+            _as_float(raw.get("health"), HEALTH_MAX),
+            0.0,
+            HEALTH_MAX,
+        )
         return {
             "id": raw["id"],
             "name": _text(raw.get("name"), raw["id"]),
@@ -523,6 +548,13 @@ class WorldEngine:
             "circle": _text(raw.get("circle"), "acquaintance"),
             "affinity": _clamp(raw.get("affinity", 0.0), -1.0, 1.0),
             "trust": _clamp(raw.get("trust", 0.0), -1.0, 1.0),
+            "health": health,
+            "sickness": _clamp(
+                _as_float(raw.get("sickness"), 0.0),
+                0.0,
+                SICKNESS_MAX,
+            ),
+            "alive": bool(raw.get("alive", health > 0.0)),
             "node_id": _text(raw.get("node_id")),
             "tags": list(raw.get("tags") or ()),
             "description": _text(raw.get("description")),
@@ -774,6 +806,131 @@ class WorldEngine:
         character = self.character(character_id) or {}
         return _as_float(character.get("trust"), 0.0)
 
+    def player_condition(self):
+        return {
+            "health": float(self.player_health),
+            "max_health": float(HEALTH_MAX),
+            "sickness": float(self.player_sickness),
+            "alive": bool(self.player_alive),
+        }
+
+    def character_condition(self, character_id):
+        character = self.character(character_id)
+        if character is None:
+            return None
+        return {
+            "health": float(character["health"]),
+            "max_health": float(HEALTH_MAX),
+            "sickness": float(character["sickness"]),
+            "alive": bool(character["alive"]),
+        }
+
+    def infect_player(self, severity):
+        self.player_sickness = min(
+            SICKNESS_MAX,
+            max(self.player_sickness, _as_float(severity)),
+        )
+        return self.player_sickness
+
+    def treat_player(self, amount):
+        self.player_sickness = max(
+            0.0,
+            self.player_sickness - max(0.0, _as_float(amount)),
+        )
+        return self.player_sickness
+
+    def infect_character(self, character_id, severity):
+        character = self.character(character_id)
+        if character is None or not character["alive"]:
+            return None
+        character["sickness"] = min(
+            SICKNESS_MAX,
+            max(character["sickness"], _as_float(severity)),
+        )
+        return character["sickness"]
+
+    def treat_character(self, character_id, amount):
+        character = self.character(character_id)
+        if character is None or not character["alive"]:
+            return None
+        character["sickness"] = max(
+            0.0,
+            character["sickness"] - max(0.0, _as_float(amount)),
+        )
+        return character["sickness"]
+
+    def _advance_condition(self, health, sickness):
+        health = _clamp(health, 0.0, HEALTH_MAX)
+        sickness = _clamp(sickness, 0.0, SICKNESS_MAX)
+        if sickness > 0.0:
+            health = max(
+                0.0,
+                health - CAMPAIGN_SICKNESS_HEALTH_DECAY * sickness,
+            )
+            sickness = min(
+                SICKNESS_MAX,
+                sickness + CAMPAIGN_SICKNESS_PROGRESS,
+            )
+        else:
+            health = min(HEALTH_MAX, health + CAMPAIGN_HEALTH_REGEN)
+        return health, sickness
+
+    def _advance_conditions(self):
+        changed = []
+        if self.player_alive:
+            before = (self.player_health, self.player_sickness)
+            self.player_health, self.player_sickness = (
+                self._advance_condition(
+                    self.player_health, self.player_sickness
+                )
+            )
+            if (self.player_health, self.player_sickness) != before:
+                changed.append(
+                    (
+                        "герой · здоровье",
+                        self.player_health - before[0],
+                    )
+                )
+            if self.player_health <= 0.0:
+                self.player_alive = False
+                self.outcome = "lose"
+                self.finished = True
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "death",
+                        "text": "Герой умер от болезни и истощения.",
+                    }
+                )
+        for character_id in self.character_order:
+            character = self.characters[character_id]
+            if not character["alive"]:
+                continue
+            before = (character["health"], character["sickness"])
+            character["health"], character["sickness"] = (
+                self._advance_condition(
+                    character["health"], character["sickness"]
+                )
+            )
+            if (character["health"], character["sickness"]) != before:
+                changed.append(
+                    (
+                        "%s · здоровье" % character["name"],
+                        character["health"] - before[0],
+                    )
+                )
+            if character["health"] <= 0.0:
+                character["alive"] = False
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "death",
+                        "text": "%s умер(ла) от болезни."
+                        % character["name"],
+                    }
+                )
+        return self._merge_changes(changed)
+
     def organization_category(self, node_id):
         node = self.node(node_id)
         if node is None:
@@ -870,6 +1027,8 @@ class WorldEngine:
         return self._reason_cost(action, context)
 
     def _reason_character(self, action, character):
+        if not character.get("alive", True):
+            return "собеседник мёртв"
         circles = action.get("circles") or ()
         if circles and character["circle"] not in circles:
             return "этот шаг не подходит для такой связи"
@@ -1769,6 +1928,21 @@ class WorldEngine:
             self.outcome = "lose"
             self.finished = True
             return
+        if (
+            node["stats"]["power"] <= COLLAPSE_POWER
+            or node["stats"]["cohesion"] <= COLLAPSE_COHESION
+        ):
+            self.outcome = "lose"
+            self.finished = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "collapse",
+                    "text": "Организация распалась: сила или связность "
+                    "упали ниже порога.",
+                }
+            )
+            return
         if self.player_resources["standing"] <= 0.05:
             self.outcome = "lose"
             self.finished = True
@@ -1816,6 +1990,7 @@ class WorldEngine:
                         )
         if daily.get("player"):
             changed.extend(self._apply_player_map(daily.get("player")))
+        changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
         if self.day > self.days and self.outcome is None:
@@ -1852,6 +2027,9 @@ class WorldEngine:
             "finished": self.finished,
             "day": self.day,
             "standing": self.player_resources["standing"],
+            "health": self.player_health,
+            "sickness": self.player_sickness,
+            "alive": self.player_alive,
         }
 
     def to_dict(self):
@@ -1870,11 +2048,17 @@ class WorldEngine:
                 "resources": dict(self.player_resources),
                 "career_history": list(self.career_history),
                 "items": list(self.player_item_ids),
+                "health": float(self.player_health),
+                "sickness": float(self.player_sickness),
+                "alive": bool(self.player_alive),
             },
             "characters": {
                 character_id: {
                     "affinity": character["affinity"],
                     "trust": character["trust"],
+                    "health": float(character["health"]),
+                    "sickness": float(character["sickness"]),
+                    "alive": bool(character["alive"]),
                 }
                 for character_id, character in self.characters.items()
             },
@@ -1910,6 +2094,22 @@ class WorldEngine:
         self.player_node_id = _text(player.get("node_id"))
         self.player_office_id = _text(player.get("office_id"))
         self.player_authority = _as_float(player.get("authority"), 0.0)
+        if "health" in player:
+            self.player_health = _clamp(
+                _as_float(player.get("health"), HEALTH_MAX),
+                0.0,
+                HEALTH_MAX,
+            )
+        if "sickness" in player:
+            self.player_sickness = _clamp(
+                _as_float(player.get("sickness"), 0.0),
+                0.0,
+                SICKNESS_MAX,
+            )
+        if "alive" in player:
+            self.player_alive = bool(player.get("alive"))
+        else:
+            self.player_alive = self.player_health > 0.0
         for key, value in (player.get("resources") or {}).items():
             if key in self.player_resources:
                 self.player_resources[key] = _clamp(value)
@@ -1930,6 +2130,22 @@ class WorldEngine:
             character["trust"] = _clamp(
                 saved.get("trust", character["trust"]), -1.0, 1.0
             )
+            if "health" in saved:
+                character["health"] = _clamp(
+                    _as_float(saved.get("health"), HEALTH_MAX),
+                    0.0,
+                    HEALTH_MAX,
+                )
+            if "sickness" in saved:
+                character["sickness"] = _clamp(
+                    _as_float(saved.get("sickness"), 0.0),
+                    0.0,
+                    SICKNESS_MAX,
+                )
+            if "alive" in saved:
+                character["alive"] = bool(saved.get("alive"))
+            else:
+                character["alive"] = character["health"] > 0.0
         for node_id, saved in (snapshot.get("nodes") or {}).items():
             node = self.nodes.get(node_id)
             if node is None:

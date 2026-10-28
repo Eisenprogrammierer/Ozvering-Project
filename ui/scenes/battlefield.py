@@ -557,6 +557,16 @@ class BattlefieldScene(Scene):
             t("здоровье %d" % cmd.health, "health %d" % cmd.health),
         )
         y += 20
+        if cmd.sickness > 0.0:
+            percent = int(round(cmd.sickness * 100))
+            self._bar(
+                s,
+                pygame.Rect(info_x, y, info_w, 14),
+                cmd.sickness,
+                theme.DANGER,
+                t("болезнь %d%%" % percent, "sickness %d%%" % percent),
+            )
+            y += 20
         self._bar(
             s,
             pygame.Rect(info_x, y, info_w, 14),

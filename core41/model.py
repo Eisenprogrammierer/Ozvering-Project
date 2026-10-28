@@ -24,6 +24,10 @@ SICKNESS_PROGRESS = 0.004
 SICKNESS_REST_RECOVERY = 0.01
 SICKNESS_TREAT_RATE = 0.08
 TREAT_ENERGY_FRACTION = 0.10
+CONTAGION_CHANCE = 0.35
+CONTAGION_SEVERITY = 0.50
+SICKNESS_WORK_PENALTY = 0.60
+SICKNESS_WORK_FLOOR = 0.40
 
 DEFAULT_HEALTH_FACTORS = {
     "aging": 1.0,
@@ -44,12 +48,28 @@ def sigmoid(value):
 def success_probability(attacker, defender, work, is_open):
     return sigmoid(
         -0.4
-        + 2.2 * attacker.skill(work.form)
+        + 2.2 * attacker.skill(work.form) * attacker.work_effectiveness()
         + 1.3 * attacker.authority
         - 1.8 * defender.resistance(work.form)
         + (0.9 if is_open else 0.0)
         - 0.5 * min(1.0, work.amount / max(1.0, defender.max_force))
     )
+
+
+def transmit_sickness(source, target, rng, form="force"):
+    severity = max(0.0, min(SICKNESS_MAX, float(source.sickness)))
+    if (
+        severity <= 0.0
+        or form != "force"
+        or target.sickness >= SICKNESS_MAX
+        or target.health <= 0.0
+    ):
+        return 0.0
+    if rng.random() >= CONTAGION_CHANCE * severity:
+        return 0.0
+    before = target.sickness
+    target.infect(CONTAGION_SEVERITY * severity)
+    return float(target.sickness - before)
 
 
 @dataclass
@@ -88,6 +108,16 @@ class Automaton:
     @property
     def is_sick(self):
         return self.sickness > 0.0
+
+    def work_effectiveness(self):
+        # Острая болезнь снижает успех работы, но не меняет сохранённый
+        # навык и не удорожает `E`: это одна шкала `sickness`, а не второй
+        # множитель `illness`. `illness` влияет на работу только косвенно,
+        # через скорость прогресса и восстановления болезни.
+        return max(
+            SICKNESS_WORK_FLOOR,
+            1.0 - SICKNESS_WORK_PENALTY * self.sickness,
+        )
 
     @property
     def health_ratio(self):
@@ -129,11 +159,11 @@ class Automaton:
         return 1.0 + SICKNESS_DAMAGE_BONUS * self.sickness
 
     def health_sickness_multiplier(self):
-        return min(
-            HEALTH_FACTOR_MAX,
-            self.health_factor("aging")
-            * self.health_factor("illness"),
-        )
+        # `illness` уже задаёт скорость прогресса и восстановления болезни.
+        # Повторно умножать на него урон от текущей `sickness` нельзя: это
+        # дало бы квадратичный штраф (illness ** 2). Урон от болезни зависит
+        # от тяжести процесса и только от возрастной хрупкости.
+        return self.health_factor("aging")
 
     def infect(self, severity):
         severity = max(0.0, min(SICKNESS_MAX, float(severity)))

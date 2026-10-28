@@ -424,3 +424,51 @@ def test_items_and_skill_tree_are_derived_from_office_and_profile():
     assert {skill["id"] for skill in skills} == set(engine.skill_labels)
     assert all(0.0 <= skill["value"] <= 1.0 for skill in skills)
     assert all(skill.get("description") for skill in skills)
+
+
+def test_campaign_sickness_can_kill_player_and_character():
+    engine = _engine()
+    engine.infect_player(1.0)
+    engine.player_health = 3.0
+    engine.infect_character("mira_svet", 1.0)
+    engine.characters["mira_svet"]["health"] = 2.0
+
+    engine.end_day()
+
+    assert engine.player_alive is False
+    assert engine.player_health == 0.0
+    assert engine.finished is True
+    assert engine.outcome == "lose"
+    assert engine.characters["mira_svet"]["alive"] is False
+    option = engine.character_action_options("mira_svet")[0]
+    assert option["enabled"] is False
+    assert "мёртв" in option["reason"]
+
+
+def test_campaign_organization_collapse_is_defeat():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.0
+    node["stats"]["cohesion"] = 0.0
+    engine.end_day()
+    assert engine.finished is True
+    assert engine.outcome == "lose"
+    assert any(entry["kind"] == "collapse" for entry in engine.log)
+
+
+def test_campaign_condition_survives_snapshot_roundtrip():
+    engine = _engine()
+    engine.infect_player(0.4)
+    engine.player_health = 63.5
+    engine.infect_character("mira_svet", 0.3)
+    engine.characters["mira_svet"]["health"] = 71.0
+
+    restored = WorldEngine(
+        load_world(), snapshot=json.loads(json.dumps(engine.to_dict()))
+    )
+    assert restored.player_condition() == engine.player_condition()
+    assert restored.character_condition(
+        "mira_svet"
+    ) == engine.character_condition("mira_svet")
+    assert restored.infect_player(0.2) == 0.4
+    assert restored.treat_player(0.1) == pytest.approx(0.3)

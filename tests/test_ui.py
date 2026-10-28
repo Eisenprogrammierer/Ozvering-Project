@@ -280,6 +280,28 @@ def test_game_scene_auto_pauses_on_critical_health(app):
     view.update(0.1)
 
 
+def test_game_scene_auto_pauses_on_critical_sickness(app):
+    app.go("game", new=True)
+    view = app.manager.current.view
+    view.set_speed(16)
+    view.paused = False
+    view.match.ai.sickness = 0.9
+    view.update(0.1)
+    assert view.paused
+    assert view.clock.pause_reason == "critical_sickness"
+    view.match.ai.sickness = 0.0
+    view.paused = False
+    view.update(0.1)
+    assert "ai" not in view._critical_sick
+    view.match.ai.sickness = 0.9
+    view.update(0.1)
+    assert view.paused
+    assert view.clock.pause_reason == "critical_sickness"
+    view.match.ai.sickness = 0.0
+    view.paused = False
+    view.update(0.1)
+
+
 def test_save_slot_from_pause_and_load(app, tmp_path):
     app.save.dir = tmp_path
     app.go("game", new=True)
@@ -388,3 +410,28 @@ def test_entry_point_importable():
     import main as entry
 
     assert callable(entry.main)
+
+
+def test_game_progress_and_restore_conditions(app):
+    app.go("game", new=True)
+    view = app.manager.current.view
+    view.match.rl.load_condition({"health": 41.0, "sickness": 0.27})
+    view.match.ai.load_condition({"health": 73.0, "sickness": 0.11})
+
+    data = view.progress()
+    assert data["health_rl"] == 41.0
+    assert data["sickness_rl"] == 0.27
+    assert data["health_ai"] == 73.0
+    assert data["sickness_ai"] == 0.11
+    assert data["sickness"] == 0.0
+
+    view.match.rl.reset_state()
+    view.match.ai.reset_state()
+    view.restore_conditions(
+        {"health": data["health_rl"], "sickness": data["sickness_rl"]},
+        {"health": data["health_ai"], "sickness": data["sickness_ai"]},
+    )
+    assert view.match.rl.health == 41.0
+    assert view.match.rl.sickness == 0.27
+    assert view.match.ai.health == 73.0
+    assert view.match.ai.sickness == 0.11

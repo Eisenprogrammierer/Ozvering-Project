@@ -8,10 +8,16 @@
     python3 experiments/exp_health_calibration.py \
         --set HEALTH_DAMAGE_RATIO=0.75,HEALTH_REST_REGEN=0.8
     python3 experiments/exp_health_calibration.py --sickness 0.5
+    python3 experiments/exp_health_calibration.py --sickness-rl 0.5 --sickness-ai 0.2
+    python3 experiments/exp_health_calibration.py \
+        --set SICKNESS_HEALTH_DECAY=1.2,CONTAGION_CHANCE=0.5
 
 Скрипт не меняет код: константы `core41.model` подменяются только на время
-пакета партий и затем восстанавливаются. Цели калибровки и результаты —
-в `docs/WORLD_CORE_MODEL.md`, раздел 2.3.2.
+пакета партий и затем восстанавливаются. Калибруются не только
+`HEALTH_*`, но и `SICKNESS_*`, `TREAT_ENERGY_FRACTION` и `CONTAGION_*`
+(`CALIBRATABLE`). Болезнь сторон задаётся отдельно (`--sickness-rl`/
+`--sickness-ai`) или симметрично (`--sickness`). Цели калибровки и
+результаты — в `docs/WORLD_CORE_MODEL.md`, раздел 2.3.2.
 """
 
 import argparse
@@ -30,6 +36,16 @@ CALIBRATABLE = (
     "HEALTH_DAMAGE_RATIO",
     "HEALTH_REST_REGEN",
     "HEALTH_STARVE_DECAY",
+    "SICKNESS_HEALTH_DECAY",
+    "SICKNESS_DAMAGE_BONUS",
+    "SICKNESS_PROGRESS",
+    "SICKNESS_REST_RECOVERY",
+    "SICKNESS_TREAT_RATE",
+    "SICKNESS_WORK_PENALTY",
+    "SICKNESS_WORK_FLOOR",
+    "TREAT_ENERGY_FRACTION",
+    "CONTAGION_CHANCE",
+    "CONTAGION_SEVERITY",
 )
 
 BASELINE = {
@@ -77,19 +93,19 @@ def metering():
         model.Automaton.apply_force_damage = _ORIG_DAMAGE
 
 
-def _make_match(seed, steps, sickness=0.0):
+def _make_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
     return ArenaMatch(
         seed=seed,
         steps=steps,
         rl_policy=QTablePolicy(seed=seed),
         ai_policy=BDIPolicy(seed=seed ^ 0xB01),
-        sickness_rl=sickness,
-        sickness_ai=sickness,
+        sickness_rl=sickness_rl,
+        sickness_ai=sickness_ai,
     )
 
 
-def run_match(seed, steps, sickness=0.0):
-    match = _make_match(seed, steps, sickness)
+def run_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
+    match = _make_match(seed, steps, sickness_rl, sickness_ai)
     critical_ticks = 0
     recoveries = 0
     below = {"rl": False, "ai": False}
@@ -131,18 +147,19 @@ def _restore(saved):
         setattr(model, name, value)
 
 
-def run_batch(seeds, steps, overrides, label, sickness=0.0):
+def run_batch(seeds, steps, overrides, label, sickness_rl=0.0, sickness_ai=0.0):
     saved = _with_overrides(overrides)
     _METER["starve"] = 0.0
     _METER["damage"] = 0.0
     try:
         with metering():
             rows = [
-                run_match(seed, steps, sickness) for seed in range(seeds)
+                run_match(seed, steps, sickness_rl, sickness_ai)
+                for seed in range(seeds)
             ]
     finally:
         _restore(saved)
-    _report(label, rows, seeds, steps, sickness)
+    _report(label, rows, seeds, steps, sickness_rl, sickness_ai)
     return rows
 
 
@@ -150,7 +167,7 @@ def _share(count, total):
     return count / max(1, total)
 
 
-def _report(label, rows, seeds, steps, sickness=0.0):
+def _report(label, rows, seeds, steps, sickness_rl=0.0, sickness_ai=0.0):
     counts = {
         cause: sum(1 for row in rows if row["cause"] == cause)
         for cause in ("death", "capture", "timeout")
@@ -166,8 +183,8 @@ def _report(label, rows, seeds, steps, sickness=0.0):
     recoveries = statistics.mean(row["recoveries"] for row in rows)
 
     print(
-        "\n=== %s (N=%d, steps=%d, sickness=%.2f) ==="
-        % (label, seeds, steps, sickness)
+        "\n=== %s (N=%d, steps=%d, sickness RL=%.2f / AI=%.2f) ==="
+        % (label, seeds, steps, sickness_rl, sickness_ai)
     )
     for cause in ("death", "capture", "timeout"):
         print(
@@ -248,14 +265,41 @@ def main(argv=None):
     parser.add_argument(
         "--sickness",
         type=float,
-        default=0.0,
-        help="начальная болезнь обоих бойцов [0..1]",
+        default=None,
+        help="начальная болезнь обоих бойцов [0..1] (сокращение)",
+    )
+    parser.add_argument(
+        "--sickness-rl",
+        type=float,
+        default=None,
+        help="начальная болезнь RL-бойца [0..1]",
+    )
+    parser.add_argument(
+        "--sickness-ai",
+        type=float,
+        default=None,
+        help="начальная болезнь AI-бойца [0..1]",
     )
     args = parser.parse_args(argv)
     if args.seeds < 1 or args.steps < 1:
         parser.error("--seeds и --steps должны быть положительными")
-    if not 0.0 <= args.sickness <= 1.0:
-        parser.error("--sickness должен быть в диапазоне [0..1]")
+    if args.sickness is not None and (
+        args.sickness_rl is not None or args.sickness_ai is not None
+    ):
+        parser.error(
+            "--sickness нельзя сочетать с --sickness-rl/--sickness-ai"
+        )
+    sickness_rl = args.sickness if args.sickness is not None else args.sickness_rl
+    sickness_ai = args.sickness if args.sickness is not None else args.sickness_ai
+    sickness_rl = 0.0 if sickness_rl is None else sickness_rl
+    sickness_ai = 0.0 if sickness_ai is None else sickness_ai
+    for name, value in (
+        ("--sickness", args.sickness),
+        ("--sickness-rl", sickness_rl),
+        ("--sickness-ai", sickness_ai),
+    ):
+        if value is not None and not 0.0 <= value <= 1.0:
+            parser.error("%s должен быть в диапазоне [0..1]" % name)
     try:
         overrides = parse_overrides(args.overrides)
     except ValueError as error:
@@ -263,14 +307,20 @@ def main(argv=None):
 
     if args.baseline:
         run_batch(
-            args.seeds, args.steps, BASELINE, "baseline: 1.0/0.5", args.sickness
+            args.seeds,
+            args.steps,
+            BASELINE,
+            "baseline: 1.0/0.5",
+            sickness_rl,
+            sickness_ai,
         )
     run_batch(
         args.seeds,
         args.steps,
         overrides,
         "текущая калибровка",
-        args.sickness,
+        sickness_rl,
+        sickness_ai,
     )
     return 0
 

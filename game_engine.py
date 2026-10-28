@@ -185,6 +185,7 @@ try:
         CAPTURE_STREAK,
         DEFAULT_SPEED,
         HEALTH_CRITICAL,
+        SICKNESS_CRITICAL,
         SICKNESS_MAX,
         SimulationClock,
         normalize_speed,
@@ -250,6 +251,7 @@ SCREEN_W, SCREEN_H = 1024, 640
 PANEL_W = 300
 FPS = 60
 CRITICAL_HEALTH = HEALTH_CRITICAL
+CRITICAL_SICKNESS = SICKNESS_CRITICAL
 
 
 DEFENSE_COLORS = {
@@ -1137,6 +1139,7 @@ class GameApp:
 
         self.clock = SimulationClock(speed=speed, auto_pause=auto_pause)
         self._critical_low = set()
+        self._critical_sick = set()
         self.paused = True
         self.manual_mode = False
         self.show_help = True
@@ -1219,16 +1222,24 @@ class GameApp:
             agent = getattr(self.match, side)
             if agent.health > CRITICAL_HEALTH:
                 self._critical_low.discard(side)
-                continue
-            if side in self._critical_low:
-                continue
-            self._critical_low.add(side)
-            self.clock.pause("critical_health")
-            LOG.warn(
-                "AUTO-PAUSE: %s health=%.1f <= %.1f"
-                % (side, agent.health, CRITICAL_HEALTH)
-            )
-            return True
+            elif side not in self._critical_low:
+                self._critical_low.add(side)
+                self.clock.pause("critical_health")
+                LOG.warn(
+                    "AUTO-PAUSE: %s health=%.1f <= %.1f"
+                    % (side, agent.health, CRITICAL_HEALTH)
+                )
+                return True
+            if agent.sickness < CRITICAL_SICKNESS:
+                self._critical_sick.discard(side)
+            elif side not in self._critical_sick:
+                self._critical_sick.add(side)
+                self.clock.pause("critical_sickness")
+                LOG.warn(
+                    "AUTO-PAUSE: %s sickness=%.2f >= %.2f"
+                    % (side, agent.sickness, CRITICAL_SICKNESS)
+                )
+                return True
         return False
 
     def _press(self, name):
@@ -1444,6 +1455,7 @@ class GameApp:
         )
         self.paused = True
         self._critical_low.clear()
+        self._critical_sick.clear()
         self.clock.reset_counters()
         LOG.info(
             "RESET завершён: paused=True seed=%s (Q-таблица перенесена, "
@@ -1475,9 +1487,27 @@ class GameApp:
             "profile_rl": self.profile_rl,
             "profile_ai": self.profile_ai,
             "sickness": self.sickness,
+            "sickness_rl": m.rl.sickness,
+            "sickness_ai": m.ai.sickness,
+            "health_rl": m.rl.health,
+            "health_ai": m.ai.health,
             "speed": self.clock.selected_speed,
             "paused": self.paused,
         }
+
+    def restore_conditions(self, rl=None, ai=None):
+        self.match.rl.load_condition(rl)
+        self.match.ai.load_condition(ai)
+        LOG.info(
+            "restore_conditions: H(RL)=%.1f S(RL)=%.2f "
+            "H(AI)=%.1f S(AI)=%.2f"
+            % (
+                self.match.rl.health,
+                self.match.rl.sickness,
+                self.match.ai.health,
+                self.match.ai.sickness,
+            )
+        )
 
     def on_resize(self, w, h):
         global SCREEN_W, SCREEN_H

@@ -403,6 +403,7 @@ python3 experiments/exp_g2_profiles.py           # G2: профили p<1 и и�
 python3 experiments/exp_p1_rl_boost.py           # P1: потолок табличного RL
 python3 experiments/exp_health_calibration.py    # калибровка здоровья core41
 python3 experiments/exp_health_calibration.py --sickness 0.5  # калибровка с болезнью
+python3 experiments/exp_health_calibration.py --sickness-rl 0.5 --sickness-ai 0.0
 python3 experiments/exp_warfare.py               # войсковые автоматы (код 0/1)
 ```
 
@@ -452,14 +453,21 @@ python3 main.py --no-auto-pause                     # без авто-паузы
 коэффициентом `0.70` после `F=0` уменьшают; смерть наступает при `H<=0`. Множители
 `aging/illness/stress/care` задаются через `--health-factors`. Болезнь —
 процесс `sickness ∈ [0,1]`: без отдыха прогрессирует и наносит урон, отдых и
-`treat()` снижают её, начальное значение — `--sickness`. Лечение — шестое
+`treat()` снижают её, начальное значение — `--sickness`
+(или раздельно `--sickness-rl`/`--sickness-ai`). Лечение — шестое
 действие `TREAT` (`CORE_ACTIONS` из шести): политики видят болезнь в
-`Observation`, а `TREAT` предлагается только при `sickness > 0`. Дуэльный
+`Observation`, а `TREAT` предлагается только при `sickness > 0`. Успешный
+`force`-контакт может передать болезнь асимметрично. `SICKNESS_*`,
+`TREAT_ENERGY_FRACTION` и `CONTAGION_*` калибруются через `--set`; `illness`
+не удваивает урон от текущей `sickness`. Острая болезнь снижает успех работы
+через `work_effectiveness`, не меняя навык и расход `E`. В кампании болезнь,
+смерть героя/персонажей и распад организации идут дневным шагом; условия
+сохраняются в сейве. Дуэльный
 срез откалиброван (`experiments/exp_health_calibration.py`, §2.3.2–2.3.3
 `docs/WORLD_CORE_MODEL.md`). Время в арене идёт секундным тиком через
 `core41.SimulationClock`: скорости `pause/1x/2x/4x/8x/16x`, авто-пауза при
-критическом здоровье и завершении партии, ограниченный догон после
-сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
+критическом здоровье, критической болезни и завершении партии, ограниченный
+догон после сворачивания окна (`--no-auto-pause` отключает автопаузу). `PolicyAgent`
 остаётся легаси-мостом для старых тестов и
 экспериментов. `agents.load_policy(path)` определяет формат чекпойнта;
 `--checkpoint` загружает BDI-политику в арену и поле боя. Подробности и

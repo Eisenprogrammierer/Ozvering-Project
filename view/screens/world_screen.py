@@ -541,6 +541,12 @@ class WorldScreen(BaseScreen):
             office.get("level_label", "—"),
             world_text.scale_label(office.get("authority", 0.0)),
         )
+        condition = self.engine.player_condition()
+        detail += " · H %d" % int(round(condition["health"]))
+        if condition["sickness"] > 0.0:
+            detail += " · болезнь %d%%" % int(
+                round(condition["sickness"] * 100)
+            )
         screen.blit(
             self.app.font_tiny.render(
                 self._clip_text(self.app.font_tiny, detail, 470),

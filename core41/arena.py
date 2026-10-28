@@ -15,6 +15,7 @@ from .model import (
     TREAT_ENERGY_FRACTION,
     Automaton,
     success_probability,
+    transmit_sickness,
 )
 from .types import Action, Observation, Transition, Work
 
@@ -135,23 +136,40 @@ def _perform(attacker, defender, action, world):
     result["kind"] = "work"
     result["spent"] = amount
     result["form"] = work.form
+    infection = 0.0
+    rng = getattr(world, "rng", None)
+    if result.get("success") and rng is not None:
+        infection = transmit_sickness(
+            attacker.unit, defender.unit, rng, work.form
+        )
+    result["infection"] = infection
     attacker.unit.tick_health(resting=False)
     return result
 
 
 def _transfer_event(side, agent, result):
-    if result.get("kind") != "work" or result.get("spent", 0.0) <= 0:
-        return []
-    return [
-        {
-            "kind": "transfer",
-            "frm": side,
-            "work": float(result.get("spent", 0.0)),
-            "hit": bool(result.get("success", False)),
-            "gained": int(max(0.0, result.get("gain", 0.0))),
-            "type": str(result.get("form", agent.defense)),
-        }
-    ]
+    events = []
+    if result.get("kind") == "work" and result.get("spent", 0.0) > 0:
+        events.append(
+            {
+                "kind": "transfer",
+                "frm": side,
+                "work": float(result.get("spent", 0.0)),
+                "hit": bool(result.get("success", False)),
+                "gained": int(max(0.0, result.get("gain", 0.0))),
+                "type": str(result.get("form", agent.defense)),
+            }
+        )
+    infection = float(result.get("infection", 0.0))
+    if infection > 0.0:
+        events.append(
+            {
+                "kind": "infection",
+                "frm": side,
+                "amount": infection,
+            }
+        )
+    return events
 
 
 class ArenaAgent:
@@ -350,6 +368,23 @@ class ArenaAgent:
         self.rest_units = 0.0
         self._last_observation = None
         self._last_action = None
+
+    def condition_state(self):
+        return {
+            "health": float(self.health),
+            "sickness": float(self.sickness),
+        }
+
+    def load_condition(self, state):
+        state = state or {}
+        if state.get("health") is not None:
+            self.unit.health = max(
+                0.0,
+                min(self.unit.max_health, float(state["health"])),
+            )
+        if state.get("sickness") is not None:
+            self.sickness = float(state["sickness"])
+        return self.condition_state()
 
     def actions(self):
         actions = [action_from_index(0)]

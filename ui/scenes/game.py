@@ -43,6 +43,19 @@ class GameScene(Scene):
             sickness = save_data.get("sickness")
         if sickness is None:
             sickness = 0.0
+        condition_rl = None
+        condition_ai = None
+        if save_data:
+            if "health_rl" in save_data or "sickness_rl" in save_data:
+                condition_rl = {
+                    "health": save_data.get("health_rl"),
+                    "sickness": save_data.get("sickness_rl"),
+                }
+            if "health_ai" in save_data or "sickness_ai" in save_data:
+                condition_ai = {
+                    "health": save_data.get("health_ai"),
+                    "sickness": save_data.get("sickness_ai"),
+                }
         self.view = ge.GameApp(
             fonts=self.app.fonts,
             screen=self.app.screen,
@@ -56,6 +69,8 @@ class GameScene(Scene):
         )
         if resume_tick > 0:
             self.view.start_match(seed=progress_seed, resume_tick=resume_tick)
+        if condition_rl is not None or condition_ai is not None:
+            self.view.restore_conditions(condition_rl, condition_ai)
         self._autosaved = False
         if self.app.save.settings.get("autosave", True):
             self.app.save.autosave(self.save_data())

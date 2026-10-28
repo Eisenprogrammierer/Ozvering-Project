@@ -8,6 +8,7 @@ from .model import (
     TREAT_ENERGY_FRACTION,
     Automaton,
     success_probability,
+    transmit_sickness,
 )
 from .types import Action, Observation, Work
 
@@ -140,6 +141,12 @@ class DuelWorld:
         result["kind"] = "work"
         result["spent"] = amount
         result["form"] = form
+        infection = 0.0
+        if result.get("success"):
+            infection = transmit_sickness(
+                attacker, defender, self.rng, form
+            )
+        result["infection"] = infection
         attacker.tick_health(resting=False)
         return result
 

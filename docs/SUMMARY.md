@@ -123,7 +123,13 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
   восстановление отдыхом и `treat()`, начальное значение через `--sickness`.
   Лечение — шестое действие `TREAT` (`CORE_ACTIONS` из шести); политики
   видят болезнь в `Observation`, а `TREAT` предлагается только при
-  `sickness > 0`.
+  `sickness > 0`. Успешный `force`-контакт может передать болезнь
+  асимметрично (`CONTAGION_CHANCE`/`CONTAGION_SEVERITY`).
+  `CALIBRATABLE` включает `SICKNESS_*`, `TREAT_ENERGY_FRACTION` и
+  `CONTAGION_*`, болезнь сторон задаётся `--sickness-rl`/`--sickness-ai`;
+  `illness` не умножает урон от текущей `sickness` повторно, а острая
+  болезнь снижает успех работы через `work_effectiveness`, не меняя навык и
+  расход `E`. Авто-пауза срабатывает на критическом здоровье и болезни.
   Дуэльный срез откалиброван: `experiments/exp_health_calibration.py`.
   Реальное время — `core41.SimulationClock`: тик 1 с, скорости
   `pause/1x/2x/4x/8x/16x`, авто-пауза и ограниченный догон.
