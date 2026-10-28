@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from core41 import DuelEnv
+from core41 import ArenaEnv, DuelEnv
 from core41.types import Transition
 
 from .policies import make_policy
@@ -14,10 +14,19 @@ def train(
     policy_name="bdi",
     opponent_name="bdi",
     max_steps=160,
+    env_name="arena",
 ):
     policy = make_policy(policy_name, seed=seed)
     opponent = make_policy(opponent_name, seed=seed + 1)
-    env = DuelEnv(seed=seed, max_steps=max_steps)
+    if env_name == "duel":
+        env = DuelEnv(seed=seed, max_steps=max_steps)
+    else:
+        env = ArenaEnv(
+            seed=seed,
+            steps=max_steps,
+            policy=policy,
+            opponent_policy=opponent,
+        )
     wins = 0
     losses = 0
     draws = 0
@@ -26,14 +35,17 @@ def train(
         done = False
         info = {}
         while not done:
-            actions = env.world.legal_actions("agent")
+            actions = env.action_space
             action = policy.act(observation, actions, explore=True)
-            opponent_actions = env.world.legal_actions("opponent")
-            opponent_action = opponent.act(
-                env.world.observe("opponent"),
-                opponent_actions,
-                explore=True,
-            )
+            if env_name == "duel":
+                opponent_actions = env.world.legal_actions("opponent")
+                opponent_action = opponent.act(
+                    env.world.observe("opponent"),
+                    opponent_actions,
+                    explore=True,
+                )
+            else:
+                opponent_action = None
             next_observation, reward, done, truncated, info = env.step(
                 action, opponent_action=opponent_action
             )
@@ -44,15 +56,15 @@ def train(
                     reward=reward,
                     next_observation=next_observation,
                     done=done,
-                    next_actions=env.world.legal_actions("agent"),
+                    next_actions=env.action_space,
                     info=dict(info),
                 )
             )
             observation = next_observation
         winner = info.get("winner")
-        if winner == "agent":
+        if winner in ("agent", "RL"):
             wins += 1
-        elif winner == "opponent":
+        elif winner in ("opponent", "AI"):
             losses += 1
         else:
             draws += 1
@@ -62,6 +74,7 @@ def train(
         "losses": losses,
         "draws": draws,
         "win_rate": wins / max(1, episodes),
+        "env": env_name,
     }
 
 
@@ -72,6 +85,12 @@ def main(argv=None):
     parser.add_argument("--policy", default="bdi")
     parser.add_argument("--opponent", default="bdi")
     parser.add_argument("--max-steps", type=int, default=160)
+    parser.add_argument(
+        "--env",
+        choices=("arena", "duel"),
+        default="arena",
+        help="arena — активная арена (по умолчанию), duel — ранний срез",
+    )
     parser.add_argument("--out", default="")
     args = parser.parse_args(argv)
     policy, stats = train(
@@ -80,6 +99,7 @@ def main(argv=None):
         policy_name=args.policy,
         opponent_name=args.opponent,
         max_steps=args.max_steps,
+        env_name=args.env,
     )
     print(json.dumps(stats, ensure_ascii=False))
     if args.out:

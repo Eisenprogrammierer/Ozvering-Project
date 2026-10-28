@@ -9,6 +9,7 @@ from agents.train import train
 from core41 import (
     Action,
     ArenaAgent,
+    ArenaEnv,
     ArenaMatch,
     Automaton,
     CORE_ACTIONS,
@@ -243,6 +244,50 @@ def test_arena_match_runs_and_updates_both_policies():
     assert first.ai.policy.updates == 30
     assert first.rl_hist == second.rl_hist
     assert first.ai_hist == second.ai_hist
+
+
+def test_arena_env_matches_active_arena_and_does_not_learn_internally():
+    policy = BDIPolicy(seed=3, epsilon=0.0)
+    weights_before = list(policy.weights)
+    env = ArenaEnv(seed=3, steps=10, policy=policy, sickness_rl=0.5)
+    observation = env.reset(seed=3)
+    assert isinstance(observation, Observation)
+    actions = {
+        (action.kind, action.form, action.fraction)
+        for action in env.action_space
+    }
+    assert ("WORK", "force", 0.3) in actions
+    assert ("WORK", "info", 0.7) in actions
+    assert ("TREAT", "care", 0.1) in actions
+    next_observation, reward, done, truncated, info = env.step(
+        Action("REST", form="rest")
+    )
+    assert isinstance(next_observation, Observation)
+    assert isinstance(reward, float)
+    assert not done
+    assert not truncated
+    assert policy.weights == weights_before
+    assert "winner" in info
+    assert "events" in info
+
+
+def test_arena_env_terminal_and_truncated_contract():
+    env = ArenaEnv(
+        seed=1,
+        steps=1,
+        policy=RandomPolicy(seed=1),
+        opponent_policy=RandomPolicy(seed=2),
+    )
+    env.reset(seed=1)
+    observation, reward, done, truncated, info = env.step(
+        Action("REST", form="rest"),
+        opponent_action=Action("REST", form="rest"),
+    )
+    assert isinstance(observation, Observation)
+    assert isinstance(reward, float)
+    assert done
+    assert truncated
+    assert info["winner"] in ("RL", "AI", None)
 
 
 def test_arena_match_forced_action_uses_ui_index():

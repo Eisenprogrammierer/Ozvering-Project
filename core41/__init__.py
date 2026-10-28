@@ -18,7 +18,7 @@ from .clock import (
     speed_label,
 )
 from .duel import DuelWorld
-from .env import DuelEnv
+from .env import ArenaEnv, DuelEnv
 from .model import (
     CONTAGION_CHANCE,
     CONTAGION_SEVERITY,
@@ -49,6 +49,7 @@ from .types import Action, Observation, Transition
 __all__ = [
     "Action",
     "ArenaAgent",
+    "ArenaEnv",
     "ArenaMatch",
     "Automaton",
     "BASE_TICK_SECONDS",

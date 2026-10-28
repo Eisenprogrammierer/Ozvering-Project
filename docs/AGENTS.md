@@ -21,7 +21,11 @@
 - `Automaton` — `I/O/H/S/F/E/W` с одной универсальной энергией;
 - `DuelWorld` — два автомата, обработчики, давление, окно входа,
   логистическая вероятность успеха;
-- `DuelEnv` — Gym-подобный интерфейс `reset/step` для обучения;
+- `DuelEnv` — Gym-подобный интерфейс `reset/step` для раннего `force`-среза;
+- `ArenaEnv` — Gym-подобная среда активной арены: `ArenaMatch`, шесть
+  `CORE_ACTIONS`, `info`/`force`, захват и та же награда, что в игре;
+  обучение идёт внешним циклом (`auto_learn=False`), чтобы политика не
+  обновлялась дважды;
 - `arena.py` — runtime активной арены: `ArenaAgent`, `ArenaMatch`,
   `run_duel_tick`, `check_capture`, формы `force`/`info` и UI-совместимый
   фасад (`force`, `energy_pool`, `health`, `defense`, `w_adopt`, `Q`,
@@ -191,7 +195,9 @@
 
 Обучение в игре:
 
-- `ArenaMatch` обновляет обе политики после каждого такта;
+- `ArenaMatch` обновляет обе политики после каждого такта (`auto_learn=True`);
+- `ArenaEnv` по умолчанию создаёт матч с `auto_learn=False`: действия
+  выбирает и `Transition` обрабатывает внешний цикл обучения;
 - `BattlefieldModel` обновляет BDI-политику противника после дуэли;
 - награда — изменение силы, энергии и здоровья, а не внешняя команда.
 
@@ -206,6 +212,13 @@
 
 ```bash
 venv/bin/python -m agents.train --episodes 500 --seed 0
+```
+
+По умолчанию обучение идёт в `ArenaEnv` — той же среде, что активная арена
+(`force`/`info`, `TREAT`, захват). Ранний `force`-срез доступен явно:
+
+```bash
+venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 ```
 
 С сохранением весов:
@@ -249,7 +262,7 @@ agent = ArenaAgent("player", policy=policy, seed=0)
 
 ```text
 Observation: F/E/H свои и противника, давление, окно входа, время, формы
-Action:      REST | WORK(form, fraction), form = force | info
+Action:      REST | TREAT | WORK(form, fraction), form = force | info
 Transition:  observation, action, reward, next_observation, done, next_actions
 ```
 

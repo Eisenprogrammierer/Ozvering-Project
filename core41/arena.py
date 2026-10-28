@@ -540,16 +540,19 @@ class ArenaMatch:
         sickness_rl=0.0,
         sickness_ai=0.0,
         with_env=False,
+        auto_learn=True,
     ):
         self.seed = int(seed)
         self.steps_total = int(steps)
         self.rng = random.Random(self.seed)
         self.with_env = bool(with_env)
+        self.auto_learn = bool(auto_learn)
         self.time = 0
         self.step = 0
         self.winner = None
         self.finished = False
         self.events = []
+        self.last_rewards = {"rl": 0.0, "ai": 0.0}
         self.rl_hist = []
         self.ai_hist = []
         self.dom_rl = 0
@@ -575,7 +578,12 @@ class ArenaMatch:
             sickness=sickness_ai,
         )
 
-    def step_tick(self, forced_rl_action=None):
+    def _coerce_action(self, action):
+        if isinstance(action, Action):
+            return action
+        return action_from_index(action)
+
+    def step_tick(self, forced_rl_action=None, forced_ai_action=None):
         if self.finished:
             return
         self.events = []
@@ -589,13 +597,14 @@ class ArenaMatch:
         if forced_rl_action is None:
             rl_action, _ = rl.choose_action(ai, explore=True)
         else:
-            if isinstance(forced_rl_action, Action):
-                rl_action = forced_rl_action
-            else:
-                rl_action = action_from_index(forced_rl_action)
+            rl_action = self._coerce_action(forced_rl_action)
             rl.record_action(rl_action, ai, rl_obs)
 
-        ai_action, _ = ai.choose_action(rl, explore=True)
+        if forced_ai_action is None:
+            ai_action, _ = ai.choose_action(rl, explore=True)
+        else:
+            ai_action = self._coerce_action(forced_ai_action)
+            ai.record_action(ai_action, rl, ai_obs)
 
         rl_before = (rl.force, rl.energy_pool, rl.health)
         ai_before = (ai.force, ai.energy_pool, ai.health)
@@ -610,6 +619,7 @@ class ArenaMatch:
 
         reward_rl = self._reward(rl, rl_before, ai, ai_before)
         reward_ai = self._reward(ai, ai_before, rl, rl_before)
+        self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         terminal = self._check_terminal()
         if not terminal:
@@ -628,8 +638,9 @@ class ArenaMatch:
 
         rl_next = rl.observe(ai)
         ai_next = ai.observe(rl)
-        rl.learn(reward_rl, rl_next, terminal, ai)
-        ai.learn(reward_ai, ai_next, terminal, rl)
+        if self.auto_learn:
+            rl.learn(reward_rl, rl_next, terminal, ai)
+            ai.learn(reward_ai, ai_next, terminal, rl)
 
         self.events.extend(self._event("rl", rl, rl_result))
         self.events.extend(self._event("ai", ai, ai_result))
