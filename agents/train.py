@@ -10,7 +10,9 @@
 Self-play: обе стороны получают собственный `Transition` и обновляют свои
 политики. `ArenaEnv` создаёт матч с `auto_learn=False`, поэтому один и тот
 же такт не учитывается дважды. Оценка (`evaluate`) всегда идёт на отдельных
-held-out seed'ах, без исследования и без обновления весов.
+held-out seed'ах, без исследования и без обновления весов. В кампании
+оппонента нет, поэтому held-out — одна строка «политика против мира», а
+усечение горизонта (`truncated`) учитывается как ничья, не поражение.
 
 Доменная рандомизация (проблема готовности №7): флаги `--domain-randomize`
 и компания (`--profiles`, `--sickness-min/max`, `--health-factors`,
@@ -183,8 +185,9 @@ def _play_campaign_episode(env, policy, seed, *, learn, explore):
     применяется. Политика получает тот же контракт `Transition`, что и на
     арене; эпизод завершается на терминальном исходе (`done`) или на
     горизонте `max_days` (`truncated`, вопрос §7 №30). Возвращаемый `info`
-    содержит ключ `winner` ("agent"/"opponent"), чтобы общий учёт побед
-    `_count_winner` работал без разветвлений.
+    содержит ключ `winner` ("agent" — сюжетный win, "opponent" — lose,
+    None — усечение горизонта), чтобы общий учёт `_count_winner` считал
+    усечение ничьей, а не поражением.
     """
     observation = env.reset(seed=seed)
     done = False
@@ -209,8 +212,16 @@ def _play_campaign_episode(env, policy, seed, *, learn, explore):
         observation = next_observation
         info = step_info
     outcome = str(info.get("outcome") or "")
+    if truncated and not outcome:
+        winner = None
+    elif outcome == "win":
+        winner = "agent"
+    elif outcome == "lose":
+        winner = "opponent"
+    else:
+        winner = None
     return {
-        "winner": "agent" if outcome == "win" else "opponent",
+        "winner": winner,
         "outcome": outcome,
         "day": int(info.get("day", 0)),
         "truncated": bool(truncated),
@@ -240,6 +251,7 @@ def evaluate(
 
     Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
     оценка идёт против детерминированного среза мира `WorldEngine`.
+    Усечение горизонта считается ничьей (`draws`), а не поражением.
 
     По умолчанию оценка идёт на фиксированном домене из `env_kwargs` —
     иначе матрица силы несравнима между запусками. Если `domain_opts`
@@ -281,9 +293,6 @@ def evaluate(
         "seed": int(seed),
         "env": env_name,
     }
-    if getattr(env, "single_agent", False):
-        # В кампании draw = усечение горизонта без исхода (§7 №30).
-        result["draws"] = 0
     return result
 
 
@@ -404,26 +413,52 @@ def train(
     if not single_agent:
         stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
 
-    if eval_episodes and not single_agent:
+    if eval_episodes:
         if eval_seed is None:
             eval_seed = seed + 100000
-        names = tuple(eval_opponents) or (opponent_name,)
-        opponents = {
-            name: make_policy(name, seed=eval_seed + index)
-            for index, name in enumerate(names)
-        }
-        eval_domain_opts = domain_opts if eval_domain_randomize else None
-        stats["eval"] = evaluate_matrix(
-            {policy_name: policy},
-            opponents,
-            episodes=eval_episodes,
-            seed=eval_seed,
-            max_steps=max_steps,
-            env_name=env_name,
-            env_kwargs=env_kwargs,
-            domain_opts=eval_domain_opts,
+        eval_domain_opts = (
+            domain_opts
+            if eval_domain_randomize and env_name != "duel"
+            else None
         )
-        if eval_domain_randomize:
+        if single_agent:
+            # Кампания — один агент против детерминированного мира:
+            # матрица «политика × оппонент» выродилась бы в одинаковые
+            # строки. Оцениваем одну политику против мира (`opponent:
+            # "world"`), сохраняя тот же контракт held-out оценки.
+            stats["eval"] = [
+                dict(
+                    evaluate(
+                        policy,
+                        None,
+                        episodes=eval_episodes,
+                        seed=eval_seed,
+                        max_steps=max_steps,
+                        env_name=env_name,
+                        env_kwargs=env_kwargs,
+                        domain_opts=eval_domain_opts,
+                    ),
+                    policy=policy_name,
+                    opponent="world",
+                )
+            ]
+        else:
+            names = tuple(eval_opponents) or (opponent_name,)
+            opponents = {
+                name: make_policy(name, seed=eval_seed + index)
+                for index, name in enumerate(names)
+            }
+            stats["eval"] = evaluate_matrix(
+                {policy_name: policy},
+                opponents,
+                episodes=eval_episodes,
+                seed=eval_seed,
+                max_steps=max_steps,
+                env_name=env_name,
+                env_kwargs=env_kwargs,
+                domain_opts=eval_domain_opts,
+            )
+        if eval_domain_opts is not None:
             for row in stats["eval"]:
                 row["domain_randomized"] = True
     return policy, stats

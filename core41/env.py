@@ -54,7 +54,7 @@ def randomize_draw(
       пусто — только `CANON` (без джиттера профиля);
     - `health_factors` — имена факторов (`aging`, `illness`, `stress`,
       `care`), которым назначается случайный множитель; пусто — факторы
-      остаются каноническими;
+      остаются каноническими; неизвестное имя — `ValueError`;
     - sickness и health-множители берутся из указанных диапазонов.
     """
     rng = rng or random.Random()
@@ -67,6 +67,13 @@ def randomize_draw(
     lo_h = max(0.05, float(health_min))
     hi_h = min(float(HEALTH_FACTOR_MAX), max(lo_h, float(health_max)))
     factors = {}
+    unknown_factors = [
+        str(factor)
+        for factor in health_factors
+        if str(factor) not in DEFAULT_HEALTH_FACTORS
+    ]
+    if unknown_factors:
+        raise ValueError("неизвестные health-факторы: %r" % (unknown_factors,))
     for factor in health_factors:
         factors[str(factor)] = round(rng.uniform(lo_h, hi_h), 4)
     return {

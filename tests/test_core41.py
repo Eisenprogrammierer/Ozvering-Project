@@ -210,6 +210,47 @@ def test_mlp_policy_is_function_approximation_and_round_trips():
     )
 
 
+def test_mlp_policy_lowers_loss_on_fixed_task():
+    policy = MLPPolicy(seed=3, epsilon=0.0, learning_rate=0.05)
+    observation = _observation()
+    good = Action("WORK", form="force", fraction=0.9)
+    bad = Action("WORK", form="force", fraction=0.1)
+    fixed = (
+        Transition(
+            observation=observation,
+            action=good,
+            reward=1.0,
+            next_observation=observation,
+            done=True,
+        ),
+        Transition(
+            observation=observation,
+            action=bad,
+            reward=-1.0,
+            next_observation=observation,
+            done=True,
+        ),
+    )
+
+    def loss():
+        return sum(
+            (item.reward - policy.score(item.observation, item.action)) ** 2
+            for item in fixed
+        ) / len(fixed)
+
+    before = loss()
+    for _ in range(200):
+        for item in fixed:
+            policy.observe(item)
+    after = loss()
+    # Online TD(0) без target-сети: при `done=True` цель — сама награда,
+    # поэтому фиксированная задача обязана сходиться, а не просто менять
+    # веса. Это и есть проверка «MLP учится», а не только «MLP жив».
+    assert after < before * 0.1
+    assert policy.score(observation, good) > policy.score(observation, bad)
+    assert policy.updates == 400
+
+
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
 
@@ -661,6 +702,12 @@ def test_randomize_draw_is_deterministic_and_in_range():
         raise AssertionError("unknown profile accepted")
     except ValueError:
         pass
+    # Неизвестный health-фактор тоже не должен молча игнорироваться.
+    try:
+        randomize_draw(health_factors=("bogus",))
+        raise AssertionError("unknown health factor accepted")
+    except ValueError:
+        pass
 
 
 def test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys():
@@ -742,3 +789,22 @@ def test_campaign_env_domain_sickness_reaches_engine():
     # Стартовый config среды не мутируется: второй движок без домена чист.
     fresh = CampaignEnv(seed=3, max_days=4)
     assert fresh.engine.player_condition()["sickness"] == 0.0
+
+
+def test_duel_eval_domain_flag_is_not_reported_as_applied():
+    from agents.train import train
+
+    _policy, stats = train(
+        episodes=1,
+        seed=2,
+        policy_name="bdi",
+        opponent_name="random",
+        max_steps=12,
+        env_name="duel",
+        eval_episodes=1,
+        eval_domain_randomize=True,
+    )
+    # `duel` — легаси-срез без доменов: флаг не должен лгать в матрице.
+    assert stats["domain_randomize"] is False
+    assert stats["eval"]
+    assert all("domain_randomized" not in row for row in stats["eval"])

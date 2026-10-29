@@ -429,6 +429,9 @@ modeling / pretrain, а не подбор констант. Смена `EPS_DECA
 реализован в активном ядре 4-2-1 (`agents/policies.py::MLPPolicy`): tanh-скрытый
 слой (hidden=16) поверх тех же 18 признаков, что у `BDIPolicy`, online TD(0) с
 target=max по легальным действиям и epsilon-decay; внешних зависимостей нет.
+Отдельной target-сети (копии весов) в этом baseline нет: это осознанный
+онлайн-срез, а не DQN; качество обучения проверяет
+`tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task`.
 Политика зарегистрирована в `make_policy("mlp")`, включена в held-out матрицу
 `--eval-opponents bdi,qtable,random,mlp` и грузится через `load_policy`.
 Легаси-замеры этого раздела (UtilityAI vs табличный QTable на старой шкале)

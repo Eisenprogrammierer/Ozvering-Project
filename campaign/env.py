@@ -128,6 +128,10 @@ class CampaignEnv:
         self._start_node = node_id
         self._start_office = office_id
         self._start_snapshot = snapshot
+        # Кэш стартовой позиции: `_default_start()` перебирает узлы и
+        # пробные движки, поэтому его нельзя повторять на каждом reset().
+        # Домен кампании меняет профиль/болезнь, но не узел/должность.
+        self._resolved_start = None
         # Стартовая болезнь героя для доменной рандомизации (проблема №7);
         # применяется в _build_engine как переопределение конфига `condition`.
         self._start_sickness = max(0.0, min(1.0, float(sickness)))
@@ -192,10 +196,14 @@ class CampaignEnv:
     def _default_start(self):
         """Старт без явного узла: первый корневой узел + его head-должность.
 
-        Пробуемattach по очереди: если `default_profile` не подходит под
+        Пробуем attach по очереди: если `default_profile` не подходит под
         требования первой должности, берём следующий корневой узел. Так
-        среда самодостаточна на любом валидном конфиге мира.
+        среда самодостаточна на любом валидном конфиге мира. Результат
+        кэшируется: перебор дорогой, а домен кампании меняет только
+        профиль/болезнь, не узел и должность.
         """
+        if self._resolved_start is not None:
+            return self._resolved_start
         probe = WorldEngine(
             dict(self.config),
             profile=self._start_profile,
@@ -214,8 +222,10 @@ class CampaignEnv:
                 )
                 result = trial.attach(candidate_id, template["id"])
                 if result.get("ok"):
-                    return candidate_id, template["id"]
-        return None, None
+                    self._resolved_start = (candidate_id, template["id"])
+                    return self._resolved_start
+        self._resolved_start = (None, None)
+        return self._resolved_start
 
     def _build_engine(self, seed):
         node_id = self._start_node

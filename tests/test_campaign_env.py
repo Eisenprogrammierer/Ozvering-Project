@@ -393,9 +393,45 @@ def test_evaluate_campaign_ignores_opponent_and_counts_outcomes():
     )
     assert result["env"] == "campaign"
     assert result["episodes"] == 2
-    # draw в кампании = усечение горизонта (§7 №30), считается отдельно.
-    assert result["wins"] + result["losses"] == 2
-    assert result["draws"] == 0
+    # draw в кампании = усечение горизонта (§7 №30), не поражение:
+    # исходы всегда разбивают эпизоды на wins/losses/draws.
+    assert result["wins"] + result["losses"] + result["draws"] == 2
+    assert result["draws"] >= 0
+
+
+def test_campaign_horizon_is_counted_as_draw_not_loss():
+    from agents.train import _play_campaign_episode
+
+    class EndDayPolicy:
+        def act(self, _observation, _actions, explore=True):
+            return CampaignAction(END_DAY)
+
+    env = CampaignEnv(seed=7, max_days=1)
+    info = _play_campaign_episode(
+        env, EndDayPolicy(), 7, learn=False, explore=False
+    )
+    assert info["truncated"] is True
+    assert info["winner"] is None
+    assert info["outcome"] == ""
+
+
+def test_train_campaign_has_held_out_world_eval():
+    _policy, stats = train(
+        episodes=1,
+        seed=0,
+        policy_name="bdi",
+        max_steps=3,
+        env_name="campaign",
+        eval_episodes=2,
+    )
+    # Кампания — один агент: матрица вырождается в одну строку «политика
+    # против мира», но контракт held-out оценки сохраняется.
+    assert len(stats["eval"]) == 1
+    row = stats["eval"][0]
+    assert row["policy"] == "bdi"
+    assert row["opponent"] == "world"
+    assert row["env"] == "campaign"
+    assert row["wins"] + row["losses"] + row["draws"] == 2
 
 
 def test_campaign_env_smoke_with_random_policy():

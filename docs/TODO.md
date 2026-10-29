@@ -114,9 +114,9 @@
   нормированы, стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни
   `+1.0·Δsickness`, заражение противника `+0.5·Δsickness`, терминальные
   победа/поражение `±1.0`; то же в `DuelWorld`. Калибровка N=100 после
-  награды: sickness 0.0 → 47/29/24%, медиана 549; sickness 0.5 →
-  41/28/31%, медиана 817, голод 22.7% — все полосы §2.3.2 в допуске
-  (§2.3.3 `WORLD_CORE_MODEL.md`). Тесты — `tests/test_core41.py`.
+  награды и `CAPTURE_STREAK = 22`: sickness 0.0 → 49/23/28%, медиана 646;
+  sickness 0.5 → 41/28/31%, медиана 817, голод 22.7% — все полосы §2.3.2
+  в допуске (§2.3.3 `WORLD_CORE_MODEL.md`). Тесты — `tests/test_core41.py`.
 - [x] **№3 Self-play + оценка.** `agents.train` по умолчанию self-play:
   обе стороны получают `Transition` и обновляются за такт ровно один раз
   (`opponent_action` форсится через `ArenaMatch.step_tick`);
@@ -125,12 +125,14 @@
   `--eval-seed`) и матрица силы `evaluate_matrix()` против
   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
-- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, DQN-lite: target-копия,
-  epsilon-decay, сохранение через `state_dict`) зарегистрирован в
-  `make_policy`/`load_policy`, включён в `--eval-opponents` по умолчанию
-  (`bdi,qtable,random,mlp`); тесты качества обучения —
-  `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task` и др.
-  Раздел baseline vs MLP — в `docs/BASELINE.md`/`docs/AGENTS.md`.
+- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, online TD(0) с
+  target=max по легальным действиям, epsilon-decay, сохранение через
+  `state_dict`) зарегистрирован в `make_policy`/`load_policy`, включён в
+  `--eval-opponents` по умолчанию (`bdi,qtable,random,mlp`); тест качества
+  обучения — `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task`.
+  Target-сети (отдельной копии весов) в этом baseline нет — это осознанно
+  онлайн-срез, а не DQN. Раздел baseline vs MLP — в
+  `docs/BASELINE.md`/`docs/AGENTS.md`.
 - [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 1` пишется в
   `state_dict()` всех политик; файлы без `version` трактуются как v0. При
   загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
@@ -148,15 +150,20 @@
   награда `campaign_reward()` из дельт standing/power/cohesion/health/sickness
   + терминальный бонус исхода (`terminal_campaign_reward`, ±1.0), штраф за
   нелегальный ход; горизонт `max_days` — усечение (truncated), не поражение
-  (вопрос №30 остаётся открытым). Одиночный агент: self-play отключён,
-  `--env campaign` в `agents.train`; политики принимают кампанейные
+  (вопрос №30 остаётся открытым). В общем учёте `agents.train` усечение
+  считается ничьей (`winner=None`), а не поражением; held-out оценка
+  кампании — одна строка «политика против мира» (`opponent: "world"`), а не
+  вырожденная матрица из одинаковых строк. Одиночный агент: self-play
+  отключён, `--env campaign` в `agents.train`; политики принимают кампанейные
   наблюдения через `campaign_features()` (18 признаков, тот же формат),
   `make_policy("qtable-campaign")` — отдельная таблица, не смешиваемая с
   ареной; персистентность среды через снимок мира (`state_dict/load_state_
-  dict`). Открытые вопросы §7 №28–31 (распад организации, увольнение-смена-
-  роли, финалы бесконечного сценария, фоновая симуляция) честно остаются
-  незакрытыми — в наблюдении они зафиксированы флагами `collapsed`/
-  `dismissed`/`outcome`. Тесты — `tests/test_campaign_env.py` (18 passed).
+  dict`). Стартовая позиция (`_default_start()`) кэшируется: дорогой перебор
+  узлов не повторяется на каждом `reset()`. Открытые вопросы §7 №28–31
+  (распад организации, увольнение-смена-роли, финалы бесконечного сценария,
+  фоновая симуляция) честно остаются незакрытыми — в наблюдении они
+  зафиксированы флагами `collapsed`/`dismissed`/`outcome`. Тесты —
+  `tests/test_campaign_env.py`.
 - [x] **№7 Доменная рандомизация.** `randomize_draw(rng, ...)` (`core41/env.py`)
   и метод `CampaignEnv.randomize_draw` жребуют один домен (профили арены,
   стартовая болезнь сторон/героя, множители health-факторов, джиттер навыков);
@@ -169,12 +176,15 @@
   `domain_randomize`). Held-out оценка по умолчанию идёт на фиксированном
   каноническом домене (матрица силы сравнима между запусками); явный
   `--eval-domain-randomize` усредняет её по распределению (строки матрицы с
-  `domain_randomized: true`). Для `--env duel` (легаси-срез) рандомизация
-  честно игнорируется. Стартовая болезнь кампании передаётся в движок через
-  копию `config["condition"]` без мутации исходного конфига. Тесты —
-  `tests/test_core41.py::test_randomize_draw_is_deterministic_and_in_range`,
+  `domain_randomized: true`; для `--env duel` флаг не выставляется, так как
+  домены в легаси-срезе не применяются). Неизвестные имена профилей и
+  health-факторов — `ValueError`, а не молчаливый канон. Стартовая болезнь
+  кампании передаётся в движок через копию `config["condition"]` без мутации
+  исходного конфига.
+  Тесты — `tests/test_core41.py::test_randomize_draw_is_deterministic_and_in_range`,
   `test_arena_env_apply_domain_rebuilds_match_and_rejects_unknown_keys`,
   `test_train_domain_randomize_is_reproducible_and_skips_duel`,
+  `test_duel_eval_domain_flag_is_not_reported_as_applied`,
   `test_campaign_env_domain_sickness_reaches_engine`. Раздел в
   `docs/AGENTS.md` — «Доменная рандомизация».
 
