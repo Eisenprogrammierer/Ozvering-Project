@@ -69,6 +69,10 @@ def _run_policy(name, seeds, days, train_episodes, train_seed):
                 "standing": float(engine.player_resources["standing"]),
                 "health": float(engine.player_health),
                 "sickness": float(engine.player_sickness),
+                "max_skill": max(
+                    float(value)
+                    for value in (engine.profile.get("skills") or {}).values()
+                ),
                 "dismissals": int(engine.dismissal_count),
                 "collapsed": bool(engine.collapsed),
             }
@@ -103,6 +107,9 @@ def _run_policy(name, seeds, days, train_episodes, train_seed):
         ),
         "median_health": _median([row["health"] for row in rows]),
         "median_sickness": _median([row["sickness"] for row in rows]),
+        "median_max_skill": _median(
+            [row["max_skill"] for row in rows]
+        ),
         "dismissals": sum(row["dismissals"] for row in rows),
         "collapses": sum(1 for row in rows if row["collapsed"]),
         "rows": rows,
@@ -183,11 +190,13 @@ def _print_report(report, days):
     for row in report:
         print(
             "  %-16s смен роли: %d · распадов: %d · медиана болезни: %.2f"
+            " · медиана навыка: %.2f"
             % (
                 row["policy"],
                 row["dismissals"],
                 row["collapses"],
                 row["median_sickness"],
+                row["median_max_skill"],
             )
         )
     print()

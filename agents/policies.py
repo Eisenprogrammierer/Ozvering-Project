@@ -227,6 +227,23 @@ def features(observation, action):
 FEATURE_COUNT = 21
 
 
+def campaign_weights_from(weights):
+    """Кампанейный приор BDI поверх аренных весов.
+
+    В кампании слот 7 — `END_DAY` (аналог отдыха), слот 8 — обычное
+    действие. Аренные веса поощряют отдых (`+0.8`) и наказывают работу
+    (`-0.4`), из-за чего BDI всегда завершал день и не тренировал навыки.
+    Кампанейский приор меняет знак этих слотов и включает код действия,
+    чтобы baseline действительно действовал, пока есть бюджет.
+    """
+    result = list(weights)
+    if len(result) >= 19:
+        result[7] = -0.6
+        result[8] = 0.6
+        result[18] = 0.3
+    return result
+
+
 def dot(left, right):
     return sum(a * b for a, b in zip(left, right))
 
@@ -305,9 +322,22 @@ class BDIPolicy:
             0.0,
             0.0,
         ]
+        # Кампанейный срез — отдельная задача: общие аренные веса
+        # предпочитают отдых, поэтому baseline завершал день вместо
+        # действий. Приор задаёт рабочее поведение, а `observe()` обновляет
+        # именно тот набор весов, который использовался.
+        self.campaign_weights = campaign_weights_from(self.weights)
+
+    def _active_weights(self, observation):
+        if isinstance(observation, CampaignObservation):
+            return self.campaign_weights
+        return self.weights
 
     def score(self, observation, action):
-        return dot(self.weights, _campaign_vector(observation, action))
+        return dot(
+            self._active_weights(observation),
+            _campaign_vector(observation, action),
+        )
 
     def _beliefs_from(self, observation):
         """Обновление верований BDI для любого среза (арена/кампания).
@@ -376,7 +406,8 @@ class BDIPolicy:
         observation = transition.observation
         action = transition.action
         vector = _campaign_vector(observation, action)
-        current = dot(self.weights, vector)
+        weights = self._active_weights(observation)
+        current = dot(weights, vector)
         if transition.done:
             target = 0.0
         else:
@@ -385,14 +416,14 @@ class BDIPolicy:
                 next_actions = default_actions(transition.next_observation)
             target = max(
                 dot(
-                    self.weights,
+                    weights,
                     _campaign_vector(transition.next_observation, candidate),
                 )
                 for candidate in next_actions
             )
         error = transition.reward + self.discount * target - current
         for index, value in enumerate(vector):
-            self.weights[index] += self.learning_rate * error * value
+            weights[index] += self.learning_rate * error * value
         next_observation = transition.next_observation
         self.beliefs.update(self._beliefs_from(next_observation))
         self.updates += 1
@@ -406,6 +437,7 @@ class BDIPolicy:
             "kind": "bdi",
             "version": CHECKPOINT_VERSION,
             "weights": list(self.weights),
+            "campaign_weights": list(self.campaign_weights),
             "beliefs": dict(self.beliefs),
             "desires": dict(self.desires),
             "intentions": [
@@ -431,6 +463,18 @@ class BDIPolicy:
             if len(values) < len(self.weights):
                 values.extend([0.0] * (len(self.weights) - len(values)))
             self.weights = values[: len(self.weights)]
+        campaign_weights = state.get("campaign_weights")
+        if campaign_weights is not None:
+            values = [float(value) for value in campaign_weights]
+            if len(values) < len(self.campaign_weights):
+                values.extend(
+                    [0.0] * (len(self.campaign_weights) - len(values))
+                )
+            self.campaign_weights = values[: len(self.campaign_weights)]
+        else:
+            # Старый чекпойнт: сохраняем выученные аренные веса и
+            # накладываем на них кампанейный приор.
+            self.campaign_weights = campaign_weights_from(self.weights)
         beliefs = state.get("beliefs")
         if beliefs:
             self.beliefs = dict(beliefs)

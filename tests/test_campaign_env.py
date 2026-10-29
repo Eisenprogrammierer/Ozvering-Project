@@ -356,6 +356,50 @@ def test_bdi_policy_acts_and_learns_on_campaign_observation():
     assert policy.updates == before_updates + 1
 
 
+def test_bdi_campaign_prefers_work_while_actions_remain():
+    policy = BDIPolicy(seed=1, epsilon=0.0)
+    observation = CampaignObservation(
+        day=1,
+        total_days=5,
+        actions_left=2,
+        actions_per_day=3,
+        energy=66.0,
+        max_energy=100.0,
+        standing=0.3,
+    )
+    actions = (
+        CampaignAction(END_DAY),
+        CampaignAction("inspect", target="n"),
+    )
+
+    chosen = policy.act(observation, actions, explore=False)
+
+    assert chosen.kind == "inspect"
+    # Аренные веса не переписаны кампанейским приором.
+    assert policy.campaign_weights != policy.weights
+
+
+def test_bdi_campaign_weights_round_trip_and_legacy_checkpoint():
+    policy = BDIPolicy(seed=2, epsilon=0.0)
+    policy.campaign_weights[18] = 0.42
+    state = json.loads(json.dumps(policy.state_dict()))
+
+    loaded = BDIPolicy(seed=3)
+    loaded.load_state_dict(state)
+    assert loaded.campaign_weights == pytest.approx(
+        policy.campaign_weights
+    )
+
+    # Старый чекпойнт без кампанейских весов получает приор поверх
+    # сохранённых аренных.
+    legacy = dict(state)
+    legacy.pop("campaign_weights")
+    restored = BDIPolicy(seed=4)
+    restored.load_state_dict(legacy)
+    assert restored.campaign_weights[7] == pytest.approx(-0.6)
+    assert restored.campaign_weights[8] == pytest.approx(0.6)
+
+
 def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
     arena_table = QTablePolicy(seed=1)
     campaign_table = make_policy("qtable-campaign", seed=1)
