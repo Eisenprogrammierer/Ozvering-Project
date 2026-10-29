@@ -4,7 +4,8 @@
 плоское нормированное наблюдение, награда из дельт положения/организации/
 здоровья/болезни + терминальный бонус исхода, одиночный агент (без оппонента
 и self-play), персистентность через снимок мира. Открытые вопросы §7 (28–31)
-здесь фиксируются как наблюдаемые флаги, но не считаются закрытыми.
+закрыты первым срезом: распад с grace-днями, увольнение как смена роли,
+бесконечный горизонт без win, ограниченный фон/оффлайн-догон.
 """
 
 import json
@@ -125,11 +126,12 @@ def test_campaign_env_truncates_at_horizon_without_outcome():
 def test_campaign_env_step_after_finish_raises():
     env = CampaignEnv(seed=2, max_days=3)
     env.reset(seed=2)
-    steps = 0
-    while not env.engine.finished and steps < 60:
-        actions = tuple(env.legal_actions())
-        env.step(actions[-1])
-        steps += 1
+    # Детерминированная смерть героя: терминальный шаг не зависит от
+    # перебора сидов и новых правил распада/увольнения (§7 №28–29).
+    env.engine.player_health = 1.0
+    env.engine.infect_player(1.0)
+    _obs, _reward, done, _truncated, _info = env.step(CampaignAction(END_DAY))
+    assert done is True
     assert env.engine.finished
     with pytest.raises(RuntimeError):
         env.step(CampaignAction(END_DAY))
@@ -197,31 +199,20 @@ def test_terminal_campaign_reward_maps_outcomes():
 
 
 def test_campaign_env_terminal_step_carries_outcome_bonus():
-    # Ищем сид, при котором кампания завершается естественным исходом
-    # (смерть героя или распад организации) до горизонта max_days:
-    # именно на таком терминальном шаге должен появиться outcome_bonus.
-    found = False
-    for seed in range(1, 40):
-        env = CampaignEnv(seed=seed, max_days=30)
-        env.reset(seed=seed)
-        last = None
-        steps = 0
-        while steps < 400:
-            actions = tuple(env.legal_actions())
-            result = env.step(actions[-1])
-            steps += 1
-            last = result
-            if result[2] or result[3]:
-                break
-        _obs, _reward, done, truncated, info = last
-        if not done:
-            continue
-        assert truncated is False
-        assert info["outcome"] in ("win", "lose")
-        assert info["outcome_delta"] == terminal_campaign_reward(info["outcome"])
-        found = True
-        break
-    assert found, "ни один сид из 1..39 не довёл кампанию до терминального исхода"
+    # Терминальный шаг (смерть героя) должен нести outcome_bonus. Раньше
+    # тест перебирал сиды в поисках естественного финала; после §7 №29–30
+    # увольнение и горизонт больше не терминальны, поэтому сценарий смерти
+    # задаётся детерминированно.
+    env = CampaignEnv(seed=7, max_days=30)
+    env.reset(seed=7)
+    env.engine.player_health = 1.0
+    env.engine.infect_player(1.0)
+    _obs, _reward, done, truncated, info = env.step(CampaignAction(END_DAY))
+    assert done is True
+    assert truncated is False
+    assert info["outcome"] == "lose"
+    assert info["outcome_delta"] == terminal_campaign_reward("lose")
+    assert info["ending"] == ""
 
 
 def test_campaign_env_horizon_truncates_without_outcome_bonus():
@@ -413,6 +404,30 @@ def test_campaign_horizon_is_counted_as_draw_not_loss():
     assert info["truncated"] is True
     assert info["winner"] is None
     assert info["outcome"] == ""
+
+
+def test_campaign_observation_separates_dismissal_from_defeat():
+    env = CampaignEnv(seed=7, max_days=10)
+    env.reset(seed=7)
+    env.engine._dismiss("тестовая смена роли", auto_reassign=False)
+    observation = env.observe()
+    # §7 №29: вне службы — не поражение; наблюдение различает флаги.
+    assert observation.attached is False
+    assert observation.dismissed is True
+    assert observation.finished is False
+    assert observation.outcome == ""
+    assert observation.extra["dismissal_count"] == 1
+
+
+def test_campaign_narrative_ending_has_no_terminal_bonus():
+    env = CampaignEnv(seed=7, max_days=10)
+    env.reset(seed=7)
+    env.engine.end_storyline("neutral")
+    observation = env.observe()
+    assert observation.finished is True
+    assert observation.outcome == ""
+    assert observation.extra["ending"] == "neutral"
+    assert terminal_campaign_reward(observation.outcome) == 0.0
 
 
 def test_train_campaign_has_held_out_world_eval():

@@ -1,5 +1,6 @@
 import pygame
 
+from campaign.clock import CampaignClock, background_pause_reason
 from campaign.world import CHARACTER_CIRCLES, ORGANIZATION_CATEGORIES
 from ..support import world_text
 from ..ui.screen_manager import BaseScreen
@@ -86,6 +87,13 @@ class WorldScreen(BaseScreen):
         self.action_scroll = 0
         self.message = ""
         self.last_result = engine.last_result
+        # Фоновые/оффлайн-часы (§7 №31). Экран только переводит реальные
+        # секунды в дни и вызывает `advance_days`; правила мира не меняются.
+        self.clock = CampaignClock(
+            seconds_per_day=engine.seconds_per_day,
+            max_catchup_days=engine.max_offline_days,
+            paused=True,
+        )
         self.main_tab_rects = []
         self.subtab_rects = []
         self.entity_rows = []
@@ -132,6 +140,9 @@ class WorldScreen(BaseScreen):
         interp.set_variable("world_days", self.engine.days)
         interp.set_variable("world_actions_left", self.engine.actions_left)
         interp.set_variable("world_outcome", self.engine.outcome or "")
+        interp.set_variable("world_ending", self.engine.ending or "")
+        interp.set_variable("world_infinite", self.engine.infinite)
+        interp.set_variable("world_dismissed", self.engine.dismissed)
         for key, value in self.engine.player_resources.items():
             interp.set_variable("world_%s" % key, value)
 
@@ -307,11 +318,73 @@ class WorldScreen(BaseScreen):
         self._sync_storyline()
         logger.info("Мир завершил день: %d", self.engine.day)
 
-    def _accept_outcome(self):
-        if self.engine.outcome not in ("win", "lose"):
+    def update(self, dt):
+        """Фоновая симуляция при свёрнутом/неактивном окне (§7 №31).
+
+        Пока окно активно, дни идут только по кнопке «Завершить день».
+        В фоне реальные секунды копятся в `CampaignClock` и переводятся в
+        ограниченный догон `WorldEngine.advance_days()`. Критическое
+        состояние (смерть, болезнь, завершённый сюжет, отсутствие
+        должности) ставит часы на паузу.
+        """
+        engine = self.engine
+        if engine.finished or not engine.attached:
+            self.clock.reset_accumulator()
+            self.clock.pause()
+            self.clock.pause_reason = (
+                "finished" if engine.finished else "unattached"
+            )
             return
-        self.app.finish_storyline_outcome(self.engine.outcome)
-        logger.info("Принят исход мира: %s", self.engine.outcome)
+        if getattr(self.app, "active", True):
+            self.clock.reset_accumulator()
+            self.clock.resume()
+            self.clock.pause_reason = ""
+            return
+        reason = background_pause_reason(engine)
+        if reason:
+            self.clock.reset_accumulator()
+            self.clock.pause()
+            self.clock.pause_reason = reason
+            return
+        self.clock.resume()
+        self.clock.pause_reason = ""
+        days = self.clock.advance(dt)
+        if days <= 0:
+            return
+        results = engine.advance_days(
+            days, max_days=self.clock.max_catchup_days
+        )
+        if not results:
+            return
+        self.last_result = engine.last_result
+        self.selected_action_id = None
+        self.message = "Фон: прошло дней — %d." % len(results)
+        self._sync_storyline()
+        logger.info(
+            "Фоновый догон: %d дн.; день=%d, завершено=%s",
+            len(results),
+            engine.day,
+            engine.finished,
+        )
+
+    def _choose_office(self):
+        open_selection = getattr(self.app, "open_office_selection", None)
+        if open_selection is None:
+            self.message = "Выбор должности недоступен."
+            return
+        open_selection(self.engine)
+        logger.info("Открыт выбор новой должности после смены роли")
+
+    def _accept_outcome(self):
+        if self.engine.outcome in ("win", "lose"):
+            self.app.finish_storyline_outcome(self.engine.outcome)
+            logger.info("Принят исход мира: %s", self.engine.outcome)
+            return
+        if self.engine.ending == "neutral":
+            # Нарративный финал без победы/поражения (§7 №30): сюжет не
+            # получает win/lose, глава просто остаётся завершённой.
+            self.message = "Глава завершена: история продолжается в мире."
+            logger.info("Принят нейтральный финал мира")
 
     def _set_main_tab(self, tab):
         if tab not in SUB_TABS:
@@ -399,6 +472,10 @@ class WorldScreen(BaseScreen):
             if self._finish_rect().collidepoint(pos):
                 self._accept_outcome()
             return
+        if not self.engine.attached:
+            if self._office_rect().collidepoint(pos):
+                self._choose_office()
+            return
         if self._end_day_rect().collidepoint(pos):
             self._end_day()
             return
@@ -438,6 +515,9 @@ class WorldScreen(BaseScreen):
         return pygame.Rect(BOTTOM_RECT.right - 210, BOTTOM_RECT.y + 3, 200, 30)
 
     def _end_day_rect(self):
+        return pygame.Rect(BOTTOM_RECT.right - 210, BOTTOM_RECT.y + 3, 200, 30)
+
+    def _office_rect(self):
         return pygame.Rect(BOTTOM_RECT.right - 210, BOTTOM_RECT.y + 3, 200, 30)
 
     def _execute_rect(self):
@@ -530,17 +610,27 @@ class WorldScreen(BaseScreen):
         screen.blit(subtitle, (20, 43))
         office = self.engine.player_office()
         name = str(self.engine.profile.get("name") or "Действующее лицо")
-        line = self._clip_text(
-            self.app.font_body,
-            "%s · %s" % (name, office.get("title", "—")),
-            470,
-        )
+        if self.engine.attached:
+            line = self._clip_text(
+                self.app.font_body,
+                "%s · %s" % (name, office.get("title", "—")),
+                470,
+            )
+        else:
+            line = self._clip_text(
+                self.app.font_body,
+                "%s · вне службы" % name,
+                470,
+            )
         screen.blit(self.app.font_body.render(line, True, TEXT), (560, 10))
-        detail = "%s · %s · полномочия: %s" % (
-            office.get("node_name", "—"),
-            office.get("level_label", "—"),
-            world_text.scale_label(office.get("authority", 0.0)),
-        )
+        if self.engine.attached:
+            detail = "%s · %s · полномочия: %s" % (
+                office.get("node_name", "—"),
+                office.get("level_label", "—"),
+                world_text.scale_label(office.get("authority", 0.0)),
+            )
+        else:
+            detail = "Должность не занята · выберите новую роль"
         condition = self.engine.player_condition()
         detail += " · H %d" % int(round(condition["health"]))
         if condition["sickness"] > 0.0:
@@ -555,12 +645,23 @@ class WorldScreen(BaseScreen):
             ),
             (560, 38),
         )
-        day = "день %d / %d · действия %d / %d" % (
-            self.engine.day,
-            self.engine.days,
-            self.engine.actions_left,
-            self.engine.actions_per_day,
-        )
+        if self.engine.infinite:
+            day = "день %d · действия %d / %d" % (
+                self.engine.day,
+                self.engine.actions_left,
+                self.engine.actions_per_day,
+            )
+            if self.engine.horizon_passed:
+                day += " · история продолжается"
+        else:
+            day = "день %d / %d · действия %d / %d" % (
+                self.engine.day,
+                self.engine.days,
+                self.engine.actions_left,
+                self.engine.actions_per_day,
+            )
+        if not getattr(self.app, "active", True) and not self.clock.paused:
+            day += " · фон"
         day_surf = self.app.font_small.render(day, True, WARN)
         screen.blit(day_surf, (WIDTH - 18 - day_surf.get_width(), 12))
         hint = "вкладки · карточки · прогноз"
@@ -1890,13 +1991,22 @@ class WorldScreen(BaseScreen):
             (BOTTOM_RECT.x + 12, BOTTOM_RECT.y + 11),
         )
         if self.engine.finished:
-            label = (
-                "Принять развязку"
-                if self.engine.outcome in ("win", "lose")
-                else "Кампания завершена"
-            )
+            if self.engine.outcome in ("win", "lose"):
+                label = "Принять развязку"
+            elif self.engine.ending == "neutral":
+                label = "Глава завершена"
+            else:
+                label = "Кампания завершена"
             self._draw_button(
                 screen, self._finish_rect(), label, True, accent=True
+            )
+        elif not self.engine.attached:
+            self._draw_button(
+                screen,
+                self._office_rect(),
+                "Выбрать должность",
+                True,
+                accent=True,
             )
         else:
             self._draw_button(

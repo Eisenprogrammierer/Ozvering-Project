@@ -10,15 +10,18 @@
 момент конца сценария (см. открытые вопросы §7 №30).
 
 Честно о незакрытом (открытые вопросы docs/SOURCE_OF_TRUTH.md §7):
-- №28 распад организации: здесь фиксируется как терминальный `lose`
-  (power/cohesion <= COLLAPSE_*), но полный процесс распада вне арены ещё
-  не смоделирован;
-- №29 увольнение как смена роли: потеря должности сейчас тоже `lose`, хотя
-  по канону это должна быть смена роли с продолжением симуляции;
+- №28 распад организации: первый срез — организация распадается после
+  `COLLAPSE_GRACE_DAYS` дней подряд ниже порога силы/связности; точная
+  экономика распада и легитимности ещё не откалибрована;
+- №29 увольнение как смена роли: потеря должности больше не `lose` —
+  игрок получает другую роль в той же структуре или остаётся вне службы;
+  полноценный рынок труда остаётся открытым;
 - №30 финалы бесконечного сценария: горизонт `max_days` — усечение
-  (truncated), а не поражение; калибровка порогов не проводилась;
-- №31 фоновая симуляция/офлайн-прогресс: `end_day()` выполняет только
-  детерминированный дневной срез, офлайн-догоняющих тиков нет.
+  (truncated), а не поражение; сюжетный горизонт мира больше не даёт
+  `win`, нарративный финал задаётся `effects["ending"]`;
+- №31 фоновая симуляция/офлайн-прогресс: `campaign.clock` и
+  `WorldEngine.advance_days()` дают ограниченный догон при свёрнутом окне
+  и после загрузки; реального real-time-планировщика по-прежнему нет.
 
 Среда создана для обучения, поэтому игрок обязан явно передавать действия
 (в отличие от UI, где ход завершается кнопкой). Служебное действие
@@ -29,8 +32,6 @@ from core41 import HEALTH_MAX, SICKNESS_MAX
 from core41.types import CampaignAction, CampaignObservation
 
 from .world import (
-    COLLAPSE_COHESION,
-    COLLAPSE_POWER,
     PLAYER_STATS,
     WorldEngine,
     load_world,
@@ -274,14 +275,19 @@ class CampaignEnv:
             "finished": bool(engine.finished),
             "outcome": engine.outcome or "",
             "attached": bool(engine.attached),
-            "collapsed": bool(
-                engine.finished
-                and engine.outcome == "lose"
-                and (
-                    stats["power"] <= COLLAPSE_POWER
-                    or stats["cohesion"] <= COLLAPSE_COHESION
-                )
+            "dismissed": bool(
+                getattr(engine, "dismissed", False) and not engine.attached
             ),
+            "dismissal_count": int(
+                getattr(engine, "dismissal_count", 0)
+            ),
+            "collapse_days": int(getattr(engine, "collapse_days", 0)),
+            "ending": str(getattr(engine, "ending", "") or ""),
+            "infinite": bool(getattr(engine, "infinite", True)),
+            "horizon_passed": bool(
+                getattr(engine, "horizon_passed", False)
+            ),
+            "collapsed": bool(getattr(engine, "collapsed", False)),
         }
         for key in PLAYER_STATS:
             metrics[key] = float(engine.player_resources.get(key, 0.0))
@@ -292,12 +298,6 @@ class CampaignEnv:
         """Текущее наблюдение игрока (плоское, нормированное)."""
         engine = self.engine
         metrics = self._metrics()
-        dismissed = bool(
-            engine.finished
-            and engine.outcome == "lose"
-            and not metrics["collapsed"]
-            and (metrics["standing"] <= 0.05 or metrics["legitimacy"] <= 0.08)
-        )
         return CampaignObservation(
             day=int(metrics["day"]),
             total_days=int(self.max_days),
@@ -322,9 +322,19 @@ class CampaignEnv:
             finished=bool(metrics["finished"]),
             outcome=str(metrics["outcome"]),
             collapsed=bool(metrics["collapsed"]),
-            dismissed=dismissed,
+            dismissed=bool(metrics["dismissed"]),
             time=float(metrics["day"]),
-            extra={"seed": engine.seed},
+            extra={
+                "seed": engine.seed,
+                # §7 №28–31: распад и увольнение больше не сворачиваются в
+                # один флаг `outcome`. Наблюдение отдаёт счётчики и вид
+                # финала, чтобы политика/логгер могли их различать.
+                "ending": metrics["ending"],
+                "infinite": metrics["infinite"],
+                "horizon_passed": metrics["horizon_passed"],
+                "dismissal_count": metrics["dismissal_count"],
+                "collapse_days": metrics["collapse_days"],
+            },
         )
 
     # ------------------------------------------------------------------
@@ -338,7 +348,8 @@ class CampaignEnv:
         (как в UI: выбранный адресат). Для среды цель фиксируется полем
         `target_id`; по умолчанию — первый доступный союзный/нейтральный
         узел, отличный от собственного. Career-действия в MVP исключены:
-        они меняют идентичность агента и относятся к вопросу №29.
+        они меняют идентичность агента и выходят за пространство действий
+        одной политики (смена роли по №29 происходит внутри `WorldEngine`).
         """
         engine = self.engine
         actions = [CampaignAction(END_DAY)]
@@ -426,6 +437,12 @@ class CampaignEnv:
         info = {
             "result": result,
             "outcome": engine.outcome,
+            "ending": after["ending"],
+            "dismissed": after["dismissed"],
+            "dismissal_count": after["dismissal_count"],
+            "collapse_days": after["collapse_days"],
+            "infinite": after["infinite"],
+            "horizon_passed": after["horizon_passed"],
             "day": engine.day,
             "metrics": after,
             "outcome_delta": outcome_delta,

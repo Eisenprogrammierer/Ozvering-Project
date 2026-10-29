@@ -25,7 +25,7 @@ class AutomatonSelectScreen(BaseScreen):
 
     escape_action = "none"
 
-    def __init__(self, app, config_path=None):
+    def __init__(self, app, config_path=None, engine=None):
         super().__init__(app)
         from campaign.world import (
             build_player_profile,
@@ -38,24 +38,39 @@ class AutomatonSelectScreen(BaseScreen):
         interp = getattr(app, "storyline_interpreter", None)
         if interp is not None:
             storyline = interp.storyline or {}
-        self.config_path = config_path or storyline.get("world_path") or None
-        self.config = load_world(self.config_path)
-        self.profile = getattr(app, "player_profile", None)
-        if not self.profile:
-            biography = load_biography(storyline.get("biography_path") or None)
-            variables = interp.variables if interp is not None else {}
-            self.profile = build_player_profile(
-                variables,
-                biography=biography,
+        # Повторное трудоустройство (§7 №29): экран может работать поверх
+        # уже существующего мира. Тогда он не создаёт новый `WorldEngine`,
+        # а только выбирает новую должность для того же героя.
+        self.reemployment = engine is not None and not engine.finished
+        if self.reemployment:
+            self.engine = engine
+            self.config = engine.config
+            self.profile = engine.profile
+            self.seed = engine.seed
+            self.config_path = config_path
+        else:
+            self.config_path = (
+                config_path or storyline.get("world_path") or None
+            )
+            self.config = load_world(self.config_path)
+            self.profile = getattr(app, "player_profile", None)
+            if not self.profile:
+                biography = load_biography(
+                    storyline.get("biography_path") or None
+                )
+                variables = interp.variables if interp is not None else {}
+                self.profile = build_player_profile(
+                    variables,
+                    biography=biography,
+                    seed=app._campaign_seed(storyline),
+                )
+                app.player_profile = self.profile
+            self.engine = WorldEngine(
+                self.config,
+                profile=self.profile,
                 seed=app._campaign_seed(storyline),
             )
-            app.player_profile = self.profile
-        self.engine = WorldEngine(
-            self.config,
-            profile=self.profile,
-            seed=app._campaign_seed(storyline),
-        )
-        self.seed = app._campaign_seed(storyline)
+            self.seed = app._campaign_seed(storyline)
         self.selected_node_id = None
         self.selected_office_id = None
         self.message = ""
@@ -163,16 +178,29 @@ class AutomatonSelectScreen(BaseScreen):
         if not self.selected_node_id or not self.selected_office_id:
             self.message = "Выберите доступную должность."
             return
-        self.engine = WorldEngine(
-            self.config,
-            profile=self.profile,
-            node_id=self.selected_node_id,
-            office_id=self.selected_office_id,
-            seed=self.seed,
-        )
-        if not self.engine.attached:
-            self.message = "Не удалось занять должность."
-            return
+        if self.reemployment:
+            # Смена роли внутри существующего мира: состояние героя,
+            # организации, дня и болезни сохраняется (§7 №29).
+            result = self.engine.attach(
+                self.selected_node_id, self.selected_office_id
+            )
+            if not result.get("ok"):
+                self.message = str(
+                    result.get("reason") or "Не удалось занять должность."
+                )
+                return
+            self.engine.dismissed = False
+        else:
+            self.engine = WorldEngine(
+                self.config,
+                profile=self.profile,
+                node_id=self.selected_node_id,
+                office_id=self.selected_office_id,
+                seed=self.seed,
+            )
+            if not self.engine.attached:
+                self.message = "Не удалось занять должность."
+                return
         self.app.world = self.engine
         self.app.world_config = self.config
         interp = getattr(self.app, "storyline_interpreter", None)
@@ -197,11 +225,18 @@ class AutomatonSelectScreen(BaseScreen):
                 "world_standing",
                 self.engine.player_resources["standing"],
             )
-            self.app._play_next_scene()
+            interp.set_variable("world_dismissed", False)
+            if not self.reemployment:
+                self.app._play_next_scene()
+        if self.reemployment:
+            from .world_screen import WorldScreen
+
+            self.app.manager.replace_all(WorldScreen(self.app, self.engine))
         logger.info(
-            "Служба начата: %s / %s",
+            "Служба начата: %s / %s (повторно=%s)",
             self.selected_node_id,
             self.selected_office_id,
+            self.reemployment,
         )
 
     def handle_event(self, event):

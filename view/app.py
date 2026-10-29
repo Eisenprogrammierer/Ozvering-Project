@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import logging
 import pygame
 
@@ -80,6 +81,9 @@ class App:
         self.font_small = load_font(15)
         self.font_tiny = load_font(11)
         self.running = True
+        # Активность окна (§7 №31): при потере фокуса/сворачивании экран мира
+        # переводит реальные секунды в фоновый догон дней.
+        self.active = True
         self.scenario_path = "scenarios/mvp.json"
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
@@ -535,6 +539,14 @@ class App:
             AutomatonSelectScreen(self, scene.get("world_path") or None)
         )
 
+    def open_office_selection(self, engine=None):
+        """Выбор должности для уже существующего мира (§7 №29)."""
+        from .screens.automaton_select import AutomatonSelectScreen
+
+        engine = engine if engine is not None else self.world
+        self.manager.replace_all(AutomatonSelectScreen(self, engine=engine))
+        logger.info("Открыт выбор должности: день=%s", getattr(engine, "day", "?"))
+
     def _play_world(self, scene):
         from campaign.world import WorldEngine, load_world
         from .screens.world_screen import WorldScreen
@@ -772,6 +784,41 @@ class App:
         self.manager.push(MandatorySceneScreen(self, scene_id))
         logger.info("Выведена обязательная сцена: %s", scene_id)
 
+    def _apply_offline_progress(self, world_snapshot):
+        """Ограниченный оффлайн-догон после загрузки (§7 №31).
+
+        Догон идёт только для прикреплённого незавершённого мира, только при
+        `offline_progress` в конфиге и только в пределах `max_offline_days`.
+        Старый сейв без `saved_at`, время из будущего и сломанные часы
+        дают ноль дней.
+        """
+        world = self.world
+        if world is None or not world.attached or world.finished:
+            return 0
+        if not world.offline_progress:
+            return 0
+        saved_at = (world_snapshot or {}).get("saved_at")
+        if saved_at is None:
+            return 0
+        from campaign.clock import CampaignClock, offline_days
+
+        clock = CampaignClock(
+            seconds_per_day=world.seconds_per_day,
+            max_catchup_days=world.max_offline_days,
+            paused=False,
+        )
+        days = offline_days(saved_at, clock=clock)
+        if days <= 0:
+            return 0
+        results = world.advance_days(days, max_days=world.max_offline_days)
+        logger.info(
+            "Оффлайн-догон: %d дн.; день=%d, завершено=%s",
+            len(results),
+            world.day,
+            world.finished,
+        )
+        return len(results)
+
     def save_game(self, slot_name):
         if self.engine is None or self.time_system is None:
             return None
@@ -790,9 +837,13 @@ class App:
         if self.world is not None:
             if storyline_snapshot is None:
                 storyline_snapshot = {"state": {}}
+            world_payload = self.world.to_dict()
+            # §7 №31: момент сохранения нужен для ограниченного
+            # оффлайн-догона при следующей загрузке.
+            world_payload["saved_at"] = time.time()
             storyline_snapshot.setdefault("state", {})[
                 "world"
-            ] = self.world.to_dict()
+            ] = world_payload
         path = do_save(
             self.engine.state,
             self.time_system,
@@ -920,13 +971,16 @@ class App:
                 seed=self._campaign_seed(storyline),
                 snapshot=world_snapshot,
             )
+            self._apply_offline_progress(world_snapshot)
             self.music.request_category("ambient")
             if self.world.attached:
                 self.manager.replace_all(WorldScreen(self, self.world))
             else:
                 self.manager.replace_all(
                     AutomatonSelectScreen(
-                        self, storyline.get("world_path") or None
+                        self,
+                        storyline.get("world_path") or None,
+                        engine=self.world,
                     )
                 )
         elif self._is_strategy_campaign() or strategy_snapshot is not None:
@@ -985,6 +1039,22 @@ class App:
                     self.open_turn_log()
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_F5:
                     self.save_game("quicksave")
+                elif event.type == getattr(pygame, "WINDOWEVENT", -1):
+                    inactive = {
+                        getattr(pygame, "WINDOWEVENT_MINIMIZED", -2),
+                        getattr(pygame, "WINDOWEVENT_FOCUS_LOST", -3),
+                        getattr(pygame, "WINDOWEVENT_HIDDEN", -4),
+                    }
+                    active = {
+                        getattr(pygame, "WINDOWEVENT_RESTORED", -5),
+                        getattr(pygame, "WINDOWEVENT_FOCUS_GAINED", -6),
+                        getattr(pygame, "WINDOWEVENT_SHOWN", -7),
+                    }
+                    if event.event in inactive:
+                        self.active = False
+                    elif event.event in active:
+                        self.active = True
+                    self.manager.handle_event(event)
                 else:
                     self.manager.handle_event(event)
             dt = self.clock.tick(FPS) / 1000.0

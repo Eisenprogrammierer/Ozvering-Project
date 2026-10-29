@@ -159,6 +159,17 @@ def test_world_screen_executes_action_and_advances_day():
     assert engine.day == 2
     assert screen.last_result["outcome"] == "day"
     screen.draw(surface)
+
+    # §7 №31: при неактивном окне экран делает ограниченный фоновый догон,
+    # а при возврате фокуса секунды не «выстреливают» днями.
+    day_before = engine.day
+    app.active = False
+    screen.clock.seconds_per_day = 1.0
+    screen.update(1.0)
+    assert engine.day == day_before + 1
+    app.active = True
+    screen.update(1.0)
+    assert engine.day == day_before + 1
     pygame.quit()
 
 
@@ -248,6 +259,114 @@ def test_world_screen_tabs_character_actions_and_personality():
     screen._select_item(item_id)
     screen.draw(surface)
     assert screen.selected_item_id == item_id
+    pygame.quit()
+
+
+def test_automaton_select_can_reemploy_existing_world():
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from campaign.world import (
+        WorldEngine,
+        build_player_profile,
+        load_biography,
+        load_world,
+    )
+    from view.app import App
+    from view.screens.automaton_select import AutomatonSelectScreen
+
+    variables = {
+        "name": "Ирина Свет",
+        "origin": "port",
+        "family": "clerk",
+        "education": "academy",
+        "formative": "harbor_fire",
+        "vocation": "state",
+        "value": "order",
+        "value2": "knowledge",
+        "flaw": "ambition",
+        "patron": "minister",
+        "reputation": "respectable",
+    }
+    profile = build_player_profile(
+        variables, biography=load_biography(), seed=7
+    )
+    engine = WorldEngine(
+        load_world(),
+        profile=profile,
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=7,
+    )
+    engine.end_day()
+    day_before = engine.day
+    app = App()
+    screen = AutomatonSelectScreen(app, engine=engine)
+    assert screen.reemployment is True
+    assert screen.engine is engine
+    screen._select_node("knowledge_press")
+    option = next(item for item in screen.office_rows if item["enabled"])
+    screen._select_office(option["id"])
+    screen._start()
+    # §7 №29: тот же мир, тот же день, новая должность — не новый движок.
+    assert app.world is engine
+    assert engine.day == day_before
+    assert engine.attached is True
+    assert app.manager.current.__class__.__name__ == "WorldScreen"
+    pygame.quit()
+
+
+def test_app_offline_progress_is_bounded_by_saved_at_and_limit():
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    import time
+    from types import SimpleNamespace
+
+    from campaign.world import (
+        WorldEngine,
+        build_player_profile,
+        load_biography,
+        load_world,
+    )
+    from view.app import App
+
+    variables = {
+        "name": "Ирина Свет",
+        "origin": "port",
+        "family": "clerk",
+        "education": "academy",
+        "formative": "harbor_fire",
+        "vocation": "state",
+        "value": "order",
+        "value2": "knowledge",
+        "flaw": "ambition",
+        "patron": "minister",
+        "reputation": "respectable",
+    }
+    profile = build_player_profile(
+        variables, biography=load_biography(), seed=7
+    )
+    engine = WorldEngine(
+        load_world(),
+        profile=profile,
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=7,
+    )
+    engine.seconds_per_day = 10.0
+    engine.max_offline_days = 2
+    stub = SimpleNamespace(world=engine)
+    # 100 секунд при 10 с/день — 10 дней, но лимит среза — 2.
+    days = App._apply_offline_progress(
+        stub, {"saved_at": time.time() - 100.0}
+    )
+    assert days == 2
+    assert engine.day == 3
+    # Старый сейв без saved_at не двигает мир.
+    day_after = engine.day
+    assert App._apply_offline_progress(stub, {}) == 0
+    assert engine.day == day_after
     pygame.quit()
 
 

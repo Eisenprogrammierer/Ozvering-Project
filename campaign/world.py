@@ -17,6 +17,21 @@ CAMPAIGN_SICKNESS_PROGRESS = 0.01
 CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
 COLLAPSE_POWER = 0.05
 COLLAPSE_COHESION = 0.05
+# Распад — не мгновенный срез одной шкалы (вопрос §7 №28): организация
+# должна продержаться ниже порога `COLLAPSE_GRACE_DAYS` дней подряд.
+# Полный ноль силы и связности распадается сразу, чтобы «мёртвая»
+# организация не висела в мире лишний день.
+COLLAPSE_GRACE_DAYS = 2
+# Более глубокий критерий первого среза: легитимность ниже этого порога
+# делает структуру нежизнеспособной, но пока не завершает игру сама по
+# себе — она лишь усиливает давление распада (см. organization_status()).
+COLLAPSE_LEGITIMACY = 0.02
+# Увольнение — смена роли, а не поражение (вопрос §7 №29). Пороги те же,
+# что были у старого терминального «потерял должность», но теперь они
+# переводят игрока в другую роль.
+DISMISSAL_STANDING = 0.05
+DISMISSAL_LEGITIMACY = 0.08
+ENDING_KINDS = ("win", "lose", "neutral")
 
 NODE_STATS = (
     "power",
@@ -425,6 +440,29 @@ class WorldEngine:
             _as_int(snapshot.get("seed"), 7) if snapshot else 7,
         )
         self.days = max(1, _as_int(self.config.get("days"), 30))
+        # Бесконечная рамка (вопрос §7 №30): `days` остаётся сюжетным
+        # горизонтом для старых сюжетов и UI, но по умолчанию больше не
+        # завершает игру «победой на 31-й день». Явный `infinite: false`
+        # возвращает легаси-конец для старых кампаний.
+        self.infinite = bool(self.config.get("infinite", True))
+        self.collapse_grace_days = max(
+            1,
+            _as_int(
+                self.config.get("collapse_grace_days"),
+                COLLAPSE_GRACE_DAYS,
+            ),
+        )
+        # Оффлайн-догон (вопрос §7 №31): значения можно переопределить
+        # конфигом мира, но по умолчанию фон ограничен.
+        self.offline_progress = bool(
+            self.config.get("offline_progress", True)
+        )
+        self.seconds_per_day = max(
+            1.0, _as_float(self.config.get("seconds_per_day"), 120.0)
+        )
+        self.max_offline_days = max(
+            1, _as_int(self.config.get("max_offline_days"), 7)
+        )
         self.actions_per_day = max(
             1, _as_int(self.config.get("actions_per_day"), 3)
         )
@@ -486,6 +524,15 @@ class WorldEngine:
         self.outcome = None
         self.finished = False
         self.career_history = []
+        # Состояние вопросов §7 №28–30. `dismissed` — событие смены роли,
+        # `collapse_days` — счётчик подряд идущих дней ниже порога силы/
+        # связности, `ending` — нарративный финал без объективной победы.
+        self.dismissed = False
+        self.dismissal_count = 0
+        self.collapsed = False
+        self.collapse_days = 0
+        self.horizon_passed = False
+        self.ending = None
         self.attached = False
         if snapshot:
             self.load_snapshot(snapshot)
@@ -1583,6 +1630,42 @@ class WorldEngine:
                 changed.append((self.stat_label(key), delta))
         return changed
 
+    def end_storyline(self, kind, text=""):
+        """Публичный вход в нарративный финал (§7 №30).
+
+        Сюжет/UI может завершить главу без объективной победы: `win`/`lose`
+        остаются совместимыми с легаси, `neutral` — «глава закончилась».
+        """
+        return self._apply_ending(kind, text)
+
+    def _apply_ending(self, kind, text=""):
+        """Нарративный финал без объективной победы (вопрос §7 №30).
+
+        `win`/`lose` — сюжетный исход для старых сюжетов; `neutral` —
+        глава закончилась, но поражения нет. Во всех случаях `finished`
+        останавливает дневной цикл, а `outcome=None` для `neutral` не даёт
+        `CampaignEnv` терминального бонуса победы/поражения.
+        """
+        kind = _text(kind).lower()
+        if kind not in ENDING_KINDS or self.finished:
+            return ""
+        self.ending = kind
+        self.outcome = None if kind == "neutral" else kind
+        self.finished = True
+        label = {
+            "win": "Сюжетный финал: победа.",
+            "lose": "Сюжетный финал: поражение.",
+            "neutral": "Сюжетный финал: глава завершена.",
+        }[kind]
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "ending",
+                "text": text or label,
+            }
+        )
+        return text or label
+
     def _apply_effects(self, effects, context, target, is_player=True):
         effects = effects or {}
         changed = []
@@ -1599,6 +1682,8 @@ class WorldEngine:
             value = _clamp(current + relation, -1.0, 1.0)
             source["relations"][target["id"]] = value
             target["relations"][source["id"]] = value
+        if effects.get("ending"):
+            self._apply_ending(effects.get("ending"), effects.get("text"))
         return self._merge_changes(changed)
 
     @staticmethod
@@ -1662,17 +1747,14 @@ class WorldEngine:
     def _career_transition(self, action, target):
         kind = action.get("career")
         if kind == "resign":
-            self.outcome = "lose"
-            self.finished = True
-            self.career_history.append(
-                {
-                    "day": self.day,
-                    "kind": "resign",
-                    "from": self.player_node_id,
-                    "to": "",
-                }
+            # Добровольная отставка — тоже смена роли, а не поражение
+            # (вопрос §7 №29). Автоперевода здесь нет: игрок сам выбирает
+            # новую должность через экран выбора роли.
+            return self._dismiss(
+                "добровольная отставка",
+                kind="resign",
+                auto_reassign=False,
             )
-            return "Вы оставили должность. Кампания завершена."
         if kind not in ("promote", "transfer") or target is None:
             return ""
         options = [
@@ -1794,6 +1876,7 @@ class WorldEngine:
             "text": text,
             "changes": changed,
             "day": self.day,
+            "ending": self.ending,
         }
         self.last_result = result
         self.log.append(
@@ -1920,49 +2003,214 @@ class WorldEngine:
         self.log.append(entry)
         return entry
 
+    def organization_status(self):
+        """Состояние организации игрока для UI/наблюдения (§7 №28).
+
+        `strain` — организация ниже порога силы или связности; `pressure`
+        — нормированное давление 0..1 по худшей из двух шкал; `collapse_in`
+        — сколько ещё дней подряд ниже порога осталось до распада.
+        Легитимность входит в `deep_risk`: это более глубокий критерий,
+        который пока не завершает игру сам, но сигнализирует о хрупкости.
+        """
+        node = self.node(self.player_node_id)
+        if node is None:
+            return {
+                "node_id": "",
+                "power": 0.0,
+                "cohesion": 0.0,
+                "legitimacy": 0.0,
+                "strain": False,
+                "deep_risk": False,
+                "pressure": 0.0,
+                "collapse_days": int(self.collapse_days),
+                "collapse_in": 0,
+            }
+        stats = node["stats"]
+        power = float(stats["power"])
+        cohesion = float(stats["cohesion"])
+        legitimacy = float(stats["legitimacy"])
+        strain = (
+            power <= COLLAPSE_POWER or cohesion <= COLLAPSE_COHESION
+        )
+        power_gap = max(
+            0.0,
+            (COLLAPSE_POWER - power) / max(COLLAPSE_POWER, 1e-9),
+        )
+        cohesion_gap = max(
+            0.0,
+            (COLLAPSE_COHESION - cohesion) / max(COLLAPSE_COHESION, 1e-9),
+        )
+        return {
+            "node_id": node["id"],
+            "power": power,
+            "cohesion": cohesion,
+            "legitimacy": legitimacy,
+            "strain": bool(strain),
+            "deep_risk": bool(
+                legitimacy <= COLLAPSE_LEGITIMACY and strain
+            ),
+            "pressure": max(power_gap, cohesion_gap),
+            "collapse_days": int(self.collapse_days),
+            "collapse_in": max(
+                0,
+                int(self.collapse_grace_days) - int(self.collapse_days),
+            )
+            if strain
+            else 0,
+        }
+
+    def _replacement_office(self, node_id, previous_office):
+        """Найти другую доступную должность в той же структуре.
+
+        Первый срез смены роли (§7 №29) — не полноценный рынок труда, а
+        немедленный перевод внутри структуры. Если другой должности нет,
+        игрок остаётся вне службы и может выбрать роль через UI.
+        """
+        previous = _text(previous_office)
+        options = [
+            item
+            for item in self.office_options(node_id)
+            if item.get("enabled") and item["id"] != previous
+        ]
+        if not options:
+            return None
+        options.sort(
+            key=lambda item: (
+                item["rank"],
+                -_as_float(item.get("authority"), 0.0),
+                item["id"],
+            )
+        )
+        return options[0]
+
+    def _dismiss(self, reason, kind="dismiss", auto_reassign=True):
+        """Снять игрока с должности, не завершая кампанию (§7 №29).
+
+        Возвращает текст для журнала/результата. При `auto_reassign=True`
+        игрок сразу получает другую роль в той же структуре, если она есть;
+        иначе остаётся `attached=False` и может выбрать должность в UI.
+        """
+        if not self.attached:
+            return ""
+        previous_node = self.player_node_id
+        previous_office = self.player_office_id
+        previous_label = self.office_label(previous_office)
+        self.attached = False
+        self.dismissed = True
+        self.dismissal_count += 1
+        self.player_office_id = ""
+        self.player_authority = 0.0
+        self._refresh_items()
+        self.career_history.append(
+            {
+                "day": self.day,
+                "kind": kind,
+                "from": previous_node,
+                "to": "",
+                "office_from": previous_office,
+                "reason": str(reason or ""),
+            }
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": kind,
+                "text": "Потеряна должность «%s»: %s."
+                % (previous_label, reason or "смена роли"),
+            }
+        )
+        if not auto_reassign:
+            return "Вы оставили должность. История продолжается."
+        replacement = self._replacement_office(
+            previous_node, previous_office
+        )
+        if replacement is None:
+            return "Вы потеряли должность. Вы вне службы."
+        result = self.attach(previous_node, replacement["id"])
+        if not result.get("ok"):
+            return "Вы потеряли должность. Вы вне службы."
+        self.career_history.append(
+            {
+                "day": self.day,
+                "kind": "reassign",
+                "from": previous_node,
+                "to": previous_node,
+                "office_from": previous_office,
+                "office_to": replacement["id"],
+                "reason": str(reason or ""),
+            }
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "career",
+                "text": "Новая роль: %s в структуре %s."
+                % (replacement["label"], self.node(previous_node)["name"]),
+            }
+        )
+        return "Новая роль: %s." % replacement["label"]
+
     def _check_dismissal(self):
-        if self.finished or not self.attached:
+        """Проверить распад организации и смену роли (§7 №28–29).
+
+        Имя сохранено ради совместимости с вызовами из `execute`/`end_day`,
+        но терминального «увольнения» здесь больше нет: потеря должности —
+        смена роли, а не `lose`.
+        """
+        if self.finished:
+            return
+        if not self.attached:
+            self.collapse_days = 0
             return
         node = self.node(self.player_node_id)
         if node is None:
             self.outcome = "lose"
             self.finished = True
+            self.collapsed = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "collapse",
+                    "text": "Структура исчезла: организация распалась.",
+                }
+            )
             return
-        if (
-            node["stats"]["power"] <= COLLAPSE_POWER
-            or node["stats"]["cohesion"] <= COLLAPSE_COHESION
-        ):
+        power = float(node["stats"]["power"])
+        cohesion = float(node["stats"]["cohesion"])
+        strain = (
+            power <= COLLAPSE_POWER or cohesion <= COLLAPSE_COHESION
+        )
+        total_collapse = power <= 0.0 and cohesion <= 0.0
+        if strain:
+            self.collapse_days += 1
+        else:
+            if self.collapse_days:
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "recovery",
+                        "text": "Организация восстановилась выше порога "
+                        "распада.",
+                    }
+                )
+            self.collapse_days = 0
+        if total_collapse or self.collapse_days >= self.collapse_grace_days:
             self.outcome = "lose"
             self.finished = True
+            self.collapsed = True
             self.log.append(
                 {
                     "day": self.day,
                     "kind": "collapse",
                     "text": "Организация распалась: сила или связность "
-                    "упали ниже порога.",
+                    "пробыли ниже порога %d дн." % self.collapse_days,
                 }
             )
             return
-        if self.player_resources["standing"] <= 0.05:
-            self.outcome = "lose"
-            self.finished = True
-            self.log.append(
-                {
-                    "day": self.day,
-                    "kind": "career",
-                    "text": "Вы потеряли опору и должность.",
-                }
-            )
-        elif node["stats"]["legitimacy"] <= 0.08:
-            self.outcome = "lose"
-            self.finished = True
-            self.log.append(
-                {
-                    "day": self.day,
-                    "kind": "career",
-                    "text": "Структура потеряла легитимность; вас отстранили.",
-                }
-            )
+        if self.player_resources["standing"] <= DISMISSAL_STANDING:
+            self._dismiss("потеря опоры и репутации")
+        elif node["stats"]["legitimacy"] <= DISMISSAL_LEGITIMACY:
+            self._dismiss("структура потеряла легитимность")
 
     def end_day(self):
         if self.finished:
@@ -1993,7 +2241,23 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
-        if self.day > self.days and self.outcome is None:
+        if self.infinite:
+            # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
+            # горизонта больше не даёт win/lose. Сценарий продолжается,
+            # пока герой жив и организация не распалась.
+            if self.day > self.days and not self.horizon_passed:
+                self.horizon_passed = True
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "horizon",
+                        "text": "Сюжетный горизонт пройден; история "
+                        "продолжается.",
+                    }
+                )
+        elif self.day > self.days and self.outcome is None:
+            # Легаси-режим для старых конечных сюжетов: явный
+            # `infinite: false` в конфиге сохраняет прежний финал.
             self.outcome = (
                 "win" if self.player_resources["standing"] >= 0.35 else "lose"
             )
@@ -2021,6 +2285,31 @@ class WorldEngine:
         self.log.append({"day": self.day, "kind": "day", "text": summary})
         return result
 
+    def advance_days(self, days, max_days=None):
+        """Продвинуть мир на несколько дней для фона/оффлайна (§7 №31).
+
+        Останавливается на первом терминальном исходе или ошибке. Возвращает
+        список результатов `end_day()`; ограничение `max_days` защищает от
+        случайного огромного догона.
+        """
+        try:
+            limit = max(0, int(days))
+        except (TypeError, ValueError):
+            limit = 0
+        if max_days is not None:
+            limit = min(limit, max(0, int(max_days)))
+        results = []
+        for _ in range(limit):
+            if self.finished:
+                break
+            result = self.end_day()
+            if not result.get("ok"):
+                break
+            results.append(result)
+            if self.finished:
+                break
+        return results
+
     def world_outcome(self):
         return {
             "outcome": self.outcome,
@@ -2030,6 +2319,14 @@ class WorldEngine:
             "health": self.player_health,
             "sickness": self.player_sickness,
             "alive": self.player_alive,
+            "infinite": bool(self.infinite),
+            "horizon_passed": bool(self.horizon_passed),
+            "ending": self.ending,
+            "dismissed": bool(self.dismissed),
+            "dismissal_count": int(self.dismissal_count),
+            "collapsed": bool(self.collapsed),
+            "collapse_days": int(self.collapse_days),
+            "organization": self.organization_status(),
         }
 
     def to_dict(self):
@@ -2076,6 +2373,13 @@ class WorldEngine:
             "outcome": self.outcome,
             "finished": self.finished,
             "attached": self.attached,
+            "infinite": bool(self.infinite),
+            "horizon_passed": bool(self.horizon_passed),
+            "ending": self.ending,
+            "dismissed": bool(self.dismissed),
+            "dismissal_count": int(self.dismissal_count),
+            "collapsed": bool(self.collapsed),
+            "collapse_days": int(self.collapse_days),
         }
 
     def load_snapshot(self, snapshot):
@@ -2165,6 +2469,19 @@ class WorldEngine:
         self.last_result = snapshot.get("last_result")
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))
+        self.infinite = bool(snapshot.get("infinite", self.infinite))
+        self.horizon_passed = bool(
+            snapshot.get("horizon_passed", self.horizon_passed)
+        )
+        self.ending = snapshot.get("ending", self.ending)
+        self.dismissed = bool(snapshot.get("dismissed", self.dismissed))
+        self.dismissal_count = _as_int(
+            snapshot.get("dismissal_count"), self.dismissal_count
+        )
+        self.collapsed = bool(snapshot.get("collapsed", self.collapsed))
+        self.collapse_days = max(
+            0, _as_int(snapshot.get("collapse_days"), self.collapse_days)
+        )
         self.attached = bool(
             snapshot.get("attached")
             or (self.player_node_id and self.player_office_id)

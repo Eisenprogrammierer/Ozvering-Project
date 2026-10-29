@@ -12,6 +12,7 @@ pytest.importorskip("numpy")
 
 
 from campaign.world import (
+    COLLAPSE_GRACE_DAYS,
     DOMAIN_SKILLS,
     WorldEngine,
     WorldError,
@@ -226,12 +227,16 @@ def test_career_promotion_transfer_and_dismissal():
     dismissed = _engine()
     dismissed.player_resources["standing"] = 0.0
     dismissed.end_day()
-    assert dismissed.finished is True
-    assert dismissed.outcome == "lose"
-    assert dismissed.execute("inspect", "knowledge_press") == {
-        "ok": False,
-        "reason": "кампания завершена",
-    }
+    # §7 №29: потеря должности — смена роли, а не поражение.
+    assert dismissed.finished is False
+    assert dismissed.outcome is None
+    assert dismissed.dismissed is True
+    assert dismissed.dismissal_count == 1
+    assert dismissed.attached is True
+    assert dismissed.player_office_id != "head_of_government"
+    assert dismissed.career_history[-2]["kind"] == "dismiss"
+    assert dismissed.career_history[-1]["kind"] == "reassign"
+    assert any(entry["kind"] == "career" for entry in dismissed.log)
 
 
 def test_world_snapshot_roundtrip_restores_state_and_career():
@@ -444,6 +449,7 @@ def test_campaign_sickness_can_kill_player_and_character():
     assert engine.player_health == 0.0
     assert engine.finished is True
     assert engine.outcome == "lose"
+    assert engine.collapsed is False
     assert engine.characters["mira_svet"]["alive"] is False
     option = engine.character_action_options("mira_svet")[0]
     assert option["enabled"] is False
@@ -477,3 +483,133 @@ def test_campaign_condition_survives_snapshot_roundtrip():
     ) == engine.character_condition("mira_svet")
     assert restored.infect_player(0.2) == 0.4
     assert restored.treat_player(0.1) == pytest.approx(0.3)
+
+
+def test_campaign_collapse_requires_grace_days_and_reports_status():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.04
+    node["stats"]["cohesion"] = 0.5
+
+    status = engine.organization_status()
+    assert status["strain"] is True
+    assert status["collapse_days"] == 0
+    assert status["collapse_in"] == COLLAPSE_GRACE_DAYS
+
+    engine.end_day()
+    assert engine.finished is False
+    assert engine.collapse_days == 1
+    assert engine.organization_status()["collapse_in"] == (
+        COLLAPSE_GRACE_DAYS - 1
+    )
+
+    engine.end_day()
+    assert engine.finished is True
+    assert engine.outcome == "lose"
+    assert engine.collapsed is True
+    assert engine.collapse_days >= COLLAPSE_GRACE_DAYS
+    assert any(entry["kind"] == "collapse" for entry in engine.log)
+
+
+def test_campaign_collapse_counter_resets_after_recovery():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.04
+    engine.end_day()
+    assert engine.collapse_days == 1
+    node["stats"]["power"] = 0.5
+    engine.end_day()
+    assert engine.finished is False
+    assert engine.collapse_days == 0
+    assert any(entry["kind"] == "recovery" for entry in engine.log)
+
+
+def test_campaign_resign_is_role_change_not_defeat():
+    engine = _engine()
+    result = engine.execute("resign", "")
+    assert result["ok"] is True
+    # §7 №29: добровольная отставка не завершает кампанию и не даёт lose.
+    assert engine.finished is False
+    assert engine.outcome is None
+    assert engine.attached is False
+    assert engine.dismissed is True
+    assert engine.dismissal_count == 1
+    assert engine.career_history[-1]["kind"] == "resign"
+    assert engine.execute("inspect", "knowledge_press") == {
+        "ok": False,
+        "reason": "сначала выберите должность",
+    }
+
+
+def test_campaign_can_be_reemployed_after_role_change():
+    engine = _engine()
+    engine.player_resources["standing"] = 0.0
+    engine.end_day()
+    previous_day = engine.day
+    # Возвращаемся к прежней должности через тот же публичный API, что UI.
+    assert engine.attached is True
+    engine.player_office_id = ""
+    engine.attached = False
+    option = next(
+        item
+        for item in engine.office_options("agora_government")
+        if item["enabled"]
+    )
+    assert engine.attach("agora_government", option["id"])["ok"] is True
+    assert engine.attached is True
+    assert engine.day == previous_day
+
+
+def test_campaign_infinite_horizon_does_not_award_win():
+    engine = _engine()
+    engine.days = 1
+    assert engine.infinite is True
+    engine.end_day()
+    engine.end_day()
+    assert engine.day > engine.days
+    assert engine.finished is False
+    assert engine.outcome is None
+    assert engine.horizon_passed is True
+    assert any(entry["kind"] == "horizon" for entry in engine.log)
+
+
+def test_campaign_finite_legacy_horizon_still_awards_outcome():
+    engine = _engine()
+    engine.infinite = False
+    engine.days = 1
+    engine.player_resources["standing"] = 0.9
+    engine.end_day()
+    engine.end_day()
+    assert engine.finished is True
+    assert engine.outcome == "win"
+
+
+def test_campaign_narrative_ending_is_not_objective_win():
+    engine = _engine()
+    assert engine.end_storyline("neutral", "Глава завершена.") == (
+        "Глава завершена."
+    )
+    assert engine.finished is True
+    assert engine.ending == "neutral"
+    assert engine.outcome is None
+    assert engine.end_day() == {"ok": False, "reason": "кампания завершена"}
+
+
+def test_campaign_advance_days_catches_up_and_stops_on_finish():
+    engine = _engine()
+    results = engine.advance_days(3)
+    assert len(results) == 3
+    assert engine.day == 4
+
+    engine.player_health = 0.0
+    engine.infect_player(1.0)
+    engine.end_day()
+    assert engine.finished is True
+    assert engine.advance_days(3) == []
+
+
+def test_campaign_advance_days_honours_limit():
+    engine = _engine()
+    results = engine.advance_days(10, max_days=2)
+    assert len(results) == 2
+    assert engine.day == 3
