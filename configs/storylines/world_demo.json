@@ -8,8 +8,18 @@
   "character_creation": "world_char",
   "campaign_seed": 7,
   "scenes": "world_demo_scenes",
-  "win_conditions": [],
-  "lose_conditions": [],
+  "win_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "lose"
+    }
+  ],
   "win_scene": {
     "slides": [
       {

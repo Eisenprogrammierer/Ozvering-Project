@@ -5965,6 +5965,20 @@
       "standing": 0.001
     }
   },
+  "storyline": {
+    "min_day": 10,
+    "deadline_day": 30,
+    "win": {
+      "standing_at_least": 0.6,
+      "text": "Хартия принята: город доверяет вам."
+    },
+    "lose": {
+      "standing_at_most": 0.12,
+      "days": 3,
+      "text": "Хартия провалена: город потерял доверие."
+    },
+    "neutral_text": "Срок истёк: хартия не принята, но провала нет."
+  },
   "default_profile": {
     "name": "Новый герой",
     "skills": {

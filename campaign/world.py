@@ -27,6 +27,15 @@ CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
 # болезни источника.
 CAMPAIGN_CONTAGION_CHANCE = 0.30
 CAMPAIGN_CONTAGION_SEVERITY = 0.35
+# Дневной доход должности. `E` — бюджет действий, а влияние и связи —
+# его политическая проекция: без дохода стоимость действий съедала ресурс
+# за 2–3 действия, и политика большую часть месяца просто завершала день.
+# Доход растёт с полномочиями должности и репутацией, поэтому высокая роль
+# позволяет действовать чаще, но не отменяет дневной бюджет `E`.
+CAMPAIGN_INFLUENCE_INCOME = 0.04
+CAMPAIGN_INFLUENCE_PER_AUTHORITY = 0.21
+CAMPAIGN_FAVOR_INCOME = 0.03
+CAMPAIGN_FAVOR_PER_STANDING = 0.20
 # Навыки кампании растут от практики, а не только задаются биографией.
 # Насыщение к `CAMPAIGN_SKILL_CAP` не даёт одному действию быстро упереться
 # в максимум; провал тоже учит, но заметно слабее.
@@ -310,6 +319,39 @@ def validate_world(data):
                 raise WorldError(
                     "%s: неизвестный круг общения %r" % (action["id"], circle)
                 )
+    storyline = data.get("storyline")
+    if storyline is not None:
+        if not isinstance(storyline, dict):
+            raise WorldError("storyline должен быть объектом")
+        min_day = _as_int(storyline.get("min_day"), 0)
+        if min_day < 0:
+            raise WorldError("storyline.min_day не может быть отрицательным")
+        deadline = storyline.get("deadline_day")
+        if deadline is not None:
+            deadline = _as_int(deadline, 0)
+            if deadline < min_day:
+                raise WorldError(
+                    "storyline.deadline_day не может быть раньше min_day"
+                )
+        for side in ("win", "lose"):
+            goal = storyline.get(side)
+            if goal is None:
+                continue
+            if not isinstance(goal, dict):
+                raise WorldError("storyline.%s должен быть объектом" % side)
+            for key in ("standing_at_least", "standing_at_most"):
+                if key not in goal:
+                    continue
+                value = _as_float(goal.get(key))
+                if not 0.0 <= value <= 1.0:
+                    raise WorldError(
+                        "storyline.%s.%s должен быть в [0, 1]"
+                        % (side, key)
+                    )
+            if side == "lose":
+                days = _as_int(goal.get("days"), 1)
+                if days < 1:
+                    raise WorldError("storyline.lose.days должен быть >= 1")
     return data
 
 
@@ -584,6 +626,10 @@ class WorldEngine:
         self.dismissal_count = 0
         self.collapsed = False
         self.collapse_days = 0
+        # Сюжетный финал (§7 №30): сколько дней подряд репутация держится
+        # ниже порога поражения. Счётчик сбрасывается, как только герой
+        # выбирается выше порога, и живёт в снимке мира.
+        self.storyline_days = 0
         # Идемпотентность дневных проверок (§7 №28–29): `execute()` и
         # `end_day()` могут вызвать `_check_dismissal()` несколько раз за
         # один день. Счётчик распада и смена роли должны срабатывать не
@@ -1897,6 +1943,39 @@ class WorldEngine:
                 changed.append((self.stat_label(key), delta))
         return changed
 
+    def _apply_daily_income(self):
+        """Дневной доход должности — политическая проекция `E`.
+
+        Влияние и связи не являются отдельным бюджетом действий: бюджет —
+        это `E`/`actions_left`. Доход лишь возвращает политический ресурс,
+        который тратят действия, чтобы `E` оставался реальным ограничением,
+        а не маскировался пустой казной героя. Без должности или после
+        смерти дохода нет.
+        """
+        if not self.attached or not self.player_alive:
+            return []
+        income = (
+            (
+                "influence",
+                CAMPAIGN_INFLUENCE_INCOME
+                + CAMPAIGN_INFLUENCE_PER_AUTHORITY * self.player_authority,
+            ),
+            (
+                "favor",
+                CAMPAIGN_FAVOR_INCOME
+                + CAMPAIGN_FAVOR_PER_STANDING
+                * self.player_resources["standing"],
+            ),
+        )
+        changed = []
+        for key, amount in income:
+            before = self.player_resources[key]
+            self.player_resources[key] = _clamp(before + amount)
+            delta = self.player_resources[key] - before
+            if abs(delta) > 1e-9:
+                changed.append((self.stat_label(key), delta))
+        return changed
+
     def _skill_domains(self, action, target):
         """Домены, в которых действие тренирует навыки героя.
 
@@ -2004,6 +2083,119 @@ class WorldEngine:
             }
         )
         return text or label
+
+    def _check_storyline(self):
+        """Проверить сюжетные пороги мира (`storyline` в конфиге).
+
+        Это первый срез «полного набора сюжетных финалов» §7 №30. Правила
+        задаются в конфиге мира, а не в калибровочном скрипте, поэтому
+        `CampaignEnv`, UI и ручная игра видят один и тот же исход:
+
+        - `win.standing_at_least` — герой в должности и город ему доверяет;
+        - `lose.standing_at_most` + `lose.days` — репутация держится ниже
+          порога несколько дней подряд. Это не увольнение (№29): смена роли
+          остаётся сменой роли, а сюжетный провал — отдельный исход;
+        - `deadline_day` — конец главы. Без дедлайна победа срабатывает,
+          как только порог взят; с дедлайном глава оценивается в его конце:
+          победа, поражение или `neutral` (срок истёк, но провала нет).
+          Сам мир при этом остаётся бесконечным: заканчивается глава, а не
+          симуляция.
+
+        Правила проверяются на границе дня после `_advance_conditions()`.
+        Без блока `storyline` мир остаётся бесконечным, как раньше.
+        """
+        goals = self.config.get("storyline") or {}
+        if self.finished or not goals:
+            return
+        if self.day < _as_int(goals.get("min_day"), 0):
+            return
+        win = goals.get("win") or {}
+        lose = goals.get("lose") or {}
+        win_threshold = win.get("standing_at_least")
+        lose_threshold = lose.get("standing_at_most")
+        # Ранний провал: несколько дней подряд ниже порога доверия. Это
+        # работает и до дедлайна, и без него.
+        if lose_threshold is not None:
+            if (
+                self.attached
+                and self.player_alive
+                and self.player_resources["standing"]
+                <= _as_float(lose_threshold)
+            ):
+                self.storyline_days += 1
+            else:
+                self.storyline_days = 0
+            if self.storyline_days >= max(1, _as_int(lose.get("days"), 1)):
+                self._apply_ending(
+                    "lose",
+                    _text(
+                        lose.get("text"),
+                        "Хартия провалена: город потерял доверие.",
+                    ),
+                )
+                return
+        else:
+            self.storyline_days = 0
+        deadline = goals.get("deadline_day")
+        if deadline is not None:
+            if self.day < _as_int(deadline, 0):
+                return
+            if not self.attached or not self.player_alive:
+                self._apply_ending(
+                    "lose",
+                    _text(
+                        lose.get("text"),
+                        "Хартия провалена: вы не удержались в должности.",
+                    ),
+                )
+                return
+            if (
+                win_threshold is not None
+                and self.player_resources["standing"]
+                >= _as_float(win_threshold)
+            ):
+                self._apply_ending(
+                    "win",
+                    _text(
+                        win.get("text"),
+                        "Хартия принята: город доверяет вам.",
+                    ),
+                )
+                return
+            if (
+                lose_threshold is not None
+                and self.player_resources["standing"]
+                <= _as_float(lose_threshold)
+            ):
+                self._apply_ending(
+                    "lose",
+                    _text(
+                        lose.get("text"),
+                        "Хартия провалена: город потерял доверие.",
+                    ),
+                )
+                return
+            self._apply_ending(
+                "neutral",
+                _text(
+                    goals.get("neutral_text"),
+                    "Срок истёк: хартия не принята, но провала нет.",
+                ),
+            )
+            return
+        if (
+            win_threshold is not None
+            and self.attached
+            and self.player_alive
+            and self.player_resources["standing"] >= _as_float(win_threshold)
+        ):
+            self._apply_ending(
+                "win",
+                _text(
+                    win.get("text"),
+                    "Хартия принята: город доверяет вам.",
+                ),
+            )
 
     def _apply_effects(self, effects, context, target, is_player=True):
         effects = effects or {}
@@ -2816,6 +3008,7 @@ class WorldEngine:
                         )
         if daily.get("player"):
             changed.extend(self._apply_player_map(daily.get("player")))
+        changed.extend(self._apply_daily_income())
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
@@ -2840,6 +3033,7 @@ class WorldEngine:
                 "win" if self.player_resources["standing"] >= 0.35 else "lose"
             )
             self.finished = True
+        self._check_storyline()
         self._check_dismissal()
         # Новый день уже наступил: автономные персонажи планируют контакты
         # на будущее. Ошибка/переполнение очереди не ломает ход мира.
@@ -2910,6 +3104,7 @@ class WorldEngine:
             "dismissal_count": int(self.dismissal_count),
             "collapsed": bool(self.collapsed),
             "collapse_days": int(self.collapse_days),
+            "storyline_days": int(self.storyline_days),
             "organization": self.organization_status(),
         }
 
@@ -2968,6 +3163,7 @@ class WorldEngine:
             "dismissal_count": int(self.dismissal_count),
             "collapsed": bool(self.collapsed),
             "collapse_days": int(self.collapse_days),
+            "storyline_days": int(self.storyline_days),
             "intents": self.intents.to_list(),
         }
 
@@ -3080,6 +3276,9 @@ class WorldEngine:
         self.collapsed = bool(snapshot.get("collapsed", self.collapsed))
         self.collapse_days = max(
             0, _as_int(snapshot.get("collapse_days"), self.collapse_days)
+        )
+        self.storyline_days = max(
+            0, _as_int(snapshot.get("storyline_days"), self.storyline_days)
         )
         # Очередь намерений: старые снимки без поля получают пустую очередь,
         # а не падают и не теряют текущий день.

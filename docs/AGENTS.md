@@ -296,6 +296,23 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 `career_actions=True` открывает их для калибровки карьерной политики;
 `CampaignEnv.state_dict()` сохраняет флаг вместе с `target_mode`.
 
+Влияние и связи — политическая проекция `E`, а не второй бюджет:
+`WorldEngine._apply_daily_income()` каждый день возвращает
+`CAMPAIGN_INFLUENCE_INCOME + CAMPAIGN_INFLUENCE_PER_AUTHORITY * authority`
+влияния и `CAMPAIGN_FAVOR_INCOME + CAMPAIGN_FAVOR_PER_STANDING * standing`
+связей, пока герой жив и занимает должность. Доход растёт с должностью и
+репутацией, поэтому высокая роль действует чаще, но `E` остаётся
+ограничением; без дохода стоимость действий съедала ресурс за 2–3 хода.
+
+Сюжетная глава задаётся блоком `storyline` в конфиге мира (`min_day`,
+`deadline_day`, `win.standing_at_least`, `lose.standing_at_most` +
+`lose.days`). `WorldEngine._check_storyline()` проверяет правила на границе
+дня: ранний провал — несколько дней подряд ниже порога доверия, а в
+`deadline_day` глава заканчивается `win`, `lose` или `neutral`. Без блока
+мир остаётся бесконечным; `world_demo.json` ссылается на исход через
+`world_outcome`, поэтому UI и `CampaignEnv` видят один и тот же финал.
+Счётчик `storyline_days` входит в снимок мира и в наблюдение среды.
+
 Очередь намерений (`campaign/planner.py`, первый срез real-time-
 планировщика §7 №31): `WorldEngine.schedule_intent(due_day, kind, ...)`
 откладывает событие на будущий день, `IntentQueue` исполняет его в начале

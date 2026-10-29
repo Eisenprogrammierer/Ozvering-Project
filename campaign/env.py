@@ -352,6 +352,7 @@ class CampaignEnv:
                 getattr(engine, "dismissal_count", 0)
             ),
             "collapse_days": int(getattr(engine, "collapse_days", 0)),
+            "storyline_days": int(getattr(engine, "storyline_days", 0)),
             "ending": str(getattr(engine, "ending", "") or ""),
             "infinite": bool(getattr(engine, "infinite", True)),
             "horizon_passed": bool(
@@ -411,6 +412,7 @@ class CampaignEnv:
                 "horizon_passed": metrics["horizon_passed"],
                 "dismissal_count": metrics["dismissal_count"],
                 "collapse_days": metrics["collapse_days"],
+                "storyline_days": metrics["storyline_days"],
                 "terminal": bool(self._terminal),
             },
         )

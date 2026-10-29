@@ -12,6 +12,8 @@ pytest.importorskip("numpy")
 
 
 from campaign.world import (
+    CAMPAIGN_FAVOR_INCOME,
+    CAMPAIGN_INFLUENCE_INCOME,
     COLLAPSE_GRACE_DAYS,
     DOMAIN_SKILLS,
     WorldEngine,
@@ -312,6 +314,172 @@ def test_world_storyline_definition_is_complete():
         "world",
     ]
     assert storyline["scenes"][0]["slides"][0]["image"].startswith("campaign/")
+    assert storyline["win_conditions"] == [
+        {"type": "world_outcome", "value": "win"}
+    ]
+    assert storyline["lose_conditions"] == [
+        {"type": "world_outcome", "value": "lose"}
+    ]
+
+
+def test_campaign_storyline_win_at_deadline():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 29
+    engine.player_resources["standing"] = 0.70
+
+    engine.end_day()
+
+    assert engine.finished is True
+    assert engine.outcome == "win"
+    assert engine.ending == "win"
+    assert any(entry["kind"] == "ending" for entry in engine.log)
+
+
+def test_campaign_storyline_does_not_win_before_deadline():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 10
+    engine.player_resources["standing"] = 0.70
+
+    engine.end_day()
+
+    assert engine.finished is False
+    assert engine.outcome is None
+
+
+def test_campaign_storyline_deadline_neutral_between_thresholds():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 29
+    engine.player_resources["standing"] = 0.35
+
+    engine.end_day()
+
+    assert engine.finished is True
+    assert engine.outcome is None
+    assert engine.ending == "neutral"
+
+
+def test_campaign_storyline_low_trust_loses_after_consecutive_days():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 10
+    engine.player_resources["standing"] = 0.10
+
+    engine.end_day()
+    engine.end_day()
+    assert engine.finished is False
+    assert engine.storyline_days == 2
+
+    engine.end_day()
+    assert engine.finished is True
+    assert engine.outcome == "lose"
+    assert engine.ending == "lose"
+
+
+def test_campaign_storyline_counter_resets_when_trust_recovers():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 10
+    engine.player_resources["standing"] = 0.10
+    engine.end_day()
+    assert engine.storyline_days == 1
+
+    engine.player_resources["standing"] = 0.30
+    engine.end_day()
+    assert engine.storyline_days == 0
+
+    engine.player_resources["standing"] = 0.10
+    engine.end_day()
+    assert engine.storyline_days == 1
+    assert engine.finished is False
+
+
+def test_campaign_storyline_waits_for_min_day():
+    engine = _engine(office_id="state_secretary")
+    engine.day = 5
+    engine.player_resources["standing"] = 0.10
+
+    engine.end_day()
+    engine.end_day()
+
+    assert engine.day == 7
+    assert engine.finished is False
+    assert engine.storyline_days == 0
+
+
+def test_campaign_storyline_counter_survives_snapshot_roundtrip():
+    engine = _engine(office_id="state_secretary")
+    engine.storyline_days = 2
+
+    restored = WorldEngine(
+        load_world(), snapshot=json.loads(json.dumps(engine.to_dict()))
+    )
+
+    assert restored.storyline_days == 2
+
+
+def test_campaign_without_storyline_block_stays_infinite():
+    world = copy.deepcopy(load_world())
+    world.pop("storyline", None)
+    engine = WorldEngine(
+        world,
+        profile=_profile(),
+        node_id="agora_government",
+        office_id="state_secretary",
+        seed=7,
+    )
+    engine.day = 29
+    engine.player_resources["standing"] = 0.70
+
+    engine.end_day()
+
+    assert engine.finished is False
+    assert engine.outcome is None
+
+
+def test_campaign_daily_income_restores_political_resources():
+    engine = _engine(office_id="state_secretary")
+    engine.player_resources["influence"] = 0.0
+    engine.player_resources["favor"] = 0.0
+
+    result = engine.end_day()
+
+    labels = {label for label, _ in result["changes"]}
+    assert "влияние" in labels
+    assert "связи" in labels
+    assert engine.player_resources["influence"] >= CAMPAIGN_INFLUENCE_INCOME
+    assert engine.player_resources["favor"] >= CAMPAIGN_FAVOR_INCOME
+
+
+def test_campaign_daily_income_scales_with_authority():
+    low = _engine(office_id="state_secretary")
+    high = _engine(office_id="head_of_government")
+    for engine in (low, high):
+        engine.player_resources["influence"] = 0.0
+
+    low.end_day()
+    high.end_day()
+
+    assert high.player_resources["influence"] > low.player_resources[
+        "influence"
+    ]
+
+
+def test_campaign_daily_income_requires_office():
+    engine = _engine(office_id="state_secretary")
+    engine._dismiss("тест", auto_reassign=False)
+    favor_before = engine.player_resources["favor"]
+
+    engine.end_day()
+
+    assert engine.player_resources["favor"] == pytest.approx(favor_before)
+
+
+def test_campaign_income_keeps_actions_available_after_spending():
+    engine = _engine(office_id="state_secretary")
+    engine.player_resources["influence"] = 0.0
+    engine.player_resources["favor"] = 0.0
+
+    engine.end_day()
+
+    assert "inspect" in engine.available_actions("agora_ministry_interior")
 
 
 def test_world_layer_is_headless():
