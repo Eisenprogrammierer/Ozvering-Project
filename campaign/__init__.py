@@ -1,4 +1,5 @@
 from .errors import CampaignError
+from .actor import CAMPAIGN_ENERGY_MAX, CampaignActor
 from .roles import (
     ROLE_ID_RE,
     RoleCatalog,
@@ -33,6 +34,8 @@ from .env import (
 
 __all__ = [
     "SCHEMA",
+    "CAMPAIGN_ENERGY_MAX",
+    "CampaignActor",
     "CampaignError",
     "END_DAY",
     "CampaignEnv",

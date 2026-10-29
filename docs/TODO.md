@@ -36,6 +36,47 @@
 
 ---
 
+## Три ограничения среды обучения — закрыто (2026-10-29)
+
+Закрыты три известных разрыва между активным runtime и обучением. Изменения
+затронули баланс кампании и легаси-тесты осознанно; канон `simulation.py` и
+`tests/test_canon.py` не переписывались.
+
+- [x] **Кампания на `core41` `E/F/H`.** `campaign/actor.py` вводит
+  `CampaignActor` на `core41.Automaton`: `E` — дневной бюджет действий
+  (`CAMPAIGN_ENERGY_MAX = 100`, одно действие —
+  `100 / actions_per_day`), `F` — `standing` в `[0, 1]`, `H`/`sickness` —
+  общие с ареной. `actions_left` остаётся проекцией `E`
+  (`floor(E / energy_per_action)`), поэтому UI, сейвы и старые тесты
+  совместимы; `player_resources["standing"]` синхронизирован с `F` через
+  `_PlayerResources`. `CampaignObservation` и `campaign_features()` отдают
+  `energy/max_energy/force/max_force` с fallback на легаси-поля. Тесты —
+  `tests/test_campaign_energy.py`; разделы — `WORLD_CORE_MODEL.md` §2.3.4,
+  `AGENTS.md` §3, `SOURCE_OF_TRUTH.md`.
+- [x] **`with_env` больше не мёртвый.** `core41/environment.py` содержит
+  `ArenaEnvironment` — симметричный актор среды, который по расписанию
+  `ENV_EVENT_INTERVAL = 17` / `ENV_RELIEF_INTERVAL = 31` даёт обоим
+  участникам одинаковое истощение/передышку. `ArenaMatch` создаёт и тикает
+  его только при `with_env=True`; `MatchEngine` и `BattlefieldModel`
+  выставляют `env` реальным объектом, события попадают в журнал поля боя.
+  При `with_env=False` среды нет и прежняя калибровка сохраняется. Тесты —
+  `tests/test_environment.py`; раздел — `WORLD_CORE_MODEL.md` §2.3.5.
+- [x] **Held-out `qtable`/`mlp` не нетренированы.** Перед матрицей силы
+  `agents.train` прогревает обучаемые baseline на отдельном потоке seed'ов
+  (`--eval-baseline-episodes`, по умолчанию 50) против стабильного `bdi`, не
+  касаясь основной политики и eval seed'ов. Строки получают
+  `trained_episodes` и `policy_source` (`warmup`/`builtin`); явный
+  `--eval-checkpoint NAME=PATH` загружает готовые веса и отключает прогрев
+  (`trained_episodes: -1`). `--eval-baseline-episodes 0` честно оставляет
+  baseline нетренированным. Тесты — `tests/test_train_cli.py`; раздел —
+  `AGENTS.md` §3.
+
+Осталось открытым: real-time-планировщик кампании, средовые источники/раны,
+асимметричные события среды, сезонность, повторная калибровка здоровья на
+кампанийных политиках и полная миграция организационных шкал мира.
+
+---
+
 ## `core41`: болезнь и лечение — частично закрыто (2026-10-28)
 
 - [x] `sickness ∈ [0, 1]` как отдельное состояние; `infect()`, `treat()`,

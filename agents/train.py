@@ -41,6 +41,15 @@ WINNERS_AI = ("AI", "opponent")
 # Сдвиг зерна доменного rng от игрового seed: разные потоки случайности,
 # воспроизводимые одним и тем же --seed.
 DOMAIN_SEED_SALT = 7919
+# Политики без ручных весов, которым нужен прогрев перед held-out оценкой.
+# Иначе «qtable/mlp» в матрице силы — это случайная таблица/сеть, и строка
+# измеряет не baseline, а шум инициализации.
+LEARNABLE_EVAL_BASELINES = frozenset(
+    {"qtable", "mlp", "qtable-campaign"}
+)
+DEFAULT_EVAL_BASELINE_EPISODES = 50
+# Отдельный сдвиг зерна прогрева: он не должен совпадать с eval seed'ами.
+BASELINE_SEED_SALT = 500003
 
 
 def _make_env(
@@ -247,6 +256,51 @@ def _count_winner(info, wins, losses, draws):
     return wins, losses, draws + 1
 
 
+def _warmup_baseline(
+    name,
+    seed,
+    episodes,
+    max_steps,
+    env_name,
+    env_kwargs,
+):
+    """Прогреть обучаемый baseline перед held-out матрицей.
+
+    `qtable`/`mlp` без чекпойнта стартуют со случайных весов: их строка в
+    матрице силы измеряла бы инициализацию, а не baseline. Здесь политика
+    обучается на отдельном потоке seed'ов против стабильного `bdi`, не
+    касаясь ни основной политики, ни eval seed'ов. Возвращает
+    `(policy, trained_episodes)`; для политик с готовыми весами — `(policy, 0)`.
+    """
+    policy = make_policy(name, seed=seed)
+    if name not in LEARNABLE_EVAL_BASELINES or episodes <= 0:
+        return policy, 0
+    partner = make_policy("bdi", seed=seed + 1)
+    env = _make_env(
+        env_name,
+        seed,
+        max_steps,
+        policy,
+        partner,
+        env_kwargs,
+    )
+    if getattr(env, "single_agent", False):
+        # Кампания оценивается одной строкой «против мира»; отдельных
+        # baseline-оппонентов там нет.
+        return policy, 0
+    for episode in range(int(episodes)):
+        _play_episode(
+            env,
+            policy,
+            partner,
+            seed + episode,
+            self_play=False,
+            learn=True,
+            explore=True,
+        )
+    return policy, int(episodes)
+
+
 def evaluate(
     policy,
     opponent,
@@ -360,6 +414,8 @@ def train(
     eval_episodes=0,
     eval_seed=None,
     eval_opponents=(),
+    eval_baseline_episodes=DEFAULT_EVAL_BASELINE_EPISODES,
+    eval_checkpoints=None,
     resume=None,
     resume_opponent=None,
     domain_randomize=False,
@@ -454,10 +510,34 @@ def train(
             ]
         else:
             names = tuple(eval_opponents) or (opponent_name,)
-            opponents = {
-                name: make_policy(name, seed=eval_seed + index)
-                for index, name in enumerate(names)
-            }
+            opponents = {}
+            sources = {}
+            for index, name in enumerate(names):
+                checkpoint = (eval_checkpoints or {}).get(name)
+                if checkpoint:
+                    opponents[name] = load_policy(
+                        checkpoint, seed=eval_seed + index
+                    )
+                    sources[name] = {
+                        "trained_episodes": -1,
+                        "policy_source": checkpoint,
+                    }
+                else:
+                    baseline, trained = _warmup_baseline(
+                        name,
+                        eval_seed + BASELINE_SEED_SALT + index * 101,
+                        eval_baseline_episodes,
+                        max_steps,
+                        env_name,
+                        env_kwargs,
+                    )
+                    opponents[name] = baseline
+                    sources[name] = {
+                        "trained_episodes": trained,
+                        "policy_source": (
+                            "warmup" if trained else "builtin"
+                        ),
+                    }
             stats["eval"] = evaluate_matrix(
                 {policy_name: policy},
                 opponents,
@@ -468,6 +548,8 @@ def train(
                 env_kwargs=env_kwargs,
                 domain_opts=eval_domain_opts,
             )
+            for row in stats["eval"]:
+                row.update(sources.get(row["opponent"], {}))
         if eval_domain_opts is not None:
             for row in stats["eval"]:
                 row["domain_randomized"] = True
@@ -519,6 +601,25 @@ def main(argv=None):
         "--eval-opponents",
         default="bdi,qtable,random,mlp",
         help="имена оппонентов для матрицы силы через запятую",
+    )
+    parser.add_argument(
+        "--eval-baseline-episodes",
+        type=int,
+        default=DEFAULT_EVAL_BASELINE_EPISODES,
+        help=(
+            "сколько эпизодов прогреть обучаемый baseline (qtable/mlp) "
+            "перед held-out оценкой; 0 — не греть"
+        ),
+    )
+    parser.add_argument(
+        "--eval-checkpoint",
+        action="append",
+        default=[],
+        metavar="NAME=PATH",
+        help=(
+            "готовый чекпойнт baseline для оценки (можно несколько раз); "
+            "переопределяет прогрев для этого имени"
+        ),
     )
     parser.add_argument(
         "--resume",
@@ -600,6 +701,16 @@ def main(argv=None):
         for name in args.eval_opponents.split(",")
         if name.strip()
     )
+    eval_checkpoints = {}
+    for item in args.eval_checkpoint:
+        name, separator, path = item.partition("=")
+        name = name.strip()
+        path = path.strip()
+        if not separator or not name or not path:
+            parser.error(
+                "--eval-checkpoint ожидает NAME=PATH, получено %r" % item
+            )
+        eval_checkpoints[name] = path
     domain_opts = {
         "profiles": tuple(
             name.strip().upper()
@@ -628,6 +739,8 @@ def main(argv=None):
         eval_episodes=args.eval_episodes,
         eval_seed=args.eval_seed,
         eval_opponents=eval_opponents,
+        eval_baseline_episodes=args.eval_baseline_episodes,
+        eval_checkpoints=eval_checkpoints,
         resume=args.resume or None,
         resume_opponent=args.resume_opponent or None,
         domain_randomize=args.domain_randomize,

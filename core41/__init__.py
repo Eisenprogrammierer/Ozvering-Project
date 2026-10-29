@@ -26,6 +26,15 @@ from .clock import (
 )
 from .duel import DuelWorld
 from .env import ArenaEnv, DuelEnv, randomize_draw
+from .environment import (
+    ENV_ENERGY_DRAIN,
+    ENV_ENERGY_RELIEF,
+    ENV_EVENT_INTERVAL,
+    ENV_HEALTH_DRAIN,
+    ENV_HEALTH_RELIEF,
+    ENV_RELIEF_INTERVAL,
+    ArenaEnvironment,
+)
 from .model import (
     CONTAGION_CHANCE,
     CONTAGION_SEVERITY,
@@ -63,11 +72,18 @@ __all__ = [
     "Action",
     "ArenaAgent",
     "ArenaEnv",
+    "ArenaEnvironment",
     "ArenaMatch",
     "Automaton",
     "BASE_TICK_SECONDS",
     "CAPTURE_STREAK",
     "CampaignAction",
+    "ENV_ENERGY_DRAIN",
+    "ENV_ENERGY_RELIEF",
+    "ENV_EVENT_INTERVAL",
+    "ENV_HEALTH_DRAIN",
+    "ENV_HEALTH_RELIEF",
+    "ENV_RELIEF_INTERVAL",
     "CampaignObservation",
     "CORE_ACTIONS",
     "CONTAGION_CHANCE",

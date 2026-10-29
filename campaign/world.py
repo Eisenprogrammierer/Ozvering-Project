@@ -6,6 +6,7 @@ from pathlib import Path
 
 from core41 import HEALTH_MAX, SICKNESS_MAX
 
+from .actor import CAMPAIGN_ENERGY_MAX, CampaignActor
 from .errors import CampaignError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +106,32 @@ def _as_int(value, default=0):
         return int(value)
     except (TypeError, ValueError):
         return int(default)
+
+
+class _PlayerResources(dict):
+    """Личные ресурсы позиции; `standing` — проекция `F` персонажа.
+
+    Словарь остаётся обычным `dict` для UI/сейвов и сравнений, но запись
+    `standing` синхронно меняет `CampaignActor.force`. Так `F` перестаёт
+    быть отдельной копией и не расходится с репутацией.
+    """
+
+    def __init__(self, actor, initial=None):
+        self.actor = actor
+        super().__init__()
+        for key, value in (initial or {}).items():
+            self[key] = value
+        self.actor.force = float(self.get("standing", 0.0))
+
+    def __setitem__(self, key, value):
+        if key == "standing":
+            value = _clamp(value)
+            self.actor.force = value
+        super().__setitem__(key, value)
+
+    def update(self, *args, **kwargs):
+        for key, value in dict(*args, **kwargs).items():
+            self[key] = value
 
 
 def _text(value, default=""):
@@ -500,20 +527,29 @@ class WorldEngine:
         self.player_node_id = _text(node_id)
         self.player_office_id = _text(office_id)
         self.player_authority = 0.0
-        self.player_resources = {key: 0.0 for key in PLAYER_STATS}
-        self.player_item_ids = []
         condition = self.config.get("condition") or {}
-        self.player_health = _clamp(
+        initial_health = _clamp(
             _as_float(condition.get("health"), HEALTH_MAX),
             0.0,
             HEALTH_MAX,
         )
-        self.player_sickness = _clamp(
+        initial_sickness = _clamp(
             _as_float(condition.get("sickness"), 0.0),
             0.0,
             SICKNESS_MAX,
         )
-        self.player_alive = self.player_health > 0.0
+        # Персонаж кампании — тот же 4-2-1-автомат, что и на арене:
+        # E — дневной бюджет действий, F — standing, H/sickness — здоровье.
+        self.player = CampaignActor(
+            actions_per_day=self.actions_per_day,
+            health=initial_health,
+            sickness=initial_sickness,
+        )
+        self.player_resources = _PlayerResources(
+            self.player,
+            {key: 0.0 for key in PLAYER_STATS},
+        )
+        self.player_item_ids = []
         self.day = 1
         self.actions_left = self.actions_per_day
         self.action_count = 0
@@ -546,6 +582,63 @@ class WorldEngine:
             if self.player_node_id and self.player_office_id:
                 self.attach(self.player_node_id, self.player_office_id)
             self._opening()
+
+    # ------------------------------------------------------------------
+    # Персонаж на ядре 4-2-1: E/F/H и совместимые проекции
+    # ------------------------------------------------------------------
+
+    @property
+    def actions_left(self):
+        return self.player.actions_left
+
+    @actions_left.setter
+    def actions_left(self, value):
+        self.player.actions_left = value
+
+    @property
+    def player_energy(self):
+        return self.player.energy
+
+    @player_energy.setter
+    def player_energy(self, value):
+        self.player.energy = value
+
+    @property
+    def player_max_energy(self):
+        return self.player.max_energy
+
+    @property
+    def player_force(self):
+        return self.player.force
+
+    @player_force.setter
+    def player_force(self, value):
+        self.player.force = value
+
+    @property
+    def player_health(self):
+        return self.player.health
+
+    @player_health.setter
+    def player_health(self, value):
+        self.player.health = value
+
+    @property
+    def player_sickness(self):
+        return self.player.sickness
+
+    @player_sickness.setter
+    def player_sickness(self, value):
+        self.player.sickness = value
+
+    @property
+    def player_alive(self):
+        return self.player.alive
+
+    @player_alive.setter
+    def player_alive(self, value):
+        if not value:
+            self.player.health = 0.0
 
     def _build_nodes(self):
         nodes = {}
@@ -764,12 +857,18 @@ class WorldEngine:
             self.profile,
             office.get("connection_kinds") or (),
         )
-        self.player_resources = {
-            "influence": _clamp(0.22 + 0.25 * aptitude + 0.10 * connection),
-            "favor": _clamp(0.18 + 0.20 * connection),
-            "evidence": 0.0,
-            "standing": _clamp(0.28 + 0.25 * aptitude + 0.10 * connection),
-        }
+        self.player_resources.update(
+            {
+                "influence": _clamp(
+                    0.22 + 0.25 * aptitude + 0.10 * connection
+                ),
+                "favor": _clamp(0.18 + 0.20 * connection),
+                "evidence": 0.0,
+                "standing": _clamp(
+                    0.28 + 0.25 * aptitude + 0.10 * connection
+                ),
+            }
+        )
         self.attached = True
         self._refresh_items()
         self.log.append(
@@ -862,9 +961,15 @@ class WorldEngine:
     def player_condition(self):
         return {
             "health": float(self.player_health),
-            "max_health": float(HEALTH_MAX),
+            "max_health": float(self.player.max_health),
             "sickness": float(self.player_sickness),
             "alive": bool(self.player_alive),
+            "energy": float(self.player_energy),
+            "max_energy": float(self.player_max_energy),
+            "actions_left": int(self.actions_left),
+            "actions_per_day": int(self.actions_per_day),
+            "force": float(self.player_force),
+            "max_force": float(self.player.max_force),
         }
 
     def character_condition(self, character_id):
@@ -930,7 +1035,21 @@ class WorldEngine:
 
     def _advance_conditions(self):
         changed = []
-        if self.player_alive:
+        if not self.player_alive:
+            # Здоровье могли обнулить напрямую (сейв, тест, эффект мира):
+            # отсутствие `alive` не должно оставлять кампанию в
+            # незавершённом состоянии.
+            if not self.finished:
+                self.outcome = "lose"
+                self.finished = True
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "death",
+                        "text": "Герой умер от болезни и истощения.",
+                    }
+                )
+        else:
             before = (self.player_health, self.player_sickness)
             self.player_health, self.player_sickness = (
                 self._advance_condition(
@@ -945,7 +1064,6 @@ class WorldEngine:
                     )
                 )
             if self.player_health <= 0.0:
-                self.player_alive = False
                 self.outcome = "lose"
                 self.finished = True
                 self.log.append(
@@ -1267,7 +1385,7 @@ class WorldEngine:
         changed.extend(
             self._apply_character_effects(branch.get("effects"), character)
         )
-        self.actions_left = max(0, self.actions_left - 1)
+        self.player.spend_action()
         self.action_count += 1
         cooldown = _as_int(action.get("cooldown_days"), 0)
         if cooldown:
@@ -1860,7 +1978,7 @@ class WorldEngine:
             career_text = self._career_transition(action, target)
         if outcome == "failure" and action.get("career") == "resign":
             career_text = self._career_transition(action, target)
-        self.actions_left = max(0, self.actions_left - 1)
+        self.player.spend_action()
         self.action_count += 1
         cooldown = _as_int(action.get("cooldown_days"), 0)
         if cooldown:
@@ -2355,6 +2473,9 @@ class WorldEngine:
             "health": self.player_health,
             "sickness": self.player_sickness,
             "alive": self.player_alive,
+            "energy": self.player_energy,
+            "actions_left": self.actions_left,
+            "force": self.player_force,
             "infinite": bool(self.infinite),
             "horizon_passed": bool(self.horizon_passed),
             "ending": self.ending,
@@ -2384,6 +2505,10 @@ class WorldEngine:
                 "health": float(self.player_health),
                 "sickness": float(self.player_sickness),
                 "alive": bool(self.player_alive),
+                "energy": float(self.player_energy),
+                "max_energy": float(self.player_max_energy),
+                "force": float(self.player_force),
+                "max_force": float(self.player.max_force),
             },
             "characters": {
                 character_id: {
@@ -2453,6 +2578,16 @@ class WorldEngine:
         for key, value in (player.get("resources") or {}).items():
             if key in self.player_resources:
                 self.player_resources[key] = _clamp(value)
+        if "force" in player:
+            self.player_resources["standing"] = _clamp(
+                player.get("force", 0.0)
+            )
+        if "energy" in player:
+            self.player_energy = _clamp(
+                _as_float(player.get("energy"), 0.0),
+                0.0,
+                self.player_max_energy,
+            )
         self.career_history = list(player.get("career_history") or [])
         if "items" in player:
             self.player_item_ids = [

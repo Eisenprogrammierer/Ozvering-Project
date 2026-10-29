@@ -284,6 +284,10 @@ class CampaignEnv:
             "health": condition["health"],
             "sickness": condition["sickness"],
             "alive": condition["alive"],
+            "energy": condition.get("energy", 0.0),
+            "max_energy": condition.get("max_energy", 0.0),
+            "force": condition.get("force", 0.0),
+            "max_force": condition.get("max_force", 0.0),
             "authority": float(engine.player_authority),
             "finished": bool(engine.finished),
             "outcome": engine.outcome or "",
@@ -316,6 +320,10 @@ class CampaignEnv:
             total_days=int(self.max_days),
             actions_left=int(metrics["actions_left"]),
             actions_per_day=int(engine.actions_per_day),
+            energy=float(metrics["energy"]),
+            max_energy=float(metrics["max_energy"]),
+            force=float(metrics["force"]),
+            max_force=float(metrics["max_force"]),
             health=float(metrics["health"]),
             max_health=float(HEALTH_MAX),
             sickness=float(metrics["sickness"]),
@@ -454,7 +462,7 @@ class CampaignEnv:
             return {"ok": False, "reason": "герой здоров"}
         if engine.actions_left <= 0:
             return {"ok": False, "reason": "не осталось действий"}
-        engine.actions_left = max(0, engine.actions_left - 1)
+        engine.player.spend_action()
         value = engine.treat_player(CAMPAIGN_TREAT_AMOUNT)
         if value is None:
             return {"ok": False, "reason": "герой мёртв"}

@@ -654,7 +654,8 @@ def test_active_arena_match_engine_uses_core41_runtime():
     match = ge.MatchEngine(seed=2, steps=8)
     assert isinstance(match.rl, ArenaAgent)
     assert isinstance(match.ai, ArenaAgent)
-    assert match.env is None
+    assert match.env is not None
+    assert match.env is match.core.env
     for _ in range(8):
         match.step_tick()
     assert match.step == 8

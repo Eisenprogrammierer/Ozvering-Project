@@ -78,7 +78,7 @@ def test_objective_owner_and_bonus():
 
 def test_battlefield_uses_core41_runtime():
     m = B.BattlefieldModel(seed=0)
-    assert m.env is None
+    assert m.env is not None
     assert isinstance(m.player.agent, ArenaAgent)
     assert isinstance(m.enemy.agent, ArenaAgent)
     assert not hasattr(m.enemy.agent, "energy_types")

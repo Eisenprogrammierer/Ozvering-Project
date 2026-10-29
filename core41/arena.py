@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 
+from .environment import ArenaEnvironment
 from .model import (
     DEFAULT_HEALTH_FACTORS,
     HEALTH_FACTOR_MAX,
@@ -642,6 +643,15 @@ class ArenaMatch:
             health_factors=health_factors_ai,
             sickness=sickness_ai,
         )
+        # Актор среды (проблема с мёртвым `with_env`): не воюет, а по
+        # фиксированному расписанию добавляет обоим одинаковое внешнее
+        # давление/передышку. При `with_env=False` его нет — прежняя
+        # калибровка сохраняется.
+        self.env = (
+            ArenaEnvironment(seed=self.seed ^ 0xE7E7)
+            if self.with_env
+            else None
+        )
 
     def _coerce_action(self, action):
         if isinstance(action, Action):
@@ -658,6 +668,10 @@ class ArenaMatch:
         ai._time = self.time
         rl_obs = rl.observe(ai)
         ai_obs = ai.observe(rl)
+
+        if self.env is not None:
+            env_events = self.env.tick(rl, ai)
+            self.events.extend(env_events)
 
         if forced_rl_action is None:
             rl_action, _ = rl.choose_action(ai, explore=True)

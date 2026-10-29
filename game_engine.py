@@ -652,10 +652,11 @@ class MatchEngine:
             health_factors_ai=self.health_factors,
             sickness_rl=self.sickness,
             sickness_ai=self.sickness,
+            with_env=self.with_env,
         )
         self.rl = self.core.rl
         self.ai = self.core.ai
-        self.env = None
+        self.env = self.core.env
 
     @property
     def step(self):
@@ -1545,9 +1546,11 @@ class GameApp:
         m = self.match
         env = m.env
 
-        bg = env_bg_color(env.force if env else 10.0)
+        bg = env_bg_color(10.0)
         s.fill(bg)
-        if env is not None and env.in_open:
+        if env is not None and any(
+            event.get("event") == "strain" for event in env.events
+        ):
             glow = 160 + 60 * math.sin(self.time * 6.0)
             pygame.draw.rect(
                 s, (int(glow), int(glow * 0.78), 40), s.get_rect(), width=4
@@ -1726,25 +1729,25 @@ class GameApp:
                         s.blit(wt_, (max(x, r.right - wt_.get_width() - 8), y))
                 y += dy
 
-            blit_row(self.L("СРЕДА-АВТОМАТ", "ENVIRONMENT"), COL_ENV_OPEN)
+            blit_row(self.L("СРЕДА-АКТОР", "ENVIRONMENT"), COL_ENV_OPEN)
+            strain_in = e.event_interval - (e.ticks % e.event_interval)
+            relief_in = e.relief_interval - (e.ticks % e.relief_interval)
+            last = e.events[-1]["event"] if e.events else "-"
             blit_row(
-                f"F={e.force:7.1f} E={e.energy_pool:4.0f}",
-                DEFENSE_COLORS[e.defense],
-                (
-                    f"phase[{defense_label(e.defense)}]",
-                    DEFENSE_COLORS[e.defense],
-                ),
-            )
-            blit_row(
-                f"w_adopt={e.w_adopt:6.1f}/{e.schmitt_on():5.1f}",
+                f"ticks={e.ticks}",
                 COL_TEXT,
-                (
-                    "WINDOW OPEN" if e.in_open else "closed",
-                    COL_ENV_OPEN if e.in_open else COL_DIM,
-                ),
+                (f"last={last}", COL_DIM),
             )
             blit_row(
-                f"members: {len(e.members)} bonus: {0.0:+.2f}",
+                f"strain in {strain_in}",
+                COL_TEXT,
+                (f"relief in {relief_in}", COL_DIM),
+            )
+            blit_row(
+                self.L(
+                    "симметрично: E/H обоим",
+                    "symmetric: E/H both sides",
+                ),
                 COL_DIM,
             )
         else:
@@ -1966,13 +1969,18 @@ class GameApp:
         env = m.env
         if env is None:
             return
-        col = DEFENSE_COLORS[env.defense]
+        strain_in = env.event_interval - (env.ticks % env.event_interval)
+        label = ""
+        if env.events:
+            event = env.events[-1].get("event", "")
+            if event == "strain":
+                label = "  STRAIN"
+            elif event == "relief":
+                label = "  RELIEF"
         txt = self.font.render(
-            f"ENVIRONMENT  F={env.force:.0f}  "
-            f"phase[{defense_label(env.defense)}]"
-            f"  {'CONJUNCTURE WINDOW OPEN' if env.in_open else ''}",
+            f"ENVIRONMENT  ticks={env.ticks}  strain in {strain_in}{label}",
             True,
-            col,
+            COL_ENV_OPEN if label else COL_DIM,
         )
         s.blit(
             txt,

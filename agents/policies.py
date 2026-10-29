@@ -131,13 +131,29 @@ def campaign_features(observation, action):
     self_target = 1.0 if not action.target else 0.0
     is_heal = 1.0 if (self_target and not is_end_day) else 0.0
     is_work = 1.0 if (not self_target and not is_end_day) else 0.0
+    if float(observation.energy) >= 0.0 and float(
+        observation.max_energy
+    ) > 0.0:
+        energy_ratio = float(observation.energy) / float(
+            observation.max_energy
+        )
+    else:
+        energy_ratio = float(observation.actions_left) / max(
+            1, int(observation.actions_per_day)
+        )
+    if float(observation.force) >= 0.0 and float(
+        observation.max_force
+    ) > 0.0:
+        force_ratio = float(observation.force) / float(
+            observation.max_force
+        )
+    else:
+        force_ratio = float(observation.standing)
     return (
         1.0,
-        float(observation.actions_left) / max(
-            1, int(observation.actions_per_day)
-        ),
+        _clamp01(energy_ratio),
         _clamp01(float(observation.day) / max(1, int(observation.total_days))),
-        _clamp01(float(observation.standing)),
+        _clamp01(force_ratio),
         _clamp01(float(observation.power)),
         1.0 if observation.attached else 0.0,
         _clamp01(float(observation.cohesion)),
@@ -297,8 +313,14 @@ class BDIPolicy:
             return {
                 "opponent_open": bool(observation.attached),
                 "opponent_pressure": float(observation.cohesion),
-                "self_energy": float(observation.actions_left)
-                / max(1, int(observation.actions_per_day)),
+                "self_energy": (
+                    float(observation.energy)
+                    / max(1.0, float(observation.max_energy))
+                    if float(observation.energy) >= 0.0
+                    and float(observation.max_energy) > 0.0
+                    else float(observation.actions_left)
+                    / max(1, int(observation.actions_per_day))
+                ),
                 "opponent_force": float(observation.power),
                 "self_health": float(observation.health)
                 / max(1.0, observation.max_health),

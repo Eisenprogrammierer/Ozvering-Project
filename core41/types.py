@@ -88,6 +88,13 @@ class CampaignObservation:
     total_days: int = 1
     actions_left: int = 0
     actions_per_day: int = 1
+    # Ядро 4-2-1: E/F — те же шкалы, что у арены. Отрицательный сентинел
+    # означает «поле не заполнено»; признаки тогда падают обратно на
+    # actions_left/standing для старых конструкторов.
+    energy: float = -1.0
+    max_energy: float = 0.0
+    force: float = -1.0
+    max_force: float = 0.0
     # Состояние персонажа (health/sickness — то же ядро, что и на арене).
     health: float = 100.0
     max_health: float = 100.0

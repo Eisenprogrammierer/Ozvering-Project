@@ -6,6 +6,7 @@ from agents import BDIPolicy, load_policy
 from core41 import (
     Action,
     ArenaAgent,
+    ArenaEnvironment,
     PROFILE_SKILLS,
     TREAT_ENERGY_FRACTION,
     check_capture,
@@ -535,7 +536,11 @@ class BattlefieldModel:
         self.winner_side = None
         self.dom_player = 0
         self.dom_enemy = 0
-        self.env = None
+        self.env = (
+            ArenaEnvironment(seed=self.seed ^ 0xE7E7)
+            if with_env
+            else None
+        )
         self.with_env = bool(with_env)
         self.log = []
         self.roleplay = RoleplayState(self)
@@ -829,6 +834,9 @@ class BattlefieldModel:
     def _end_turn(self):
         if self.winner:
             return
+        if self.env is not None:
+            for event in self.env.tick(self.player, self.enemy):
+                self._log(event["text"], event["text"])
         self.turn += 1
         bonus = 2 if self.objective_owner == "player" else 1
         self.command_points = clamp(
