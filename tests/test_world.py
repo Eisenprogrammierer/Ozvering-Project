@@ -642,3 +642,52 @@ def test_campaign_advance_days_honours_limit():
     results = engine.advance_days(10, max_days=2)
     assert len(results) == 2
     assert engine.day == 3
+
+
+def test_campaign_contagion_spreads_from_player_to_same_node_character():
+    engine = _engine()
+    character = engine.characters["mira_svet"]
+    character["node_id"] = engine.player_node_id
+    engine.infect_player(0.9)
+
+    for _ in range(10):
+        engine.end_day()
+        if any(entry["kind"] == "infection" for entry in engine.log):
+            break
+
+    assert character["sickness"] > 0.0
+    infections = [
+        entry for entry in engine.log if entry["kind"] == "infection"
+    ]
+    assert infections
+    assert any("заразил" in entry["text"] for entry in infections)
+
+
+def test_campaign_contagion_requires_same_node():
+    engine = _engine()
+    character = engine.characters["mira_svet"]
+    other = next(
+        node_id
+        for node_id in engine.node_order
+        if node_id != engine.player_node_id
+    )
+    character["node_id"] = other
+    engine.infect_player(1.0)
+
+    for _ in range(5):
+        engine.end_day()
+
+    assert character["sickness"] == 0.0
+
+
+def test_campaign_contagion_is_inert_without_sickness():
+    engine = _engine()
+
+    for _ in range(5):
+        engine.end_day()
+
+    assert not any(entry["kind"] == "infection" for entry in engine.log)
+    assert all(
+        character["sickness"] == 0.0
+        for character in engine.characters.values()
+    )

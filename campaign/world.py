@@ -22,6 +22,11 @@ DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
 CAMPAIGN_HEALTH_REGEN = 1.0
 CAMPAIGN_SICKNESS_PROGRESS = 0.01
 CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
+# Кампанийная передача болезни — контакт в одном узле. День крупнее
+# аренного такта, поэтому шанс ниже `CONTAGION_CHANCE`, а тяжесть — доля
+# болезни источника.
+CAMPAIGN_CONTAGION_CHANCE = 0.30
+CAMPAIGN_CONTAGION_SEVERITY = 0.35
 COLLAPSE_POWER = 0.05
 COLLAPSE_COHESION = 0.05
 # Распад — не мгновенный срез одной шкалы (вопрос §7 №28): организация
@@ -1050,6 +1055,100 @@ class WorldEngine:
             health = min(HEALTH_MAX, health + CAMPAIGN_HEALTH_REGEN)
         return health, sickness
 
+    def _contagion_actors(self):
+        """Живые акторы кампании, между которыми возможен контакт.
+
+        Игрок представлен отдельной записью, персонажи — ссылкой на свой
+        словарь. `sickness` в записи — снимок на начало проверки; он
+        обновляется через `_set_contagion_sickness`.
+        """
+        actors = []
+        if self.attached and self.player_alive:
+            actors.append(
+                {
+                    "id": "player",
+                    "name": "герой",
+                    "node_id": self.player_node_id,
+                    "sickness": float(self.player_sickness),
+                    "character": None,
+                }
+            )
+        for character_id in self.character_order:
+            character = self.characters[character_id]
+            if not character["alive"] or not character.get("node_id"):
+                continue
+            actors.append(
+                {
+                    "id": character["id"],
+                    "name": character["name"],
+                    "node_id": character["node_id"],
+                    "sickness": float(character["sickness"]),
+                    "character": character,
+                }
+            )
+        return actors
+
+    def _set_contagion_sickness(self, actor, value):
+        value = _clamp(value, 0.0, SICKNESS_MAX)
+        if actor["character"] is None:
+            self.player_sickness = value
+        else:
+            actor["character"]["sickness"] = value
+        actor["sickness"] = value
+        return value
+
+    def _spread_contagion(self):
+        """Передать болезнь при контакте в одном узле (кампанийный срез).
+
+        Для каждой пары живых акторов в одном узле, где болен ровно один,
+        бросается детерминированный шанс `CAMPAIGN_CONTAGION_CHANCE ·
+        sickness`; при успехе получатель добавляет
+        `CAMPAIGN_CONTAGION_SEVERITY · sickness` источника. Если больны оба
+        или никто — пара пропускается. Порядок обхода фиксирован, поэтому
+        результат воспроизводим seed'ом мира.
+        """
+        actors = self._contagion_actors()
+        changed = []
+        for index, source in enumerate(actors):
+            for target in actors[index + 1 :]:
+                if source["node_id"] != target["node_id"]:
+                    continue
+                if source["sickness"] <= 0.0 and target["sickness"] <= 0.0:
+                    continue
+                if source["sickness"] > 0.0 and target["sickness"] <= 0.0:
+                    donor, recipient = source, target
+                elif target["sickness"] > 0.0 and source["sickness"] <= 0.0:
+                    donor, recipient = target, source
+                else:
+                    continue
+                chance = CAMPAIGN_CONTAGION_CHANCE * donor["sickness"]
+                roll = self._roll(
+                    "contagion:%s:%s:%s"
+                    % (self.day, donor["id"], recipient["id"])
+                )
+                if roll >= chance:
+                    continue
+                severity = CAMPAIGN_CONTAGION_SEVERITY * donor["sickness"]
+                before = recipient["sickness"]
+                after = self._set_contagion_sickness(
+                    recipient, before + severity
+                )
+                delta = after - before
+                if delta <= 0.0:
+                    continue
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "infection",
+                        "text": "%s заразил(а) %s."
+                        % (donor["name"], recipient["name"]),
+                    }
+                )
+                changed.append(
+                    ("%s · болезнь" % recipient["name"], delta)
+                )
+        return changed
+
     def _advance_conditions(self):
         changed = []
         if not self.player_alive:
@@ -1135,6 +1234,9 @@ class WorldEngine:
                         trust_delta,
                     )
                 )
+        # Передача болезни идёт после дневного прогресса: заразившийся
+        # персонаж начнёт болеть со следующего дня, а не «сразу дважды».
+        changed.extend(self._spread_contagion())
         return self._merge_changes(changed)
 
     def organization_category(self, node_id):
