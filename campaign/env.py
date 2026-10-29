@@ -125,11 +125,16 @@ class CampaignEnv:
         snapshot=None,
         sickness=0.0,
         target_mode="all",
+        career_actions=False,
         engine=None,
     ):
         if target_mode not in ("first", "all"):
             raise ValueError("target_mode должен быть 'first' или 'all'")
         self.target_mode = target_mode
+        # Карьера меняет идентичность героя, поэтому по умолчанию
+        # исключена из пространства действий. Флаг нужен для калибровки
+        # политики, которая сама выбирает повышение/перевод.
+        self.career_actions = bool(career_actions)
         self.config = dict(config or load_world())
         self.seed = int(seed)
         self.max_days = (
@@ -421,9 +426,10 @@ class CampaignEnv:
         по всем доступным узлам, а не только по первому союзному: иначе
         агент видит 3 действия из 47 и не может учиться выбирать адресата.
         `target_mode="first"` сохраняет прежний узкий режим для отладки.
-        Career-действия по-прежнему исключены: они меняют идентичность
+        Карьерные действия по умолчанию исключены: они меняют идентичность
         агента и выходят за пространство одной политики (смена роли по
-        №29 происходит внутри `WorldEngine`).
+        №29 происходит внутри `WorldEngine`). `career_actions=True` открывает
+        их для калибровки карьерной политики.
         """
         engine = self.engine
         actions = [CampaignAction(END_DAY)]
@@ -435,7 +441,7 @@ class CampaignEnv:
         for target_id in self._target_ids():
             for action_id in engine.available_actions(target_id):
                 action = engine.actions[action_id]
-                if action.get("career"):
+                if action.get("career") and not self.career_actions:
                     continue
                 self_target = bool((action.get("target") or {}).get("self"))
                 target = "" if self_target else target_id
@@ -623,6 +629,7 @@ class CampaignEnv:
             "seed": self.seed,
             "max_days": self.max_days,
             "target_mode": self.target_mode,
+            "career_actions": self.career_actions,
             "snapshot": self.engine.to_dict(),
         }
 
@@ -633,6 +640,9 @@ class CampaignEnv:
         target_mode = state.get("target_mode", self.target_mode)
         if target_mode in ("first", "all"):
             self.target_mode = target_mode
+        self.career_actions = bool(
+            state.get("career_actions", self.career_actions)
+        )
         self._start_snapshot = snapshot
         self.engine = self._build_engine(self.seed)
         self._terminal = bool(self.engine.finished or not self.engine.attached)

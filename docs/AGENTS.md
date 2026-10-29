@@ -291,8 +291,10 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 насыщением к `CAMPAIGN_SKILL_CAP`. `aptitudes` и доступные предметы
 пересчитываются, поэтому стартовый профиль может дорасти до требований
 `seek_promotion` и вышестоящих должностей. Карьерные действия в
-`CampaignEnv` по-прежнему исключены из `legal_actions()`: повышение — это
-решение игрока/UI, а не автоматический шаг политики.
+`CampaignEnv` по умолчанию исключены из `legal_actions()`: повышение — это
+решение игрока/UI, а не автоматический шаг политики. Флаг
+`career_actions=True` открывает их для калибровки карьерной политики;
+`CampaignEnv.state_dict()` сохраняет флаг вместе с `target_mode`.
 
 Очередь намерений (`campaign/planner.py`, первый срез real-time-
 планировщика §7 №31): `WorldEngine.schedule_intent(due_day, kind, ...)`

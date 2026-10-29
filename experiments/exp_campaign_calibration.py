@@ -43,7 +43,9 @@ def _median(values, default=0.0):
     return statistics.median(values) if values else float(default)
 
 
-def _run_policy(name, seeds, days, train_episodes, train_seed):
+def _run_policy(
+    name, seeds, days, train_episodes, train_seed, career_actions=False
+):
     policy, trained = _warmup_baseline(
         name,
         seed=train_seed,
@@ -54,7 +56,11 @@ def _run_policy(name, seeds, days, train_episodes, train_seed):
     )
     rows = []
     for seed in seeds:
-        env = CampaignEnv(seed=seed, max_days=days)
+        env = CampaignEnv(
+            seed=seed,
+            max_days=days,
+            career_actions=career_actions,
+        )
         result = _play_campaign_episode(
             env, policy, seed=seed, learn=False, explore=False
         )
@@ -231,6 +237,11 @@ def main(argv=None):
         default=100000,
         help="первый held-out seed оценки",
     )
+    parser.add_argument(
+        "--career-actions",
+        action="store_true",
+        help="разрешить политике seek_promotion/request_transfer/resign",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -248,6 +259,7 @@ def main(argv=None):
             max(1, args.days),
             max(0, args.train_episodes),
             args.train_seed,
+            career_actions=args.career_actions,
         )
         for name in policies
     ]

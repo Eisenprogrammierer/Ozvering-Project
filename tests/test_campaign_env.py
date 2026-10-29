@@ -91,6 +91,28 @@ def test_campaign_env_legal_actions_always_include_end_day():
     assert kinds.isdisjoint(career_ids)
 
 
+def test_campaign_env_career_actions_are_opt_in():
+    default = CampaignEnv(seed=2, max_days=5)
+    assert not any(
+        action.kind in {"seek_promotion", "request_transfer", "resign"}
+        for action in default.legal_actions()
+    )
+
+    env = CampaignEnv(seed=2, max_days=5, career_actions=True)
+    kinds = {action.kind for action in env.legal_actions()}
+    # request_transfer доступен с первого дня (standing >= 0.25).
+    assert "request_transfer" in kinds
+    assert END_DAY in kinds
+
+    state = json.loads(json.dumps(env.state_dict()))
+    restored = CampaignEnv(seed=2, max_days=5)
+    restored.load_state_dict(state)
+    assert restored.career_actions is True
+    assert "request_transfer" in {
+        action.kind for action in restored.legal_actions()
+    }
+
+
 def test_campaign_env_all_target_mode_exposes_multiple_targets():
     env = CampaignEnv(seed=2, max_days=5, target_mode="all")
     actions = env.legal_actions()
