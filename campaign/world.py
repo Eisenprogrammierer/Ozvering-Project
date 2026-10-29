@@ -531,6 +531,12 @@ class WorldEngine:
         self.dismissal_count = 0
         self.collapsed = False
         self.collapse_days = 0
+        # Идемпотентность дневных проверок (§7 №28–29): `execute()` и
+        # `end_day()` могут вызвать `_check_dismissal()` несколько раз за
+        # один день. Счётчик распада и смена роли должны срабатывать не
+        # чаще одного раза в день, иначе два вызова дают «распад за день».
+        self._collapse_day = 0
+        self._dismissal_day = 0
         self.horizon_passed = False
         self.ending = None
         self.attached = False
@@ -1922,7 +1928,11 @@ class WorldEngine:
             score += 0.15 * self.relation(context["node"]["id"], target["id"])
             if target.get("polity") == context["node"].get("polity"):
                 score += 0.05
-        token = "ai:%s:%s:%s:%s" % (
+        # Выбор и разрешение действия используют разные соли. Иначе высокий
+        # случайный ролл одновременно повышает шанс выбора и шанс провала
+        # («проклятие победителя», WORLD_MODEL_REVIEW §4.1): номинальные
+        # 60–70% превращались в ~10% успеха.
+        token = "ai-choice:%s:%s:%s:%s" % (
             self.day,
             context["node"]["id"],
             action["id"],
@@ -2160,7 +2170,9 @@ class WorldEngine:
         if self.finished:
             return
         if not self.attached:
-            self.collapse_days = 0
+            if self._collapse_day != self.day:
+                self.collapse_days = 0
+                self._collapse_day = self.day
             return
         node = self.node(self.player_node_id)
         if node is None:
@@ -2181,20 +2193,38 @@ class WorldEngine:
             power <= COLLAPSE_POWER or cohesion <= COLLAPSE_COHESION
         )
         total_collapse = power <= 0.0 and cohesion <= 0.0
-        if strain:
-            self.collapse_days += 1
-        else:
-            if self.collapse_days:
-                self.log.append(
-                    {
-                        "day": self.day,
-                        "kind": "recovery",
-                        "text": "Организация восстановилась выше порога "
-                        "распада.",
-                    }
-                )
-            self.collapse_days = 0
-        if total_collapse or self.collapse_days >= self.collapse_grace_days:
+        if total_collapse:
+            self.outcome = "lose"
+            self.finished = True
+            self.collapsed = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "collapse",
+                    "text": "Организация распалась: сила и связность "
+                    "обнулились.",
+                }
+            )
+            return
+        # Дневной счётчик распада обновляется не более одного раза в день:
+        # повторный вызов из `execute()`/`end_day()` не должен превращать
+        # один день в два.
+        if self._collapse_day != self.day:
+            self._collapse_day = self.day
+            if strain:
+                self.collapse_days += 1
+            else:
+                if self.collapse_days:
+                    self.log.append(
+                        {
+                            "day": self.day,
+                            "kind": "recovery",
+                            "text": "Организация восстановилась выше порога "
+                            "распада.",
+                        }
+                    )
+                self.collapse_days = 0
+        if self.collapse_days >= self.collapse_grace_days:
             self.outcome = "lose"
             self.finished = True
             self.collapsed = True
@@ -2207,9 +2237,15 @@ class WorldEngine:
                 }
             )
             return
+        # Смена роли — не чаще одного раза в день, даже если `execute()`
+        # и `end_day()` оба увидели низкую репутацию/легитимность.
+        if self._dismissal_day == self.day:
+            return
         if self.player_resources["standing"] <= DISMISSAL_STANDING:
+            self._dismissal_day = self.day
             self._dismiss("потеря опоры и репутации")
         elif node["stats"]["legitimacy"] <= DISMISSAL_LEGITIMACY:
+            self._dismissal_day = self.day
             self._dismiss("структура потеряла легитимность")
 
     def end_day(self):

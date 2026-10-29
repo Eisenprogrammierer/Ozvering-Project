@@ -270,8 +270,14 @@ def test_policies_see_sickness_and_can_treat():
 
 def test_arena_agent_actions_include_treat_only_when_sick():
     healthy = ArenaAgent("healthy")
-    assert len(healthy.actions()) == 5
+    # Полностью отдохнувшему REST не предлагается: это no-op, из-за
+    # которого self-play застревал в бесконечных ничьих.
+    assert len(healthy.actions()) == 4
     assert all(action.kind != "TREAT" for action in healthy.actions())
+
+    healthy.energy_pool = healthy.max_energy - 1.0
+    assert len(healthy.actions()) == 5
+    assert any(action.kind == "REST" for action in healthy.actions())
 
     sick = ArenaAgent("sick", sickness=0.3)
     kinds = [action.kind for action in sick.actions()]

@@ -18,6 +18,7 @@ from agents.train import evaluate, train
 from campaign.env import (
     CAMPAIGN_REWARD_ILLEGAL,
     END_DAY,
+    TREAT_SELF,
     CampaignEnv,
     campaign_reward,
     terminal_campaign_reward,
@@ -88,6 +89,50 @@ def test_campaign_env_legal_actions_always_include_end_day():
         if action.get("career")
     }
     assert kinds.isdisjoint(career_ids)
+
+
+def test_campaign_env_all_target_mode_exposes_multiple_targets():
+    env = CampaignEnv(seed=2, max_days=5, target_mode="all")
+    actions = env.legal_actions()
+    targets = {action.target for action in actions if action.target}
+    assert len(targets) > 1
+    assert END_DAY in {action.kind for action in actions}
+
+
+def test_campaign_env_first_target_mode_keeps_narrow_space():
+    env = CampaignEnv(seed=2, max_days=5, target_mode="first")
+    targets = {action.target for action in env.legal_actions() if action.target}
+    assert len(targets) <= 1
+
+
+def test_campaign_env_treat_self_reduces_sickness():
+    env = CampaignEnv(seed=1, max_days=5, sickness=0.5)
+    env.reset(seed=1)
+    kinds = {action.kind for action in env.legal_actions()}
+    assert TREAT_SELF in kinds
+    before = env.observe().sickness
+    observation, _reward, done, truncated, info = env.step(
+        CampaignAction(TREAT_SELF)
+    )
+    assert info["result"]["ok"] is True
+    assert observation.sickness < before
+    assert not done and not truncated
+
+
+def test_campaign_env_dismissal_without_role_is_terminal_neutral():
+    env = CampaignEnv(seed=7, max_days=10)
+    env.reset(seed=7)
+    env.engine._dismiss("тест", auto_reassign=False)
+    observation, _reward, done, truncated, info = env.step(
+        CampaignAction(END_DAY)
+    )
+    assert done is True
+    assert truncated is False
+    assert info["outcome"] == "neutral"
+    assert info["terminal_reason"] == "dismissed"
+    assert observation.finished is True
+    with pytest.raises(RuntimeError):
+        env.step(CampaignAction(END_DAY))
 
 
 def test_campaign_env_is_deterministic_per_seed():
@@ -276,11 +321,14 @@ def test_campaign_features_vector_shape_and_flags():
     end_day = campaign_features(observation, CampaignAction(END_DAY))
     work = campaign_features(observation, CampaignAction("inspect", target="n"))
     heal = campaign_features(observation, CampaignAction("build_network"))
-    assert len(end_day) == len(work) == len(heal) == 18
+    assert len(end_day) == len(work) == len(heal) == 19
     # Флаги действия: slot7 END_DAY, slot8 работа (с целью), slot17 self-ход.
     assert (end_day[7], end_day[8], end_day[17]) == (1.0, 0.0, 0.0)
     assert (work[7], work[8], work[17]) == (0.0, 1.0, 0.0)
     assert (heal[7], heal[8], heal[17]) == (0.0, 0.0, 1.0)
+    # 19-й слот различает действия с одинаковыми флагами: без него
+    # `inspect` и `build_network` давали бы один и тот же вектор.
+    assert work[18] != heal[18]
     # Все признаки нормированы к [0, 1].
     assert all(-1e-9 <= value <= 1.0 + 1e-9 for value in work)
 

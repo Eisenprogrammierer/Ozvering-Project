@@ -129,8 +129,9 @@ def _play_episode(
     observation = env.reset(seed=seed)
     opponent_observation = env.observe("ai")
     done = False
+    truncated = False
     info = {}
-    while not done:
+    while not (done or truncated):
         actions = env.legal_actions("rl")
         action = policy.act(observation, actions, explore=explore)
         opponent_actions = env.legal_actions("ai")
@@ -143,10 +144,15 @@ def _play_episode(
             next_observation,
             reward,
             done,
-            _truncated,
+            truncated,
             info,
         ) = env.step(action, opponent_action=opponent_action)
         next_opponent_observation = env.observe("ai")
+        # Таймаут — усечение, а не терминал: `ArenaEnv` уже помечает его
+        # `truncated=True`, но `ArenaMatch` завершает партию (`done=True`).
+        # Для TD-обновления это не терминальное состояние, иначе политика
+        # учится на выдуманном ±1.0 за «кто лучше стоял в REST».
+        terminal = bool(done and not truncated)
 
         if learn:
             policy.observe(
@@ -155,7 +161,7 @@ def _play_episode(
                     action=action,
                     reward=reward,
                     next_observation=next_observation,
-                    done=done,
+                    done=terminal,
                     next_actions=env.legal_actions("rl"),
                     info=dict(info),
                 )
@@ -167,7 +173,7 @@ def _play_episode(
                         action=opponent_action,
                         reward=_reward_for(env, "ai"),
                         next_observation=next_opponent_observation,
-                        done=done,
+                        done=terminal,
                         next_actions=env.legal_actions("ai"),
                         info=dict(info),
                     )
@@ -175,6 +181,10 @@ def _play_episode(
 
         observation = next_observation
         opponent_observation = next_opponent_observation
+    if truncated:
+        info = dict(info)
+        info["winner"] = None
+        info["truncated"] = True
     return info
 
 
@@ -470,7 +480,15 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--policy", default="bdi")
     parser.add_argument("--opponent", default="bdi")
-    parser.add_argument("--max-steps", type=int, default=160)
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help=(
+            "горизонт эпизода; по умолчанию 2000 для arena, 160 для duel "
+            "и 30 дней для campaign"
+        ),
+    )
     parser.add_argument(
         "--env",
         choices=("arena", "duel", "campaign"),
@@ -569,11 +587,14 @@ def main(argv=None):
         "--skill-jitter",
         type=float,
         default=0.0,
-        help="относительный джиттер навыков профиля кампании (0.25 = ±25%)",
+        help="относительный джиттер навыков профиля кампании (0.25 = ±25%%)",
     )
     parser.add_argument("--out", default="")
     parser.add_argument("--eval-out", default="")
     args = parser.parse_args(argv)
+    max_steps = args.max_steps
+    if max_steps is None:
+        max_steps = {"arena": 2000, "duel": 160, "campaign": 30}[args.env]
     eval_opponents = tuple(
         name.strip()
         for name in args.eval_opponents.split(",")
@@ -601,7 +622,7 @@ def main(argv=None):
         seed=args.seed,
         policy_name=args.policy,
         opponent_name=args.opponent,
-        max_steps=args.max_steps,
+        max_steps=max_steps,
         env_name=args.env,
         self_play=not args.no_self_play,
         eval_episodes=args.eval_episodes,

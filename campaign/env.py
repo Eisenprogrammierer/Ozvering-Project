@@ -39,6 +39,11 @@ from .world import (
 
 # Действие-служебный ход: завершение дня (ход мира + дневной срез).
 END_DAY = "END_DAY"
+# Лечение себя — адаптер среды, а не действие конфига мира: в кампании
+# `treat_player()` существовал только как API. Без него болезнь была
+# отложенной смертью без контрмеры, и политика не могла ей научиться.
+TREAT_SELF = "TREAT_SELF"
+CAMPAIGN_TREAT_AMOUNT = 0.20
 
 # Награды кампании. Единицы — доли максимумов шкал, шаг сравним с ареной.
 CAMPAIGN_REWARD_STANDING = 0.5   # положение героя (F-проекция позиции)
@@ -119,7 +124,11 @@ class CampaignEnv:
         max_days=None,
         snapshot=None,
         sickness=0.0,
+        target_mode="all",
     ):
+        if target_mode not in ("first", "all"):
+            raise ValueError("target_mode должен быть 'first' или 'all'")
+        self.target_mode = target_mode
         self.config = dict(config or load_world())
         self.seed = int(seed)
         self.max_days = (
@@ -138,6 +147,10 @@ class CampaignEnv:
         self._start_sickness = max(0.0, min(1.0, float(sickness)))
         self.engine = None
         self.last_transition = None
+        # Терминальность среды: `WorldEngine.finished` не покрывает случай
+        # «должность потеряна, замены нет» — для обучения это тоже конец
+        # эпизода (нейтральный исход), иначе остаётся зомби-состояние.
+        self._terminal = False
         # Одиночный агент (проблема №6): оппонента нет, цикл обучения
         # (`agents.train`) использует для этой среды кампанейный эпизод.
         self.single_agent = True
@@ -319,8 +332,11 @@ class CampaignEnv:
             reach=_clamp_unit(metrics["reach"]),
             capacity=_clamp_unit(metrics["capacity"]),
             attached=bool(metrics["attached"]),
-            finished=bool(metrics["finished"]),
-            outcome=str(metrics["outcome"]),
+            finished=bool(metrics["finished"] or self._terminal),
+            outcome=str(
+                metrics["outcome"]
+                or ("neutral" if self._terminal and not metrics["attached"] else "")
+            ),
             collapsed=bool(metrics["collapsed"]),
             dismissed=bool(metrics["dismissed"]),
             time=float(metrics["day"]),
@@ -334,6 +350,7 @@ class CampaignEnv:
                 "horizon_passed": metrics["horizon_passed"],
                 "dismissal_count": metrics["dismissal_count"],
                 "collapse_days": metrics["collapse_days"],
+                "terminal": bool(self._terminal),
             },
         )
 
@@ -342,34 +359,56 @@ class CampaignEnv:
     # ------------------------------------------------------------------
 
     def legal_actions(self):
-        """Легальные пары `(kind, target)` + служебный `END_DAY`.
+        """Легальные `CampaignAction` + служебные `END_DAY`/`TREAT_SELF`.
 
-        Кампания позволяет действовать только по одному узлу-цели за раз
-        (как в UI: выбранный адресат). Для среды цель фиксируется полем
-        `target_id`; по умолчанию — первый доступный союзный/нейтральный
-        узел, отличный от собственного. Career-действия в MVP исключены:
-        они меняют идентичность агента и выходят за пространство действий
-        одной политики (смена роли по №29 происходит внутри `WorldEngine`).
+        `target_mode="all"` (по умолчанию для обучения) открывает действия
+        по всем доступным узлам, а не только по первому союзному: иначе
+        агент видит 3 действия из 47 и не может учиться выбирать адресата.
+        `target_mode="first"` сохраняет прежний узкий режим для отладки.
+        Career-действия по-прежнему исключены: они меняют идентичность
+        агента и выходят за пространство одной политики (смена роли по
+        №29 происходит внутри `WorldEngine`).
         """
         engine = self.engine
         actions = [CampaignAction(END_DAY)]
-        if engine.finished:
+        if engine.finished or self._terminal or not engine.attached:
             return tuple(actions)
-        target_id = self._target_id()
-        if target_id is None:
-            return tuple(actions)
-        for action_id in engine.available_actions(target_id):
-            action = engine.actions[action_id]
-            if action.get("career"):
-                continue
-            self_target = bool((action.get("target") or {}).get("self"))
-            actions.append(
-                CampaignAction(
-                    action_id,
-                    target="" if self_target else target_id,
+        if engine.player_sickness > 0.0 and engine.actions_left > 0:
+            actions.append(CampaignAction(TREAT_SELF))
+        seen = set()
+        for target_id in self._target_ids():
+            for action_id in engine.available_actions(target_id):
+                action = engine.actions[action_id]
+                if action.get("career"):
+                    continue
+                self_target = bool((action.get("target") or {}).get("self"))
+                target = "" if self_target else target_id
+                key = (action_id, target)
+                if key in seen:
+                    continue
+                seen.add(key)
+                actions.append(
+                    CampaignAction(action_id, target=target)
                 )
-            )
         return tuple(actions)
+
+    def _target_ids(self):
+        """Узлы-адресаты в детерминированном порядке (свой узел исключён)."""
+        if self.target_mode == "first":
+            target_id = self._target_id()
+            return (target_id,) if target_id else ()
+        engine = self.engine
+        groups = engine.organization_groups()
+        ordered = []
+        seen = set()
+        for group in ("allied", "neutral", "hostile"):
+            for item in groups.get(group, ()):
+                node_id = item["id"]
+                if node_id == engine.player_node_id or node_id in seen:
+                    continue
+                seen.add(node_id)
+                ordered.append(node_id)
+        return tuple(ordered)
 
     def _target_id(self):
         engine = self.engine
@@ -397,13 +436,56 @@ class CampaignEnv:
             self.seed = int(seed)
         self.engine = self._build_engine(self.seed)
         self.last_transition = None
+        self._terminal = False
         return self.observe()
+
+    def _treat_self(self):
+        """Лечение себя в кампанейном адаптере (не действие конфига мира).
+
+        Стоит одно действие дня и снимает `CAMPAIGN_TREAT_AMOUNT` болезни.
+        В мире пока нет UI-действия самолечения; среда обязана дать
+        политике контрмеру, иначе болезнь — детерминированная отложенная
+        смерть и обучение ей невозможно.
+        """
+        engine = self.engine
+        if not engine.attached:
+            return {"ok": False, "reason": "сначала выберите должность"}
+        if engine.player_sickness <= 0.0:
+            return {"ok": False, "reason": "герой здоров"}
+        if engine.actions_left <= 0:
+            return {"ok": False, "reason": "не осталось действий"}
+        engine.actions_left = max(0, engine.actions_left - 1)
+        value = engine.treat_player(CAMPAIGN_TREAT_AMOUNT)
+        if value is None:
+            return {"ok": False, "reason": "герой мёртв"}
+        text = "Помощь себе: болезнь %.2f." % value
+        result = {
+            "ok": True,
+            "action": TREAT_SELF,
+            "action_label": "Лечение",
+            "target": "",
+            "target_label": "своё состояние",
+            "outcome": "success",
+            "text": text,
+            "changes": [("Болезнь", -CAMPAIGN_TREAT_AMOUNT)],
+            "sickness": value,
+            "day": engine.day,
+        }
+        engine.last_result = result
+        engine.log.append(
+            {
+                "day": engine.day,
+                "kind": "success",
+                "text": "Лечение → своё состояние: %s" % text,
+            }
+        )
+        return result
 
     def step(self, action):
         engine = self.engine
         if engine is None:
             raise RuntimeError("CampaignEnv.step() вызван до reset()")
-        if engine.finished:
+        if engine.finished or self._terminal:
             raise RuntimeError("CampaignEnv.step() после завершения кампании")
         if isinstance(action, str):
             action = CampaignAction(action)
@@ -411,6 +493,9 @@ class CampaignEnv:
         success = False
         if action.kind == END_DAY:
             result = engine.end_day()
+        elif action.kind == TREAT_SELF:
+            result = self._treat_self()
+            success = bool(result.get("ok"))
         else:
             result = engine.execute(action.kind, action.target or None)
             success = bool(result.get("ok")) and result.get("outcome") == "success"
@@ -420,12 +505,16 @@ class CampaignEnv:
         # Transition и учится не повторять недопустимые действия.
         illegal = not bool(result.get("ok"))
         after = self._metrics()
-        done = bool(engine.finished)
+        # Потеря должности без замены: `WorldEngine` не завершает кампанию
+        # (UI может выбрать новую роль), но для обучения это терминальный
+        # нейтральный исход. Иначе остаётся зомби-эпизод с одним END_DAY.
+        dismissed_terminal = bool(not engine.attached and not engine.finished)
+        done = bool(engine.finished or dismissed_terminal)
         horizon = bool(after["day"] > self.max_days)
         truncated = bool(horizon and not done)
-        outcome_delta = 0.0
-        if done:
-            outcome_delta = terminal_campaign_reward(engine.outcome)
+        self._terminal = bool(done or truncated)
+        outcome = "neutral" if dismissed_terminal else (engine.outcome or "")
+        outcome_delta = terminal_campaign_reward(outcome) if done else 0.0
         reward = campaign_reward(before, after, outcome_delta, success)
         if illegal:
             # Малый штраф за нелегальный ход: переход не изменил мир, но
@@ -436,7 +525,7 @@ class CampaignEnv:
         observation = self.observe()
         info = {
             "result": result,
-            "outcome": engine.outcome,
+            "outcome": outcome,
             "ending": after["ending"],
             "dismissed": after["dismissed"],
             "dismissal_count": after["dismissal_count"],
@@ -449,6 +538,7 @@ class CampaignEnv:
             "success": success,
             "illegal": illegal,
             "horizon": horizon,
+            "terminal_reason": "dismissed" if dismissed_terminal else "",
         }
         transition_ready = bool(done or truncated)
         self.last_transition = {
@@ -475,6 +565,7 @@ class CampaignEnv:
             "version": 1,
             "seed": self.seed,
             "max_days": self.max_days,
+            "target_mode": self.target_mode,
             "snapshot": self.engine.to_dict(),
         }
 
@@ -482,8 +573,12 @@ class CampaignEnv:
         snapshot = dict(state.get("snapshot") or {})
         self.seed = int(state.get("seed", self.seed))
         self.max_days = int(state.get("max_days", self.max_days))
+        target_mode = state.get("target_mode", self.target_mode)
+        if target_mode in ("first", "all"):
+            self.target_mode = target_mode
         self._start_snapshot = snapshot
         self.engine = self._build_engine(self.seed)
+        self._terminal = bool(self.engine.finished or not self.engine.attached)
         return self.observe()
 
 
@@ -497,7 +592,9 @@ __all__ = [
     "CAMPAIGN_TERMINAL_LOSS",
     "CAMPAIGN_TERMINAL_NEUTRAL",
     "CAMPAIGN_TERMINAL_WIN",
+    "CAMPAIGN_TREAT_AMOUNT",
     "END_DAY",
+    "TREAT_SELF",
     "CampaignEnv",
     "campaign_reward",
     "terminal_campaign_reward",

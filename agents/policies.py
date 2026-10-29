@@ -18,12 +18,15 @@ from campaign.env import END_DAY
 
 # Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
 # ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
-# QTable и до появления MLPPolicy. Текущий формат — v1:
+# QTable и до появления MLPPolicy. Текущий формат — v2:
 #   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
 #     полей (недостающие sickness-поля заполняются нулём);
-#   - BDI: 18 признаков; при загрузке v0 вектор веса 16 дополняется нулями;
-#   - MLP: v1 — первый сетевой baseline, миграции из v0 не существует.
-CHECKPOINT_VERSION = 1
+#   - BDI: 19 признаков (18 прежних + код действия); при загрузке v0/v1
+#     короткий вектор веса дополняется нулями;
+#   - MLP: 19 входов; при загрузке v1 строки 18→19 дополняются нулём,
+#     поэтому старые сети не теряют выученные веса.
+# QTable-ключи не меняются: код действия уже входит в ключ отдельным полем.
+CHECKPOINT_VERSION = 2
 LEGACY_CHECKPOINT_VERSION = 0
 
 
@@ -79,16 +82,50 @@ def default_actions(observation):
     return tuple(actions)
 
 
+# Стабильные коды действий для 19-го признака. Это не семантическая
+# величина, а только способ отличить действия друг от друга в линейной/MLP
+# политике: у кампании `fraction` всегда 0, поэтому без кода `inspect` и
+# `build_network` давали бы одинаковый вектор. Код фиксирован, чтобы
+# чекпойнт не зависел от порядка действий в конфиге мира.
+ACTION_FEATURE_CODES = {
+    ("REST", "rest"): 0.00,
+    ("REST", ""): 0.00,
+    ("TREAT", "care"): 0.05,
+    ("TREAT", ""): 0.05,
+    ("WORK", "force"): 0.10,
+    ("WORK", "info"): 0.15,
+    ("END_DAY", ""): 0.20,
+    ("inspect", ""): 0.25,
+    ("build_network", ""): 0.30,
+    ("treat", ""): 0.35,
+    ("seek_promotion", ""): 0.40,
+    ("request_transfer", ""): 0.45,
+    ("resign", ""): 0.50,
+    ("TREAT_SELF", ""): 0.55,
+}
+
+UNKNOWN_ACTION_CODE = 0.95
+
+
+def action_feature_code(action):
+    """Код действия для 19-го признака (0..1, детерминированный)."""
+    kind = str(getattr(action, "kind", "") or "")
+    form = str(getattr(action, "form", "") or "")
+    return ACTION_FEATURE_CODES.get((kind, form), UNKNOWN_ACTION_CODE)
+
+
 def campaign_features(observation, action):
     """Признаки кампанейного среза (проблема готовности №6).
 
-    Тот же формат вектора, что и у арены: 18 признаков, где слоты
+    Тот же формат вектора, что и у арены: 19 признаков, где слоты
     «противника» занимают позиции собственной организации (power — чужая
     сила, cohesion — «открытость» структуры), а `action.kind` кодируется
     через флаги REST/WORK/TREAT по аналогии с ареной: END_DAY ведёт себя
     как отдых (тик мира без затрат), ordinary-действие — как работа,
-    heal/self-действие — как лечение. Признаки нормированы к [0, 1], как
-    и в `features()`, поэтому BDI/MLP/QTable работают без правок весов.
+    heal/self-действие — как лечение. Девятнадцатый слот — стабильный код
+    действия: без него `inspect` и `build_network` неразличимы для
+    BDI/MLP, потому что у обоих `fraction=0`. Признаки нормированы к
+    [0, 1], как и в `features()`.
     """
     is_end_day = 1.0 if action.kind == "END_DAY" else 0.0
     self_target = 1.0 if not action.target else 0.0
@@ -115,6 +152,7 @@ def campaign_features(observation, action):
         _clamp01(float(observation.sickness)),
         1.0 if not observation.alive else 0.0,
         is_heal,
+        action_feature_code(action),
     )
 
 
@@ -159,10 +197,11 @@ def features(observation, action):
         float(getattr(observation, "self_sickness", 0.0)),
         float(getattr(observation, "opponent_sickness", 0.0)),
         is_treat,
+        action_feature_code(action),
     )
 
 
-FEATURE_COUNT = 18
+FEATURE_COUNT = 19
 
 
 def dot(left, right):
@@ -239,6 +278,7 @@ class BDIPolicy:
             -0.6,
             0.2,
             0.4,
+            0.0,
         ]
 
     def score(self, observation, action):
@@ -640,15 +680,22 @@ class MLPPolicy:
             return
         hidden = int(state.get("hidden", self.hidden))
         weights1 = state.get("weights1")
+        rows = []
+        if weights1:
+            rows = [[float(value) for value in row] for row in weights1]
+            # v1 MLP имел 18 входов; v2 добавляет код действия. Дополняем
+            # строки нулём, чтобы старые веса не терялись.
+            if all(len(row) <= FEATURE_COUNT for row in rows):
+                rows = [
+                    row + [0.0] * (FEATURE_COUNT - len(row)) for row in rows
+                ]
         if (
-            weights1
-            and len(weights1) == hidden
-            and all(len(row) == FEATURE_COUNT for row in weights1)
+            rows
+            and len(rows) == hidden
+            and all(len(row) == FEATURE_COUNT for row in rows)
         ):
             self.hidden = hidden
-            self.weights1 = [
-                [float(value) for value in row] for row in weights1
-            ]
+            self.weights1 = rows
             self.bias1 = [
                 float(value)
                 for value in state.get(

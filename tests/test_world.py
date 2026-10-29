@@ -488,7 +488,7 @@ def test_campaign_condition_survives_snapshot_roundtrip():
 def test_campaign_collapse_requires_grace_days_and_reports_status():
     engine = _engine()
     node = engine.node(engine.player_node_id)
-    node["stats"]["power"] = 0.04
+    node["stats"]["power"] = 0.0
     node["stats"]["cohesion"] = 0.5
 
     status = engine.organization_status()
@@ -503,6 +503,9 @@ def test_campaign_collapse_requires_grace_days_and_reports_status():
         COLLAPSE_GRACE_DAYS - 1
     )
 
+    # Дневные действия мира могут поднять силу выше порога; для проверки
+    # grace-дней удерживаем её ниже порога и на втором дне.
+    node["stats"]["power"] = 0.0
     engine.end_day()
     assert engine.finished is True
     assert engine.outcome == "lose"
@@ -522,6 +525,32 @@ def test_campaign_collapse_counter_resets_after_recovery():
     assert engine.finished is False
     assert engine.collapse_days == 0
     assert any(entry["kind"] == "recovery" for entry in engine.log)
+
+
+def test_campaign_dismissal_checks_are_idempotent_per_day():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.04
+    node["stats"]["cohesion"] = 0.5
+
+    engine._check_dismissal()
+    engine._check_dismissal()
+    engine._check_dismissal()
+
+    assert engine.collapse_days == 1
+    assert engine.finished is False
+
+
+def test_campaign_role_change_happens_once_per_day():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["legitimacy"] = 0.07
+
+    engine._check_dismissal()
+    engine._check_dismissal()
+    engine._check_dismissal()
+
+    assert engine.dismissal_count == 1
 
 
 def test_campaign_resign_is_role_change_not_defeat():

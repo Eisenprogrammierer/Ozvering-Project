@@ -126,7 +126,7 @@
   `--eval-seed`) и матрица силы `evaluate_matrix()` против
   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
-- [x] **№4 Ёмкость политик.** `MLPPolicy` (18 признаков, online TD(0) с
+- [x] **№4 Ёмкость политик.** `MLPPolicy` (19 признаков, online TD(0) с
   target=max по легальным действиям, epsilon-decay, сохранение через
   `state_dict`) зарегистрирован в `make_policy`/`load_policy`, включён в
   `--eval-opponents` по умолчанию (`bdi,qtable,random,mlp`); тест качества
@@ -134,13 +134,15 @@
   Target-сети (отдельной копии весов) в этом baseline нет — это осознанно
   онлайн-срез, а не DQN. Раздел baseline vs MLP — в
   `docs/BASELINE.md`/`docs/AGENTS.md`.
-- [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 1` пишется в
+- [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 2` пишется в
   `state_dict()` всех политик; файлы без `version` трактуются как v0. При
   загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
-  коллизии усредняются), BDI дополняет 16-мерный вектор веса до 18;
-  `checkpoint_version()` вычитает версию, `load_policy` отказывается грузить
-  будущие версии. Флаги `--resume`/`--resume-opponent` в `agents.train`
-  загружают чекпойнты явно (автопоиска нет). Тесты —
+  коллизии усредняются), BDI дополняет короткий вектор веса до 19 (v0/v1),
+  MLP дополняет строки `weights1` 18→19 нулём (v1). Ключи QTable v1→v2 не
+  менялись: код действия уже входит в ключ. `checkpoint_version()` вычитает
+  версию, `load_policy` отказывается грузить будущие версии. Флаги
+  `--resume`/`--resume-opponent` в `agents.train` загружают чекпойнты явно
+  (автопоиска нет). Тесты —
   `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
   `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
   `test_train_resume_continues_from_checkpoint`.
@@ -156,10 +158,17 @@
   кампании — одна строка «политика против мира» (`opponent: "world"`), а не
   вырожденная матрица из одинаковых строк. Одиночный агент: self-play
   отключён, `--env campaign` в `agents.train`; политики принимают кампанейные
-  наблюдения через `campaign_features()` (18 признаков, тот же формат),
+  наблюдения через `campaign_features()` (19 признаков: 18 прежних плюс
+  стабильный код действия, чтобы различать `inspect` и `build_network`),
   `make_policy("qtable-campaign")` — отдельная таблица, не смешиваемая с
-  ареной; персистентность среды через снимок мира (`state_dict/load_state_
-  dict`). Стартовая позиция (`_default_start()`) кэшируется: дорогой перебор
+  ареной; `target_mode="all"` (по умолчанию) открывает действия по всем
+  доступным адресатам, `target_mode="first"` — прежний узкий режим; при
+  болезни появляется `TREAT_SELF` (1 действие дня, `−0.20` болезни); потеря
+  должности без замены завершает эпизод нейтральным исходом
+  (`terminal_reason="dismissed"`), а не оставляет зомби-состояние. Дневные
+  проверки распада/смены роли идемпотентны (`_collapse_day`/`_dismissal_day`).
+  Персистентность среды через снимок мира (`state_dict/load_state_
+  dict`), включая `target_mode`. Стартовая позиция (`_default_start()`) кэшируется: дорогой перебор
   узлов не повторяется на каждом `reset()`. Вопросы §7 №28–31 закрыты
   первым срезом в разделе ниже: grace-распад, смена роли, бесконечный
   горизонт без `win`, фоновый/оффлайн-догон. Тесты —

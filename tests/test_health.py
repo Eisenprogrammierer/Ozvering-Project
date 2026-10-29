@@ -129,7 +129,7 @@ def test_observation_exposes_health():
     assert observation.self_health == 60
     assert observation.self_max_health == 100
     assert observation.opponent_health == 80
-    assert len(BDIPolicy().weights) == 18
+    assert len(BDIPolicy().weights) == 19
 
 
 def test_arena_match_terminal_uses_health():

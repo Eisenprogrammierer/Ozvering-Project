@@ -437,12 +437,27 @@ class ArenaAgent:
         return self.condition_state()
 
     def actions(self):
-        actions = [action_from_index(0)]
+        # `REST` — не no-op: он восстанавливает E/F/здоровье и снимает
+        # болезнь. Если восстанавливать нечего, действие не предлагается:
+        # иначе две полностью отдохнувшие стороны могут бесконечно
+        # выбирать REST, и self-play сходится к 100% таймаутов.
+        actions = []
+        if self.needs_recovery():
+            actions.append(action_from_index(0))
         if self.sickness > 0.0:
             actions.append(action_from_index(1))
         for index in range(2, len(CORE_ACTIONS)):
             actions.append(action_from_index(index))
         return tuple(actions)
+
+    def needs_recovery(self):
+        """Есть ли смысл в REST: неполная энергия/сила/здоровье или болезнь."""
+        return bool(
+            self.energy_pool < self.max_energy - 1e-9
+            or self.force < self.max_force - 1e-9
+            or self.health < self.max_health - 1e-9
+            or self.sickness > 0.0
+        )
 
     def observe(self, opponent):
         other = opponent.unit if hasattr(opponent, "unit") else opponent
@@ -755,13 +770,13 @@ class ArenaMatch:
             self.finished = True
             return True
         if self.step >= self.steps_total:
+            # Лимит шагов — усечение, а не победа по остатку силы/здоровья.
+            # Раньше здесь присуждался winner по `(force, health)`, из-за
+            # чего таймаут попадал в win/loss и давал терминальный ±1.0.
+            # Теперь таймаут — ничья; среда отдельно возвращает
+            # `truncated=True`, и цикл обучения не считает его терминалом.
             self.finished = True
-            if (rl.force, rl.health) > (ai.force, ai.health):
-                self.winner = "RL"
-            elif (ai.force, ai.health) > (rl.force, rl.health):
-                self.winner = "AI"
-            else:
-                self.winner = None
+            self.winner = None
             return True
         return False
 
