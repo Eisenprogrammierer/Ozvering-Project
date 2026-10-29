@@ -87,6 +87,15 @@ class WorldScreen(BaseScreen):
         self.action_scroll = 0
         self.message = ""
         self.last_result = engine.last_result
+        # Live-режим обучаемого агента (P0.4): среда оборачивает тот же
+        # `WorldEngine`, что и ручное управление. Автопилот делает один
+        # шаг политики за интервал, поэтому UI остаётся отзывчивым, а
+        # журнал/сейв видят те же действия, что и игрок.
+        self.autopilot = False
+        self.autopilot_policy = None
+        self.campaign_env = None
+        self.autopilot_timer = 0.0
+        self.autopilot_interval = 0.45
         # Фоновые/оффлайн-часы (§7 №31). Экран только переводит реальные
         # секунды в дни и вызывает `advance_days`; правила мира не меняются.
         self.clock = CampaignClock(
@@ -318,6 +327,73 @@ class WorldScreen(BaseScreen):
         self._sync_storyline()
         logger.info("Мир завершил день: %d", self.engine.day)
 
+    # ------------------------------------------------------------------
+    # Live-режим обучаемого агента (P0.4)
+    # ------------------------------------------------------------------
+
+    def _autopilot_env(self):
+        """Лениво подключить `CampaignEnv` к живому движку экрана."""
+        from campaign.env import CampaignEnv
+
+        if self.campaign_env is None:
+            self.campaign_env = CampaignEnv(engine=self.engine)
+        elif self.campaign_env.engine is not self.engine:
+            self.campaign_env.attach(self.engine)
+        return self.campaign_env
+
+    def _autopilot_policy_instance(self):
+        if self.autopilot_policy is None:
+            from agents import BDIPolicy
+
+            self.autopilot_policy = BDIPolicy(seed=int(self.engine.seed))
+        return self.autopilot_policy
+
+    def _toggle_autopilot(self):
+        if self.engine.finished or not self.engine.attached:
+            self.autopilot = False
+            self.message = "Автопилот недоступен: кампания не активна."
+            return
+        self.autopilot = not self.autopilot
+        self.autopilot_timer = 0.0
+        self.selected_action_id = None
+        if self.autopilot:
+            self._autopilot_env()
+            self._autopilot_policy_instance()
+            self.message = "Автопилот включён: политика BDI."
+        else:
+            self.message = "Автопилот выключен."
+        logger.info("Автопилот кампании: %s", self.autopilot)
+
+    def _autopilot_step(self):
+        """Один шаг политики на живом движке; возвращает info или None."""
+        if not self.autopilot:
+            return None
+        engine = self.engine
+        if engine.finished or not engine.attached:
+            self.autopilot = False
+            return None
+        env = self._autopilot_env()
+        try:
+            _obs, _reward, done, truncated, info = env.advance(
+                self._autopilot_policy_instance(), explore=False
+            )
+        except RuntimeError as error:
+            self.autopilot = False
+            self.message = "Автопилот остановлен: %s" % error
+            return None
+        result = info.get("result") or {}
+        if result.get("ok"):
+            self.last_result = engine.last_result
+            self.selected_action_id = None
+        self._sync_storyline()
+        if done or truncated:
+            self.autopilot = False
+            if done:
+                self.message = "Автопилот: кампания завершена."
+            else:
+                self.message = "Автопилот: достигнут горизонт дней."
+        return info
+
     def update(self, dt):
         """Фоновая симуляция при свёрнутом/неактивном окне (§7 №31).
 
@@ -329,12 +405,23 @@ class WorldScreen(BaseScreen):
         """
         engine = self.engine
         if engine.finished or not engine.attached:
+            self.autopilot = False
             self.clock.reset_accumulator()
             self.clock.pause()
             self.clock.pause_reason = (
                 "finished" if engine.finished else "unattached"
             )
             return
+        if self.autopilot:
+            # Автопилот работает и в активном окне: интервал — реальные
+            # секунды, а не игровые дни, поэтому смена скорости часов его
+            # не ускоряет.
+            self.autopilot_timer += max(0.0, float(dt))
+            if self.autopilot_timer >= self.autopilot_interval:
+                self.autopilot_timer = 0.0
+                self._autopilot_step()
+            if engine.finished or not engine.attached:
+                return
         if getattr(self.app, "active", True):
             self.clock.reset_accumulator()
             self.clock.resume()
@@ -445,6 +532,9 @@ class WorldScreen(BaseScreen):
             self.selected_character_id = None
 
     def handle_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+            self._toggle_autopilot()
+            return
         if event.type == pygame.MOUSEWHEEL:
             pos = pygame.mouse.get_pos()
             if LEFT_RECT.collidepoint(pos) and self.main_tab != "personality":
@@ -475,6 +565,9 @@ class WorldScreen(BaseScreen):
         if not self.engine.attached:
             if self._office_rect().collidepoint(pos):
                 self._choose_office()
+            return
+        if self._autopilot_rect().collidepoint(pos):
+            self._toggle_autopilot()
             return
         if self._end_day_rect().collidepoint(pos):
             self._end_day()
@@ -516,6 +609,11 @@ class WorldScreen(BaseScreen):
 
     def _end_day_rect(self):
         return pygame.Rect(BOTTOM_RECT.right - 210, BOTTOM_RECT.y + 3, 200, 30)
+
+    def _autopilot_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.right - 430, BOTTOM_RECT.y + 3, 210, 30
+        )
 
     def _office_rect(self):
         return pygame.Rect(BOTTOM_RECT.right - 210, BOTTOM_RECT.y + 3, 200, 30)
@@ -1984,7 +2082,7 @@ class WorldScreen(BaseScreen):
         pygame.draw.rect(screen, PANEL_BORDER, BOTTOM_RECT, 1, border_radius=6)
         hint = (
             "Вкладки — разделы · карточки — люди и структуры · "
-            "колесо — прокрутка · прогноз качественный."
+            "колесо — прокрутка · A — автопилот · прогноз качественный."
         )
         screen.blit(
             self.app.font_tiny.render(hint, True, MUTED),
@@ -2009,6 +2107,13 @@ class WorldScreen(BaseScreen):
                 accent=True,
             )
         else:
+            self._draw_button(
+                screen,
+                self._autopilot_rect(),
+                "Автопилот: вкл" if self.autopilot else "Автопилот: выкл",
+                True,
+                accent=self.autopilot,
+            )
             self._draw_button(
                 screen,
                 self._end_day_rect(),

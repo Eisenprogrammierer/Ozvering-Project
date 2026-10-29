@@ -33,9 +33,9 @@ CORE_ACTIONS = (
 )
 
 CAPTURE_RATIO = 1.5
-# 22 такта удержания — калибровка после смены награды: при 20 захват
-# выходил за верхнюю полосу на больном срезе, при 23 — за нижнюю/по таймауту.
-CAPTURE_STREAK = 22
+# 20 тактов удержания — калибровка 2026-10-29 после активации среды и
+# пересчёта здоровья (0.62/0.78): при 21–22 захват уходит к нижней полосе.
+CAPTURE_STREAK = 20
 CAPTURE_FRAC = 0.10
 L_STEP = 10.0
 
@@ -491,6 +491,8 @@ class ArenaAgent:
             opponent_health=float(other.health),
             opponent_max_health=float(other.max_health),
             opponent_sickness=float(other.sickness),
+            env_pressure=float(getattr(self, "_env_pressure", 0.0)),
+            env_season=float(getattr(self, "_env_season", 1.0)),
         )
         return observation
 
@@ -666,6 +668,15 @@ class ArenaMatch:
 
         rl._time = self.time
         ai._time = self.time
+        if self.env is not None:
+            env_state = self.env.public_state()
+            for actor in (rl, ai):
+                actor._env_pressure = env_state["strain"]
+                actor._env_season = env_state["season_multiplier"]
+        else:
+            for actor in (rl, ai):
+                actor._env_pressure = 0.0
+                actor._env_season = 1.0
         rl_obs = rl.observe(ai)
         ai_obs = ai.observe(rl)
 

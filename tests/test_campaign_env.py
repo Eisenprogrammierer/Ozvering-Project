@@ -321,7 +321,7 @@ def test_campaign_features_vector_shape_and_flags():
     end_day = campaign_features(observation, CampaignAction(END_DAY))
     work = campaign_features(observation, CampaignAction("inspect", target="n"))
     heal = campaign_features(observation, CampaignAction("build_network"))
-    assert len(end_day) == len(work) == len(heal) == 19
+    assert len(end_day) == len(work) == len(heal) == 21
     # Флаги действия: slot7 END_DAY, slot8 работа (с целью), slot17 self-ход.
     assert (end_day[7], end_day[8], end_day[17]) == (1.0, 0.0, 0.0)
     assert (work[7], work[8], work[17]) == (0.0, 1.0, 0.0)
@@ -329,6 +329,8 @@ def test_campaign_features_vector_shape_and_flags():
     # 19-й слот различает действия с одинаковыми флагами: без него
     # `inspect` и `build_network` давали бы один и тот же вектор.
     assert work[18] != heal[18]
+    # Последние два слота — признаки среды; в кампании они нейтральны.
+    assert (work[19], work[20]) == (0.0, 1.0)
     # Все признаки нормированы к [0, 1].
     assert all(-1e-9 <= value <= 1.0 + 1e-9 for value in work)
 
@@ -506,3 +508,33 @@ def test_campaign_env_smoke_with_random_policy():
     steps, info = _run_random(env, rng)
     assert steps >= 1
     assert "outcome" in info or "day" in info
+
+
+def test_campaign_env_attaches_to_live_engine_without_rebuilding():
+    base = CampaignEnv(seed=17, max_days=5)
+    engine = base.engine
+    day_before = engine.day
+    actions_before = engine.actions_left
+
+    env = CampaignEnv(engine=engine, max_days=5)
+    assert env.engine is engine
+    assert env.observe().day == day_before
+    # Среда не создаёт второй мир: шаг меняет тот же движок.
+    observation, _reward, _done, _truncated, info = env.advance(
+        BDIPolicy(seed=3), explore=False
+    )
+    assert observation.day >= day_before
+    assert env.engine is engine
+    assert info["day"] == engine.day
+    assert engine.day > day_before or engine.actions_left < actions_before
+
+
+def test_campaign_env_attach_reuses_engine_after_reset():
+    env = CampaignEnv(seed=4, max_days=4)
+    engine = env.engine
+    env.attach(engine)
+    assert env.engine is engine
+    assert env._resolved_start == (
+        engine.player_node_id,
+        engine.player_office_id,
+    )

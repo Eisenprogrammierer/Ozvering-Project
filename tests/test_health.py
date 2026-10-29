@@ -1,6 +1,7 @@
 import pytest
 
 from agents import BDIPolicy
+from agents.policies import FEATURE_COUNT
 from core41 import (
     CAPTURE_STREAK,
     Action,
@@ -27,11 +28,11 @@ def _duel(left_action, right_action, **kwargs):
 def test_calibrated_health_constants():
     assert HEALTH_MAX == 100.0
     assert HEALTH_CRITICAL == 25.0
-    assert HEALTH_REST_REGEN == 0.75
-    assert HEALTH_DAMAGE_RATIO == 0.70
-    assert HEALTH_MAX / HEALTH_REST_REGEN == pytest.approx(400.0 / 3.0)
+    assert HEALTH_REST_REGEN == 0.78
+    assert HEALTH_DAMAGE_RATIO == 0.62
+    assert HEALTH_MAX / HEALTH_REST_REGEN == pytest.approx(100.0 / 0.78)
     critical_to_full = (HEALTH_MAX - HEALTH_CRITICAL) / HEALTH_REST_REGEN
-    assert critical_to_full == pytest.approx(100.0)
+    assert critical_to_full == pytest.approx(75.0 / 0.78)
 
 
 def test_critical_health_is_shared_by_engine_and_core():
@@ -57,8 +58,8 @@ def test_rest_regenerates_health_slowly():
         health=50,
         energy=50,
     )
-    assert left.health == pytest.approx(50.75)
-    assert right.health == pytest.approx(50.75)
+    assert left.health == pytest.approx(50.0 + HEALTH_REST_REGEN)
+    assert right.health == pytest.approx(50.0 + HEALTH_REST_REGEN)
 
 
 def test_empty_energy_decays_health():
@@ -77,9 +78,9 @@ def test_force_overflow_damages_health():
     absorbed, overflow, health_damage = unit.apply_force_damage(20)
     assert absorbed == 5
     assert overflow == 15
-    assert health_damage == pytest.approx(10.5)
+    assert health_damage == pytest.approx(15 * HEALTH_DAMAGE_RATIO)
     assert unit.force == 0
-    assert unit.health == pytest.approx(89.5)
+    assert unit.health == pytest.approx(100.0 - 15 * HEALTH_DAMAGE_RATIO)
     assert not unit.is_dead
 
 
@@ -103,7 +104,7 @@ def test_health_factors_scale_decay_regen_and_damage():
 
     unit.energy = 50
     unit.tick_health(resting=True)
-    assert unit.health == pytest.approx(97.0 + 0.75 * 2.0 / 3.0)
+    assert unit.health == pytest.approx(97.0 + HEALTH_REST_REGEN * 2.0 / 3.0)
 
 
 def test_health_factors_are_clamped():
@@ -129,7 +130,7 @@ def test_observation_exposes_health():
     assert observation.self_health == 60
     assert observation.self_max_health == 100
     assert observation.opponent_health == 80
-    assert len(BDIPolicy().weights) == 19
+    assert len(BDIPolicy().weights) == FEATURE_COUNT
 
 
 def test_arena_match_terminal_uses_health():

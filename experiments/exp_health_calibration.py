@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents import BDIPolicy, QTablePolicy
 from core41 import ArenaMatch
+import core41.arena as arena
 import core41.model as model
 
 CALIBRATABLE = (
@@ -46,7 +47,10 @@ CALIBRATABLE = (
     "TREAT_ENERGY_FRACTION",
     "CONTAGION_CHANCE",
     "CONTAGION_SEVERITY",
+    "CAPTURE_STREAK",
 )
+
+_OVERRIDE_MODULES = (model, arena)
 
 BASELINE = {
     "HEALTH_DAMAGE_RATIO": 1.0,
@@ -93,7 +97,9 @@ def metering():
         model.Automaton.apply_force_damage = _ORIG_DAMAGE
 
 
-def _make_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
+def _make_match(
+    seed, steps, sickness_rl=0.0, sickness_ai=0.0, with_env=False
+):
     return ArenaMatch(
         seed=seed,
         steps=steps,
@@ -101,11 +107,14 @@ def _make_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
         ai_policy=BDIPolicy(seed=seed ^ 0xB01),
         sickness_rl=sickness_rl,
         sickness_ai=sickness_ai,
+        with_env=with_env,
     )
 
 
-def run_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
-    match = _make_match(seed, steps, sickness_rl, sickness_ai)
+def run_match(
+    seed, steps, sickness_rl=0.0, sickness_ai=0.0, with_env=False
+):
+    match = _make_match(seed, steps, sickness_rl, sickness_ai, with_env)
     critical_ticks = 0
     recoveries = 0
     below = {"rl": False, "ai": False}
@@ -137,29 +146,49 @@ def run_match(seed, steps, sickness_rl=0.0, sickness_ai=0.0):
 def _with_overrides(overrides):
     saved = {}
     for name, value in overrides.items():
-        saved[name] = getattr(model, name)
-        setattr(model, name, value)
+        target = next(
+            (module for module in _OVERRIDE_MODULES if hasattr(module, name)),
+            model,
+        )
+        saved[name] = (target, getattr(target, name))
+        setattr(target, name, value)
     return saved
 
 
 def _restore(saved):
-    for name, value in saved.items():
-        setattr(model, name, value)
+    for name, (target, value) in saved.items():
+        setattr(target, name, value)
 
 
-def run_batch(seeds, steps, overrides, label, sickness_rl=0.0, sickness_ai=0.0):
+def run_batch(
+    seeds,
+    steps,
+    overrides,
+    label,
+    sickness_rl=0.0,
+    sickness_ai=0.0,
+    with_env=False,
+):
     saved = _with_overrides(overrides)
     _METER["starve"] = 0.0
     _METER["damage"] = 0.0
     try:
         with metering():
             rows = [
-                run_match(seed, steps, sickness_rl, sickness_ai)
+                run_match(seed, steps, sickness_rl, sickness_ai, with_env)
                 for seed in range(seeds)
             ]
     finally:
         _restore(saved)
-    _report(label, rows, seeds, steps, sickness_rl, sickness_ai)
+    _report(
+        label,
+        rows,
+        seeds,
+        steps,
+        sickness_rl,
+        sickness_ai,
+        with_env,
+    )
     return rows
 
 
@@ -167,7 +196,15 @@ def _share(count, total):
     return count / max(1, total)
 
 
-def _report(label, rows, seeds, steps, sickness_rl=0.0, sickness_ai=0.0):
+def _report(
+    label,
+    rows,
+    seeds,
+    steps,
+    sickness_rl=0.0,
+    sickness_ai=0.0,
+    with_env=False,
+):
     counts = {
         cause: sum(1 for row in rows if row["cause"] == cause)
         for cause in ("death", "capture", "timeout")
@@ -183,8 +220,16 @@ def _report(label, rows, seeds, steps, sickness_rl=0.0, sickness_ai=0.0):
     recoveries = statistics.mean(row["recoveries"] for row in rows)
 
     print(
-        "\n=== %s (N=%d, steps=%d, sickness RL=%.2f / AI=%.2f) ==="
-        % (label, seeds, steps, sickness_rl, sickness_ai)
+        "\n=== %s (N=%d, steps=%d, sickness RL=%.2f / AI=%.2f, "
+        "with_env=%s) ==="
+        % (
+            label,
+            seeds,
+            steps,
+            sickness_rl,
+            sickness_ai,
+            "on" if with_env else "off",
+        )
     )
     for cause in ("death", "capture", "timeout"):
         print(
@@ -263,6 +308,14 @@ def main(argv=None):
         help="показать старую калибровку (1.0/0.5) для сравнения",
     )
     parser.add_argument(
+        "--with-env",
+        action="store_true",
+        help=(
+            "калибровать активную игру с ArenaEnvironment (по умолчанию "
+            "контрольное плечо без среды, как старые таблицы)"
+        ),
+    )
+    parser.add_argument(
         "--sickness",
         type=float,
         default=None,
@@ -313,6 +366,7 @@ def main(argv=None):
             "baseline: 1.0/0.5",
             sickness_rl,
             sickness_ai,
+            args.with_env,
         )
     run_batch(
         args.seeds,
@@ -321,6 +375,7 @@ def main(argv=None):
         "текущая калибровка",
         sickness_rl,
         sickness_ai,
+        args.with_env,
     )
     return 0
 

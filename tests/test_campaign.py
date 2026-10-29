@@ -528,3 +528,50 @@ def test_asset_loader_uses_procedural_placeholders():
     image = AssetLoader.load("menus/main_menu_bg", (320, 180))
     assert image.get_size() == (320, 180)
     assert image.get_at((0, 0))[:3] != (0, 0, 0)
+
+
+def test_campaign_success_chance_uses_standing_skill_and_sickness():
+    from campaign.actor import CampaignActor, campaign_success_chance
+
+    target = CampaignActor(standing=0.5)
+    weak = CampaignActor(standing=0.0)
+    strong = CampaignActor(standing=1.0)
+    weak_chance = campaign_success_chance(0.6, weak, target)
+    strong_chance = campaign_success_chance(0.6, strong, target)
+    # F/authority входит в бросок: сильная позиция повышает шанс.
+    assert strong_chance > weak_chance
+    sick = CampaignActor(standing=1.0, sickness=1.0)
+    # Болезнь снижает работоспособность, не превращая шанс в ноль.
+    assert campaign_success_chance(0.6, sick, target) < strong_chance
+    assert 0.05 <= weak_chance <= 0.95
+    assert 0.05 <= strong_chance <= 0.95
+
+
+def test_campaign_character_tick_drifts_and_syncs_automaton():
+    from campaign.character import CampaignCharacter
+
+    character = CampaignCharacter(
+        {
+            "id": "friend",
+            "name": "Друг",
+            "affinity": 0.5,
+            "trust": 0.4,
+            "health": 100.0,
+            "sickness": 0.0,
+            "alive": True,
+        }
+    )
+    affinity_delta, trust_delta = character.tick()
+    assert affinity_delta < 0.0
+    assert trust_delta < 0.0
+    assert character["affinity"] < 0.5
+    assert character.unit.force == pytest.approx(
+        (character["affinity"] + 1.0) / 2.0
+    )
+    assert character.unit.energy == pytest.approx(
+        (character["trust"] + 1.0) / 2.0
+    )
+    # sync() подхватывает изменения легаси-полей после эффектов мира.
+    character["affinity"] = -0.4
+    character.sync()
+    assert character.unit.force == pytest.approx(0.3)

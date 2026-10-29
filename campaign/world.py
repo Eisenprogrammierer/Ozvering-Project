@@ -4,9 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 
-from core41 import HEALTH_MAX, SICKNESS_MAX
+from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
 
-from .actor import CAMPAIGN_ENERGY_MAX, CampaignActor
+from .actor import (
+    CAMPAIGN_ENERGY_MAX,
+    CampaignActor,
+    campaign_success_chance,
+)
+from .character import CampaignCharacter
 from .errors import CampaignError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -687,7 +692,7 @@ class WorldEngine:
             0.0,
             HEALTH_MAX,
         )
-        return {
+        return CampaignCharacter({
             "id": raw["id"],
             "name": _text(raw.get("name"), raw["id"]),
             "role": _text(raw.get("role")),
@@ -704,7 +709,7 @@ class WorldEngine:
             "node_id": _text(raw.get("node_id")),
             "tags": list(raw.get("tags") or ()),
             "description": _text(raw.get("description")),
-        }
+        })
 
     def _opening(self):
         for text in self.config.get("opening_log") or ():
@@ -1100,6 +1105,24 @@ class WorldEngine:
                         % character["name"],
                     }
                 )
+            # Автономная динамика персонажа (P1.6): даже без действия
+            # игрока отношение/доверие медленно меняются, а `Automaton`
+            # синхронизируется с легаси-полями для бросков успеха.
+            affinity_delta, trust_delta = character.tick()
+            if abs(affinity_delta) > 1e-12:
+                changed.append(
+                    (
+                        "%s · отношение" % character["name"],
+                        affinity_delta,
+                    )
+                )
+            if abs(trust_delta) > 1e-12:
+                changed.append(
+                    (
+                        "%s · доверие" % character["name"],
+                        trust_delta,
+                    )
+                )
         return self._merge_changes(changed)
 
     def organization_category(self, node_id):
@@ -1368,8 +1391,8 @@ class WorldEngine:
         )
         success = action.get("success") or {}
         failure = action.get("failure") or {}
-        chance = _as_float(
-            success.get("chance"), action.get("success_chance", 0.6)
+        chance = self._action_chance(
+            action, character, context, success, is_player=True
         )
         roll = self._roll(
             "character:%s:%s:%s:%s"
@@ -1827,6 +1850,57 @@ class WorldEngine:
         ).hexdigest()
         return int(digest[:12], 16) / float(16**12)
 
+    @staticmethod
+    def _unit_from_node(node, authority=0.0):
+        """Автомат-защитник из легаси-статистики узла.
+
+        Кампанийные `power/cohesion/...` остаются проекциями канала form,
+        но для броска успеха они переводятся в `F/E` и навыки `Automaton`,
+        чтобы использовать ту же `success_probability`, что и арена.
+        """
+        stats = (node or {}).get("stats") or {}
+        return Automaton(
+            id=_text((node or {}).get("id"), "target"),
+            force=_clamp(_as_float(stats.get("power"), 0.5)),
+            max_force=1.0,
+            energy=_clamp(_as_float(stats.get("capacity"), 0.5)),
+            max_energy=1.0,
+            skills={
+                "force": _clamp(_as_float(stats.get("cohesion"), 0.5)),
+                "info": _clamp(_as_float(stats.get("legitimacy"), 0.5)),
+            },
+            authority=_clamp(authority),
+        )
+
+    def _action_chance(
+        self, action, target, context, success, is_player
+    ):
+        base = _as_float(
+            success.get("chance"), action.get("success_chance", 0.6)
+        )
+        if is_player:
+            attacker = self.player
+        else:
+            attacker = self._unit_from_node(
+                context["node"], context.get("authority", 0.0)
+            )
+        if target is None or target.get("id") == context["node"]["id"]:
+            defender = self._unit_from_node(
+                context["node"], context.get("authority", 0.0)
+            )
+        elif hasattr(target, "sync"):
+            # Персонаж: его `Automaton` уже содержит F/E/H/sickness.
+            defender = target.sync()
+        else:
+            defender = self._unit_from_node(target)
+        return campaign_success_chance(
+            base,
+            attacker,
+            defender,
+            form=_text(action.get("form"), "force"),
+            amount=0.0,
+        )
+
     def _pay_cost(self, action, context):
         for key, value in (action.get("cost") or {}).get("node", {}).items():
             if key in context["node"]["stats"]:
@@ -1954,8 +2028,8 @@ class WorldEngine:
         )
         success = action.get("success") or {}
         failure = action.get("failure") or {}
-        chance = _as_float(
-            success.get("chance"), action.get("success_chance", 0.6)
+        chance = self._action_chance(
+            action, target, context, success, is_player=True
         )
         roll = self._roll(
             "player:%s:%s:%s:%s"
@@ -2034,16 +2108,36 @@ class WorldEngine:
                 result.append(node)
         return result
 
-    def _ai_score(self, action, context, target):
+    def _ai_base(self, action, context):
+        """Часть оценки действия, не зависящая от цели.
+
+        `interests` узла и `ai_weight` действия постоянны в пределах
+        одного `_ai_action`, поэтому взвешенная сумма и штрафы за стоимость
+        считаются один раз на действие, а не для каждой пары
+        «действие × цель». Это главный горячий участок дневного шага.
+        """
         weight = action.get("ai_weight") or {}
         score = 0.0
-        interests = context["node"].get("interests") or {}
-        for key, value in weight.items():
-            score += _as_float(interests.get(key), 0.0) * _as_float(value)
-        if not weight:
+        if weight:
+            interests = context["node"].get("interests") or {}
+            for key, value in weight.items():
+                score += _as_float(interests.get(key), 0.0) * _as_float(value)
+        else:
             score = 0.2
+        stats = context["node"].get("stats") or {}
+        for key, value in (action.get("cost") or {}).get("node", {}).items():
+            score -= 0.10 * _as_float(value)
+            if _as_float(stats.get(key), 0.0) < 0.2:
+                score -= 0.3
+        return score
+
+    def _ai_score(self, action, context, target, base=None):
+        if base is None:
+            base = self._ai_base(action, context)
+        score = base
         if target is not None:
-            score += 0.15 * self.relation(context["node"]["id"], target["id"])
+            relations = context["node"].get("relations") or {}
+            score += 0.15 * _as_float(relations.get(target["id"]), 0.0)
             if target.get("polity") == context["node"].get("polity"):
                 score += 0.05
         # Выбор и разрешение действия используют разные соли. Иначе высокий
@@ -2057,10 +2151,6 @@ class WorldEngine:
             target["id"] if target else "-",
         )
         score += 0.20 * self._roll(token)
-        for key, value in (action.get("cost") or {}).get("node", {}).items():
-            score -= 0.10 * _as_float(value)
-            if _as_float(context["node"]["stats"].get(key), 0.0) < 0.2:
-                score -= 0.3
         return score
 
     def _ai_action(self, node_id):
@@ -2071,19 +2161,24 @@ class WorldEngine:
         for action in self.actions.values():
             if not action.get("ai", True):
                 continue
+            # Проверки, не зависящие от цели, считаем один раз на действие:
+            # `validate()` для каждого кандидата повторял actor/cost-причины
+            # и был главным горячим местом дневного шага.
+            if self._reason_actor(action, context):
+                continue
+            if self._reason_cost(action, context):
+                continue
+            base = self._ai_base(action, context)
             if action.get("target", {}).get("self"):
                 candidates = [context["node"]]
             else:
                 candidates = self._ai_targets(action, context)
             for target in candidates:
-                enabled, _reason = self.validate(
-                    action["id"],
-                    target["id"] if target else None,
-                    context,
-                )
-                if not enabled:
+                # `_ai_targets` уже отфильтровал target-причину; остаются
+                # требования, зависящие от цели.
+                if self._reason_requirements(action, context, target):
                     continue
-                score = self._ai_score(action, context, target)
+                score = self._ai_score(action, context, target, base)
                 if best is None or score > best[0]:
                     best = (score, action, target)
         if best is None:
@@ -2095,8 +2190,8 @@ class WorldEngine:
         )
         success = action.get("success") or {}
         failure = action.get("failure") or {}
-        chance = _as_float(
-            success.get("chance"), action.get("success_chance", 0.6)
+        chance = self._action_chance(
+            action, target, context, success, is_player=False
         )
         roll = self._roll(
             "ai:%s:%s:%s:%s"

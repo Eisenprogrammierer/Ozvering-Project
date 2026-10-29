@@ -11,9 +11,12 @@ REST_FORCE = 0.6
 
 HEALTH_MAX = 100.0
 HEALTH_CRITICAL = 25.0
-HEALTH_REST_REGEN = 0.75
+# Калибровка 2026-10-29 (N=100, env on/off): 0.62/0.78 и
+# CAPTURE_STREAK=20 удерживают смерть/захват/таймаут/медиану в полосах
+# §2.3.2 и при включённом ArenaEnvironment.
+HEALTH_REST_REGEN = 0.78
 HEALTH_STARVE_DECAY = 1.0
-HEALTH_DAMAGE_RATIO = 0.70
+HEALTH_DAMAGE_RATIO = 0.62
 HEALTH_FACTOR_MAX = 10.0
 
 SICKNESS_MAX = 1.0

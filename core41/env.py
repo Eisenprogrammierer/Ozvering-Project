@@ -153,6 +153,8 @@ class ArenaEnv:
     Параметры повторяют `ArenaMatch`; `policy` — обучаемая политика стороны
     `rl`, `opponent_policy` — политика стороны `ai`. Если политика
     противника не задана, среда выбирает случайное легальное действие.
+    `with_env=True` по умолчанию: train/eval совпадают с активной игрой;
+    `with_env=False` — контрольное плечо без среды.
     """
 
     def __init__(
@@ -167,7 +169,10 @@ class ArenaEnv:
         health_factors_ai=None,
         sickness_rl=0.0,
         sickness_ai=0.0,
-        with_env=False,
+        # Обучение по умолчанию идёт в той же конфигурации, что активная
+        # игра (`MatchEngine`/`BattlefieldModel`): среда включена. Для
+        # контрольного плеча без среды передайте `with_env=False`.
+        with_env=True,
     ):
         self.seed = int(seed)
         self.steps = int(steps)

@@ -125,6 +125,7 @@ class CampaignEnv:
         snapshot=None,
         sickness=0.0,
         target_mode="all",
+        engine=None,
     ):
         if target_mode not in ("first", "all"):
             raise ValueError("target_mode должен быть 'first' или 'all'")
@@ -154,7 +155,54 @@ class CampaignEnv:
         # Одиночный агент (проблема №6): оппонента нет, цикл обучения
         # (`agents.train`) использует для этой среды кампанейный эпизод.
         self.single_agent = True
-        self.reset(seed=self.seed)
+        if engine is not None:
+            # Живая кампания (P0.4): среда оборачивает уже существующий
+            # `WorldEngine` экрана, а не строит второй мир. Действия политики
+            # меняют тот же движок, который рисует UI и сохраняется в сейв.
+            self.attach(engine)
+        else:
+            self.reset(seed=self.seed)
+
+    def attach(self, engine):
+        """Подключить среду к существующему `WorldEngine` без пересоздания.
+
+        Возвращает `CampaignObservation`. Используется live-режимом
+        кампании: `WorldScreen` создаёт `CampaignEnv(engine=engine)`, и
+        `step()` политики исполняется на том же движке, что и ручные
+        действия игрока. Стартовая позиция кэшируется, чтобы последующий
+        `reset()` мог восстановить текущий домен.
+        """
+        if engine is None:
+            raise ValueError("CampaignEnv.attach() нужен WorldEngine")
+        self.engine = engine
+        self.config = dict(engine.config or self.config)
+        self.seed = int(engine.seed)
+        self.max_days = max(
+            int(self.max_days), int(self.config.get("days", self.max_days))
+        )
+        self._resolved_start = (
+            engine.player_node_id or None,
+            engine.player_office_id or None,
+        )
+        self._start_node = engine.player_node_id or None
+        self._start_office = engine.player_office_id or None
+        self._start_profile = getattr(engine, "profile", None)
+        self._start_snapshot = None
+        self.last_transition = None
+        self._terminal = bool(engine.finished or not engine.attached)
+        return self.observe()
+
+    def choose_action(self, policy, explore=False):
+        """Выбрать легальное действие политикой в текущем состоянии."""
+        actions = self.legal_actions()
+        if not actions:
+            return CampaignAction(END_DAY)
+        return policy.act(self.observe(), actions, explore=explore)
+
+    def advance(self, policy, explore=False):
+        """Один шаг политики в живой кампании (тот же контракт, что `step`)."""
+        return self.step(self.choose_action(policy, explore=explore))
+
 
     def randomize_draw(
         self,

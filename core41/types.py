@@ -38,6 +38,11 @@ class Observation:
     opponent_health: float = 100.0
     opponent_max_health: float = 100.0
     opponent_sickness: float = 0.0
+    # Наблюдаемое расписание среды (P1.8): близость следующего события
+    # (0 сразу после, →1 перед) и множитель сезона. При `with_env=False`
+    # остаются нейтральными, поэтому старые сценарии не меняются.
+    env_pressure: float = 0.0
+    env_season: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -88,13 +93,6 @@ class CampaignObservation:
     total_days: int = 1
     actions_left: int = 0
     actions_per_day: int = 1
-    # Ядро 4-2-1: E/F — те же шкалы, что у арены. Отрицательный сентинел
-    # означает «поле не заполнено»; признаки тогда падают обратно на
-    # actions_left/standing для старых конструкторов.
-    energy: float = -1.0
-    max_energy: float = 0.0
-    force: float = -1.0
-    max_force: float = 0.0
     # Состояние персонажа (health/sickness — то же ядро, что и на арене).
     health: float = 100.0
     max_health: float = 100.0
@@ -121,3 +119,11 @@ class CampaignObservation:
     dismissed: bool = False
     time: float = 0.0
     extra: dict = field(default_factory=dict)
+    # Ядро 4-2-1: E/F — те же шкалы, что у арены. Поля добавлены в конец,
+    # чтобы старые позиционные конструкторы не сдвигались. Отрицательный
+    # сентинел означает «поле не заполнено»; признаки тогда падают обратно
+    # на actions_left/standing для старых конструкторов.
+    energy: float = -1.0
+    max_energy: float = 0.0
+    force: float = -1.0
+    max_force: float = 0.0

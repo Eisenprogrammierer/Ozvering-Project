@@ -251,6 +251,99 @@ def test_mlp_policy_lowers_loss_on_fixed_task():
     assert policy.updates == 400
 
 
+def test_mlp_target_network_freezes_then_syncs():
+    policy = MLPPolicy(seed=5, epsilon=0.0, target_sync=2)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    transition = Transition(
+        observation=observation,
+        action=action,
+        reward=0.3,
+        next_observation=observation,
+        done=False,
+        next_actions=(action,),
+    )
+    initial_target = [row[:] for row in policy.target_weights1]
+    policy.observe(transition)
+    # После одного обновления online-веса ушли, target ещё заморожен.
+    assert policy.updates == 1
+    assert policy.target_weights1 == initial_target
+    policy.observe(transition)
+    # На втором обновлении target синхронизируется с online.
+    assert policy.updates == 2
+    assert policy.target_weights1 == policy.weights1
+    assert policy.target_bias1 == policy.bias1
+    assert policy.target_weights2 == policy.weights2
+    assert policy.target_bias2 == policy.bias2
+
+
+def test_mlp_target_network_round_trips_and_legacy_checkpoint_copies_online():
+    policy = MLPPolicy(seed=9, epsilon=0.0, target_sync=1)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    for _ in range(3):
+        policy.observe(
+            Transition(
+                observation=observation,
+                action=action,
+                reward=0.2,
+                next_observation=observation,
+                done=False,
+                next_actions=(action,),
+            )
+        )
+    state = json.loads(json.dumps(policy.state_dict()))
+    loaded = MLPPolicy(seed=1)
+    loaded.load_state_dict(state)
+    assert loaded.target_sync == policy.target_sync
+    assert loaded.target_weights1 == policy.target_weights1
+    assert loaded.target_bias1 == policy.target_bias1
+    assert loaded.target_weights2 == policy.target_weights2
+    assert loaded.target_bias2 == policy.target_bias2
+    assert loaded.target_score(observation, action) == pytest.approx(
+        policy.target_score(observation, action)
+    )
+
+    legacy = dict(state)
+    for key in (
+        "target_weights1",
+        "target_bias1",
+        "target_weights2",
+        "target_bias2",
+        "target_sync",
+    ):
+        legacy.pop(key, None)
+    migrated = MLPPolicy(seed=2, target_sync=7)
+    migrated.load_state_dict(legacy)
+    # Старый чекпойнт без target-сети: target копирует online-веса,
+    # а не остаётся случайной инициализацией.
+    assert migrated.target_weights1 == migrated.weights1
+    assert migrated.target_weights2 == migrated.weights2
+
+
+def test_feature_count_includes_environment_features():
+    from agents.policies import features
+
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    vector = features(observation, action)
+    assert FEATURE_COUNT == 21
+    assert len(vector) == FEATURE_COUNT
+    # Последние два слота — наблюдаемое расписание среды.
+    assert vector[-2] == pytest.approx(0.0)
+    assert vector[-1] == pytest.approx(1.0)
+    pressured = Observation(
+        **{
+            **observation.__dict__,
+            "env_pressure": 0.75,
+            "env_season": 1.3,
+        }
+    )
+    pressured_vector = features(pressured, action)
+    assert pressured_vector[-2] == pytest.approx(0.75)
+    assert pressured_vector[-1] == pytest.approx(1.0)
+
+
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
 
@@ -422,7 +515,9 @@ def test_commander_ai_uses_core41_agent():
 
 
 def test_core_training_smoke():
-    policy, stats = train(episodes=2, seed=9, max_steps=20)
+    policy, stats = train(
+        episodes=2, seed=9, max_steps=20, eval_episodes=0
+    )
     assert stats["episodes"] == 2
     assert stats["wins"] + stats["losses"] + stats["draws"] == 2
     assert isinstance(policy, BDIPolicy)
@@ -434,6 +529,7 @@ def test_self_play_updates_both_policies_once_per_tick():
         seed=13,
         max_steps=20,
         self_play=True,
+        eval_episodes=0,
     )
     assert stats["self_play"] is True
     assert stats["policy_updates"] > 0

@@ -17,14 +17,48 @@
 """
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
+from core41.model import success_probability
+from core41.types import Work
 
 # Ёмкость дневной энергии. Значение не обязано совпадать с `max_energy`
 # арены: важен единый тип шкалы `E`, а не абсолютные единицы.
 CAMPAIGN_ENERGY_MAX = 100.0
+# Вес ядровой вероятности в итоговом шансе кампанийного действия. База
+# остаётся авторской (конфиг мира), но `F`/навык/болезнь/сопротивление
+# цели дают сдвиг через ту же `success_probability`, что и на арене.
+CAMPAIGN_CORE_CHANCE_WEIGHT = 0.30
 
 
 def _clamp(value, low=0.0, high=1.0):
     return max(low, min(high, float(value)))
+
+
+def campaign_success_chance(
+    base,
+    attacker,
+    defender,
+    form="force",
+    amount=0.0,
+    is_open=False,
+    weight=CAMPAIGN_CORE_CHANCE_WEIGHT,
+):
+    """Смешать авторский шанс действия с ядровой `success_probability`.
+
+    `attacker`/`defender` — `Automaton` (или `CampaignActor` с `.unit`).
+    Так `F` (standing/authority), навык, болезнь и сопротивление цели
+    входят в кампанийный бросок, а не остаются декоративными шкалами.
+    """
+    attacker_unit = getattr(attacker, "unit", attacker)
+    defender_unit = getattr(defender, "unit", defender)
+    core = success_probability(
+        attacker_unit,
+        defender_unit,
+        Work(amount=float(amount), form=form or "force"),
+        bool(is_open),
+    )
+    blended = float(base) + float(weight) * (core - 0.5)
+    return _clamp(blended, 0.05, 0.95)
+
 
 
 class CampaignActor:
@@ -52,6 +86,10 @@ class CampaignActor:
             inputs=("force", "info", "care"),
             outputs=("force", "info"),
             skills={"force": 0.6, "info": 0.4},
+            # `standing` — и политическая сила позиции, и полномочия:
+            # `success_probability` использует authority, поэтому F
+            # участвует в шансе действия, а не только в отображении.
+            authority=_clamp(standing),
         )
 
     # -- E -----------------------------------------------------------------
@@ -112,6 +150,7 @@ class CampaignActor:
     @force.setter
     def force(self, value):
         self.unit.force = _clamp(value, 0.0, self.unit.max_force)
+        self.unit.authority = self.unit.force
 
     @property
     def max_force(self):

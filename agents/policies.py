@@ -21,10 +21,10 @@ from campaign.env import END_DAY
 # QTable и до появления MLPPolicy. Текущий формат — v2:
 #   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
 #     полей (недостающие sickness-поля заполняются нулём);
-#   - BDI: 19 признаков (18 прежних + код действия); при загрузке v0/v1
-#     короткий вектор веса дополняется нулями;
-#   - MLP: 19 входов; при загрузке v1 строки 18→19 дополняются нулём,
-#     поэтому старые сети не теряют выученные веса.
+#   - BDI: 21 признак (18 прежних + код действия + 2 признака среды);
+#     при загрузке v0/v1 короткий вектор веса дополняется нулями;
+#   - MLP: 21 вход; при загрузке v1/v2 строки 18/19→21 дополняются
+#     нулями, поэтому старые сети не теряют выученные веса.
 # QTable-ключи не меняются: код действия уже входит в ключ отдельным полем.
 CHECKPOINT_VERSION = 2
 LEGACY_CHECKPOINT_VERSION = 0
@@ -117,14 +117,15 @@ def action_feature_code(action):
 def campaign_features(observation, action):
     """Признаки кампанейного среза (проблема готовности №6).
 
-    Тот же формат вектора, что и у арены: 19 признаков, где слоты
+    Тот же формат вектора, что и у арены: 21 признак, где слоты
     «противника» занимают позиции собственной организации (power — чужая
     сила, cohesion — «открытость» структуры), а `action.kind` кодируется
     через флаги REST/WORK/TREAT по аналогии с ареной: END_DAY ведёт себя
     как отдых (тик мира без затрат), ordinary-действие — как работа,
     heal/self-действие — как лечение. Девятнадцатый слот — стабильный код
     действия: без него `inspect` и `build_network` неразличимы для
-    BDI/MLP, потому что у обоих `fraction=0`. Признаки нормированы к
+    BDI/MLP, потому что у обоих `fraction=0`. Последние два слота —
+    признаки среды (в кампании нейтральные). Признаки нормированы к
     [0, 1], как и в `features()`.
     """
     is_end_day = 1.0 if action.kind == "END_DAY" else 0.0
@@ -169,6 +170,10 @@ def campaign_features(observation, action):
         1.0 if not observation.alive else 0.0,
         is_heal,
         action_feature_code(action),
+        # Кампания пока не имеет собственного актора среды; нейтральные
+        # значения сохраняют длину вектора единой с ареной.
+        0.0,
+        1.0,
     )
 
 
@@ -214,10 +219,12 @@ def features(observation, action):
         float(getattr(observation, "opponent_sickness", 0.0)),
         is_treat,
         action_feature_code(action),
+        _clamp01(float(getattr(observation, "env_pressure", 0.0))),
+        _clamp01(float(getattr(observation, "env_season", 1.0))),
     )
 
 
-FEATURE_COUNT = 19
+FEATURE_COUNT = 21
 
 
 def dot(left, right):
@@ -294,6 +301,8 @@ class BDIPolicy:
             -0.6,
             0.2,
             0.4,
+            0.0,
+            0.0,
             0.0,
         ]
 
@@ -476,6 +485,7 @@ class QTablePolicy:
         # смешивается с аренной таблицей.
         self.campaign = bool(campaign)
         self.table = table if table is not None else {}
+        self.updates = 0
 
     def key(self, observation, action):
         if isinstance(observation, CampaignObservation) or self.campaign:
@@ -541,6 +551,7 @@ class QTablePolicy:
         self.table[key] = current + self.learning_rate * (
             transition.reward + self.discount * target - current
         )
+        self.updates += 1
         self.epsilon = max(0.03, self.epsilon * 0.9995)
 
     def state_dict(self):
@@ -554,6 +565,7 @@ class QTablePolicy:
             "epsilon": self.epsilon,
             "learning_rate": self.learning_rate,
             "discount": self.discount,
+            "updates": self.updates,
         }
 
     def load_state_dict(self, state):
@@ -582,6 +594,7 @@ class QTablePolicy:
             state.get("learning_rate", self.learning_rate)
         )
         self.discount = float(state.get("discount", self.discount))
+        self.updates = int(state.get("updates", self.updates))
 
 
 class MLPPolicy:
@@ -603,6 +616,7 @@ class MLPPolicy:
         epsilon=0.22,
         min_epsilon=0.03,
         hidden=16,
+        target_sync=50,
     ):
         self.rng = random.Random(seed)
         self.learning_rate = float(learning_rate)
@@ -610,6 +624,7 @@ class MLPPolicy:
         self.epsilon = float(epsilon)
         self.min_epsilon = float(min_epsilon)
         self.hidden = int(hidden)
+        self.target_sync = max(1, int(target_sync))
         self.updates = 0
         self.weights1 = [
             [self.rng.uniform(-0.05, 0.05) for _ in range(FEATURE_COUNT)]
@@ -620,19 +635,54 @@ class MLPPolicy:
             self.rng.uniform(-0.05, 0.05) for _ in range(self.hidden)
         ]
         self.bias2 = 0.0
+        # Target-сеть стабилизирует bootstrap: цель TD считается по
+        # «замороженным» весам и синхронизируется каждые `target_sync`
+        # обновлений. Это снижает расходимость длинного online TD(0).
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
 
-    def _forward(self, vector):
+    def _forward_with(self, vector, weights1, bias1, weights2, bias2):
         hidden = []
         for index in range(self.hidden):
-            value = self.bias1[index] + dot(
-                self.weights1[index], vector
-            )
+            value = bias1[index] + dot(weights1[index], vector)
             hidden.append(math.tanh(value))
-        output = self.bias2 + dot(self.weights2, hidden)
+        output = bias2 + dot(weights2, hidden)
         return output, hidden
+
+    def _forward(self, vector):
+        return self._forward_with(
+            vector,
+            self.weights1,
+            self.bias1,
+            self.weights2,
+            self.bias2,
+        )
+
+    def _target_forward(self, vector):
+        return self._forward_with(
+            vector,
+            self.target_weights1,
+            self.target_bias1,
+            self.target_weights2,
+            self.target_bias2,
+        )
+
+    def _sync_target(self):
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
 
     def score(self, observation, action):
         output, _hidden = self._forward(_campaign_vector(observation, action))
+        return output
+
+    def target_score(self, observation, action):
+        output, _hidden = self._target_forward(
+            _campaign_vector(observation, action)
+        )
         return output
 
     def act(self, observation, actions, explore=True):
@@ -657,7 +707,9 @@ class MLPPolicy:
                     transition.next_observation
                 )
             target = max(
-                self.score(transition.next_observation, candidate)
+                self.target_score(
+                    transition.next_observation, candidate
+                )
                 for candidate in next_actions
             )
         error = transition.reward + self.discount * target - current
@@ -679,6 +731,8 @@ class MLPPolicy:
                 row[feature_index] += delta * value
             self.bias1[index] += delta
         self.updates += 1
+        if self.updates % self.target_sync == 0:
+            self._sync_target()
         self.epsilon = max(self.min_epsilon, self.epsilon * 0.9995)
 
     def state_dict(self):
@@ -691,6 +745,11 @@ class MLPPolicy:
             "bias1": list(self.bias1),
             "weights2": list(self.weights2),
             "bias2": self.bias2,
+            "target_weights1": [list(row) for row in self.target_weights1],
+            "target_bias1": list(self.target_bias1),
+            "target_weights2": list(self.target_weights2),
+            "target_bias2": self.target_bias2,
+            "target_sync": self.target_sync,
             "epsilon": self.epsilon,
             "updates": self.updates,
             "learning_rate": self.learning_rate,
@@ -705,8 +764,8 @@ class MLPPolicy:
         rows = []
         if weights1:
             rows = [[float(value) for value in row] for row in weights1]
-            # v1 MLP имел 18 входов; v2 добавляет код действия. Дополняем
-            # строки нулём, чтобы старые веса не терялись.
+            # v1 MLP имел 18 входов; v2 — 19, текущий — 21. Дополняем
+            # строки нулями, чтобы старые веса не терялись.
             if all(len(row) <= FEATURE_COUNT for row in rows):
                 rows = [
                     row + [0.0] * (FEATURE_COUNT - len(row)) for row in rows
@@ -731,6 +790,47 @@ class MLPPolicy:
                 )
             ]
             self.bias2 = float(state.get("bias2", 0.0))
+        self.target_sync = max(
+            1, int(state.get("target_sync", self.target_sync))
+        )
+        target_rows = state.get("target_weights1")
+        if target_rows:
+            target_rows = [
+                [float(value) for value in row] for row in target_rows
+            ]
+            if all(len(row) <= FEATURE_COUNT for row in target_rows):
+                target_rows = [
+                    row + [0.0] * (FEATURE_COUNT - len(row))
+                    for row in target_rows
+                ]
+            if (
+                len(target_rows) == self.hidden
+                and all(len(row) == FEATURE_COUNT for row in target_rows)
+            ):
+                self.target_weights1 = target_rows
+                self.target_bias1 = [
+                    float(value)
+                    for value in state.get(
+                        "target_bias1",
+                        [0.0 for _ in range(self.hidden)],
+                    )
+                ]
+                self.target_weights2 = [
+                    float(value)
+                    for value in state.get(
+                        "target_weights2",
+                        [0.0 for _ in range(self.hidden)],
+                    )
+                ]
+                self.target_bias2 = float(
+                    state.get("target_bias2", 0.0)
+                )
+            else:
+                self._sync_target()
+        else:
+            # Старый чекпойнт без target-сети: копируем online-веса, чтобы
+            # первый bootstrap не был случайным.
+            self._sync_target()
         self.epsilon = float(state.get("epsilon", self.epsilon))
         self.updates = int(state.get("updates", self.updates))
         self.learning_rate = float(

@@ -427,12 +427,14 @@ modeling / pretrain, а не подбор констант. Смена `EPS_DECA
 В разделе «P1. RL — открыто» потолок табличного Q (~27%) был признан
 структурным: подбор констант не помогает, нужен function approximation. Ответ
 реализован в активном ядре 4-2-1 (`agents/policies.py::MLPPolicy`): tanh-скрытый
-слой (hidden=16) поверх тех же 19 признаков, что у `BDIPolicy` (18 прежних
-плюс стабильный код действия), online TD(0) с
-target=max по легальным действиям и epsilon-decay; внешних зависимостей нет.
-Отдельной target-сети (копии весов) в этом baseline нет: это осознанный
-онлайн-срез, а не DQN; качество обучения проверяет
-`tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task`.
+слой (hidden=16) поверх тех же 21 признака, что у `BDIPolicy` (18 прежних,
+стабильный код действия и два признака среды), online TD(0) с
+target-сетью и периодической синхронизацией (`target_sync=50`) и
+epsilon-decay; внешних зависимостей нет. Target-сеть стабилизирует bootstrap
+длинного online TD(0); это не полный DQN, а его минимальный срез. Качество
+обучения проверяют
+`tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task` и
+`test_mlp_target_network_freezes_then_syncs`.
 Политика зарегистрирована в `make_policy("mlp")`, включена в held-out матрицу
 `--eval-opponents bdi,qtable,random,mlp` и грузится через `load_policy`.
 Легаси-замеры этого раздела (UtilityAI vs табличный QTable на старой шкале)

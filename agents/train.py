@@ -48,8 +48,15 @@ LEARNABLE_EVAL_BASELINES = frozenset(
     {"qtable", "mlp", "qtable-campaign"}
 )
 DEFAULT_EVAL_BASELINE_EPISODES = 50
+# Единые defaults Python API и CLI. Раньше CLI подставлял arena=2000/20,
+# а `train()` — 160/0, поэтому одинаковый вызов давал разные эксперименты.
+DEFAULT_MAX_STEPS = {"arena": 2000, "duel": 160, "campaign": 30}
+DEFAULT_EPISODES = {"arena": 500, "duel": 500, "campaign": 50}
+DEFAULT_EVAL_EPISODES = 20
 # Отдельный сдвиг зерна прогрева: он не должен совпадать с eval seed'ами.
 BASELINE_SEED_SALT = 500003
+# Held-out поток для выбора лучшего чекпойнта во время обучения.
+BEST_CHECKPOINT_SEED_SALT = 700001
 
 
 def _make_env(
@@ -271,6 +278,10 @@ def _warmup_baseline(
     обучается на отдельном потоке seed'ов против стабильного `bdi`, не
     касаясь ни основной политики, ни eval seed'ов. Возвращает
     `(policy, trained_episodes)`; для политик с готовыми весами — `(policy, 0)`.
+
+    Для кампании (`single_agent`) прогрев идёт против детерминированного
+    мира: `qtable-campaign`/`mlp` получают тот же шанс, что и аренные
+    baseline, иначе их строка измеряла бы случайную инициализацию.
     """
     policy = make_policy(name, seed=seed)
     if name not in LEARNABLE_EVAL_BASELINES or episodes <= 0:
@@ -285,9 +296,15 @@ def _warmup_baseline(
         env_kwargs,
     )
     if getattr(env, "single_agent", False):
-        # Кампания оценивается одной строкой «против мира»; отдельных
-        # baseline-оппонентов там нет.
-        return policy, 0
+        for episode in range(int(episodes)):
+            _play_campaign_episode(
+                env,
+                policy,
+                seed + episode,
+                learn=True,
+                explore=True,
+            )
+        return policy, int(episodes)
     for episode in range(int(episodes)):
         _play_episode(
             env,
@@ -301,12 +318,50 @@ def _warmup_baseline(
     return policy, int(episodes)
 
 
+def _save_policy(policy, path):
+    """Сохранить политику любого типа (BDI не имеет собственного `save`)."""
+    if hasattr(policy, "save"):
+        policy.save(path)
+        return
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(policy.state_dict(), handle, ensure_ascii=False)
+
+
+def _seed_out_path(path, seed):
+    """Путь чекпойнта для конкретного seed: `model.json` → `model.seed3.json`."""
+    stem, suffix = os.path.splitext(path)
+    return "%s.seed%d%s" % (stem, int(seed), suffix)
+
+
+def wilson_interval(successes, trials, z=1.96):
+    """Доверительный интервал Уилсона для доли успехов.
+
+    Возвращает `(low, high)` в `[0, 1]`; при `trials = 0` — `(0, 1)`.
+    Нужен, чтобы матрица силы не выдавала шум за превосходство политики.
+    """
+    trials = int(trials)
+    if trials <= 0:
+        return 0.0, 1.0
+    successes = max(0, min(trials, int(successes)))
+    p = successes / trials
+    z2 = float(z) * float(z)
+    denominator = 1.0 + z2 / trials
+    center = (p + z2 / (2.0 * trials)) / denominator
+    margin = (
+        float(z)
+        * ((p * (1.0 - p) / trials + z2 / (4.0 * trials * trials)) ** 0.5)
+        / denominator
+    )
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+
+
 def evaluate(
     policy,
     opponent,
     episodes=20,
     seed=100000,
-    max_steps=160,
+    max_steps=None,
     env_name="arena",
     env_kwargs=None,
     domain_opts=None,
@@ -326,13 +381,19 @@ def evaluate(
     env = _make_env(
         env_name,
         seed,
-        max_steps,
+        (
+            DEFAULT_MAX_STEPS.get(env_name, 160)
+            if max_steps is None
+            else int(max_steps)
+        ),
         policy,
         opponent,
         env_kwargs,
     )
     domain_rng = (
-        random.Random(seed + DOMAIN_SEED_SALT) if domain_opts is not None else None
+        random.Random(seed + DOMAIN_SEED_SALT)
+        if domain_opts is not None
+        else None
     )
     wins = losses = draws = 0
     for episode in range(episodes):
@@ -354,6 +415,7 @@ def evaluate(
         "losses": losses,
         "draws": draws,
         "win_rate": wins / max(1, episodes),
+        "win_rate_ci": list(wilson_interval(wins, episodes)),
         "seed": int(seed),
         "env": env_name,
     }
@@ -371,7 +433,7 @@ def evaluate_matrix(
     opponents,
     episodes=20,
     seed=100000,
-    max_steps=160,
+    max_steps=None,
     env_name="arena",
     env_kwargs=None,
     domain_opts=None,
@@ -403,27 +465,37 @@ def evaluate_matrix(
 
 
 def train(
-    episodes=500,
+    episodes=None,
     seed=0,
     policy_name="bdi",
     opponent_name="bdi",
-    max_steps=160,
+    max_steps=None,
     env_name="arena",
     self_play=True,
     env_kwargs=None,
-    eval_episodes=0,
+    eval_episodes=DEFAULT_EVAL_EPISODES,
     eval_seed=None,
     eval_opponents=(),
     eval_baseline_episodes=DEFAULT_EVAL_BASELINE_EPISODES,
+    eval_campaign_baselines=False,
     eval_checkpoints=None,
     resume=None,
     resume_opponent=None,
     domain_randomize=False,
     domain_opts=None,
     eval_domain_randomize=False,
+    best_out=None,
+    best_every=0,
+    best_eval_episodes=5,
 ):
     # --resume (проблема готовности №5): чекпойнт загружается явно,
     # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
+    if episodes is None:
+        episodes = DEFAULT_EPISODES.get(env_name, 500)
+    episodes = int(episodes)
+    if max_steps is None:
+        max_steps = DEFAULT_MAX_STEPS.get(env_name, 160)
+    max_steps = int(max_steps)
     if resume:
         policy = load_policy(resume, seed=seed)
     else:
@@ -450,6 +522,8 @@ def train(
     wins = 0
     losses = 0
     draws = 0
+    best_score = -1.0
+    best_episode = 0
     for episode in range(episodes):
         if domain_rng is not None:
             _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
@@ -463,6 +537,26 @@ def train(
             explore=True,
         )
         wins, losses, draws = _count_winner(info, wins, losses, draws)
+        if (
+            best_out
+            and best_every
+            and (episode + 1) % int(best_every) == 0
+        ):
+            probe_seed = seed + BEST_CHECKPOINT_SEED_SALT
+            probe = evaluate(
+                policy,
+                None if single_agent else opponent,
+                episodes=int(best_eval_episodes),
+                seed=probe_seed,
+                max_steps=max_steps,
+                env_name=env_name,
+                env_kwargs=env_kwargs,
+            )
+            score = float(probe["win_rate"])
+            if score > best_score:
+                best_score = score
+                best_episode = episode + 1
+                _save_policy(policy, best_out)
 
     stats = {
         "episodes": episodes,
@@ -470,12 +564,24 @@ def train(
         "losses": losses,
         "draws": draws,
         "win_rate": wins / max(1, episodes),
+        "win_rate_ci": list(wilson_interval(wins, episodes)),
+        "seed": int(seed),
         "env": env_name,
+        "with_env": bool(getattr(env, "with_env", False)),
         "self_play": bool(self_play and not single_agent),
         "policy_updates": int(getattr(policy, "updates", 0)),
         "resumed_from": resume or "",
         "domain_randomize": use_domain,
     }
+    if best_out:
+        # Если периодическая оценка выключена или не успела сработать,
+        # сохраняем финальное состояние: путь всегда существует.
+        if best_episode == 0:
+            _save_policy(policy, best_out)
+            best_episode = int(episodes)
+        stats["best_out"] = best_out
+        stats["best_episode"] = best_episode
+        stats["best_win_rate"] = best_score if best_score >= 0.0 else None
     if not single_agent:
         stats["opponent_updates"] = int(getattr(opponent, "updates", 0))
 
@@ -492,10 +598,53 @@ def train(
             # матрица «политика × оппонент» выродилась бы в одинаковые
             # строки. Оцениваем одну политику против мира (`opponent:
             # "world"`), сохраняя тот же контракт held-out оценки.
-            stats["eval"] = [
-                dict(
+            # `eval_campaign_baselines=True` добавляет warmed baseline-строки
+            # (`qtable-campaign`/`mlp`), чтобы кампанийная матрица не
+            # измеряла случайную инициализацию. По умолчанию выключено:
+            # прогрев кампании дорогой (дни × эпизоды).
+            names = [policy_name]
+            if eval_campaign_baselines:
+                names.extend(
+                    name for name in eval_opponents if name not in names
+                )
+            rows = []
+            for index, name in enumerate(names):
+                if name == policy_name:
+                    candidate = policy
+                    source = {
+                        "trained_episodes": int(episodes),
+                        "policy_source": (
+                            resume if resume else "train"
+                        ),
+                    }
+                else:
+                    checkpoint = (eval_checkpoints or {}).get(name)
+                    if checkpoint:
+                        candidate = load_policy(
+                            checkpoint, seed=eval_seed + index
+                        )
+                        source = {
+                            "trained_episodes": -1,
+                            "policy_source": checkpoint,
+                        }
+                    else:
+                        candidate, trained = _warmup_baseline(
+                            name,
+                            eval_seed + BASELINE_SEED_SALT + index * 101,
+                            eval_baseline_episodes,
+                            max_steps,
+                            env_name,
+                            env_kwargs,
+                        )
+                        source = {
+                            "trained_episodes": trained,
+                            "policy_source": (
+                                "warmup" if trained else "builtin"
+                            ),
+                        }
+                row = dict(
                     evaluate(
-                        policy,
+                        candidate,
                         None,
                         episodes=eval_episodes,
                         seed=eval_seed,
@@ -504,10 +653,12 @@ def train(
                         env_kwargs=env_kwargs,
                         domain_opts=eval_domain_opts,
                     ),
-                    policy=policy_name,
+                    policy=name,
                     opponent="world",
                 )
-            ]
+                row.update(source)
+                rows.append(row)
+            stats["eval"] = rows
         else:
             names = tuple(eval_opponents) or (opponent_name,)
             opponents = {}
@@ -556,10 +707,106 @@ def train(
     return policy, stats
 
 
+def _train_seed_worker(payload):
+    """Один seed для `train_seeds`; верхнеуровневый, чтобы работать в pool."""
+    seed, kwargs = payload
+    policy, stats = train(seed=seed, **kwargs)
+    return {"stats": stats, "policy_state": policy.state_dict()}
+
+
+def train_seeds(
+    seeds=1,
+    workers=1,
+    base_seed=0,
+    **kwargs,
+):
+    """Обучить несколько seed'ов и агрегировать win-rate.
+
+    `workers > 1` запускает seed'ы в `ProcessPoolExecutor`; `workers=1`
+    выполняет их последовательно (удобно для отладки и тестов). Агрегат
+    считает pooled Wilson CI по сумме побед/эпизодов, а не среднее
+    интервалов: так он остаётся корректным при разном числе эпизодов.
+
+    Возвращает `{"runs": [...], "aggregate": {...}}`, где каждый run —
+    `{"stats": ..., "policy_state": ...}`. Сохранение чекпойнтов делает
+    вызывающий код: путь и политика остаются его ответственностью.
+    """
+    seeds = max(1, int(seeds))
+    seed_list = [int(base_seed) + index for index in range(seeds)]
+    base_kwargs = dict(kwargs)
+    payloads = []
+    for seed in seed_list:
+        local = dict(base_kwargs)
+        # `--save-best` в параллельном режиме не должен гоняться за один
+        # путь: каждый seed пишет свой чекпойнт.
+        if local.get("best_out"):
+            local["best_out"] = _seed_out_path(local["best_out"], seed)
+        payloads.append((seed, local))
+    if workers and int(workers) > 1 and seeds > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(
+            max_workers=min(int(workers), seeds)
+        ) as pool:
+            runs = list(pool.map(_train_seed_worker, payloads))
+    else:
+        runs = [_train_seed_worker(payload) for payload in payloads]
+    stats_rows = [run["stats"] for run in runs]
+    episodes = sum(int(row.get("episodes", 0)) for row in stats_rows)
+    wins = sum(int(row.get("wins", 0)) for row in stats_rows)
+    losses = sum(int(row.get("losses", 0)) for row in stats_rows)
+    draws = sum(int(row.get("draws", 0)) for row in stats_rows)
+    aggregate = {
+        "seeds": seed_list,
+        "runs": len(stats_rows),
+        "episodes": episodes,
+        "wins": wins,
+        "losses": losses,
+        "draws": draws,
+        "mean_win_rate": (
+            sum(float(row.get("win_rate", 0.0)) for row in stats_rows)
+            / max(1, len(stats_rows))
+        ),
+        "win_rate": wins / max(1, episodes),
+        "win_rate_ci": list(wilson_interval(wins, episodes)),
+        "with_env": (
+            stats_rows[0].get("with_env") if stats_rows else None
+        ),
+        "env": stats_rows[0].get("env") if stats_rows else "",
+        "workers": max(1, int(workers or 1)),
+    }
+    return {"runs": runs, "aggregate": aggregate}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--episodes", type=int, default=500)
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=None,
+        help=(
+            "эпизодов обучения; по умолчанию 500 для arena/duel и 50 для "
+            "campaign"
+        ),
+    )
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        default=1,
+        help=(
+            "сколько seed'ов обучить подряд (seed, seed+1, …) и "
+            "агрегировать; 1 — обычный одиночный запуск"
+        ),
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help=(
+            "параллельные процессы для --seeds > 1; 1 — последовательно"
+        ),
+    )
     parser.add_argument("--policy", default="bdi")
     parser.add_argument("--opponent", default="bdi")
     parser.add_argument(
@@ -586,6 +833,14 @@ def main(argv=None):
         help="не обучать политику противника",
     )
     parser.add_argument(
+        "--no-with-env",
+        action="store_true",
+        help=(
+            "отключить актор среды ArenaEnvironment (контрольное плечо); "
+            "по умолчанию обучение и оценка идут со средой, как активная игра"
+        ),
+    )
+    parser.add_argument(
         "--eval-episodes",
         type=int,
         default=20,
@@ -610,6 +865,36 @@ def main(argv=None):
             "сколько эпизодов прогреть обучаемый baseline (qtable/mlp) "
             "перед held-out оценкой; 0 — не греть"
         ),
+    )
+    parser.add_argument(
+        "--eval-campaign-baselines",
+        action="store_true",
+        help=(
+            "в кампании добавить в held-out матрицу warmed baseline-строки "
+            "(qtable-campaign/mlp); дороже, по умолчанию только основная "
+            "политика против мира"
+        ),
+    )
+    parser.add_argument(
+        "--save-best",
+        default="",
+        metavar="PATH",
+        help=(
+            "сохранять чекпойнт с лучшим held-out win_rate во время обучения "
+            "(production-выбор чекпойнта)"
+        ),
+    )
+    parser.add_argument(
+        "--best-every",
+        type=int,
+        default=50,
+        help="как часто (в эпизодах) оценивать политику для --save-best",
+    )
+    parser.add_argument(
+        "--best-eval-episodes",
+        type=int,
+        default=5,
+        help="эпизодов held-out оценки для --save-best",
     )
     parser.add_argument(
         "--eval-checkpoint",
@@ -728,25 +1013,66 @@ def main(argv=None):
         "health_max": args.health_max,
         "skill_jitter": args.skill_jitter,
     }
-    policy, stats = train(
+    env_kwargs = {}
+    if args.env == "arena" and args.no_with_env:
+        env_kwargs["with_env"] = False
+    train_kwargs = dict(
         episodes=args.episodes,
-        seed=args.seed,
         policy_name=args.policy,
         opponent_name=args.opponent,
         max_steps=max_steps,
         env_name=args.env,
+        env_kwargs=env_kwargs or None,
         self_play=not args.no_self_play,
         eval_episodes=args.eval_episodes,
         eval_seed=args.eval_seed,
         eval_opponents=eval_opponents,
         eval_baseline_episodes=args.eval_baseline_episodes,
+        eval_campaign_baselines=args.eval_campaign_baselines,
         eval_checkpoints=eval_checkpoints,
         resume=args.resume or None,
         resume_opponent=args.resume_opponent or None,
         domain_randomize=args.domain_randomize,
         domain_opts=domain_opts,
         eval_domain_randomize=args.eval_domain_randomize,
+        best_out=args.save_best or None,
+        best_every=args.best_every,
+        best_eval_episodes=args.best_eval_episodes,
     )
+    if args.seeds > 1:
+        result = train_seeds(
+            seeds=args.seeds,
+            workers=args.workers,
+            base_seed=args.seed,
+            **train_kwargs,
+        )
+        print(json.dumps(result["aggregate"], ensure_ascii=False))
+        if args.out:
+            for run in result["runs"]:
+                seed = int(run["stats"].get("seed", args.seed))
+                path = _seed_out_path(args.out, seed)
+                directory = os.path.dirname(path)
+                if directory:
+                    os.makedirs(directory, exist_ok=True)
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(
+                        run["policy_state"], handle, ensure_ascii=False
+                    )
+        if args.eval_out:
+            directory = os.path.dirname(args.eval_out)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            payload = [
+                {
+                    "seed": run["stats"].get("seed"),
+                    "eval": run["stats"].get("eval", []),
+                }
+                for run in result["runs"]
+            ]
+            with open(args.eval_out, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, ensure_ascii=False)
+        return 0
+    policy, stats = train(seed=args.seed, **train_kwargs)
     print(json.dumps(stats, ensure_ascii=False))
     if args.out:
         directory = os.path.dirname(args.out)

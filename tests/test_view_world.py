@@ -173,6 +173,65 @@ def test_world_screen_executes_action_and_advances_day():
     pygame.quit()
 
 
+def test_world_screen_autopilot_advances_live_engine():
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from campaign.world import (
+        WorldEngine,
+        build_player_profile,
+        load_biography,
+        load_world,
+    )
+    from view.app import App
+    from view.screens.world_screen import WorldScreen
+
+    variables = {
+        "name": "Ирина Свет",
+        "origin": "port",
+        "family": "clerk",
+        "education": "academy",
+        "formative": "harbor_fire",
+        "vocation": "state",
+        "value": "order",
+        "value2": "knowledge",
+        "flaw": "ambition",
+        "patron": "minister",
+        "reputation": "respectable",
+    }
+    profile = build_player_profile(
+        variables, biography=load_biography(), seed=7
+    )
+    engine = WorldEngine(
+        load_world(),
+        profile=profile,
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=7,
+    )
+    app = App()
+    screen = WorldScreen(app, engine)
+    surface = pygame.Surface((1280, 720))
+    screen.autopilot_interval = 0.0
+    day_before = engine.day
+    screen._toggle_autopilot()
+    assert screen.autopilot is True
+    assert screen.campaign_env is not None
+    assert screen.campaign_env.engine is engine
+    for _ in range(40):
+        screen.update(0.05)
+        if engine.day > day_before or engine.finished:
+            break
+    # Политика действует на том же движке, что и UI: либо прошёл день,
+    # либо кампания завершилась штатно.
+    assert engine.day > day_before or engine.finished
+    assert screen.campaign_env.engine is engine
+    screen.draw(surface)
+    screen._toggle_autopilot()
+    assert screen.autopilot is False
+    pygame.quit()
+
+
 def test_world_screen_tabs_character_actions_and_personality():
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")

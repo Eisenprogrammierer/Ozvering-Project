@@ -54,12 +54,16 @@
   `tests/test_campaign_energy.py`; разделы — `WORLD_CORE_MODEL.md` §2.3.4,
   `AGENTS.md` §3, `SOURCE_OF_TRUTH.md`.
 - [x] **`with_env` больше не мёртвый.** `core41/environment.py` содержит
-  `ArenaEnvironment` — симметричный актор среды, который по расписанию
-  `ENV_EVENT_INTERVAL = 17` / `ENV_RELIEF_INTERVAL = 31` даёт обоим
-  участникам одинаковое истощение/передышку. `ArenaMatch` создаёт и тикает
-  его только при `with_env=True`; `MatchEngine` и `BattlefieldModel`
-  выставляют `env` реальным объектом, события попадают в журнал поля боя.
-  При `with_env=False` среды нет и прежняя калибровка сохраняется. Тесты —
+  `ArenaEnvironment` — актор среды, который по расписанию
+  `ENV_EVENT_INTERVAL = 17` / `ENV_RELIEF_INTERVAL = 31` даёт
+  истощение/передышку, учитывает сезонность (`SEASONS`,
+  `ENV_SEASON_LENGTH = 240`) и асимметрию (`ENV_SECONDARY_SHARE = 0.5`).
+  `ArenaMatch` создаёт и тикает его только при `with_env=True`;
+  `MatchEngine` и `BattlefieldModel` выставляют `env` реальным объектом,
+  события попадают в журнал поля боя. `public_state()` отдаёт расписание в
+  `Observation.env_pressure/env_season`; `ArenaEnv` по умолчанию
+  `with_env=True`, `--no-with-env` — контрольное плечо. При
+  `with_env=False` среды нет и прежняя калибровка сохраняется. Тесты —
   `tests/test_environment.py`; раздел — `WORLD_CORE_MODEL.md` §2.3.5.
 - [x] **Held-out `qtable`/`mlp` не нетренированы.** Перед матрицей силы
   `agents.train` прогревает обучаемые baseline на отдельном потоке seed'ов
@@ -72,8 +76,65 @@
   `AGENTS.md` §3.
 
 Осталось открытым: real-time-планировщик кампании, средовые источники/раны,
-асимметричные события среды, сезонность, повторная калибровка здоровья на
-кампанийных политиках и полная миграция организационных шкал мира.
+собственные цели среды, повторная калибровка здоровья на кампанийных
+политиках и полная миграция организационных шкал мира.
+
+---
+
+## Пост-оценка готовности: P0–P2 — закрыто (2026-10-29)
+
+Закрыты дефекты, найденные после аудита среды обучения. Легаси-канон
+`simulation.py`/`tests/test_canon.py` не переписывался; изменения баланса и
+старых тестов, допускавшиеся миграцией кампании на `E/F/H`, зафиксированы
+ниже.
+
+- [x] **P0.1 Train/serve alignment.** `ArenaEnv` по умолчанию
+  `with_env=True`; CLI получил `--no-with-env`, stats — `with_env`.
+  `ArenaMatch` сохраняет default `False` для прямых вызовов, активная игра
+  (`MatchEngine`/`BattlefieldModel`) уже использует среду.
+- [x] **P0.2 Калибровка.** `experiments/exp_health_calibration.py` получил
+  `--with-env` и `CAPTURE_STREAK` в `--set` (переопределения ищутся и в
+  `core41.model`, и в `core41.arena`). Текущие `0.62`/`0.78`/`20` проходят
+  все полосы при env on/off; таблицы — `WORLD_CORE_MODEL.md` §2.3.2–2.3.3.
+- [x] **P0.3 Производительность кампании.** `_ai_action` больше не вызывает
+  `validate()` для каждой цели: `_ai_base` кэширует независимую от цели
+  часть, `_reason_target` фильтрует цели заранее. Профиль 10 дней —
+  единицы секунд вместо десятков.
+- [x] **P0.4 Live-кампания.** `CampaignEnv(engine=...)`, `attach()`,
+  `choose_action()`, `advance()`; `WorldScreen` получил автопилот (`A` /
+  кнопка) на том же `WorldEngine`, что и ручное управление. Тесты —
+  `tests/test_campaign_env.py`, `tests/test_view_world.py`.
+- [x] **P1.5 Шанс кампанийного действия.** `campaign_success_chance()` и
+  `_action_chance()` смешивают авторскую базу с `core41.success_probability`
+  (`CAMPAIGN_CORE_CHANCE_WEIGHT = 0.30`), поэтому `F/standing`, навык,
+  болезнь и сопротивление цели влияют на успех. `CampaignActor.unit.authority`
+  синхронизирован со `standing`.
+- [x] **P1.6 Автономные персонажи.** `campaign/character.py` —
+  `CampaignCharacter(dict)` с `Automaton`, `sync()` и дневным `tick()`;
+  социальный дрейф отношения/доверия идёт без действия игрока, а броски
+  успеха используют `unit` персонажа.
+- [x] **P1.7 Оценка и выбор чекпойнта.** `win_rate_ci` (Wilson) в
+  `evaluate()`; `_warmup_baseline` умеет греть кампанию;
+  `--eval-campaign-baselines` добавляет warmed baseline-строки;
+  `--save-best`/`--best-every`/`--best-eval-episodes` выбирают лучший
+  held-out чекпойнт во время обучения.
+- [x] **P1.8 Среда: сезонность и асимметрия.** `ArenaEnvironment` получил
+  `SEASONS`, `ENV_SEASON_LENGTH`, `ENV_SECONDARY_SHARE`, `public_state()`;
+  `Observation.env_pressure/env_season` и два новых признака политик.
+  Калибровка переснята (§2.3.2–2.3.3).
+- [x] **P1.9 Target-сеть MLP.** `MLPPolicy` хранит `target_weights1/2`,
+  `target_bias1/2`, `target_sync=50`, считает bootstrap по target-весам и
+  сохраняет/загружает их; старый чекпойнт копирует online-веса.
+- [x] **P2 Устойчивость и инфраструктура.** `QTablePolicy.updates`
+  сохраняется в чекпойнте; `CampaignObservation` E/F-поля перенесены в
+  конец dataclass; defaults Python API/CLI выровнены; добавлены soak-тесты
+  (`tests/test_soak.py`) на длинную арену, рост QTable, конечность MLP и
+  старые снимки кампании без `energy/force`; добавлен параллельный runner
+  по seed'ам (`train_seeds`, `--seeds`/`--workers`) с pooled mean/CI.
+
+Осталось открытым: production-автопоиск чекпойнта при загрузке игры,
+real-time-планировщик кампании, средовые источники/раны, собственные цели
+среды и повторная калибровка на кампанийных политиках.
 
 ---
 
@@ -167,20 +228,20 @@
   `--eval-seed`) и матрица силы `evaluate_matrix()` против
   `bdi,qtable,random` (`--eval-opponents`, `--eval-episodes 0` — выключить).
   Тест — `tests/test_core41.py::test_self_play_updates_both_policies_once_per_tick`.
-- [x] **№4 Ёмкость политик.** `MLPPolicy` (19 признаков, online TD(0) с
-  target=max по легальным действиям, epsilon-decay, сохранение через
-  `state_dict`) зарегистрирован в `make_policy`/`load_policy`, включён в
-  `--eval-opponents` по умолчанию (`bdi,qtable,random,mlp`); тест качества
-  обучения — `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task`.
-  Target-сети (отдельной копии весов) в этом baseline нет — это осознанно
-  онлайн-срез, а не DQN. Раздел baseline vs MLP — в
-  `docs/BASELINE.md`/`docs/AGENTS.md`.
+- [x] **№4 Ёмкость политик.** `MLPPolicy` (21 признак, online TD(0) с
+  target-сетью и периодической синхронизацией, epsilon-decay, сохранение
+  через `state_dict`) зарегистрирован в `make_policy`/`load_policy`, включён
+  в `--eval-opponents` по умолчанию (`bdi,qtable,random,mlp`); тест качества
+  обучения — `tests/test_core41.py::test_mlp_policy_lowers_loss_on_fixed_task`,
+  тест target-сети — `test_mlp_target_network_freezes_then_syncs`. Раздел
+  baseline vs MLP — в `docs/BASELINE.md`/`docs/AGENTS.md`.
 - [x] **№5 Версионирование чекпойнтов.** `CHECKPOINT_VERSION = 2` пишется в
   `state_dict()` всех политик; файлы без `version` трактуются как v0. При
   загрузке QTable мигрирует легаси-ключи 8/10 → 12 полей (болезнь → нули,
-  коллизии усредняются), BDI дополняет короткий вектор веса до 19 (v0/v1),
-  MLP дополняет строки `weights1` 18→19 нулём (v1). Ключи QTable v1→v2 не
-  менялись: код действия уже входит в ключ. `checkpoint_version()` вычитает
+  коллизии усредняются), BDI дополняет короткий вектор веса до 21 (v0/v1),
+  MLP дополняет строки `weights1` 18/19→21 нулями (v1/v2) и копирует
+  online-веса в target, если старого чекпойнта target-сети нет. Ключи
+  QTable v1→v2 не менялись: код действия уже входит в ключ. `checkpoint_version()` вычитает
   версию, `load_policy` отказывается грузить будущие версии. Флаги
   `--resume`/`--resume-opponent` в `agents.train` загружают чекпойнты явно
   (автопоиска нет). Тесты —
@@ -199,8 +260,9 @@
   кампании — одна строка «политика против мира» (`opponent: "world"`), а не
   вырожденная матрица из одинаковых строк. Одиночный агент: self-play
   отключён, `--env campaign` в `agents.train`; политики принимают кампанейные
-  наблюдения через `campaign_features()` (19 признаков: 18 прежних плюс
-  стабильный код действия, чтобы различать `inspect` и `build_network`),
+  наблюдения через `campaign_features()` (21 признак: 18 прежних, стабильный
+  код действия и два нейтральных env-слота, чтобы различать `inspect` и
+  `build_network`),
   `make_policy("qtable-campaign")` — отдельная таблица, не смешиваемая с
   ареной; `target_mode="all"` (по умолчанию) открывает действия по всем
   доступным адресатам, `target_mode="first"` — прежний узкий режим; при

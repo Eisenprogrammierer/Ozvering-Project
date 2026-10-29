@@ -407,28 +407,37 @@ BDI — не третий тип и не отдельная онтология. 
   `pause/1x/2x/4x/8x/16x`, авто-пауза (включая `SICKNESS_CRITICAL`) и
   ограниченный догон; арена использует его, кампанийный планировщик ещё нет.
 - Реализован слой `agents`: `BDIPolicy` с online-обновлением,
-  `QTablePolicy`, `MLPPolicy` (tanh-hidden=16, без PyTorch), `PolicyAgent`
-  как легаси-мост и CLI `python -m agents.train`. Вектор признаков — 19
-  (18 прежних + стабильный код действия), чекпойнты — `CHECKPOINT_VERSION
-  = 2`; BDI v0/v1 и MLP v1 мигрируют дополнением нулями. `--max-steps` по
-  умолчанию зависит от среды: `arena=2000`, `duel=160`, `campaign=30`.
-  Held-out `qtable`/`mlp` без чекпойнта прогреваются
+  `QTablePolicy`, `MLPPolicy` (tanh-hidden=16, без PyTorch, с target-сетью),
+  `PolicyAgent` как легаси-мост и CLI `python -m agents.train`. Вектор
+  признаков — 21 (18 прежних, стабильный код действия и два признака среды
+  `env_pressure`/`env_season`), чекпойнты — `CHECKPOINT_VERSION = 2`; BDI
+  v0/v1 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
+  копирует online-веса в target. `--max-steps` по умолчанию зависит от
+  среды: `arena=2000`, `duel=160`, `campaign=30`; defaults Python API и CLI
+  выровнены. Held-out `qtable`/`mlp` без чекпойнта прогреваются
   (`--eval-baseline-episodes`, по умолчанию 50) и помечаются
   `trained_episodes`/`policy_source`; явный `--eval-checkpoint NAME=PATH`
-  отключает прогрев.
+  отключает прогрев. `win_rate` сопровождается Wilson CI
+  (`win_rate_ci`); для production-выбора есть `--save-best`/
+  `--best-every`/`--best-eval-episodes`, а `--eval-campaign-baselines`
+  добавляет warmed baseline-строки в кампанийную held-out матрицу.
 - Реализован актор среды `ArenaEnvironment`: при `with_env=True`
   `ArenaMatch`/`MatchEngine`/`BattlefieldModel` получают реальный `env`,
-  который по фиксированному расписанию добавляет обоим сторонам одинаковое
-  истощение/передышку. При `with_env=False` среды нет, прежняя калибровка
-  сохраняется.
+  который по расписанию добавляет истощение/передышку, учитывает сезонность
+  (`SEASONS`, `ENV_SEASON_LENGTH`) и асимметрию (основная сторона получает
+  полный эффект, вторая — `ENV_SECONDARY_SHARE`). `public_state()` отдаёт
+  наблюдаемое расписание в `Observation.env_pressure/env_season`. `ArenaEnv`
+  по умолчанию `with_env=True` (train/serve alignment); при
+  `with_env=False` среды нет и прежняя калибровка сохраняется.
 - `game_engine.py` и `ui/battlefield.py` работают на `core41`; `UtilityAI` и
   `simulation.py` оставлены baseline/легаси-канону.
 - Полная миграция остального UI, сейвов и организационных шкал кампании
   **не завершена**: персонаж уже на `E/F/H`, но `power/cohesion/...` остаются
   легаси-проекциями мира. Средовые источники/раны, real-time-планировщик
-  кампании и асимметричные события среды остаются открытыми; калибровку
+  кампании и собственные цели среды остаются открытыми; калибровку
   здоровья нужно повторить после миграции и смены политик.
   Чекпойнт BDI/QTable загружается в активные сцены явно (`--checkpoint`);
-  автопоиск, оценка качества и кампанийная загрузка — открыты.
+  автопоиск и кампанийная загрузка — открыты, но `--save-best` уже выбирает
+  лучший held-out чекпойнт во время обучения.
 - Следующий шаг — довести кампанийный runtime до real-time-планировщика и
   закрыть открытые вопросы §7, не выдавая аренный срез за весь мир.
