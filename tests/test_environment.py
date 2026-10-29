@@ -124,3 +124,103 @@ def test_arena_env_matches_active_game_by_default_and_can_disable_env():
     control = ArenaEnv(seed=5, steps=4, with_env=False)
     assert control.with_env is False
     assert control.match.env is None
+
+
+# ---------------------------------------------------------------------------
+# Средовые источники болезни и острые раны
+# ---------------------------------------------------------------------------
+
+
+def test_environment_illness_reservoir_raises_sickness():
+    from core41.environment import ENV_ILLNESS_INTERVAL, ENV_SICKNESS
+
+    left, right = _agents()
+    env = ArenaEnvironment(
+        seed=7,
+        asymmetric=False,
+        event_interval=10**9,
+        relief_interval=10**9,
+    )
+    for _ in range(ENV_ILLNESS_INTERVAL):
+        events = env.tick(left, right)
+
+    assert events and events[-1]["event"] == "illness"
+    multiplier = env.public_state()["season_multiplier"]
+    expected = ENV_SICKNESS * multiplier
+    assert left.sickness == pytest.approx(expected)
+    assert right.sickness == pytest.approx(expected)
+
+
+def test_environment_wound_event_damages_health():
+    from core41.environment import ENV_WOUND_DAMAGE, ENV_WOUND_INTERVAL
+
+    left, right = _agents()
+    env = ArenaEnvironment(
+        seed=7,
+        asymmetric=False,
+        event_interval=10**9,
+        relief_interval=10**9,
+        illness_interval=10**9,
+    )
+    for _ in range(ENV_WOUND_INTERVAL):
+        events = env.tick(left, right)
+
+    assert events and events[-1]["event"] == "wound"
+    multiplier = env.public_state()["season_multiplier"]
+    expected = 100.0 - ENV_WOUND_DAMAGE * multiplier
+    assert left.health == pytest.approx(expected)
+    assert right.health == pytest.approx(expected)
+
+
+def test_environment_asymmetric_illness_hits_primary_fully():
+    from core41.environment import ENV_SICKNESS
+
+    left, right = _agents()
+    env = ArenaEnvironment(
+        seed=1,
+        asymmetric=True,
+        event_interval=10**9,
+        relief_interval=10**9,
+        wound_interval=10**9,
+        illness_interval=5,
+    )
+    for _ in range(5):
+        env.tick(left, right)
+
+    event = env.events[-1]
+    assert event["event"] == "illness"
+    primary = event["target"]
+    secondary = "ai" if primary == "rl" else "rl"
+    sickness = {"rl": left.sickness, "ai": right.sickness}
+    multiplier = env.public_state()["season_multiplier"]
+    assert sickness[primary] == pytest.approx(ENV_SICKNESS * multiplier)
+    assert sickness[secondary] == pytest.approx(
+        ENV_SICKNESS * multiplier * 0.5
+    )
+
+
+def test_environment_public_state_reports_reservoir_schedule():
+    left, right = _agents()
+    env = ArenaEnvironment(seed=3, illness_interval=5, wound_interval=7)
+    env.tick(left, right)
+
+    state = env.public_state()
+    for key in ("illness", "wound", "next_illness", "next_wound"):
+        assert key in state
+    assert state["next_illness"] == 4
+    assert state["next_wound"] == 6
+
+
+def test_environment_state_round_trips_reservoir_intervals():
+    left, right = _agents()
+    env = ArenaEnvironment(
+        seed=3, illness_interval=13, wound_interval=19
+    )
+    state = env.state_dict()
+    assert state["illness_interval"] == 13
+    assert state["wound_interval"] == 19
+
+    restored = ArenaEnvironment(seed=0)
+    restored.load_state_dict(state)
+    assert restored.illness_interval == 13
+    assert restored.wound_interval == 19

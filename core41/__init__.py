@@ -32,7 +32,11 @@ from .environment import (
     ENV_EVENT_INTERVAL,
     ENV_HEALTH_DRAIN,
     ENV_HEALTH_RELIEF,
+    ENV_ILLNESS_INTERVAL,
     ENV_RELIEF_INTERVAL,
+    ENV_SICKNESS,
+    ENV_WOUND_DAMAGE,
+    ENV_WOUND_INTERVAL,
     ArenaEnvironment,
 )
 from .model import (
@@ -83,7 +87,11 @@ __all__ = [
     "ENV_EVENT_INTERVAL",
     "ENV_HEALTH_DRAIN",
     "ENV_HEALTH_RELIEF",
+    "ENV_ILLNESS_INTERVAL",
     "ENV_RELIEF_INTERVAL",
+    "ENV_SICKNESS",
+    "ENV_WOUND_DAMAGE",
+    "ENV_WOUND_INTERVAL",
     "CampaignObservation",
     "CORE_ACTIONS",
     "CONTAGION_CHANCE",
