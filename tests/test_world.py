@@ -436,6 +436,74 @@ def test_items_and_skill_tree_are_derived_from_office_and_profile():
     assert all(skill.get("description") for skill in skills)
 
 
+def test_campaign_action_grows_target_domain_skills():
+    engine = _engine()
+    for skill in ("administration", "command"):
+        engine.profile["skills"][skill] = 0.12
+    before = dict(engine.profile["skills"])
+
+    result = engine.execute("inspect", "agora_ministry_interior")
+
+    assert result["ok"] is True
+    assert engine.profile["skills"]["administration"] > 0.12
+    assert engine.profile["skills"]["command"] > 0.12
+    # Цель в домене order тренирует именно order-навыки, а не все девять.
+    assert engine.profile["skills"]["faith"] == before["faith"]
+    assert any("навык" in label for label, _ in result["changes"])
+
+
+def test_campaign_skill_growth_saturates_at_cap():
+    from campaign.world import CAMPAIGN_SKILL_CAP
+
+    engine = _engine()
+    for skill in ("administration", "command"):
+        engine.profile["skills"][skill] = CAMPAIGN_SKILL_CAP
+
+    engine.execute("inspect", "agora_ministry_interior")
+
+    assert engine.profile["skills"]["administration"] == pytest.approx(
+        CAMPAIGN_SKILL_CAP
+    )
+    assert engine.profile["skills"]["command"] == pytest.approx(
+        CAMPAIGN_SKILL_CAP
+    )
+
+
+def test_campaign_skill_growth_unlocks_promotion_requirement():
+    engine = _engine(
+        node_id="agora_ministry_interior", office_id="ministry_official"
+    )
+    engine.player_resources["standing"] = 0.9
+    for skill in ("administration", "command"):
+        engine.profile["skills"][skill] = 0.175
+
+    # До практики навык ниже требования seek_promotion (0.18).
+    blocked = engine.execute("seek_promotion", "agora_government")
+    assert blocked["ok"] is False
+    assert "навык" in blocked["reason"]
+
+    engine.execute("inspect", "agora_watch")
+    assert engine.profile["skills"]["administration"] >= 0.18
+
+    result = engine.execute("seek_promotion", "agora_government")
+    assert result["ok"] is True
+
+
+def test_campaign_skill_growth_survives_snapshot_roundtrip():
+    engine = _engine()
+    engine.profile["skills"]["administration"] = 0.12
+    engine.execute("inspect", "agora_ministry_interior")
+    grown = engine.profile["skills"]["administration"]
+
+    restored = WorldEngine(
+        load_world(), snapshot=json.loads(json.dumps(engine.to_dict()))
+    )
+
+    assert restored.profile["skills"]["administration"] == pytest.approx(
+        grown
+    )
+
+
 def test_campaign_sickness_can_kill_player_and_character():
     engine = _engine()
     engine.infect_player(1.0)

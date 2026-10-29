@@ -282,6 +282,15 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 `CampaignEnv.state_dict()/load_state_dict()` сохраняют снимок мира, сид,
 горизонт и `target_mode`.
 
+Навыки профиля растут от практики: `WorldEngine.execute()` после действия
+добавляет прирост в навыки домена цели (или домена действия), успех —
+`CAMPAIGN_SKILL_GAIN`, провал — `CAMPAIGN_SKILL_FAILURE_GAIN`, с
+насыщением к `CAMPAIGN_SKILL_CAP`. `aptitudes` и доступные предметы
+пересчитываются, поэтому стартовый профиль может дорасти до требований
+`seek_promotion` и вышестоящих должностей. Карьерные действия в
+`CampaignEnv` по-прежнему исключены из `legal_actions()`: повышение — это
+решение игрока/UI, а не автоматический шаг политики.
+
 Очередь намерений (`campaign/planner.py`, первый срез real-time-
 планировщика §7 №31): `WorldEngine.schedule_intent(due_day, kind, ...)`
 откладывает событие на будущий день, `IntentQueue` исполняет его в начале

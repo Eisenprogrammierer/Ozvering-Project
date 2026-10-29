@@ -27,6 +27,12 @@ CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
 # болезни источника.
 CAMPAIGN_CONTAGION_CHANCE = 0.30
 CAMPAIGN_CONTAGION_SEVERITY = 0.35
+# Навыки кампании растут от практики, а не только задаются биографией.
+# Насыщение к `CAMPAIGN_SKILL_CAP` не даёт одному действию быстро упереться
+# в максимум; провал тоже учит, но заметно слабее.
+CAMPAIGN_SKILL_GAIN = 0.03
+CAMPAIGN_SKILL_FAILURE_GAIN = 0.01
+CAMPAIGN_SKILL_CAP = 0.90
 COLLAPSE_POWER = 0.05
 COLLAPSE_COHESION = 0.05
 # Распад — не мгновенный срез одной шкалы (вопрос §7 №28): организация
@@ -1891,6 +1897,78 @@ class WorldEngine:
                 changed.append((self.stat_label(key), delta))
         return changed
 
+    def _skill_domains(self, action, target):
+        """Домены, в которых действие тренирует навыки героя.
+
+        Сначала берётся домен адресата: `inspect`/`build_network` доступны
+        в любом домене, и именно цель определяет, что герой осваивает.
+        Если цели нет или у неё нет домена, используются домены самого
+        действия.
+        """
+        if target is not None and target.get("domain") in DOMAIN_SKILLS:
+            return (target["domain"],)
+        domains = (action.get("actor") or {}).get("domains") or ()
+        return tuple(
+            domain for domain in domains if domain in DOMAIN_SKILLS
+        )
+
+    def _grow_player_skills(self, action, target, success):
+        """Практика растит навыки домена с насыщением к `CAMPAIGN_SKILL_CAP`.
+
+        Успех даёт `CAMPAIGN_SKILL_GAIN`, провал — `CAMPAIGN_SKILL_FAILURE_GAIN`;
+        прирост делится между навыками домена и убывает по мере приближения
+        к капу. Так стартовый профиль (0.08–0.12) может дорасти до
+        требований `seek_promotion` (0.18) и вышестоящих должностей (0.28+)
+        без ручной правки профиля. `aptitudes` — производная от навыков,
+        поэтому пересчитывается вместе с ними; список предметов зависит от
+        навыков и обновляется здесь же.
+        """
+        if action.get("career"):
+            # Карьера — решение игрока/UI, а не тренировка навыка.
+            return []
+        domains = self._skill_domains(action, target)
+        skills = []
+        for domain in domains:
+            for skill in DOMAIN_SKILLS[domain]:
+                if skill not in skills:
+                    skills.append(skill)
+        if not skills:
+            return []
+        base = (
+            CAMPAIGN_SKILL_GAIN
+            if success
+            else CAMPAIGN_SKILL_FAILURE_GAIN
+        )
+        share = base / len(skills)
+        changed = []
+        profile_skills = self.profile.setdefault("skills", {})
+        for skill in skills:
+            current = _profile_skill(self.profile, skill)
+            room = max(0.0, CAMPAIGN_SKILL_CAP - current)
+            if room <= 1e-9:
+                continue
+            delta = min(share * (room / CAMPAIGN_SKILL_CAP), room)
+            if delta <= 1e-9:
+                continue
+            profile_skills[skill] = _clamp(current + delta, 0.0, 1.0)
+            changed.append(
+                (
+                    "навык «%s»" % self.skill_labels.get(skill, skill),
+                    delta,
+                )
+            )
+        if not changed:
+            return changed
+        aptitudes = self.profile.setdefault("aptitudes", {})
+        for domain in domains:
+            keys = DOMAIN_SKILLS[domain]
+            aptitudes[domain] = _clamp(
+                sum(_profile_skill(self.profile, key) for key in keys)
+                / max(1, len(keys))
+            )
+        self._refresh_items()
+        return changed
+
     def end_storyline(self, kind, text=""):
         """Публичный вход в нарративный финал (§7 №30).
 
@@ -2161,6 +2239,12 @@ class WorldEngine:
                 branch.get("effects"), context, target, is_player=True
             )
         )
+        changed.extend(
+            self._grow_player_skills(
+                action, target, success=(outcome == "success")
+            )
+        )
+        changed = self._merge_changes(changed)
         career_text = ""
         if outcome == "success" and action.get("career"):
             career_text = self._career_transition(action, target)
