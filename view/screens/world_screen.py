@@ -343,9 +343,31 @@ class WorldScreen(BaseScreen):
 
     def _autopilot_policy_instance(self):
         if self.autopilot_policy is None:
-            from agents import BDIPolicy
+            checkpoint = str(getattr(self.app, "checkpoint", "") or "")
+            if checkpoint:
+                from agents import load_policy
 
-            self.autopilot_policy = BDIPolicy(seed=int(self.engine.seed))
+                try:
+                    self.autopilot_policy = load_policy(
+                        checkpoint, seed=int(self.engine.seed)
+                    )
+                    logger.info(
+                        "Автопилот: чекпойнт загружен (%s)", checkpoint
+                    )
+                except Exception as error:  # noqa: BLE001 — игра не падает
+                    logger.warning(
+                        "Автопилот: чекпойнт %s не загружен (%r); "
+                        "используется новая BDI",
+                        checkpoint,
+                        error,
+                    )
+                    self.autopilot_policy = None
+            if self.autopilot_policy is None:
+                from agents import BDIPolicy
+
+                self.autopilot_policy = BDIPolicy(
+                    seed=int(self.engine.seed)
+                )
         return self.autopilot_policy
 
     def _toggle_autopilot(self):
@@ -760,6 +782,11 @@ class WorldScreen(BaseScreen):
             )
         if not getattr(self.app, "active", True) and not self.clock.paused:
             day += " · фон"
+        pending = len(getattr(self.engine, "intents", ()) or ())
+        if pending:
+            # Очередь намерений видна игроку: отложенные события — часть
+            # мира, а не скрытый таймер.
+            day += " · планов %d" % pending
         day_surf = self.app.font_small.render(day, True, WARN)
         screen.blit(day_surf, (WIDTH - 18 - day_surf.get_width(), 12))
         hint = "вкладки · карточки · прогноз"

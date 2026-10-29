@@ -595,6 +595,7 @@ class CampaignEnv:
             "illegal": illegal,
             "horizon": horizon,
             "terminal_reason": "dismissed" if dismissed_terminal else "",
+            "intents": len(getattr(engine, "intents", ()) or ()),
         }
         transition_ready = bool(done or truncated)
         self.last_transition = {

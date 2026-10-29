@@ -6,6 +6,7 @@ venv/
 .venv/
 .pytest_cache/
 saves/
+checkpoints/*.json
 
 # Legacy prototype (local only)
 yet_another_project/

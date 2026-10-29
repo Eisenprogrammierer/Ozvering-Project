@@ -274,6 +274,17 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 `CampaignEnv.state_dict()/load_state_dict()` сохраняют снимок мира, сид,
 горизонт и `target_mode`.
 
+Очередь намерений (`campaign/planner.py`, первый срез real-time-
+планировщика §7 №31): `WorldEngine.schedule_intent(due_day, kind, ...)`
+откладывает событие на будущий день, `IntentQueue` исполняет его в начале
+`end_day()` до хода ИИ, а очередь входит в снимок мира. Виды первого среза:
+`message` (только журнал) и `contact` (персонаж сам выходит на связь и
+применяет `payload["effects"]`). Персонаж с `autonomous: true` и
+`autonomy_period` сам назначает контакты; по умолчанию автономия выключена,
+поэтому баланс существующих миров не меняется. `CampaignEnv` отдаёт число
+планов в `info["intents"]`, а `WorldScreen` показывает `планов N` в шапке.
+Очередь ограничена `MAX_INTENTS = 64` и отбрасывает самые далёкие события.
+
 Обучение по умолчанию идёт в self-play: обе стороны получают собственный
 `Transition` и обновляют свои политики. Отключить обучение противника можно
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
@@ -324,7 +335,8 @@ CLI печатает JSON со статистикой (`wins`, `losses`, `draws`
 `QTablePolicy` или `MLPPolicy`.
 
 Продолжить обучение с чекпойнта можно флагами `--resume`/`--resume-opponent`
-(проблема готовности №5): загрузка явная, автопоиска нет:
+(проблема готовности №5). `--resume` относится к обучению и остаётся явным:
+случайный чекпойнт из `checkpoints/` не должен незаметно менять эксперимент.
 
 ```bash
 venv/bin/python -m agents.train --episodes 2000 --seed 0 \
@@ -375,6 +387,26 @@ python3 main.py --speed 4          # 1x/2x/4x/8x/16x
 python3 main.py --no-auto-pause    # отключить авто-паузу
 ```
 
+Production-автопоиск (P2, `agents/checkpoints.py`): если `--checkpoint` не
+задан, игра сама берёт чекпойнт из каталога `checkpoints/` (или
+`OZVERING_CHECKPOINT_DIR`, или `--checkpoints-dir`). Порядок — `best.json`,
+`latest.json`, затем самый свежий `*.json` по `mtime`. Файл должен быть
+JSON-объектом известного вида (`bdi`/`qtable`/`mlp`) и не новее
+`CHECKPOINT_VERSION`; битые и чужие файлы пропускаются, поэтому испорченный
+`best.json` не ломает запуск. Явный `--checkpoint` всегда важнее автопоиска,
+`--no-auto-checkpoint` возвращает прежнее поведение «всегда новая BDI», а
+`--list-checkpoints` печатает найденное без открытия окна:
+
+```bash
+python3 main.py --list-checkpoints
+python3 main.py --arena --list-checkpoints --checkpoints-dir saves/
+python3 main.py --no-auto-checkpoint            # игнорировать checkpoints/
+```
+
+Тот же автопоиск работает для автопилота кампании (`main.py --campaign`):
+`App(checkpoint=...)` передаёт путь в `WorldScreen`, а битый файл
+логируется и заменяется свежей BDI, не роняя игру.
+
 ```python
 from agents import load_policy
 from core41 import ArenaAgent
@@ -384,9 +416,9 @@ agent = ArenaAgent("player", policy=policy, seed=0)
 ```
 
 Старый `PolicyAgent` по-прежнему умеет `load_policy("saves/bdi.json")` для
-легаси-моста. Автопоиска чекпойнта нет: путь передаётся явно. Оценка качества
-загруженной политики есть в `agents.train.evaluate`; production-выбор
-чекпойнта по матрице силы — следующий шаг.
+легаси-моста. Оценка качества загруженной политики есть в
+`agents.train.evaluate`; `--save-best` выбирает лучший held-out чекпойнт во
+время обучения, а `agents/checkpoints.py` находит его при запуске игры.
 
 ---
 
@@ -481,16 +513,19 @@ baseline. Двадцатый и двадцать первый признаки �
 - Нет PyTorch-зависимости; `MLPPolicy` — собственный tanh-MLP (online TD(0)
   с target-сетью и периодической синхронизацией) без внешних библиотек,
   `bdi`/`qtable` остаются линейной/табличной baseline.
-- Нет автоматической загрузки production-чекпойнта в игру: путь передаётся
-  явно через `--checkpoint`. Для выбора лучшего чекпойнта во время обучения
-  есть `--save-best`/`--best-every`/`--best-eval-episodes`; матрица силы
-  считается через `agents.train.evaluate_matrix`, автопоиска нет.
+- Production-чекпойнт находится автоматически (`agents/checkpoints.py`):
+  `--checkpoint` важнее поиска, `checkpoints/best.json` → `latest.json` →
+  свежий `*.json`, `--no-auto-checkpoint` отключает, `--list-checkpoints`
+  печатает кандидатов. Для выбора лучшего чекпойнта во время обучения есть
+  `--save-best`/`--best-every`/`--best-eval-episodes`; матрица силы
+  считается через `agents.train.evaluate_matrix`.
 - `UtilityAI` не удалён: он нужен как воспроизводимый baseline.
 
-Следующий инженерный шаг — перенести `core41` и `SimulationClock` в
-кампанийный real-time-планировщик, затем добавить средовые источники болезни
-и собственные цели среды. Калибровку здоровья после миграции нужно повторить
-на новых политиках (`mlp`) и на длинных прогонах. Проблемы готовности к
+Следующий инженерный шаг — довести планировщик кампании до непрерывного
+времени (внутридневные тики, приоритеты/отмена намерений), затем добавить
+средовые источники болезни и собственные цели среды. Калибровку здоровья
+после миграции нужно повторить на новых политиках (`mlp`) и на длинных
+прогонах. Проблемы готовности к
 обучению №1–№7 закрыты по порядку: ArenaEnv, награда, self-play/eval,
 ёмкость политик, версионирование чекпойнтов, CampaignEnv (включая `E/F/H`
 персонажа), доменная рандомизация. Открытые вопросы §7 №28–31 закрыты первым

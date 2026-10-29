@@ -70,10 +70,14 @@ def load_font(size):
 
 class App:
 
-    def __init__(self):
+    def __init__(self, checkpoint=""):
         pygame.init()
         pygame.display.set_caption("Operation Ozverin — MVP")
         self.fullscreen = False
+        # Production-чекпойнт автопилота кампании (P2). Пустая строка —
+        # `WorldScreen` создаст свежую BDI; явный путь загружается лениво,
+        # чтобы стартовое меню не падало из-за битого файла.
+        self.checkpoint = str(checkpoint or "")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.font_title = load_font(32)
@@ -1073,10 +1077,33 @@ class App:
         return 0
 
 
+def _arg_value(argv, name, default=""):
+    """Значение флага `name` из списка аргументов; `default`, если нет."""
+    if name not in argv:
+        return default
+    index = argv.index(name)
+    if index + 1 >= len(argv):
+        return default
+    return argv[index + 1]
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     fullscreen = ("--fullscreen" in argv) or ("-f" in argv)
-    app = App()
+    from agents import find_checkpoint, list_checkpoints
+
+    checkpoints_dir = _arg_value(argv, "--checkpoints-dir")
+    if "--list-checkpoints" in argv:
+        rows = list_checkpoints(directory=checkpoints_dir or None)
+        if not rows:
+            print("Чекпойнтов не найдено.")
+        for row in rows:
+            print("%-8s %s" % (row["kind"], row["path"]))
+        return 0
+    checkpoint = _arg_value(argv, "--checkpoint")
+    if not checkpoint and "--no-auto-checkpoint" not in argv:
+        checkpoint = find_checkpoint(directory=checkpoints_dir or None)
+    app = App(checkpoint=checkpoint)
     if fullscreen:
         app.toggle_fullscreen()
     return app.run()

@@ -132,9 +132,45 @@
   старые снимки кампании без `energy/force`; добавлен параллельный runner
   по seed'ам (`train_seeds`, `--seeds`/`--workers`) с pooled mean/CI.
 
-Осталось открытым: production-автопоиск чекпойнта при загрузке игры,
-real-time-планировщик кампании, средовые источники/раны, собственные цели
-среды и повторная калибровка на кампанийных политиках.
+Осталось открытым: средовые источники/раны, собственные цели среды,
+непрерывные внутридневные действия кампании и повторная калибровка на
+кампанийных политиках.
+
+### Production-автопоиск чекпойнта — закрыто (2026-10-29)
+
+- [x] **Игра находит чекпойнт сама.** `agents/checkpoints.py` задаёт
+  соглашение: каталог `checkpoints/` (`OZVERING_CHECKPOINT_DIR` или
+  `--checkpoints-dir`), порядок `best.json` → `latest.json` → свежий `*.json`
+  по `mtime`. Файл обязан быть JSON-объектом известного вида
+  (`bdi`/`qtable`/`mlp`) и не новее `CHECKPOINT_VERSION`; битые, чужие и
+  «слишком новые» файлы пропускаются, поэтому испорченный `best.json` не
+  ломает запуск. Явный `--checkpoint` важнее поиска, `--no-auto-checkpoint`
+  отключает его, `--list-checkpoints` печатает кандидатов без открытия окна.
+  Автопоиск подключён и к арене (`game_engine.main`), и к автопилоту
+  кампании (`App(checkpoint=...)` → `WorldScreen`); `--resume` в
+  `agents.train` остаётся явным, чтобы случайный файл не менял эксперимент.
+  Тесты — `tests/test_checkpoints.py`, `tests/test_view_world.py`.
+
+### Real-time-планировщик кампании — первый срез закрыт (2026-10-29)
+
+- [x] **Очередь намерений.** `campaign/planner.py` вводит `Intent` и
+  `IntentQueue`: `WorldEngine.schedule_intent(due_day, kind, ...)` откладывает
+  событие на будущий день, `_run_intents()` исполняет его в начале
+  `end_day()` до хода ИИ, а очередь входит в `to_dict()`/`load_snapshot()`.
+  Виды первого среза — `message` (только журнал) и `contact` (персонаж сам
+  выходит на связь и применяет `payload["effects"]` через
+  `_apply_character_effects`). Очередь ограничена `MAX_INTENTS = 64` и при
+  переполнении отбрасывает самые далёкие события; старые снимки без поля
+  получают пустую очередь. `CampaignEnv` отдаёт `info["intents"]`,
+  `WorldScreen` показывает `планов N` в шапке.
+- [x] **Автономные персонажи вне кадра.** Персонаж с `autonomous: true` и
+  `autonomy_period` сам назначает контакты на будущие дни; исход
+  детерминирован `seed` мира (`_roll("autonomy:...")`). По умолчанию
+  автономия выключена, поэтому баланс существующих миров не меняется.
+  Тесты — `tests/test_campaign_planner.py`.
+- [ ] Осталось: непрерывные внутридневные тики (планировщик работает на
+  границе дня), приоритеты/отмена намерений по условию и полноценная
+  политика персонажей вне кадра.
 
 ---
 
@@ -244,7 +280,7 @@ real-time-планировщик кампании, средовые источн
   QTable v1→v2 не менялись: код действия уже входит в ключ. `checkpoint_version()` вычитает
   версию, `load_policy` отказывается грузить будущие версии. Флаги
   `--resume`/`--resume-opponent` в `agents.train` загружают чекпойнты явно
-  (автопоиска нет). Тесты —
+  (автопоиск production-файла — отдельно, в `agents/checkpoints.py`). Тесты —
   `tests/test_core41.py::test_checkpoints_carry_version_and_round_trip`,
   `test_qtable_migrates_legacy_*`, `test_bdi_pads_short_legacy_weights`,
   `test_train_resume_continues_from_checkpoint`.

@@ -118,3 +118,158 @@ def test_battlefield_loads_bdi_checkpoint(tmp_path):
 
     assert isinstance(model.enemy.agent.policy, BDIPolicy)
     assert model.enemy.agent.policy.weights == source.weights
+
+
+# ---------------------------------------------------------------------------
+# Production-автопоиск чекпойнта (P2)
+# ---------------------------------------------------------------------------
+
+
+def _write_policy(path, kind="bdi", version=None, mtime=None):
+    import os
+
+    if kind == "bdi":
+        policy = BDIPolicy(seed=1)
+        state = policy.state_dict()
+    elif kind == "qtable":
+        state = QTablePolicy(seed=1).state_dict()
+    elif kind == "mlp":
+        state = MLPPolicy(seed=1).state_dict()
+    else:
+        state = {"kind": kind}
+    if version is not None:
+        state["version"] = version
+    path.write_text(json.dumps(state), encoding="utf-8")
+    if mtime is not None:
+        os.utime(path, (mtime, mtime))
+    return path
+
+
+def test_find_checkpoint_prefers_best_then_latest(tmp_path):
+    from agents.checkpoints import find_checkpoint
+
+    _write_policy(tmp_path / "other.json", "bdi", mtime=3000)
+    _write_policy(tmp_path / "latest.json", "qtable", mtime=2000)
+    _write_policy(tmp_path / "best.json", "mlp", mtime=1000)
+
+    assert find_checkpoint(directory=tmp_path) == str(tmp_path / "best.json")
+    (tmp_path / "best.json").unlink()
+    assert find_checkpoint(directory=tmp_path) == str(
+        tmp_path / "latest.json"
+    )
+    (tmp_path / "latest.json").unlink()
+    assert find_checkpoint(directory=tmp_path) == str(tmp_path / "other.json")
+
+
+def test_find_checkpoint_falls_back_to_newest_json(tmp_path):
+    from agents.checkpoints import find_checkpoint
+
+    _write_policy(tmp_path / "old.json", "bdi", mtime=100)
+    _write_policy(tmp_path / "new.json", "bdi", mtime=500)
+    assert find_checkpoint(directory=tmp_path) == str(tmp_path / "new.json")
+
+
+def test_find_checkpoint_skips_broken_unknown_and_future_files(tmp_path):
+    from agents.checkpoints import find_checkpoint
+
+    (tmp_path / "best.json").write_text("{not json", encoding="utf-8")
+    (tmp_path / "unknown.json").write_text(
+        json.dumps({"kind": "mystery"}), encoding="utf-8"
+    )
+    _write_policy(tmp_path / "future.json", "bdi", version=999)
+    _write_policy(tmp_path / "good.json", "bdi", mtime=10)
+
+    assert find_checkpoint(directory=tmp_path) == str(tmp_path / "good.json")
+    assert find_checkpoint(directory=tmp_path / "missing") == ""
+
+
+def test_find_checkpoint_filters_by_kind(tmp_path):
+    from agents.checkpoints import find_checkpoint
+
+    _write_policy(tmp_path / "best.json", "bdi", mtime=900)
+    _write_policy(tmp_path / "mlp.json", "mlp", mtime=10)
+
+    assert find_checkpoint(directory=tmp_path, kind="mlp") == str(
+        tmp_path / "mlp.json"
+    )
+    assert find_checkpoint(directory=tmp_path, kind="qtable") == ""
+
+
+def test_resolve_checkpoint_explicit_wins_and_auto_can_be_disabled(tmp_path):
+    from agents.checkpoints import resolve_checkpoint
+
+    _write_policy(tmp_path / "best.json", "bdi")
+    explicit = tmp_path / "explicit.json"
+
+    assert resolve_checkpoint(
+        str(explicit), directory=tmp_path
+    ) == str(explicit)
+    assert resolve_checkpoint(
+        directory=tmp_path, auto=False
+    ) == ""
+    assert resolve_checkpoint(directory=tmp_path) == str(
+        tmp_path / "best.json"
+    )
+
+
+def test_checkpoint_dir_env_override(tmp_path, monkeypatch):
+    from agents import checkpoints
+
+    monkeypatch.setenv(checkpoints.CHECKPOINT_DIR_ENV, str(tmp_path))
+    _write_policy(tmp_path / "best.json", "bdi")
+
+    assert checkpoints.default_checkpoint_dir() == tmp_path
+    assert checkpoints.find_checkpoint() == str(tmp_path / "best.json")
+
+
+def test_list_checkpoints_reports_kind_and_order(tmp_path):
+    from agents.checkpoints import list_checkpoints
+
+    _write_policy(tmp_path / "latest.json", "qtable", mtime=10)
+    _write_policy(tmp_path / "best.json", "bdi", mtime=20)
+    _write_policy(tmp_path / "older.json", "mlp", mtime=1)
+
+    rows = list_checkpoints(directory=tmp_path)
+    assert [row["name"] for row in rows] == [
+        "best.json",
+        "latest.json",
+        "older.json",
+    ]
+    assert [row["kind"] for row in rows] == ["bdi", "qtable", "mlp"]
+    assert all(row["size"] > 0 for row in rows)
+
+
+def test_game_engine_lists_checkpoints_without_opening_window(
+    tmp_path, monkeypatch, capsys
+):
+    pytest.importorskip("pygame")
+    import sys
+
+    import game_engine as ge
+
+    _write_policy(tmp_path / "best.json", "bdi")
+    monkeypatch.setattr(
+        sys, "argv", ["game_engine.py", "--checkpoints-dir", str(tmp_path),
+                      "--list-checkpoints"]
+    )
+
+    assert ge.main() == 0
+    out = capsys.readouterr().out
+    assert "bdi" in out
+    assert str(tmp_path / "best.json") in out
+
+
+def test_view_main_lists_checkpoints_without_creating_app(
+    tmp_path, capsys
+):
+    pytest.importorskip("pygame")
+    import view.app as view_app
+
+    _write_policy(tmp_path / "best.json", "mlp")
+
+    assert view_app.main(
+        ["--checkpoints-dir", str(tmp_path), "--list-checkpoints"]
+    ) == 0
+    out = capsys.readouterr().out
+    assert "mlp" in out
+    assert str(tmp_path / "best.json") in out

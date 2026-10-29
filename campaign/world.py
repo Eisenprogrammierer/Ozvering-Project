@@ -13,6 +13,7 @@ from .actor import (
 )
 from .character import CampaignCharacter
 from .errors import CampaignError
+from .planner import AUTONOMY_PERIOD, IntentQueue
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
@@ -578,6 +579,10 @@ class WorldEngine:
         # чаще одного раза в день, иначе два вызова дают «распад за день».
         self._collapse_day = 0
         self._dismissal_day = 0
+        # Очередь намерений (первый срез real-time-планировщика, §7 №31):
+        # события, назначенные на будущие дни, и автономные контакты
+        # персонажей. Живёт в снимке мира.
+        self.intents = IntentQueue()
         self.horizon_passed = False
         self.ending = None
         self.attached = False
@@ -709,6 +714,13 @@ class WorldEngine:
             "node_id": _text(raw.get("node_id")),
             "tags": list(raw.get("tags") or ()),
             "description": _text(raw.get("description")),
+            # Автономия (первый срез планировщика): персонаж сам назначает
+            # контакты. По умолчанию выключена, поэтому старые миры не
+            # меняют поведение.
+            "autonomous": bool(raw.get("autonomous", False)),
+            "autonomy_period": max(
+                1, _as_int(raw.get("autonomy_period"), AUTONOMY_PERIOD)
+            ),
         })
 
     def _opening(self):
@@ -2461,10 +2473,141 @@ class WorldEngine:
             self._dismissal_day = self.day
             self._dismiss("структура потеряла легитимность")
 
+    # ------------------------------------------------------------------
+    # Очередь намерений (первый срез real-time-планировщика, §7 №31)
+    # ------------------------------------------------------------------
+
+    def schedule_intent(
+        self,
+        due_day,
+        kind,
+        actor="",
+        target="",
+        payload=None,
+        source="world",
+    ):
+        """Отложить событие мира на будущий день.
+
+        Возвращает `Intent` или `None`, если очередь переполнена. Это
+        единственный вход планировщика: сюжет, персонажи и тесты назначают
+        события одинаково, а исполнение всегда идёт через `_run_intents()`.
+        """
+        return self.intents.schedule(
+            due_day,
+            kind,
+            actor=actor,
+            target=target,
+            payload=payload,
+            source=source,
+        )
+
+    def _run_intents(self):
+        """Исполнить намерения, срок которых наступил в текущем дне."""
+        events = []
+        for intent in self.intents.pop_due(self.day):
+            events.extend(self._apply_intent(intent))
+        return events
+
+    def _apply_intent(self, intent):
+        if intent.kind == "message":
+            text = _text(
+                intent.payload.get("text"), "Событие мира без последствий."
+            )
+            self.log.append(
+                {"day": self.day, "kind": "intent", "text": text}
+            )
+            return [
+                {
+                    "kind": "intent",
+                    "day": self.day,
+                    "source": intent.source,
+                    "target": "",
+                    "text": text,
+                    "changes": [],
+                }
+            ]
+        if intent.kind == "contact":
+            character = self.character(intent.actor)
+            if character is None or not character.get("alive", True):
+                return []
+            effects = intent.payload.get("effects") or {}
+            changed = self._apply_character_effects(effects, character)
+            text = _text(
+                intent.payload.get("text"),
+                "%s сам(а) выходит на связь." % character["name"],
+            )
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "contact",
+                    "text": "%s: %s" % (character["name"], text),
+                }
+            )
+            return [
+                {
+                    "kind": "intent",
+                    "day": self.day,
+                    "source": intent.source,
+                    "target": character["id"],
+                    "actor": character["id"],
+                    "text": text,
+                    "changes": changed,
+                }
+            ]
+        return []
+
+    def _schedule_autonomy(self):
+        """Автономные персонажи сами назначают контакты на будущее.
+
+        Намерение создаётся только для персонажа с `autonomous: true`;
+        по умолчанию таких нет, поэтому баланс существующих миров не
+        меняется. Дубль на тот же день и актора не создаётся, а исход
+        контакта детерминирован seed'ом мира.
+        """
+        for character in self.characters.values():
+            if not character.get("autonomous"):
+                continue
+            if not character.get("alive", True):
+                continue
+            period = max(
+                1,
+                _as_int(
+                    character.get("autonomy_period"), AUTONOMY_PERIOD
+                ),
+            )
+            if self.day % period:
+                continue
+            # Намерение исполняется в начале следующего хода этого дня:
+            # `_schedule_autonomy` вызывается уже после `self.day += 1`,
+            # а `_run_intents` — в начале `end_day`.
+            due_day = self.day
+            if self.intents.has(
+                due_day=due_day, actor=character["id"], source="autonomy"
+            ):
+                continue
+            roll = self._roll(
+                "autonomy:%s:%s" % (self.day, character["id"])
+            )
+            # Контакт — не подарок: отношение слегка растёт или падает.
+            drift = 0.01 if roll >= 0.5 else -0.01
+            self.schedule_intent(
+                due_day,
+                "contact",
+                actor=character["id"],
+                payload={
+                    "effects": {"affinity": drift},
+                    "text": "нашёл(ла) повод для разговора.",
+                },
+                source="autonomy",
+            )
+
     def end_day(self):
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         events = []
+        # Отложенные события исполняются до хода ИИ: намерение, назначенное
+        # на этот день, должно успеть повлиять на его итог.
+        events.extend(self._run_intents())
         for node_id in self.node_order:
             entry = self._ai_action(node_id)
             if entry is not None:
@@ -2512,6 +2655,9 @@ class WorldEngine:
             )
             self.finished = True
         self._check_dismissal()
+        # Новый день уже наступил: автономные персонажи планируют контакты
+        # на будущее. Ошибка/переполнение очереди не ломает ход мира.
+        self._schedule_autonomy()
         summary = "Мир сделал ход: %d событий." % len(events)
         result = {
             "ok": True,
@@ -2636,6 +2782,7 @@ class WorldEngine:
             "dismissal_count": int(self.dismissal_count),
             "collapsed": bool(self.collapsed),
             "collapse_days": int(self.collapse_days),
+            "intents": self.intents.to_list(),
         }
 
     def load_snapshot(self, snapshot):
@@ -2748,6 +2895,9 @@ class WorldEngine:
         self.collapse_days = max(
             0, _as_int(snapshot.get("collapse_days"), self.collapse_days)
         )
+        # Очередь намерений: старые снимки без поля получают пустую очередь,
+        # а не падают и не теряют текущий день.
+        self.intents.load(snapshot.get("intents") or ())
         self.attached = bool(
             snapshot.get("attached")
             or (self.player_node_id and self.player_office_id)

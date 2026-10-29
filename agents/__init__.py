@@ -1,3 +1,13 @@
+from .checkpoints import (
+    CHECKPOINT_DIR_ENV,
+    DEFAULT_CHECKPOINT_DIR,
+    checkpoint_kind,
+    default_checkpoint_dir,
+    find_checkpoint,
+    is_loadable,
+    list_checkpoints,
+    resolve_checkpoint,
+)
 from .legacy import PolicyAgent
 from .policies import (
     BDIPolicy,
@@ -14,15 +24,23 @@ from .policies import (
 )
 __all__ = [
     "BDIPolicy",
+    "CHECKPOINT_DIR_ENV",
     "CHECKPOINT_VERSION",
+    "DEFAULT_CHECKPOINT_DIR",
     "FEATURE_COUNT",
     "MLPPolicy",
     "PolicyAgent",
     "QTablePolicy",
     "RandomPolicy",
+    "checkpoint_kind",
     "checkpoint_version",
     "default_actions",
+    "default_checkpoint_dir",
     "features",
+    "find_checkpoint",
+    "is_loadable",
+    "list_checkpoints",
     "load_policy",
     "make_policy",
+    "resolve_checkpoint",
 ]

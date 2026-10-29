@@ -495,3 +495,74 @@ def test_world_save_and_load_restores_world_screen():
     finally:
         Path(path).unlink(missing_ok=True)
         pygame.quit()
+
+
+def _world_screen_with_checkpoint(checkpoint=""):
+    from campaign.world import (
+        WorldEngine,
+        build_player_profile,
+        load_biography,
+        load_world,
+    )
+    from view.app import App
+    from view.screens.world_screen import WorldScreen
+
+    variables = {
+        "name": "Ирина Свет",
+        "origin": "port",
+        "family": "clerk",
+        "education": "academy",
+        "formative": "harbor_fire",
+        "vocation": "state",
+        "value": "order",
+        "value2": "knowledge",
+        "flaw": "ambition",
+        "patron": "minister",
+        "reputation": "respectable",
+    }
+    profile = build_player_profile(
+        variables, biography=load_biography(), seed=7
+    )
+    engine = WorldEngine(
+        load_world(),
+        profile=profile,
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=7,
+    )
+    app = App(checkpoint=checkpoint)
+    return app, WorldScreen(app, engine)
+
+
+def test_world_screen_autopilot_uses_app_checkpoint(tmp_path):
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from agents import BDIPolicy
+
+    source = BDIPolicy(seed=1)
+    source.weights = [0.375] * len(source.weights)
+    path = tmp_path / "bdi.json"
+    source.save(str(path))
+
+    _app, screen = _world_screen_with_checkpoint(str(path))
+    policy = screen._autopilot_policy_instance()
+    assert isinstance(policy, BDIPolicy)
+    assert policy.weights == source.weights
+    pygame.quit()
+
+
+def test_world_screen_autopilot_falls_back_on_broken_checkpoint(tmp_path):
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from agents import BDIPolicy
+
+    path = tmp_path / "broken.json"
+    path.write_text("{not json", encoding="utf-8")
+
+    _app, screen = _world_screen_with_checkpoint(str(path))
+    policy = screen._autopilot_policy_instance()
+    # Битая политика не должна ронять игру: используется свежая BDI.
+    assert isinstance(policy, BDIPolicy)
+    pygame.quit()
