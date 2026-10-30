@@ -69,8 +69,21 @@ def reward_delta(me, before, other, other_before):
     """Пошаговая награда: F, H, стоимость E, динамика sickness и wound.
 
     `before`/`other_before` — кортежи
-    `(force, energy, health, sickness, wound)`.
+    `(force, energy, health, sickness[, wound])`. Пятый элемент обязателен
+    только там, где ведётся учёт острых ран; трёх- и четырёхэлементные
+    кортежи легаси-вызовов трактуются как `wound = 0`, поэтому прежняя
+    калибровка сохраняется.
     """
+    wound_term = 0.0
+    if len(before) > 4 and len(other_before) > 4:
+        wound_term = (
+            REWARD_WOUND_SELF
+            * (before[4] - me.wound)
+            / WOUND_MAX
+            + REWARD_WOUND_OPPONENT
+            * (other.wound - other_before[4])
+            / WOUND_MAX
+        )
     return (
         (me.force - before[0]) / max(1.0, me.max_force)
         + (other_before[0] - other.force) / max(1.0, other.max_force)
@@ -86,12 +99,7 @@ def reward_delta(me, before, other, other_before):
         + REWARD_SICKNESS_OPPONENT
         * (other.sickness - other_before[3])
         / SICKNESS_MAX
-        + REWARD_WOUND_SELF
-        * (before[4] - me.wound)
-        / WOUND_MAX
-        + REWARD_WOUND_OPPONENT
-        * (other.wound - other_before[4])
-        / WOUND_MAX
+        + wound_term
     )
 
 
@@ -457,11 +465,19 @@ class ArenaAgent:
         self._last_action = None
 
     def condition_state(self):
-        return {
+        """Снимок состояния здоровья.
+
+        `wound` включается только когда он ненулевой: легаси-снимки
+        `(health, sickness)` остаются каноничными для здоровых агентов,
+        а острые раны переносятся между матчами и сохранениями.
+        """
+        state = {
             "health": float(self.health),
             "sickness": float(self.sickness),
-            "wound": float(self.wound),
         }
+        if self.wound > 0.0:
+            state["wound"] = float(self.wound)
+        return state
 
     def load_condition(self, state):
         state = state or {}
