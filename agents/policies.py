@@ -102,6 +102,7 @@ ACTION_FEATURE_CODES = {
     ("request_transfer", ""): 0.45,
     ("resign", ""): 0.50,
     ("TREAT_SELF", ""): 0.55,
+    ("TREAT_WOUND", ""): 0.57,
 }
 
 UNKNOWN_ACTION_CODE = 0.95
@@ -170,9 +171,13 @@ def campaign_features(observation, action):
         1.0 if not observation.alive else 0.0,
         is_heal,
         action_feature_code(action),
-        # Кампания пока не имеет собственного актора среды; нейтральные
-        # значения сохраняют длину вектора единой с ареной.
-        0.0,
+        # Кампания не имеет собственного актора среды; 20-й слот —
+        # устойчивая рана героя (общее состояние `wound` с ареной). На
+        # арене этот слот занят `env_pressure`, но кампанейный вектор
+        # строится отдельно (`campaign_features`), а длина и версия
+        # чекпойнтов (`FEATURE_COUNT`, `CHECKPOINT_VERSION = 2`) не
+        # меняются — старые сейвы загружаются без миграции.
+        _clamp01(float(getattr(observation, "wound", 0.0))),
         1.0,
     )
 
