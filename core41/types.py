@@ -38,6 +38,9 @@ class Observation:
     opponent_health: float = 100.0
     opponent_max_health: float = 100.0
     opponent_sickness: float = 0.0
+    # Устойчивые раны — отдельное состояние, видимое политике.
+    self_wound: float = 0.0
+    opponent_wound: float = 0.0
     # Наблюдаемое расписание среды (P1.8): близость следующего события
     # (0 сразу после, →1 перед) и множитель сезона. При `with_env=False`
     # остаются нейтральными, поэтому старые сценарии не меняются.
@@ -97,6 +100,7 @@ class CampaignObservation:
     health: float = 100.0
     max_health: float = 100.0
     sickness: float = 0.0
+    wound: float = 0.0
     alive: bool = True
     # Ресурсы позиции (легаси-шкалы как проекции ядра: F-канал позиции).
     influence: float = 0.0

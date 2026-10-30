@@ -7,6 +7,7 @@ from .model import (
     REST_REGEN,
     SICKNESS_TREAT_RATE,
     TREAT_ENERGY_FRACTION,
+    WOUND_TREAT_RATE,
     Automaton,
     success_probability,
     transmit_sickness,
@@ -97,8 +98,11 @@ class DuelWorld:
                 * attacker.max_energy,
             )
             attacker.energy -= amount
-            if amount > 0.0 and attacker.sickness > 0.0:
-                attacker.treat(SICKNESS_TREAT_RATE)
+            if amount > 0.0:
+                if attacker.sickness > 0.0:
+                    attacker.treat(SICKNESS_TREAT_RATE)
+                if attacker.wound > 0.0:
+                    attacker.treat_wound(WOUND_TREAT_RATE)
             attacker.tick_health(resting=False)
             return {
                 "kind": "treat",
@@ -106,6 +110,7 @@ class DuelWorld:
                 "success": True,
                 "damage": 0.0,
                 "form": "care",
+                "wound": float(attacker.wound),
             }
         if action.kind == "REST":
             attacker.energy = min(
@@ -158,12 +163,14 @@ class DuelWorld:
             self.agent.energy,
             self.agent.health,
             self.agent.sickness,
+            self.agent.wound,
         )
         opponent_before = (
             self.opponent.force,
             self.opponent.energy,
             self.opponent.health,
             self.opponent.sickness,
+            self.opponent.wound,
         )
         agent_result = self._perform(
             self.agent, self.opponent, actions.get("agent", Action("REST"))
@@ -255,6 +262,8 @@ class DuelWorld:
             opponent_health=other.health,
             opponent_max_health=other.max_health,
             opponent_sickness=other.sickness,
+            self_wound=me.wound,
+            opponent_wound=other.wound,
         )
 
     def legal_actions(self, agent_id="agent"):
@@ -265,7 +274,7 @@ class DuelWorld:
         else:
             raise ValueError("unknown automaton")
         actions = [Action("REST", form="rest")]
-        if me.sickness > 0.0:
+        if me.sickness > 0.0 or me.wound > 0.0:
             actions.append(
                 Action(
                     "TREAT",

@@ -14,11 +14,12 @@
   `Observation.env_pressure`/`env_season` и в признаки политик;
 - **средовые источники болезни** (`ENV_ILLNESS_INTERVAL`): редкое событие
   «мор/сырость» поднимает `sickness` цели, а не только явный `--sickness`;
-- **острые раны** (`ENV_WOUND_INTERVAL`): редкое событие наносит прямой
-  урон `H`; это не отдельное состояние раны, а внешний источник урона.
+- **раны** (`ENV_WOUND_INTERVAL`): редкое событие наносит прямой урон `H`
+  и оставляет устойчивое состояние `wound`, которое капает здоровьем,
+  замедляет отдых и лечится отдыхом/`TREAT`.
 
-Полной экономики среды (`force/defense/in_open`, устойчивые раны с
-отдельным состоянием и лечением) по-прежнему нет — это следующий слой.
+Полной экономики среды (`force/defense/in_open`) по-прежнему нет — это
+следующий слой.
 """
 
 from .model import SICKNESS_MAX
@@ -34,9 +35,12 @@ ENV_HEALTH_RELIEF = 0.1
 # Источник болезни намеренно редкий и слабый: за 2000 тактов он даёт
 # несколько событий и не заменяет явную `sickness`/контактную передачу.
 ENV_SICKNESS = 0.04
-# Острая рана — прямой урон здоровью; частота ниже истощения, чтобы
-# среда оставалась фоном, а не вторым бойцом.
+# Рана среды — сначала удар, затем устойчивое состояние: событие наносит
+# прямой урон и оставляет `wound`, который сам капает здоровьем и лечится
+# отдыхом/TREAT. Частота ниже истощения, чтобы среда оставалась фоном, а не
+# вторым бойцом.
 ENV_WOUND_DAMAGE = 3.0
+ENV_WOUND_SEVERITY = 0.30
 ENV_SEASON_LENGTH = 240
 # (имя, множитель силы событий)
 SEASONS = (
@@ -67,6 +71,17 @@ def _energy(actor):
 
 def _set_energy(actor, value):
     _agent(actor).energy_pool = max(0.0, float(value))
+
+
+def _wound(actor):
+    return float(getattr(_agent(actor), "wound", 0.0))
+
+
+def _set_wound(actor, value):
+    agent = _agent(actor)
+    if not hasattr(agent, "wound"):
+        return
+    agent.wound = max(0.0, min(1.0, float(value)))
 
 
 def _health(actor):
@@ -250,6 +265,11 @@ class ArenaEnvironment:
                     _health(actor)
                     - ENV_WOUND_DAMAGE * season_multiplier * share,
                 )
+                _set_wound(
+                    actor,
+                    _wound(actor)
+                    + ENV_WOUND_SEVERITY * season_multiplier * share,
+                )
             events.append(
                 {
                     "kind": "environment",
@@ -258,6 +278,7 @@ class ArenaEnvironment:
                     "season": season_name,
                     "target": self.last_target,
                     "health": -ENV_WOUND_DAMAGE * season_multiplier,
+                    "wound": ENV_WOUND_SEVERITY * season_multiplier,
                     "text": "Среда: несчастный случай (%s, сезон %s)."
                     % (self.last_target, season_name),
                 }

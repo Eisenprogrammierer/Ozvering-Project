@@ -14,6 +14,8 @@ from .model import (
     SICKNESS_TREAT_RATE,
     SICKNESS_MAX,
     TREAT_ENERGY_FRACTION,
+    WOUND_MAX,
+    WOUND_TREAT_RATE,
     Automaton,
     success_probability,
     transmit_sickness,
@@ -50,6 +52,8 @@ PROFILE_SKILLS = {
 REWARD_ENERGY_COST = 0.6
 REWARD_SICKNESS_SELF = 1.0
 REWARD_SICKNESS_OPPONENT = 0.5
+REWARD_WOUND_SELF = 0.8
+REWARD_WOUND_OPPONENT = 0.4
 REWARD_TERMINAL_WIN = 1.0
 REWARD_TERMINAL_LOSS = -1.0
 
@@ -62,9 +66,10 @@ def _energy(agent):
 
 
 def reward_delta(me, before, other, other_before):
-    """Пошаговая награда: F, H, стоимость E и динамика sickness.
+    """Пошаговая награда: F, H, стоимость E, динамика sickness и wound.
 
-    `before`/`other_before` — кортежи `(force, energy, health, sickness)`.
+    `before`/`other_before` — кортежи
+    `(force, energy, health, sickness, wound)`.
     """
     return (
         (me.force - before[0]) / max(1.0, me.max_force)
@@ -81,6 +86,12 @@ def reward_delta(me, before, other, other_before):
         + REWARD_SICKNESS_OPPONENT
         * (other.sickness - other_before[3])
         / SICKNESS_MAX
+        + REWARD_WOUND_SELF
+        * (before[4] - me.wound)
+        / WOUND_MAX
+        + REWARD_WOUND_OPPONENT
+        * (other.wound - other_before[4])
+        / WOUND_MAX
     )
 
 
@@ -138,8 +149,11 @@ def _perform(attacker, defender, action, world):
             * attacker.unit.max_energy,
         )
         attacker.energy_pool -= amount
-        if amount > 0.0 and attacker.unit.sickness > 0.0:
-            attacker.unit.treat(SICKNESS_TREAT_RATE)
+        if amount > 0.0:
+            if attacker.unit.sickness > 0.0:
+                attacker.unit.treat(SICKNESS_TREAT_RATE)
+            if attacker.unit.wound > 0.0:
+                attacker.unit.treat_wound(WOUND_TREAT_RATE)
         attacker.unit.tick_health(resting=False)
         return {
             "kind": "treat",
@@ -148,6 +162,7 @@ def _perform(attacker, defender, action, world):
             "damage": 0.0,
             "form": "care",
             "treated": float(attacker.unit.sickness),
+            "wound": float(attacker.unit.wound),
         }
     if action.kind != "WORK":
         attacker.unit.energy = min(
@@ -238,6 +253,7 @@ class ArenaAgent:
         max_health=HEALTH_MAX,
         health_factors=None,
         sickness=0.0,
+        wound=0.0,
     ):
         self.id = str(agent_id)
         self.profile = str(profile)
@@ -260,6 +276,7 @@ class ArenaAgent:
             max_health=float(max_health),
             health_factors=factors,
             sickness=max(0.0, min(SICKNESS_MAX, float(sickness))),
+            wound=max(0.0, min(WOUND_MAX, float(wound))),
             inputs=FORMS,
             outputs=FORMS,
             skills={
@@ -345,11 +362,29 @@ class ArenaAgent:
     def is_sick(self):
         return self.unit.is_sick
 
+    @property
+    def wound(self):
+        return float(self.unit.wound)
+
+    @wound.setter
+    def wound(self, value):
+        self.unit.wound = max(0.0, min(WOUND_MAX, float(value)))
+
+    @property
+    def is_wounded(self):
+        return self.unit.is_wounded
+
     def infect(self, severity):
         return self.unit.infect(severity)
 
     def treat(self, amount):
         return self.unit.treat(amount)
+
+    def injure(self, severity):
+        return self.unit.injure(severity)
+
+    def treat_wound(self, amount):
+        return self.unit.treat_wound(amount)
 
     def set_health_factor(self, name, value):
         self.unit.health_factors[str(name)] = max(
@@ -412,6 +447,7 @@ class ArenaAgent:
         self.unit.energy = self.unit.max_energy
         self.unit.health = self.unit.max_health
         self.unit.sickness = 0.0
+        self.unit.wound = 0.0
         self.unit.state["pressure"] = 0.0
         self.last_action = Action("REST", form="rest")
         self.last_act = "REST"
@@ -424,6 +460,7 @@ class ArenaAgent:
         return {
             "health": float(self.health),
             "sickness": float(self.sickness),
+            "wound": float(self.wound),
         }
 
     def load_condition(self, state):
@@ -435,6 +472,8 @@ class ArenaAgent:
             )
         if state.get("sickness") is not None:
             self.sickness = float(state["sickness"])
+        if state.get("wound") is not None:
+            self.wound = float(state["wound"])
         return self.condition_state()
 
     def actions(self):
@@ -445,7 +484,7 @@ class ArenaAgent:
         actions = []
         if self.needs_recovery():
             actions.append(action_from_index(0))
-        if self.sickness > 0.0:
+        if self.sickness > 0.0 or self.wound > 0.0:
             actions.append(action_from_index(1))
         for index in range(2, len(CORE_ACTIONS)):
             actions.append(action_from_index(index))
@@ -458,6 +497,7 @@ class ArenaAgent:
             or self.force < self.max_force - 1e-9
             or self.health < self.max_health - 1e-9
             or self.sickness > 0.0
+            or self.wound > 0.0
         )
 
     def observe(self, opponent):
@@ -491,6 +531,8 @@ class ArenaAgent:
             opponent_health=float(other.health),
             opponent_max_health=float(other.max_health),
             opponent_sickness=float(other.sickness),
+            self_wound=self.wound,
+            opponent_wound=float(other.wound),
             env_pressure=float(getattr(self, "_env_pressure", 0.0)),
             env_season=float(getattr(self, "_env_season", 1.0)),
         )
@@ -607,6 +649,8 @@ class ArenaMatch:
         health_factors_ai=None,
         sickness_rl=0.0,
         sickness_ai=0.0,
+        wound_rl=0.0,
+        wound_ai=0.0,
         with_env=False,
         auto_learn=True,
     ):
@@ -636,6 +680,7 @@ class ArenaMatch:
             seed=self.seed ^ 0x5EED,
             health_factors=health_factors_rl,
             sickness=sickness_rl,
+            wound=wound_rl,
         )
         self.ai = ArenaAgent(
             "ai",
@@ -644,6 +689,7 @@ class ArenaMatch:
             seed=self.seed ^ 0xA11E,
             health_factors=health_factors_ai,
             sickness=sickness_ai,
+            wound=wound_ai,
         )
         # Актор среды (проблема с мёртвым `with_env`): не воюет, а по
         # фиксированному расписанию добавляет обоим одинаковое внешнее
@@ -701,12 +747,14 @@ class ArenaMatch:
             rl.energy_pool,
             rl.health,
             rl.sickness,
+            rl.wound,
         )
         ai_before = (
             ai.force,
             ai.energy_pool,
             ai.health,
             ai.sickness,
+            ai.wound,
         )
 
         rl_result = self._perform(rl, ai, rl_action)

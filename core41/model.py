@@ -32,6 +32,17 @@ CONTAGION_SEVERITY = 0.50
 SICKNESS_WORK_PENALTY = 0.60
 SICKNESS_WORK_FLOOR = 0.40
 
+# Устойчивая рана — отдельное состояние, а не разовый урон `H`. Она
+# замедляет отдых, вызывает небольшое кровотечение и усиливает урон от
+# переполнения `force`, но не подменяет болезнь: `sickness` — процесс,
+# `wound` — повреждение. Лечится тем же действием `TREAT` и отдыхом.
+WOUND_MAX = 1.0
+WOUND_HEALTH_DECAY = 0.60
+WOUND_REST_RECOVERY = 0.012
+WOUND_TREAT_RATE = 0.10
+WOUND_REGEN_PENALTY = 0.50
+WOUND_DAMAGE_BONUS = 0.25
+
 DEFAULT_HEALTH_FACTORS = {
     "aging": 1.0,
     "illness": 1.0,
@@ -95,6 +106,7 @@ class Automaton:
         default_factory=lambda: dict(DEFAULT_HEALTH_FACTORS)
     )
     sickness: float = 0.0
+    wound: float = 0.0
 
     @property
     def F(self):
@@ -111,6 +123,10 @@ class Automaton:
     @property
     def is_sick(self):
         return self.sickness > 0.0
+
+    @property
+    def is_wounded(self):
+        return self.wound > 0.0
 
     def work_effectiveness(self):
         # Острая болезнь снижает успех работы, но не меняет сохранённый
@@ -185,13 +201,30 @@ class Automaton:
         )
         return self.sickness
 
+    def injure(self, severity):
+        """Получить устойчивую рану; повторная рана не лечит старую."""
+        severity = max(0.0, min(WOUND_MAX, float(severity)))
+        self.wound = max(self.wound, severity)
+        return self.wound
+
+    def treat_wound(self, amount):
+        amount = max(0.0, float(amount))
+        if amount <= 0.0 or self.wound <= 0.0:
+            return self.wound
+        care = self.health_factor("care")
+        self.wound = max(0.0, self.wound - amount * care)
+        return self.wound
+
     def apply_force_damage(self, damage):
         damage = max(0.0, float(damage))
         absorbed = min(self.force, damage)
         self.force = max(0.0, self.force - absorbed)
         overflow = max(0.0, damage - absorbed)
         health_damage = (
-            overflow * HEALTH_DAMAGE_RATIO * self.health_damage_multiplier()
+            overflow
+            * HEALTH_DAMAGE_RATIO
+            * self.health_damage_multiplier()
+            * (1.0 + WOUND_DAMAGE_BONUS * self.wound)
         )
         if health_damage:
             self.health = max(0.0, self.health - health_damage)
@@ -205,9 +238,29 @@ class Automaton:
                 HEALTH_STARVE_DECAY * self.health_decay_multiplier()
             )
         elif resting:
-            self.health += (
-                HEALTH_REST_REGEN * self.health_regen_multiplier()
+            # Рана мешает восстановлению: отдых даёт меньше здоровья, пока
+            # повреждение не залечено. Это отличает рану от болезни, которая
+            # бьёт по работе и добавляет собственный урон.
+            regen = (
+                HEALTH_REST_REGEN
+                * self.health_regen_multiplier()
+                * max(0.25, 1.0 - WOUND_REGEN_PENALTY * self.wound)
             )
+            self.health += regen
+        if self.wound > 0.0:
+            severity = self.wound
+            self.health -= (
+                WOUND_HEALTH_DECAY
+                * severity
+                * self.health_sickness_multiplier()
+            )
+            if resting:
+                recovery = (
+                    WOUND_REST_RECOVERY
+                    * self.health_factor("care")
+                    / max(0.25, self.health_factor("illness"))
+                )
+                self.wound = max(0.0, severity - recovery)
         if self.sickness > 0.0:
             severity = self.sickness
             self.health -= (

@@ -169,6 +169,8 @@ class ArenaEnv:
         health_factors_ai=None,
         sickness_rl=0.0,
         sickness_ai=0.0,
+        wound_rl=0.0,
+        wound_ai=0.0,
         # Обучение по умолчанию идёт в той же конфигурации, что активная
         # игра (`MatchEngine`/`BattlefieldModel`): среда включена. Для
         # контрольного плеча без среды передайте `with_env=False`.
@@ -184,6 +186,8 @@ class ArenaEnv:
         self.health_factors_ai = dict(health_factors_ai or {})
         self.sickness_rl = float(sickness_rl)
         self.sickness_ai = float(sickness_ai)
+        self.wound_rl = float(wound_rl)
+        self.wound_ai = float(wound_ai)
         self.with_env = bool(with_env)
         self.match = None
         self.last_rewards = {"rl": 0.0, "ai": 0.0}
@@ -202,6 +206,8 @@ class ArenaEnv:
             "health_factors_ai",
             "sickness_rl",
             "sickness_ai",
+            "wound_rl",
+            "wound_ai",
         }
         unknown = set(kwargs) - allowed
         if unknown:
@@ -256,6 +262,8 @@ class ArenaEnv:
             health_factors_ai=self.health_factors_ai,
             sickness_rl=self.sickness_rl,
             sickness_ai=self.sickness_ai,
+            wound_rl=self.wound_rl,
+            wound_ai=self.wound_ai,
             with_env=self.with_env,
             auto_learn=False,
         )
