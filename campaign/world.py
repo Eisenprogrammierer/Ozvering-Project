@@ -41,6 +41,32 @@ CAMPAIGN_ENV_WOUND_DAMAGE = 8.0
 CAMPAIGN_ENV_WOUND_SEVERITY = 0.30
 CAMPAIGN_ACTION_WOUND_CHANCE = 0.15
 CAMPAIGN_ACTION_WOUND_SEVERITY = 0.20
+CAMPAIGN_ACTION_WOUND_DAMAGE = 6.0
+# Навык, снижающий тяжесть раны при неудаче рискованного действия
+# (аналог аренной силы, уменьшающей шанс попадания).
+CAMPAIGN_WOUND_DODGE_SKILL = "command"
+# Рискованные действия: действие может задать `"wound_risk": true` в конфиге
+# мира (например, `duel`, `sabotage`, `enforce_order`). Только они дают рану
+# при провале — остальные ходы остаются политическими, а не физическими.
+# Раны намеренно редки: эпизод длится десятки действий, и постоянный урон
+# по хитрости превратил бы любую политику в «всегда END_DAY».
+WOUND_RISKY_ACTIONS = (
+    "duel",
+    "sabotage",
+    "enforce_order",
+    "martial_law",
+    "embargo",
+    "strike",
+)
+
+
+def _is_wound_risky(action):
+    """Рискует ли действие устойчивой раной (`wound_risk` или список)."""
+    if "wound_risk" in action:
+        return bool(action.get("wound_risk"))
+    return _text(action.get("id")) in WOUND_RISKY_ACTIONS
+
+
 # Кампанийная передача болезни — контакт в одном узле. День крупнее
 # аренного такта, поэтому шанс ниже `CONTAGION_CHANCE`, а тяжесть — доля
 # болезни источника.
@@ -1740,6 +1766,7 @@ class WorldEngine:
         changed.extend(
             self._apply_character_effects(branch.get("effects"), character)
         )
+        changed.extend(self._apply_action_wound(action, outcome))
         self.player.spend_action()
         self.action_count += 1
         cooldown = _as_int(action.get("cooldown_days"), 0)
@@ -2400,6 +2427,58 @@ class WorldEngine:
         ).hexdigest()
         return int(digest[:12], 16) / float(16**12)
 
+    def _apply_action_wound(self, action, outcome):
+        """Устойчивая рана за провал рискованного действия.
+
+        Только действия с `wound_risk` (или из списка `WOUND_RISKY_ACTIONS`)
+        и только при `outcome == "failure"` могут ранить: политические ходы
+        не должны калечить героя. Тяжесть раны снижается ловкостью
+        (`CAMPAIGN_WOUND_DODGE_SKILL`), как на арене сила снижает шанс
+        попадания. Бросок — `_roll`, поэтому исход воспроизводим seed'ом.
+        """
+        if outcome != "failure" or not _is_wound_risky(action):
+            return []
+        if not self.player_alive:
+            return []
+        roll = self._roll(
+            "action-wound:%s:%s:%s" % (self.day, action.get("id"), self.action_count)
+        )
+        if roll >= CAMPAIGN_ACTION_WOUND_CHANCE:
+            return []
+        dexterity = _profile_skill(self.profile, CAMPAIGN_WOUND_DODGE_SKILL)
+        severity = CAMPAIGN_ACTION_WOUND_SEVERITY * max(0.25, 1.0 - 0.5 * dexterity)
+        before_health = self.player_health
+        wound_value = self.injure_player(severity)
+        if wound_value is None:
+            return []
+        self.player_health = max(
+            0.0, self.player_health - CAMPAIGN_ACTION_WOUND_DAMAGE
+        )
+        health_delta = self.player_health - before_health
+        name = _text(self.profile.get("name"), "Герой")
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "wound",
+                "text": "%s: неудача обошлась раной." % name,
+            }
+        )
+        changed = [("герой · рана", float(wound_value))]
+        if health_delta < 0.0:
+            changed.append(("герой · здоровье", health_delta))
+        if self.player_health <= 0.0:
+            self.player_alive = False
+            self.outcome = "lose"
+            self.finished = True
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "death",
+                    "text": "Герой умер от полученной раны.",
+                }
+            )
+        return changed
+
     @staticmethod
     def _unit_from_node(node, authority=0.0):
         """Автомат-защитник из легаси-статистики узла.
@@ -2602,6 +2681,7 @@ class WorldEngine:
                 action, target, success=(outcome == "success")
             )
         )
+        changed.extend(self._apply_action_wound(action, outcome))
         changed = self._merge_changes(changed)
         career_text = ""
         if outcome == "success" and action.get("career"):
@@ -3292,6 +3372,7 @@ class WorldEngine:
                 "items": list(self.player_item_ids),
                 "health": float(self.player_health),
                 "sickness": float(self.player_sickness),
+                "wound": float(self.player_wound),
                 "alive": bool(self.player_alive),
                 "energy": float(self.player_energy),
                 "max_energy": float(self.player_max_energy),
@@ -3304,6 +3385,7 @@ class WorldEngine:
                     "trust": character["trust"],
                     "health": float(character["health"]),
                     "sickness": float(character["sickness"]),
+                    "wound": float(_as_float(character.get("wound"), 0.0)),
                     "alive": bool(character["alive"]),
                 }
                 for character_id, character in self.characters.items()
@@ -3361,6 +3443,14 @@ class WorldEngine:
                 0.0,
                 SICKNESS_MAX,
             )
+        # Старые сейвы без `wound` получают 0.0 — рана введена позже болезни,
+        # и отсутствие поля не должно считаться ошибкой загрузки.
+        if "wound" in player:
+            self.player_wound = _clamp(
+                _as_float(player.get("wound"), 0.0),
+                0.0,
+                CAMPAIGN_WOUND_MAX,
+            )
         if "alive" in player:
             self.player_alive = bool(player.get("alive"))
         else:
@@ -3406,6 +3496,12 @@ class WorldEngine:
                     _as_float(saved.get("sickness"), 0.0),
                     0.0,
                     SICKNESS_MAX,
+                )
+            if "wound" in saved:
+                character["wound"] = _clamp(
+                    _as_float(saved.get("wound"), 0.0),
+                    0.0,
+                    CAMPAIGN_WOUND_MAX,
                 )
             if "alive" in saved:
                 character["alive"] = bool(saved.get("alive"))
