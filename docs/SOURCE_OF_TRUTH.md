@@ -326,7 +326,12 @@ BDI — не третий тип и не отдельная онтология. 
 | [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия текущего кода | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md), [`UI.md`](UI.md) | UI-слои | текущий UI |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | инструменты и слои | текущий код |
+| [`AUTOMATA.md`](AUTOMATA.md), [`NAMING.md`](NAMING.md), [`WARFARE.md`](WARFARE.md) | инструментальные слои (редактор автоматов, генератор имён, психология отрядов) | текущий код |
+| [`STRATEGY.md`](STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
+| [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md) | проверка гипотезы H-A (масштабный порог Шмитта) | исторический, не канон |
 | [`code/README.md`](code/README.md) | справочник по модулям | карта кода |
+| [`code/ANALYSIS.md`](code/ANALYSIS.md) | поэтапный разбор кода по модулям | анализ, не канон |
+| [`code/DOCS_ANALYSIS.md`](code/DOCS_ANALYSIS.md) | аудит документации и её согласование | анализ, не канон |
 | [`history/`](history/) | история решений | заморожено |
 
 ---
