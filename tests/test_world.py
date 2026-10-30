@@ -985,6 +985,20 @@ def test_campaign_legacy_snapshot_without_wound_defaults_to_zero():
     assert restored.player_condition()["wound"] == 0.0
 
 
+def test_campaign_action_wound_is_deterministic_per_seed():
+    def run(seed):
+        engine = _engine(seed=seed)
+        action = {"id": "duel", "outcome": "failure"}
+        for _ in range(12):
+            engine._apply_action_wound(action, "failure")
+        return engine.player_condition()["wound"]
+
+    # Бросок `_roll` завязан на seed — одинаковый seed даёт одну и ту же
+    # накопленную рану, разные seeds могут различаться.
+    assert run(11) == run(11)
+    assert run(11) >= 0.0
+
+
 def test_campaign_failed_risky_action_can_wound_deterministically():
     engine = _engine(seed=3)
     action_id = None
