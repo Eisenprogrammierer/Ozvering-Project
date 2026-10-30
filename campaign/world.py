@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
+from core41.model import WOUND_MAX
 
 from .actor import (
     CAMPAIGN_ENERGY_MAX,
@@ -22,6 +23,24 @@ DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
 CAMPAIGN_HEALTH_REGEN = 1.0
 CAMPAIGN_SICKNESS_PROGRESS = 0.01
 CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
+# Устойчивые раны кампании (открытый пункт «устойчивые раны с отдельным
+# состоянием/лечением»). Рана отличается от болезни: она даёт прямой
+# суточный урон `H` и замедляет восстановление, но не прогрессирует сама
+# по себе и лечится отдельным действием (`treat_wound_player`), а не
+# `treat_player`. Константы — кампанийные аналоги аренных `WOUND_*`
+# (день крупнее такта, поэтому темп лечения выше аренного).
+CAMPAIGN_WOUND_MAX = WOUND_MAX
+CAMPAIGN_WOUND_HEALTH_DECAY = 4.0
+CAMPAIGN_WOUND_REGEN_PENALTY = 0.5
+CAMPAIGN_WOUND_TREAT_AMOUNT = 0.25
+# Средовые источники ран: редкие события дня (аналог `ENV_WOUND_INTERVAL`
+# арены) и риск получения раны при силовых действиях. Зерно детерминизма —
+# `_roll`, как у заражения.
+CAMPAIGN_ENV_WOUND_CHANCE = 0.05
+CAMPAIGN_ENV_WOUND_DAMAGE = 8.0
+CAMPAIGN_ENV_WOUND_SEVERITY = 0.30
+CAMPAIGN_ACTION_WOUND_CHANCE = 0.15
+CAMPAIGN_ACTION_WOUND_SEVERITY = 0.20
 # Кампанийная передача болезни — контакт в одном узле. День крупнее
 # аренного такта, поэтому шанс ниже `CONTAGION_CHANCE`, а тяжесть — доля
 # болезни источника.
@@ -597,12 +616,19 @@ class WorldEngine:
             0.0,
             SICKNESS_MAX,
         )
+        initial_wound = _clamp(
+            _as_float(condition.get("wound"), 0.0),
+            0.0,
+            CAMPAIGN_WOUND_MAX,
+        )
         # Персонаж кампании — тот же 4-2-1-автомат, что и на арене:
-        # E — дневной бюджет действий, F — standing, H/sickness — здоровье.
+        # E — дневной бюджет действий, F — standing, H/sickness/wound —
+        # здоровье, болезнь и устойчивая рана.
         self.player = CampaignActor(
             actions_per_day=self.actions_per_day,
             health=initial_health,
             sickness=initial_sickness,
+            wound=initial_wound,
         )
         self.player_resources = _PlayerResources(
             self.player,
@@ -699,6 +725,14 @@ class WorldEngine:
         self.player.sickness = value
 
     @property
+    def player_wound(self):
+        return self.player.wound
+
+    @player_wound.setter
+    def player_wound(self, value):
+        self.player.wound = value
+
+    @property
     def player_alive(self):
         return self.player.alive
 
@@ -766,6 +800,13 @@ class WorldEngine:
                 _as_float(raw.get("sickness"), 0.0),
                 0.0,
                 SICKNESS_MAX,
+            ),
+            # Устойчивая рана персонажа — общее состояние с ареной;
+            # старые миры без поля получают 0.0.
+            "wound": _clamp(
+                _as_float(raw.get("wound"), 0.0),
+                0.0,
+                CAMPAIGN_WOUND_MAX,
             ),
             "alive": bool(raw.get("alive", health > 0.0)),
             "node_id": _text(raw.get("node_id")),
@@ -1037,6 +1078,7 @@ class WorldEngine:
             "health": float(self.player_health),
             "max_health": float(self.player.max_health),
             "sickness": float(self.player_sickness),
+            "wound": float(self.player_wound),
             "alive": bool(self.player_alive),
             "energy": float(self.player_energy),
             "max_energy": float(self.player_max_energy),
@@ -1054,6 +1096,7 @@ class WorldEngine:
             "health": float(character["health"]),
             "max_health": float(HEALTH_MAX),
             "sickness": float(character["sickness"]),
+            "wound": float(character.get("wound", 0.0)),
             "alive": bool(character["alive"]),
         }
 
@@ -1070,6 +1113,45 @@ class WorldEngine:
             self.player_sickness - max(0.0, _as_float(amount)),
         )
         return self.player_sickness
+
+    # -- Устойчивые раны ---------------------------------------------------
+    # Рана — отдельное состояние, а не разновидность болезни: `injure`
+    # не трогает `sickness`, `treat_wound` не трогает болезнь, и наоборот.
+
+    def injure_player(self, severity):
+        """Получить рану; повторная рана не лечит старую (берётся максимум)."""
+        if not self.player_alive:
+            return None
+        return self.player.injure(_as_float(severity))
+
+    def treat_wound_player(self, amount):
+        """Отдельное лечение раны (не путать с `treat_player` для болезни)."""
+        if not self.player_alive:
+            return None
+        return self.player.treat_wound(max(0.0, _as_float(amount)))
+
+    def injure_character(self, character_id, severity):
+        character = self.character(character_id)
+        if character is None or not character["alive"]:
+            return None
+        character["wound"] = min(
+            CAMPAIGN_WOUND_MAX,
+            max(
+                _as_float(character.get("wound"), 0.0),
+                _as_float(severity),
+            ),
+        )
+        return character["wound"]
+
+    def treat_wound_character(self, character_id, amount):
+        character = self.character(character_id)
+        if character is None or not character["alive"]:
+            return None
+        character["wound"] = max(
+            0.0,
+            _as_float(character.get("wound"), 0.0) - max(0.0, _as_float(amount)),
+        )
+        return character["wound"]
 
     def infect_character(self, character_id, severity):
         character = self.character(character_id)
@@ -1091,9 +1173,24 @@ class WorldEngine:
         )
         return character["sickness"]
 
-    def _advance_condition(self, health, sickness):
+    def _advance_condition(self, health, sickness, wound=0.0):
+        """Дневной срез состояния: болезнь прогрессирует, рана — нет.
+
+        Рана (`wound`) отличается от болезни (`sickness`): она даёт прямой
+        суточный урон `H` и штраф к восстановлению, но не усугубляется
+        сама; лечится отдельным действием, а не отдыхом-по-болезни.
+        """
         health = _clamp(health, 0.0, HEALTH_MAX)
         sickness = _clamp(sickness, 0.0, SICKNESS_MAX)
+        wound = _clamp(wound, 0.0, CAMPAIGN_WOUND_MAX)
+        regen = CAMPAIGN_HEALTH_REGEN
+        if wound > 0.0:
+            # Рана мешает восстановлению (аналог аренного WOUND_REGEN_PENALTY).
+            regen *= max(0.25, 1.0 - CAMPAIGN_WOUND_REGEN_PENALTY * wound)
+            health = max(
+                0.0,
+                health - CAMPAIGN_WOUND_HEALTH_DECAY * wound,
+            )
         if sickness > 0.0:
             health = max(
                 0.0,
@@ -1104,8 +1201,8 @@ class WorldEngine:
                 sickness + CAMPAIGN_SICKNESS_PROGRESS,
             )
         else:
-            health = min(HEALTH_MAX, health + CAMPAIGN_HEALTH_REGEN)
-        return health, sickness
+            health = min(HEALTH_MAX, health + regen)
+        return health, sickness, wound
 
     def _contagion_actors(self):
         """Живые акторы кампании, между которыми возможен контакт.
@@ -1219,10 +1316,14 @@ class WorldEngine:
                 )
         else:
             before = (self.player_health, self.player_sickness)
-            self.player_health, self.player_sickness = (
-                self._advance_condition(
-                    self.player_health, self.player_sickness
-                )
+            (
+                self.player_health,
+                self.player_sickness,
+                self.player_wound,
+            ) = self._advance_condition(
+                self.player_health,
+                self.player_sickness,
+                self.player_wound,
             )
             if (self.player_health, self.player_sickness) != before:
                 changed.append(
@@ -1246,10 +1347,14 @@ class WorldEngine:
             if not character["alive"]:
                 continue
             before = (character["health"], character["sickness"])
-            character["health"], character["sickness"] = (
-                self._advance_condition(
-                    character["health"], character["sickness"]
-                )
+            (
+                character["health"],
+                character["sickness"],
+                character["wound"],
+            ) = self._advance_condition(
+                character["health"],
+                character["sickness"],
+                _as_float(character.get("wound"), 0.0),
             )
             if (character["health"], character["sickness"]) != before:
                 changed.append(
@@ -1289,7 +1394,68 @@ class WorldEngine:
         # Передача болезни идёт после дневного прогресса: заразившийся
         # персонаж начнёт болеть со следующего дня, а не «сразу дважды».
         changed.extend(self._spread_contagion())
+        changed.extend(self._apply_environment_wounds())
         return self._merge_changes(changed)
+
+    def _apply_environment_wounds(self):
+        """Средовые источники ран (кампанийный аналог `ENV_WOUND_*` арены).
+
+        Редкое детерминированное событие дня: часть живых акторов получает
+        прямой урон `H` и устойчивую рану. Зерно — `_roll`, поэтому исход
+        воспроизводим seed'ом мира, как у заражения.
+        """
+        changed = []
+        actors = []
+        if self.attached and self.player_alive:
+            actors.append(("player", "герой"))
+        for character_id in self.character_order:
+            character = self.characters[character_id]
+            if character["alive"]:
+                actors.append((character_id, character["name"]))
+        for actor_id, actor_name in actors:
+            roll = self._roll("env-wound:%s:%s" % (self.day, actor_id))
+            if roll >= CAMPAIGN_ENV_WOUND_CHANCE:
+                continue
+            if actor_id == "player":
+                before = self.player_health
+                self.injure_player(CAMPAIGN_ENV_WOUND_SEVERITY)
+                self.player_health = max(
+                    0.0,
+                    self.player_health - CAMPAIGN_ENV_WOUND_DAMAGE,
+                )
+                health_delta = self.player_health - before
+                wound_value = self.player_wound
+            else:
+                character = self.characters[actor_id]
+                before = character["health"]
+                self.injure_character(actor_id, CAMPAIGN_ENV_WOUND_SEVERITY)
+                character["health"] = max(
+                    0.0,
+                    character["health"] - CAMPAIGN_ENV_WOUND_DAMAGE,
+                )
+                health_delta = character["health"] - before
+                wound_value = character["wound"]
+                if character["health"] <= 0.0:
+                    character["alive"] = False
+            self.log.append(
+                {
+                    "day": self.day,
+                    "kind": "wound",
+                    "text": "%s получил(а) рану от опасного стечения "
+                    "обстоятельств." % actor_name,
+                }
+            )
+            if health_delta < 0.0:
+                changed.append(
+                    (
+                        "%s · здоровье" % actor_name
+                        if actor_id != "player"
+                        else "герой · здоровье",
+                        health_delta,
+                    )
+                )
+            changed.append(("%s · рана" % actor_name, wound_value))
+        return changed
 
     def organization_category(self, node_id):
         node = self.node(node_id)
