@@ -757,6 +757,10 @@ class WorldScreen(BaseScreen):
             detail += " · болезнь %d%%" % int(
                 round(condition["sickness"] * 100)
             )
+        if condition.get("wound", 0.0) > 0.0:
+            detail += " · рана %d%%" % int(
+                round(condition["wound"] * 100)
+            )
         screen.blit(
             self.app.font_tiny.render(
                 self._clip_text(self.app.font_tiny, detail, 470),

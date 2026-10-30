@@ -927,3 +927,111 @@ def test_campaign_contagion_is_inert_without_sickness():
         character["sickness"] == 0.0
         for character in engine.characters.values()
     )
+
+
+# ---------------------------------------------------------------------------
+# Устойчивые раны кампании: отдельное состояние, лечение и персистентность
+# ---------------------------------------------------------------------------
+
+
+def test_campaign_wound_is_separate_from_sickness():
+    engine = _engine()
+    engine.infect_player(0.3)
+    engine.injure_player(0.4)
+    condition = engine.player_condition()
+    # Рана — не болезнь: обе шкалы живут одновременно и независимо.
+    assert condition["sickness"] == pytest.approx(0.3)
+    assert condition["wound"] == pytest.approx(0.4)
+    # Лечение раны не трогает болезнь, и наоборот.
+    assert engine.treat_wound_player(0.25) == pytest.approx(0.15)
+    assert engine.player_condition()["sickness"] == pytest.approx(0.3)
+    assert engine.treat_player(0.1) == pytest.approx(0.2)
+    assert engine.player_condition()["wound"] == pytest.approx(0.15)
+
+
+def test_campaign_wound_decays_health_and_blocks_regen():
+    engine = _engine()
+    engine.player_health = 80.0
+    engine.injure_player(0.5)
+    health_before = engine.player_health
+    engine.end_day()
+    condition = engine.player_condition()
+    # Тяжёлая рана даёт прямой урон здоровью каждый день и режет регенерацию.
+    assert condition["health"] < health_before
+    assert condition["wound"] > 0.0
+
+
+def test_campaign_wound_survives_snapshot_roundtrip():
+    engine = _engine()
+    engine.injure_player(0.35)
+    engine.injure_character("mira_svet", 0.2)
+    restored = WorldEngine(
+        load_world(), snapshot=json.loads(json.dumps(engine.to_dict()))
+    )
+    assert restored.player_condition()["wound"] == pytest.approx(0.35)
+    assert restored.character_condition("mira_svet")["wound"] == pytest.approx(0.2)
+    assert restored.treat_wound_player(0.25) == pytest.approx(0.10)
+
+
+def test_campaign_legacy_snapshot_without_wound_defaults_to_zero():
+    engine = _engine()
+    snapshot = json.loads(json.dumps(engine.to_dict()))
+    # Старый сейв: поля `wound` нет нигде — загрузка не падает, рана = 0.
+    snapshot["player"].pop("wound", None)
+    for character in (snapshot.get("characters") or {}).values():
+        if isinstance(character, dict):
+            character.pop("wound", None)
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+    assert restored.player_condition()["wound"] == 0.0
+
+
+def test_campaign_action_wound_is_deterministic_per_seed():
+    def run(seed):
+        engine = _engine(seed=seed)
+        action = {"id": "duel", "outcome": "failure"}
+        for _ in range(12):
+            engine._apply_action_wound(action, "failure")
+        return engine.player_condition()["wound"]
+
+    # Бросок `_roll` завязан на seed — одинаковый seed даёт одну и ту же
+    # накопленную рану, разные seeds могут различаться.
+    assert run(11) == run(11)
+    assert run(11) >= 0.0
+
+
+def test_campaign_failed_risky_action_can_wound_deterministically():
+    engine = _engine(seed=3)
+    action_id = None
+    for candidate_id, action in engine.actions.items():
+        if campaign_world_is_risky(action):
+            action_id = candidate_id
+            break
+    if action_id is None:
+        pytest.skip("в конфиге мира нет рискованных действий")
+    # Провал рискованного хода может ранить; бросок детерминирован seed'ом,
+    # поэтому повтор при том же seed даёт тот же исход.
+    first = WorldEngine(
+        load_world(),
+        profile=_profile(),
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=3,
+    )
+    second = WorldEngine(
+        load_world(),
+        profile=_profile(),
+        node_id="agora_government",
+        office_id="head_of_government",
+        seed=3,
+    )
+    target = first.player_node_id
+    result_a = first.execute(action_id, target)
+    result_b = second.execute(action_id, target)
+    assert result_a.get("outcome") == result_b.get("outcome")
+    assert first.player_wound == second.player_wound
+
+
+def campaign_world_is_risky(action):
+    from campaign.world import _is_wound_risky
+
+    return _is_wound_risky(action)

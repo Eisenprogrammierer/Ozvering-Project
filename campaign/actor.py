@@ -17,12 +17,17 @@
 """
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
-from core41.model import success_probability
+from core41.model import WOUND_MAX, success_probability
 from core41.types import Work
 
 # Ёмкость дневной энергии. Значение не обязано совпадать с `max_energy`
 # арены: важен единый тип шкалы `E`, а не абсолютные единицы.
 CAMPAIGN_ENERGY_MAX = 100.0
+# Устойчивая рана кампании — то же состояние `wound`, что на арене
+# (открытый пункт «устойчивые раны с отдельным состоянием/лечением»):
+# болезнь медленно прогрессирует и бьёт по работе, рана же получает
+# прямой урон `H`, мешает восстановлению и лечится отдельным действием.
+CAMPAIGN_WOUND_MAX = WOUND_MAX
 # Вес ядровой вероятности в итоговом шансе кампанийного действия. База
 # остаётся авторской (конфиг мира), но `F`/навык/болезнь/сопротивление
 # цели дают сдвиг через ту же `success_probability`, что и на арене.
@@ -71,6 +76,7 @@ class CampaignActor:
         sickness=0.0,
         standing=0.0,
         energy=CAMPAIGN_ENERGY_MAX,
+        wound=0.0,
     ):
         self.actions_per_day = max(1, int(actions_per_day))
         self.unit = Automaton(
@@ -83,6 +89,7 @@ class CampaignActor:
             health=_clamp(health, 0.0, HEALTH_MAX),
             max_health=HEALTH_MAX,
             sickness=_clamp(sickness, 0.0, SICKNESS_MAX),
+            wound=_clamp(wound, 0.0, CAMPAIGN_WOUND_MAX),
             inputs=("force", "info", "care"),
             outputs=("force", "info"),
             skills={"force": 0.6, "info": 0.4},
@@ -177,6 +184,26 @@ class CampaignActor:
         self.unit.sickness = _clamp(value, 0.0, SICKNESS_MAX)
 
     @property
+    def wound(self):
+        return float(self.unit.wound)
+
+    @wound.setter
+    def wound(self, value):
+        self.unit.wound = _clamp(value, 0.0, CAMPAIGN_WOUND_MAX)
+
+    @property
+    def is_wounded(self):
+        return self.unit.is_wounded()
+
+    def injure(self, severity):
+        """Получить устойчивую рану; повторная рана не лечит старую."""
+        return self.unit.injure(severity)
+
+    def treat_wound(self, amount):
+        """Отдельное лечение раны (отличается от лечения болезни)."""
+        return self.unit.treat_wound(amount)
+
+    @property
     def alive(self):
         return self.unit.health > 0.0
 
@@ -203,6 +230,7 @@ class CampaignActor:
             "health": self.health,
             "max_health": self.max_health,
             "sickness": self.sickness,
+            "wound": self.wound,
             "alive": self.alive,
         }
 
@@ -216,6 +244,10 @@ class CampaignActor:
             self.health = state["health"]
         if "sickness" in state:
             self.sickness = state["sickness"]
+        # Старые сейвы без `wound` получают 0.0 — рана введена позже,
+        # и её отсутствие в снимке не должно ломать загрузку.
+        if "wound" in state:
+            self.wound = state["wound"]
         if "force" in state:
             self.force = state["force"]
         if "energy" in state:

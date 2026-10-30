@@ -9,6 +9,7 @@
 """
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -19,6 +20,7 @@ from campaign.env import (
     CAMPAIGN_REWARD_ILLEGAL,
     END_DAY,
     TREAT_SELF,
+    TREAT_WOUND,
     CampaignEnv,
     campaign_reward,
     terminal_campaign_reward,
@@ -239,6 +241,7 @@ def test_campaign_reward_composition_matches_formula():
         "cohesion": 0.50,
         "health": 100.0,
         "sickness": 0.0,
+        "wound": 0.0,
     }
     after = {
         "standing": 0.40,
@@ -246,6 +249,7 @@ def test_campaign_reward_composition_matches_formula():
         "cohesion": 0.50,
         "health": 90.0,
         "sickness": 0.20,
+        "wound": 0.0,
     }
     # 0.5*0.2 + 0.25*0.1 - 0.1 - 0.2 = -0.175
     assert campaign_reward(before, after) == pytest.approx(-0.175)
@@ -256,6 +260,15 @@ def test_campaign_reward_composition_matches_formula():
     assert campaign_reward(
         before, after, outcome_delta=terminal_campaign_reward("win")
     ) == pytest.approx(-0.175 + 1.0)
+    # Устойчивая рана: прирост на 0.25 стоит CAMPAIGN_REWARD_WOUND*0.25.
+    wounded = dict(after, wound=0.25)
+    assert campaign_reward(before, wounded) == pytest.approx(
+        -0.175 - 0.8 * 0.25
+    )
+    # Лечение раны (уменьшение) возвращает штраф — знак симметричный болезни.
+    assert campaign_reward(dict(before, wound=0.25), after) == pytest.approx(
+        -0.175 + 0.8 * 0.25
+    )
 
 
 def test_terminal_campaign_reward_maps_outcomes():
@@ -351,8 +364,12 @@ def test_campaign_features_vector_shape_and_flags():
     # 19-й слот различает действия с одинаковыми флагами: без него
     # `inspect` и `build_network` давали бы один и тот же вектор.
     assert work[18] != heal[18]
-    # Последние два слота — признаки среды; в кампании они нейтральны.
+    # 20-й слот — устойчивая рана героя (общее состояние с ареной);
+    # без ран он нулевой, 21-й остаётся нейтральной константой среды.
     assert (work[19], work[20]) == (0.0, 1.0)
+    wounded_observation = replace(observation, wound=0.4)
+    wounded = campaign_features(wounded_observation, CampaignAction(END_DAY))
+    assert wounded[19] == pytest.approx(0.4)
     # Все признаки нормированы к [0, 1].
     assert all(-1e-9 <= value <= 1.0 + 1e-9 for value in work)
 
@@ -604,3 +621,63 @@ def test_campaign_env_attach_reuses_engine_after_reset():
         engine.player_node_id,
         engine.player_office_id,
     )
+
+
+# ---------------------------------------------------------------------------
+# Устойчивые раны в кампании (§7: рана — отдельное состояние, не болезнь)
+# ---------------------------------------------------------------------------
+
+
+def test_campaign_env_treat_wound_is_legal_only_when_wounded():
+    env = CampaignEnv(seed=5, max_days=5)
+    env.reset(seed=5)
+    kinds = [action.kind for action in env.legal_actions()]
+    assert TREAT_WOUND not in kinds
+    env.engine.player_wound = 0.3
+    kinds = [action.kind for action in env.legal_actions()]
+    assert TREAT_WOUND in kinds
+    # Здоровье без ран: TREAT_SELF не обязан быть доступен — действия разделены.
+    assert TREAT_SELF not in kinds
+
+
+def test_campaign_env_treat_wound_step_reduces_wound_not_sickness():
+    env = CampaignEnv(seed=5, max_days=5)
+    env.reset(seed=5)
+    env.engine.player_sickness = 0.2
+    env.engine.player_wound = 0.4
+    actions_left = env.engine.actions_left
+    _obs, reward, _done, _truncated, info = env.step(CampaignAction(TREAT_WOUND))
+    result = info["result"]
+    assert result["ok"] and result["action"] == TREAT_WOUND
+    assert env.engine.player_wound == pytest.approx(0.15)
+    # Рана лечится отдельно: болезнь не тронута одним и тем же шагом.
+    assert env.engine.player_sickness == pytest.approx(0.2)
+    assert env.engine.actions_left == actions_left - 1
+    # Снижение раны возвращает штраф прошлых шагов: награда положительна.
+    assert reward > 0.0
+
+
+def test_campaign_env_observe_exposes_wound_and_reward_penalises_injury():
+    env = CampaignEnv(seed=9, max_days=5)
+    observation = env.reset(seed=9)
+    assert observation.wound == pytest.approx(0.0)
+    before = env._metrics()
+    env.engine.injure_player(0.3)
+    after = env._metrics()
+    assert after["wound"] == pytest.approx(0.3)
+    penalty = campaign_reward(before, after)
+    # Только рана (без других дельт) стоит CAMPAIGN_REWARD_WOUND * 0.3.
+    assert penalty < 0.0
+    observation = env.observe()
+    assert observation.wound == pytest.approx(0.3)
+
+
+def test_campaign_env_wound_persists_through_snapshot_roundtrip():
+    env = CampaignEnv(seed=6, max_days=5)
+    env.reset(seed=6)
+    env.engine.player_wound = 0.35
+    state = env.state_dict()
+    restored = CampaignEnv(seed=6, max_days=5)
+    restored.load_state_dict(state)
+    assert restored.engine.player_wound == pytest.approx(0.35)
+    assert restored.observe().wound == pytest.approx(0.35)

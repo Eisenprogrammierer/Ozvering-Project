@@ -28,7 +28,7 @@
 `END_DAY` переводит день: оно всегда легально, пока кампания не завершена.
 """
 
-from core41 import HEALTH_MAX, SICKNESS_MAX
+from core41 import HEALTH_MAX, SICKNESS_MAX, WOUND_MAX
 from core41.types import CampaignAction, CampaignObservation
 
 from .world import (
@@ -44,12 +44,22 @@ END_DAY = "END_DAY"
 # отложенной смертью без контрмеры, и политика не могла ей научиться.
 TREAT_SELF = "TREAT_SELF"
 CAMPAIGN_TREAT_AMOUNT = 0.20
+# Лечение ран — отдельное действие среды (аналог аренного TREAT по ране):
+# рана не является болезнью, и `TREAT_SELF` её не снимает. Политика должна
+# уметь различать контрмеры, иначе устойчивая рана не обучается.
+TREAT_WOUND = "TREAT_WOUND"
+CAMPAIGN_TREAT_WOUND_AMOUNT = 0.25
 
 # Награды кампании. Единицы — доли максимумов шкал, шаг сравним с ареной.
 CAMPAIGN_REWARD_STANDING = 0.5   # положение героя (F-проекция позиции)
 CAMPAIGN_REWARD_ORGANIZATION = 0.5  # сила+связность своей организации
 CAMPAIGN_REWARD_HEALTH = 1.0     # здоровье персонажа (S)
 CAMPAIGN_REWARD_SICKNESS = 1.0   # снятие/наращивание болезни
+# Штраф за устойчивую рану: зеркалит аренную `REWARD_WOUND_SELF` —
+# наращивание раны оплачивается отрицательной наградой, лечение — нулём
+# (положительный shaping за рану не вводится: снять рану — это просто
+# прекращение штрафа, как на арене).
+CAMPAIGN_REWARD_WOUND = 0.8
 CAMPAIGN_REWARD_SUCCESS = 0.10   # малый shaping за успешное действие
 CAMPAIGN_REWARD_ILLEGAL = 0.05   # штраф за нелегальный ход (ok=False в мире)
 CAMPAIGN_TERMINAL_WIN = 1.0
@@ -81,6 +91,9 @@ def campaign_reward(before, after, outcome_delta=0.0, success=False):
     )
     reward -= CAMPAIGN_REWARD_SICKNESS * (
         (after["sickness"] - before["sickness"]) / max(1e-9, SICKNESS_MAX)
+    )
+    reward -= CAMPAIGN_REWARD_WOUND * (
+        (after["wound"] - before["wound"]) / max(1e-9, WOUND_MAX)
     )
     if success:
         reward += CAMPAIGN_REWARD_SUCCESS
@@ -336,6 +349,7 @@ class CampaignEnv:
             "actions_left": engine.actions_left,
             "health": condition["health"],
             "sickness": condition["sickness"],
+            "wound": condition.get("wound", 0.0),
             "alive": condition["alive"],
             "energy": condition.get("energy", 0.0),
             "max_energy": condition.get("max_energy", 0.0),
@@ -381,6 +395,7 @@ class CampaignEnv:
             health=float(metrics["health"]),
             max_health=float(HEALTH_MAX),
             sickness=float(metrics["sickness"]),
+            wound=float(metrics["wound"]),
             alive=bool(metrics["alive"]),
             influence=_clamp_unit(metrics["influence"]),
             favor=_clamp_unit(metrics["favor"]),
@@ -439,6 +454,8 @@ class CampaignEnv:
             return tuple(actions)
         if engine.player_sickness > 0.0 and engine.actions_left > 0:
             actions.append(CampaignAction(TREAT_SELF))
+        if engine.player_wound > 0.0 and engine.actions_left > 0:
+            actions.append(CampaignAction(TREAT_WOUND))
         seen = set()
         for target_id in self._target_ids():
             for action_id in engine.available_actions(target_id):
@@ -545,6 +562,47 @@ class CampaignEnv:
         )
         return result
 
+    def _treat_wound(self):
+        """Лечение устойчивой раны (отдельно от болезни).
+
+        Рана — не болезнь: `TREAT_SELF` её не снимает и наоборот. Действие
+        стоит одно действие дня и убирает `CAMPAIGN_TREAT_WOUND_AMOUNT`
+        раны через `WorldEngine.treat_wound_player()`.
+        """
+        engine = self.engine
+        if not engine.attached:
+            return {"ok": False, "reason": "сначала выберите должность"}
+        if engine.player_wound <= 0.0:
+            return {"ok": False, "reason": "герой без ран"}
+        if engine.actions_left <= 0:
+            return {"ok": False, "reason": "не осталось действий"}
+        engine.player.spend_action()
+        value = engine.treat_wound_player(CAMPAIGN_TREAT_WOUND_AMOUNT)
+        if value is None:
+            return {"ok": False, "reason": "герой мёртв"}
+        text = "Перевязка: рана %.2f." % value
+        result = {
+            "ok": True,
+            "action": TREAT_WOUND,
+            "action_label": "Перевязка",
+            "target": "",
+            "target_label": "своё состояние",
+            "outcome": "success",
+            "text": text,
+            "changes": [("Рана", -CAMPAIGN_TREAT_WOUND_AMOUNT)],
+            "wound": value,
+            "day": engine.day,
+        }
+        engine.last_result = result
+        engine.log.append(
+            {
+                "day": engine.day,
+                "kind": "success",
+                "text": "Перевязка → своё состояние: %s" % text,
+            }
+        )
+        return result
+
     def step(self, action):
         engine = self.engine
         if engine is None:
@@ -559,6 +617,9 @@ class CampaignEnv:
             result = engine.end_day()
         elif action.kind == TREAT_SELF:
             result = self._treat_self()
+            success = bool(result.get("ok"))
+        elif action.kind == TREAT_WOUND:
+            result = self._treat_wound()
             success = bool(result.get("ok"))
         else:
             result = engine.execute(action.kind, action.target or None)
@@ -664,6 +725,8 @@ __all__ = [
     "CAMPAIGN_TREAT_AMOUNT",
     "END_DAY",
     "TREAT_SELF",
+    "TREAT_WOUND",
+    "CAMPAIGN_TREAT_WOUND_AMOUNT",
     "CampaignEnv",
     "campaign_reward",
     "terminal_campaign_reward",

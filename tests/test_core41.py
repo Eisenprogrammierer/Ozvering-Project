@@ -30,6 +30,9 @@ from core41 import (
     Observation,
     REWARD_TERMINAL_LOSS,
     REWARD_TERMINAL_WIN,
+    REWARD_WOUND_OPPONENT,
+    REWARD_WOUND_SELF,
+    WOUND_MAX,
     Work,
     action_from_index,
     check_capture,
@@ -658,6 +661,29 @@ def test_reward_delta_values_treatment_and_sickness():
     other.sickness = 0.25
     reward = reward_delta(me, before, other, other_before)
     assert reward == pytest.approx(-0.06 + 0.08 + 0.5 * 0.25)
+
+
+def test_reward_delta_wound_tuple_extends_legacy_contract():
+    me = Automaton(id="me", force=100.0, energy=100.0, health=100.0)
+    other = Automaton(id="other", force=100.0, energy=100.0, health=100.0)
+    legacy_before = (100.0, 100.0, 100.0, 0.0)
+    # Легаси-кортеж без wound — прежняя калибровка сохраняется.
+    assert reward_delta(me, legacy_before, other, legacy_before) == 0.0
+
+    me.wound = 0.25
+    extended_before = (100.0, 100.0, 100.0, 0.0, 0.0)
+    reward = reward_delta(me, extended_before, other, extended_before)
+    # REWARD_WOUND_SELF * (before - now) / WOUND_MAX = 0.8 * (-0.25).
+    assert reward == pytest.approx(REWARD_WOUND_SELF * -0.25 / WOUND_MAX)
+
+    other.wound = 0.5
+    reward = reward_delta(
+        me, extended_before, other, (100.0, 100.0, 100.0, 0.0, 0.0)
+    )
+    assert reward == pytest.approx(
+        REWARD_WOUND_SELF * -0.25 / WOUND_MAX
+        + REWARD_WOUND_OPPONENT * 0.5 / WOUND_MAX
+    )
 
 
 def test_arena_env_matches_active_arena_and_does_not_learn_internally():

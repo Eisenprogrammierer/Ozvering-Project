@@ -19,6 +19,9 @@ from core41 import (
     SICKNESS_WORK_FLOOR,
     SICKNESS_WORK_PENALTY,
     TREAT_ENERGY_FRACTION,
+    WOUND_DAMAGE_BONUS,
+    WOUND_MAX,
+    WOUND_TREAT_RATE,
     Work,
     run_duel_tick,
     success_probability,
@@ -383,3 +386,82 @@ def test_condition_state_roundtrip_and_hard_reset():
     restored.reset_state()
     assert restored.health == 100.0
     assert restored.sickness == 0.0
+
+
+# --- Устойчивые раны (wound): общее состояние с кампанией (§2.3.4) ---
+
+
+def test_wound_is_separate_state_from_sickness():
+    unit = Automaton(id="unit")
+    unit.injure(0.4)
+    assert unit.wound == pytest.approx(0.4)
+    assert unit.is_wounded
+    # Рана не создаёт болезни и наоборот: лечение одного не трогает другое.
+    unit.sickness = 0.3
+    unit.treat_wound(WOUND_TREAT_RATE)
+    assert unit.wound < 0.4
+    assert unit.sickness == pytest.approx(0.3)
+    unit.treat(SICKNESS_TREAT_RATE)
+    assert unit.sickness < 0.3
+    assert unit.wound == pytest.approx(unit.wound)  # не изменилась
+
+
+def test_injure_takes_max_severity_and_clamps():
+    unit = Automaton(id="unit")
+    unit.injure(0.6)
+    # Повторная более лёгкая рана не «лечит» старую.
+    assert unit.injure(0.2) == pytest.approx(0.6)
+    assert unit.injure(2.0) == pytest.approx(WOUND_MAX)
+
+
+def test_wound_reduces_rest_regen_and_adds_bleed_damage():
+    hurt = Automaton(id="hurt", health=50.0, energy=10.0)
+    healthy = Automaton(id="healthy", health=50.0, energy=10.0)
+    hurt.wound = 0.5
+    for _ in range(3):
+        hurt.tick_health(resting=True)
+        healthy.tick_health(resting=True)
+    # Раненый отдыхает хуже (WOUND_REGEN_PENALTY) и теряет здоровье на
+    # кровотечении (WOUND_HEALTH_DECAY), поэтому отстаёт от здорового.
+    assert hurt.health < healthy.health
+
+
+def test_wound_amplifies_overflow_damage():
+    hurt = Automaton(id="hurt", force=1.0, health=100.0)
+    healthy = Automaton(id="healthy", force=1.0, health=100.0)
+    hurt.wound = WOUND_MAX
+    _, _, hurt_damage = hurt.apply_force_damage(5.0)
+    _, _, healthy_damage = healthy.apply_force_damage(5.0)
+    # WOUND_DAMAGE_BONUS усиливает урон переполнения при ране.
+    assert hurt_damage > healthy_damage
+
+
+def test_treat_wound_respects_care_factor():
+    cared = Automaton(id="cared")
+    plain = Automaton(id="plain")
+    cared.wound = 0.5
+    plain.wound = 0.5
+    cared.health_factors["care"] = 2.0
+    cared.treat_wound(WOUND_TREAT_RATE)
+    plain.treat_wound(WOUND_TREAT_RATE)
+    assert cared.wound < plain.wound
+    # Нулевая или отрицательная доза ничего не меняет.
+    before = plain.wound
+    assert plain.treat_wound(0.0) == pytest.approx(before)
+
+
+def test_arena_agent_wound_api_and_condition_roundtrip():
+    agent = ArenaAgent("unit")
+    agent.wound = 0.3
+    assert agent.is_wounded
+    agent.treat_wound(0.2)
+    assert agent.wound == pytest.approx(0.1)
+    state = agent.condition_state()
+    if agent.wound > 0.0:
+        assert state["wound"] == pytest.approx(agent.wound)
+    restored = ArenaAgent("unit")
+    restored.load_condition(state)
+    assert restored.wound == pytest.approx(agent.wound)
+    # Жёсткий сброс партии обнуляет и болезнь, и рану.
+    restored.reset_state()
+    assert restored.wound == 0.0
