@@ -197,7 +197,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/WORLD.md` | общий мир должностного лица: биография, семь доменов, иерархия, валидатор действий, ход мира, карьера и снимки |
 | `docs/STRATEGY.md` | легаси-гражданская гранд-стратегия «Хартия Агоры»: три поля, сущности, действия, последствия, снимки |
 | `core41/` | **целевой 4-2-1-срез**: `Automaton` (одна универсальная энергия `E`, сила `F`, здоровье `H`), runtime арены (`ArenaAgent`/`ArenaMatch`), `DuelEnv`, секундный `SimulationClock`, актор среды `ArenaEnvironment`; без pygame |
-| `agents/` | **обучаемые политики**: `BDIPolicy`/`QTablePolicy`/`MLPPolicy` (21 признак), `PolicyAgent` (легаси-мост), обучение `python -m agents.train`, автопоиск чекпойнтов `agents/checkpoints.py`; спецификация — [`AGENTS.md`](AGENTS.md) |
+| `agents/` | **обучаемые политики**: `BDIPolicy`/`QTablePolicy`/`MLPPolicy` (22 признака, 22-й — сигнал окна среды `env_window`), `PolicyAgent` (легаси-мост), обучение `python -m agents.train`, автопоиск чекпойнтов `agents/checkpoints.py`; спецификация — [`AGENTS.md`](AGENTS.md) |
 | `configs/storylines/` | сюжеты кампанийного потока (`world_demo*`, легаси `faction_leader_demo`) |
 | `checkpoints/` | каталог production-чекпойнтов политик по умолчанию (`best.json` / `latest.json` / свежие `*.json`) |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |

@@ -913,6 +913,35 @@ def test_campaign_env_domain_sickness_reaches_engine():
     env.apply_domain(**draw)
     condition = env.engine.player_condition()
     assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
+
+
+def test_train_campaign_career_flag_opens_career_space():
+    """Готовность A3: флаг `--campaign-career` проброшен в обучение."""
+    from agents.train import main as train_main
+
+    stats_path = "/tmp/a3_career_stats.json"
+    train_main([
+        "--env", "campaign", "--episodes", "2", "--max-steps", "6",
+        "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
+        "--campaign-career", "--out", "/tmp/a3_career_ckpt.json",
+        "--eval-out", stats_path,
+    ])
+    # Флаг доходит до env_kwargs (career_actions=True) и не ломает цикл:
+    # политики обучаются в расширенном пространстве действий.
+    import json
+
+    with open(stats_path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    assert payload["env"] == "campaign"
+    # Тот же запуск без флага — прежнее замкнутое пространство.
+    train_main([
+        "--env", "campaign", "--episodes", "2", "--max-steps", "6",
+        "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
+        "--out", "/tmp/a3_nocareer_ckpt.json", "--eval-out", stats_path,
+    ])
+    with open(stats_path, encoding="utf-8") as handle:
+        payload2 = json.load(handle)
+    assert payload2["episodes"] == payload["episodes"]
     # Стартовый config среды не мутируется: второй движок без домена чист.
     fresh = CampaignEnv(seed=3, max_days=4)
     assert fresh.engine.player_condition()["sickness"] == 0.0

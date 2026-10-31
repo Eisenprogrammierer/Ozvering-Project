@@ -975,6 +975,15 @@ def main(argv=None):
         default=0.0,
         help="относительный джиттер навыков профиля кампании (0.25 = ±25%%)",
     )
+    parser.add_argument(
+        "--campaign-career",
+        action="store_true",
+        help=(
+            "открыть карьерные действия (seek_promotion/request_transfer/"
+            "resign) в legal_actions() для --env campaign: политика учится "
+            "менять должность сама (готовность A3); вне кампании игнорируется"
+        ),
+    )
     parser.add_argument("--out", default="")
     parser.add_argument("--eval-out", default="")
     args = parser.parse_args(argv)
@@ -1016,6 +1025,9 @@ def main(argv=None):
     env_kwargs = {}
     if args.env == "arena" and args.no_with_env:
         env_kwargs["with_env"] = False
+    if args.env == "campaign" and args.campaign_career:
+        # Готовность A3: политика сама выбирает повышение/перевод/отставку.
+        env_kwargs["career_actions"] = True
     train_kwargs = dict(
         episodes=args.episodes,
         policy_name=args.policy,
