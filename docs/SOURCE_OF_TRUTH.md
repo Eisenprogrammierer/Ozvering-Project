@@ -433,9 +433,10 @@ BDI — не третий тип и не отдельная онтология. 
 - Реализован слой `agents`: `BDIPolicy` с online-обновлением,
   `QTablePolicy`, `MLPPolicy` (tanh-hidden=16, без PyTorch, с target-сетью),
   `PolicyAgent` как легаси-мост и CLI `python -m agents.train`. Вектор
-  признаков — 21 (18 прежних, стабильный код действия и два признака среды
-  `env_pressure`/`env_season`), чекпойнты — `CHECKPOINT_VERSION = 2`; BDI
-  v0/v1 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
+  признаков — 22 (18 прежних, стабильный код действия, два признака среды
+  `env_pressure`/`env_season` и окно уязвимости `env_window` из среза A1),
+  чекпойнты — `CHECKPOINT_VERSION = 3`; BDI
+  v0/v1/v2 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
   копирует online-веса в target. `--max-steps` по умолчанию зависит от
   среды: `arena=2000`, `duel=160`, `campaign=30`; defaults Python API и CLI
   выровнены. Held-out `qtable`/`mlp` без чекпойнта прогреваются
