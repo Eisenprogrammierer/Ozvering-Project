@@ -1261,9 +1261,85 @@ class DuelMLPPolicy:
             json.dump(self.state_dict(), handle, ensure_ascii=False)
 
 
+class UtilityPolicy:
+    """B4: эвристика «как в пин-калибровке RL 1 / UtilityAI 9».
+
+    Детерминированная утилитарная политика дуэли без обучения: при
+    преимуществе давления — силовая атака в открытого противника,
+    иначе накопление (WORK), отдых и лечение по состоянию. Служит
+    сильным не-обучаемым оппонентом в игре («Матч с ИИ») и baseline
+    в матрице силы; веса не обновляются (`observe()` — no-op).
+    """
+
+    def __init__(self, aggression=0.75):
+        self.aggression = float(aggression)
+
+    def act(self, observation, actions, explore=True):
+        by_kind = {}
+        for action in actions:
+            by_kind.setdefault(action.kind, []).append(action)
+        pressure_edge = (
+            observation.opponent_pressure - _pressure_self_proxy(observation)
+        )
+        health_ratio = observation.self_health / max(
+            1.0, observation.self_max_health
+        )
+        opponent_open = bool(observation.opponent_open)
+        # 1. Лечение, когда здоровье критично и есть чем лечить.
+        treat = by_kind.get("TREAT")
+        if treat and health_ratio < 0.5 and observation.self_energy > 20.0:
+            return treat[0]
+        # 2. Атака силой: противник открыт или продавлен.
+        work = by_kind.get("WORK") or []
+        force_hits = [a for a in work if a.form == "force"]
+        if (
+            force_hits
+            and (opponent_open or pressure_edge > 2.0)
+            and observation.self_energy
+            >= 0.3 * max(1.0, observation.self_max_energy)
+        ):
+            best = max(force_hits, key=lambda a: a.fraction)
+            if best.fraction > self.aggression:
+                return best
+            return force_hits[len(force_hits) // 2]
+        # 3. Накопление: отстаём по силе или энергии.
+        energy_short = (
+            observation.self_energy
+            < 0.6 * max(1.0, observation.self_max_energy)
+        )
+        force_short = (
+            observation.self_force
+            < 0.8 * max(1.0, observation.self_max_force)
+        )
+        if work and (energy_short or force_short or not opponent_open):
+            return min(work, key=lambda a: a.fraction)
+        # 4. Прочие формы атаки по доступности.
+        other_hits = [a for a in work if a.form != "force"]
+        if other_hits and opponent_open:
+            return other_hits[0]
+        rest = by_kind.get("REST")
+        if rest:
+            return rest[0]
+        return actions[0]
+
+    def observe(self, transition):
+        # Не обучается: чистая эвристика (baseline из пина RL 1/UAI 9).
+        return None
+
+
+def _pressure_self_proxy(observation):
+    """Давление «себя» из наблюдаемого: косвенно — по доле своей энергии."""
+    return (
+        1.0 - observation.self_energy / max(1.0, observation.self_max_energy)
+    ) * 8.0
+
+
 def make_policy(name, seed=0):
     if name in ("bdi", "adaptive"):
         return BDIPolicy(seed=seed)
+    if name in ("utility", "uai"):
+        # B4: не-обучаемый сильный оппонент для игры и калибровки.
+        return UtilityPolicy()
     if name in ("qtable", "q"):
         return QTablePolicy(seed=seed)
     if name == "qtable-campaign":

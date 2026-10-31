@@ -32,7 +32,7 @@ import os
 import random
 
 from core41 import ArenaEnv, DuelEnv, randomize_draw
-from core41.types import CampaignAction, Transition
+from core41.types import Action, CampaignAction, Transition
 
 from .policies import load_policy, make_policy
 
@@ -57,6 +57,72 @@ DEFAULT_EVAL_EPISODES = 20
 BASELINE_SEED_SALT = 500003
 # Held-out поток для выбора лучшего чекпойнта во время обучения.
 BEST_CHECKPOINT_SEED_SALT = 700001
+
+
+def _random_duel_action(actions, rng):
+    """B4: случайное легальное действие дуэли (вектор из `Action`)."""
+    action = actions[int(rng.randrange(len(actions)))]
+    if isinstance(action, Action):
+        return action
+    from core41.arena import action_from_index
+
+    return action_from_index(int(action))
+
+
+def _play_duel_episode(env, policy, opponent, seed, *, learn, explore):
+    """B4: партия DuelEnv с внешними политиками (action-объекты).
+
+    `_play_episode` работает с индексными действиями `ArenaEnv`; в
+    `DuelEnv` легальные действия — объекты `Action`, поэтому цикл здесь
+    отдельный. Награды берутся через `_reward_for` (ключи agent/opponent).
+    """
+    observation = env.reset(seed=seed)
+    opponent_observation = env.observe("ai")
+    done = False
+    truncated = False
+    info = {}
+    while not (done or truncated):
+        actions = env.legal_actions("rl")
+        action = policy.act(observation, actions, explore=explore)
+        opponent_actions = env.legal_actions("ai")
+        opponent_action = opponent.act(
+            opponent_observation,
+            opponent_actions,
+            explore=explore,
+        )
+        (
+            next_observation,
+            reward,
+            done,
+            truncated,
+            info,
+        ) = env.step(action, opponent_action=opponent_action)
+        next_opponent_observation = env.observe("ai")
+        terminal = bool(done and not truncated)
+        if learn:
+            policy.observe(
+                Transition(
+                    observation=observation,
+                    action=action,
+                    reward=float(reward),
+                    next_observation=next_observation,
+                    done=terminal,
+                    next_actions=env.legal_actions("rl"),
+                )
+            )
+            opponent.observe(
+                Transition(
+                    observation=opponent_observation,
+                    action=opponent_action,
+                    reward=_reward_for(env, "ai"),
+                    next_observation=next_opponent_observation,
+                    done=terminal,
+                    next_actions=env.legal_actions("ai"),
+                )
+            )
+        observation = next_observation
+        opponent_observation = next_opponent_observation
+    return info or {}
 
 
 def _make_env(
@@ -141,6 +207,12 @@ def _play_episode(
             seed,
             learn=learn,
             explore=explore,
+        )
+    if not hasattr(env, "match"):
+        # B4: `DuelEnv` — легальные действия это объекты `Action`, а не
+        # индексы; отдельный цикл `_play_duel_episode`.
+        return _play_duel_episode(
+            env, policy, opponent, seed, learn=learn, explore=explore
         )
     observation = env.reset(seed=seed)
     opponent_observation = env.observe("ai")
