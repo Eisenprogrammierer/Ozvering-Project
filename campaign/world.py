@@ -3196,16 +3196,20 @@ class WorldEngine:
             due_slot=due_slot,
         )
 
-    def _run_intents(self, max_slot=SLOTS_MAX):
-        """Исполнить намерения, срок которых наступил в текущем дне.
+    def _run_intents(self, max_slot=SLOTS_MAX, day=None):
+        """Исполнить намерения, срок которых наступил.
 
         `max_slot` (A5) ограничивает исполнение слотами внутри дня:
         планировщик дня (`end_day`) вызывает метод с полным значением,
         а будущие внутридневные тики смогут выбрать только часть очереди.
         Просроченные намерения всегда исполняются первыми (слот 0).
+        `day` — день выборки очереди; по умолчанию «день после текущих
+        суток»: намерение со сроком «день N» исполняется в начале дня N,
+        поэтому очередь выбирается строго до инкремента `self.day`.
         """
         events = []
-        for intent in self.intents.pop_due(self.day, max_slot=max_slot):
+        target_day = self.day + 1 if day is None else day
+        for intent in self.intents.pop_due(target_day, max_slot=max_slot):
             if intent.cancel_when:
                 character = (
                     self.character(intent.actor) if intent.actor else None
@@ -3480,13 +3484,43 @@ class WorldEngine:
                 cancel_when={"field": "affinity", "op": "gt", "value": 0.8},
             )
 
+    def tick(self, max_slot=SLOTS_MAX):
+        """Внутридневной тик планировщика (A5).
+
+        Непрерывность времени кампании: мир исполняет намерения не только
+        на границе дня (слот 0), но и внутри него. `tick(max_slot=1)`
+        запускает очередь слотов 1..1 и НЕ двигает сутки — это чистый
+        внутридневный шаг. Полный тик (`max_slot=SLOTS_MAX`) исполняет
+        весь день и переводит сутки вперёд (тот же момент, что и
+        `end_day()`, но без хода ИИ, дохода и статистики дня); полный
+        цикл дня по-прежнему делает `end_day()`.
+
+        Возвращает список событий (пустой, если очередью делать нечего).
+        """
+        if self.finished:
+            return []
+        # Намерение со сроком «день N» исполняется в начале дня N;
+        # сутки при этом уже наступили (`self.day == N`), поэтому выборка
+        # идёт по текущему дню. Слот 0 (край дня) `end_day()` исполняет
+        # до хода ИИ — тик повторяет ту же границу и берёт внутридневные
+        # слоты 1..max_slot, которые end_day откладывает до утра.
+        events = self._run_intents(max_slot=0)
+        if max_slot >= 1:
+            events.extend(self._run_intents(max_slot=max_slot))
+        return events
+
     def end_day(self):
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         events = []
         # Отложенные события исполняются до хода ИИ: намерение, назначенное
-        # на этот день, должно успеть повлиять на его итог.
-        events.extend(self._run_intents())
+        # на день N, должно успеть повлиять на итог перехода в этот день.
+        # Очередь выбирается строго до инкремента `self.day` (см.
+        # `_run_intents`).
+        pre_day = self.day
+        # Край дня (A5): просроченные намерения и слот 0 дня `pre_day`
+        # исполняются до хода ИИ — они должны повлиять на его итог.
+        events.extend(self._run_intents(max_slot=0))
         for node_id in self.node_order:
             entry = self._ai_action(node_id)
             if entry is not None:
@@ -3513,6 +3547,13 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
+        # Внутридневные слоты (A5): очередь, назначенная на день перехода
+        # (`pre_day`), доигрывается сразу после наступления новых суток —
+        # так отложенное действие игрока исполняется в начале дня N, а не
+        # зависает до конца суток. Просроченные намерения уже забрал
+        # краевой тик выше.
+        if self.intents.due(pre_day, max_slot=SLOTS_MAX):
+            events.extend(self._run_intents(max_slot=SLOTS_MAX))
         if self.infinite:
             # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
             # горизонта больше не даёт win/lose. Сценарий продолжается,

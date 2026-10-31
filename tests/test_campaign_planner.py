@@ -483,7 +483,8 @@ def test_scheduled_action_skips_gracefully_when_no_longer_valid():
     # Герой погиб до срока — отложенное дело не должно ломать ход мира.
     engine.player_alive = False
 
-    engine.end_day()  # день 1 -> 2
+    # Намерение со сроком «день 2» исполняется при переходе в день 2:
+    # первый end_day закрывает сутки и запускает очередь.
     result = engine.end_day()  # срок наступил, но герой вне игры
     assert result["ok"] is True
     assert len(engine.intents) == 0
@@ -548,14 +549,13 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
     engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
     engine.schedule_action(action_id, due_day=2, due_slot=2)
 
-    engine.end_day()  # день 1 -> 2
-    engine.end_day()  # день 2 -> 3: утром дня 3 краевой тик выбирает слот 0
-    deferred_events = engine._run_intents(max_slot=0)
+    engine.end_day()  # день 1 -> 2: очередь дня 2 исполняется в начале закрытия
+    deferred_events = engine.tick(max_slot=0)
     fired_now = [e for e in deferred_events if e.get("source") == "player_action"]
     assert len(fired_now) == 1
     assert len(engine.intents) == 1  # внутридневное ещё в очереди
 
-    result = engine.end_day()  # конец дня 3: остаток исполняется полностью
+    result = engine.end_day()  # конец дня 2: остаток исполняется полностью
     fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
     assert len(fired_later) == 1
     assert len(engine.intents) == 0
