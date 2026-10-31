@@ -40,13 +40,19 @@ def _engine(seed=7):
     profile = build_player_profile(
         _variables(), biography=load_biography(), seed=seed
     )
-    return WorldEngine(
+    engine = WorldEngine(
         load_world(),
         profile=profile,
         node_id="agora_government",
         office_id="head_of_government",
         seed=seed,
     )
+    # Контракт A5: отложенное действие исполняется полным `execute()` в
+    # свой день. Должность должна быть занята до первого перехода суток,
+    # иначе первое же scheduled-действие освобождает пост и все
+    # последующие намерения дня снимаются с «сначала выберите должность».
+    engine.attach("agora_government", "head_of_government")
+    return engine
 
 
 def _first_character(engine):
@@ -92,26 +98,14 @@ def test_intent_queue_rejects_unknown_kind():
 def test_world_runs_due_message_intent_before_ai_turn():
     engine = _engine()
     text = "Гонец приносит весть."
-    engine.schedule_intent(engine.day + 1, "message", payload={"text": text})
+    # Край суток (слот 0): намерение исполняется до хода ИИ — полным
+    # циклом `end_day()` в начале дня срока (контракт A5).
+    engine.schedule_intent(engine.day + 1, "message", payload={"text": text}, due_slot=0)
 
-    engine.end_day()
+    engine.end_day()  # переход в день 2: очередь края исполняется до `_ai_action`
+
     assert engine.day == 2
-    # Намерение назначено на начало второго дня — исполняется первым
-    # внутридневным тиком этих суток (контракт A5).
-    events = engine.tick()
-
-    assert any(
-        entry["kind"] == "intent" and text in entry["text"]
-        for entry in events
-    )
-    result = engine.end_day()
-
-    assert result["ok"] is True
     assert len(engine.intents) == 0
-    assert any(
-        entry["kind"] == "intent" and text in entry["text"]
-        for entry in result["events"]
-    )
     assert any(entry["text"] == text for entry in engine.log)
 
 
@@ -129,8 +123,7 @@ def test_world_contact_intent_moves_affinity():
         },
     )
 
-    engine.end_day()
-    engine.tick()  # срок «день 2» исполняется в начале дня 2 (A5)
+    result = engine.end_day()  # слот 0: срок «день 2» исполняется в начале суток
 
     assert float(character["affinity"]) > before + 0.05
     assert any(
@@ -346,9 +339,9 @@ def test_world_cancels_intent_when_condition_holds():
         actor=character["id"],
         payload={"effects": {"affinity": 0.5}, "text": "примирение."},
         cancel_when={"field": "affinity", "op": "gt", "value": 0.0},
+        due_slot=0,
     )
-    engine.end_day()
-    result = engine.end_day()
+    result = engine.end_day()  # край дня 2: отмена исполняется до хода ИИ
     kinds = [entry["kind"] for entry in result["events"]]
     assert "intent_cancelled" in kinds
     assert "intent" not in kinds
@@ -367,9 +360,9 @@ def test_world_executes_intent_when_condition_false():
         actor=character["id"],
         payload={"effects": {"affinity": 0.1}, "text": "помощь."},
         cancel_when={"field": "affinity", "op": "gt", "value": 5.0},
+        due_slot=0,
     )
-    engine.end_day()
-    result = engine.end_day()
+    result = engine.end_day()  # край дня 2: исполнение до хода ИИ
     fired = [
         entry
         for entry in result["events"]
@@ -463,17 +456,15 @@ def test_schedule_action_rejects_unknown_action_and_past_day():
 def test_scheduled_action_executes_full_path_on_due_day():
     engine = _engine(seed=11)
     action_id = engine.available_actions()[0]
-    engine.attach("agora_government", "head_of_government")
-    engine.schedule_action(action_id, due_day=engine.day + 1)
+    engine.schedule_action(action_id, due_day=engine.day + 1, due_slot=1)
 
-    result = engine.end_day()  # закрытие дня 1: срок ещё не наступил
-    assert result["ok"] is True
+    engine.end_day()  # переход в день 2: краевой тик ещё не делался (слот 1)
     assert len(engine.intents) == 1
-    result = engine.end_day()  # закрытие дня 2: намерение исполняется до хода ИИ
+    events = engine.tick()  # начало дня 2: намерение исполняется своим тиком
 
     fired = [
         entry
-        for entry in result["events"]
+        for entry in events
         if entry.get("source") == "player_action"
     ]
     assert len(fired) == 1
@@ -491,12 +482,11 @@ def test_scheduled_action_skips_gracefully_when_no_longer_valid():
     # Герой погиб до срока — отложенное дело не должно ломать ход мира.
     engine.player_alive = False
 
-    # Семантика A5: намерение со сроком «день N» исполняется в начале
-    # дня N, то есть первым же `tick()` после перехода суток. Первый
-    # end_day открывает день 2, тик запускает очередь — и получает
+    # Семантика A5: слот 0 (край) исполняется полным циклом `end_day()`
+    # в начале дня срока — долг закрывается до хода ИИ и получает
     # вежливый отказ без последствий для мира.
-    engine.end_day()
-    events = engine.tick()
+    result = engine.end_day()
+    events = result["events"]
     assert len(engine.intents) == 0
     assert not any(
         entry.get("source") == "player_action" for entry in events
@@ -508,7 +498,6 @@ def test_scheduled_action_skips_gracefully_when_no_longer_valid():
 def test_scheduled_action_survives_save_and_load():
     engine = _engine(seed=11)
     action_id = engine.available_actions()[0]
-    engine.attach("agora_government", "head_of_government")
     engine.schedule_action(action_id, due_day=engine.day + 1)
     snapshot = engine.to_dict()
 
@@ -517,8 +506,7 @@ def test_scheduled_action_survives_save_and_load():
     pending = list(restored.intents)[0]
     assert pending.kind == "action" and pending.payload["action"] == action_id
 
-    restored.end_day()  # день 1 -> 2 (срок ещё не исполняется)
-    result = restored.end_day()  # закрытие дня 2: намерение срабатывает
+    result = restored.end_day()  # день 1 -> 2: край суток исполняет намерение
     fired = [
         entry
         for entry in result["events"]
