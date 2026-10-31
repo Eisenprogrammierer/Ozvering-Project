@@ -330,20 +330,24 @@ def test_feature_count_includes_environment_features():
     observation = _observation()
     action = Action("WORK", form="force", fraction=0.5)
     vector = features(observation, action)
-    assert FEATURE_COUNT == 21
+    assert FEATURE_COUNT == 22
     assert len(vector) == FEATURE_COUNT
-    # Последние два слота — наблюдаемое расписание среды.
-    assert vector[-2] == pytest.approx(0.0)
-    assert vector[-1] == pytest.approx(1.0)
+    # Предпоследние два слота — наблюдаемое расписание среды; последний
+    # (A1) — окно уязвимости.
+    assert vector[-3] == pytest.approx(0.0)
+    assert vector[-2] == pytest.approx(1.0)
+    assert vector[-1] == pytest.approx(0.0)
     pressured = Observation(
         **{
             **observation.__dict__,
             "env_pressure": 0.75,
             "env_season": 1.3,
+            "env_window": 1.0,
         }
     )
     pressured_vector = features(pressured, action)
-    assert pressured_vector[-2] == pytest.approx(0.75)
+    assert pressured_vector[-3] == pytest.approx(0.75)
+    assert pressured_vector[-2] == pytest.approx(1.0)
     assert pressured_vector[-1] == pytest.approx(1.0)
 
 

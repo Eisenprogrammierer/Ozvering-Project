@@ -356,7 +356,9 @@ def test_campaign_features_vector_shape_and_flags():
     end_day = campaign_features(observation, CampaignAction(END_DAY))
     work = campaign_features(observation, CampaignAction("inspect", target="n"))
     heal = campaign_features(observation, CampaignAction("build_network"))
-    assert len(end_day) == len(work) == len(heal) == 21
+    # A1: длина кампанейного вектора выровнена с FEATURE_COUNT (22;
+    # 22-й слот — окно среды, у кампании всегда 0.0).
+    assert len(end_day) == len(work) == len(heal) == 22
     # Флаги действия: slot7 END_DAY, slot8 работа (с целью), slot17 self-ход.
     assert (end_day[7], end_day[8], end_day[17]) == (1.0, 0.0, 0.0)
     assert (work[7], work[8], work[17]) == (0.0, 1.0, 0.0)

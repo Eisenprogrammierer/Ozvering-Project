@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from .environment import ArenaEnvironment
+from .environment import ENV_BONUS, ArenaEnvironment
 from .model import (
     DEFAULT_HEALTH_FACTORS,
     HEALTH_FACTOR_MAX,
@@ -551,6 +551,7 @@ class ArenaAgent:
             opponent_wound=float(other.wound),
             env_pressure=float(getattr(self, "_env_pressure", 0.0)),
             env_season=float(getattr(self, "_env_season", 1.0)),
+            env_window=float(getattr(self, "_env_window", 0.0)),
         )
         return observation
 
@@ -611,7 +612,16 @@ class ArenaAgent:
                 "pressure": 0.0,
             }
         was_open = target.is_open()
-        chance = success_probability(source, target, work, was_open)
+        # A1: открытое окно среды аддитивно усиливает успех работы обеих
+        # сторон (канонный ENV_BONUS). Вне арены с активным env-актором
+        # бонус равен 0 — прежняя калибровка дуэлей не меняется.
+        env = getattr(world, "env", None)
+        env_bonus = 0.0
+        if env is not None and env.window_open():
+            env_bonus = float(ENV_BONUS)
+        chance = success_probability(
+            source, target, work, was_open, env_bonus=env_bonus
+        )
         rng = getattr(world, "rng", self.rng)
         target.energy = min(
             target.max_energy, target.energy + work.amount * 0.12
@@ -620,6 +630,11 @@ class ArenaAgent:
         target.state["pressure"] = min(
             30.0, target.pressure() + pressure
         )
+        # A1: работа сторон доходит до среды (канонный receive_pressure):
+        # накопленное давление может открыть окно уязвимости на следующем
+        # такте тика среды.
+        if env is not None:
+            env.ingest(work.amount)
         success = rng.random() < chance
         damage = 0.0
         gain = 0.0
@@ -735,10 +750,14 @@ class ArenaMatch:
             for actor in (rl, ai):
                 actor._env_pressure = env_state["strain"]
                 actor._env_season = env_state["season_multiplier"]
+                # A1: наблюдаемое окно уязвимости (0/1) — сигнал для
+                # 22-го признака политик.
+                actor._env_window = 1.0 if env_state["window"] else 0.0
         else:
             for actor in (rl, ai):
                 actor._env_pressure = 0.0
                 actor._env_season = 1.0
+                actor._env_window = 0.0
         rl_obs = rl.observe(ai)
         ai_obs = ai.observe(rl)
 
