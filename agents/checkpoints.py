@@ -31,7 +31,9 @@ DEFAULT_CHECKPOINT_DIR = "checkpoints"
 # Имена, которые `--save-best`/`--out` пишут чаще всего. Порядок важен:
 # `best.json` — осознанный выбор по held-out, `latest.json` — последний.
 PREFERRED_NAMES = ("best.json", "latest.json")
-KNOWN_KINDS = ("bdi", "qtable", "mlp")
+# A9: `duel-mlp` (A7/A8) живёт в каталоге чекпойнтов наравне с остальными —
+# без него автопоиск игры (`find_checkpoint`) отвергал production-файл.
+KNOWN_KINDS = ("bdi", "qtable", "mlp", "duel-mlp")
 
 
 def project_root():

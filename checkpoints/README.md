@@ -24,8 +24,16 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 3. `latest.json`;
 4. самый свежий `*.json` по `mtime`.
 
-Файл должен быть JSON-объектом известного вида (`bdi`, `qtable`, `mlp`) и не
-новее `CHECKPOINT_VERSION`. Битые и чужие файлы пропускаются.
+Файл должен быть JSON-объектом известного вида (`bdi`, `qtable`, `mlp`,
+`duel-mlp`) и не новее своей версии (`CHECKPOINT_VERSION` для базовых
+политик, `DUEL_CHECKPOINT_VERSION` для duel-MLP). Битые и чужие файлы
+пропускаются.
+
+Исключение из правила «JSON-файлы не коммитятся»:
+`checkpoints/duel_mlp_production.json` — поставляемый production-агент
+(ось A, задача A9; обучен через `python3 -m agents.train --env arena
+--policy duel-mlp`). Он намеренно закоммичен, чтобы автопоиск игры
+находил его «из коробки».
 
 ```bash
 python3 main.py --list-checkpoints            # что найдено

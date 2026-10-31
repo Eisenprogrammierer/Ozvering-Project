@@ -7,6 +7,8 @@ venv/
 .pytest_cache/
 saves/
 checkpoints/*.json
+# A9: production-чекпойнт поставляется в репозитории (игра «из коробки»).
+!checkpoints/duel_mlp_production.json
 
 # Legacy prototype (local only)
 yet_another_project/

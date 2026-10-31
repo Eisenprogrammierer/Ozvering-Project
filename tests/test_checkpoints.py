@@ -273,3 +273,44 @@ def test_view_main_lists_checkpoints_without_creating_app(
     out = capsys.readouterr().out
     assert "mlp" in out
     assert str(tmp_path / "best.json") in out
+
+
+# --- A9: production-чекпойнт duel-mlp ------------------------------------
+
+
+def test_duel_mlp_checkpoint_is_autodiscoverable(tmp_path):
+    """A9: каталог чекпойнтов игры должен находить `duel-mlp` (v4).
+
+    До A9 `KNOWN_KINDS` не включал `duel-mlp`, и автопоиск
+    (`find_checkpoint` в `game_engine`) молча отвергал production-файл —
+    игра всегда падала на BDI.
+    """
+    from agents.checkpoints import find_checkpoint, is_loadable
+    from agents.policies import DuelMLPPolicy
+
+    policy = DuelMLPPolicy(seed=5)
+    path = tmp_path / "duel_mlp_production.json"
+    policy.save(str(path))
+
+    assert is_loadable(str(path))
+    assert find_checkpoint(directory=tmp_path) == str(path)
+
+    loaded = load_policy(str(path), seed=6)
+    assert isinstance(loaded, DuelMLPPolicy)
+
+
+def test_shipped_production_checkpoint_loads():
+    """В репозитории лежит загружаемый production-чекпойнт (A9)."""
+    from agents import checkpoints as ck
+    from agents.policies import DuelMLPPolicy
+
+    path = ck.find_checkpoint()
+    assert path.endswith("duel_mlp_production.json"), path
+    policy = load_policy(path)
+    assert isinstance(policy, DuelMLPPolicy)
+    # Вектор duel-политики — расширенный (базовые признаки + статистика оппонента).
+    from agents.policies import DUEL_FEATURE_COUNT
+
+    state = ck.read_checkpoint(path)
+    assert state["version"] == 4
+    assert state["feature_count"] == DUEL_FEATURE_COUNT
