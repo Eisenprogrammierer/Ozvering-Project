@@ -14,7 +14,14 @@ from .actor import (
 )
 from .character import CampaignCharacter
 from .errors import CampaignError
-from .planner import AUTONOMY_PERIOD, IntentQueue, SLOTS_MAX, condition_holds
+from .planner import (
+    AUTONOMY_PERIOD,
+    IntentQueue,
+    SLOT_DAY_EDGE,
+    SLOTS_MAX,
+    _as_slot,
+    condition_holds,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
@@ -3183,8 +3190,16 @@ class WorldEngine:
         if action_id not in self.actions:
             return None
         day = self.day + 1 if due_day is None else max(1, _as_int(due_day, 1))
-        if day <= self.day:
+        if day < self.day:
+            # Срок уже в прошлом — очередь и так исполняет долги первыми,
+            # планировать «вчера» бессмысленно.
             return None
+        if day == self.day and _as_slot(due_slot) == SLOT_DAY_EDGE:
+            # Край текущего дня (слот 0) мог быть пропущен, если игрок
+            # начал играть не с рассвета; разрешаем срочное намерение —
+            # его заберёт ближайший `tick()`. Внутридневные слоты того же
+            # дня доступны всегда: они ещё не наступили.
+            pass
         return self.schedule_intent(
             day,
             "action",
@@ -3209,7 +3224,24 @@ class WorldEngine:
         """
         events = []
         target_day = self.day + 1 if day is None else day
-        for intent in self.intents.pop_due(target_day, max_slot=max_slot):
+        # Просроченные долги — это строго `due_day < target_day`. Намерения
+        # будущих дней (`due_day > target_day`) не должны уходить с выборки
+        # как «долги»: их заберёт свой день.
+        ready = [
+            item
+            for item in self.intents.items
+            if item.due_day < target_day
+            or (item.due_day == target_day and _as_slot(item.due_slot) <= _as_slot(max_slot))
+        ]
+        if not ready:
+            return events
+        ready_ids = {id(item) for item in ready}
+        self.intents.items = [
+            item for item in self.intents.items if id(item) not in ready_ids
+        ]
+        for intent in sorted(
+            ready, key=lambda item: (-item.priority, _as_slot(item.due_slot))
+        ):
             if intent.cancel_when:
                 character = (
                     self.character(intent.actor) if intent.actor else None
@@ -3291,61 +3323,79 @@ class WorldEngine:
             # те же проверки доступности, та же цена и детерминированный
             # бросок. Если к сроку действие недоступно (увольнение, смерть,
             # конец кампании), намерение снимается без последствий.
-            if self.finished or not self.player_alive:
-                text = "Отложенное дело не состоялось: герой вне игры."
-                self.log.append(
-                    {"day": self.day, "kind": "intent_skipped", "text": text}
-                )
-                return [
-                    {
-                        "kind": "intent_skipped",
-                        "day": self.day,
-                        "source": intent.source,
-                        "target": _text(intent.target),
-                        "text": text,
-                        "changes": [],
-                    }
-                ]
-            result = self.execute(
-                _text(intent.payload.get("action")),
-                _text(intent.payload.get("target")) or None,
+            # Долг из прошлого дня исполняется в «виртуальных» сутках его
+            # срока: сам счётчик дней уже мог уйти вперёд, но событие в
+            # журнале должно стоять там, где оно было запланировано.
+            day_saved = self.day
+            if intent.due_day < day_saved:
+                self.day = intent.due_day
+            try:
+                return self._apply_action_intent(intent)
+            finally:
+                self.day = day_saved
+        return []
+
+    def _apply_action_intent(self, intent):
+        """Исполнить отложенное действие игрока через полный путь `execute()`.
+
+        Вынесен в отдельный метод, чтобы `_apply_intent` оставался
+        диспетчером по видам намерений, а виртуальный «день срока»
+        (см. `_apply_intent`) корректно оборачивал и успех, и отказ.
+        """
+        if self.finished or not self.player_alive:
+            text = "Отложенное дело не состоялось: герой вне игры."
+            self.log.append(
+                {"day": self.day, "kind": "intent_skipped", "text": text}
             )
-            if not result.get("ok"):
-                text = "Отложенное дело не состоялось: %s" % _text(
-                    result.get("reason"), "действие недоступно"
-                )
-                self.log.append(
-                    {"day": self.day, "kind": "intent_skipped", "text": text}
-                )
-                return [
-                    {
-                        "kind": "intent_skipped",
-                        "day": self.day,
-                        "source": intent.source,
-                        "target": _text(result.get("target")),
-                        "text": text,
-                        "changes": [],
-                    }
-                ]
             return [
                 {
-                    "kind": "intent",
+                    "kind": "intent_skipped",
                     "day": self.day,
-                    "source": "player_action",
-                    "target": result["target"],
-                    "actor": "player",
-                    "action": result["action"],
-                    "outcome": result["outcome"],
-                    "text": "%s → %s: %s"
-                    % (
-                        result["action_label"],
-                        result["target_label"],
-                        result["text"],
-                    ),
-                    "changes": list(result["changes"]),
+                    "source": intent.source,
+                    "target": _text(intent.target),
+                    "text": text,
+                    "changes": [],
                 }
             ]
-        return []
+        result = self.execute(
+            _text(intent.payload.get("action")),
+            _text(intent.payload.get("target")) or None,
+        )
+        if not result.get("ok"):
+            text = "Отложенное дело не состоялось: %s" % _text(
+                result.get("reason"), "действие недоступно"
+            )
+            self.log.append(
+                {"day": self.day, "kind": "intent_skipped", "text": text}
+            )
+            return [
+                {
+                    "kind": "intent_skipped",
+                    "day": self.day,
+                    "source": intent.source,
+                    "target": _text(result.get("target")),
+                    "text": text,
+                    "changes": [],
+                }
+            ]
+        return [
+            {
+                "kind": "intent",
+                "day": self.day,
+                "source": "player_action",
+                "target": result["target"],
+                "actor": "player",
+                "action": result["action"],
+                "outcome": result["outcome"],
+                "text": "%s → %s: %s"
+                % (
+                    result["action_label"],
+                    result["target_label"],
+                    result["text"],
+                ),
+                "changes": list(result["changes"]),
+            }
+        ]
 
     def _autonomy_intent(self, character):
         """Выбрать вид автономного контакта по состоянию персонажа.
