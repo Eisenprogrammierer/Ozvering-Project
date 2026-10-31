@@ -14,10 +14,38 @@ from .actor import (
 )
 from .character import CampaignCharacter
 from .errors import CampaignError
-from .planner import AUTONOMY_PERIOD, IntentQueue
+from .planner import AUTONOMY_PERIOD, IntentQueue, condition_holds
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
+
+# Политика автономных персонажей (A4): базовый шанс социального контакта
+# и величины эффектов. Исход бросается `campaign_success_chance` — той же
+# формулой, что действует игрок; провал даёт слабый негативный дрейф
+# вместо позитивного. Пороги выбора вида — по легаси-шкале [-1, 1].
+AUTONOMY_BASE_CHANCE = 0.6
+AUTONOMY_AFFINITY_THRESHOLD = -0.2
+AUTONOMY_TRUST_THRESHOLD = 0.35
+
+# Ветки политики автономных контактов: `effects` применяются при успехе,
+# при провале эффект зеркалится и halвится (см. `_apply_autonomy_contact`).
+_AUTONOMY_POLICIES = {
+    "reconcile": {
+        "effects": {"affinity": 0.02},
+        "text": "предложил(а) примирение.",
+        "failure_text": "попытка примирения отскочила.",
+    },
+    "rapprochement": {
+        "effects": {"affinity": 0.02, "trust": 0.01},
+        "text": "укрепил(а) контакт.",
+        "failure_text": "контакт не сложился.",
+    },
+    "probe": {
+        "effects": {"affinity": 0.01},
+        "text": "нашёл(ла) повод для разговора.",
+        "failure_text": "разговор не задался.",
+    },
+}
 DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
 
 CAMPAIGN_HEALTH_REGEN = 1.0
@@ -3109,12 +3137,16 @@ class WorldEngine:
         target="",
         payload=None,
         source="world",
+        priority=0,
+        cancel_when=None,
     ):
         """Отложить событие мира на будущий день.
 
         Возвращает `Intent` или `None`, если очередь переполнена. Это
         единственный вход планировщика: сюжет, персонажи и тесты назначают
         события одинаково, а исполнение всегда идёт через `_run_intents()`.
+        `priority` задаёт порядок внутри дня (больше = раньше),
+        `cancel_when` — условие отмены по легаси-полям актёра.
         """
         return self.intents.schedule(
             due_day,
@@ -3123,12 +3155,37 @@ class WorldEngine:
             target=target,
             payload=payload,
             source=source,
+            priority=priority,
+            cancel_when=cancel_when,
         )
 
     def _run_intents(self):
         """Исполнить намерения, срок которых наступил в текущем дне."""
         events = []
         for intent in self.intents.pop_due(self.day):
+            if intent.cancel_when:
+                character = (
+                    self.character(intent.actor) if intent.actor else None
+                )
+                if condition_holds(intent.cancel_when, character):
+                    self.log.append(
+                        {
+                            "day": self.day,
+                            "kind": "intent_cancelled",
+                            "text": "Намерение отменено: условие не выполнено.",
+                        }
+                    )
+                    events.append(
+                        {
+                            "kind": "intent_cancelled",
+                            "day": self.day,
+                            "source": intent.source,
+                            "target": intent.actor,
+                            "text": "намерение снято по условию",
+                            "changes": [],
+                        }
+                    )
+                    continue
             events.extend(self._apply_intent(intent))
         return events
 
@@ -3151,6 +3208,10 @@ class WorldEngine:
                 }
             ]
         if intent.kind == "contact":
+            if intent.source == "autonomy":
+                # Автономный контакт (A4) исполняется своей политикой:
+                # вид ветки и бросок шанса через `campaign_success_chance`.
+                return self._apply_autonomy_contact(intent)
             character = self.character(intent.actor)
             if character is None or not character.get("alive", True):
                 return []
@@ -3180,13 +3241,100 @@ class WorldEngine:
             ]
         return []
 
+    def _autonomy_intent(self, character):
+        """Выбрать вид автономного контакта по состоянию персонажа.
+
+        Политика (срез A4): враждебный персонаж тянется к примирению,
+        лояльный при высоком доверии — к сближению, остальные — к
+        нейтральному разведывательному контакту. Эффекты прописаны сразу
+        для исхода «успех»; бросок шанса делает `_apply_autonomy_contact`.
+        """
+        affinity = _as_float(character.get("affinity"), 0.0)
+        trust = _as_float(character.get("trust"), 0.0)
+        if affinity <= AUTONOMY_AFFINITY_THRESHOLD:
+            return "reconcile", {
+                "effects": {"affinity": 0.02},
+                "text": "предложил(а) примирение.",
+            }
+        if affinity >= 0.0 and trust >= AUTONOMY_TRUST_THRESHOLD:
+            return "rapprochement", {
+                "effects": {"affinity": 0.02, "trust": 0.01},
+                "text": "укрепил(а) контакт.",
+            }
+        return "probe", {
+            "effects": {"affinity": 0.01},
+            "text": "нашёл(ла) повод для разговора.",
+        }
+
+    def _apply_autonomy_contact(self, intent):
+        """Исполнить автономный контакт через общую формулу успеха.
+
+        Атакующий — сам персонаж (его `Automaton` уже содержит F/E/H),
+        защитник — его структура. Успех применяет позитивные эффекты
+        выбранной политики, провал — слабый негативный дрейф. Исход
+        детерминирован seed'ом мира (`_roll`).
+        """
+        character = self.character(intent.actor)
+        if character is None or not character.get("alive", True):
+            return []
+        kind = _text(intent.payload.get("policy"), "probe")
+        branch = _AUTONOMY_POLICIES.get(kind) or _AUTONOMY_POLICIES["probe"]
+        defender = None
+        if self.attached and character.get("node_id"):
+            defender = self.node(character["node_id"])
+        attacker_unit = character.sync()
+        base = AUTONOMY_BASE_CHANCE
+        if defender is not None:
+            chance = campaign_success_chance(
+                base,
+                attacker_unit,
+                self._unit_from_node(defender),
+                form="info",
+            )
+        else:
+            chance = campaign_success_chance(
+                base, attacker_unit, None, form="info"
+            )
+        roll = self._roll("autonomy:%s:%s" % (self.day, character["id"]))
+        outcome = "success" if roll < chance else "failure"
+        effects = branch["effects"] if outcome == "success" else {
+            key: -abs(value) * 0.5 for key, value in branch["effects"].items()
+        }
+        changed = self._apply_character_effects(effects, character)
+        text = branch["text"] if outcome == "success" else branch.get(
+            "failure_text", "контакт не удался."
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "contact",
+                "text": "%s: %s" % (character["name"], text),
+            }
+        )
+        return [
+            {
+                "kind": "intent",
+                "day": self.day,
+                "source": intent.source,
+                "target": character["id"],
+                "actor": character["id"],
+                "outcome": outcome,
+                "text": text,
+                "changes": changed,
+            }
+        ]
+
     def _schedule_autonomy(self):
         """Автономные персонажи сами назначают контакты на будущее.
 
         Намерение создаётся только для персонажа с `autonomous: true`;
         по умолчанию таких нет, поэтому баланс существующих миров не
         меняется. Дубль на тот же день и актора не создаётся, а исход
-        контакта детерминирован seed'ом мира.
+        контакта детерминирован seed'ом мира. Вид контакта выбирается
+        политикой `_autonomy_intent`, отложенный контакт снимается, если
+        к моменту исполнения персонаж окончательно расположен к игроку
+        (`cancel_when`: высокая симпатия делает «повод для разговора»
+        неактуальным).
         """
         for character in self.characters.values():
             if not character.get("autonomous"):
@@ -3209,20 +3357,19 @@ class WorldEngine:
                 due_day=due_day, actor=character["id"], source="autonomy"
             ):
                 continue
-            roll = self._roll(
-                "autonomy:%s:%s" % (self.day, character["id"])
-            )
-            # Контакт — не подарок: отношение слегка растёт или падает.
-            drift = 0.01 if roll >= 0.5 else -0.01
+            policy, branch = self._autonomy_intent(character)
             self.schedule_intent(
                 due_day,
                 "contact",
                 actor=character["id"],
                 payload={
-                    "effects": {"affinity": drift},
-                    "text": "нашёл(ла) повод для разговора.",
+                    "policy": policy,
+                    "effects": dict(branch["effects"]),
+                    "text": branch["text"],
                 },
                 source="autonomy",
+                priority=1 if policy == "reconcile" else 0,
+                cancel_when={"field": "affinity", "op": "gt", "value": 0.8},
             )
 
     def end_day(self):
