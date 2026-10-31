@@ -14,7 +14,7 @@ from .actor import (
 )
 from .character import CampaignCharacter
 from .errors import CampaignError
-from .planner import AUTONOMY_PERIOD, IntentQueue, condition_holds
+from .planner import AUTONOMY_PERIOD, IntentQueue, SLOTS_MAX, condition_holds
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
@@ -3196,10 +3196,16 @@ class WorldEngine:
             due_slot=due_slot,
         )
 
-    def _run_intents(self):
-        """Исполнить намерения, срок которых наступил в текущем дне."""
+    def _run_intents(self, max_slot=SLOTS_MAX):
+        """Исполнить намерения, срок которых наступил в текущем дне.
+
+        `max_slot` (A5) ограничивает исполнение слотами внутри дня:
+        планировщик дня (`end_day`) вызывает метод с полным значением,
+        а будущие внутридневные тики смогут выбрать только часть очереди.
+        Просроченные намерения всегда исполняются первыми (слот 0).
+        """
         events = []
-        for intent in self.intents.pop_due(self.day):
+        for intent in self.intents.pop_due(self.day, max_slot=max_slot):
             if intent.cancel_when:
                 character = (
                     self.character(intent.actor) if intent.actor else None
@@ -3282,7 +3288,20 @@ class WorldEngine:
             # бросок. Если к сроку действие недоступно (увольнение, смерть,
             # конец кампании), намерение снимается без последствий.
             if self.finished or not self.player_alive:
-                return []
+                text = "Отложенное дело не состоялось: герой вне игры."
+                self.log.append(
+                    {"day": self.day, "kind": "intent_skipped", "text": text}
+                )
+                return [
+                    {
+                        "kind": "intent_skipped",
+                        "day": self.day,
+                        "source": intent.source,
+                        "target": _text(intent.target),
+                        "text": text,
+                        "changes": [],
+                    }
+                ]
             result = self.execute(
                 _text(intent.payload.get("action")),
                 _text(intent.payload.get("target")) or None,

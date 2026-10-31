@@ -284,14 +284,26 @@ class IntentQueue:
         ]
         return before - len(self.items)
 
-    def due(self, day):
-        """Намерения, которые пора исполнить в начале `day`."""
-        return [item for item in self.items if item.due_day <= int(day)]
+    def due(self, day, max_slot=SLOTS_MAX):
+        """Намерения, которые пора исполнить в начале `day`.
 
-    def pop_due(self, day):
-        """Извлечь и вернуть намерения, срок которых наступил."""
+        `max_slot` ограничивает исполнение слотами внутри дня (A5):
+        при `max_slot=0` возвращаются только «граница дня» (слот 0),
+        при `max_slot=SLOTS_MAX` — весь день. Просроченные намерения
+        (`due_day < day`) считаются стоящими в нулевом слоте и всегда
+        попадают в выборку: мир не должен копить долги.
+        """
         day = int(day)
-        ready = self.due(day)
+        limit = _as_slot(max_slot)
+        return [
+            item
+            for item in self.items
+            if item.due_day < day or (item.due_day == day and _as_slot(item.due_slot) <= limit)
+        ]
+
+    def pop_due(self, day, max_slot=SLOTS_MAX):
+        """Извлечь и вернуть намерения, срок которых наступил."""
+        ready = self.due(day, max_slot=max_slot)
         if not ready:
             return []
         ready_ids = {id(item) for item in ready}
