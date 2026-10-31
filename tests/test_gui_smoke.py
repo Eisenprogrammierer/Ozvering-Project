@@ -139,7 +139,15 @@ def test_world_screen_runs_in_live_cycle(app):
     else:
         # fallback: прямой вызов того же пути, что делает кнопка
         screen._end_day()
+    # Сначала крутим цикл без QUIT: он завершится страховкой max_frames,
+    # и мы зафиксируем, что экран мира реально рисовался живыми кадрами.
+    frames_pre = _drain_cycle(app, max_frames=30)
+    assert frames_pre >= 5, (
+        "живой цикл должен отрисовать кадры экрана мира (получено %d)"
+        % frames_pre
+    )
+    # Затем ещё один короткий цикл с QUIT в конце — штатное завершение.
     _post_quit()
     frames = _drain_cycle(app, max_frames=90)
-    assert frames >= 5
+    assert frames >= 1
     assert engine.day > day_before, "завершение дня обязано продвинуть мир"
