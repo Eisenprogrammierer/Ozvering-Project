@@ -8,6 +8,7 @@ import simulation as S
 from agents import (
     BDIPolicy,
     CHECKPOINT_VERSION,
+    DuelMLPPolicy,
     FEATURE_COUNT,
     MLPPolicy,
     PolicyAgent,
@@ -353,6 +354,130 @@ def test_feature_count_includes_environment_features():
 
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+
+
+# --- A7: аренный function approximation (DuelMLPPolicy) -----------------
+
+
+def test_duel_mlp_uses_arena_features_and_round_trips():
+    policy = DuelMLPPolicy(seed=7, epsilon=0.0)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    before = [row[:] for row in policy.weights1]
+    policy.observe(
+        Transition(
+            observation=observation,
+            action=action,
+            reward=0.3,
+            next_observation=observation,
+            done=False,
+            next_actions=(action,),
+        )
+    )
+    assert policy.updates == 1
+    assert policy.weights1 != before
+    assert all(
+        math.isfinite(value) for row in policy.weights1 for value in row
+    )
+    state = json.loads(json.dumps(policy.state_dict()))
+    assert state["kind"] == "duel-mlp"
+    loaded = DuelMLPPolicy(seed=99)
+    loaded.load_state_dict(state)
+    assert loaded.hidden == policy.hidden
+    assert loaded.weights1 == policy.weights1
+    assert loaded.score(observation, action) == pytest.approx(
+        policy.score(observation, action)
+    )
+
+
+def test_duel_mlp_pads_short_feature_rows_on_load():
+    # Совместимость с чекпойнтами более короткого вектора признаков:
+    # строки weights1 дополняются нулями до FEATURE_COUNT.
+    policy = DuelMLPPolicy(seed=1)
+    state = policy.state_dict()
+    short = [[0.01] * (FEATURE_COUNT - 3) for _ in range(policy.hidden)]
+    state["weights1"] = short
+    loaded = DuelMLPPolicy(seed=2)
+    loaded.load_state_dict(state)
+    assert all(len(row) == FEATURE_COUNT for row in loaded.weights1)
+    assert loaded.weights1[0][: FEATURE_COUNT - 3] == pytest.approx([0.01] * (FEATURE_COUNT - 3))
+    assert loaded.weights1[0][FEATURE_COUNT - 3:] == [0.0, 0.0, 0.0]
+
+
+def test_duel_mlp_lowers_loss_on_fixed_task():
+    # Обучение снижает ошибку на фиксированной задаче (тот же критерий,
+    # что у кампанейного MLPPolicy): поощряемое действие получает больший Q.
+    policy = DuelMLPPolicy(seed=3, epsilon=0.0, learning_rate=0.05)
+    observation = _observation()
+    good = Action("WORK", form="force", fraction=0.9)
+    bad = Action("REST", form="rest", fraction=0.0)
+    initial_gap = policy.score(observation, good) - policy.score(
+        observation, bad
+    )
+    for _step in range(400):
+        policy.observe(
+            Transition(
+                observation=observation,
+                action=good,
+                reward=1.0,
+                next_observation=observation,
+                done=False,
+                next_actions=(good, bad),
+            )
+        )
+        policy.observe(
+            Transition(
+                observation=observation,
+                action=bad,
+                reward=-1.0,
+                next_observation=observation,
+                done=True,
+                next_actions=(),
+            )
+        )
+    final_gap = policy.score(observation, good) - policy.score(
+        observation, bad
+    )
+    assert final_gap > initial_gap + 0.5
+    assert policy.act(observation, (bad, good), explore=False) == good
+
+
+def test_duel_mlp_target_network_freezes_then_syncs():
+    policy = DuelMLPPolicy(seed=5, epsilon=0.0, target_sync=2)
+    frozen = [row[:] for row in policy.target_weights1]
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    transition = Transition(
+        observation=observation,
+        action=action,
+        reward=0.5,
+        next_observation=observation,
+        done=False,
+        next_actions=(action,),
+    )
+    policy.observe(transition)
+    assert policy.target_weights1 == frozen  # цель заморожена до синка
+    policy.observe(transition)
+    assert policy.target_weights1 != frozen  # sync на чётном update
+    assert policy.target_weights1 == policy.weights1
+
+
+def test_make_policy_exposes_duel_mlp():
+    assert isinstance(make_policy("duel-mlp", seed=1), DuelMLPPolicy)
+    assert isinstance(make_policy("dmlp", seed=1), DuelMLPPolicy)
+
+
+def test_load_policy_reads_duel_mlp_checkpoint(tmp_path):
+    policy = DuelMLPPolicy(seed=4, epsilon=0.0)
+    path = tmp_path / "duel-mlp.json"
+    policy.save(str(path))
+    loaded = load_policy(str(path), seed=8)
+    assert isinstance(loaded, DuelMLPPolicy)
+    observation = _observation()
+    action = Action("WORK", form="info", fraction=0.3)
+    assert loaded.score(observation, action) == pytest.approx(
+        policy.score(observation, action)
+    )
 
 
 def _write_json(tmp_path, name, payload):

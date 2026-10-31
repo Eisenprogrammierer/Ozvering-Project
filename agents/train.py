@@ -45,7 +45,7 @@ DOMAIN_SEED_SALT = 7919
 # Иначе «qtable/mlp» в матрице силы — это случайная таблица/сеть, и строка
 # измеряет не baseline, а шум инициализации.
 LEARNABLE_EVAL_BASELINES = frozenset(
-    {"qtable", "mlp", "qtable-campaign"}
+    {"qtable", "mlp", "qtable-campaign", "duel-mlp"}
 )
 DEFAULT_EVAL_BASELINE_EPISODES = 50
 # Единые defaults Python API и CLI. Раньше CLI подставлял arena=2000/20,

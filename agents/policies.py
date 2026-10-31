@@ -909,6 +909,214 @@ class MLPPolicy:
             self.load_state_dict(json.load(handle))
 
 
+class DuelMLPPolicy:
+    """A7: MLP-политика для арены (22 признака `features()`).
+
+    `MLPPolicy` обучен на кампанейном срезе и не умеет читать аренное
+    наблюдение; этот класс — function approximation для дуэли (ось A,
+    задача A7 «преодоление потолка табличного RL»). Архитектура та же
+    (скрытый слой tanh + линейный выход, online TD(0), target-сеть),
+    но вектор — 22-признаковый аренный (`features`), а действия —
+    `Action(kind/form/fraction)`.
+
+    Ёмкость выше таблицы: обобщение по непрерывным нормированным
+    признакам вместо 12-полевой квантованной сетки ключей QTable.
+    """
+
+    def __init__(
+        self,
+        seed=0,
+        learning_rate=0.05,
+        discount=0.94,
+        epsilon=0.22,
+        min_epsilon=0.03,
+        hidden=24,
+        target_sync=50,
+    ):
+        self.rng = random.Random(seed)
+        self.learning_rate = float(learning_rate)
+        self.discount = float(discount)
+        self.epsilon = float(epsilon)
+        self.min_epsilon = float(min_epsilon)
+        self.hidden = int(hidden)
+        self.target_sync = max(1, int(target_sync))
+        self.updates = 0
+        self.weights1 = [
+            [self.rng.uniform(-0.1, 0.1) for _ in range(FEATURE_COUNT)]
+            for _ in range(self.hidden)
+        ]
+        self.bias1 = [0.0 for _ in range(self.hidden)]
+        self.weights2 = [
+            self.rng.uniform(-0.1, 0.1) for _ in range(self.hidden)
+        ]
+        self.bias2 = 0.0
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
+
+    def _forward_with(self, vector, weights1, bias1, weights2, bias2):
+        hidden = []
+        for index in range(self.hidden):
+            value = bias1[index] + dot(weights1[index], vector)
+            hidden.append(math.tanh(value))
+        output = bias2 + dot(weights2, hidden)
+        return output, hidden
+
+    def _forward(self, vector):
+        return self._forward_with(
+            vector, self.weights1, self.bias1, self.weights2, self.bias2
+        )
+
+    def _target_forward(self, vector):
+        return self._forward_with(
+            vector,
+            self.target_weights1,
+            self.target_bias1,
+            self.target_weights2,
+            self.target_bias2,
+        )
+
+    def _sync_target(self):
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
+
+    def score(self, observation, action):
+        output, _hidden = self._forward(features(observation, action))
+        return output
+
+    def target_score(self, observation, action):
+        output, _hidden = self._target_forward(
+            features(observation, action)
+        )
+        return output
+
+    def act(self, observation, actions, explore=True):
+        actions = tuple(actions)
+        if not actions:
+            return Action("REST", form="rest")
+        if explore and self.rng.random() < self.epsilon:
+            return self.rng.choice(actions)
+        return max(actions, key=lambda item: self.score(observation, item))
+
+    def observe(self, transition):
+        vector = features(transition.observation, transition.action)
+        current, hidden = self._forward(vector)
+        if transition.done:
+            target = 0.0
+        else:
+            next_actions = transition.next_actions
+            if not next_actions:
+                next_actions = default_actions(transition.next_observation)
+            target = max(
+                self.target_score(transition.next_observation, candidate)
+                for candidate in next_actions
+            )
+        error = transition.reward + self.discount * target - current
+        error = max(-5.0, min(5.0, error))
+        hidden_deltas = [
+            error * self.weights2[index] * (1.0 - hidden[index] ** 2)
+            for index in range(self.hidden)
+        ]
+        for index in range(self.hidden):
+            self.weights2[index] += (
+                self.learning_rate * error * hidden[index]
+            )
+        self.bias2 += self.learning_rate * error
+        for index in range(self.hidden):
+            delta = self.learning_rate * hidden_deltas[index]
+            row = self.weights1[index]
+            for feature_index, value in enumerate(vector):
+                row[feature_index] += delta * value
+            self.bias1[index] += delta
+        self.updates += 1
+        if self.updates % self.target_sync == 0:
+            self._sync_target()
+        self.epsilon = max(self.min_epsilon, self.epsilon * 0.9995)
+
+    def state_dict(self):
+        return {
+            "kind": "duel-mlp",
+            "version": CHECKPOINT_VERSION,
+            "feature_count": FEATURE_COUNT,
+            "hidden": self.hidden,
+            "weights1": [list(row) for row in self.weights1],
+            "bias1": list(self.bias1),
+            "weights2": list(self.weights2),
+            "bias2": self.bias2,
+            "target_weights1": [list(row) for row in self.target_weights1],
+            "target_bias1": list(self.target_bias1),
+            "target_weights2": list(self.target_weights2),
+            "target_bias2": self.target_bias2,
+            "target_sync": self.target_sync,
+            "epsilon": self.epsilon,
+            "updates": self.updates,
+            "learning_rate": self.learning_rate,
+            "discount": self.discount,
+        }
+
+    def load_state_dict(self, state):
+        if not state:
+            return
+        hidden = int(state.get("hidden", self.hidden))
+        weights1 = state.get("weights1")
+        rows = []
+        if weights1:
+            rows = [[float(value) for value in row] for row in weights1]
+            # Совместимость с более коротким вектором признаков: строки
+            # дополняются нулями до текущего FEATURE_COUNT.
+            rows = [
+                row + [0.0] * max(0, FEATURE_COUNT - len(row))
+                for row in rows
+            ]
+        if rows:
+            self.hidden = min(self.hidden, hidden) if hidden else self.hidden
+            self.hidden = hidden
+            pad = self.hidden - len(rows)
+            if pad > 0:
+                rows.extend([[0.0] * FEATURE_COUNT for _ in range(pad)])
+            self.weights1 = rows[: self.hidden]
+            biases = [float(v) for v in state.get("bias1", [])]
+            biases += [0.0] * max(0, self.hidden - len(biases))
+            self.bias1 = biases[: self.hidden]
+            w2 = [float(v) for v in state.get("weights2", [])]
+            w2 += [0.0] * max(0, self.hidden - len(w2))
+            self.weights2 = w2[: self.hidden]
+        self.bias2 = float(state.get("bias2", self.bias2))
+        tw1 = state.get("target_weights1")
+        if tw1:
+            trows = [
+                [float(v) for v in row]
+                + [0.0] * max(0, FEATURE_COUNT - len(row))
+                for row in tw1
+            ]
+            self.target_weights1 = trows[: self.hidden]
+            tb = [float(v) for v in state.get("target_bias1", [])]
+            tb += [0.0] * max(0, self.hidden - len(tb))
+            self.target_bias1 = tb[: self.hidden]
+            tw2 = [float(v) for v in state.get("target_weights2", [])]
+            tw2 += [0.0] * max(0, self.hidden - len(tw2))
+            self.target_weights2 = tw2[: self.hidden]
+        else:
+            self._sync_target()
+        self.target_bias2 = float(
+            state.get("target_bias2", self.bias2)
+        )
+        self.target_sync = int(state.get("target_sync", self.target_sync))
+        self.epsilon = float(state.get("epsilon", self.epsilon))
+        self.updates = int(state.get("updates", self.updates))
+        self.learning_rate = float(
+            state.get("learning_rate", self.learning_rate)
+        )
+        self.discount = float(state.get("discount", self.discount))
+
+    def save(self, path):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.state_dict(), handle, ensure_ascii=False)
+
+
 def make_policy(name, seed=0):
     if name in ("bdi", "adaptive"):
         return BDIPolicy(seed=seed)
@@ -920,6 +1128,9 @@ def make_policy(name, seed=0):
         return QTablePolicy(seed=seed, campaign=True)
     if name in ("mlp", "neural", "nn"):
         return MLPPolicy(seed=seed)
+    if name in ("duel-mlp", "duel_mlp", "dmlp"):
+        # A7: аренный function approximation.
+        return DuelMLPPolicy(seed=seed)
     if name in ("random", "none"):
         return RandomPolicy(seed=seed)
     return None
@@ -949,6 +1160,9 @@ def load_policy(path, seed=0, kind=None):
         policy = QTablePolicy(seed=seed)
     elif policy_kind == "mlp":
         policy = MLPPolicy(seed=seed)
+    elif policy_kind == "duel-mlp":
+        # A7: аренный function approximation.
+        policy = DuelMLPPolicy(seed=seed)
     else:
         raise ValueError(
             "unknown policy checkpoint %r (kind=%r)"

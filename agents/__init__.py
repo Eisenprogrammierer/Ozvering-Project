@@ -12,6 +12,7 @@ from .legacy import PolicyAgent
 from .policies import (
     BDIPolicy,
     CHECKPOINT_VERSION,
+    DuelMLPPolicy,
     FEATURE_COUNT,
     MLPPolicy,
     QTablePolicy,
@@ -24,6 +25,7 @@ from .policies import (
 )
 __all__ = [
     "BDIPolicy",
+    "DuelMLPPolicy",
     "CHECKPOINT_DIR_ENV",
     "CHECKPOINT_VERSION",
     "DEFAULT_CHECKPOINT_DIR",
