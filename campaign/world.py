@@ -3501,12 +3501,14 @@ class WorldEngine:
             return []
         # Намерение со сроком «день N» исполняется в начале дня N;
         # сутки при этом уже наступили (`self.day == N`), поэтому выборка
-        # идёт по текущему дню. Слот 0 (край дня) `end_day()` исполняет
-        # до хода ИИ — тик повторяет ту же границу и берёт внутридневные
-        # слоты 1..max_slot, которые end_day откладывает до утра.
-        events = self._run_intents(max_slot=0)
+        # идёт по текущему дню. Слот 0 (край дня) тик исполняет первым —
+        # так просроченные долги не копятся, если игрок начал играть не
+        # с рассвета. Внутридневная выборка берёт слоты 1..max_slot того
+        # же дня; извлечённые намерения исчезают из очереди, поэтому
+        # `end_day()` повторно их не исполнит.
+        events = self._run_intents(day=self.day, max_slot=0)
         if max_slot >= 1:
-            events.extend(self._run_intents(max_slot=max_slot))
+            events.extend(self._run_intents(day=self.day, max_slot=max_slot))
         return events
 
     def end_day(self):
@@ -3518,9 +3520,11 @@ class WorldEngine:
         # Очередь выбирается строго до инкремента `self.day` (см.
         # `_run_intents`).
         pre_day = self.day
-        # Край дня (A5): просроченные намерения и слот 0 дня `pre_day`
-        # исполняются до хода ИИ — они должны повлиять на его итог.
-        events.extend(self._run_intents(max_slot=0))
+        # Долги исполняются до хода ИИ: всё, что должно было случиться
+        # раньше (просрочка и «полночь» дня `pre_day`), не должно ждать
+        # новых суток. Слот 0 дня `pre_day + 1` — «рассвет» — и
+        # внутридневные слоты доигрываются после инкремента `self.day`.
+        events.extend(self._run_intents(day=pre_day, max_slot=SLOTS_MAX))
         for node_id in self.node_order:
             entry = self._ai_action(node_id)
             if entry is not None:

@@ -6,6 +6,7 @@ from campaign.planner import (
     MAX_INTENTS,
     PRIORITY_MAX,
     PRIORITY_MIN,
+    SLOTS_MAX,
     Intent,
     IntentQueue,
     condition_holds,
@@ -538,6 +539,47 @@ def test_pop_due_runs_overdue_intents_regardless_of_slot():
     ready = queue.pop_due(5, max_slot=0)
     assert [item.payload["text"] for item in ready] == ["долг"]
     assert len(queue) == 0
+
+
+def test_tick_runs_intraday_slots_without_advancing_day():
+    # A5: внутридневный тик исполняет слоты 1..max_slot текущего дня
+    # и НЕ двигает сутки.
+    engine = _engine(seed=13)
+    engine.attach("agora_government", "head_of_government")
+    action_id = engine.available_actions()[0]
+    engine.end_day()  # день 1 -> 2, очередь пуста
+    day_before = engine.day
+    engine.schedule_action(action_id, due_day=engine.day, due_slot=2)
+
+    events = engine.tick(max_slot=1)
+    assert events == []  # слот 2 ещё не созрел для тика до первого слота
+    assert engine.day == day_before  # сутки не сдвинулись
+
+    fired = engine.tick(max_slot=2)
+    player_events = [e for e in fired if e.get("source") == "player_action"]
+    assert len(player_events) == 1
+    assert engine.day == day_before  # тик не переводит сутки
+    assert len(engine.intents) == 0
+
+
+def test_tick_and_end_day_do_not_double_execute():
+    # Намерение, исполненное тиком, не должно повториться в end_day().
+    engine = _engine(seed=17)
+    engine.attach("agora_government", "head_of_government")
+    action_id = engine.available_actions()[0]
+    engine.end_day()  # вход в день 2
+    engine.schedule_action(action_id, due_day=engine.day, due_slot=1)
+
+    fired_by_tick = engine.tick(max_slot=SLOTS_MAX)
+    assert len([e for e in fired_by_tick if e.get("source") == "player_action"]) == 1
+    actions_after_tick = engine.action_count
+
+    result = engine.end_day()
+    repeated = [
+        e for e in result["events"] if e.get("source") == "player_action"
+    ]
+    assert repeated == []  # задвоения нет
+    assert engine.action_count == actions_after_tick
 
 
 def test_run_intents_max_slot_defers_intraday_until_day_end():
