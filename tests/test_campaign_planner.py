@@ -6,6 +6,7 @@ from campaign.planner import (
     MAX_INTENTS,
     PRIORITY_MAX,
     PRIORITY_MIN,
+    SLOT_DAY_EDGE,
     SLOTS_MAX,
     Intent,
     IntentQueue,
@@ -579,47 +580,74 @@ def test_tick_and_end_day_do_not_double_execute():
 
 
 def test_run_intents_max_slot_defers_intraday_until_day_end():
-    # Мир с двумя намерениями на день 2: краевое и внутридневное.
-    # Тик с max_slot=0 исполняет только краевое; end_day — остаток.
+    # Долги (due_day < self.day) закрываются тиком по порядку слотов:
+    # узкое окно берёт только краевой долг, внутридневной ждёт расширения.
     engine = _engine(seed=11)
-    engine.attach("agora_government", "head_of_government")
     action_id = engine.available_actions()[0]
-    engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
-    engine.schedule_action(action_id, due_day=2, due_slot=2)
+    engine.end_day()  # день 1 -> 2: чистый старт очереди
+    assert engine.action_count == 0
 
-    engine.end_day()  # день 1 -> 2: очередь дня 2 исполняется в начале суток
-    assert len(engine.intents) == 0
+    # Эмуляция просрочки: два намерения «дня 2» остаются в очереди, когда
+    # мир уже в дне 3 (например, их запланировал ход ИИ после выборки).
+    from campaign.planner import Intent
+
+    engine.intents.items = [
+        Intent(
+            due_day=2, kind="action", actor="player",
+            payload={"action": action_id, "target": ""}, source="player",
+            priority=5, due_slot=0,
+        ),
+        Intent(
+            due_day=2, kind="action", actor="player",
+            payload={"action": action_id, "target": ""}, source="player",
+            due_slot=2,
+        ),
+    ]
+
+    events = engine.tick(max_slot=SLOT_DAY_EDGE)  # узкое окно: только край
+    fired_now = [e for e in events if e.get("source") == "player_action"]
+    assert len(fired_now) == 1
+    assert engine.action_count == 1
+    assert [(i.due_day, i.due_slot) for i in engine.intents.items] == [(2, 2)]
+
+    events = engine.tick(max_slot=2)  # окно расширено — долг добит
+    fired_wide = [e for e in events if e.get("source") == "player_action"]
+    assert len(fired_wide) == 1
     assert engine.action_count == 2
+    assert len(engine.intents) == 0
 
-    # Очередь пустует — ни тик, ни переход суток ничего не добавляют.
-    deferred_events = engine.tick(max_slot=0)
-    fired_now = [e for e in deferred_events if e.get("source") == "player_action"]
-    assert fired_now == []
-
-    result = engine.end_day()  # конец дня 2
+    result = engine.end_day()  # очередь пуста — задвоений нет
     fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
     assert fired_later == []
-    assert len(engine.intents) == 0
     assert engine.action_count == 2
 
 
 def test_tick_max_slot_defers_intraday_until_wider_tick():
     # Семантика `tick(max_slot=k)`: слоты 0..k исполняются, k+1.. — ждут.
+    action_id = _engine(seed=11).available_actions()[0]
+
+    # Полный переход суток (`end_day`) забирает весь день: и край, и
+    # внутридневные слоты — иначе они стали бы долгами дня 2.
     engine = _engine(seed=11)
-    engine.attach("agora_government", "head_of_government")
-    action_id = engine.available_actions()[0]
     engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
     engine.schedule_action(action_id, due_day=2, due_slot=2)
-
     engine.end_day()  # переход в день 2 забирает весь день (слоты 0 и 2)
     assert len(engine.intents) == 0
     assert engine.action_count == 2
 
-    # Тот же сценарий, но день 2 открывается узким тиком: сначала краевой
-    # слот, затем внутридневной — по мере расширения max_slot.
+    # Тот же сценарий, но очередь открывается узкими тиками: сначала
+    # краевой слот, затем внутридневной — по мере расширения max_slot.
     engine2 = _engine(seed=11)
-    engine2.attach("agora_government", "head_of_government")
-    engine2.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
-    engine2.schedule_action(action_id, due_day=2, due_slot=2)
-    engine2.end_day()  # end_day всегда полный: оба намерения исполнены
+    engine2.schedule_action(action_id, due_day=1, due_slot=0, priority=5)
+    engine2.schedule_action(action_id, due_day=1, due_slot=2)
+    events = engine2.tick(max_slot=SLOT_DAY_EDGE)
+    fired = [e for e in events if e.get("source") == "player_action"]
+    assert len(fired) == 1  # только краевое; слот 2 ещё не наступил
+    assert len(engine2.intents) == 1
+    events = engine2.tick(max_slot=1)
+    assert [e for e in events if e.get("source") == "player_action"] == []
+    events = engine2.tick(max_slot=2)
+    fired = [e for e in events if e.get("source") == "player_action"]
+    assert len(fired) == 1
     assert len(engine2.intents) == 0
+    assert engine2.action_count == 2

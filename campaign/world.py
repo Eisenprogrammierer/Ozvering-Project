@@ -3270,15 +3270,25 @@ class WorldEngine:
         """
         events = []
         target_day = self.day if day is None else day
-        # Семантика A5: метод берёт ТОЛЬКО наступившие сутки (`due_day ==
-        # target_day`), долги закрывает `_run_overdue()`. Намерения дальних
-        # дней остаются в очереди до своего перехода.
-        ready = [
-            item
-            for item in self.intents.items
-            if item.due_day == target_day
-            and _as_slot(item.due_slot) <= _as_slot(max_slot)
-        ]
+        # Семантика A5: намерение со сроком «день N» исполняется в начале
+        # дня N; дальние дни ждут своего перехода. Край суток (слот 0)
+        # снимает фильтр слота только для долгов (`due_day < target_day`):
+        # просроченное намерение уже опоздало и исполняется безотлагательно
+        # целиком. Намерения наступивших суток честно ждут своего слота —
+        # иначе внутридневные ушли бы «не в свой час». Выборка долгов
+        # живёт здесь, а не в `_run_overdue()`, чтобы `tick(max_slot=0)`
+        # не схлопывал всю просрочку разом.
+        if _as_slot(max_slot) == SLOT_DAY_EDGE:
+            ready = [item for item in self.intents.items if item.due_day <= target_day]
+        else:
+            overdue = [item for item in self.intents.items if item.due_day < target_day]
+            due_today = [
+                item
+                for item in self.intents.items
+                if item.due_day == target_day
+                and _as_slot(item.due_slot) <= _as_slot(max_slot)
+            ]
+            ready = overdue + due_today
         if not ready:
             return events
         ready_ids = {id(item) for item in ready}
