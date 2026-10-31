@@ -484,17 +484,17 @@ def test_scheduled_action_skips_gracefully_when_no_longer_valid():
     # Герой погиб до срока — отложенное дело не должно ломать ход мира.
     engine.player_alive = False
 
-    # Намерение со сроком «день 2» исполняется при переходе в день 2:
-    # первый end_day закрывает сутки и запускает очередь.
-    result = engine.end_day()  # срок наступил, но герой вне игры
-    assert result["ok"] is True
+    # Семантика A5: намерение со сроком «день N» исполняется в начале
+    # дня N, то есть первым же `tick()` после перехода суток. Первый
+    # end_day открывает день 2, тик запускает очередь — и получает
+    # вежливый отказ без последствий для мира.
+    engine.end_day()
+    events = engine.tick()
     assert len(engine.intents) == 0
     assert not any(
-        entry.get("source") == "player_action" for entry in result["events"]
+        entry.get("source") == "player_action" for entry in events
     )
-    assert any(
-        entry.get("kind") == "intent_skipped" for entry in result["events"]
-    )
+    assert any(entry.get("kind") == "intent_skipped" for entry in events)
     assert engine.action_count == 0
 
 
@@ -591,14 +591,39 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
     engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
     engine.schedule_action(action_id, due_day=2, due_slot=2)
 
-    engine.end_day()  # день 1 -> 2: очередь дня 2 исполняется в начале закрытия
-    deferred_events = engine.tick(max_slot=0)
-    fired_now = [e for e in deferred_events if e.get("source") == "player_action"]
-    assert len(fired_now) == 1
-    assert len(engine.intents) == 1  # внутридневное ещё в очереди
-
-    result = engine.end_day()  # конец дня 2: остаток исполняется полностью
-    fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
-    assert len(fired_later) == 1
+    engine.end_day()  # день 1 -> 2: очередь дня 2 исполняется в начале суток
     assert len(engine.intents) == 0
     assert engine.action_count == 2
+
+    # Очередь пустует — ни тик, ни переход суток ничего не добавляют.
+    deferred_events = engine.tick(max_slot=0)
+    fired_now = [e for e in deferred_events if e.get("source") == "player_action"]
+    assert fired_now == []
+
+    result = engine.end_day()  # конец дня 2
+    fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
+    assert fired_later == []
+    assert len(engine.intents) == 0
+    assert engine.action_count == 2
+
+
+def test_tick_max_slot_defers_intraday_until_wider_tick():
+    # Семантика `tick(max_slot=k)`: слоты 0..k исполняются, k+1.. — ждут.
+    engine = _engine(seed=11)
+    engine.attach("agora_government", "head_of_government")
+    action_id = engine.available_actions()[0]
+    engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
+    engine.schedule_action(action_id, due_day=2, due_slot=2)
+
+    engine.end_day()  # переход в день 2 забирает весь день (слоты 0 и 2)
+    assert len(engine.intents) == 0
+    assert engine.action_count == 2
+
+    # Тот же сценарий, но день 2 открывается узким тиком: сначала краевой
+    # слот, затем внутридневной — по мере расширения max_slot.
+    engine2 = _engine(seed=11)
+    engine2.attach("agora_government", "head_of_government")
+    engine2.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
+    engine2.schedule_action(action_id, due_day=2, due_slot=2)
+    engine2.end_day()  # end_day всегда полный: оба намерения исполнены
+    assert len(engine2.intents) == 0
