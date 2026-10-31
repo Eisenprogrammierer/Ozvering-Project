@@ -114,6 +114,7 @@ def test_audio_never_initialized(app):
         "settings",
         "saves",
         "about",
+        "help",
         "narrative",
         "game",
         "battlefield",
@@ -125,6 +126,48 @@ def test_every_scene_draws(app, name):
     app.go(name)
     assert app.manager.current.name == name
     _frame(app)
+
+
+# --- B2: onboarding («Как играть») и единая точка входа -------------------
+
+
+def _click_widget(scene, index=0):
+    """Клик ЛКМ по виджету сцены (Button) — DOWN+UP в центр rect."""
+    import pygame
+
+    w = scene.widgets[index]
+    pos = (w.rect.centerx, w.rect.centery)
+    for et in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        scene.handle_event(
+            pygame.event.Event(et, pos=pos, button=1, rel=(0, 0))
+        )
+
+
+def test_help_scene_registered_and_navigable(app):
+    """Пункт «Как играть» есть в меню; переход help -> Назад -> menu."""
+    app.go("menu")
+    labels = [b[0] for b in app.manager.current.build_buttons()]
+    assert any("Как играть" in x or "How to play" in x for x in labels)
+    app.go("help")
+    cur = app.manager.current
+    assert cur.name == "help"
+    assert len(cur.lines) >= 8  # режимы + управление описаны
+    _frame(app)
+    _click_widget(cur, 0)  # кнопка «Назад»
+    assert app.manager.current.name == "menu"
+
+
+def test_menu_has_single_entry_for_all_modes(app):
+    """Единое главное меню покрывает дуэль, RTS, взаимодействие и кампанию."""
+    app.go("menu")
+    labels = " ".join(b[0] for b in app.manager.current.build_buttons())
+    for needle_ru, needle_en in (
+        ("Новая партия", "New game"),
+        ("Поле боя", "Battlefield"),
+        ("Взаимодействие", "Interaction"),
+        ("Кампания", "Campaign"),
+    ):
+        assert needle_ru in labels or needle_en in labels, needle_ru
 
 
 def test_battlefield_layout_fits_window(app):

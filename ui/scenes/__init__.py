@@ -1,6 +1,7 @@
 from .about import AboutScene
 from .battlefield import BattlefieldScene
 from .game import GameScene
+from .help import HelpScene
 from .interaction import InteractionScene
 from .menu import MainMenuScene
 from .narrative import NarrativeScene
@@ -12,6 +13,7 @@ __all__ = [
     "AboutScene",
     "BattlefieldScene",
     "GameScene",
+    "HelpScene",
     "InteractionScene",
     "MainMenuScene",
     "NarrativeScene",

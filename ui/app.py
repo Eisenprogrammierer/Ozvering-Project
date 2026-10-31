@@ -80,6 +80,7 @@ class App:
         m.register("interaction", scene_pkg.InteractionScene)
         m.register("pause", scene_pkg.PauseScene)
         m.register("about", scene_pkg.AboutScene)
+        m.register("help", scene_pkg.HelpScene)
 
     def t(self, ru, en):
         return (
