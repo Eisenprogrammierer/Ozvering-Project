@@ -3211,6 +3211,50 @@ class WorldEngine:
             due_slot=due_slot,
         )
 
+    def _run_overdue(self):
+        """Исполнить только долги: `due_day < self.day`, любой слот.
+
+        Просроченное намерение затухало бы в очереди, пока ИИ делает ход
+        по устаревшему миру, поэтому `end_day()` закрывает их до `_ai_action`.
+        """
+        ready = [item for item in self.intents.items if item.due_day < self.day]
+        if not ready:
+            return []
+        ready_ids = {id(item) for item in ready}
+        self.intents.items = [
+            item for item in self.intents.items if id(item) not in ready_ids
+        ]
+        events = []
+        for intent in sorted(
+            ready, key=lambda item: (item.due_day, -item.priority, _as_slot(item.due_slot))
+        ):
+            events.extend(self._fire_intent(intent))
+        return events
+
+    def _fire_intent(self, intent):
+        """Отмена по условию + исполнение одного намерения."""
+        if intent.cancel_when:
+            character = self.character(intent.actor) if intent.actor else None
+            if condition_holds(intent.cancel_when, character):
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "intent_cancelled",
+                        "text": "Намерение отменено: условие не выполнено.",
+                    }
+                )
+                return [
+                    {
+                        "kind": "intent_cancelled",
+                        "day": self.day,
+                        "source": intent.source,
+                        "target": intent.actor,
+                        "text": "намерение снято по условию",
+                        "changes": [],
+                    }
+                ]
+        return self._apply_intent(intent)
+
     def _run_intents(self, max_slot=SLOTS_MAX, day=None):
         """Исполнить намерения, срок которых наступил.
 
@@ -3223,7 +3267,7 @@ class WorldEngine:
         поэтому очередь выбирается строго до инкремента `self.day`.
         """
         events = []
-        target_day = self.day + 1 if day is None else day
+        target_day = self.day if day is None else day
         # Просроченные долги — это строго `due_day < target_day`. Намерения
         # будущих дней (`due_day > target_day`) не должны уходить с выборки
         # как «долги»: их заберёт свой день.
@@ -3242,30 +3286,7 @@ class WorldEngine:
         for intent in sorted(
             ready, key=lambda item: (-item.priority, _as_slot(item.due_slot))
         ):
-            if intent.cancel_when:
-                character = (
-                    self.character(intent.actor) if intent.actor else None
-                )
-                if condition_holds(intent.cancel_when, character):
-                    self.log.append(
-                        {
-                            "day": self.day,
-                            "kind": "intent_cancelled",
-                            "text": "Намерение отменено: условие не выполнено.",
-                        }
-                    )
-                    events.append(
-                        {
-                            "kind": "intent_cancelled",
-                            "day": self.day,
-                            "source": intent.source,
-                            "target": intent.actor,
-                            "text": "намерение снято по условию",
-                            "changes": [],
-                        }
-                    )
-                    continue
-            events.extend(self._apply_intent(intent))
+            events.extend(self._fire_intent(intent))
         return events
 
     def _apply_intent(self, intent):
@@ -3561,30 +3582,22 @@ class WorldEngine:
         # с рассвета. Внутридневная выборка берёт слоты 1..max_slot того
         # же дня; извлечённые намерения исчезают из очереди, поэтому
         # `end_day()` повторно их не исполнит.
-        events = self._run_intents(day=self.day, max_slot=0)
-        if max_slot >= 1:
-            events.extend(self._run_intents(day=self.day, max_slot=max_slot))
-        return events
+        # Выборка по наступившим суткам: долг (due_day < self.day) и
+        # слоты 0..max_slot своего дня; дальние дни остаются в очереди.
+        return self._run_intents(max_slot=max_slot)
 
     def end_day(self):
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         events = []
-        # Отложенные события исполняются до хода ИИ: намерение, назначенное
-        # на день N, должно успеть повлиять на итог перехода в этот день.
-        # Очередь выбирается строго до инкремента `self.day` (см.
-        # `_run_intents`).
-        pre_day = self.day
         # Контракт времени (A5): намерение со сроком «день N» исполняется
-        # в начале дня N. Переход `end_day()` из суток `pre_day` открывает
-        # день `pre_day + 1`, поэтому до хода ИИ закрываются только долг
-        # и рассветный край наступающих суток (`max_slot=0`). Полные сутки
-        # (`due_day == pre_day`) уже закрыты своим `tick()`/краем — их не
-        # надо тревожить; внутридневные слоты наступающего дня доигрываются
-        # после инкремента `self.day`, чтобы событие стояло в журнале там,
-        # где оно запланировано. Намерения более дальних дней остаются в
-        # очереди до своего перехода.
-        events.extend(self._run_intents(day=pre_day + 1, max_slot=SLOT_DAY_EDGE))
+        # в начале дня N — первым `tick()` после перехода суток либо этим
+        # же `end_day()` после инкремента. До хода ИИ закрывается только
+        # долг (`due_day < self.day`): он затухал бы в очереди, пока ИИ
+        # ходит по устаревшему миру. Намерения наступающих суток исполняются
+        # после инкремента — событие попадает в журнал под своим днём.
+        # Выборка `day=self.day - 1`: готовы только due_day < self.day.
+        events.extend(self._run_overdue())
         for node_id in self.node_order:
             entry = self._ai_action(node_id)
             if entry is not None:
@@ -3611,16 +3624,11 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
-        # Внутридневные слоты наступающего дня (A5): их исполняем уже после
-        # инкремента `self.day`, чтобы событие попало в журнал под своим
-        # днём (`due_day`), а не сутками раньше. Долг и рассвет новых суток уже
-        # забрали до хода ИИ; сюда попадают только намерения `pre_day + 1`
-        # со слотами 1..SLOTS_MAX. Дальнейшие дни остаются в очереди.
-        if any(
-            item.due_day == pre_day + 1 and _as_slot(item.due_slot) >= 1
-            for item in self.intents.items
-        ):
-            events.extend(self._run_intents(day=pre_day + 1, max_slot=SLOTS_MAX))
+        # Начало новых суток (A5): край и все внутридневные слоты своего
+        # дня исполняются здесь, если игрок их не добрал `tick()`.
+        # Извлечённые намерения исчезают из очереди, поэтому задвоения с
+        # тиком нет. Дальнейшие дни ждут своего перехода.
+        events.extend(self._run_intents(max_slot=SLOTS_MAX))
         if self.infinite:
             # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
             # горизонта больше не даёт win/lose. Сценарий продолжается,

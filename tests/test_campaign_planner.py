@@ -96,7 +96,14 @@ def test_world_runs_due_message_intent_before_ai_turn():
 
     engine.end_day()
     assert engine.day == 2
-    # Намерение назначено на начало второго дня — исполняется на его ходу.
+    # Намерение назначено на начало второго дня — исполняется первым
+    # внутридневным тиком этих суток (контракт A5).
+    events = engine.tick()
+
+    assert any(
+        entry["kind"] == "intent" and text in entry["text"]
+        for entry in events
+    )
     result = engine.end_day()
 
     assert result["ok"] is True
@@ -123,7 +130,7 @@ def test_world_contact_intent_moves_affinity():
     )
 
     engine.end_day()
-    result = engine.end_day()
+    engine.tick()  # срок «день 2» исполняется в начале дня 2 (A5)
 
     assert float(character["affinity"]) > before + 0.05
     assert any(
@@ -147,7 +154,7 @@ def test_world_intents_persist_and_fire_after_restore():
     restored = WorldEngine(load_world(), snapshot=snapshot)
     before = float(restored.characters[character["id"]]["affinity"])
     restored.end_day()
-    restored.end_day()
+    restored.tick()  # очередь наступающих суток исполняется в их начале
 
     assert len(restored.intents) == 0
     assert float(restored.characters[character["id"]]["affinity"]) > before
