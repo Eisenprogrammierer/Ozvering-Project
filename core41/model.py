@@ -31,6 +31,12 @@ CONTAGION_CHANCE = 0.35
 CONTAGION_SEVERITY = 0.50
 SICKNESS_WORK_PENALTY = 0.60
 SICKNESS_WORK_FLOOR = 0.40
+# Устойчивая рана в дуэли (слой A2): зеркало болезни по механике, но со
+# своей скоростью — рана тяжелее мешает работе и быстрее проходит при
+# лечении (`WOUND_TREAT_RATE`), зато медленнее накапливается вне боя.
+WOUND_WORK_PENALTY = 0.70
+WOUND_WORK_FLOOR = 0.30
+WOUND_PROGRESS = 0.002
 
 # Устойчивая рана — отдельное состояние, а не разовый урон `H`. Она
 # замедляет отдых, вызывает небольшое кровотечение и усиливает урон от
@@ -59,13 +65,21 @@ def sigmoid(value):
     return 1.0 / (1.0 + math.exp(-value))
 
 
-def success_probability(attacker, defender, work, is_open):
+def success_probability(attacker, defender, work, is_open, env_bonus=0.0):
+    """Вероятность успеха работы (канон ядра 4-2-1).
+
+    `env_bonus` — аддитивный бонус открытого окна среды (слой A1,
+    `ENV_BONUS` легаси-канона `simulation`). По умолчанию 0.0, поэтому
+    прежняя калибровка дуэлей и контрольного плеча `with_env=False`
+    не меняется.
+    """
     return sigmoid(
         -0.4
         + 2.2 * attacker.skill(work.form) * attacker.work_effectiveness()
         + 1.3 * attacker.authority
         - 1.8 * defender.resistance(work.form)
         + (0.9 if is_open else 0.0)
+        + float(env_bonus or 0.0)
         - 0.5 * min(1.0, work.amount / max(1.0, defender.max_force))
     )
 
@@ -129,13 +143,24 @@ class Automaton:
         return self.wound > 0.0
 
     def work_effectiveness(self):
-        # Острая болезнь снижает успех работы, но не меняет сохранённый
-        # навык и не удорожает `E`: это одна шкала `sickness`, а не второй
-        # множитель `illness`. `illness` влияет на работу только косвенно,
-        # через скорость прогресса и восстановления болезни.
-        return max(
+        # Острая болезнь и устойчивая рана (слой A2) снижают успех работы,
+        # но не меняют сохранённый навык и не удорожают `E`: это отдельные
+        # шкалы `sickness`/`wound`, а не второй множитель `illness`.
+        # `illness` влияет на работу только косвенно, через скорость
+        # прогресса и восстановления болезни. Эффекты перемножаются:
+        # одновременно больной и раненый автомат работает хуже каждого
+        # из них по отдельности, с общим полом (рана не обнуляет труд).
+        sickness_factor = max(
             SICKNESS_WORK_FLOOR,
             1.0 - SICKNESS_WORK_PENALTY * self.sickness,
+        )
+        wound_factor = max(
+            WOUND_WORK_FLOOR,
+            1.0 - WOUND_WORK_PENALTY * self.wound,
+        )
+        return max(
+            SICKNESS_WORK_FLOOR * WOUND_WORK_FLOOR,
+            sickness_factor * wound_factor,
         )
 
     @property
@@ -261,6 +286,14 @@ class Automaton:
                     / max(0.25, self.health_factor("illness"))
                 )
                 self.wound = max(0.0, severity - recovery)
+            else:
+                # Без покоя рана медленно расползается (кровотечение),
+                # зеркально прогрессу болезни, но медленнее: раненый
+                # автомат вынужден беречь силы, иначе повреждение растёт.
+                progress = (
+                    WOUND_PROGRESS * self.health_decay_multiplier()
+                )
+                self.wound = min(WOUND_MAX, severity + progress)
         if self.sickness > 0.0:
             severity = self.sickness
             self.health -= (

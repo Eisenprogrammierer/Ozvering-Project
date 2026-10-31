@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import random
 
-from .environment import ArenaEnvironment
+from .environment import (
+    ENV_BONUS,
+    ENV_OUTCOME_GOAL_REWARD,
+    ArenaEnvironment,
+)
 from .model import (
     DEFAULT_HEALTH_FACTORS,
     HEALTH_FACTOR_MAX,
@@ -35,6 +39,9 @@ CORE_ACTIONS = (
 )
 
 CAPTURE_RATIO = 1.5
+# A2: доля тяжести раны за каждый процент максимального здоровья,
+# выжженного переполнением силы при успешном ударе (максимум WOUND_MAX).
+WOUND_HIT_SEVERITY = 0.30
 # 20 тактов удержания — калибровка 2026-10-29 после активации среды и
 # пересчёта здоровья (0.62/0.78): при 21–22 захват уходит к нижней полосе.
 CAPTURE_STREAK = 20
@@ -551,6 +558,7 @@ class ArenaAgent:
             opponent_wound=float(other.wound),
             env_pressure=float(getattr(self, "_env_pressure", 0.0)),
             env_season=float(getattr(self, "_env_season", 1.0)),
+            env_window=float(getattr(self, "_env_window", 0.0)),
         )
         return observation
 
@@ -611,7 +619,16 @@ class ArenaAgent:
                 "pressure": 0.0,
             }
         was_open = target.is_open()
-        chance = success_probability(source, target, work, was_open)
+        # A1: открытое окно среды аддитивно усиливает успех работы обеих
+        # сторон (канонный ENV_BONUS). Вне арены с активным env-актором
+        # бонус равен 0 — прежняя калибровка дуэлей не меняется.
+        env = getattr(world, "env", None)
+        env_bonus = 0.0
+        if env is not None and env.window_open():
+            env_bonus = float(ENV_BONUS)
+        chance = success_probability(
+            source, target, work, was_open, env_bonus=env_bonus
+        )
         rng = getattr(world, "rng", self.rng)
         target.energy = min(
             target.max_energy, target.energy + work.amount * 0.12
@@ -620,6 +637,11 @@ class ArenaAgent:
         target.state["pressure"] = min(
             30.0, target.pressure() + pressure
         )
+        # A1: работа сторон доходит до среды (канонный receive_pressure):
+        # накопленное давление может открыть окно уязвимости на следующем
+        # такте тика среды.
+        if env is not None:
+            env.ingest(work.amount)
         success = rng.random() < chance
         damage = 0.0
         gain = 0.0
@@ -638,6 +660,20 @@ class ArenaAgent:
                 source.max_force - source.force, damage * 0.20
             )
             source.force += max(0.0, gain)
+        # A2: устойчивая рана в дуэли. Сильный успешный удар с
+        # силовым/информационным уроном по здоровью открывает рану —
+        # отдельное персистентное состояние (`wound`), а не только
+        # разовый урон `H`. Порог грубый и симметричный для обеих форм:
+        # точная калибровка вероятности ранения — часть A7 (потолок RL).
+        wound_severity = 0.0
+        if health_damage > 0.0:
+            wound_severity = min(
+                WOUND_MAX,
+                WOUND_HIT_SEVERITY * health_damage
+                / max(1.0, target.max_health),
+            )
+            if wound_severity > 0.0:
+                target.injure(wound_severity)
         return {
             "accepted": True,
             "success": success,
@@ -645,6 +681,7 @@ class ArenaAgent:
             "force": damage,
             "damage": damage,
             "health": health_damage,
+            "wound": wound_severity,
             "gain": gain,
             "pressure": pressure,
             "chance": chance,
@@ -689,6 +726,9 @@ class ArenaMatch:
         self.ai_rest_ticks = 0
         self.last_rl_action = ("REST", 0.0)
         self.last_ai_action = ("REST", 0.0)
+        # A6: исход среды (goal/collapse) — терминальное событие фона.
+        # None, пока среда не завершила свой горизонт цели.
+        self.env_outcome = None
         self.rl = ArenaAgent(
             "rl",
             policy=rl_policy,
@@ -735,10 +775,14 @@ class ArenaMatch:
             for actor in (rl, ai):
                 actor._env_pressure = env_state["strain"]
                 actor._env_season = env_state["season_multiplier"]
+                # A1: наблюдаемое окно уязвимости (0/1) — сигнал для
+                # 22-го признака политик.
+                actor._env_window = 1.0 if env_state["window"] else 0.0
         else:
             for actor in (rl, ai):
                 actor._env_pressure = 0.0
                 actor._env_season = 1.0
+                actor._env_window = 0.0
         rl_obs = rl.observe(ai)
         ai_obs = ai.observe(rl)
 
@@ -785,6 +829,17 @@ class ArenaMatch:
         reward_ai = self._reward(ai, ai_before, rl, rl_before)
 
         terminal = self._check_terminal()
+        env_outcome = None
+        if not terminal and self.env is not None:
+            # A6: у среды появился собственный терминальный исход —
+            # достигнутая цель фона («укрепление») или коллапс по дедлайну.
+            # Это завершает партию как усечение (truncation), а не победа
+            # одной из сторон: winner остаётся None, ±1.0 не присуждается.
+            if self.env.goal_reached or self.env.collapsed:
+                env_outcome = "goal" if self.env.goal_reached else "collapse"
+                self.env_outcome = env_outcome
+                self.finished = True
+                terminal = True
         if not terminal:
             capture_winner, cap = self._check_capture()
             if capture_winner and not self.finished:
@@ -802,6 +857,14 @@ class ArenaMatch:
         if terminal:
             reward_rl += terminal_reward(self.winner, "rl")
             reward_ai += terminal_reward(self.winner, "ai")
+            if env_outcome is not None:
+                # A6: исход среды — смещённая награда обеих сторон (фон
+                # «усилился» или «рухнул»), симметричная и modest по
+                # величине, чтобы не перекрывать сигнал дуэли. Терминал
+                # усечения: winner остаётся None, ±1.0 нет.
+                shift = ENV_OUTCOME_GOAL_REWARD if env_outcome == "goal" else -ENV_OUTCOME_GOAL_REWARD
+                reward_rl += shift
+                reward_ai += shift
         self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         rl_next = rl.observe(ai)

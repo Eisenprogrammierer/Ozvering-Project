@@ -32,7 +32,7 @@ import os
 import random
 
 from core41 import ArenaEnv, DuelEnv, randomize_draw
-from core41.types import CampaignAction, Transition
+from core41.types import Action, CampaignAction, Transition
 
 from .policies import load_policy, make_policy
 
@@ -45,7 +45,7 @@ DOMAIN_SEED_SALT = 7919
 # Иначе «qtable/mlp» в матрице силы — это случайная таблица/сеть, и строка
 # измеряет не baseline, а шум инициализации.
 LEARNABLE_EVAL_BASELINES = frozenset(
-    {"qtable", "mlp", "qtable-campaign"}
+    {"qtable", "mlp", "qtable-campaign", "duel-mlp"}
 )
 DEFAULT_EVAL_BASELINE_EPISODES = 50
 # Единые defaults Python API и CLI. Раньше CLI подставлял arena=2000/20,
@@ -57,6 +57,72 @@ DEFAULT_EVAL_EPISODES = 20
 BASELINE_SEED_SALT = 500003
 # Held-out поток для выбора лучшего чекпойнта во время обучения.
 BEST_CHECKPOINT_SEED_SALT = 700001
+
+
+def _random_duel_action(actions, rng):
+    """B4: случайное легальное действие дуэли (вектор из `Action`)."""
+    action = actions[int(rng.randrange(len(actions)))]
+    if isinstance(action, Action):
+        return action
+    from core41.arena import action_from_index
+
+    return action_from_index(int(action))
+
+
+def _play_duel_episode(env, policy, opponent, seed, *, learn, explore):
+    """B4: партия DuelEnv с внешними политиками (action-объекты).
+
+    `_play_episode` работает с индексными действиями `ArenaEnv`; в
+    `DuelEnv` легальные действия — объекты `Action`, поэтому цикл здесь
+    отдельный. Награды берутся через `_reward_for` (ключи agent/opponent).
+    """
+    observation = env.reset(seed=seed)
+    opponent_observation = env.observe("ai")
+    done = False
+    truncated = False
+    info = {}
+    while not (done or truncated):
+        actions = env.legal_actions("rl")
+        action = policy.act(observation, actions, explore=explore)
+        opponent_actions = env.legal_actions("ai")
+        opponent_action = opponent.act(
+            opponent_observation,
+            opponent_actions,
+            explore=explore,
+        )
+        (
+            next_observation,
+            reward,
+            done,
+            truncated,
+            info,
+        ) = env.step(action, opponent_action=opponent_action)
+        next_opponent_observation = env.observe("ai")
+        terminal = bool(done and not truncated)
+        if learn:
+            policy.observe(
+                Transition(
+                    observation=observation,
+                    action=action,
+                    reward=float(reward),
+                    next_observation=next_observation,
+                    done=terminal,
+                    next_actions=env.legal_actions("rl"),
+                )
+            )
+            opponent.observe(
+                Transition(
+                    observation=opponent_observation,
+                    action=opponent_action,
+                    reward=_reward_for(env, "ai"),
+                    next_observation=next_opponent_observation,
+                    done=terminal,
+                    next_actions=env.legal_actions("ai"),
+                )
+            )
+        observation = next_observation
+        opponent_observation = next_opponent_observation
+    return info or {}
 
 
 def _make_env(
@@ -141,6 +207,12 @@ def _play_episode(
             seed,
             learn=learn,
             explore=explore,
+        )
+    if not hasattr(env, "match"):
+        # B4: `DuelEnv` — легальные действия это объекты `Action`, а не
+        # индексы; отдельный цикл `_play_duel_episode`.
+        return _play_duel_episode(
+            env, policy, opponent, seed, learn=learn, explore=explore
         )
     observation = env.reset(seed=seed)
     opponent_observation = env.observe("ai")
@@ -975,6 +1047,15 @@ def main(argv=None):
         default=0.0,
         help="относительный джиттер навыков профиля кампании (0.25 = ±25%%)",
     )
+    parser.add_argument(
+        "--campaign-career",
+        action="store_true",
+        help=(
+            "открыть карьерные действия (seek_promotion/request_transfer/"
+            "resign) в legal_actions() для --env campaign: политика учится "
+            "менять должность сама (готовность A3); вне кампании игнорируется"
+        ),
+    )
     parser.add_argument("--out", default="")
     parser.add_argument("--eval-out", default="")
     args = parser.parse_args(argv)
@@ -1016,6 +1097,9 @@ def main(argv=None):
     env_kwargs = {}
     if args.env == "arena" and args.no_with_env:
         env_kwargs["with_env"] = False
+    if args.env == "campaign" and args.campaign_career:
+        # Готовность A3: политика сама выбирает повышение/перевод/отставку.
+        env_kwargs["career_actions"] = True
     train_kwargs = dict(
         episodes=args.episodes,
         policy_name=args.policy,

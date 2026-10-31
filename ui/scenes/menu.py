@@ -25,11 +25,17 @@ class MainMenuScene(MenuScene):
                 True,
             ),
             (t("Взаимодействие", "Interaction"), self._interaction, True),
+            (t("Кампания", "Campaign"), self._campaign, True),
             (t("Новая партия", "New game"), self._new_game, True),
             (t("Продолжить", "Continue"), self._continue, self.has_save),
             (
                 t("Загрузить", "Load"),
                 lambda: self.app.go("saves", mode="load"),
+                True,
+            ),
+            (
+                t("Как играть", "How to play"),
+                lambda: self.app.go("help"),
                 True,
             ),
             (
@@ -46,6 +52,14 @@ class MainMenuScene(MenuScene):
 
     def _interaction(self):
         self.app.go("interaction")
+
+    def _campaign(self):
+        # B2: единая точка входа — из главного меню запускаем view-кампанию.
+        import subprocess
+        import sys
+
+        subprocess.Popen([sys.executable, "main.py", "--campaign"])
+        self.app.quit()
 
     def _new_game(self):
         self.app.go(

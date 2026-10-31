@@ -323,6 +323,7 @@ BDI — не третий тип и не отдельная онтология. 
 | [`BASELINE.md`](BASELINE.md) | воспроизводимая база текущего `simulation.py` | база текущего кода |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
 | [`TODO.md`](TODO.md) | задачи текущего кода | не целевая модель |
+| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза (срез 2026-10-31) | не источник истины, обновляемый трекер |
 | [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия текущего кода | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md), [`UI.md`](UI.md) | UI-слои | текущий UI |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | инструменты и слои | текущий код |
@@ -423,8 +424,10 @@ BDI — не третий тип и не отдельная онтология. 
   `campaign/planner.py`: `schedule_intent()`/`IntentQueue` откладывают
   события на будущие дни, исполняются в начале `end_day()` до хода ИИ и
   входят в снимок мира; персонаж с `autonomous: true` сам назначает
-  контакты. Непрерывные внутридневные тики и приоритеты/отмена намерений
-  остаются открытыми.
+  контакты. Срез 2 (A4, 2026-10-31): приоритеты намерений, отмена по
+  условию (`cancel_when`/`condition_holds`) и политика автономных
+  персонажей через общую `campaign_success_chance`. Непрерывные
+  внутридневные тики остаются открытыми.
 - Реализован секундный клок `core41.SimulationClock`: скорости
   `pause/1x/2x/4x/8x/16x`, авто-пауза (включая `SICKNESS_CRITICAL`) и
   ограниченный догон; арена использует его, кампанийный планировщик пока
@@ -432,9 +435,10 @@ BDI — не третий тип и не отдельная онтология. 
 - Реализован слой `agents`: `BDIPolicy` с online-обновлением,
   `QTablePolicy`, `MLPPolicy` (tanh-hidden=16, без PyTorch, с target-сетью),
   `PolicyAgent` как легаси-мост и CLI `python -m agents.train`. Вектор
-  признаков — 21 (18 прежних, стабильный код действия и два признака среды
-  `env_pressure`/`env_season`), чекпойнты — `CHECKPOINT_VERSION = 2`; BDI
-  v0/v1 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
+  признаков — 22 (18 прежних, стабильный код действия, два признака среды
+  `env_pressure`/`env_season` и окно уязвимости `env_window` из среза A1),
+  чекпойнты — `CHECKPOINT_VERSION = 3`; BDI
+  v0/v1/v2 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
   копирует online-веса в target. `--max-steps` по умолчанию зависит от
   среды: `arena=2000`, `duel=160`, `campaign=30`; defaults Python API и CLI
   выровнены. Held-out `qtable`/`mlp` без чекпойнта прогреваются

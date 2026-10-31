@@ -8,6 +8,8 @@ import simulation as S
 from agents import (
     BDIPolicy,
     CHECKPOINT_VERSION,
+    DUEL_FEATURE_COUNT,
+    DuelMLPPolicy,
     FEATURE_COUNT,
     MLPPolicy,
     PolicyAgent,
@@ -330,25 +332,156 @@ def test_feature_count_includes_environment_features():
     observation = _observation()
     action = Action("WORK", form="force", fraction=0.5)
     vector = features(observation, action)
-    assert FEATURE_COUNT == 21
+    assert FEATURE_COUNT == 22
     assert len(vector) == FEATURE_COUNT
-    # Последние два слота — наблюдаемое расписание среды.
-    assert vector[-2] == pytest.approx(0.0)
-    assert vector[-1] == pytest.approx(1.0)
+    # Предпоследние два слота — наблюдаемое расписание среды; последний
+    # (A1) — окно уязвимости.
+    assert vector[-3] == pytest.approx(0.0)
+    assert vector[-2] == pytest.approx(1.0)
+    assert vector[-1] == pytest.approx(0.0)
     pressured = Observation(
         **{
             **observation.__dict__,
             "env_pressure": 0.75,
             "env_season": 1.3,
+            "env_window": 1.0,
         }
     )
     pressured_vector = features(pressured, action)
-    assert pressured_vector[-2] == pytest.approx(0.75)
+    assert pressured_vector[-3] == pytest.approx(0.75)
+    assert pressured_vector[-2] == pytest.approx(1.0)
     assert pressured_vector[-1] == pytest.approx(1.0)
 
 
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
+
+
+# --- A7: аренный function approximation (DuelMLPPolicy) -----------------
+
+
+def test_duel_mlp_uses_arena_features_and_round_trips():
+    policy = DuelMLPPolicy(seed=7, epsilon=0.0)
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    before = [row[:] for row in policy.weights1]
+    policy.observe(
+        Transition(
+            observation=observation,
+            action=action,
+            reward=0.3,
+            next_observation=observation,
+            done=False,
+            next_actions=(action,),
+        )
+    )
+    assert policy.updates == 1
+    assert policy.weights1 != before
+    assert all(
+        math.isfinite(value) for row in policy.weights1 for value in row
+    )
+    state = json.loads(json.dumps(policy.state_dict()))
+    assert state["kind"] == "duel-mlp"
+    loaded = DuelMLPPolicy(seed=99)
+    loaded.load_state_dict(state)
+    assert loaded.hidden == policy.hidden
+    assert loaded.weights1 == policy.weights1
+    assert loaded.score(observation, action) == pytest.approx(
+        policy.score(observation, action)
+    )
+
+
+def test_duel_mlp_pads_short_feature_rows_on_load():
+    # Совместимость с чекпойнтами более короткого вектора признаков:
+    # строки weights1 дополняются нулями до DUEL_FEATURE_COUNT (A8: базовый
+    # вектор 22 + 4 слота статистики оппонента = 26).
+    policy = DuelMLPPolicy(seed=1)
+    state = policy.state_dict()
+    short = [[0.01] * (DUEL_FEATURE_COUNT - 3) for _ in range(policy.hidden)]
+    state["weights1"] = short
+    loaded = DuelMLPPolicy(seed=2)
+    loaded.load_state_dict(state)
+    assert all(len(row) == DUEL_FEATURE_COUNT for row in loaded.weights1)
+    assert loaded.weights1[0][: DUEL_FEATURE_COUNT - 3] == pytest.approx(
+        [0.01] * (DUEL_FEATURE_COUNT - 3)
+    )
+    assert loaded.weights1[0][DUEL_FEATURE_COUNT - 3:] == [0.0, 0.0, 0.0]
+
+
+def test_duel_mlp_lowers_loss_on_fixed_task():
+    # Обучение снижает ошибку на фиксированной задаче (тот же критерий,
+    # что у кампанейного MLPPolicy): поощряемое действие получает больший Q.
+    policy = DuelMLPPolicy(seed=3, epsilon=0.0, learning_rate=0.05)
+    observation = _observation()
+    good = Action("WORK", form="force", fraction=0.9)
+    bad = Action("REST", form="rest", fraction=0.0)
+    initial_gap = policy.score(observation, good) - policy.score(
+        observation, bad
+    )
+    for _step in range(400):
+        policy.observe(
+            Transition(
+                observation=observation,
+                action=good,
+                reward=1.0,
+                next_observation=observation,
+                done=False,
+                next_actions=(good, bad),
+            )
+        )
+        policy.observe(
+            Transition(
+                observation=observation,
+                action=bad,
+                reward=-1.0,
+                next_observation=observation,
+                done=True,
+                next_actions=(),
+            )
+        )
+    final_gap = policy.score(observation, good) - policy.score(
+        observation, bad
+    )
+    assert final_gap > initial_gap + 0.5
+    assert policy.act(observation, (bad, good), explore=False) == good
+
+
+def test_duel_mlp_target_network_freezes_then_syncs():
+    policy = DuelMLPPolicy(seed=5, epsilon=0.0, target_sync=2)
+    frozen = [row[:] for row in policy.target_weights1]
+    observation = _observation()
+    action = Action("WORK", form="force", fraction=0.5)
+    transition = Transition(
+        observation=observation,
+        action=action,
+        reward=0.5,
+        next_observation=observation,
+        done=False,
+        next_actions=(action,),
+    )
+    policy.observe(transition)
+    assert policy.target_weights1 == frozen  # цель заморожена до синка
+    policy.observe(transition)
+    assert policy.target_weights1 != frozen  # sync на чётном update
+    assert policy.target_weights1 == policy.weights1
+
+
+def test_make_policy_exposes_duel_mlp():
+    assert isinstance(make_policy("duel-mlp", seed=1), DuelMLPPolicy)
+    assert isinstance(make_policy("dmlp", seed=1), DuelMLPPolicy)
+
+
+def test_load_policy_reads_duel_mlp_checkpoint(tmp_path):
+    policy = DuelMLPPolicy(seed=4, epsilon=0.0)
+    path = tmp_path / "duel-mlp.json"
+    policy.save(str(path))
+    loaded = load_policy(str(path), seed=8)
+    assert isinstance(loaded, DuelMLPPolicy)
+    observation = _observation()
+    action = Action("WORK", form="info", fraction=0.3)
+    assert loaded.score(observation, action) == pytest.approx(
+        policy.score(observation, action)
+    )
 
 
 def _write_json(tmp_path, name, payload):
@@ -909,8 +1042,54 @@ def test_campaign_env_domain_sickness_reaches_engine():
     env.apply_domain(**draw)
     condition = env.engine.player_condition()
     assert abs(condition["sickness"] - draw["sickness"]) < 1e-6
+
+
+def test_train_campaign_career_flag_opens_career_space():
+    """Готовность A3: флаг `--campaign-career` проброшен в обучение."""
+    from agents.train import main as train_main
+
+    # Прямая проверка проброса: career_actions=True расширяет legal_actions()
+    # карьерными действиями (seek_promotion/request_transfer/resign),
+    # по умолчанию они закрыты (opt-in).
+    from campaign.env import CampaignEnv as _CE
+
+    with_career = _CE(seed=3, max_days=4, career_actions=True)
+    without_career = _CE(seed=3, max_days=4)
+    with_career.reset(seed=3)
+    without_career.reset(seed=3)
+    kinds_with = {a.kind for a in with_career.legal_actions()}
+    kinds_without = {a.kind for a in without_career.legal_actions()}
+    career_ids = {"seek_promotion", "request_transfer", "resign"}
+    assert kinds_with > kinds_without
+    assert kinds_with - kinds_without <= career_ids
+    assert len(with_career.legal_actions()) > len(without_career.legal_actions())
+
+    # CLI-флаг `--campaign-career` доходит до цикла обучения и не ломает его.
+    career_ckpt = "/tmp/a3_career_ckpt.json"
+    nocareer_ckpt = "/tmp/a3_nocareer_ckpt.json"
+    rc = train_main([
+        "--env", "campaign", "--episodes", "2", "--max-steps", "6",
+        "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
+        "--campaign-career", "--out", career_ckpt,
+    ])
+    assert rc == 0
+    import json
+
+    from agents.checkpoints import read_checkpoint
+
+    state = read_checkpoint(career_ckpt)
+    assert isinstance(state, dict) and state
+    # Тот же запуск без флага — прежнее замкнутое пространство.
+    rc2 = train_main([
+        "--env", "campaign", "--episodes", "2", "--max-steps", "6",
+        "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
+        "--out", nocareer_ckpt,
+    ])
+    assert rc2 == 0
+    state2 = read_checkpoint(nocareer_ckpt)
+    assert isinstance(state2, dict) and state2
     # Стартовый config среды не мутируется: второй движок без домена чист.
-    fresh = CampaignEnv(seed=3, max_days=4)
+    fresh = _CE(seed=3, max_days=4)
     assert fresh.engine.player_condition()["sickness"] == 0.0
 
 

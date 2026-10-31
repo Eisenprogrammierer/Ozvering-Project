@@ -1,4 +1,4 @@
-"""Очередь намерений кампании — первый срез real-time-планировщика.
+"""Очередь намерений кампании — real-time-планировщик (срезы 1–3).
 
 Кампания остаётся дневной: `WorldEngine.end_day()` — единица хода мира.
 Но события мира не обязаны происходить ровно в момент действия игрока.
@@ -13,16 +13,51 @@
 - **персистентность** — очередь входит в снимок мира, поэтому отложенные
   события переживают сохранение и загрузку.
 
-Границы первого среза: намерения исполняются на границе дня, а не внутри
-непрерывного таймера; нет приоритетов реального времени, отмены по
-условию и полноценной политики персонажей. Это описано в `docs/TODO.md`.
+Срез 2 (A4, 2026-10-31): у намерений появились **приоритеты** (`priority`,
+больше = исполняется раньше в пределах одного дня), **отмена по условию**
+(`cancel_when`: условие из легаси-полей персонажа, при истинности которого
+намерение аннулируется перед исполнением) и **осмысленная политика
+автономии**: персонаж выбирает вид контакта по своим отношениям и доверию
+(сближение / примирение / дистанцирование), а исход бросается общей
+функцией успеха `campaign_success_chance` — той же, что действует игрок.
+
+Срез 3 (A5, 2026-10-31): **непрерывность внутри дня**. Игрок ограничен
+энергией (`actions_per_day`), но очередь не ограничена одним днём: через
+`schedule_action()` действие можно отложить на будущий день, и оно
+исполнится в начале того дня до хода ИИ — так планирование становится
+сквозным во времени, а не только «здесь и сейчас». Обратная совместимость:
+старые снимки без `due_slot` читаются как «граница дня» (слот 0), потому
+что `Intent.from_dict` подставляет значение по умолчанию.
+
+Границы: исполнение намерений привязано к началу дня (виртуальных часов
+внутри дня нет — слот это порядок внутри одной очереди); политика
+автономных структур (узлов) вне кадра остаётся открытой.
 """
 
 from dataclasses import dataclass, field
 
 MAX_INTENTS = 64
 AUTONOMY_PERIOD = 3
-KNOWN_KINDS = ("message", "contact")
+KNOWN_KINDS = ("message", "contact", "action")
+
+# Диапазон приоритета: 0 — обычный фон, выше — срочные события.
+PRIORITY_MIN = 0
+PRIORITY_MAX = 9
+
+# Слот исполнения внутри дня: 0 — граница дня (историческое поведение,
+# исполнение в начале `end_day()`), 1..SLOTS_MAX — «внутридневной» порядок
+# в очереди того же дня. Виртуальных часов у мира нет; слот задаёт только
+# детерминированный порядок относительно других намерений.
+SLOT_DAY_EDGE = 0
+SLOTS_MAX = 3
+
+
+def _as_slot(value, default=SLOT_DAY_EDGE):
+    try:
+        slot = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(SLOTS_MAX, max(SLOT_DAY_EDGE, slot))
 
 
 def _as_int(value, default=0):
@@ -32,13 +67,68 @@ def _as_int(value, default=0):
         return int(default)
 
 
+def _as_priority(value, default=0):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return int(default)
+    return max(PRIORITY_MIN, min(PRIORITY_MAX, number))
+
+
+def condition_holds(condition, character):
+    """Проверить условие отмены намерения по легаси-полям персонажа.
+
+    Формат: `{"field": "<поле>", "op": "<сравнение>", "value": <число>}`.
+    Поддерживаются `lt/le/gt/ge/eq/ne` (синонимы `< <= > >= == !=`).
+    Неизвестное поле или операция условием НЕ считаются (безопаснее
+    исполнить намерение, чем молча его потерять).
+    """
+    if not isinstance(condition, dict) or character is None:
+        return False
+    field_name = str(condition.get("field") or "")
+    if not field_name or field_name not in character:
+        return False
+    op = str(condition.get("op") or "lt").strip()
+    aliases = {
+        "<": "lt", "<=": "le", ">": "gt", ">=": "ge",
+        "==": "eq", "!=": "ne",
+    }
+    op = aliases.get(op, op)
+    try:
+        left = float(character.get(field_name) or 0.0)
+        right = float(condition.get("value"))
+    except (TypeError, ValueError):
+        return False
+    if op == "lt":
+        return left < right
+    if op == "le":
+        return left <= right
+    if op == "gt":
+        return left > right
+    if op == "ge":
+        return left >= right
+    if op == "eq":
+        return abs(left - right) < 1e-9
+    if op == "ne":
+        return abs(left - right) >= 1e-9
+    return False
+
+
 @dataclass(frozen=True)
 class Intent:
     """Отложенное намерение мира.
 
     `due_day` — день кампании, в начале которого намерение исполняется.
-    `kind` — `message` (только запись в журнал) или `contact`
-    (персонаж `actor` сам выходит на связь и применяет `payload["effects"]`).
+    `kind` — `message` (только запись в журнал), `contact`
+    (персонаж `actor` сам выходит на связь и применяет `payload["effects"]`)
+    или `action` (отложенное действие игрока: `payload = {"action": id,
+    "target": id}`, исполнение через полный путь `WorldEngine.execute()`).
+    `priority` — порядок исполнения внутри одного дня (больше = раньше).
+    `due_slot` — слот внутри дня (0 — граница дня; 1..3 — «внутридневной»
+    порядок в очереди того же дня; сортировка: день → слот → приоритет).
+    `cancel_when` — опциональное условие отмены (см. `condition_holds`);
+    если к моменту исполнения оно истинно для актёра, намерение
+    аннулируется без последствий.
     """
 
     due_day: int
@@ -47,6 +137,9 @@ class Intent:
     target: str = ""
     payload: dict = field(default_factory=dict)
     source: str = "world"
+    priority: int = 0
+    cancel_when: dict = field(default_factory=dict)
+    due_slot: int = SLOT_DAY_EDGE
 
     def to_dict(self):
         return {
@@ -56,12 +149,16 @@ class Intent:
             "target": str(self.target),
             "payload": dict(self.payload),
             "source": str(self.source),
+            "priority": _as_priority(self.priority),
+            "cancel_when": dict(self.cancel_when),
+            "due_slot": _as_slot(self.due_slot),
         }
 
     @classmethod
     def from_dict(cls, raw):
         raw = raw or {}
         payload = raw.get("payload")
+        cancel_when = raw.get("cancel_when")
         return cls(
             due_day=_as_int(raw.get("due_day"), 0),
             kind=str(raw.get("kind") or ""),
@@ -69,11 +166,18 @@ class Intent:
             target=str(raw.get("target") or ""),
             payload=dict(payload) if isinstance(payload, dict) else {},
             source=str(raw.get("source") or "world"),
+            priority=_as_priority(raw.get("priority")),
+            cancel_when=(
+                dict(cancel_when) if isinstance(cancel_when, dict) else {}
+            ),
+            # Старые снимки без поля = граница дня: детерминизм сохранения
+            # не зависит от того, когда был записан сейв.
+            due_slot=_as_slot(raw.get("due_slot"), SLOT_DAY_EDGE),
         )
 
 
 class IntentQueue:
-    """Ограниченная очередь намерений, отсортированная по дню."""
+    """Ограниченная очередь намерений: день → приоритет → детерминированный хвост."""
 
     def __init__(self, items=None, limit=MAX_INTENTS):
         self.limit = max(1, int(limit))
@@ -86,10 +190,18 @@ class IntentQueue:
         self._trim()
 
     def _sort(self):
-        # Стабильный порядок: день, затем вид и источник. Иначе одинаковые
+        # Стабильный порядок: день, затем слот внутри дня, затем приоритет
+        # (срочные раньше), затем вид/источник/актор. Иначе одинаковые
         # снимки могли бы исполнять намерения в разном порядке.
         self.items.sort(
-            key=lambda item: (item.due_day, item.kind, item.source, item.actor)
+            key=lambda item: (
+                item.due_day,
+                _as_slot(item.due_slot),
+                -_as_priority(item.priority),
+                item.kind,
+                item.source,
+                item.actor,
+            )
         )
 
     def _trim(self):
@@ -124,6 +236,9 @@ class IntentQueue:
         target="",
         payload=None,
         source="world",
+        priority=0,
+        cancel_when=None,
+        due_slot=SLOT_DAY_EDGE,
     ):
         return self.add(
             Intent(
@@ -133,6 +248,11 @@ class IntentQueue:
                 target=str(target or ""),
                 payload=dict(payload or {}),
                 source=str(source or "world"),
+                priority=_as_priority(priority),
+                cancel_when=(
+                    dict(cancel_when) if isinstance(cancel_when, dict) else {}
+                ),
+                due_slot=_as_slot(due_slot),
             )
         )
 
@@ -146,14 +266,44 @@ class IntentQueue:
                 return True
         return False
 
-    def due(self, day):
-        """Намерения, которые пора исполнить в начале `day`."""
-        return [item for item in self.items if item.due_day <= int(day)]
+    def cancel(self, **criteria):
+        """Снять намерения, подходящие под критерии; вернуть число снятых.
 
-    def pop_due(self, day):
-        """Извлечь и вернуть намерения, срок которых наступил."""
+        Пример: `queue.cancel(actor="c1", kind="contact")` — отменить все
+        отложенные контакты персонажа `c1`. Используется сюжетом и
+        реактивной логикой мира («игрок поссорился — контакт не состоится»).
+        """
+        before = len(self.items)
+        self.items = [
+            item
+            for item in self.items
+            if not all(
+                getattr(item, key, None) == value
+                for key, value in criteria.items()
+            )
+        ]
+        return before - len(self.items)
+
+    def due(self, day, max_slot=SLOTS_MAX):
+        """Намерения, которые пора исполнить в начале `day`.
+
+        `max_slot` ограничивает исполнение слотами внутри дня (A5):
+        при `max_slot=0` возвращаются только «граница дня» (слот 0),
+        при `max_slot=SLOTS_MAX` — весь день. Просроченные намерения
+        (`due_day < day`) считаются стоящими в нулевом слоте и всегда
+        попадают в выборку: мир не должен копить долги.
+        """
         day = int(day)
-        ready = self.due(day)
+        limit = _as_slot(max_slot)
+        return [
+            item
+            for item in self.items
+            if item.due_day < day or (item.due_day == day and _as_slot(item.due_slot) <= limit)
+        ]
+
+    def pop_due(self, day, max_slot=SLOTS_MAX):
+        """Извлечь и вернуть намерения, срок которых наступил."""
+        ready = self.due(day, max_slot=max_slot)
         if not ready:
             return []
         ready_ids = {id(item) for item in ready}
@@ -186,4 +336,9 @@ __all__ = [
     "IntentQueue",
     "KNOWN_KINDS",
     "MAX_INTENTS",
+    "PRIORITY_MAX",
+    "PRIORITY_MIN",
+    "SLOT_DAY_EDGE",
+    "SLOTS_MAX",
+    "condition_holds",
 ]

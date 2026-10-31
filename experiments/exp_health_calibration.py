@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents import BDIPolicy, QTablePolicy
 from core41 import ArenaMatch
 import core41.arena as arena
+import core41.environment as environment
 import core41.model as model
 
 CALIBRATABLE = (
@@ -48,9 +49,22 @@ CALIBRATABLE = (
     "CONTAGION_CHANCE",
     "CONTAGION_SEVERITY",
     "CAPTURE_STREAK",
+    # A2: острые раны дуэли (core41.model — порождение и заживление,
+    # core41.arena — тяжесть удара).
+    "WOUND_HIT_SEVERITY",
+    "WOUND_WORK_PENALTY",
+    "WOUND_WORK_FLOOR",
+    "WOUND_PROGRESS",
+    "WOUND_HEALTH_DECAY",
+    "WOUND_REST_RECOVERY",
+    "WOUND_TREAT_RATE",
+    "WOUND_REGEN_PENALTY",
+    "WOUND_DAMAGE_BONUS",
+    # A1: окно уязвимости среды как собственный интерес ArenaEnvironment.
+    "ENV_BONUS",
 )
 
-_OVERRIDE_MODULES = (model, arena)
+_OVERRIDE_MODULES = (model, arena, environment)
 
 BASELINE = {
     "HEALTH_DAMAGE_RATIO": 1.0,

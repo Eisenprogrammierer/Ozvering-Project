@@ -295,11 +295,19 @@ class ArenaEnv:
         observation = match.rl.observe(match.ai)
         reward = float(match.last_rewards["rl"])
         done = bool(match.finished)
+        # A6: исход среды («goal»/«collapse») — усечение, а не терминал
+        # победы: агент не должен учиться «выигрывать» у фона.
+        env_outcome = getattr(match, "env_outcome", None)
         truncated = bool(
             done
-            and match.step >= match.steps_total
-            and not match.rl.is_dead
-            and not match.ai.is_dead
+            and (
+                env_outcome is not None
+                or (
+                    match.step >= match.steps_total
+                    and not match.rl.is_dead
+                    and not match.ai.is_dead
+                )
+            )
         )
         info = {
             "winner": match.winner,
@@ -309,5 +317,6 @@ class ArenaEnv:
             "rewards": dict(match.last_rewards),
             "rl_action": match.last_rl_action,
             "ai_action": match.last_ai_action,
+            "env_outcome": env_outcome,
         }
         return observation, reward, done, truncated, info

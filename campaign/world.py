@@ -14,10 +14,45 @@ from .actor import (
 )
 from .character import CampaignCharacter
 from .errors import CampaignError
-from .planner import AUTONOMY_PERIOD, IntentQueue
+from .planner import (
+    AUTONOMY_PERIOD,
+    IntentQueue,
+    SLOT_DAY_EDGE,
+    SLOTS_MAX,
+    _as_slot,
+    condition_holds,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
+
+# Политика автономных персонажей (A4): базовый шанс социального контакта
+# и величины эффектов. Исход бросается `campaign_success_chance` — той же
+# формулой, что действует игрок; провал даёт слабый негативный дрейф
+# вместо позитивного. Пороги выбора вида — по легаси-шкале [-1, 1].
+AUTONOMY_BASE_CHANCE = 0.6
+AUTONOMY_AFFINITY_THRESHOLD = -0.2
+AUTONOMY_TRUST_THRESHOLD = 0.35
+
+# Ветки политики автономных контактов: `effects` применяются при успехе,
+# при провале эффект зеркалится и halвится (см. `_apply_autonomy_contact`).
+_AUTONOMY_POLICIES = {
+    "reconcile": {
+        "effects": {"affinity": 0.02},
+        "text": "предложил(а) примирение.",
+        "failure_text": "попытка примирения отскочила.",
+    },
+    "rapprochement": {
+        "effects": {"affinity": 0.02, "trust": 0.01},
+        "text": "укрепил(а) контакт.",
+        "failure_text": "контакт не сложился.",
+    },
+    "probe": {
+        "effects": {"affinity": 0.01},
+        "text": "нашёл(ла) повод для разговора.",
+        "failure_text": "разговор не задался.",
+    },
+}
 DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
 
 CAMPAIGN_HEALTH_REGEN = 1.0
@@ -3109,12 +3144,19 @@ class WorldEngine:
         target="",
         payload=None,
         source="world",
+        priority=0,
+        cancel_when=None,
+        due_slot=0,
     ):
         """Отложить событие мира на будущий день.
 
         Возвращает `Intent` или `None`, если очередь переполнена. Это
         единственный вход планировщика: сюжет, персонажи и тесты назначают
         события одинаково, а исполнение всегда идёт через `_run_intents()`.
+        `priority` задаёт порядок внутри дня (больше = раньше),
+        `cancel_when` — условие отмены по легаси-полям актёра,
+        `due_slot` — слот внутри дня (0 — граница дня; 1..3 — порядок
+        «внутри» очереди того же дня, A5).
         """
         return self.intents.schedule(
             due_day,
@@ -3123,13 +3165,147 @@ class WorldEngine:
             target=target,
             payload=payload,
             source=source,
+            priority=priority,
+            cancel_when=cancel_when,
+            due_slot=due_slot,
         )
 
-    def _run_intents(self):
-        """Исполнить намерения, срок которых наступил в текущем дне."""
+    def schedule_action(
+        self, action_id, target_id=None, due_day=None, priority=0, due_slot=0
+    ):
+        """Запланировать действие игрока на будущий день (A5).
+
+        Непрерывность планирования: игрок тратит энергию только в момент
+        исполнения, поэтому «поставить дело в очередь» не стоит ресурсов,
+        но и не гарантирует исход — к наступлению срока мир мог измениться
+        (увольнение, смерть, кончилось время кампании). В начале `due_day`
+        намерение проходит полный путь `execute()`: те же проверки, та же
+        цена, тот же детерминированный бросок (`action_count` в токене
+        ролла продолжает расти монотонно). Если действие к сроку
+        недоступно, оно снимается с записью в журнал — без штрафа.
+
+        Возвращает `Intent` или `None` (переполнение очереди).
+        """
+        action_id = _text(action_id)
+        if action_id not in self.actions:
+            return None
+        day = self.day + 1 if due_day is None else max(1, _as_int(due_day, 1))
+        if day < self.day:
+            # Срок уже в прошлом — очередь и так исполняет долги первыми,
+            # планировать «вчера» бессмысленно.
+            return None
+        if day == self.day and _as_slot(due_slot) == SLOT_DAY_EDGE:
+            # Край текущего дня (слот 0) мог быть пропущен, если игрок
+            # начал играть не с рассвета; разрешаем срочное намерение —
+            # его заберёт ближайший `tick()`. Внутридневные слоты того же
+            # дня доступны всегда: они ещё не наступили.
+            pass
+        return self.schedule_intent(
+            day,
+            "action",
+            actor="player",
+            target=_text(target_id),
+            payload={"action": action_id, "target": _text(target_id)},
+            source="player",
+            priority=priority,
+            due_slot=due_slot,
+        )
+
+    def _run_overdue(self):
+        """Исполнить долги: `due_day < self.day`, в порядке слотов.
+
+        Просроченное намерение затухало бы в очереди, пока ИИ делает ход
+        по устаревшему миру, поэтому `end_day()` и `tick()` закрывают их
+        первыми. Долг уже опоздал — день исполнения не выбирается «виртуально»,
+        событие стоит в журнале под текущим днём; порядок внутри долгов
+        сохраняется по слотам (`SLOT_DAY_EDGE` — сначала краевые). Намерения
+        наступающих суток (`due_day == self.day`) здесь не берутся — они
+        исполняются `_run_intents()`.
+        """
+        ready = [item for item in self.intents.items if item.due_day < self.day]
+        if not ready:
+            return []
+        ready_ids = {id(item) for item in ready}
+        self.intents.items = [
+            item for item in self.intents.items if id(item) not in ready_ids
+        ]
         events = []
-        for intent in self.intents.pop_due(self.day):
-            events.extend(self._apply_intent(intent))
+        for intent in sorted(
+            ready, key=lambda item: (_as_slot(item.due_slot), -item.priority)
+        ):
+            events.extend(self._fire_intent(intent))
+        return events
+
+    def _fire_intent(self, intent):
+        """Отмена по условию + исполнение одного намерения."""
+        if intent.cancel_when:
+            character = self.character(intent.actor) if intent.actor else None
+            if condition_holds(intent.cancel_when, character):
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "intent_cancelled",
+                        "text": "Намерение отменено: условие не выполнено.",
+                    }
+                )
+                return [
+                    {
+                        "kind": "intent_cancelled",
+                        "day": self.day,
+                        "source": intent.source,
+                        "target": intent.actor,
+                        "text": "намерение снято по условию",
+                        "changes": [],
+                    }
+                ]
+        return self._apply_intent(intent)
+
+    def _run_intents(self, max_slot=SLOTS_MAX, day=None):
+        """Исполнить намерения, срок которых наступил.
+
+        `max_slot` (A5) ограничивает исполнение слотами внутри дня:
+        планировщик дня (`end_day`) вызывает метод с полным значением,
+        а будущие внутридневные тики смогут выбрать только часть очереди.
+        Просроченные намерения всегда исполняются первыми (слот 0).
+        `day` — день выборки очереди; по умолчанию «день после текущих
+        суток»: намерение со сроком «день N» исполняется в начале дня N,
+        поэтому очередь выбирается строго до инкремента `self.day`.
+        """
+        events = []
+        target_day = self.day if day is None else day
+        # Семантика A5: намерение со сроком «день N» исполняется в начале
+        # дня N; дальние дни ждут своего перехода. Долги (`due_day <
+        # target_day`) закрываются по порядку слотов: узкое окно берёт
+        # только краевой долг (слот 0), остальные ждут расширения max_slot
+        # или полного перехода суток. Намерения наступивших суток честно
+        # ждут своего слота — иначе внутридневные ушли бы «не в свой час».
+        # Полный переход (`end_day`, max_slot=SLOTS_MAX) забирает весь день:
+        # и край, и внутридневные слоты — иначе они стали бы долгами.
+        # Выборка долгов живёт здесь, а не в отдельном проходе, чтобы
+        # `tick(max_slot=0)` не схлопывал всю просрочку разом.
+        window = _as_slot(max_slot)
+        overdue = [item for item in self.intents.items if item.due_day < target_day]
+        due_today = [
+            item
+            for item in self.intents.items
+            if item.due_day == target_day
+            and (_as_slot(item.due_slot) <= window or window >= SLOTS_MAX)
+        ]
+        if window >= SLOTS_MAX:
+            ready = overdue + due_today
+        else:
+            ready = [item for item in overdue if _as_slot(item.due_slot) <= window]
+            ready += due_today
+        if not ready:
+            return events
+        ready_ids = {id(item) for item in ready}
+        self.intents.items = [
+            item for item in self.intents.items if id(item) not in ready_ids
+        ]
+        for intent in sorted(
+            ready, key=lambda item: (-item.priority, _as_slot(item.due_slot))
+        ):
+            events.extend(self._fire_intent(intent))
         return events
 
     def _apply_intent(self, intent):
@@ -3151,6 +3327,10 @@ class WorldEngine:
                 }
             ]
         if intent.kind == "contact":
+            if intent.source == "autonomy":
+                # Автономный контакт (A4) исполняется своей политикой:
+                # вид ветки и бросок шанса через `campaign_success_chance`.
+                return self._apply_autonomy_contact(intent)
             character = self.character(intent.actor)
             if character is None or not character.get("alive", True):
                 return []
@@ -3178,7 +3358,173 @@ class WorldEngine:
                     "changes": changed,
                 }
             ]
+        if intent.kind == "action":
+            # Отложенное действие игрока (A5): полный путь `execute()` —
+            # те же проверки доступности, та же цена и детерминированный
+            # бросок. Если к сроку действие недоступно (увольнение, смерть,
+            # конец кампании), намерение снимается без последствий.
+            # Долг из прошлого дня исполняется в «виртуальных» сутках его
+            # срока: сам счётчик дней уже мог уйти вперёд, но событие в
+            # журнале должно стоять там, где оно было запланировано.
+            day_saved = self.day
+            if intent.due_day < day_saved:
+                self.day = intent.due_day
+            try:
+                return self._apply_action_intent(intent)
+            finally:
+                self.day = day_saved
         return []
+
+    def _apply_action_intent(self, intent):
+        """Исполнить отложенное действие игрока через полный путь `execute()`.
+
+        Вынесен в отдельный метод, чтобы `_apply_intent` оставался
+        диспетчером по видам намерений, а виртуальный «день срока»
+        (см. `_apply_intent`) корректно оборачивал и успех, и отказ.
+        """
+        if self.finished or not self.player_alive:
+            text = "Отложенное дело не состоялось: герой вне игры."
+            self.log.append(
+                {"day": self.day, "kind": "intent_skipped", "text": text}
+            )
+            return [
+                {
+                    "kind": "intent_skipped",
+                    "day": self.day,
+                    "source": intent.source,
+                    "target": _text(intent.target),
+                    "text": text,
+                    "changes": [],
+                }
+            ]
+        result = self.execute(
+            _text(intent.payload.get("action")),
+            _text(intent.payload.get("target")) or None,
+        )
+        if not result.get("ok"):
+            text = "Отложенное дело не состоялось: %s" % _text(
+                result.get("reason"), "действие недоступно"
+            )
+            self.log.append(
+                {"day": self.day, "kind": "intent_skipped", "text": text}
+            )
+            return [
+                {
+                    "kind": "intent_skipped",
+                    "day": self.day,
+                    "source": intent.source,
+                    "target": _text(result.get("target")),
+                    "text": text,
+                    "changes": [],
+                }
+            ]
+        return [
+            {
+                "kind": "intent",
+                "day": self.day,
+                "source": "player_action",
+                "target": result["target"],
+                "actor": "player",
+                "action": result["action"],
+                "outcome": result["outcome"],
+                "text": "%s → %s: %s"
+                % (
+                    result["action_label"],
+                    result["target_label"],
+                    result["text"],
+                ),
+                "changes": list(result["changes"]),
+            }
+        ]
+
+    def _autonomy_intent(self, character):
+        """Выбрать вид автономного контакта по состоянию персонажа.
+
+        Политика (срез A4): враждебный персонаж тянется к примирению,
+        лояльный при высоком доверии — к сближению, остальные — к
+        нейтральному разведывательному контакту. Эффекты прописаны сразу
+        для исхода «успех»; бросок шанса делает `_apply_autonomy_contact`.
+        """
+        affinity = _as_float(character.get("affinity"), 0.0)
+        trust = _as_float(character.get("trust"), 0.0)
+        if affinity <= AUTONOMY_AFFINITY_THRESHOLD:
+            return "reconcile", {
+                "effects": {"affinity": 0.02},
+                "text": "предложил(а) примирение.",
+            }
+        if affinity >= 0.0 and trust >= AUTONOMY_TRUST_THRESHOLD:
+            return "rapprochement", {
+                "effects": {"affinity": 0.02, "trust": 0.01},
+                "text": "укрепил(а) контакт.",
+            }
+        return "probe", {
+            "effects": {"affinity": 0.01},
+            "text": "нашёл(ла) повод для разговора.",
+        }
+
+    def _apply_autonomy_contact(self, intent):
+        """Исполнить автономный контакт через общую формулу успеха.
+
+        Атакующий — сам персонаж (его `Automaton` уже содержит F/E/H),
+        защитник — его структура. Успех применяет позитивные эффекты
+        выбранной политики, провал — слабый негативный дрейф. Исход
+        детерминирован seed'ом мира (`_roll`).
+        """
+        character = self.character(intent.actor)
+        if character is None or not character.get("alive", True):
+            return []
+        kind = _text(intent.payload.get("policy"), "probe")
+        branch = _AUTONOMY_POLICIES.get(kind) or _AUTONOMY_POLICIES["probe"]
+        defender = None
+        if self.attached and character.get("node_id"):
+            defender = self.node(character["node_id"])
+        attacker_unit = character.sync()
+        base = AUTONOMY_BASE_CHANCE
+        if defender is not None:
+            chance = campaign_success_chance(
+                base,
+                attacker_unit,
+                self._unit_from_node(defender),
+                form="info",
+            )
+        else:
+            chance = campaign_success_chance(
+                base, attacker_unit, None, form="info"
+            )
+        # Токен броска — день исполнения намерения (`intent.due_day`), а не
+        # текущий день: иначе при отложенном исполнении одно и то же
+        # намерение бросалось бы дважды под разными токенами (назначая его,
+        # мир уже кидает `autonomy:<день_назначения>:<id>`).
+        roll = self._roll(
+            "autonomy:%s:%s" % (intent.due_day, character["id"])
+        )
+        outcome = "success" if roll < chance else "failure"
+        effects = branch["effects"] if outcome == "success" else {
+            key: -abs(value) * 0.5 for key, value in branch["effects"].items()
+        }
+        changed = self._apply_character_effects(effects, character)
+        text = branch["text"] if outcome == "success" else branch.get(
+            "failure_text", "контакт не удался."
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "contact",
+                "text": "%s: %s" % (character["name"], text),
+            }
+        )
+        return [
+            {
+                "kind": "intent",
+                "day": self.day,
+                "source": intent.source,
+                "target": character["id"],
+                "actor": character["id"],
+                "outcome": outcome,
+                "text": text,
+                "changes": changed,
+            }
+        ]
 
     def _schedule_autonomy(self):
         """Автономные персонажи сами назначают контакты на будущее.
@@ -3186,7 +3532,11 @@ class WorldEngine:
         Намерение создаётся только для персонажа с `autonomous: true`;
         по умолчанию таких нет, поэтому баланс существующих миров не
         меняется. Дубль на тот же день и актора не создаётся, а исход
-        контакта детерминирован seed'ом мира.
+        контакта детерминирован seed'ом мира. Вид контакта выбирается
+        политикой `_autonomy_intent`, отложенный контакт снимается, если
+        к моменту исполнения персонаж окончательно расположен к игроку
+        (`cancel_when`: высокая симпатия делает «повод для разговора»
+        неактуальным).
         """
         for character in self.characters.values():
             if not character.get("autonomous"):
@@ -3204,34 +3554,66 @@ class WorldEngine:
             # Намерение исполняется в начале следующего хода этого дня:
             # `_schedule_autonomy` вызывается уже после `self.day += 1`,
             # а `_run_intents` — в начале `end_day`.
-            due_day = self.day
+            # Долг не создаётся: если очередь текущего дня ещё не закрыта
+            # (игрок не сделал тики, `end_day()` добирает её после autonomy),
+            # планируем следующий контакт на сутки вперёд — иначе намерение
+            # исполнится в том же переходе, где родилось.
+            pending_today = any(
+                item.due_day == self.day for item in self.intents.items
+            )
+            due_day = self.day + 1 if pending_today else self.day
             if self.intents.has(
                 due_day=due_day, actor=character["id"], source="autonomy"
             ):
                 continue
-            roll = self._roll(
-                "autonomy:%s:%s" % (self.day, character["id"])
-            )
-            # Контакт — не подарок: отношение слегка растёт или падает.
-            drift = 0.01 if roll >= 0.5 else -0.01
+            policy, branch = self._autonomy_intent(character)
             self.schedule_intent(
                 due_day,
                 "contact",
                 actor=character["id"],
                 payload={
-                    "effects": {"affinity": drift},
-                    "text": "нашёл(ла) повод для разговора.",
+                    "policy": policy,
+                    "effects": dict(branch["effects"]),
+                    "text": branch["text"],
                 },
                 source="autonomy",
+                priority=1 if policy == "reconcile" else 0,
+                cancel_when={"field": "affinity", "op": "gt", "value": 0.8},
             )
+
+    def tick(self, max_slot=SLOTS_MAX):
+        """Внутридневной тик планировщика (A5).
+
+        Непрерывность времени кампании: мир исполняет намерения не только
+        на границе дня (слот 0), но и внутри него. `tick(max_slot=1)`
+        запускает очередь слотов 0..1 и НЕ двигает сутки — это чистый
+        внутридневный шаг. Полный цикл дня по-прежнему делает `end_day()`.
+
+        Контракт времени A5: намерение со сроком «день N» исполняется в
+        начале дня N. Тик внутри суток N открывает очередь этих суток —
+        долг (due_day < self.day) и слоты 0..max_slot дня self.day;
+        дальние дни ждут своего перехода. Извлечённые намерения исчезают
+        из очереди, поэтому `end_day()` повторно их не исполнит.
+
+        Возвращает список событий (пустой, если очередью делать нечего).
+        """
+        if self.finished:
+            return []
+        events = self._run_overdue()
+        events.extend(self._run_intents(max_slot=max_slot))
+        return events
 
     def end_day(self):
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         events = []
-        # Отложенные события исполняются до хода ИИ: намерение, назначенное
-        # на этот день, должно успеть повлиять на его итог.
-        events.extend(self._run_intents())
+        # Контракт времени (A5): намерение со сроком «день N» исполняется
+        # в начале дня N. До хода ИИ закрывается только долг
+        # (`due_day < self.day`) и очередь наступающих суток (`due_day ==
+        # self.day`, т.к. переход ещё не выполнен) — событие попадает в
+        # журнал под своим днём; игрок не ходит по устаревшему миру.
+        events.extend(self._run_overdue())
+        events.extend(self._run_intents(max_slot=SLOTS_MAX, day=self.day))
         for node_id in self.node_order:
             entry = self._ai_action(node_id)
             if entry is not None:
@@ -3258,6 +3640,12 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
+        # Долги, появившиеся в ходе хода ИИ (сюжет/мир запланировали их на
+        # наступившие сутки): полная выборка после инкремента закрывает и
+        # их, чтобы мир не вошёл в новый день с просроченной очередью.
+        # Извлечённые ранее намерения повторно не исполняются — задвоения
+        # с `tick()` нет.
+        events.extend(self._run_intents(max_slot=SLOTS_MAX))
         if self.infinite:
             # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
             # горизонта больше не даёт win/lose. Сценарий продолжается,

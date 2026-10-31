@@ -18,15 +18,16 @@ from campaign.env import END_DAY
 
 # Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
 # ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
-# QTable и до появления MLPPolicy. Текущий формат — v2:
+# QTable и до появления MLPPolicy. Текущий формат — v3:
 #   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
 #     полей (недостающие sickness-поля заполняются нулём);
-#   - BDI: 21 признак (18 прежних + код действия + 2 признака среды);
-#     при загрузке v0/v1 короткий вектор веса дополняется нулями;
-#   - MLP: 21 вход; при загрузке v1/v2 строки 18/19→21 дополняются
+#   - BDI: 22 признака (18 прежних + код действия + 2 признака среды +
+#     окно среды A1); при загрузке v0/v1/v2 короткий вектор веса
+#     дополняется нулями;
+#   - MLP: 22 входа; при загрузке v1/v2 строки 18/19/21→22 дополняются
 #     нулями, поэтому старые сети не теряют выученные веса.
 # QTable-ключи не меняются: код действия уже входит в ключ отдельным полем.
-CHECKPOINT_VERSION = 2
+CHECKPOINT_VERSION = 3
 LEGACY_CHECKPOINT_VERSION = 0
 
 
@@ -118,16 +119,16 @@ def action_feature_code(action):
 def campaign_features(observation, action):
     """Признаки кампанейного среза (проблема готовности №6).
 
-    Тот же формат вектора, что и у арены: 21 признак, где слоты
+    Тот же формат вектора, что и у арены: 22 признака, где слоты
     «противника» занимают позиции собственной организации (power — чужая
     сила, cohesion — «открытость» структуры), а `action.kind` кодируется
     через флаги REST/WORK/TREAT по аналогии с ареной: END_DAY ведёт себя
     как отдых (тик мира без затрат), ordinary-действие — как работа,
     heal/self-действие — как лечение. Девятнадцатый слот — стабильный код
     действия: без него `inspect` и `build_network` неразличимы для
-    BDI/MLP, потому что у обоих `fraction=0`. Последние два слота —
-    признаки среды (в кампании нейтральные). Признаки нормированы к
-    [0, 1], как и в `features()`.
+    BDI/MLP, потому что у обоих `fraction=0`. Двадцатый слот — устойчивая
+    рана героя; двадцать второй (окно среды) в кампании нейтрален (0.0).
+    Признаки нормированы к [0, 1], как и в `features()`.
     """
     is_end_day = 1.0 if action.kind == "END_DAY" else 0.0
     self_target = 1.0 if not action.target else 0.0
@@ -174,11 +175,15 @@ def campaign_features(observation, action):
         # Кампания не имеет собственного актора среды; 20-й слот —
         # устойчивая рана героя (общее состояние `wound` с ареной). На
         # арене этот слот занят `env_pressure`, но кампанейный вектор
-        # строится отдельно (`campaign_features`), а длина и версия
-        # чекпойнтов (`FEATURE_COUNT`, `CHECKPOINT_VERSION = 2`) не
-        # меняются — старые сейвы загружаются без миграции.
+        # строится отдельно (`campaign_features`). Слой A1 добавил в
+        # аренный вектор 22-й признак (окно среды); кампанейный дополнен
+        # фиксированным 0.0 (у кампании нет env-актора), поэтому длины
+        # векторов совпадают и общие веса политик грузятся без миграции.
         _clamp01(float(getattr(observation, "wound", 0.0))),
         1.0,
+        # 22-й слот (A1): окно среды. У кампании env-актора нет — всегда
+        # 0.0, чтобы длина вектора равнялась FEATURE_COUNT.
+        0.0,
     )
 
 
@@ -193,7 +198,19 @@ def _clamp01(value):
     return max(0.0, min(1.0, float(value)))
 
 
-def features(observation, action):
+_OPP_REST = "REST"
+_OPP_TREAT = "TREAT"
+_OPP_WORK = "WORK"
+OPPONENT_STAT_SLOTS = 4
+
+
+def duel_features(observation, action):
+    """Базовый 22-признаковый аренный вектор (без A8-статистик).
+
+    Общая часть для `features()` и кампанейного диспетчера: BDI/MLP/QTable
+    остаются на 22 слотах; расширенный 26-слотовый вектор использует
+    только `DuelMLPPolicy` (A8 — оппонентное моделирование).
+    """
     max_energy = max(1.0, observation.self_max_energy)
     max_force = max(1.0, observation.self_max_force)
     opponent_energy = max(1.0, observation.opponent_max_energy)
@@ -226,10 +243,116 @@ def features(observation, action):
         action_feature_code(action),
         _clamp01(float(getattr(observation, "env_pressure", 0.0))),
         _clamp01(float(getattr(observation, "env_season", 1.0))),
+        # A1: открытое окно уязвимости среды (0/1). Вне env-актора всегда
+        # 0.0 — старые векторы дополняются нулём при миграции чекпойнтов.
+        _clamp01(float(getattr(observation, "env_window", 0.0))),
     )
 
 
-FEATURE_COUNT = 21
+class OpponentModel:
+    """A8: EMA-оценки политики оппонента дуэли.
+
+    Копит доли последних действий противника (REST, TREAT, атаки) и
+    долю силовой формы среди атак; передаётся в `features()` как 4
+    дополнительных признака (вектор 22 -> 26). Модель не обучается
+    градиентами — это скользящая статистика (alpha по умолчанию 0.2),
+    устойчивая к дрейфу стиля оппонента в self-play.
+    """
+
+    def __init__(self, alpha=0.2):
+        self.alpha = float(alpha)
+        # A8:Prior «нулевой активности» (0.25 на каждый класс вместо 0)
+        # снимает стартовый градиент «все действия одинаково неактивны»,
+        # из-за которого первые десятки тысяч обновлений тратились на
+        # вычитание константы; доля атак — комплемент до 1.
+        self.rest = 0.25
+        self.treat = 0.25
+        self.attack = 0.25
+        self.force_share = 0.0
+        self.seen = 0
+
+    def update(self, action):
+        """EMA-обновление по действию оппонента.
+
+        Принимает `Action` (core41.types) либо аренный тег `(kind,
+        fraction)` из `ArenaMatch.last_ai_action`, где kind — один из
+        CORE_ACTIONS: 'REST' / 'TREAT' / 'force' / 'info'.
+        """
+        if isinstance(action, tuple):
+            tag = action[0] if action else ""
+            kind, form = ("ATTACK", tag) if tag in ("force", "info") else (tag, "")
+        else:
+            kind = getattr(action, "kind", "") or ""
+            form = getattr(action, "form", "") or ""
+        is_rest = kind == _OPP_REST
+        is_treat = kind == _OPP_TREAT
+        is_attack = not (is_rest or is_treat or kind == _OPP_WORK)
+        a = self.alpha
+        self.rest += a * ((1.0 if is_rest else 0.0) - self.rest)
+        self.treat += a * ((1.0 if is_treat else 0.0) - self.treat)
+        self.attack += a * ((1.0 if is_attack else 0.0) - self.attack)
+        if is_attack:
+            force_hit = 1.0 if form == "force" else 0.0
+            self.force_share += a * (force_hit - self.force_share)
+        self.seen += 1
+
+    def stats(self):
+        """Кортеж из OPPONENT_STAT_SLOTS долей для вектора признаков."""
+        return (self.rest, self.treat, self.attack, self.force_share)
+
+    def state_dict(self):
+        return {
+            "alpha": self.alpha,
+            "rest": self.rest,
+            "treat": self.treat,
+            "attack": self.attack,
+            "force_share": self.force_share,
+            "seen": self.seen,
+        }
+
+    def load_state_dict(self, state):
+        if not state:
+            return
+        self.alpha = float(state.get("alpha", self.alpha))
+        self.rest = float(state.get("rest", 0.0))
+        self.treat = float(state.get("treat", 0.0))
+        self.attack = float(state.get("attack", 0.0))
+        self.force_share = float(state.get("force_share", 0.0))
+        self.seen = int(state.get("seen", 0))
+
+
+def features(observation, action, opponent_stats=None):
+    """Аренный вектор признаков.
+
+    Базовая длина — `FEATURE_COUNT` (22, общий канон для BDI/MLP/QTable).
+    При переданной `opponent_stats` (A8) к вектору добавляются 4 слота
+    EMA-статистики оппонента — такой расширенный вектор (26) использует
+    только `DuelMLPPolicy`; для него длина выводится через
+    `feature_count_for()`.
+    """
+    base = duel_features(observation, action)
+    if not opponent_stats:
+        return base
+    return base + tuple(
+        _clamp01(value) for value in opponent_stats
+    )
+
+
+def feature_count_for(opponent_stats=None):
+    """Длина вектора `features()` для данного набора статистик."""
+    if opponent_stats:
+        return FEATURE_COUNT + OPPONENT_STAT_SLOTS
+    return FEATURE_COUNT
+
+
+FEATURE_COUNT = 22
+# A8: DuelMLPPolicy строит вектор из FEATURE_COUNT + OPPONENT_STAT_SLOTS
+# признаков; общая CHECKPOINT_VERSION (3) относится к политикам на
+# базовом векторе, duel-чекпойнты используют DUEL_CHECKPOINT_VERSION (4).
+DUEL_FEATURE_COUNT = FEATURE_COUNT + OPPONENT_STAT_SLOTS
+CHECKPOINT_VERSION = 3
+DUEL_CHECKPOINT_VERSION = 4
+LEGACY_CHECKPOINT_VERSION = 0
 
 
 def campaign_weights_from(weights):
@@ -326,6 +449,8 @@ class BDIPolicy:
             0.0,
             0.0,
             0.0,
+            # A1: базовая реакция на открытое окно среды (22-й слот).
+            0.3,
         ]
         # Кампанейный срез — отдельная задача: общие аренные веса
         # предпочитают отдых, поэтому baseline завершал день вместо
@@ -813,8 +938,9 @@ class MLPPolicy:
         rows = []
         if weights1:
             rows = [[float(value) for value in row] for row in weights1]
-            # v1 MLP имел 18 входов; v2 — 19, текущий — 21. Дополняем
-            # строки нулями, чтобы старые веса не терялись.
+            # v1 MLP имел 18 входов, v2 — 19, v2(среда) — 21, текущий
+            # (A1: окно среды) — 22. Дополняем строки нулями, чтобы
+            # старые веса не терялись.
             if all(len(row) <= FEATURE_COUNT for row in rows):
                 rows = [
                     row + [0.0] * (FEATURE_COUNT - len(row)) for row in rows
@@ -896,9 +1022,324 @@ class MLPPolicy:
             self.load_state_dict(json.load(handle))
 
 
+class DuelMLPPolicy:
+    """A7: MLP-политика для арены; A8: + оппонентное моделирование.
+
+    `MLPPolicy` обучен на кампанейном срезе и не умеет читать аренное
+    наблюдение; этот класс — function approximation для дуэли (ось A,
+    задача A7 «преодоление потолка табличного RL»). Архитектура та же
+    (скрытый слой tanh + линейный выход, online TD(0), target-сеть),
+    но вектор — аренный (`features`), а действия —
+    `Action(kind/form/fraction)`.
+
+    A8: внутри ведётся `OpponentModel` (EMA-статистика действий
+    противника); при наличии `transition.opponent_action` модель
+    обновляется до построения вектора, добавляя 4 признака к 22 базовым
+    (вектор = DUEL_FEATURE_COUNT = 26). Без статистики слоты равны нулю — старые
+    чекпойнты (v3, 22 признака) мигрируют с дополнением нулями.
+
+    Ёмкость выше таблицы: обобщение по непрерывным нормированным
+    признакам вместо 12-полевой квантованной сетки ключей QTable.
+    """
+
+    def __init__(
+        self,
+        seed=0,
+        learning_rate=0.05,
+        discount=0.94,
+        epsilon=0.22,
+        min_epsilon=0.03,
+        hidden=24,
+        target_sync=50,
+        opponent_alpha=0.2,
+    ):
+        self.rng = random.Random(seed)
+        self.learning_rate = float(learning_rate)
+        self.discount = float(discount)
+        self.epsilon = float(epsilon)
+        self.min_epsilon = float(min_epsilon)
+        self.hidden = int(hidden)
+        self.target_sync = max(1, int(target_sync))
+        self.updates = 0
+        # A8: EMA-статистика действий противника (обновляется из
+        # `info["ai_action"]` / `opponent_action` в `observe()`).
+        self.opponent_model = OpponentModel(alpha=opponent_alpha)
+        self.weights1 = [
+            [self.rng.uniform(-0.1, 0.1) for _ in range(DUEL_FEATURE_COUNT)]
+            for _ in range(self.hidden)
+        ]
+        self.bias1 = [0.0 for _ in range(self.hidden)]
+        self.weights2 = [
+            self.rng.uniform(-0.1, 0.1) for _ in range(self.hidden)
+        ]
+        self.bias2 = 0.0
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
+
+    def _forward_with(self, vector, weights1, bias1, weights2, bias2):
+        hidden = []
+        for index in range(self.hidden):
+            value = bias1[index] + dot(weights1[index], vector)
+            hidden.append(math.tanh(value))
+        output = bias2 + dot(weights2, hidden)
+        return output, hidden
+
+    def _forward(self, vector):
+        return self._forward_with(
+            vector, self.weights1, self.bias1, self.weights2, self.bias2
+        )
+
+    def _target_forward(self, vector):
+        return self._forward_with(
+            vector,
+            self.target_weights1,
+            self.target_bias1,
+            self.target_weights2,
+            self.target_bias2,
+        )
+
+    def _sync_target(self):
+        self.target_weights1 = [list(row) for row in self.weights1]
+        self.target_bias1 = list(self.bias1)
+        self.target_weights2 = list(self.weights2)
+        self.target_bias2 = self.bias2
+
+    def score(self, observation, action):
+        output, _hidden = self._forward(
+            features(observation, action, self.opponent_model.stats())
+        )
+        return output
+
+    def target_score(self, observation, action):
+        output, _hidden = self._target_forward(
+            features(observation, action, self.opponent_model.stats())
+        )
+        return output
+
+    def act(self, observation, actions, explore=True):
+        actions = tuple(actions)
+        if not actions:
+            return Action("REST", form="rest")
+        if explore and self.rng.random() < self.epsilon:
+            return self.rng.choice(actions)
+        return max(actions, key=lambda item: self.score(observation, item))
+
+    def observe(self, transition):
+        # A8: сначала обновляем модель оппонента на действие противника
+        # этого шага (из info["ai_action"] или opponent_action), затем
+        # строим вектор — признаки отражают статистику ДО текущего хода.
+        opponent_action = getattr(transition, "opponent_action", None)
+        if opponent_action is None:
+            info = getattr(transition, "info", None) or {}
+            opponent_action = info.get("ai_action")
+        if opponent_action is not None:
+            self.opponent_model.update(opponent_action)
+        vector = features(
+            transition.observation,
+            transition.action,
+            self.opponent_model.stats(),
+        )
+        current, hidden = self._forward(vector)
+        if transition.done:
+            target = 0.0
+        else:
+            next_actions = transition.next_actions
+            if not next_actions:
+                next_actions = default_actions(transition.next_observation)
+            target = max(
+                self.target_score(transition.next_observation, candidate)
+                for candidate in next_actions
+            )
+        error = transition.reward + self.discount * target - current
+        error = max(-5.0, min(5.0, error))
+        hidden_deltas = [
+            error * self.weights2[index] * (1.0 - hidden[index] ** 2)
+            for index in range(self.hidden)
+        ]
+        for index in range(self.hidden):
+            self.weights2[index] += (
+                self.learning_rate * error * hidden[index]
+            )
+        self.bias2 += self.learning_rate * error
+        for index in range(self.hidden):
+            delta = self.learning_rate * hidden_deltas[index]
+            row = self.weights1[index]
+            for feature_index, value in enumerate(vector):
+                row[feature_index] += delta * value
+            self.bias1[index] += delta
+        self.updates += 1
+        if self.updates % self.target_sync == 0:
+            self._sync_target()
+        self.epsilon = max(self.min_epsilon, self.epsilon * 0.9995)
+
+    def state_dict(self):
+        return {
+            "kind": "duel-mlp",
+            "version": DUEL_CHECKPOINT_VERSION,
+            "feature_count": DUEL_FEATURE_COUNT,
+            "hidden": self.hidden,
+            "weights1": [list(row) for row in self.weights1],
+            "bias1": list(self.bias1),
+            "weights2": list(self.weights2),
+            "bias2": self.bias2,
+            "target_weights1": [list(row) for row in self.target_weights1],
+            "target_bias1": list(self.target_bias1),
+            "target_weights2": list(self.target_weights2),
+            "target_bias2": self.target_bias2,
+            "target_sync": self.target_sync,
+            "epsilon": self.epsilon,
+            "updates": self.updates,
+            "learning_rate": self.learning_rate,
+            "discount": self.discount,
+            # A8: EMA-статистика оппонента (переносится между прогонами).
+            "opponent_model": self.opponent_model.state_dict(),
+        }
+
+    def load_state_dict(self, state):
+        if not state:
+            return
+        # A8: восстанавливаем модель оппонента, если она есть в чекпойнте.
+        opponent_state = state.get("opponent_model")
+        if opponent_state:
+            self.opponent_model.load_state_dict(opponent_state)
+        hidden = int(state.get("hidden", self.hidden))
+        weights1 = state.get("weights1")
+        rows = []
+        if weights1:
+            rows = [[float(value) for value in row] for row in weights1]
+            # Совместимость с более коротким вектором признаков: строки
+            # дополняются нулями до текущего FEATURE_COUNT.
+            rows = [
+                row + [0.0] * max(0, DUEL_FEATURE_COUNT - len(row))
+                for row in rows
+            ]
+        if rows:
+            self.hidden = min(self.hidden, hidden) if hidden else self.hidden
+            self.hidden = hidden
+            pad = self.hidden - len(rows)
+            if pad > 0:
+                rows.extend([[0.0] * DUEL_FEATURE_COUNT for _ in range(pad)])
+            self.weights1 = rows[: self.hidden]
+            biases = [float(v) for v in state.get("bias1", [])]
+            biases += [0.0] * max(0, self.hidden - len(biases))
+            self.bias1 = biases[: self.hidden]
+            w2 = [float(v) for v in state.get("weights2", [])]
+            w2 += [0.0] * max(0, self.hidden - len(w2))
+            self.weights2 = w2[: self.hidden]
+        self.bias2 = float(state.get("bias2", self.bias2))
+        tw1 = state.get("target_weights1")
+        if tw1:
+            trows = [
+                [float(v) for v in row]
+                + [0.0] * max(0, DUEL_FEATURE_COUNT - len(row))
+                for row in tw1
+            ]
+            self.target_weights1 = trows[: self.hidden]
+            tb = [float(v) for v in state.get("target_bias1", [])]
+            tb += [0.0] * max(0, self.hidden - len(tb))
+            self.target_bias1 = tb[: self.hidden]
+            tw2 = [float(v) for v in state.get("target_weights2", [])]
+            tw2 += [0.0] * max(0, self.hidden - len(tw2))
+            self.target_weights2 = tw2[: self.hidden]
+        else:
+            self._sync_target()
+        self.target_bias2 = float(
+            state.get("target_bias2", self.bias2)
+        )
+        self.target_sync = int(state.get("target_sync", self.target_sync))
+        self.epsilon = float(state.get("epsilon", self.epsilon))
+        self.updates = int(state.get("updates", self.updates))
+        self.learning_rate = float(
+            state.get("learning_rate", self.learning_rate)
+        )
+        self.discount = float(state.get("discount", self.discount))
+
+    def save(self, path):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.state_dict(), handle, ensure_ascii=False)
+
+
+class UtilityPolicy:
+    """B4: эвристика «как в пин-калибровке RL 1 / UtilityAI 9».
+
+    Детерминированная утилитарная политика дуэли без обучения: при
+    преимуществе давления — силовая атака в открытого противника,
+    иначе накопление (WORK), отдых и лечение по состоянию. Служит
+    сильным не-обучаемым оппонентом в игре («Матч с ИИ») и baseline
+    в матрице силы; веса не обновляются (`observe()` — no-op).
+    """
+
+    def __init__(self, aggression=0.75):
+        self.aggression = float(aggression)
+
+    def act(self, observation, actions, explore=True):
+        by_kind = {}
+        for action in actions:
+            by_kind.setdefault(action.kind, []).append(action)
+        pressure_edge = (
+            observation.opponent_pressure - _pressure_self_proxy(observation)
+        )
+        health_ratio = observation.self_health / max(
+            1.0, observation.self_max_health
+        )
+        opponent_open = bool(observation.opponent_open)
+        # 1. Лечение, когда здоровье критично и есть чем лечить.
+        treat = by_kind.get("TREAT")
+        if treat and health_ratio < 0.5 and observation.self_energy > 20.0:
+            return treat[0]
+        # 2. Атака силой: противник открыт или продавлен.
+        work = by_kind.get("WORK") or []
+        force_hits = [a for a in work if a.form == "force"]
+        if (
+            force_hits
+            and (opponent_open or pressure_edge > 2.0)
+            and observation.self_energy
+            >= 0.3 * max(1.0, observation.self_max_energy)
+        ):
+            best = max(force_hits, key=lambda a: a.fraction)
+            if best.fraction > self.aggression:
+                return best
+            return force_hits[len(force_hits) // 2]
+        # 3. Накопление: отстаём по силе или энергии.
+        energy_short = (
+            observation.self_energy
+            < 0.6 * max(1.0, observation.self_max_energy)
+        )
+        force_short = (
+            observation.self_force
+            < 0.8 * max(1.0, observation.self_max_force)
+        )
+        if work and (energy_short or force_short or not opponent_open):
+            return min(work, key=lambda a: a.fraction)
+        # 4. Прочие формы атаки по доступности.
+        other_hits = [a for a in work if a.form != "force"]
+        if other_hits and opponent_open:
+            return other_hits[0]
+        rest = by_kind.get("REST")
+        if rest:
+            return rest[0]
+        return actions[0]
+
+    def observe(self, transition):
+        # Не обучается: чистая эвристика (baseline из пина RL 1/UAI 9).
+        return None
+
+
+def _pressure_self_proxy(observation):
+    """Давление «себя» из наблюдаемого: косвенно — по доле своей энергии."""
+    return (
+        1.0 - observation.self_energy / max(1.0, observation.self_max_energy)
+    ) * 8.0
+
+
 def make_policy(name, seed=0):
     if name in ("bdi", "adaptive"):
         return BDIPolicy(seed=seed)
+    if name in ("utility", "uai"):
+        # B4: не-обучаемый сильный оппонент для игры и калибровки.
+        return UtilityPolicy()
     if name in ("qtable", "q"):
         return QTablePolicy(seed=seed)
     if name == "qtable-campaign":
@@ -907,6 +1348,9 @@ def make_policy(name, seed=0):
         return QTablePolicy(seed=seed, campaign=True)
     if name in ("mlp", "neural", "nn"):
         return MLPPolicy(seed=seed)
+    if name in ("duel-mlp", "duel_mlp", "dmlp"):
+        # A7: аренный function approximation.
+        return DuelMLPPolicy(seed=seed)
     if name in ("random", "none"):
         return RandomPolicy(seed=seed)
     return None
@@ -925,10 +1369,17 @@ def load_policy(path, seed=0, kind=None):
         state = json.load(handle)
     policy_kind = kind or state.get("kind")
     version = checkpoint_version(state)
-    if version > CHECKPOINT_VERSION:
+    # A8: duel-MLP живёт на собственном формате (v4, вектор 26);
+    # остальные политики — на базовом CHECKPOINT_VERSION (v3, вектор 22).
+    supported = (
+        DUEL_CHECKPOINT_VERSION
+        if policy_kind == "duel-mlp"
+        else CHECKPOINT_VERSION
+    )
+    if version > supported:
         raise ValueError(
             "checkpoint %r has version %d, this build supports up to %d"
-            % (path, version, CHECKPOINT_VERSION)
+            % (path, version, supported)
         )
     if policy_kind == "bdi":
         policy = BDIPolicy(seed=seed)
@@ -936,6 +1387,9 @@ def load_policy(path, seed=0, kind=None):
         policy = QTablePolicy(seed=seed)
     elif policy_kind == "mlp":
         policy = MLPPolicy(seed=seed)
+    elif policy_kind == "duel-mlp":
+        # A7: аренный function approximation.
+        policy = DuelMLPPolicy(seed=seed)
     else:
         raise ValueError(
             "unknown policy checkpoint %r (kind=%r)"
