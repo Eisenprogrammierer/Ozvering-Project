@@ -3212,12 +3212,15 @@ class WorldEngine:
         )
 
     def _run_overdue(self):
-        """Исполнить только долги: `due_day < self.day`, любой слот.
+        """Исполнить долги: `due_day < self.day`, в порядке слотов.
 
         Просроченное намерение затухало бы в очереди, пока ИИ делает ход
         по устаревшему миру, поэтому `end_day()` и `tick()` закрывают их
-        первыми. Намерения наступающих суток (`due_day == self.day`) здесь
-        не берутся — они исполняются своим методом выборки после инкремента.
+        первыми. Долг уже опоздал — день исполнения не выбирается «виртуально»,
+        событие стоит в журнале под текущим днём; порядок внутри долгов
+        сохраняется по слотам (`SLOT_DAY_EDGE` — сначала краевые). Намерения
+        наступающих суток (`due_day == self.day`) здесь не берутся — они
+        исполняются `_run_intents()`.
         """
         ready = [item for item in self.intents.items if item.due_day < self.day]
         if not ready:
@@ -3228,7 +3231,7 @@ class WorldEngine:
         ]
         events = []
         for intent in sorted(
-            ready, key=lambda item: (item.due_day, -item.priority, _as_slot(item.due_slot))
+            ready, key=lambda item: (_as_slot(item.due_slot), -item.priority)
         ):
             events.extend(self._fire_intent(intent))
         return events
@@ -3271,24 +3274,28 @@ class WorldEngine:
         events = []
         target_day = self.day if day is None else day
         # Семантика A5: намерение со сроком «день N» исполняется в начале
-        # дня N; дальние дни ждут своего перехода. Край суток (слот 0)
-        # снимает фильтр слота только для долгов (`due_day < target_day`):
-        # просроченное намерение уже опоздало и исполняется безотлагательно
-        # целиком. Намерения наступивших суток честно ждут своего слота —
-        # иначе внутридневные ушли бы «не в свой час». Выборка долгов
-        # живёт здесь, а не в `_run_overdue()`, чтобы `tick(max_slot=0)`
-        # не схлопывал всю просрочку разом.
-        if _as_slot(max_slot) == SLOT_DAY_EDGE:
-            ready = [item for item in self.intents.items if item.due_day <= target_day]
-        else:
-            overdue = [item for item in self.intents.items if item.due_day < target_day]
-            due_today = [
-                item
-                for item in self.intents.items
-                if item.due_day == target_day
-                and _as_slot(item.due_slot) <= _as_slot(max_slot)
-            ]
+        # дня N; дальние дни ждут своего перехода. Долги (`due_day <
+        # target_day`) закрываются по порядку слотов: узкое окно берёт
+        # только краевой долг (слот 0), остальные ждут расширения max_slot
+        # или полного перехода суток. Намерения наступивших суток честно
+        # ждут своего слота — иначе внутридневные ушли бы «не в свой час».
+        # Полный переход (`end_day`, max_slot=SLOTS_MAX) забирает весь день:
+        # и край, и внутридневные слоты — иначе они стали бы долгами.
+        # Выборка долгов живёт здесь, а не в отдельном проходе, чтобы
+        # `tick(max_slot=0)` не схлопывал всю просрочку разом.
+        window = _as_slot(max_slot)
+        overdue = [item for item in self.intents.items if item.due_day < target_day]
+        due_today = [
+            item
+            for item in self.intents.items
+            if item.due_day == target_day
+            and (_as_slot(item.due_slot) <= window or window >= SLOTS_MAX)
+        ]
+        if window >= SLOTS_MAX:
             ready = overdue + due_today
+        else:
+            ready = [item for item in overdue if _as_slot(item.due_slot) <= window]
+            ready += due_today
         if not ready:
             return events
         ready_ids = {id(item) for item in ready}

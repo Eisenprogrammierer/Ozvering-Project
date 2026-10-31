@@ -8,6 +8,7 @@ import simulation as S
 from agents import (
     BDIPolicy,
     CHECKPOINT_VERSION,
+    DUEL_FEATURE_COUNT,
     DuelMLPPolicy,
     FEATURE_COUNT,
     MLPPolicy,
@@ -392,16 +393,19 @@ def test_duel_mlp_uses_arena_features_and_round_trips():
 
 def test_duel_mlp_pads_short_feature_rows_on_load():
     # Совместимость с чекпойнтами более короткого вектора признаков:
-    # строки weights1 дополняются нулями до FEATURE_COUNT.
+    # строки weights1 дополняются нулями до DUEL_FEATURE_COUNT (A8: базовый
+    # вектор 22 + 4 слота статистики оппонента = 26).
     policy = DuelMLPPolicy(seed=1)
     state = policy.state_dict()
-    short = [[0.01] * (FEATURE_COUNT - 3) for _ in range(policy.hidden)]
+    short = [[0.01] * (DUEL_FEATURE_COUNT - 3) for _ in range(policy.hidden)]
     state["weights1"] = short
     loaded = DuelMLPPolicy(seed=2)
     loaded.load_state_dict(state)
-    assert all(len(row) == FEATURE_COUNT for row in loaded.weights1)
-    assert loaded.weights1[0][: FEATURE_COUNT - 3] == pytest.approx([0.01] * (FEATURE_COUNT - 3))
-    assert loaded.weights1[0][FEATURE_COUNT - 3:] == [0.0, 0.0, 0.0]
+    assert all(len(row) == DUEL_FEATURE_COUNT for row in loaded.weights1)
+    assert loaded.weights1[0][: DUEL_FEATURE_COUNT - 3] == pytest.approx(
+        [0.01] * (DUEL_FEATURE_COUNT - 3)
+    )
+    assert loaded.weights1[0][DUEL_FEATURE_COUNT - 3:] == [0.0, 0.0, 0.0]
 
 
 def test_duel_mlp_lowers_loss_on_fixed_task():

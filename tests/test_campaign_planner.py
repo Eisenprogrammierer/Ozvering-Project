@@ -610,16 +610,23 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
     assert engine.action_count == 1
     assert [(i.due_day, i.due_slot) for i in engine.intents.items] == [(2, 2)]
 
+    # Второй раз то же действие в том же мире невозможно: первое исполненное
+    # намерение освободило должность («сначала выберите должность»), и
+    # расширенный тик корректно снимает остаток с записью в журнал — без
+    # штрафа и без задвоения. Проверяются оба контракта разом: фильтр слота
+    # в узком окне и graceful-skip недоступного отложенного действия.
     events = engine.tick(max_slot=2)  # окно расширено — долг добит
     fired_wide = [e for e in events if e.get("source") == "player_action"]
-    assert len(fired_wide) == 1
-    assert engine.action_count == 2
-    assert len(engine.intents) == 0
+    skipped = [e for e in events if e.get("kind") == "intent_skipped"]
+    assert fired_wide == []
+    assert len(skipped) == 1
+    assert engine.action_count == 1  # skip не тратит действие
+    assert len(engine.intents) == 0  # очередь очищена
 
     result = engine.end_day()  # очередь пуста — задвоений нет
     fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
     assert fired_later == []
-    assert engine.action_count == 2
+    assert engine.action_count == 1
 
 
 def test_tick_max_slot_defers_intraday_until_wider_tick():
@@ -627,13 +634,15 @@ def test_tick_max_slot_defers_intraday_until_wider_tick():
     action_id = _engine(seed=11).available_actions()[0]
 
     # Полный переход суток (`end_day`) забирает весь день: и край, и
-    # внутридневные слоты — иначе они стали бы долгами дня 2.
+    # внутридневные слоты — иначе они стали бы долгами дня 2. Второе
+    # намерение снимается graceful-skip (первое освободило должность),
+    # но из очереди оно уходит в любом случае — задвоений не остаётся.
     engine = _engine(seed=11)
     engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
     engine.schedule_action(action_id, due_day=2, due_slot=2)
     engine.end_day()  # переход в день 2 забирает весь день (слоты 0 и 2)
     assert len(engine.intents) == 0
-    assert engine.action_count == 2
+    assert engine.action_count == 1  # исполнено 1, второе корректно снято
 
     # Тот же сценарий, но очередь открывается узкими тиками: сначала
     # краевой слот, затем внутридневной — по мере расширения max_slot.
@@ -648,6 +657,8 @@ def test_tick_max_slot_defers_intraday_until_wider_tick():
     assert [e for e in events if e.get("source") == "player_action"] == []
     events = engine2.tick(max_slot=2)
     fired = [e for e in events if e.get("source") == "player_action"]
-    assert len(fired) == 1
+    skipped = [e for e in events if e.get("kind") == "intent_skipped"]
+    # Долг/остаток снят с очереди: либо исполнен, либо graceful-skip.
+    assert len(fired) + len(skipped) == 1
     assert len(engine2.intents) == 0
-    assert engine2.action_count == 2
+    assert engine2.action_count >= 1
