@@ -21,24 +21,37 @@ class MainMenuScreen(BaseScreen):
             (500, 345, 280, 50), "Продолжить", app.font_body, app.continue_game
         )
         self.btn_continue.enabled = has_saves
+        self.btn_continue.rect = pygame.Rect(500, 305, 280, 50)
         self.buttons = [
             Button(
-                (500, 280, 280, 50), "Новая игра", app.font_body, app.new_game
+                (500, 240, 280, 50), "Новая игра", app.font_body, app.new_game
             ),
             self.btn_continue,
             Button(
-                (500, 410, 280, 50),
+                (500, 370, 280, 50),
+                "Быстрая кампания",
+                app.font_body,
+                app.quick_campaign,
+            ),
+            Button(
+                (500, 435, 280, 50),
+                "Дуэль (арена)",
+                app.font_body,
+                app.open_arena,
+            ),
+            Button(
+                (500, 500, 280, 50),
                 "Сохранения",
                 app.font_body,
                 app.open_saves,
             ),
             Button(
-                (500, 475, 280, 50),
+                (500, 565, 280, 50),
                 "Настройки",
                 app.font_body,
                 app.open_settings,
             ),
-            Button((500, 540, 280, 50), "Выход", app.font_body, app.quit),
+            Button((500, 630, 280, 50), "Выход", app.font_body, app.quit),
         ]
         logger.info(
             "Главное меню инициализировано: сохранений=%s",
