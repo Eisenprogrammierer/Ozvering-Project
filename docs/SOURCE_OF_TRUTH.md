@@ -323,6 +323,7 @@ BDI — не третий тип и не отдельная онтология. 
 | [`BASELINE.md`](BASELINE.md) | воспроизводимая база текущего `simulation.py` | база текущего кода |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
 | [`TODO.md`](TODO.md) | задачи текущего кода | не целевая модель |
+| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза (срез 2026-10-31) | не источник истины, обновляемый трекер |
 | [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия текущего кода | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md), [`UI.md`](UI.md) | UI-слои | текущий UI |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | инструменты и слои | текущий код |
