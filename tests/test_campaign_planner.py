@@ -458,13 +458,15 @@ def test_scheduled_action_executes_full_path_on_due_day():
     action_id = engine.available_actions()[0]
     engine.schedule_action(action_id, due_day=engine.day + 1, due_slot=1)
 
-    engine.end_day()  # переход в день 2: краевой тик ещё не делался (слот 1)
-    assert len(engine.intents) == 1
-    events = engine.tick()  # начало дня 2: намерение исполняется своим тиком
+    # Контракт A5: `end_day()` — полный цикл суток, забирает ВСЮ очередь
+    # наступающего дня (и краевой слот, и внутридневные). Отложенное
+    # действие проходит полный путь execute() уже на переходе.
+    result = engine.end_day()  # переход в день 2: намерение слота 1 исполнено
+    assert len(engine.intents) == 0
 
     fired = [
         entry
-        for entry in events
+        for entry in result["events"]
         if entry.get("source") == "player_action"
     ]
     assert len(fired) == 1
@@ -472,7 +474,6 @@ def test_scheduled_action_executes_full_path_on_due_day():
     assert fired[0]["outcome"] in ("success", "failure")
     # Полный путь execute(): действие списало энергию и счётчик.
     assert engine.action_count == 1
-    assert len(engine.intents) == 0
 
 
 def test_scheduled_action_skips_gracefully_when_no_longer_valid():

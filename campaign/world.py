@@ -3595,42 +3595,25 @@ class WorldEngine:
         # же `end_day()` после инкремента. До хода ИИ закрывается только
         # долг (`due_day < self.day`): он затухал бы в очереди, пока ИИ
         # ходит по устаревшему миру. Намерения наступающих суток исполняются
-        # после инкремента — событие попадает в журнал под своим днём.
-        # Выборка `day=self.day - 1`: готовы только due_day < self.day.
+        # сразу после этого — событие попадает в журнал под своим днём.
         events.extend(self._run_overdue())
-        for node_id in self.node_order:
-            entry = self._ai_action(node_id)
-            if entry is not None:
-                events.append(entry)
-        daily = self.config.get("daily") or {}
-        changed = []
-        for key, value in (daily.get("node") or {}).items():
-            for node in self.nodes.values():
-                if key in node["stats"]:
-                    before = node["stats"][key]
-                    node["stats"][key] = _clamp(before + _as_float(value))
-                    delta = node["stats"][key] - before
-                    if abs(delta) > 1e-9:
-                        changed.append(
-                            (
-                                "%s · %s"
-                                % (node["name"], self.stat_label(key)),
-                                delta,
-                            )
-                        )
-        if daily.get("player"):
-            changed.extend(self._apply_player_map(daily.get("player")))
-        changed.extend(self._apply_daily_income())
-        changed.extend(self._advance_conditions())
-        self.day += 1
-        self.actions_left = self.actions_per_day
-        # Начало новых суток (A5): полный цикл закрывает ВЕСЬ наступивший
-        # день — краевой слот и все внутридневные слоты своего дня. Если
-        # игрок заранее исполнял часть очереди узким `tick(max_slot=k)`,
+        # Начало наступающих суток (A5): полный цикл закрывает ВЕСЬ день —
+        # краевой слот и все внутридневные слоты своего дня. Если игрок
+        # заранее исполнял часть очереди узким `tick(max_slot=k)`,
         # извлечённые намерения уже покинули очередь и задвоения нет;
         # остаток добирается здесь, чтобы мир не ходил по устаревшему
-        # расписанию. Дальнейшие дни ждут своего перехода.
+        # расписанию. Дальнейшие дни ждут своего перехода. Выборка идёт
+        # ДО инкремента (`day=self.day` == due_day наступающих суток),
+        # чтобы событие попало в журнал под своим днём.
         events.extend(self._run_intents(max_slot=SLOTS_MAX, day=self.day))
+        # Долги, появившиеся в ходе хода ИИ (сюжет/мир запланировали их на
+        # наступающие сутки): полная выборка после инкремента закрывает и
+        # их, чтобы мир не вошёл в новый день с просроченной очередью.
+        # Намерения дальних дней остаются в очереди; извлечённые ранее
+        # намерения повторно не исполняются — задвоения нет.
+        self.day += 1
+        self.actions_left = self.actions_per_day
+        events.extend(self._run_intents(max_slot=SLOTS_MAX))
         if self.infinite:
             # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
             # горизонта больше не даёт win/lose. Сценарий продолжается,
