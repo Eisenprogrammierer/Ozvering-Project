@@ -919,31 +919,48 @@ def test_train_campaign_career_flag_opens_career_space():
     """Готовность A3: флаг `--campaign-career` проброшен в обучение."""
     from agents.train import main as train_main
 
-    stats_path = "/tmp/a3_career_stats.json"
-    train_main([
+    # Прямая проверка проброса: career_actions=True расширяет legal_actions()
+    # карьерными действиями (seek_promotion/request_transfer/resign),
+    # по умолчанию они закрыты (opt-in).
+    from campaign.env import CampaignEnv as _CE
+
+    with_career = _CE(seed=3, max_days=4, career_actions=True)
+    without_career = _CE(seed=3, max_days=4)
+    with_career.reset(seed=3)
+    without_career.reset(seed=3)
+    kinds_with = {a.kind for a in with_career.legal_actions()}
+    kinds_without = {a.kind for a in without_career.legal_actions()}
+    career_ids = {"seek_promotion", "request_transfer", "resign"}
+    assert kinds_with > kinds_without
+    assert kinds_with - kinds_without <= career_ids
+    assert len(with_career.legal_actions()) > len(without_career.legal_actions())
+
+    # CLI-флаг `--campaign-career` доходит до цикла обучения и не ломает его.
+    career_ckpt = "/tmp/a3_career_ckpt.json"
+    nocareer_ckpt = "/tmp/a3_nocareer_ckpt.json"
+    rc = train_main([
         "--env", "campaign", "--episodes", "2", "--max-steps", "6",
         "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
-        "--campaign-career", "--out", "/tmp/a3_career_ckpt.json",
-        "--eval-out", stats_path,
+        "--campaign-career", "--out", career_ckpt,
     ])
-    # Флаг доходит до env_kwargs (career_actions=True) и не ломает цикл:
-    # политики обучаются в расширенном пространстве действий.
+    assert rc == 0
     import json
 
-    with open(stats_path, encoding="utf-8") as handle:
-        payload = json.load(handle)
-    assert payload["env"] == "campaign"
+    from agents.checkpoints import read_checkpoint
+
+    state = read_checkpoint(career_ckpt)
+    assert isinstance(state, dict) and state
     # Тот же запуск без флага — прежнее замкнутое пространство.
-    train_main([
+    rc2 = train_main([
         "--env", "campaign", "--episodes", "2", "--max-steps", "6",
         "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
-        "--out", "/tmp/a3_nocareer_ckpt.json", "--eval-out", stats_path,
+        "--out", nocareer_ckpt,
     ])
-    with open(stats_path, encoding="utf-8") as handle:
-        payload2 = json.load(handle)
-    assert payload2["episodes"] == payload["episodes"]
+    assert rc2 == 0
+    state2 = read_checkpoint(nocareer_ckpt)
+    assert isinstance(state2, dict) and state2
     # Стартовый config среды не мутируется: второй движок без домена чист.
-    fresh = CampaignEnv(seed=3, max_days=4)
+    fresh = _CE(seed=3, max_days=4)
     assert fresh.engine.player_condition()["sickness"] == 0.0
 
 

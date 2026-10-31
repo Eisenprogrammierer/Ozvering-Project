@@ -268,6 +268,14 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
     --policy bdi
 ```
 
+Флаг `--campaign-career` (только для `--env campaign`) пробрасывает
+`career_actions=True` в `CampaignEnv`: карьерные действия `seek_promotion`,
+`request_transfer`, `resign` открываются в `legal_actions()`, и политика
+учится менять должность сама (готовность A3). По умолчанию флаг выключен —
+пространство действий остаётся прежним, чтобы не ломать существующие
+чекпойнты; карьерный чекпойнт несёт те же признаки, но посещает новые коды
+действий. Проверка проброса — `tests/test_core41.py::test_train_campaign_career_flag_opens_career_space`.
+
 Кампанейные наблюдения проходят через `campaign_features()` (22 слота:
 18 прежних, код действия, рана героя `wound` и два env-слота — фиксированные
 значения для совместимости длины с аренным вектором), поэтому `bdi`/`mlp`
