@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import random
 
-from .environment import ENV_BONUS, ArenaEnvironment
+from .environment import (
+    ENV_BONUS,
+    ENV_OUTCOME_GOAL_REWARD,
+    ArenaEnvironment,
+)
 from .model import (
     DEFAULT_HEALTH_FACTORS,
     HEALTH_FACTOR_MAX,
@@ -722,6 +726,9 @@ class ArenaMatch:
         self.ai_rest_ticks = 0
         self.last_rl_action = ("REST", 0.0)
         self.last_ai_action = ("REST", 0.0)
+        # A6: исход среды (goal/collapse) — терминальное событие фона.
+        # None, пока среда не завершила свой горизонт цели.
+        self.env_outcome = None
         self.rl = ArenaAgent(
             "rl",
             policy=rl_policy,
@@ -822,6 +829,17 @@ class ArenaMatch:
         reward_ai = self._reward(ai, ai_before, rl, rl_before)
 
         terminal = self._check_terminal()
+        env_outcome = None
+        if not terminal and self.env is not None:
+            # A6: у среды появился собственный терминальный исход —
+            # достигнутая цель фона («укрепление») или коллапс по дедлайну.
+            # Это завершает партию как усечение (truncation), а не победа
+            # одной из сторон: winner остаётся None, ±1.0 не присуждается.
+            if self.env.goal_reached or self.env.collapsed:
+                env_outcome = "goal" if self.env.goal_reached else "collapse"
+                self.env_outcome = env_outcome
+                self.finished = True
+                terminal = True
         if not terminal:
             capture_winner, cap = self._check_capture()
             if capture_winner and not self.finished:
@@ -839,6 +857,14 @@ class ArenaMatch:
         if terminal:
             reward_rl += terminal_reward(self.winner, "rl")
             reward_ai += terminal_reward(self.winner, "ai")
+            if env_outcome is not None:
+                # A6: исход среды — смещённая награда обеих сторон (фон
+                # «усилился» или «рухнул»), симметричная и modest по
+                # величине, чтобы не перекрывать сигнал дуэли. Терминал
+                # усечения: winner остаётся None, ±1.0 нет.
+                shift = ENV_OUTCOME_GOAL_REWARD if env_outcome == "goal" else -ENV_OUTCOME_GOAL_REWARD
+                reward_rl += shift
+                reward_ai += shift
         self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         rl_next = rl.observe(ai)

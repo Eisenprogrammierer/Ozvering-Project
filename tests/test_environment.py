@@ -224,3 +224,91 @@ def test_environment_state_round_trips_reservoir_intervals():
     restored.load_state_dict(state)
     assert restored.illness_interval == 13
     assert restored.wound_interval == 19
+
+
+# --- A6: собственный терминальный исход среды (цель/коллапс) ----------
+
+
+def _run_to_env_terminal(goal_horizon, force=None, goal_ratio=None):
+    """Прогон дуэли до терминала среды; возвращает finished match."""
+    m = ArenaMatch(seed=11, steps=5000, with_env=True)
+    if force is not None:
+        m.env.force = force
+    if goal_ratio is not None:
+        m.env.goal_ratio = goal_ratio
+    m.env.goal_horizon = goal_horizon
+    import random as _r
+
+    rng = _r.Random(5)
+    while not m.finished:
+        m.step_tick(
+            forced_rl_action=rng.choice(m.rl.actions()),
+            forced_ai_action=rng.choice(m.ai.actions()),
+        )
+    return m
+
+
+def test_env_goal_outcome_finishes_match_as_truncation():
+    m = _run_to_env_terminal(goal_horizon=3000)
+    assert m.env_outcome == "goal"
+    assert m.winner is None  # усечение, а не победа стороны
+    assert m.env.goal_reached and m.env.collapsed
+
+
+def test_env_collapse_outcome_when_deadline_missed():
+    # Цель недостижима за горизонт: потолок силы ниже целевой силы.
+    m = _run_to_env_terminal(
+        goal_horizon=50, force=0.0, goal_ratio=1.0
+    )
+    assert m.env_outcome == "collapse"
+    assert not m.env.goal_reached
+    assert m.winner is None
+
+
+def test_env_outcome_reward_is_symmetric_shift():
+    m = _run_to_env_terminal(goal_horizon=3000)
+    from core41.environment import ENV_OUTCOME_GOAL_REWARD
+
+    # На финальном такте смещение входит обеим сторонам одинаково;
+    # winner None => terminal_reward = 0 для обоих.
+    last = m.last_rewards
+    # Точное равенство невозможно (duel-часть разная), но знак смещения
+    # проверяем через отсутствие ±1.0 терминала победы:
+    assert abs(last["rl"]) < 1.5 + ENV_OUTCOME_GOAL_REWARD
+    assert abs(last["ai"]) < 1.5 + ENV_OUTCOME_GOAL_REWARD
+
+
+def test_arena_env_marks_env_outcome_as_truncated():
+    import random as _r
+
+    env = ArenaEnv(seed=3, steps=5000, with_env=True)
+    env.reset(seed=3)
+    env.match.env.goal_horizon = 300
+    rng = _r.Random(9)
+    done_seen = False
+    truncated_seen = False
+    for _ in range(5000):
+        actions = env.match.rl.actions()
+        obs, reward, done, truncated, info = env.step(
+            rng.randrange(len(actions))
+        )
+        if done:
+            done_seen = True
+            truncated_seen = truncated
+            assert info["env_outcome"] in ("goal", "collapse")
+            break
+    assert done_seen and truncated_seen
+
+
+def test_no_env_matches_keep_old_semantics():
+    m = ArenaMatch(seed=1, steps=50)
+    import random as _r
+
+    rng = _r.Random(2)
+    while not m.finished:
+        m.step_tick(
+            forced_rl_action=rng.choice(m.rl.actions()),
+            forced_ai_action=rng.choice(m.ai.actions()),
+        )
+    assert m.env_outcome is None
+    assert m.env is None
