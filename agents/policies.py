@@ -198,6 +198,12 @@ def _clamp01(value):
     return max(0.0, min(1.0, float(value)))
 
 
+_OPP_REST = "REST"
+_OPP_TREAT = "TREAT"
+_OPP_WORK = "WORK"
+OPPONENT_STAT_SLOTS = 4
+
+
 def duel_features(observation, action):
     """Базовый 22-признаковый аренный вектор (без A8-статистик).
 
@@ -207,6 +213,40 @@ def duel_features(observation, action):
     """
     max_energy = max(1.0, observation.self_max_energy)
     max_force = max(1.0, observation.self_max_force)
+    opponent_energy = max(1.0, observation.opponent_max_energy)
+    opponent_force = max(1.0, observation.opponent_max_force)
+    is_rest = 1.0 if action.kind == "REST" else 0.0
+    is_work = 1.0 if action.kind == "WORK" else 0.0
+    is_treat = 1.0 if action.kind == "TREAT" else 0.0
+    return (
+        1.0,
+        observation.self_energy / max_energy,
+        observation.self_force / max_force,
+        observation.opponent_energy / opponent_energy,
+        observation.opponent_force / opponent_force,
+        1.0 if observation.opponent_open else 0.0,
+        min(1.0, observation.opponent_pressure / 8.0),
+        is_rest,
+        is_work,
+        action.fraction,
+        1.0 if action.form == "force" else 0.0,
+        1.0 if action.form == "info" else 0.0,
+        1.0
+        if (action.form, observation.opponent_defense) in COUNTERS
+        else 0.0,
+        observation.self_health / max(1.0, observation.self_max_health),
+        observation.opponent_health
+        / max(1.0, observation.opponent_max_health),
+        float(getattr(observation, "self_sickness", 0.0)),
+        float(getattr(observation, "opponent_sickness", 0.0)),
+        is_treat,
+        action_feature_code(action),
+        _clamp01(float(getattr(observation, "env_pressure", 0.0))),
+        _clamp01(float(getattr(observation, "env_season", 1.0))),
+        # A1: открытое окно уязвимости среды (0/1). Вне env-актора всегда
+        # 0.0 — старые векторы дополняются нулём при миграции чекпойнтов.
+        _clamp01(float(getattr(observation, "env_window", 0.0))),
+    )
 
 
 class OpponentModel:
@@ -282,49 +322,36 @@ class OpponentModel:
 
 
 def features(observation, action, opponent_stats=None):
-    max_energy = max(1.0, observation.self_max_energy)
-    max_force = max(1.0, observation.self_max_force)
-    opponent_energy = max(1.0, observation.opponent_max_energy)
-    opponent_force = max(1.0, observation.opponent_max_force)
-    is_rest = 1.0 if action.kind == "REST" else 0.0
-    is_work = 1.0 if action.kind == "WORK" else 0.0
-    is_treat = 1.0 if action.kind == "TREAT" else 0.0
-    return (
-        1.0,
-        observation.self_energy / max_energy,
-        observation.self_force / max_force,
-        observation.opponent_energy / opponent_energy,
-        observation.opponent_force / opponent_force,
-        1.0 if observation.opponent_open else 0.0,
-        min(1.0, observation.opponent_pressure / 8.0),
-        is_rest,
-        is_work,
-        action.fraction,
-        1.0 if action.form == "force" else 0.0,
-        1.0 if action.form == "info" else 0.0,
-        1.0
-        if (action.form, observation.opponent_defense) in COUNTERS
-        else 0.0,
-        observation.self_health / max(1.0, observation.self_max_health),
-        observation.opponent_health
-        / max(1.0, observation.opponent_max_health),
-        float(getattr(observation, "self_sickness", 0.0)),
-        float(getattr(observation, "opponent_sickness", 0.0)),
-        is_treat,
-        action_feature_code(action),
-        _clamp01(float(getattr(observation, "env_pressure", 0.0))),
-        _clamp01(float(getattr(observation, "env_season", 1.0))),
-        # A1: открытое окно уязвимости среды (0/1). Вне env-актора всегда
-        # 0.0 — старые векторы дополняются нулём при миграции чекпойнтов.
-        _clamp01(float(getattr(observation, "env_window", 0.0))),
-        # A8: EMA-статистика оппонента (4 слота). Без OpponentModel —
-        # нули; старые чекпойнты мигрируют с дополнением нулями.
-        *(_clamp01(v) for v in (opponent_stats or (0.0,) * OPPONENT_STAT_SLOTS)),
+    """Аренный вектор признаков.
+
+    Базовая длина — `FEATURE_COUNT` (22, общий канон для BDI/MLP/QTable).
+    При переданной `opponent_stats` (A8) к вектору добавляются 4 слота
+    EMA-статистики оппонента — такой расширенный вектор (26) использует
+    только `DuelMLPPolicy`; для него длина выводится через
+    `feature_count_for()`.
+    """
+    base = duel_features(observation, action)
+    if not opponent_stats:
+        return base
+    return base + tuple(
+        _clamp01(value) for value in opponent_stats
     )
 
 
-FEATURE_COUNT = 26
-CHECKPOINT_VERSION = 4
+def feature_count_for(opponent_stats=None):
+    """Длина вектора `features()` для данного набора статистик."""
+    if opponent_stats:
+        return FEATURE_COUNT + OPPONENT_STAT_SLOTS
+    return FEATURE_COUNT
+
+
+FEATURE_COUNT = 22
+# A8: DuelMLPPolicy строит вектор из FEATURE_COUNT + OPPONENT_STAT_SLOTS
+# признаков; общая CHECKPOINT_VERSION (3) относится к политикам на
+# базовом векторе, duel-чекпойнты используют DUEL_CHECKPOINT_VERSION (4).
+DUEL_FEATURE_COUNT = FEATURE_COUNT + OPPONENT_STAT_SLOTS
+CHECKPOINT_VERSION = 3
+DUEL_CHECKPOINT_VERSION = 4
 LEGACY_CHECKPOINT_VERSION = 0
 
 
@@ -1008,7 +1035,7 @@ class DuelMLPPolicy:
     A8: внутри ведётся `OpponentModel` (EMA-статистика действий
     противника); при наличии `transition.opponent_action` модель
     обновляется до построения вектора, добавляя 4 признака к 22 базовым
-    (FEATURE_COUNT = 26). Без статистики слоты равны нулю — старые
+    (вектор = DUEL_FEATURE_COUNT = 26). Без статистики слоты равны нулю — старые
     чекпойнты (v3, 22 признака) мигрируют с дополнением нулями.
 
     Ёмкость выше таблицы: обобщение по непрерывным нормированным
@@ -1038,7 +1065,7 @@ class DuelMLPPolicy:
         # `info["ai_action"]` / `opponent_action` в `observe()`).
         self.opponent_model = OpponentModel(alpha=opponent_alpha)
         self.weights1 = [
-            [self.rng.uniform(-0.1, 0.1) for _ in range(FEATURE_COUNT)]
+            [self.rng.uniform(-0.1, 0.1) for _ in range(DUEL_FEATURE_COUNT)]
             for _ in range(self.hidden)
         ]
         self.bias1 = [0.0 for _ in range(self.hidden)]
@@ -1150,8 +1177,8 @@ class DuelMLPPolicy:
     def state_dict(self):
         return {
             "kind": "duel-mlp",
-            "version": CHECKPOINT_VERSION,
-            "feature_count": FEATURE_COUNT,
+            "version": DUEL_CHECKPOINT_VERSION,
+            "feature_count": DUEL_FEATURE_COUNT,
             "hidden": self.hidden,
             "weights1": [list(row) for row in self.weights1],
             "bias1": list(self.bias1),
@@ -1185,7 +1212,7 @@ class DuelMLPPolicy:
             # Совместимость с более коротким вектором признаков: строки
             # дополняются нулями до текущего FEATURE_COUNT.
             rows = [
-                row + [0.0] * max(0, FEATURE_COUNT - len(row))
+                row + [0.0] * max(0, DUEL_FEATURE_COUNT - len(row))
                 for row in rows
             ]
         if rows:
@@ -1193,7 +1220,7 @@ class DuelMLPPolicy:
             self.hidden = hidden
             pad = self.hidden - len(rows)
             if pad > 0:
-                rows.extend([[0.0] * FEATURE_COUNT for _ in range(pad)])
+                rows.extend([[0.0] * DUEL_FEATURE_COUNT for _ in range(pad)])
             self.weights1 = rows[: self.hidden]
             biases = [float(v) for v in state.get("bias1", [])]
             biases += [0.0] * max(0, self.hidden - len(biases))
@@ -1206,7 +1233,7 @@ class DuelMLPPolicy:
         if tw1:
             trows = [
                 [float(v) for v in row]
-                + [0.0] * max(0, FEATURE_COUNT - len(row))
+                + [0.0] * max(0, DUEL_FEATURE_COUNT - len(row))
                 for row in tw1
             ]
             self.target_weights1 = trows[: self.hidden]
@@ -1266,10 +1293,17 @@ def load_policy(path, seed=0, kind=None):
         state = json.load(handle)
     policy_kind = kind or state.get("kind")
     version = checkpoint_version(state)
-    if version > CHECKPOINT_VERSION:
+    # A8: duel-MLP живёт на собственном формате (v4, вектор 26);
+    # остальные политики — на базовом CHECKPOINT_VERSION (v3, вектор 22).
+    supported = (
+        DUEL_CHECKPOINT_VERSION
+        if policy_kind == "duel-mlp"
+        else CHECKPOINT_VERSION
+    )
+    if version > supported:
         raise ValueError(
             "checkpoint %r has version %d, this build supports up to %d"
-            % (path, version, CHECKPOINT_VERSION)
+            % (path, version, supported)
         )
     if policy_kind == "bdi":
         policy = BDIPolicy(seed=seed)

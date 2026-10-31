@@ -20,7 +20,11 @@ import json
 import os
 from pathlib import Path
 
-from .policies import CHECKPOINT_VERSION, checkpoint_version
+from .policies import (
+    CHECKPOINT_VERSION,
+    DUEL_CHECKPOINT_VERSION,
+    checkpoint_version,
+)
 
 CHECKPOINT_DIR_ENV = "OZVERING_CHECKPOINT_DIR"
 DEFAULT_CHECKPOINT_DIR = "checkpoints"
@@ -72,8 +76,16 @@ def is_loadable(path, kind=None):
         return False
     if kind and state_kind != kind:
         return False
+    # A8: duel-MLP имеет собственный формат чекпойнтов (v4); для него
+    # предельная версия — DUEL_CHECKPOINT_VERSION, остальные политики
+    # используют базовый CHECKPOINT_VERSION.
+    limit = (
+        DUEL_CHECKPOINT_VERSION
+        if state_kind == "duel-mlp"
+        else CHECKPOINT_VERSION
+    )
     try:
-        return checkpoint_version(state) <= CHECKPOINT_VERSION
+        return checkpoint_version(state) <= limit
     except (TypeError, ValueError):
         return False
 
