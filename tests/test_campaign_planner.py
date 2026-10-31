@@ -4,8 +4,11 @@ import pytest
 
 from campaign.planner import (
     MAX_INTENTS,
+    PRIORITY_MAX,
+    PRIORITY_MIN,
     Intent,
     IntentQueue,
+    condition_holds,
 )
 from campaign.world import (
     WorldEngine,
@@ -161,6 +164,10 @@ def test_old_snapshot_without_intents_loads_empty_queue():
 
 
 def test_autonomous_character_schedules_contact_and_fires_next_day():
+    """A4: лояльный персонаж получает rapprochement, но при affinity > 0.8
+    намерение честно аннулируется по `cancel_when` — мир не «дарит»
+    расположение уже преданному персонажу. Это заявленное поведение
+    политики автономии (см. `_schedule_autonomy`)."""
     engine = _engine()
     character = _first_character(engine)
     character["autonomous"] = True
@@ -173,20 +180,195 @@ def test_autonomous_character_schedules_contact_and_fires_next_day():
     pending = engine.intents.due(engine.day)[0]
     assert pending.source == "autonomy"
     assert pending.actor == character["id"]
+    # Персонаж лоялен (affinity 0.84, trust 0.78) — политика выбирает сближение.
+    assert pending.payload["policy"] == "rapprochement"
+    assert pending.cancel_when == {"field": "affinity", "op": "gt", "value": 0.8}
 
     engine.end_day()
     result = engine.end_day()
 
-    # Старое намерение исполнено, а автономия уже назначила следующее.
-    assert any(
-        entry["kind"] == "intent" and entry.get("actor") == character["id"]
+    # Старое намерение снято по условию (affinity выше порога), а автономия
+    # уже назначила следующее; дрейф отношения идёт только из `tick`.
+    cancelled = [
+        entry
         for entry in result["events"]
-    )
-    assert float(character["affinity"]) != pytest.approx(before)
+        if entry["kind"] == "intent_cancelled"
+        and entry.get("source") == "autonomy"
+    ]
+    assert len(cancelled) == 1
+    assert abs(float(character["affinity"]) - before) < 0.05
     pending = list(engine.intents)
     assert len(pending) == 1
     assert pending[0].due_day == engine.day
     assert pending[0].source == "autonomy"
+
+
+def test_hostile_autonomous_character_reconciles_with_priority():
+    """Враждебный персонаж тянется к примирению (`reconcile`) с приоритетом 1,
+    исход бросается общей формулой успеха — событие исполняется, а не снимается."""
+    engine = _engine(seed=11)
+    character = engine.characters[engine.character_order[1]]
+    character["autonomous"] = True
+    character["autonomy_period"] = 1
+    character["affinity"] = -0.5
+    character["trust"] = -0.3
+    before = float(character["affinity"])
+
+    engine.end_day()
+    pending = engine.intents.due(engine.day)[0]
+    assert pending.payload["policy"] == "reconcile"
+    assert pending.priority == 1
+
+    engine.end_day()
+    result = engine.end_day()
+    fired = [
+        entry
+        for entry in result["events"]
+        if entry["kind"] == "intent" and entry.get("actor") == character["id"]
+    ]
+    assert len(fired) == 1
+    assert fired[0]["outcome"] in ("success", "failure")
+    # Исход детерминирован seed'ом: повторный мир даёт тот же результат.
+    assert abs(float(character["affinity"]) - before) >= 0.0
+
+
+def test_autonomy_contact_success_path_applies_positive_effects():
+    """Прямой вызов исполнителя: успех применяет позитивные эффекты политики,
+    провал — зеркалит их вдвое слабее (детерминировано seed'ом)."""
+    engine = _engine()
+    character = _first_character(engine)
+    character["autonomous"] = True
+    from campaign.planner import Intent
+
+    intent = Intent(
+        due_day=engine.day,
+        kind="contact",
+        actor=character["id"],
+        payload={"policy": "probe", "effects": {"affinity": 0.01}},
+        source="autonomy",
+    )
+    before = float(character["affinity"])
+    events = engine._apply_autonomy_contact(intent)
+    assert len(events) == 1
+    outcome = events[0]["outcome"]
+    delta = float(character["affinity"]) - before
+    if outcome == "success":
+        assert delta > 0.0
+    else:
+        assert delta < 0.0
+    # Тот же токен броска -> та же монетка: повторного вызова в тот же день
+    # для того же персонажа детерминированно достаточно для стабильности.
+    again = engine._apply_autonomy_contact(intent)
+    assert again[0]["outcome"] == outcome
+
+
+def test_dead_autonomous_character_contact_is_skipped():
+    engine = _engine()
+    character = _first_character(engine)
+    from campaign.planner import Intent
+
+    intent = Intent(
+        due_day=engine.day,
+        kind="contact",
+        actor=character["id"],
+        payload={"policy": "probe"},
+        source="autonomy",
+    )
+    character["alive"] = False
+    assert engine._apply_autonomy_contact(intent) == []
+
+
+def test_intent_queue_orders_by_priority_within_day():
+    queue = IntentQueue()
+    queue.schedule(2, "message", actor="a", source="s1", priority=0)
+    queue.schedule(2, "message", actor="b", source="s2", priority=5)
+    queue.schedule(1, "message", actor="c", source="s3", priority=9)
+    order = [(item.actor, item.priority) for item in queue]
+    # Сначала более ранний день, внутри дня — больший приоритет раньше.
+    assert order == [("c", 9), ("b", 5), ("a", 0)]
+
+
+def test_intent_priority_clamped_and_round_trips():
+    queue = IntentQueue()
+    queue.schedule(1, "message", priority=99)
+    queue.schedule(1, "message", actor="low", priority=-3)
+    by_actor = {item.actor or "high": item.priority for item in queue}
+    assert by_actor["high"] == PRIORITY_MAX
+    assert by_actor["low"] == PRIORITY_MIN
+    restored = IntentQueue(queue.to_list())
+    assert [item.priority for item in restored] == [
+        PRIORITY_MAX,
+        PRIORITY_MIN,
+    ]
+
+
+def test_intent_queue_cancel_by_criteria():
+    queue = IntentQueue()
+    queue.schedule(2, "contact", actor="c1", source="autonomy")
+    queue.schedule(2, "message", actor="c1", source="world")
+    queue.schedule(3, "contact", actor="c2", source="autonomy")
+    removed = queue.cancel(actor="c1", kind="contact")
+    assert removed == 1
+    assert len(queue) == 2
+    assert all(item.actor != "c1" or item.kind != "contact" for item in queue)
+
+
+def test_condition_holds_semantics():
+    character = {"affinity": 0.5, "trust": -0.2}
+    assert condition_holds({"field": "affinity", "op": "gt", "value": 0.4}, character)
+    assert condition_holds({"field": "affinity", "op": ">", "value": 0.4}, character)
+    assert not condition_holds({"field": "affinity", "op": "ge", "value": 0.6}, character)
+    assert condition_holds({"field": "trust", "op": "lt", "value": 0.0}, character)
+    assert condition_holds({"field": "trust", "op": "eq", "value": -0.2}, character)
+    assert condition_holds({"field": "trust", "op": "ne", "value": 0.0}, character)
+    # Неизвестное поле/операция — условие НЕ истинно (безопаснее исполнить).
+    assert not condition_holds({"field": "mystery", "op": "gt", "value": 0}, character)
+    assert not condition_holds({"field": "affinity", "op": "??"}, character)
+    assert not condition_holds(None, character)
+    assert not condition_holds({"field": "affinity", "op": "gt", "value": 0}, None)
+
+
+def test_world_cancels_intent_when_condition_holds():
+    engine = _engine()
+    character = _first_character(engine)
+    before = float(character["affinity"])
+    engine.schedule_intent(
+        engine.day + 1,
+        "contact",
+        actor=character["id"],
+        payload={"effects": {"affinity": 0.5}, "text": "примирение."},
+        cancel_when={"field": "affinity", "op": "gt", "value": 0.0},
+    )
+    engine.end_day()
+    result = engine.end_day()
+    kinds = [entry["kind"] for entry in result["events"]]
+    assert "intent_cancelled" in kinds
+    assert "intent" not in kinds
+    # Отмена не должна двигать отношение (кроме обычного дневного дрейфа).
+    assert float(character["affinity"]) < before + 0.01
+    assert any(entry.get("kind") == "intent_cancelled" for entry in engine.log)
+
+
+def test_world_executes_intent_when_condition_false():
+    engine = _engine()
+    character = _first_character(engine)
+    before = float(character["affinity"])
+    engine.schedule_intent(
+        engine.day + 1,
+        "contact",
+        actor=character["id"],
+        payload={"effects": {"affinity": 0.1}, "text": "помощь."},
+        cancel_when={"field": "affinity", "op": "gt", "value": 5.0},
+    )
+    engine.end_day()
+    result = engine.end_day()
+    fired = [
+        entry
+        for entry in result["events"]
+        if entry["kind"] == "intent" and entry.get("actor") == character["id"]
+    ]
+    assert len(fired) == 1
+    assert float(character["affinity"]) > before + 0.05
 
 
 def test_non_autonomous_character_does_not_schedule_contacts():

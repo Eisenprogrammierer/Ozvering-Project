@@ -3295,7 +3295,13 @@ class WorldEngine:
             chance = campaign_success_chance(
                 base, attacker_unit, None, form="info"
             )
-        roll = self._roll("autonomy:%s:%s" % (self.day, character["id"]))
+        # Токен броска — день исполнения намерения (`intent.due_day`), а не
+        # текущий день: иначе при отложенном исполнении одно и то же
+        # намерение бросалось бы дважды под разными токенами (назначая его,
+        # мир уже кидает `autonomy:<день_назначения>:<id>`).
+        roll = self._roll(
+            "autonomy:%s:%s" % (intent.due_day, character["id"])
+        )
         outcome = "success" if roll < chance else "failure"
         effects = branch["effects"] if outcome == "success" else {
             key: -abs(value) * 0.5 for key, value in branch["effects"].items()
