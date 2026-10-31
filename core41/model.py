@@ -59,13 +59,21 @@ def sigmoid(value):
     return 1.0 / (1.0 + math.exp(-value))
 
 
-def success_probability(attacker, defender, work, is_open):
+def success_probability(attacker, defender, work, is_open, env_bonus=0.0):
+    """Вероятность успеха работы (канон ядра 4-2-1).
+
+    `env_bonus` — аддитивный бонус открытого окна среды (слой A1,
+    `ENV_BONUS` легаси-канона `simulation`). По умолчанию 0.0, поэтому
+    прежняя калибровка дуэлей и контрольного плеча `with_env=False`
+    не меняется.
+    """
     return sigmoid(
         -0.4
         + 2.2 * attacker.skill(work.form) * attacker.work_effectiveness()
         + 1.3 * attacker.authority
         - 1.8 * defender.resistance(work.form)
         + (0.9 if is_open else 0.0)
+        + float(env_bonus or 0.0)
         - 0.5 * min(1.0, work.amount / max(1.0, defender.max_force))
     )
 
