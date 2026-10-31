@@ -403,3 +403,111 @@ def test_intent_queue_limit_is_documented():
         queue.schedule(day + 1, "message", payload={"text": str(day)})
     assert len(queue) == MAX_INTENTS
     assert queue.items[-1].due_day == MAX_INTENTS
+
+
+# ---------------------------------------------------------------------------
+# Срез A5: непрерывность планирования — отложенные действия и слоты внутри дня
+# ---------------------------------------------------------------------------
+
+
+def test_intent_sorts_by_day_then_slot_then_priority():
+    queue = IntentQueue()
+    queue.schedule(3, "message", payload={"text": "поздний слот"}, due_slot=2)
+    queue.schedule(3, "message", payload={"text": "срочный у края"}, priority=5)
+    queue.schedule(3, "message", payload={"text": "обычный у края"})
+    # Внутри одного дня: сначала край (слот 0, приоритет выше), потом слот 2.
+    assert [item.due_slot for item in queue] == [0, 0, 2]
+    assert queue.items[0].payload["text"] == "срочный у края"
+
+
+def test_intent_due_slot_defaults_to_day_edge_and_round_trips():
+    intent = Intent(due_day=4, kind="message")
+    assert intent.due_slot == 0
+    raw = intent.to_dict()
+    assert raw["due_slot"] == 0
+    # Старый снимок без поля читается как граница дня.
+    legacy = dict(raw)
+    del legacy["due_slot"]
+    assert Intent.from_dict(legacy).due_slot == 0
+    # Некорректные значения зажимаются в диапазон слотов.
+    assert Intent.from_dict({**raw, "due_slot": 99}).due_slot == 3
+    assert Intent.from_dict({**raw, "due_slot": -1}).due_slot == 0
+
+
+def test_schedule_action_defers_player_action_to_future_day():
+    engine = _engine(seed=11)
+    action_id = engine.available_actions()[0]["id"]
+    intent = engine.schedule_action(action_id, due_day=engine.day + 1)
+    assert intent is not None
+    assert intent.kind == "action"
+    assert intent.payload["action"] == action_id
+    # Планирование не тратит энергию и не увеличивает счётчик действий.
+    assert engine.action_count == 0
+    assert float(engine.player_energy) == 1.0
+
+
+def test_schedule_action_rejects_unknown_action_and_past_day():
+    engine = _engine()
+    assert engine.schedule_action("нет-такого-действия") is None
+    assert engine.schedule_action("rally", due_day=engine.day) is None
+
+
+def test_scheduled_action_executes_full_path_on_due_day():
+    engine = _engine(seed=11)
+    action_id = engine.available_actions()[0]["id"]
+    engine.attach("agora_government", "head_of_government")
+    engine.schedule_action(action_id, due_day=engine.day + 1)
+
+    result = engine.end_day()  # день 1 -> 2, намерение созрело к утру дня 2
+    assert result["ok"] is True
+    result = engine.end_day()  # утро дня 2: намерение исполняется до хода ИИ
+
+    fired = [
+        entry
+        for entry in result["events"]
+        if entry.get("source") == "player_action"
+    ]
+    assert len(fired) == 1
+    assert fired[0]["action"] == action_id
+    assert fired[0]["outcome"] in ("success", "failure")
+    # Полный путь execute(): действие списало энергию и счётчик.
+    assert engine.action_count == 1
+    assert len(engine.intents) == 0
+
+
+def test_scheduled_action_skips_gracefully_when_no_longer_valid():
+    engine = _engine(seed=11)
+    action_id = engine.available_actions()[0]["id"]
+    engine.schedule_action(action_id, due_day=engine.day + 1)
+    # Герой погиб до срока — отложенное дело не должно ломать ход мира.
+    engine.player_alive = False
+
+    result = engine.end_day()
+    assert result["ok"] is True
+    assert len(engine.intents) == 0
+    assert not any(
+        entry.get("source") == "player_action" for entry in result["events"]
+    )
+    assert engine.action_count == 0
+
+
+def test_scheduled_action_survives_save_and_load():
+    engine = _engine(seed=11)
+    action_id = engine.available_actions()[0]["id"]
+    engine.attach("agora_government", "head_of_government")
+    engine.schedule_action(action_id, due_day=engine.day + 1)
+    snapshot = engine.to_dict()
+
+    restored = WorldEngine(load_world(), seed=11, snapshot=snapshot)
+    assert len(restored.intents) == 1
+    pending = list(restored.intents)[0]
+    assert pending.kind == "action" and pending.payload["action"] == action_id
+
+    restored.end_day()  # день 1 -> 2
+    result = restored.end_day()
+    fired = [
+        entry
+        for entry in result["events"]
+        if entry.get("source") == "player_action"
+    ]
+    assert len(fired) == 1

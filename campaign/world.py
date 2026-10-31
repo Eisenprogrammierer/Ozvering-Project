@@ -3139,6 +3139,7 @@ class WorldEngine:
         source="world",
         priority=0,
         cancel_when=None,
+        due_slot=0,
     ):
         """Отложить событие мира на будущий день.
 
@@ -3146,7 +3147,9 @@ class WorldEngine:
         единственный вход планировщика: сюжет, персонажи и тесты назначают
         события одинаково, а исполнение всегда идёт через `_run_intents()`.
         `priority` задаёт порядок внутри дня (больше = раньше),
-        `cancel_when` — условие отмены по легаси-полям актёра.
+        `cancel_when` — условие отмены по легаси-полям актёра,
+        `due_slot` — слот внутри дня (0 — граница дня; 1..3 — порядок
+        «внутри» очереди того же дня, A5).
         """
         return self.intents.schedule(
             due_day,
@@ -3157,6 +3160,40 @@ class WorldEngine:
             source=source,
             priority=priority,
             cancel_when=cancel_when,
+            due_slot=due_slot,
+        )
+
+    def schedule_action(
+        self, action_id, target_id=None, due_day=None, priority=0, due_slot=1
+    ):
+        """Запланировать действие игрока на будущий день (A5).
+
+        Непрерывность планирования: игрок тратит энергию только в момент
+        исполнения, поэтому «поставить дело в очередь» не стоит ресурсов,
+        но и не гарантирует исход — к наступлению срока мир мог измениться
+        (увольнение, смерть, кончилось время кампании). В начале `due_day`
+        намерение проходит полный путь `execute()`: те же проверки, та же
+        цена, тот же детерминированный бросок (`action_count` в токене
+        ролла продолжает расти монотонно). Если действие к сроку
+        недоступно, оно снимается с записью в журнал — без штрафа.
+
+        Возвращает `Intent` или `None` (переполнение очереди).
+        """
+        action_id = _text(action_id)
+        if action_id not in self.actions:
+            return None
+        day = self.day + 1 if due_day is None else max(1, _as_int(due_day, 1))
+        if day <= self.day:
+            return None
+        return self.schedule_intent(
+            day,
+            "action",
+            actor="player",
+            target=_text(target_id),
+            payload={"action": action_id, "target": _text(target_id)},
+            source="player",
+            priority=priority,
+            due_slot=due_slot,
         )
 
     def _run_intents(self):
@@ -3237,6 +3274,52 @@ class WorldEngine:
                     "actor": character["id"],
                     "text": text,
                     "changes": changed,
+                }
+            ]
+        if intent.kind == "action":
+            # Отложенное действие игрока (A5): полный путь `execute()` —
+            # те же проверки доступности, та же цена и детерминированный
+            # бросок. Если к сроку действие недоступно (увольнение, смерть,
+            # конец кампании), намерение снимается без последствий.
+            if self.finished or not self.player_alive:
+                return []
+            result = self.execute(
+                _text(intent.payload.get("action")),
+                _text(intent.payload.get("target")) or None,
+            )
+            if not result.get("ok"):
+                text = "Отложенное дело не состоялось: %s" % _text(
+                    result.get("reason"), "действие недоступно"
+                )
+                self.log.append(
+                    {"day": self.day, "kind": "intent_skipped", "text": text}
+                )
+                return [
+                    {
+                        "kind": "intent_skipped",
+                        "day": self.day,
+                        "source": intent.source,
+                        "target": _text(result.get("target")),
+                        "text": text,
+                        "changes": [],
+                    }
+                ]
+            return [
+                {
+                    "kind": "intent",
+                    "day": self.day,
+                    "source": "player_action",
+                    "target": result["target"],
+                    "actor": "player",
+                    "action": result["action"],
+                    "outcome": result["outcome"],
+                    "text": "%s → %s: %s"
+                    % (
+                        result["action_label"],
+                        result["target_label"],
+                        result["text"],
+                    ),
+                    "changes": list(result["changes"]),
                 }
             ]
         return []

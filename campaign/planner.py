@@ -1,4 +1,4 @@
-"""Очередь намерений кампании — real-time-планировщик (срезы 1–2).
+"""Очередь намерений кампании — real-time-планировщик (срезы 1–3).
 
 Кампания остаётся дневной: `WorldEngine.end_day()` — единица хода мира.
 Но события мира не обязаны происходить ровно в момент действия игрока.
@@ -21,19 +21,43 @@
 (сближение / примирение / дистанцирование), а исход бросается общей
 функцией успеха `campaign_success_chance` — той же, что действует игрок.
 
-Границы: намерения исполняются на границе дня (внутридневные тики — A5);
-политика автономных структур (узлов) вне кадра остаётся открытой.
+Срез 3 (A5, 2026-10-31): **непрерывность внутри дня**. Игрок ограничен
+энергией (`actions_per_day`), но очередь не ограничена одним днём: через
+`schedule_action()` действие можно отложить на будущий день, и оно
+исполнится в начале того дня до хода ИИ — так планирование становится
+сквозным во времени, а не только «здесь и сейчас». Обратная совместимость:
+старые снимки без `due_slot` читаются как «граница дня» (слот 0), потому
+что `Intent.from_dict` подставляет значение по умолчанию.
+
+Границы: исполнение намерений привязано к началу дня (виртуальных часов
+внутри дня нет — слот это порядок внутри одной очереди); политика
+автономных структур (узлов) вне кадра остаётся открытой.
 """
 
 from dataclasses import dataclass, field
 
 MAX_INTENTS = 64
 AUTONOMY_PERIOD = 3
-KNOWN_KINDS = ("message", "contact")
+KNOWN_KINDS = ("message", "contact", "action")
 
 # Диапазон приоритета: 0 — обычный фон, выше — срочные события.
 PRIORITY_MIN = 0
 PRIORITY_MAX = 9
+
+# Слот исполнения внутри дня: 0 — граница дня (историческое поведение,
+# исполнение в начале `end_day()`), 1..SLOTS_MAX — «внутридневной» порядок
+# в очереди того же дня. Виртуальных часов у мира нет; слот задаёт только
+# детерминированный порядок относительно других намерений.
+SLOT_DAY_EDGE = 0
+SLOTS_MAX = 3
+
+
+def _as_slot(value, default=SLOT_DAY_EDGE):
+    try:
+        slot = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(SLOTS_MAX, max(SLOT_DAY_EDGE, slot))
 
 
 def _as_int(value, default=0):
@@ -95,9 +119,13 @@ class Intent:
     """Отложенное намерение мира.
 
     `due_day` — день кампании, в начале которого намерение исполняется.
-    `kind` — `message` (только запись в журнал) или `contact`
-    (персонаж `actor` сам выходит на связь и применяет `payload["effects"]`).
+    `kind` — `message` (только запись в журнал), `contact`
+    (персонаж `actor` сам выходит на связь и применяет `payload["effects"]`)
+    или `action` (отложенное действие игрока: `payload = {"action": id,
+    "target": id}`, исполнение через полный путь `WorldEngine.execute()`).
     `priority` — порядок исполнения внутри одного дня (больше = раньше).
+    `due_slot` — слот внутри дня (0 — граница дня; 1..3 — «внутридневной»
+    порядок в очереди того же дня; сортировка: день → слот → приоритет).
     `cancel_when` — опциональное условие отмены (см. `condition_holds`);
     если к моменту исполнения оно истинно для актёра, намерение
     аннулируется без последствий.
@@ -111,6 +139,7 @@ class Intent:
     source: str = "world"
     priority: int = 0
     cancel_when: dict = field(default_factory=dict)
+    due_slot: int = SLOT_DAY_EDGE
 
     def to_dict(self):
         return {
@@ -122,6 +151,7 @@ class Intent:
             "source": str(self.source),
             "priority": _as_priority(self.priority),
             "cancel_when": dict(self.cancel_when),
+            "due_slot": _as_slot(self.due_slot),
         }
 
     @classmethod
@@ -140,6 +170,9 @@ class Intent:
             cancel_when=(
                 dict(cancel_when) if isinstance(cancel_when, dict) else {}
             ),
+            # Старые снимки без поля = граница дня: детерминизм сохранения
+            # не зависит от того, когда был записан сейв.
+            due_slot=_as_slot(raw.get("due_slot"), SLOT_DAY_EDGE),
         )
 
 
@@ -157,12 +190,13 @@ class IntentQueue:
         self._trim()
 
     def _sort(self):
-        # Стабильный порядок: день, затем приоритет (срочные раньше),
-        # затем вид/источник/актор. Иначе одинаковые снимки могли бы
-        # исполнять намерения в разном порядке.
+        # Стабильный порядок: день, затем слот внутри дня, затем приоритет
+        # (срочные раньше), затем вид/источник/актор. Иначе одинаковые
+        # снимки могли бы исполнять намерения в разном порядке.
         self.items.sort(
             key=lambda item: (
                 item.due_day,
+                _as_slot(item.due_slot),
                 -_as_priority(item.priority),
                 item.kind,
                 item.source,
@@ -204,6 +238,7 @@ class IntentQueue:
         source="world",
         priority=0,
         cancel_when=None,
+        due_slot=SLOT_DAY_EDGE,
     ):
         return self.add(
             Intent(
@@ -217,6 +252,7 @@ class IntentQueue:
                 cancel_when=(
                     dict(cancel_when) if isinstance(cancel_when, dict) else {}
                 ),
+                due_slot=_as_slot(due_slot),
             )
         )
 
@@ -290,5 +326,7 @@ __all__ = [
     "MAX_INTENTS",
     "PRIORITY_MAX",
     "PRIORITY_MIN",
+    "SLOT_DAY_EDGE",
+    "SLOTS_MAX",
     "condition_holds",
 ]
