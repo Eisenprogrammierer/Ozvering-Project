@@ -151,3 +151,43 @@ def test_world_screen_runs_in_live_cycle(app):
     frames = _drain_cycle(app, max_frames=90)
     assert frames >= 1
     assert engine.day > day_before, "завершение дня обязано продвинуть мир"
+
+
+def test_quick_campaign_screen_lifecycle(app):
+    """Быстрая кампания из меню (B2): старт, шаг через контракт среды,
+    отрисовка в живом цикле, возврат кнопкой «В меню»."""
+    from view.screens.campaign_quick import CampaignQuickScreen
+
+    app.quick_campaign()
+    screen = app.manager.current
+    assert type(screen).__name__ == "CampaignQuickScreen"
+    assert len(screen.buttons) > 1, "должны быть легальные действия + выход"
+    frames = _drain_cycle(app, max_frames=20)
+    assert frames >= 5, "экран быстрой кампании должен рисоваться кадрами"
+    # Шаг: первое не-сервисное действие (или любое легальное).
+    actions = list(app.manager.current.env.legal_actions())
+    before_day = app.manager.current.observation.day
+    app.manager.current._do(actions[0])
+    assert app.manager.current.observation is not None
+    # Финал/шаг не роняют экран; статусные строки считаются корректно
+    # (энергия — проценты от максимума, а не сырое значение ×100).
+    lines = app.manager.current._status_lines()
+    assert any("День" in line for line in lines)
+    for line in lines:
+        if "энергия" in line:
+            pct = float(line.split("энергия")[1].rstrip("%"))
+            assert pct <= 100.0, "энергия в UI обязана быть в процентах: %s" % line
+    # Возврат в меню кнопкой.
+    menu_btn = next(b for b in app.manager.current.buttons if b.text == "В меню")
+    _click(menu_btn.rect)
+    _drain_cycle(app, max_frames=20)
+    assert type(app.manager.current).__name__ == "MainMenuScreen"
+
+
+def test_main_menu_has_quick_paths(app):
+    """Единый путь запуска (B2): в главном меню есть «Быстрая кампания»
+    и «Дуэль (арена)», оба колбэка живут на App."""
+    menu = app.manager.current
+    texts = [b.text for b in menu.buttons]
+    assert "Быстрая кампания" in texts and "Дуэль (арена)" in texts
+    assert callable(app.quick_campaign) and callable(app.open_arena)

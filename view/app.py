@@ -13,6 +13,43 @@ LOG_PATH = os.path.normpath(
     os.path.join(BASE_DIR, "..", "operation_ozverin.log")
 )
 
+from .ui.screen_manager import BaseScreen
+
+
+class _ArenaHostScreen(BaseScreen):
+    """Хост дуэль-арены внутри менеджера экранов (ось B2).
+
+    Оборачивает готовый `game_engine.GameApp` (создан с `screen=` нашего
+    окна и `on_escape=self.app.manager.pop`) и проксирует ему кадры:
+    события → `handle_events`, время → `update(dt)`, отрисовка → `draw()`.
+    Собственного ввода не имеет; ESC обрабатывает сам движок.
+    """
+
+    escape_action = "none"
+    hide_time_hud = True
+
+    def __init__(self, app, arena):
+        super().__init__(app)
+        self.arena = arena
+
+    def handle_event(self, event):
+        try:
+            self.arena.handle_events([event])
+        except Exception as exc:  # защитный путь UI: арена не роняет цикл
+            logger.warning("Арена: ошибка события %s: %s", event.type, exc)
+
+    def update(self, dt):
+        try:
+            self.arena.update(dt)
+        except Exception as exc:
+            logger.warning("Арена: ошибка update: %s", exc)
+
+    def draw(self, screen):
+        try:
+            self.arena.draw(screen)
+        except Exception as exc:
+            logger.warning("Арена: ошибка draw: %s", exc)
+
 
 def _build_logger(name):
     logger = logging.getLogger(name)
@@ -1005,6 +1042,42 @@ class App:
             return
         saves.sort(key=lambda s: s.get("timestamp", ""), reverse=True)
         self.load_game(saves[0]["name"])
+
+    def quick_campaign(self):
+        """Быстрая кампания из главного меню (ось B, единый путь запуска).
+
+        Тот же `WorldEngine`/`CampaignEnv`, что и в полном потоке новой
+        игры и в обучении, но без выбора роли/фракции/сюжетной линии —
+        игрок попадает в мир сразу. Сeed общий с полным потоком
+        (`_campaign_seed`), чтобы старты были воспроизводимы.
+        """
+        from .screens.campaign_quick import CampaignQuickScreen
+
+        seed = self._campaign_seed({})
+        self.manager.push(CampaignQuickScreen(self, seed=seed))
+        logger.info("Открыта быстрая кампания: seed=%s", seed)
+
+    def open_arena(self):
+        """Дуэль-арена поверх главного окна (ось B2, единое меню).
+
+        Встраивает существующий движок `game_engine.GameApp` в текущее
+        окно pygame (`screen=`) с колбэком возврата в меню. Тяжёлые
+        импорты — лениво, чтобы стартовое меню не падало без опций
+        арены; при любой ошибке встроенного запуска остаёмся в меню.
+        """
+        try:
+            from game_engine import GameApp
+
+            arena = GameApp(
+                screen=self.screen,
+                on_escape=self.manager.pop,
+                checkpoint=self.checkpoint,
+            )
+        except Exception as exc:  # pragma: no cover - защитный путь UI
+            logger.warning("Арена недоступна: %s", exc)
+            return
+        self.manager.push(_ArenaHostScreen(self, arena))
+        logger.info("Открыта арена (встроенный game_engine)")
 
     def open_saves(self):
         from .screens.saves_menu import SavesMenuScreen

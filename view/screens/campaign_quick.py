@@ -82,11 +82,18 @@ class CampaignQuickScreen(BaseScreen):
             )
             y += 42
         buttons.append(
-            Button((60, 600, 200, 40), "В меню", self.app.font_body, self.app.manager.pop)
+            Button((60, 600, 200, 40), "В меню", self.app.font_body, self._back_to_menu)
         )
         self.buttons = buttons
 
+    def _back_to_menu(self):
+        """Выход в меню через менеджер (не `manager.pop` — он bound-метод,
+        а не колбэк экрана; вызов напрямую ломал бы навигацию)."""
+        self.app.manager.pop()
+
     def _do(self, action):
+        if self.env.engine is None or self.env.engine.finished or self.env._terminal:
+            return  # защита от «мёртвых» кнопок после финала (см. handle_event)
         obs, reward, done, truncated, info = self.env.step(action)
         self.observation = obs
         result = info.get("result") or {}
@@ -115,9 +122,17 @@ class CampaignQuickScreen(BaseScreen):
     def _status_lines(self):
         obs = self.observation
         engine = self.env.engine
+        # `energy`/`max_energy` в наблюдении — абсолютные (шкала мира ~100),
+        # как и в дуэльных признаках; проценты считаем от максимума.
+        max_energy = obs.max_energy or 100.0
         lines = [
             "День %d/%d · действий осталось: %d · энергия %.0f%%"
-            % (obs.day, obs.total_days, obs.actions_left, 100.0 * obs.energy),
+            % (
+                obs.day,
+                obs.total_days,
+                obs.actions_left,
+                100.0 * obs.energy / max_energy,
+            ),
             "Здоровье %.0f%% · болезнь %.0f%% · рана %.0f%%"
             % (obs.health, 100.0 * obs.sickness, 100.0 * obs.wound),
             "Положение %.0f%% · сила узла %.0f%% · связность %.0f%%"
