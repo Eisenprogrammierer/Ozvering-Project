@@ -35,6 +35,9 @@ CORE_ACTIONS = (
 )
 
 CAPTURE_RATIO = 1.5
+# A2: доля тяжести раны за каждый процент максимального здоровья,
+# выжженного переполнением силы при успешном ударе (максимум WOUND_MAX).
+WOUND_HIT_SEVERITY = 0.30
 # 20 тактов удержания — калибровка 2026-10-29 после активации среды и
 # пересчёта здоровья (0.62/0.78): при 21–22 захват уходит к нижней полосе.
 CAPTURE_STREAK = 20
@@ -653,6 +656,20 @@ class ArenaAgent:
                 source.max_force - source.force, damage * 0.20
             )
             source.force += max(0.0, gain)
+        # A2: устойчивая рана в дуэли. Сильный успешный удар с
+        # силовым/информационным уроном по здоровью открывает рану —
+        # отдельное персистентное состояние (`wound`), а не только
+        # разовый урон `H`. Порог грубый и симметричный для обеих форм:
+        # точная калибровка вероятности ранения — часть A7 (потолок RL).
+        wound_severity = 0.0
+        if health_damage > 0.0:
+            wound_severity = min(
+                WOUND_MAX,
+                WOUND_HIT_SEVERITY * health_damage
+                / max(1.0, target.max_health),
+            )
+            if wound_severity > 0.0:
+                target.injure(wound_severity)
         return {
             "accepted": True,
             "success": success,
@@ -660,6 +677,7 @@ class ArenaAgent:
             "force": damage,
             "damage": damage,
             "health": health_damage,
+            "wound": wound_severity,
             "gain": gain,
             "pressure": pressure,
             "chance": chance,
