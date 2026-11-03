@@ -16,6 +16,7 @@ from campaign.world import (
     CAMPAIGN_INFLUENCE_INCOME,
     COLLAPSE_GRACE_DAYS,
     DOMAIN_SKILLS,
+    LABOR_MARKET_RIVALS,
     WorldEngine,
     WorldError,
     build_player_profile,
@@ -263,6 +264,58 @@ def test_campaign_transfer_preserves_personal_resources():
     assert engine.player_resources["favor"] == pytest.approx(0.62)
     assert engine.player_resources["standing"] == pytest.approx(0.91)
     assert engine.player_resources["evidence"] == pytest.approx(0.11)
+
+
+def test_campaign_labor_market_blocks_weak_candidate_without_cost():
+    engine = _engine(
+        node_id="agora_ministry_interior",
+        office_id="ministry_official",
+        seed=1,
+    )
+    engine.player_resources["standing"] = 0.26
+    options = engine.office_options("agora_ministry_finance")
+    competition = options[0]["competition"]
+
+    assert competition["available"] is False
+    assert len(competition["rivals"]) == LABOR_MARKET_RIVALS
+    assert competition["best_rival"] > competition["player_score"]
+    assert "Сара Мел" in [
+        rival["name"] for rival in competition["rivals"]
+    ]
+
+    before = dict(engine.player_resources)
+    result = engine.execute("request_transfer", "agora_ministry_finance")
+
+    assert result["ok"] is False
+    assert "очередь кандидатов сильнее" in result["reason"]
+    # Проигрыш вакансии не списывает ресурсы и не меняет должность.
+    assert engine.player_node_id == "agora_ministry_interior"
+    assert engine.player_resources == before
+
+
+def test_campaign_labor_market_is_deterministic_and_strong_wins():
+    first = _engine(
+        node_id="agora_ministry_interior",
+        office_id="ministry_official",
+        seed=1,
+    )
+    second = _engine(
+        node_id="agora_ministry_interior",
+        office_id="ministry_official",
+        seed=1,
+    )
+    first.player_resources["standing"] = 0.90
+    second.player_resources["standing"] = 0.90
+
+    left = first.office_options("agora_ministry_finance")
+    right = second.office_options("agora_ministry_finance")
+    assert left == right
+    assert left[0]["competition"]["available"] is True
+
+    result = first.execute("request_transfer", "agora_ministry_finance")
+    assert result["ok"] is True
+    assert result["outcome"] == "success"
+    assert first.player_node_id == "agora_ministry_finance"
 
 
 def test_world_snapshot_roundtrip_restores_state_and_career():

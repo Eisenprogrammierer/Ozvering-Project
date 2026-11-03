@@ -143,6 +143,16 @@ DISMISSAL_LEGITIMACY = 0.08
 # легитимность снова увольняет его на следующий день и калибровка видит
 # десятки смен роли за эпизод. Значение переопределяется конфигом мира.
 ROLE_CHANGE_COOLDOWN_DAYS = 5
+# Рынок труда: у вакансии есть очередь кандидатов. Соревнование считается
+# детерминированно от дня/seed, поэтому один и тот же вызов `execute()`
+# видит ту же очередь, что и UI. Игрок конкурирует навыком и репутацией;
+# связи/влияние влияют на саму попытку через стоимость действия.
+LABOR_MARKET_RIVALS = 2
+LABOR_MARKET_RIVAL_BASE = 0.22
+LABOR_MARKET_RIVAL_SPREAD = 0.20
+LABOR_MARKET_RANK_BONUS = 0.05
+LABOR_MARKET_SKILL_WEIGHT = 0.40
+LABOR_MARKET_STANDING_WEIGHT = 0.60
 # Ежедневное восстановление легитимности: рутинное управление возвращает
 # доверие, если структура не ниже порога распада. Это противовес
 # дорогим действиям (`tax`, `martial_law` и т.п.), которые тратят
@@ -1063,6 +1073,87 @@ class WorldEngine:
         )
         return _clamp(base + 0.18 * skill + 0.10 * connection)
 
+    def _vacancy_competition(self, node, office):
+        """Очередь кандидатов на должность и шанс игрока в ней.
+
+        Кандидаты — живые персонажи того же домена; если их меньше
+        `LABOR_MARKET_RIVALS`, очередь добирается внешними претендентами.
+        Оценка детерминирована seed'ом, днём и id должности, поэтому UI и
+        `execute()` видят одинаковую картину. Игрок сравнивается с лучшим
+        кандидатом по навыку и репутации; при проигрыше вакансия считается
+        закрытой, и действие недоступно до следующего дня.
+        """
+        rank = _as_int(office.get("rank"), 99)
+        bonus = max(0, 5 - rank) * LABOR_MARKET_RANK_BONUS
+        pool = []
+        for character in self.characters.values():
+            if not character.get("alive"):
+                continue
+            character_node = self.node(character.get("node_id"))
+            if (
+                character_node is None
+                or character_node.get("domain") != node.get("domain")
+            ):
+                continue
+            roll = self._roll(
+                "labor:%s:%s:%s"
+                % (self.day, office["id"], character["id"])
+            )
+            pool.append(
+                {
+                    "id": character["id"],
+                    "name": character["name"],
+                    "score": _clamp(
+                        LABOR_MARKET_RIVAL_BASE
+                        + LABOR_MARKET_RIVAL_SPREAD * roll
+                        + bonus
+                    ),
+                }
+            )
+        pool.sort(key=lambda item: (-item["score"], item["id"]))
+        rivals = pool[:LABOR_MARKET_RIVALS]
+        for index in range(len(rivals), LABOR_MARKET_RIVALS):
+            roll = self._roll(
+                "labor:%s:%s:external:%s"
+                % (self.day, office["id"], index)
+            )
+            rivals.append(
+                {
+                    "id": "external:%s" % index,
+                    "name": "Внешний претендент",
+                    "score": _clamp(
+                        LABOR_MARKET_RIVAL_BASE
+                        + LABOR_MARKET_RIVAL_SPREAD * roll
+                        + bonus
+                    ),
+                }
+            )
+        skill_key = _text(office.get("skill"))
+        if skill_key:
+            skill = _profile_skill(self.profile, skill_key)
+        else:
+            domain_skills = DOMAIN_SKILLS.get(node.get("domain"), ())
+            skill = sum(
+                _profile_skill(self.profile, key) for key in domain_skills
+            ) / max(1, len(domain_skills))
+        standing = _as_float(self.player_resources.get("standing"), 0.0)
+        player_score = _clamp(
+            LABOR_MARKET_SKILL_WEIGHT * skill
+            + LABOR_MARKET_STANDING_WEIGHT * standing
+        )
+        best_rival = max(
+            (item["score"] for item in rivals),
+            default=0.0,
+        )
+        return {
+            "office_id": office["id"],
+            "rank": rank,
+            "rivals": rivals,
+            "player_score": player_score,
+            "best_rival": best_rival,
+            "available": player_score + 1e-9 >= best_rival,
+        }
+
     def office_options(self, node_id):
         node = self.node(node_id)
         if node is None:
@@ -1081,6 +1172,7 @@ class WorldEngine:
                     "reason": reason,
                     "authority": self._office_authority(office, node),
                     "rank": _as_int(office.get("rank"), 99),
+                    "competition": self._vacancy_competition(node, office),
                 }
             )
         return result
@@ -2777,6 +2869,29 @@ class WorldEngine:
             candidates = [item for item in options if item.get("enabled")]
             if not candidates:
                 return False, "нет доступной должности в цели"
+        competitive = [
+            item
+            for item in candidates
+            if (item.get("competition") or {}).get("available", True)
+        ]
+        if not competitive:
+            best = max(
+                candidates,
+                key=lambda item: (
+                    (item.get("competition") or {}).get("best_rival", 0.0)
+                ),
+            )
+            competition = best.get("competition") or {}
+            rival = (competition.get("rivals") or [{}])[0]
+            return (
+                False,
+                "очередь кандидатов сильнее: %s (%.2f против %.2f)"
+                % (
+                    rival.get("name", "другой претендент"),
+                    competition.get("best_rival", 0.0),
+                    competition.get("player_score", 0.0),
+                ),
+            )
         return True, ""
 
     def _career_transition(self, action, target):
@@ -2796,6 +2911,7 @@ class WorldEngine:
             item
             for item in self.office_options(target["id"])
             if item.get("enabled")
+            and (item.get("competition") or {}).get("available", True)
         ]
         if kind == "promote":
             current_rank = _as_int(
