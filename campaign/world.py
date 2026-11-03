@@ -148,6 +148,20 @@ ROLE_CHANGE_COOLDOWN_DAYS = 5
 # дорогим действиям (`tax`, `martial_law` и т.п.), которые тратят
 # легитимность быстрее, чем она восстанавливается.
 LEGITIMACY_RECOVERY = 0.02
+# §7 №28: экономика распада. Легитимность — не только сигнал `deep_risk`,
+# но и опора связности: ниже `DISMISSAL_LEGITIMACY` структура теряет
+# связность, ниже `COLLAPSE_LEGITIMACY` — ещё и силу. Дефицит казны
+# ускоряет эрозию, а здоровая легитимность и казна постепенно возвращают
+# обе шкалы. Так распад становится процессом, а не одним срезом.
+DECAY_STRAIN_COHESION = 0.010
+DECAY_STRAIN_POWER = 0.005
+DECAY_CRISIS_COHESION = 0.020
+DECAY_CRISIS_POWER = 0.010
+DECAY_BROKE_WEALTH = 0.10
+DECAY_BROKE_COHESION = 0.010
+DECAY_RECOVERY_LEGITIMACY = 0.45
+DECAY_RECOVERY_COHESION = 0.005
+DECAY_RECOVERY_POWER = 0.005
 ENDING_KINDS = ("win", "lose", "neutral")
 
 NODE_STATS = (
@@ -676,6 +690,9 @@ class WorldEngine:
                 self.config.get("legitimacy_recovery"),
                 LEGITIMACY_RECOVERY,
             ),
+        )
+        self.organizational_drift = bool(
+            self.config.get("organizational_drift", True)
         )
         # Оффлайн-догон (вопрос §7 №31): значения можно переопределить
         # конфигом мира, но по умолчанию фон ограничен.
@@ -2263,6 +2280,62 @@ class WorldEngine:
         return [("%s · %s" % (node["name"], self.stat_label("legitimacy")),
                  delta)]
 
+    def _apply_organizational_drift(self):
+        """Экономика распада: связность и сила следуют за легитимностью.
+
+        Ниже `DISMISSAL_LEGITIMACY` структура теряет связность, ниже
+        `COLLAPSE_LEGITIMACY` — ещё и силу; пустая казна ускоряет эрозию.
+        Здоровая легитимность и казна медленно возвращают обе шкалы.
+        Порог `COLLAPSE_*` остаётся единственным критерием распада: дрейф
+        лишь приближает или отодвигает его, поэтому распад становится
+        процессом, а не случайным срезом одной шкалы.
+        """
+        if not self.attached or not self.player_alive:
+            return []
+        if not self.organizational_drift:
+            return []
+        node = self.node(self.player_node_id)
+        if node is None:
+            return []
+        stats = node["stats"]
+        legitimacy = float(stats["legitimacy"])
+        wealth = float(stats["wealth"])
+        cohesion = float(stats["cohesion"])
+        power = float(stats["power"])
+        d_cohesion = 0.0
+        d_power = 0.0
+        if legitimacy <= COLLAPSE_LEGITIMACY:
+            d_cohesion -= DECAY_CRISIS_COHESION
+            d_power -= DECAY_CRISIS_POWER
+        elif legitimacy <= DISMISSAL_LEGITIMACY:
+            d_cohesion -= DECAY_STRAIN_COHESION
+            d_power -= DECAY_STRAIN_POWER
+        if wealth <= DECAY_BROKE_WEALTH:
+            d_cohesion -= DECAY_BROKE_COHESION
+        if (
+            legitimacy >= DECAY_RECOVERY_LEGITIMACY
+            and wealth > DECAY_BROKE_WEALTH
+            and power > COLLAPSE_POWER
+            and cohesion > COLLAPSE_COHESION
+        ):
+            d_cohesion += DECAY_RECOVERY_COHESION
+            d_power += DECAY_RECOVERY_POWER
+        changed = []
+        for key, delta in (("cohesion", d_cohesion), ("power", d_power)):
+            if abs(delta) <= 1e-9:
+                continue
+            before = float(stats[key])
+            stats[key] = _clamp(before + delta)
+            actual = stats[key] - before
+            if abs(actual) > 1e-9:
+                changed.append(
+                    (
+                        "%s · %s" % (node["name"], self.stat_label(key)),
+                        actual,
+                    )
+                )
+        return changed
+
     def _apply_daily_income(self):
         """Дневной доход должности — политическая проекция `E`.
 
@@ -3750,6 +3823,7 @@ class WorldEngine:
         if daily.get("player"):
             changed.extend(self._apply_player_map(daily.get("player")))
         changed.extend(self._apply_legitimacy_recovery())
+        changed.extend(self._apply_organizational_drift())
         changed.extend(self._apply_daily_income())
         changed.extend(self._advance_conditions())
         self.day += 1

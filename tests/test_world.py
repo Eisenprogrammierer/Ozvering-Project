@@ -834,6 +834,72 @@ def test_campaign_legitimacy_recovers_daily_when_stable():
     assert node["stats"]["legitimacy"] == before
 
 
+def test_campaign_legitimacy_erodes_cohesion_and_power():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.50
+    node["stats"]["cohesion"] = 0.50
+    node["stats"]["wealth"] = 0.50
+    node["stats"]["legitimacy"] = 0.07
+
+    changed = engine._apply_organizational_drift()
+
+    # Ниже порога смены роли связность падает, сила — слабее.
+    assert node["stats"]["cohesion"] < 0.50
+    assert node["stats"]["power"] < 0.50
+    assert changed
+
+    # Глубокий кризис и пустая казна ускоряют эрозию.
+    node["stats"]["power"] = 0.50
+    node["stats"]["cohesion"] = 0.50
+    node["stats"]["wealth"] = 0.05
+    node["stats"]["legitimacy"] = 0.01
+    engine._apply_organizational_drift()
+    assert node["stats"]["cohesion"] < 0.48
+    assert node["stats"]["power"] < 0.50
+
+
+def test_campaign_healthy_legitimacy_restores_organization():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.40
+    node["stats"]["cohesion"] = 0.40
+    node["stats"]["wealth"] = 0.60
+    node["stats"]["legitimacy"] = 0.70
+
+    changed = engine._apply_organizational_drift()
+
+    assert node["stats"]["cohesion"] > 0.40
+    assert node["stats"]["power"] > 0.40
+    assert changed
+
+    # Отключение дрейфа оставляет шкалы на месте (конфиг мира).
+    engine.organizational_drift = False
+    before = (node["stats"]["power"], node["stats"]["cohesion"])
+    assert engine._apply_organizational_drift() == []
+    assert (node["stats"]["power"], node["stats"]["cohesion"]) == before
+
+
+def test_campaign_crisis_drift_can_end_in_collapse():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.06
+    node["stats"]["cohesion"] = 0.06
+    node["stats"]["wealth"] = 0.0
+    node["stats"]["legitimacy"] = 0.01
+
+    for _ in range(4):
+        engine._apply_organizational_drift()
+        engine._check_dismissal()
+        if engine.collapsed:
+            break
+        engine.day += 1
+
+    assert engine.collapsed is True
+    assert engine.outcome == "lose"
+    assert engine.finished is True
+
+
 def test_campaign_resign_is_role_change_not_defeat():
     engine = _engine()
     result = engine.execute("resign", "")
