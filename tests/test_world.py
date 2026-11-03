@@ -241,6 +241,30 @@ def test_career_promotion_transfer_and_dismissal():
     assert any(entry["kind"] == "career" for entry in dismissed.log)
 
 
+def test_campaign_transfer_preserves_personal_resources():
+    engine = _engine(
+        node_id="agora_ministry_interior",
+        office_id="ministry_official",
+        seed=1,
+    )
+    engine.player_resources["standing"] = 0.90
+    engine.player_resources["influence"] = 0.77
+    engine.player_resources["favor"] = 0.66
+    engine.player_resources["evidence"] = 0.11
+
+    result = engine.execute("request_transfer", "agora_ministry_finance")
+
+    assert result["ok"] is True
+    assert result["outcome"] == "success"
+    assert engine.player_node_id == "agora_ministry_finance"
+    # Перевод списывает стоимость действия, но не сбрасывает накопленное
+    # влияние/связи/репутацию к baseline новой должности.
+    assert engine.player_resources["influence"] == pytest.approx(0.71)
+    assert engine.player_resources["favor"] == pytest.approx(0.62)
+    assert engine.player_resources["standing"] == pytest.approx(0.91)
+    assert engine.player_resources["evidence"] == pytest.approx(0.11)
+
+
 def test_world_snapshot_roundtrip_restores_state_and_career():
     engine = _engine(
         node_id="agora_ministry_interior",
