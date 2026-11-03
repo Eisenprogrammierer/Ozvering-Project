@@ -1,5 +1,7 @@
 """Очередь намерений кампании: первый срез real-time-планировщика."""
 
+import json
+
 import pytest
 
 from campaign.planner import (
@@ -586,7 +588,11 @@ def test_tick_runs_intraday_slots_without_advancing_day():
     engine.schedule_action(action_id, due_day=engine.day, due_slot=2)
 
     events = engine.tick(max_slot=1)
-    assert events == []  # слот 2 ещё не созрел для тика до первого слота
+    # Слот 2 ещё не созрел; автономные узлы могут дать свои события.
+    assert [
+        entry for entry in events
+        if entry.get("source") == "player_action"
+    ] == []
     assert engine.day == day_before  # сутки не сдвинулись
 
     fired = engine.tick(max_slot=2)
@@ -594,6 +600,51 @@ def test_tick_runs_intraday_slots_without_advancing_day():
     assert len(player_events) == 1
     assert engine.day == day_before  # тик не переводит сутки
     assert len(engine.intents) == 0
+
+
+def test_tick_spreads_node_actions_across_day_and_end_day_finishes():
+    engine = _engine(seed=19)
+    called = []
+
+    def spy(node_id):
+        called.append((engine.day, node_id))
+        return {"kind": "world", "source": node_id, "text": node_id}
+
+    engine._ai_action = spy
+    slot_zero = [
+        node_id
+        for node_id in engine.node_order
+        if engine._node_slot(node_id) == 0
+    ]
+    engine.tick(max_slot=0)
+    assert {node_id for _day, node_id in called} == set(slot_zero)
+
+    # Остаток дня доигрывается тиком, каждый узел — ровно один раз.
+    engine.tick(max_slot=SLOTS_MAX)
+    assert len(called) == len(engine.node_order)
+    assert len({node_id for _day, node_id in called}) == len(called)
+
+    # Граница суток не повторяет уже сходившие узлы.
+    day = engine.day
+    engine.end_day()
+    assert len(called) == len(engine.node_order)
+
+    # В новый день узлы снова получают ход.
+    engine.tick(max_slot=SLOTS_MAX)
+    new_day = [node_id for when, node_id in called if when != day]
+    assert len(new_day) == len(engine.node_order)
+
+
+def test_node_action_day_persists_in_snapshot():
+    engine = _engine(seed=23)
+    engine._ai_action = lambda node_id: None
+    engine.tick(max_slot=SLOTS_MAX)
+    assert engine.node_action_day
+
+    snapshot = json.loads(json.dumps(engine.to_dict()))
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+
+    assert restored.node_action_day == engine.node_action_day
 
 
 def test_tick_and_end_day_do_not_double_execute():

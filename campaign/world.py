@@ -782,6 +782,10 @@ class WorldEngine:
         self.outcome = None
         self.finished = False
         self.career_history = []
+        # A5: узлы тоже действуют внутри суток. Словарь хранит день
+        # последнего хода узла, чтобы `tick()` и `end_day()` не задвоили
+        # автономное действие.
+        self.node_action_day = {}
         # Состояние вопросов §7 №28–30. `dismissed` — событие смены роли,
         # `collapse_days` — счётчик подряд идущих дней ниже порога силы/
         # связности, `ending` — нарративный финал без объективной победы.
@@ -3787,6 +3791,48 @@ class WorldEngine:
             return []
         events = self._run_overdue()
         events.extend(self._run_intents(max_slot=max_slot))
+        events.extend(self._run_node_actions(max_slot=max_slot))
+        return events
+
+    def _node_slot(self, node_id):
+        """Внутридневной слот автономного узла (детерминированный).
+
+        Узлы, как и персонажи, действуют не только на границе суток: слот
+        распределяет их ходы по дню, чтобы фон не «включался» одной пачкой
+        в `end_day()`. Слот зависит от дня и id узла, поэтому повторный
+        запуск мира воспроизводит тот же порядок, а сохранение не требует
+        хранить расписание.
+        """
+        if SLOTS_MAX <= 0:
+            return SLOT_DAY_EDGE
+        token = "node-slot:%s:%s" % (self.day, node_id)
+        return min(
+            SLOTS_MAX,
+            int(self._roll(token) * (SLOTS_MAX + 1)),
+        )
+
+    def _run_node_actions(self, max_slot=None):
+        """Ходы автономных узлов: не более одного раза за сутки.
+
+        `max_slot` ограничивает выборку внутридневными слотами; `None`
+        означает «доиграть остаток дня» и используется `end_day()`. Факт
+        хода фиксируется до вызова `_ai_action()`, поэтому узел без
+        доступного действия не будет повторно опрошен в тот же день.
+        """
+        limit = SLOTS_MAX if max_slot is None else _as_slot(max_slot)
+        events = []
+        for node_id in self.node_order:
+            if self.node_action_day.get(node_id) == self.day:
+                continue
+            if (
+                max_slot is not None
+                and self._node_slot(node_id) > limit
+            ):
+                continue
+            self.node_action_day[node_id] = self.day
+            entry = self._ai_action(node_id)
+            if entry is not None:
+                events.append(entry)
         return events
 
     def end_day(self):
@@ -3800,10 +3846,8 @@ class WorldEngine:
         # журнал под своим днём; игрок не ходит по устаревшему миру.
         events.extend(self._run_overdue())
         events.extend(self._run_intents(max_slot=SLOTS_MAX, day=self.day))
-        for node_id in self.node_order:
-            entry = self._ai_action(node_id)
-            if entry is not None:
-                events.append(entry)
+        # Узлы, уже сходившие внутридневным тиком, не ходят повторно.
+        events.extend(self._run_node_actions())
         daily = self.config.get("daily") or {}
         changed = []
         for key, value in (daily.get("node") or {}).items():
@@ -3990,6 +4034,7 @@ class WorldEngine:
             "collapse_days": int(self.collapse_days),
             "storyline_days": int(self.storyline_days),
             "intents": self.intents.to_list(),
+            "node_action_day": dict(self.node_action_day),
         }
 
     def load_snapshot(self, snapshot):
@@ -4126,6 +4171,12 @@ class WorldEngine:
         # Очередь намерений: старые снимки без поля получают пустую очередь,
         # а не падают и не теряют текущий день.
         self.intents.load(snapshot.get("intents") or ())
+        self.node_action_day = {
+            str(node_id): _as_int(day)
+            for node_id, day in (
+                snapshot.get("node_action_day") or {}
+            ).items()
+        }
         self.attached = bool(
             snapshot.get("attached")
             or (self.player_node_id and self.player_office_id)
