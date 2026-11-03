@@ -56,10 +56,10 @@ CAPTURE_RATIO = 1.5
 # A2: доля тяжести раны за каждый процент максимального здоровья,
 # выжженного переполнением силы при успешном ударе (максимум WOUND_MAX).
 WOUND_HIT_SEVERITY = 0.30
-# 20 тактов удержания — калибровка A9 2026-11-02 (N=200, env on/off):
-# одновременный бой сместил исходы к смерти, и чуть более короткое
-# доминирование возвращает контрольное плечо в полосы §2.3.2.
-CAPTURE_STREAK = 20
+# 36 тактов удержания — калибровка 2026-11-03 (N=200, env on/off):
+# дешёвая разведка A9 позволяла слишком быстро накопить энергетическое
+# доминирование, поэтому серия удлинена и захват снова вторичен.
+CAPTURE_STREAK = 36
 CAPTURE_FRAC = 0.10
 L_STEP = 10.0
 
@@ -713,7 +713,7 @@ def resolve_pair(left, right, left_action, right_action, rng, env=None):
                 work.form == "info" and result.get("success")
             )
         if env is not None:
-            env.ingest(work.amount)
+            env.ingest(work.amount, getattr(work, "form", "force"))
 
     _apply_delta(left.unit, _sum_deltas(left_deltas))
     _apply_delta(right.unit, _sum_deltas(right_deltas))
@@ -1258,7 +1258,7 @@ class ArenaAgent:
         # накопленное давление может открыть окно уязвимости на следующем
         # такте тика среды.
         if env is not None:
-            env.ingest(work.amount)
+            env.ingest(work.amount, getattr(work, "form", "force"))
         success = rng.random() < chance
         damage = 0.0
         gain = 0.0

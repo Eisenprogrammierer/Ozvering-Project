@@ -30,7 +30,8 @@ def test_calibrated_health_constants():
     assert HEALTH_MAX == 100.0
     assert HEALTH_CRITICAL == 25.0
     assert HEALTH_REST_REGEN == 0.78
-    assert HEALTH_DAMAGE_RATIO == 0.50
+    assert HEALTH_STARVE_DECAY == 0.20
+    assert HEALTH_DAMAGE_RATIO == 0.25
     assert HEALTH_MAX / HEALTH_REST_REGEN == pytest.approx(100.0 / 0.78)
     critical_to_full = (HEALTH_MAX - HEALTH_CRITICAL) / HEALTH_REST_REGEN
     assert critical_to_full == pytest.approx(75.0 / 0.78)

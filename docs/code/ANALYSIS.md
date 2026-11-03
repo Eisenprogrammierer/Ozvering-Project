@@ -225,7 +225,7 @@
 
 ### 2.2 `core41/model.py` (341 строка) — автомат и здоровье
 
-Константы: давление (`OPEN_PRESSURE=8.0`, `PRESSURE_DECAY=0.82`, `PRESSURE_PER_WORK=0.30`), отдых (`REST_REGEN=14.0`, `REST_FORCE=0.6`), три блока H-механики: `HEALTH_*` (max 100, крит 25, `HEALTH_DAMAGE_RATIO=0.50` — урон по силе капает и в здоровье), `SICKNESS_*` (0..1, прогресс 0.004/такт, штраф работы ×0.6→пол 0.4, заражение `CONTAGION_CHANCE=0.35`), `WOUND_*` (устойчивая рана: капает здоровьем, замедляет реген, лечится отдыхом/TREAT).
+Константы: давление (`OPEN_PRESSURE=8.0`, `PRESSURE_DECAY=0.82`, `PRESSURE_PER_WORK=0.30`), отдых (`REST_REGEN=14.0`, `REST_FORCE=0.6`), три блока H-механики: `HEALTH_*` (max 100, крит 25, `HEALTH_DAMAGE_RATIO=0.25` — урон по силе капает и в здоровье), `SICKNESS_*` (0..1, прогресс 0.004/такт, штраф работы ×0.6→пол 0.4, заражение `CONTAGION_CHANCE=0.35`), `WOUND_*` (устойчивая рана: капает здоровьем, замедляет реген, лечится отдыхом/TREAT).
 
 - `sigmoid(value)`, `success_probability(attacker, defender, work, is_open) -> float` — вероятность попадания: скилл атакующего против сопротивления защитника, открытость увеличивает шанс.
 - `transmit_sickness(source, target, rng, form="force")` — контактная передача болезни при успешной работе (шанс × тяжесть).
@@ -263,7 +263,7 @@
 
 ### 2.7 `core41/arena.py` (985 строк) — активная арена (полный матч)
 
-Константы: `FORMS=("force","info")`, `FRACTIONS=(0.3,0.7)`, `CORE_ACTIONS` (REST/MOVE/ATTACK/DEFEND… индекс↔Action), захват `CAPTURE_RATIO=1.5, CAPTURE_STREAK=20, CAPTURE_FRAC=0.10`, `L_STEP=10.0`, профили `PROFILE_SKILLS` (CANON/AGGR/DEFN/SNEAK…), награды `REWARD_*` (цена энергии 0.6, своя болезнь −1.0, чужая +0.5, раны, терминал ±1.0).
+Константы: `FORMS=("force","info")`, `FRACTIONS=(0.3,0.7)`, `CORE_ACTIONS` (REST/MOVE/ATTACK/DEFEND… индекс↔Action), захват `CAPTURE_RATIO=1.5, CAPTURE_STREAK=36, CAPTURE_FRAC=0.10`, `L_STEP=10.0`, профили `PROFILE_SKILLS` (CANON/AGGR/DEFN/SNEAK…), награды `REWARD_*` (цена энергии 0.6, своя болезнь −1.0, чужая +0.5, раны, терминал ±1.0).
 - `reward_delta(me, before, other, other_before, profile=None) -> float` — пошаговая награда из изменений E/F/H/sickness/wound обеих сторон; профили `REWARD_PROFILES` (`advantage_cost` по умолчанию, `legacy` — прежняя формула); `terminal_reward(winner, side)`; `action_from_index(i) -> Action`; `_default_action(obs)`.
 - `class _RestPolicy` — заглушка политики (всегда REST; интерфейс `act/observe/state_dict/load_state_dict`).
 - `_perform(attacker, defender, action, world)` — исполнение действия: атака (вероятность успеха → урон F+H, info-канал → давление/дезинформация, open-окно), DEFEND (смена защиты), REST (реген E/F/H через `tick_health`), результат с событиями; `_transfer_event(side, agent, result)` — описание перелива для UI.

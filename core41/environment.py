@@ -96,6 +96,10 @@ ENV_INCOME_FLOOR = 0.75         # доля дохода при нулевом д
 ENV_UPKEEP_RATE = 0.01          # доля силы, уходящая на обслуживание
 ENV_GOAL_BONUS_MULT = 1.5       # усиление бонуса работы после цели
 ENV_BONUS = 0.25                # успех работы при открытом окне среды
+# Срез среды: среда защищается каналом, соответствующим текущему сезону. Работа
+# тем же каналом несёт меньше давления (`ENV_DEFENSE_MATCH`), поэтому
+# игроку выгодно чередовать `force`/`info`, а не спамить один канал.
+ENV_DEFENSE_MATCH = 0.70
 ENV_FORCE_BASE = 10.0           # стартовая сила среды
 ENV_GOAL_RATIO = 0.60           # цель: 60% потолка к deadline
 ENV_GOAL_HORIZON = 900          # тактов на достижение цели
@@ -185,6 +189,7 @@ class ArenaEnvironment:
         goal_ratio=ENV_GOAL_RATIO,
         goal_horizon=ENV_GOAL_HORIZON,
         with_economy=True,
+        with_defense=True,
     ):
         self.seed = int(seed)
         self.event_interval = max(1, int(event_interval))
@@ -198,6 +203,7 @@ class ArenaEnvironment:
         self.last_target = "both"
         # --- A1: экономика и цель --------------------------------------
         self.with_economy = bool(with_economy)
+        self.with_defense = bool(with_defense)
         self.force = max(0.0, float(force))
         self.goal_ratio = max(0.0, min(1.0, float(goal_ratio)))
         self.goal_horizon = max(1, int(goal_horizon))
@@ -235,20 +241,46 @@ class ArenaEnvironment:
             opened = True
         return opened
 
-    def ingest(self, work):
-        """Симметричный вход экономики: давление и накопление rest-единиц."""
+    def ingest(self, work, form="force"):
+        """Симметричный вход экономики: давление и накопление rest-единиц.
+
+        `form` — канал работы. Совпадение с `defense` снижает давление:
+        среда лучше держит тот канал, которым сейчас защищается. Сигнатура
+        обратно совместима: старые вызовы без `form` считаются `force`.
+        """
         if not self.with_economy or self.collapsed:
             return False
-        opened = self.receive_pressure(work)
+        amount = max(0.0, float(work))
+        if self.with_defense and str(form) == self.defense:
+            amount *= ENV_DEFENSE_MATCH
+        opened = self.receive_pressure(amount)
         self.pressure_rest = min(
             ENV_REST_CAP,
             getattr(self, "pressure_rest", 0.0)
-            + max(0.0, float(work)) * ENV_PRESSURE_GAIN,
+            + amount * ENV_PRESSURE_GAIN,
         )
         return opened
 
     def window_open(self):
         return bool(self.in_window and not self.collapsed)
+
+    @property
+    def in_open(self):
+        """Совместимость с канонным `Agent.in_open`."""
+        return self.window_open()
+
+    @property
+    def defense(self):
+        """Текущий защитный канал среды: `force` или `info`.
+
+        В `calm`/`recovery` среда защищается разведкой, в `lean`/`harsh` —
+        силой. Это наблюдаемо через `public_state()` и позволяет политике
+        выбирать канал работы осмысленно.
+        """
+        if not self.with_economy or not self.with_defense:
+            return "force"
+        _name, multiplier = self.season()
+        return "force" if float(multiplier) >= 1.0 else "info"
 
     @property
     def status(self):
@@ -417,6 +449,8 @@ class ArenaEnvironment:
             "asymmetric": self.asymmetric,
             # --- A1: наблюдаемая экономика и цель ----------------------
             "window": self.window_open(),
+            "in_open": self.in_open,
+            "defense": self.defense,
             "status": self.status,
             "work_bonus": self.work_bonus(),
             "pressure": float(self.pressure),

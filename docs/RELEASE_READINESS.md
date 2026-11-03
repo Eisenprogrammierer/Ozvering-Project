@@ -51,7 +51,7 @@
 | `agents.train --env arena` | self-play, held-out матрица, Wilson CI, warmup baseline, `--save-best` | реальные прогоны; JSON-статистика |
 | `agents.train --env campaign` | `CampaignEnv`: reset/step/observe/legal_actions/state_dict, карьера opt-in | прямой вызов из Python, тесты |
 | Доменная рандомизация | профили/болезнь/health-факторы, воспроизводимость по seed | `randomize_draw`, `--domain-randomize` |
-| Калибровка арены | N=100, полосы §2.3.2 в допуске (death 49 / capture 31 / timeout 20) | `experiments/exp_health_calibration.py` |
+| Калибровка арены | N=200, полосы §2.3.2 в допуске (контроль 58.5 / 23.5 / 18.0; активная 67.0 / 32.5 / 0.5) | `experiments/exp_health_calibration.py` |
 | Калибровка кампании | 5 seed × 30 дней: 40% побед агента, 60% нейтрально, 0% поражений/усечений, 15 смен ролей | `experiments/exp_campaign_calibration.py` |
 | Качество duel-MLP | 0/10 против `bdi`, 0/10 против `qtable`, 8/10 против `random` | held-out матрица; потолок наград, не ёмкости сети |
 | Экраны игры | 20+ экранов `view/screens/`, арена `game_engine.py`, легаси `ui/` | grep классов Screen, GUI-смоук |
@@ -83,7 +83,7 @@
 
 | # | Задача | Статус | чн | Комментарий |
 |---|---|---|---|---|
-| A1 | Собственные цели среды (`ArenaEnvironment` как актор) | **закрыто** | 0 | `env_window`/`env_bonus`, 22-й признак, v3-чекпойнты, тесты и калибровка. |
+| A1 | Собственные цели среды (`ArenaEnvironment` как актор) | **закрыто** | 0 | `env_window`/`env_bonus`, `force/defense/in_open`, 22-й признак, v3-чекпойнты, тесты и калибровка. |
 | A2 | Устойчивые раны в арене | **закрыто** | 0 | Рана снижает эффективность, прогрессирует, лечится `TREAT`; входит в наблюдения. |
 | A3 | Карьера политики в кампании | **закрыто** | 0 | `--campaign-career`; длинная калибровка частоты повышений — подпункт A6. |
 | A4 | Политика автономных персонажей вне кадра | **закрыто** | 0 | Приоритеты, `cancel_when`, `_autonomy_intent`; автономия по умолчанию выключена. |

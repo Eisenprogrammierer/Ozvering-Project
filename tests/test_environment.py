@@ -11,6 +11,7 @@ from core41 import (
 )
 from core41.environment import (
     ENV_BONUS,
+    ENV_DEFENSE_MATCH,
     ENV_ENERGY_DRAIN,
     ENV_ENERGY_RELIEF,
     ENV_EVENT_INTERVAL,
@@ -22,6 +23,40 @@ from core41.environment import (
 
 def _agents():
     return ArenaAgent("left", seed=1), ArenaAgent("right", seed=2)
+
+
+def test_environment_defense_resists_matching_work_channel():
+    env = ArenaEnvironment(seed=1, force=100.0)
+    defense = env.defense
+    other = "info" if defense == "force" else "force"
+
+    env.pressure = 0.0
+    env.ingest(10.0, defense)
+    matched = env.pressure
+    env.pressure = 0.0
+    env.ingest(10.0, other)
+
+    assert matched == pytest.approx(10.0 * ENV_DEFENSE_MATCH)
+    assert matched < env.pressure
+
+    env.with_defense = False
+    env.pressure = 0.0
+    env.ingest(10.0, defense)
+    assert env.pressure == pytest.approx(10.0)
+
+
+def test_environment_public_state_exposes_defense_and_in_open():
+    env = ArenaEnvironment(seed=1, force=100.0)
+    state = env.public_state()
+
+    assert state["defense"] == env.defense
+    assert state["in_open"] is False
+    assert env.in_open is False
+
+    env.receive_pressure(500.0)
+    state = env.public_state()
+    assert state["in_open"] is True
+    assert env.in_open is True
 
 
 def test_environment_is_deterministic_and_seasonal():
