@@ -489,7 +489,12 @@ class WorldScreen(BaseScreen):
         self.clock.resume()
         self.clock.pause_reason = ""
         days = self.clock.advance(dt)
+        # A5: пока копятся сутки, открываем внутридневные слоты. Намерения
+        # исполняются по мере наступления слота, а не только на границе дня.
+        slot_events = engine.tick(max_slot=self.clock.slot)
         if days <= 0:
+            if slot_events:
+                self.message = "Внутри дня: событий — %d." % len(slot_events)
             return
         results = engine.advance_days(
             days, max_days=self.clock.max_catchup_days

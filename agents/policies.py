@@ -570,9 +570,24 @@ class BDIPolicy:
         elif explore and self.rng.random() < self.epsilon:
             chosen = self.rng.choice(actions)
         else:
-            chosen = actions[0]
+            candidates = actions
+            # Кампания: `END_DAY` — служебный ход, а не отдых. Пока у героя
+            # остались действия и есть хотя бы одно доступное неслужебное
+            # действие, baseline не должен «завершать день» из-за смещения
+            # весов. Это не отменяет ресурсное ограничение: если доступен
+            # только `END_DAY`, он и будет выбран.
+            if isinstance(observation, CampaignObservation):
+                non_service = tuple(
+                    action for action in actions if action.kind != "END_DAY"
+                )
+                if (
+                    int(getattr(observation, "actions_left", 0)) > 0
+                    and non_service
+                ):
+                    candidates = non_service
+            chosen = candidates[0]
             best_score = self.score(observation, chosen)
-            for action in actions[1:]:
+            for action in candidates[1:]:
                 value = self.score(observation, action)
                 if value > best_score:
                     chosen = action

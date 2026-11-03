@@ -15,17 +15,23 @@
   и ограниченный оффлайн-догон при загрузке. Если сейв старый или часы
   переведены назад, догон равен нулю.
 
-Глубокий real-time-планировщик кампании (непрерывные действия, очередь
-намерений, автономные персонажи вне кадра) остаётся открытым; этот модуль
-не выдаёт себя за него.
+Часы также отдают текущий **внутридневной слот** (`slot`, 0..`SLOTS_MAX`).
+Экран мира вызывает `WorldEngine.tick(max_slot=clock.slot)` до перехода
+суток, поэтому отложенные намерения срабатывают не только на границе дня,
+но и по мере накопления реального времени. Политика автономных структур
+(узлов) вне кадра остаётся открытой; этот модуль не выдаёт себя за неё.
 """
 
 import time
 
 from core41 import HEALTH_CRITICAL, SICKNESS_CRITICAL
 
+from .planner import SLOTS_MAX
+
 SECONDS_PER_DAY = 120.0
 MAX_CATCHUP_DAYS = 7
+# Слоты 0..SLOTS_MAX покрывают сутки; слот 0 — граница дня.
+SLOTS_PER_DAY = SLOTS_MAX + 1
 
 
 def normalize_seconds_per_day(value):
@@ -63,6 +69,19 @@ class CampaignClock:
         if self.paused:
             return "PAUSE"
         return "%dd" % self.days
+
+    @property
+    def slot(self):
+        """Текущий внутридневной слот 0..`SLOTS_MAX` по остатку `acc`.
+
+        Слот — не отдельный счётчик, а проекция накопленных секунд внутри
+        текущих суток. Повторный вызов с тем же слотом безопасен:
+        `WorldEngine.tick()` извлекает исполненные намерения из очереди.
+        """
+        if self.paused:
+            return 0
+        fraction = (self.acc % self.seconds_per_day) / self.seconds_per_day
+        return min(SLOTS_MAX, int(fraction * SLOTS_PER_DAY))
 
     def pause(self):
         self.paused = True
@@ -142,6 +161,7 @@ def background_pause_reason(engine):
 __all__ = [
     "MAX_CATCHUP_DAYS",
     "SECONDS_PER_DAY",
+    "SLOTS_PER_DAY",
     "CampaignClock",
     "background_pause_reason",
     "normalize_max_catchup",

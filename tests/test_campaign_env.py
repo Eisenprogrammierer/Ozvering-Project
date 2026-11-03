@@ -426,6 +426,28 @@ def test_bdi_campaign_prefers_work_while_actions_remain():
     assert policy.campaign_weights != policy.weights
 
 
+def test_bdi_campaign_does_not_end_day_while_action_is_available():
+    policy = BDIPolicy(seed=1, epsilon=0.0)
+    observation = CampaignObservation(
+        day=5,
+        total_days=30,
+        actions_left=1,
+        actions_per_day=3,
+        energy=1.0,
+        max_energy=100.0,
+        standing=0.05,
+        attached=True,
+    )
+    actions = (
+        CampaignAction(END_DAY),
+        CampaignAction("inspect", target="n"),
+    )
+
+    chosen = policy.act(observation, actions, explore=False)
+
+    assert chosen.kind == "inspect"
+
+
 def test_bdi_campaign_weights_round_trip_and_legacy_checkpoint():
     policy = BDIPolicy(seed=2, epsilon=0.0)
     policy.campaign_weights[18] = 0.42

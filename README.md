@@ -413,6 +413,8 @@ python3 experiments/exp_warfare.py               # войсковые автом
 графический движок); тесты — `pip install -r requirements-dev.txt` (только `pytest`).
 Чек-лист ревью — в [`.github/pull_request_template.md`](.github/pull_request_template.md);
 процесс разработки (язык коммитов, ветки, CI, `CHANGELOG`) — в [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Пошаговое руководство «как играть / как обучить / как контрибьютить» —
+в [`docs/HOWTO.md`](docs/HOWTO.md).
 
 # Графический слой (экраны и наблюдение за партией)
 
@@ -538,6 +540,7 @@ Held-out кампании — одна строка «политика прот�
 Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). Модули и публичные API сопровождаются docstrings, а перенесённые заметки собраны в [`docs/code/README.md`](docs/code/README.md) и [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md). Форматирование — `pycodestyle` с длиной строки 79 (настройки в `setup.cfg`).
 
 Краткая выжимка по всему проекту (онтология, законы, слои, статус) — [`docs/SUMMARY.md`](docs/SUMMARY.md).
+Практическое руководство по запуску, обучению и вкладу — [`docs/HOWTO.md`](docs/HOWTO.md).
 JSON-контент и папки: что можно добавить, изменить или удалить без кода, — [`docs/CONTENT.md`](docs/CONTENT.md).
 Графический редактор автоматов — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
 

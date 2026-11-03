@@ -138,6 +138,16 @@ COLLAPSE_LEGITIMACY = 0.02
 # переводят игрока в другую роль.
 DISMISSAL_STANDING = 0.05
 DISMISSAL_LEGITIMACY = 0.08
+# §7 №28–29: смена роли — не ежедневный автомат. После перевода герой
+# получает срок, чтобы стабилизировать структуру; иначе низкая
+# легитимность снова увольняет его на следующий день и калибровка видит
+# десятки смен роли за эпизод. Значение переопределяется конфигом мира.
+ROLE_CHANGE_COOLDOWN_DAYS = 5
+# Ежедневное восстановление легитимности: рутинное управление возвращает
+# доверие, если структура не ниже порога распада. Это противовес
+# дорогим действиям (`tax`, `martial_law` и т.п.), которые тратят
+# легитимность быстрее, чем она восстанавливается.
+LEGITIMACY_RECOVERY = 0.02
 ENDING_KINDS = ("win", "lose", "neutral")
 
 NODE_STATS = (
@@ -653,6 +663,20 @@ class WorldEngine:
                 COLLAPSE_GRACE_DAYS,
             ),
         )
+        self.role_change_cooldown_days = max(
+            0,
+            _as_int(
+                self.config.get("role_change_cooldown_days"),
+                ROLE_CHANGE_COOLDOWN_DAYS,
+            ),
+        )
+        self.legitimacy_recovery = max(
+            0.0,
+            _as_float(
+                self.config.get("legitimacy_recovery"),
+                LEGITIMACY_RECOVERY,
+            ),
+        )
         # Оффлайн-догон (вопрос §7 №31): значения можно переопределить
         # конфигом мира, но по умолчанию фон ограничен.
         self.offline_progress = bool(
@@ -758,6 +782,7 @@ class WorldEngine:
         # чаще одного раза в день, иначе два вызова дают «распад за день».
         self._collapse_day = 0
         self._dismissal_day = 0
+        self.last_role_change_day = -self.role_change_cooldown_days
         # Очередь намерений (первый срез real-time-планировщика, §7 №31):
         # события, назначенные на будущие дни, и автономные контакты
         # персонажей. Живёт в снимке мира.
@@ -2207,6 +2232,37 @@ class WorldEngine:
                 changed.append((self.stat_label(key), delta))
         return changed
 
+    def _apply_legitimacy_recovery(self):
+        """Вернуть структуре немного легитимности за спокойные сутки.
+
+        Восстановление не работает ниже порога распада: организация,
+        потерявшая силу/связность, не должна «самолечиться». Смена роли
+        (§7 №29) получает передышку, а дорогие действия по-прежнему
+        остаются реальной ценой.
+        """
+        if not self.attached or not self.player_alive:
+            return []
+        node = self.node(self.player_node_id)
+        if node is None:
+            return []
+        stats = node["stats"]
+        if self.legitimacy_recovery <= 0.0:
+            return []
+        if (
+            float(stats["power"]) <= COLLAPSE_POWER
+            or float(stats["cohesion"]) <= COLLAPSE_COHESION
+        ):
+            return []
+        before = float(stats["legitimacy"])
+        stats["legitimacy"] = _clamp(
+            before + self.legitimacy_recovery
+        )
+        delta = stats["legitimacy"] - before
+        if abs(delta) <= 1e-9:
+            return []
+        return [("%s · %s" % (node["name"], self.stat_label("legitimacy")),
+                 delta)]
+
     def _apply_daily_income(self):
         """Дневной доход должности — политическая проекция `E`.
 
@@ -3032,6 +3088,7 @@ class WorldEngine:
         self.attached = False
         self.dismissed = True
         self.dismissal_count += 1
+        self.last_role_change_day = self.day
         self.player_office_id = ""
         self.player_authority = 0.0
         self._refresh_items()
@@ -3164,6 +3221,14 @@ class WorldEngine:
         # Смена роли — не чаще одного раза в день, даже если `execute()`
         # и `end_day()` оба увидели низкую репутацию/легитимность.
         if self._dismissal_day == self.day:
+            return
+        # §7 №28–29: после перевода нужен срок стабилизации. Без cooldown
+        # низкая легитимность увольняет героя каждый день (до 12–13 смен
+        # роли за 30-дневный эпизод).
+        if (
+            self.day - int(self.last_role_change_day)
+            < self.role_change_cooldown_days
+        ):
             return
         if self.player_resources["standing"] <= DISMISSAL_STANDING:
             self._dismissal_day = self.day
@@ -3684,6 +3749,7 @@ class WorldEngine:
                         )
         if daily.get("player"):
             changed.extend(self._apply_player_map(daily.get("player")))
+        changed.extend(self._apply_legitimacy_recovery())
         changed.extend(self._apply_daily_income())
         changed.extend(self._advance_conditions())
         self.day += 1
@@ -3845,6 +3911,7 @@ class WorldEngine:
             "ending": self.ending,
             "dismissed": bool(self.dismissed),
             "dismissal_count": int(self.dismissal_count),
+            "last_role_change_day": int(self.last_role_change_day),
             "collapsed": bool(self.collapsed),
             "collapse_days": int(self.collapse_days),
             "storyline_days": int(self.storyline_days),
@@ -3970,6 +4037,10 @@ class WorldEngine:
         self.dismissed = bool(snapshot.get("dismissed", self.dismissed))
         self.dismissal_count = _as_int(
             snapshot.get("dismissal_count"), self.dismissal_count
+        )
+        self.last_role_change_day = _as_int(
+            snapshot.get("last_role_change_day"),
+            self.last_role_change_day,
         )
         self.collapsed = bool(snapshot.get("collapsed", self.collapsed))
         self.collapse_days = max(

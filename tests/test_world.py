@@ -259,6 +259,7 @@ def test_world_snapshot_roundtrip_restores_state_and_career():
     assert restored.player_office_id == engine.player_office_id
     assert restored.player_resources == engine.player_resources
     assert restored.career_history == engine.career_history
+    assert restored.last_role_change_day == engine.last_role_change_day
     assert restored.log == json.loads(json.dumps(engine.log))
     assert restored.to_dict()["nodes"] == engine.to_dict()["nodes"]
     assert restored.action_options("knowledge_press")
@@ -787,6 +788,50 @@ def test_campaign_role_change_happens_once_per_day():
     engine._check_dismissal()
 
     assert engine.dismissal_count == 1
+
+
+def test_campaign_role_change_cooldown_limits_churn():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    first_day = engine.day
+    node["stats"]["legitimacy"] = 0.0
+    engine._check_dismissal()
+    assert engine.dismissal_count == 1
+
+    # В пределах cooldown повторная низкая легитимность не меняет роль.
+    for offset in range(1, engine.role_change_cooldown_days):
+        engine.day = first_day + offset
+        node["stats"]["legitimacy"] = 0.0
+        engine._check_dismissal()
+        assert engine.dismissal_count == 1
+
+    # После передышки смена роли снова возможна.
+    engine.day = first_day + engine.role_change_cooldown_days
+    node["stats"]["legitimacy"] = 0.0
+    engine._check_dismissal()
+    assert engine.dismissal_count == 2
+    assert engine.last_role_change_day == engine.day
+
+
+def test_campaign_legitimacy_recovers_daily_when_stable():
+    engine = _engine()
+    node = engine.node(engine.player_node_id)
+    node["stats"]["power"] = 0.5
+    node["stats"]["cohesion"] = 0.5
+    node["stats"]["legitimacy"] = 0.5
+
+    changed = engine._apply_legitimacy_recovery()
+
+    assert node["stats"]["legitimacy"] == pytest.approx(
+        0.5 + engine.legitimacy_recovery
+    )
+    assert changed
+
+    # Ниже порога распада структура не «самолечится».
+    node["stats"]["power"] = 0.0
+    before = node["stats"]["legitimacy"]
+    assert engine._apply_legitimacy_recovery() == []
+    assert node["stats"]["legitimacy"] == before
 
 
 def test_campaign_resign_is_role_change_not_defeat():
