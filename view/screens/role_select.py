@@ -127,7 +127,7 @@ class RoleSelectScreen(BaseScreen):
                 surf = self.app.font_small.render(line, True, (190, 190, 205))
                 screen.blit(surf, (340, top + 22 + line_number * 20))
         note = self.app.font_tiny.render(
-            "Каталог ролей: configs/roles/roles.json", True, (110, 110, 130)
+            "Каталог ролей: configs/roles/*.json", True, (110, 110, 130)
         )
         screen.blit(note, note.get_rect(center=(640, 560)))
         for button in self.buttons[len(self.roles[:MAX_VISIBLE_ROLES]) :]:

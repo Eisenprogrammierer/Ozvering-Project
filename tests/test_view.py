@@ -617,6 +617,26 @@ def test_main_dispatches_view_flag(monkeypatch):
     assert calls["argv"] == ["-f"]
 
 
+def test_main_default_opens_view_client(monkeypatch):
+    """B2: без флагов `main.py` запускает современный клиент `view/`."""
+    import sys
+    import types
+
+    import main as entry
+
+    calls = {}
+
+    def fake_main(argv):
+        calls["argv"] = list(argv)
+        return 5
+
+    fake = types.ModuleType("view.app")
+    fake.main = fake_main
+    monkeypatch.setitem(sys.modules, "view.app", fake)
+    assert entry.main([]) == 5
+    assert calls["argv"] == []
+
+
 def _center_of(units):
     alive = [det for det in units if not getattr(det, "broken", False)]
     return (

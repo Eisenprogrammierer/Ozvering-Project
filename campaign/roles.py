@@ -168,10 +168,47 @@ class RoleCatalog:
     @classmethod
     def load(cls, root=None):
         path = Path(root) if root is not None else default_root()
-        if path.is_dir():
-            path = path / "roles.json"
-        data = _read_json(path)
-        return cls.from_data(data, root=path.parent)
+        if path.is_file():
+            data = _read_json(path)
+            return cls.from_data(data, root=path.parent)
+        if not path.is_dir():
+            raise RoleError("каталог ролей не найден: %s" % path)
+        main_path = path / "roles.json"
+        files = []
+        if main_path.is_file():
+            files.append(main_path)
+        files.extend(
+            item
+            for item in sorted(path.glob("*.json"))
+            if item != main_path
+        )
+        if not files:
+            raise RoleError("в %s нет JSON-файлов ролей" % path)
+        roles = []
+        schema = 1
+        for source in files:
+            data = _read_json(source)
+            if not isinstance(data, Mapping):
+                raise RoleError("%s должен быть объектом" % source.name)
+            if "roles" in data:
+                raw = data.get("roles")
+                if not isinstance(raw, (list, tuple)):
+                    raise RoleError(
+                        "%s: roles должен быть списком" % source.name
+                    )
+                if source == main_path:
+                    schema = _as_int(data.get("schema", 1), 1)
+                roles.extend(
+                    RoleSpec.from_data(item, len(roles) + index)
+                    for index, item in enumerate(raw)
+                )
+            elif data.get("id"):
+                roles.append(RoleSpec.from_data(data, len(roles)))
+            else:
+                raise RoleError(
+                    "%s: нужен объект роли или ключ roles" % source.name
+                )
+        return cls(roles, schema=schema)
 
     @classmethod
     def from_data(cls, data, root=None):

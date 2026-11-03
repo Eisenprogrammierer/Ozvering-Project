@@ -8,7 +8,8 @@
     python3 experiments/exp_health_calibration.py \
         --set HEALTH_DAMAGE_RATIO=0.75,HEALTH_REST_REGEN=0.8
     python3 experiments/exp_health_calibration.py --sickness 0.5
-    python3 experiments/exp_health_calibration.py --sickness-rl 0.5 --sickness-ai 0.2
+    python3 experiments/exp_health_calibration.py \
+        --sickness-rl 0.5 --sickness-ai 0.2
     python3 experiments/exp_health_calibration.py \
         --set SICKNESS_HEALTH_DECAY=1.2,CONTAGION_CHANCE=0.5
 
@@ -38,6 +39,13 @@ CALIBRATABLE = (
     "HEALTH_DAMAGE_RATIO",
     "HEALTH_REST_REGEN",
     "HEALTH_STARVE_DECAY",
+    "HEALTH_ATTACK_FLOOR",
+    "INTEL_ATTACK_BONUS",
+    "INTEL_DAMAGE_BONUS",
+    "FORCE_WORK_RATIO",
+    "INFO_COST_FACTOR",
+    "CHARGE_DAMAGE_BONUS",
+    "INFO_PRESSURE_PER_WORK",
     "SICKNESS_HEALTH_DECAY",
     "SICKNESS_DAMAGE_BONUS",
     "SICKNESS_PROGRESS",
@@ -80,6 +88,18 @@ TARGETS = {
     "starve_share": (0.15, 0.35),
 }
 
+# 2026-11-01: `goal`/`collapse` среды перестали завершать партию. Активная
+# конфигурация стала решительнее: смерть — основной исход, таймаут редок,
+# захват остаётся вторичным. Полосы контрольного плеча (`with_env=False`)
+# не менялись; для активной игры зафиксированы отдельные.
+TARGETS_ACTIVE = {
+    "death": (0.55, 0.90),
+    "capture": (0.10, 0.35),
+    "timeout": (0.01, 0.20),
+    "median_ticks": (300.0, 900.0),
+    "starve_share": (0.15, 0.35),
+}
+
 _METER = {"starve": 0.0, "damage": 0.0}
 _ORIG_TICK = model.Automaton.tick_health
 _ORIG_DAMAGE = model.Automaton.apply_force_damage
@@ -112,7 +132,7 @@ def metering():
 
 
 def _make_match(
-    seed, steps, sickness_rl=0.0, sickness_ai=0.0, with_env=False
+    seed, steps, sickness_rl=0.0, sickness_ai=0.0, with_env=False, fog=True
 ):
     return ArenaMatch(
         seed=seed,
@@ -122,18 +142,36 @@ def _make_match(
         sickness_rl=sickness_rl,
         sickness_ai=sickness_ai,
         with_env=with_env,
+        fog=fog,
     )
 
 
 def run_match(
-    seed, steps, sickness_rl=0.0, sickness_ai=0.0, with_env=False
+    seed,
+    steps,
+    sickness_rl=0.0,
+    sickness_ai=0.0,
+    with_env=False,
+    fog=True,
 ):
-    match = _make_match(seed, steps, sickness_rl, sickness_ai, with_env)
+    match = _make_match(
+        seed, steps, sickness_rl, sickness_ai, with_env, fog
+    )
     critical_ticks = 0
     recoveries = 0
     below = {"rl": False, "ai": False}
+    env_goal = False
+    env_collapse = False
+    env_goal_tick = None
+    env_collapse_tick = None
     while not match.finished:
         match.step_tick()
+        if match.env_event == "goal" and not env_goal:
+            env_goal = True
+            env_goal_tick = match.step
+        elif match.env_event == "collapse" and not env_collapse:
+            env_collapse = True
+            env_collapse_tick = match.step
         for side in ("rl", "ai"):
             health = getattr(match, side).health
             if health <= model.HEALTH_CRITICAL:
@@ -144,7 +182,7 @@ def run_match(
                 below[side] = False
     if match.rl.is_dead or match.ai.is_dead:
         cause = "death"
-    elif match.step < steps:
+    elif match.winner is not None:
         cause = "capture"
     else:
         cause = "timeout"
@@ -154,6 +192,10 @@ def run_match(
         "winner": match.winner,
         "critical": critical_ticks,
         "recoveries": recoveries,
+        "env_goal": env_goal,
+        "env_collapse": env_collapse,
+        "env_goal_tick": env_goal_tick,
+        "env_collapse_tick": env_collapse_tick,
     }
 
 
@@ -182,6 +224,7 @@ def run_batch(
     sickness_rl=0.0,
     sickness_ai=0.0,
     with_env=False,
+    fog=True,
 ):
     saved = _with_overrides(overrides)
     _METER["starve"] = 0.0
@@ -189,7 +232,14 @@ def run_batch(
     try:
         with metering():
             rows = [
-                run_match(seed, steps, sickness_rl, sickness_ai, with_env)
+                run_match(
+                    seed,
+                    steps,
+                    sickness_rl,
+                    sickness_ai,
+                    with_env,
+                    fog,
+                )
                 for seed in range(seeds)
             ]
     finally:
@@ -202,6 +252,7 @@ def run_batch(
         sickness_rl,
         sickness_ai,
         with_env,
+        fog,
     )
     return rows
 
@@ -218,6 +269,7 @@ def _report(
     sickness_rl=0.0,
     sickness_ai=0.0,
     with_env=False,
+    fog=True,
 ):
     counts = {
         cause: sum(1 for row in rows if row["cause"] == cause)
@@ -235,7 +287,7 @@ def _report(
 
     print(
         "\n=== %s (N=%d, steps=%d, sickness RL=%.2f / AI=%.2f, "
-        "with_env=%s) ==="
+        "with_env=%s, fog=%s) ==="
         % (
             label,
             seeds,
@@ -243,6 +295,7 @@ def _report(
             sickness_rl,
             sickness_ai,
             "on" if with_env else "off",
+            "on" if fog else "off",
         )
     )
     for cause in ("death", "capture", "timeout"):
@@ -267,6 +320,30 @@ def _report(
     print(
         "  выходы из критики/партию  %.2f" % recoveries
     )
+    env_goals = sum(1 for row in rows if row["env_goal"])
+    env_collapses = sum(1 for row in rows if row["env_collapse"])
+    goal_ticks = [
+        row["env_goal_tick"] for row in rows if row["env_goal_tick"]
+    ]
+    collapse_ticks = [
+        row["env_collapse_tick"]
+        for row in rows
+        if row["env_collapse_tick"]
+    ]
+    print(
+        "  среда goal / collapse     %d / %d"
+        % (env_goals, env_collapses)
+    )
+    if goal_ticks:
+        print(
+            "  медиана goal              %.0f"
+            % statistics.median(goal_ticks)
+        )
+    if collapse_ticks:
+        print(
+            "  медиана collapse          %.0f"
+            % statistics.median(collapse_ticks)
+        )
     metrics = {
         "death": _share(counts["death"], seeds),
         "capture": _share(counts["capture"], seeds),
@@ -275,7 +352,8 @@ def _report(
         "starve_share": starve_share,
     }
     failures = []
-    for name, (low, high) in TARGETS.items():
+    targets = TARGETS_ACTIVE if with_env else TARGETS
+    for name, (low, high) in targets.items():
         value = metrics[name]
         if not low <= value <= high:
             failures.append(
@@ -330,6 +408,14 @@ def main(argv=None):
         ),
     )
     parser.add_argument(
+        "--no-fog",
+        action="store_true",
+        help=(
+            "отключить туман наблюдаемости (точное знание скрытых полей); "
+            "по умолчанию туман включён, как в активной игре"
+        ),
+    )
+    parser.add_argument(
         "--sickness",
         type=float,
         default=None,
@@ -356,8 +442,12 @@ def main(argv=None):
         parser.error(
             "--sickness нельзя сочетать с --sickness-rl/--sickness-ai"
         )
-    sickness_rl = args.sickness if args.sickness is not None else args.sickness_rl
-    sickness_ai = args.sickness if args.sickness is not None else args.sickness_ai
+    sickness_rl = (
+        args.sickness if args.sickness is not None else args.sickness_rl
+    )
+    sickness_ai = (
+        args.sickness if args.sickness is not None else args.sickness_ai
+    )
     sickness_rl = 0.0 if sickness_rl is None else sickness_rl
     sickness_ai = 0.0 if sickness_ai is None else sickness_ai
     for name, value in (
@@ -381,6 +471,7 @@ def main(argv=None):
             sickness_rl,
             sickness_ai,
             args.with_env,
+            not args.no_fog,
         )
     run_batch(
         args.seeds,
@@ -390,6 +481,7 @@ def main(argv=None):
         sickness_rl,
         sickness_ai,
         args.with_env,
+        not args.no_fog,
     )
     return 0
 

@@ -266,6 +266,41 @@ def load_world(path=None):
     return validate_world(data)
 
 
+def default_worlds_dir():
+    return ROOT / "configs" / "worlds"
+
+
+def list_worlds(directory=None):
+    """Найти JSON-миры в каталоге (биография и прочие файлы пропускаются)."""
+    root = Path(directory) if directory is not None else default_worlds_dir()
+    root = root.resolve()
+    worlds = []
+    if not root.is_dir():
+        return worlds
+    for path in sorted(root.glob("*.json")):
+        try:
+            data = _read_json(path)
+        except WorldError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        if not data.get("domains") or not data.get("nodes"):
+            continue
+        try:
+            world = validate_world(data)
+        except WorldError:
+            continue
+        worlds.append(
+            {
+                "world_id": world["id"],
+                "title": world["title"],
+                "path": str(path),
+            }
+        )
+    worlds.sort(key=lambda item: (item["title"], item["world_id"]))
+    return worlds
+
+
 def load_biography(path=None):
     data = _read_json(path if path is not None else DEFAULT_BIOGRAPHY_PATH)
     if not isinstance(data, dict):
@@ -1210,7 +1245,8 @@ class WorldEngine:
             return None
         character["wound"] = max(
             0.0,
-            _as_float(character.get("wound"), 0.0) - max(0.0, _as_float(amount)),
+            _as_float(character.get("wound"), 0.0)
+            - max(0.0, _as_float(amount)),
         )
         return character["wound"]
 
@@ -2222,8 +2258,9 @@ class WorldEngine:
     def _grow_player_skills(self, action, target, success):
         """Практика растит навыки домена с насыщением к `CAMPAIGN_SKILL_CAP`.
 
-        Успех даёт `CAMPAIGN_SKILL_GAIN`, провал — `CAMPAIGN_SKILL_FAILURE_GAIN`;
-        прирост делится между навыками домена и убывает по мере приближения
+        Успех даёт `CAMPAIGN_SKILL_GAIN`, провал —
+        `CAMPAIGN_SKILL_FAILURE_GAIN`; прирост делится между навыками
+        домена и убывает по мере приближения
         к капу. Так стартовый профиль (0.08–0.12) может дорасти до
         требований `seek_promotion` (0.18) и вышестоящих должностей (0.28+)
         без ручной правки профиля. `aptitudes` — производная от навыков,
@@ -2476,12 +2513,15 @@ class WorldEngine:
         if not self.player_alive:
             return []
         roll = self._roll(
-            "action-wound:%s:%s:%s" % (self.day, action.get("id"), self.action_count)
+            "action-wound:%s:%s:%s"
+            % (self.day, action.get("id"), self.action_count)
         )
         if roll >= CAMPAIGN_ACTION_WOUND_CHANCE:
             return []
         dexterity = _profile_skill(self.profile, CAMPAIGN_WOUND_DODGE_SKILL)
-        severity = CAMPAIGN_ACTION_WOUND_SEVERITY * max(0.25, 1.0 - 0.5 * dexterity)
+        severity = CAMPAIGN_ACTION_WOUND_SEVERITY * max(
+            0.25, 1.0 - 0.5 * dexterity
+        )
         before_health = self.player_health
         wound_value = self.injure_player(severity)
         if wound_value is None:
@@ -3222,7 +3262,9 @@ class WorldEngine:
         наступающих суток (`due_day == self.day`) здесь не берутся — они
         исполняются `_run_intents()`.
         """
-        ready = [item for item in self.intents.items if item.due_day < self.day]
+        ready = [
+            item for item in self.intents.items if item.due_day < self.day
+        ]
         if not ready:
             return []
         ready_ids = {id(item) for item in ready}
@@ -3284,7 +3326,9 @@ class WorldEngine:
         # Выборка долгов живёт здесь, а не в отдельном проходе, чтобы
         # `tick(max_slot=0)` не схлопывал всю просрочку разом.
         window = _as_slot(max_slot)
-        overdue = [item for item in self.intents.items if item.due_day < target_day]
+        overdue = [
+            item for item in self.intents.items if item.due_day < target_day
+        ]
         due_today = [
             item
             for item in self.intents.items
@@ -3294,7 +3338,11 @@ class WorldEngine:
         if window >= SLOTS_MAX:
             ready = overdue + due_today
         else:
-            ready = [item for item in overdue if _as_slot(item.due_slot) <= window]
+            ready = [
+                item
+                for item in overdue
+                if _as_slot(item.due_slot) <= window
+            ]
             ready += due_today
         if not ready:
             return events
@@ -3972,6 +4020,8 @@ __all__ = [
     "WorldError",
     "build_player_profile",
     "build_world",
+    "default_worlds_dir",
+    "list_worlds",
     "load_biography",
     "load_world",
     "normalize_profile",

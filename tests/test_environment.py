@@ -3,12 +3,14 @@
 import pytest
 
 from core41 import (
+    Action,
     ArenaAgent,
     ArenaEnv,
     ArenaEnvironment,
     ArenaMatch,
 )
 from core41.environment import (
+    ENV_BONUS,
     ENV_ENERGY_DRAIN,
     ENV_ENERGY_RELIEF,
     ENV_EVENT_INTERVAL,
@@ -226,78 +228,129 @@ def test_environment_state_round_trips_reservoir_intervals():
     assert restored.wound_interval == 19
 
 
-# --- A6: собственный терминальный исход среды (цель/коллапс) ----------
+# --- A6: исход среды (цель/коллапс) — событие фона, а не конец дуэли ---
 
 
-def _run_to_env_terminal(goal_horizon, force=None, goal_ratio=None):
-    """Прогон дуэли до терминала среды; возвращает finished match."""
-    m = ArenaMatch(seed=11, steps=5000, with_env=True)
-    if force is not None:
-        m.env.force = force
-    if goal_ratio is not None:
-        m.env.goal_ratio = goal_ratio
-    m.env.goal_horizon = goal_horizon
-    import random as _r
-
-    rng = _r.Random(5)
-    while not m.finished:
-        m.step_tick(
-            forced_rl_action=rng.choice(m.rl.actions()),
-            forced_ai_action=rng.choice(m.ai.actions()),
-        )
-    return m
+def _env_match(steps=5000, seed=11):
+    return ArenaMatch(seed=seed, steps=steps, with_env=True)
 
 
-def test_env_goal_outcome_finishes_match_as_truncation():
-    m = _run_to_env_terminal(goal_horizon=3000)
+def _advance_until(match, predicate, limit=5000):
+    for _ in range(limit):
+        if predicate():
+            return True
+        if match.finished:
+            return False
+        match.step_tick()
+    return predicate()
+
+
+def test_env_goal_is_event_not_match_end():
+    m = _env_match()
+    env = m.env
+    env.goal_horizon = 5000
+    # Ставим фон у самой цели и открываем окно: следующий такт даст goal.
+    env.force = env.goal_force - 1e-3
+    env.receive_pressure(500.0)
+    assert env.status == "active"
+    assert env.work_bonus() == pytest.approx(ENV_BONUS)
+
+    assert _advance_until(m, lambda: m.env.goal_reached, limit=5)
+    assert m.env_event == "goal"
     assert m.env_outcome == "goal"
-    assert m.winner is None  # усечение, а не победа стороны
-    assert m.env.goal_reached and m.env.collapsed
-
-
-def test_env_collapse_outcome_when_deadline_missed():
-    # Цель недостижима за горизонт: потолок силы ниже целевой силы.
-    m = _run_to_env_terminal(
-        goal_horizon=50, force=0.0, goal_ratio=1.0
-    )
-    assert m.env_outcome == "collapse"
-    assert not m.env.goal_reached
+    assert not m.finished  # партия продолжается
     assert m.winner is None
+    assert env.status == "strengthened"
+    assert env.work_bonus() == pytest.approx(ENV_BONUS * 1.5)
+    assert not env.collapsed
 
 
-def test_env_outcome_reward_is_symmetric_shift():
-    m = _run_to_env_terminal(goal_horizon=3000)
-    from core41.environment import ENV_OUTCOME_GOAL_REWARD
+def test_env_goal_does_not_stop_economy_state():
+    m = _env_match()
+    env = m.env
+    env.goal_horizon = 5000
+    env.force = env.goal_force - 1e-3
+    env.receive_pressure(500.0)
+    assert _advance_until(m, lambda: m.env.goal_reached, limit=5)
+    force_at_goal = env.force
+    m.step_tick(
+        forced_rl_action=Action("REST", form="rest"),
+        forced_ai_action=Action("REST", form="rest"),
+    )
+    # `env_event` — только событие текущего такта; последний исход
+    # сохраняется в `env_outcome`, а дуэль продолжается.
+    assert m.env_event is None
+    assert m.env_outcome == "goal"
+    assert not m.finished
+    assert env.force == pytest.approx(force_at_goal)
+    assert env.status == "strengthened"
 
-    # На финальном такте смещение входит обеим сторонам одинаково;
-    # winner None => terminal_reward = 0 для обоих.
-    last = m.last_rewards
-    # Точное равенство невозможно (duel-часть разная), но знак смещения
-    # проверяем через отсутствие ±1.0 терминала победы:
-    assert abs(last["rl"]) < 1.5 + ENV_OUTCOME_GOAL_REWARD
-    assert abs(last["ai"]) < 1.5 + ENV_OUTCOME_GOAL_REWARD
+
+def test_env_collapse_is_event_not_match_end():
+    m = _env_match()
+    env = m.env
+    # Цель недостижима за горизонт: потолок силы ниже целевой силы.
+    env.force = 0.0
+    env.goal_ratio = 1.0
+    env.goal_horizon = 5
+
+    assert _advance_until(m, lambda: m.env.collapsed, limit=10)
+    assert m.env_event == "collapse"
+    assert m.env_outcome == "collapse"
+    assert not m.finished
+    assert m.winner is None
+    assert env.status == "collapsed"
+    assert env.work_bonus() == 0.0
+    assert not env.goal_reached
+    assert not env.window_open()
 
 
-def test_arena_env_marks_env_outcome_as_truncated():
-    import random as _r
+def test_env_event_carries_status_and_work_bonus():
+    m = _env_match()
+    env = m.env
+    env.force = env.goal_force - 1e-3
+    env.receive_pressure(500.0)
+    assert _advance_until(m, lambda: m.env.goal_reached, limit=5)
+    event = next(
+        e
+        for e in m.events
+        if e.get("kind") == "environment" and e.get("event") == "goal"
+    )
+    assert event["status"] == "strengthened"
+    assert event["work_bonus"] == pytest.approx(ENV_BONUS * 1.5)
+    assert event["ticks"] == m.step
 
-    env = ArenaEnv(seed=3, steps=5000, with_env=True)
+
+def test_arena_env_does_not_truncate_on_env_goal():
+    env = ArenaEnv(seed=3, steps=50, with_env=True)
     env.reset(seed=3)
-    env.match.env.goal_horizon = 300
-    rng = _r.Random(9)
-    done_seen = False
-    truncated_seen = False
-    for _ in range(5000):
-        actions = env.match.rl.actions()
+    match_env = env.match.env
+    match_env.goal_horizon = 5000
+    match_env.force = match_env.goal_force - 1e-3
+    match_env.receive_pressure(500.0)
+
+    obs, reward, done, truncated, info = env.step(Action("REST", form="rest"))
+    assert info["env_event"] == "goal"
+    assert info["env_outcome"] == "goal"
+    assert not done
+    assert not truncated
+    assert info["winner"] is None
+
+
+def test_arena_env_truncates_only_on_step_limit():
+    env = ArenaEnv(seed=5, steps=4, with_env=True)
+    env.reset(seed=5)
+    env.match.env.goal_horizon = 5000
+    truncated = False
+    info = {}
+    for _ in range(4):
         obs, reward, done, truncated, info = env.step(
-            rng.randrange(len(actions))
+            Action("REST", form="rest")
         )
-        if done:
-            done_seen = True
-            truncated_seen = truncated
-            assert info["env_outcome"] in ("goal", "collapse")
-            break
-    assert done_seen and truncated_seen
+    assert done and truncated
+    assert info["env_event"] is None
+    assert info["env_outcome"] is None
+    assert info["step"] >= 4
 
 
 def test_no_env_matches_keep_old_semantics():
@@ -312,3 +365,17 @@ def test_no_env_matches_keep_old_semantics():
         )
     assert m.env_outcome is None
     assert m.env is None
+
+
+def test_arena_env_exposes_fog_switch():
+    fog_env = ArenaEnv(seed=4, steps=4)
+    _obs, _reward, _done, _truncated, info = fog_env.step(
+        Action("REST", form="rest")
+    )
+    assert info["fog"] is True
+
+    clear_env = ArenaEnv(seed=4, steps=4, fog=False)
+    _obs, _reward, _done, _truncated, info = clear_env.step(
+        Action("REST", form="rest")
+    )
+    assert info["fog"] is False

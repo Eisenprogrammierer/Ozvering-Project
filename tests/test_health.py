@@ -13,6 +13,7 @@ from core41 import (
     HEALTH_DAMAGE_RATIO,
     HEALTH_MAX,
     HEALTH_REST_REGEN,
+    HEALTH_STARVE_DECAY,
     check_capture,
     run_duel_tick,
 )
@@ -29,7 +30,7 @@ def test_calibrated_health_constants():
     assert HEALTH_MAX == 100.0
     assert HEALTH_CRITICAL == 25.0
     assert HEALTH_REST_REGEN == 0.78
-    assert HEALTH_DAMAGE_RATIO == 0.62
+    assert HEALTH_DAMAGE_RATIO == 0.50
     assert HEALTH_MAX / HEALTH_REST_REGEN == pytest.approx(100.0 / 0.78)
     critical_to_full = (HEALTH_MAX - HEALTH_CRITICAL) / HEALTH_REST_REGEN
     assert critical_to_full == pytest.approx(75.0 / 0.78)
@@ -70,7 +71,7 @@ def test_empty_energy_decays_health():
         health=100,
     )
     assert left.energy_pool == 0
-    assert left.health == pytest.approx(99.0)
+    assert left.health == pytest.approx(100.0 - HEALTH_STARVE_DECAY)
 
 
 def test_force_overflow_damages_health():
@@ -100,11 +101,14 @@ def test_health_factors_scale_decay_regen_and_damage():
 
     unit.energy = 0
     unit.tick_health(resting=False)
-    assert unit.health == pytest.approx(97.0)
+    starved = 100.0 - HEALTH_STARVE_DECAY * 3.0
+    assert unit.health == pytest.approx(starved)
 
     unit.energy = 50
     unit.tick_health(resting=True)
-    assert unit.health == pytest.approx(97.0 + HEALTH_REST_REGEN * 2.0 / 3.0)
+    assert unit.health == pytest.approx(
+        starved + HEALTH_REST_REGEN * 2.0 / 3.0
+    )
 
 
 def test_health_factors_are_clamped():

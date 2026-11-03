@@ -275,11 +275,35 @@ def test_view_main_lists_checkpoints_without_creating_app(
     assert str(tmp_path / "best.json") in out
 
 
+def test_entry_point_lists_checkpoints_regardless_of_client(
+    tmp_path, capsys, monkeypatch
+):
+    """P0: `--list-checkpoints` работает до выбора клиента.
+
+    Раньше без `--arena`/`--view` флаг уходил в `ui.app` и открывал игру.
+    Теперь список печатается централизованно, а клиент не импортируется.
+    """
+    import sys
+
+    import main as entry
+
+    _write_policy(tmp_path / "best.json", "qtable")
+    # Если main всё же попытается запустить view-клиент, импорт упадёт.
+    monkeypatch.setitem(sys.modules, "view.app", None)
+
+    assert entry.main(
+        ["--list-checkpoints", "--checkpoints-dir=%s" % tmp_path]
+    ) == 0
+    out = capsys.readouterr().out
+    assert "qtable" in out
+    assert str(tmp_path / "best.json") in out
+
+
 # --- A9: production-чекпойнт duel-mlp ------------------------------------
 
 
 def test_duel_mlp_checkpoint_is_autodiscoverable(tmp_path):
-    """A9: каталог чекпойнтов игры должен находить `duel-mlp` (v4).
+    """A9: каталог чекпойнтов игры должен находить `duel-mlp` (v5).
 
     До A9 `KNOWN_KINDS` не включал `duel-mlp`, и автопоиск
     (`find_checkpoint` в `game_engine`) молча отвергал production-файл —
@@ -308,9 +332,17 @@ def test_shipped_production_checkpoint_loads():
     assert path.endswith("duel_mlp_production.json"), path
     policy = load_policy(path)
     assert isinstance(policy, DuelMLPPolicy)
-    # Вектор duel-политики — расширенный (базовые признаки + статистика оппонента).
-    from agents.policies import DUEL_FEATURE_COUNT
+    # Поставляемый файл хранится в текущем формате A9 (v5/30); старые
+    # v4/26 остаются загружаемыми за счёт дополнения нулями.
+    from agents.policies import (
+        DUEL_CHECKPOINT_VERSION,
+        DUEL_FEATURE_COUNT,
+    )
 
     state = ck.read_checkpoint(path)
-    assert state["version"] == 4
+    assert state["version"] == DUEL_CHECKPOINT_VERSION
     assert state["feature_count"] == DUEL_FEATURE_COUNT
+    assert all(
+        len(row) == DUEL_FEATURE_COUNT for row in policy.weights1
+    )
+    assert len(policy.weights1[0]) == DUEL_FEATURE_COUNT

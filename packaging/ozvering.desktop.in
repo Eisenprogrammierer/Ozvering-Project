@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Операция «Озверин»
+Comment=Стратегическая кампания и дуэльная арена
+Exec="@INSTALL_DIR@/ozvering"
+Path=@INSTALL_DIR@
+Terminal=false
+Categories=Game;StrategyGame;
+StartupNotify=true

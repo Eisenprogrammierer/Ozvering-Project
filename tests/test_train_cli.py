@@ -128,12 +128,20 @@ def test_train_seeds_parallel_matches_sequential_aggregate():
     sequential = train_seeds(seeds=2, workers=1, base_seed=11, **kwargs)
     parallel = train_seeds(seeds=2, workers=2, base_seed=11, **kwargs)
     assert parallel["aggregate"]["seeds"] == sequential["aggregate"]["seeds"]
-    assert parallel["aggregate"]["episodes"] == sequential["aggregate"]["episodes"]
+    assert (
+        parallel["aggregate"]["episodes"]
+        == sequential["aggregate"]["episodes"]
+    )
     assert parallel["aggregate"]["wins"] == sequential["aggregate"]["wins"]
-    assert parallel["aggregate"]["win_rate_ci"] == sequential["aggregate"]["win_rate_ci"]
+    assert (
+        parallel["aggregate"]["win_rate_ci"]
+        == sequential["aggregate"]["win_rate_ci"]
+    )
 
 
-def test_train_cli_parallel_seeds_writes_per_seed_checkpoints(tmp_path, capsys):
+def test_train_cli_parallel_seeds_writes_per_seed_checkpoints(
+    tmp_path, capsys
+):
     path = tmp_path / "bdi.json"
     code = main(
         [

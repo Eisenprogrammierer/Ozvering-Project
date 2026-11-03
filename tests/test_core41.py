@@ -8,6 +8,7 @@ import simulation as S
 from agents import (
     BDIPolicy,
     CHECKPOINT_VERSION,
+    DUEL_CHECKPOINT_VERSION,
     DUEL_FEATURE_COUNT,
     DuelMLPPolicy,
     FEATURE_COUNT,
@@ -30,10 +31,12 @@ from core41 import (
     DuelEnv,
     DuelWorld,
     Observation,
+    REWARD_ADVANTAGE_ENERGY_COST,
     REWARD_TERMINAL_LOSS,
     REWARD_TERMINAL_WIN,
     REWARD_WOUND_OPPONENT,
     REWARD_WOUND_SELF,
+    WAIT_ACTION,
     WOUND_MAX,
     Work,
     action_from_index,
@@ -41,6 +44,8 @@ from core41 import (
     reward_delta,
     run_duel_tick,
     terminal_reward,
+    work_amount,
+    work_duration,
 )
 from core41.types import Transition
 
@@ -690,6 +695,29 @@ def test_evaluate_uses_held_out_seed_and_does_not_learn():
     assert policy.weights == weights_before
 
 
+def test_evaluate_forwards_explore_mode():
+    class _Probe(RandomPolicy):
+        def __init__(self):
+            super().__init__(seed=3)
+            self.modes = []
+
+        def act(self, observation, actions, explore=True):
+            self.modes.append(bool(explore))
+            return super().act(observation, actions, explore=explore)
+
+    probe = _Probe()
+    evaluate(
+        probe,
+        RandomPolicy(seed=4),
+        episodes=2,
+        seed=9001,
+        max_steps=10,
+        explore=True,
+    )
+    assert probe.modes
+    assert all(probe.modes)
+
+
 def test_training_eval_matrix_uses_separate_opponents():
     _policy, stats = train(
         episodes=1,
@@ -787,12 +815,16 @@ def test_reward_delta_values_treatment_and_sickness():
 
     me.energy = 90.0
     me.sickness = 0.42
-    reward = reward_delta(me, before, other, other_before)
+    reward = reward_delta(
+        me, before, other, other_before, profile="legacy"
+    )
     # -0.6 * 10/100 за TREAT + 1.0 * 0.08 за снятую болезнь.
     assert reward == pytest.approx(-0.06 + 0.08)
 
     other.sickness = 0.25
-    reward = reward_delta(me, before, other, other_before)
+    reward = reward_delta(
+        me, before, other, other_before, profile="legacy"
+    )
     assert reward == pytest.approx(-0.06 + 0.08 + 0.5 * 0.25)
 
 
@@ -817,6 +849,90 @@ def test_reward_delta_wound_tuple_extends_legacy_contract():
         REWARD_WOUND_SELF * -0.25 / WOUND_MAX
         + REWARD_WOUND_OPPONENT * 0.5 / WOUND_MAX
     )
+
+
+def test_advantage_reward_ignores_regeneration_and_pays_for_damage():
+    me = Automaton(id="me", force=90.0, energy=100.0, health=95.0)
+    other = Automaton(id="other")
+    full = (100.0, 100.0, 100.0, 0.0)
+    # Восстановление (80, 90, 90) -> (90, 100, 95) больше не оплачивается.
+    assert reward_delta(
+        me,
+        (80.0, 90.0, 90.0, 0.0),
+        other,
+        full,
+        profile="advantage",
+    ) == pytest.approx(0.0)
+
+    damaged = Automaton(id="damaged", force=70.0, health=90.0)
+    assert reward_delta(
+        Automaton(id="me"),
+        full,
+        damaged,
+        full,
+        profile="advantage",
+    ) == pytest.approx(0.3 + 0.1)
+
+    hurt = Automaton(id="hurt", force=70.0, health=90.0)
+    assert reward_delta(
+        hurt,
+        full,
+        Automaton(id="other"),
+        full,
+        profile="advantage",
+    ) == pytest.approx(-(0.3 + 0.1))
+
+
+def test_advantage_cost_charges_spent_energy_only():
+    other = Automaton(id="other")
+    full = (100.0, 100.0, 100.0, 0.0)
+
+    spent = Automaton(id="spent", energy=70.0)
+    free = reward_delta(
+        spent, full, other, full, profile="advantage"
+    )
+    paid = reward_delta(
+        spent, full, other, full, profile="advantage_cost"
+    )
+    assert free == pytest.approx(0.0)
+    assert paid == pytest.approx(-REWARD_ADVANTAGE_ENERGY_COST * 0.3)
+
+    recovered = Automaton(id="recovered", energy=100.0)
+    assert reward_delta(
+        recovered,
+        (100.0, 70.0, 100.0, 0.0),
+        other,
+        full,
+        profile="advantage_cost",
+    ) == pytest.approx(0.0)
+
+
+def test_default_reward_profile_is_advantage_cost():
+    me = Automaton(id="me", force=90.0, energy=70.0, health=95.0)
+    other = Automaton(id="other")
+    reward = reward_delta(
+        me,
+        (80.0, 90.0, 90.0, 0.0),
+        other,
+        (100.0, 100.0, 100.0, 0.0),
+    )
+    # Регенерация F/H не оплачивается, потраченные 20 E — оплачиваются.
+    assert reward == pytest.approx(-REWARD_ADVANTAGE_ENERGY_COST * 0.2)
+
+
+def test_arena_reward_profile_is_validated_and_forwarded():
+    env = ArenaEnv(
+        seed=1,
+        steps=10,
+        policy=BDIPolicy(seed=1),
+        opponent_policy=BDIPolicy(seed=2),
+        reward_profile="advantage",
+    )
+    assert env.reward_profile == "advantage"
+    assert env.match.reward_profile == "advantage"
+
+    with pytest.raises(ValueError):
+        ArenaMatch(seed=0, reward_profile="unknown")
 
 
 def test_arena_env_matches_active_arena_and_does_not_learn_internally():
@@ -877,7 +993,7 @@ def test_arena_run_duel_tick_uses_shared_contract():
     left_energy = left.energy_pool
     events, left_result, right_result = run_duel_tick(
         left,
-        Action("WORK", form="force", fraction=0.7),
+        Action("WORK", form="force", fraction=0.3),
         right,
         Action("REST", form="rest"),
         rng=random.Random(4),
@@ -1037,7 +1153,10 @@ def test_campaign_env_domain_sickness_reaches_engine():
     env = CampaignEnv(seed=3, max_days=4)
     assert env.engine.player_condition()["sickness"] == 0.0
     draw = env.randomize_draw(
-        rng=random.Random(9), skill_jitter=0.2, sickness_min=0.2, sickness_max=0.5
+        rng=random.Random(9),
+        skill_jitter=0.2,
+        sickness_min=0.2,
+        sickness_max=0.5,
     )
     env.apply_domain(**draw)
     condition = env.engine.player_condition()
@@ -1062,7 +1181,9 @@ def test_train_campaign_career_flag_opens_career_space():
     career_ids = {"seek_promotion", "request_transfer", "resign"}
     assert kinds_with > kinds_without
     assert kinds_with - kinds_without <= career_ids
-    assert len(with_career.legal_actions()) > len(without_career.legal_actions())
+    assert len(with_career.legal_actions()) > len(
+        without_career.legal_actions()
+    )
 
     # CLI-флаг `--campaign-career` доходит до цикла обучения и не ломает его.
     career_ckpt = "/tmp/a3_career_ckpt.json"
@@ -1110,3 +1231,205 @@ def test_duel_eval_domain_flag_is_not_reported_as_applied():
     assert stats["domain_randomize"] is False
     assert stats["eval"]
     assert all("domain_randomized" not in row for row in stats["eval"])
+
+
+# ---------------------------------------------------------------------------
+# A9: одновременный бой, F-лимит, подготовка, туман и разведка
+# ---------------------------------------------------------------------------
+
+
+class _AlwaysHit:
+    def random(self):
+        return 0.0
+
+
+def test_simultaneous_tick_uses_start_snapshot_for_both_attacks():
+    left = ArenaAgent("left", force=100, energy=100)
+    right = ArenaAgent("right", force=40, energy=100)
+    left.unit.skills["force"] = 1.0
+    right.unit.skills["force"] = 1.0
+    _events, left_result, right_result = run_duel_tick(
+        left,
+        Action("WORK", form="force", fraction=0.3),
+        right,
+        Action("WORK", form="force", fraction=0.3),
+        rng=_AlwaysHit(),
+    )
+    # Оба удара оплачены и разрешены по снимку до такта. Последовательное
+    # разрешение урезало бы удар правого после урона левого.
+    assert left_result["spent"] == pytest.approx(30.0)
+    assert right_result["spent"] == pytest.approx(30.0)
+    assert left_result["success"] is True
+    assert right_result["success"] is True
+    assert left.force < 100.0
+    assert right.force < 40.0
+
+
+def test_health_reduces_attack_effectiveness():
+    from core41.model import HEALTH_ATTACK_FLOOR, success_probability
+
+    healthy = Automaton(id="healthy", skills={"force": 0.8})
+    hurt = Automaton(id="hurt", skills={"force": 0.8}, health=25.0)
+    defender = Automaton(id="target")
+    work = Work(amount=20.0, form="force")
+
+    assert hurt.attack_effectiveness() == pytest.approx(
+        HEALTH_ATTACK_FLOOR + (1.0 - HEALTH_ATTACK_FLOOR) * 0.25
+    )
+    assert success_probability(
+        hurt, defender, work, False
+    ) < success_probability(healthy, defender, work, False)
+
+
+def test_force_caps_work_per_tick():
+    weak = ArenaAgent("weak", force=12, energy=100)
+    strong = ArenaAgent("strong", force=100, energy=100)
+    action = Action("WORK", form="force", fraction=0.7)
+    assert work_amount(weak.unit, action) == pytest.approx(12.0)
+    assert work_amount(strong.unit, action) == pytest.approx(70.0)
+    assert work_duration("force", 0.7) == 2.0
+    assert work_duration("force", 0.3) == 1.0
+
+
+def test_strong_force_charges_then_waits():
+    left = ArenaAgent("left", energy=100)
+    right = ArenaAgent("right")
+    _events, first, _other = run_duel_tick(
+        left,
+        Action("WORK", form="force", fraction=0.7),
+        right,
+        Action("REST", form="rest"),
+        rng=random.Random(1),
+    )
+    assert first["kind"] == "charge"
+    assert left.pending is not None
+    assert [action.kind for action in left.actions()] == ["WAIT"]
+    seen = right.observe(left)
+    assert seen.opponent_busy == 1.0
+    assert seen.opponent_pending_form == "force"
+    assert seen.opponent_pending_fraction == pytest.approx(0.7)
+
+    _events, second, _other = run_duel_tick(
+        left,
+        WAIT_ACTION,
+        right,
+        Action("REST", form="rest"),
+        rng=random.Random(1),
+    )
+    assert second["kind"] == "work"
+    assert second["duration"] == pytest.approx(2.0)
+    assert left.pending is None
+
+
+def test_fog_hides_hidden_fields_until_info_reveals_them():
+    match = ArenaMatch(seed=3, steps=5, fog=True)
+    match.rng = _AlwaysHit()
+    match.ai.health = 35.0
+    match.ai.sickness = 0.4
+    match.ai.wound = 0.2
+
+    hidden = match.rl.observe(match.ai)
+    assert hidden.opponent_health != pytest.approx(35.0)
+    assert hidden.opponent_sickness != pytest.approx(0.4)
+    assert hidden.opponent_confidence == pytest.approx(0.5)
+
+    match.step_tick(
+        forced_rl_action=Action("WORK", form="info", fraction=0.3),
+        forced_ai_action=Action("REST", form="rest"),
+    )
+    revealed = match.rl.observe(match.ai)
+    assert revealed.opponent_health == pytest.approx(match.ai.health)
+    assert revealed.opponent_sickness == pytest.approx(match.ai.sickness)
+    assert revealed.opponent_confidence == pytest.approx(1.0)
+    assert revealed.opponent_weak_point == pytest.approx(1.0)
+
+
+def test_force_exploits_weak_point_for_more_damage():
+    def damage_with(weak_point):
+        attacker = ArenaAgent("attacker", force=100, energy=100)
+        defender = ArenaAgent("defender", force=100, energy=100)
+        attacker.intel.weak_point = float(weak_point)
+        _events, result, _other = run_duel_tick(
+            attacker,
+            Action("WORK", form="force", fraction=0.3),
+            defender,
+            Action("REST", form="rest"),
+            rng=_AlwaysHit(),
+        )
+        return result["damage"]
+
+    assert damage_with(1.0) > damage_with(0.0)
+
+
+def test_wait_is_not_counted_as_attack_by_opponent_model():
+    from agents.policies import OpponentModel
+
+    waiting = OpponentModel()
+    resting = OpponentModel()
+    waiting.update(Action("WAIT", form="wait"))
+    resting.update(Action("REST", form="rest"))
+    assert waiting.attack == pytest.approx(resting.attack)
+    assert waiting.force_share == pytest.approx(0.0)
+
+
+def test_force_work_is_counted_as_attack_by_opponent_model():
+    """`ArenaEnv` передаёт `Action(kind="WORK")`, а не аренный тег."""
+    from agents.policies import OpponentModel
+
+    force = OpponentModel()
+    force.update(Action("WORK", form="force", fraction=0.7))
+    assert force.attack > 0.25
+    assert force.force_share > 0.0
+
+    info = OpponentModel()
+    info.update(Action("WORK", form="info", fraction=0.3))
+    assert info.attack > 0.25
+    assert info.force_share == pytest.approx(0.0)
+
+    passive = OpponentModel()
+    passive.update(Action("WORK", form="defense", fraction=0.0))
+    assert passive.attack < 0.25
+    assert passive.force_share == pytest.approx(0.0)
+
+
+def test_duel_vector_has_fog_and_pending_slots():
+    from dataclasses import replace
+
+    from agents.policies import OpponentModel, features
+
+    observation = replace(
+        _observation(),
+        opponent_confidence=0.4,
+        opponent_weak_point=0.7,
+        opponent_pending_form="force",
+        opponent_pending_fraction=0.7,
+    )
+    vector = features(
+        observation,
+        Action("WORK", form="force", fraction=0.3),
+        OpponentModel().stats(),
+    )
+    assert DUEL_FEATURE_COUNT == 30
+    assert len(vector) == DUEL_FEATURE_COUNT
+    assert vector[-4:] == pytest.approx((0.4, 0.7, 1.0, 0.7))
+
+
+def test_duel_checkpoint_pads_legacy_26_feature_rows():
+    source = DuelMLPPolicy(seed=5)
+    state = source.state_dict()
+    state["version"] = 4
+    state["feature_count"] = 26
+    state["weights1"] = [row[:26] for row in state["weights1"]]
+    state["target_weights1"] = [
+        row[:26] for row in state["target_weights1"]
+    ]
+    restored = DuelMLPPolicy(seed=6)
+    restored.load_state_dict(state)
+    assert DUEL_CHECKPOINT_VERSION == 5
+    assert all(
+        len(row) == DUEL_FEATURE_COUNT for row in restored.weights1
+    )
+    assert all(
+        len(row) == DUEL_FEATURE_COUNT
+        for row in restored.target_weights1
+    )

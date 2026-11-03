@@ -177,13 +177,15 @@ class Intent:
 
 
 class IntentQueue:
-    """Ограниченная очередь намерений: день → приоритет → детерминированный хвост."""
+    """Очередь намерений: день → приоритет → детерминированный хвост."""
 
     def __init__(self, items=None, limit=MAX_INTENTS):
         self.limit = max(1, int(limit))
         self.items = []
         for item in items or ():
-            intent = item if isinstance(item, Intent) else Intent.from_dict(item)
+            intent = (
+                item if isinstance(item, Intent) else Intent.from_dict(item)
+            )
             if intent.kind in KNOWN_KINDS:
                 self.items.append(intent)
         self._sort()
@@ -298,7 +300,11 @@ class IntentQueue:
         return [
             item
             for item in self.items
-            if item.due_day < day or (item.due_day == day and _as_slot(item.due_slot) <= limit)
+            if item.due_day < day
+            or (
+                item.due_day == day
+                and _as_slot(item.due_slot) <= limit
+            )
         ]
 
     def pop_due(self, day, max_slot=SLOTS_MAX):
@@ -319,7 +325,9 @@ class IntentQueue:
     def load(self, items):
         self.items = []
         for item in items or ():
-            intent = item if isinstance(item, Intent) else Intent.from_dict(item)
+            intent = (
+                item if isinstance(item, Intent) else Intent.from_dict(item)
+            )
             if intent.kind in KNOWN_KINDS:
                 self.items.append(intent)
         self._sort()

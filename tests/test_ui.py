@@ -137,7 +137,11 @@ def _click_widget(scene, index=0):
 
     w = scene.widgets[index]
     pos = (w.rect.centerx, w.rect.centery)
-    for et in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+    for et in (
+        pygame.MOUSEMOTION,
+        pygame.MOUSEBUTTONDOWN,
+        pygame.MOUSEBUTTONUP,
+    ):
         scene.handle_event(
             pygame.event.Event(et, pos=pos, button=1, rel=(0, 0))
         )
@@ -396,7 +400,7 @@ def test_arena_quit_button_exits(app):
     assert running is False
 
 
-def test_entry_point_dispatches_to_ui(monkeypatch):
+def test_entry_point_dispatches_to_ui_with_classic_flag(monkeypatch):
     pytest.importorskip("pygame")
     import main as entry
     import ui.app as ui_app
@@ -406,8 +410,23 @@ def test_entry_point_dispatches_to_ui(monkeypatch):
     monkeypatch.setattr(
         ui_app, "main", lambda argv=None: seen.__setitem__("argv", argv) or 0
     )
-    rc = entry.main(["--scene", "game"])
+    rc = entry.main(["--classic", "--scene", "game"])
     assert rc == 0 and seen["argv"] == ["--scene", "game"]
+
+
+def test_entry_point_scene_implies_classic_client(monkeypatch):
+    """`--scene` понимает только ui/; view меню не должно его съедать."""
+    pytest.importorskip("pygame")
+    import main as entry
+    import ui.app as ui_app
+
+    monkeypatch.setattr(sys, "argv", list(sys.argv))
+    seen = {}
+    monkeypatch.setattr(
+        ui_app, "main", lambda argv=None: seen.__setitem__("argv", argv) or 0
+    )
+    rc = entry.main(["--scene", "battlefield"])
+    assert rc == 0 and seen["argv"] == ["--scene", "battlefield"]
 
 
 def test_entry_point_interaction_shortcut(monkeypatch):

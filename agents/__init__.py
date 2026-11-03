@@ -26,6 +26,7 @@ from .policies import (
     features,
     load_policy,
     make_policy,
+    supports_campaign,
 )
 __all__ = [
     "BDIPolicy",
@@ -53,4 +54,5 @@ __all__ = [
     "load_policy",
     "make_policy",
     "resolve_checkpoint",
+    "supports_campaign",
 ]

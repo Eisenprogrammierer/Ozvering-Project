@@ -6,6 +6,7 @@ import simulation as S
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODEL_MD = ROOT / "docs" / "MODEL.md"
 README_MD = ROOT / "README.md"
+CONTENT_MD = ROOT / "docs" / "CONTENT.md"
 
 
 ALIASES = {"STREAK": "CAPTURE_STREAK", "FRAC": "CAPTURE_FRAC"}
@@ -61,3 +62,45 @@ def test_referenced_experiments_exist():
     assert (
         not missing
     ), "в доках упомянуты отсутствующие скрипты: " + ", ".join(missing)
+
+
+CONTENT_FOLDERS = (
+    "configs/automata",
+    "configs/naming",
+    "configs/systems",
+    "configs/storylines",
+    "configs/roles",
+    "configs/worlds",
+    "configs/campaigns",
+    "configs/content",
+    "campaigns",
+)
+
+
+def test_content_doc_lists_existing_folders_and_loaders():
+    text = CONTENT_MD.read_text(encoding="utf-8")
+    missing = [
+        folder
+        for folder in CONTENT_FOLDERS
+        if folder not in text or not (ROOT / folder).is_dir()
+    ]
+    assert not missing, "CONTENT.md расходится с папками: " + ", ".join(
+        missing
+    )
+    for loader in (
+        "AutomataStore",
+        "NamingCatalog.load",
+        "EventCatalog.load",
+        "load_storyline",
+        "RoleCatalog.load",
+        "load_world",
+        "load_template",
+        "Content",
+    ):
+        assert loader in text, "в CONTENT.md нет загрузчика %s" % loader
+
+
+def test_readme_links_content_guide():
+    text = README_MD.read_text(encoding="utf-8")
+    assert "docs/CONTENT.md" in text
+    assert CONTENT_MD.is_file()

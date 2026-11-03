@@ -1,0 +1,49 @@
+# Файлы исходного дистрибутива (sdist). Игра читает данные относительно
+# корня проекта, поэтому ассеты, конфиги и музыка должны попадать в sdist.
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include requirements.txt
+include requirements-dev.txt
+include pytest.ini
+include pyproject.toml
+include main.py
+include game_engine.py
+include simulation.py
+include warfare.py
+include information.py
+include lod.py
+include observability.py
+
+recursive-include agents *.py
+recursive-include automata *.py
+recursive-include campaign *.py
+recursive-include core41 *.py
+recursive-include interaction *.py
+recursive-include naming *.py
+recursive-include organizations *.py
+recursive-include systems *.py
+recursive-include ui *.py
+recursive-include view *.py
+
+recursive-include assets *
+recursive-include configs *.json *.md
+recursive-include scenarios *.json *.md
+recursive-include campaigns *.json *.md
+recursive-include checkpoints *.json
+recursive-include music *.mp3 *.md
+recursive-include packaging *
+
+# Тесты полезны в sdist, но не в wheel.
+recursive-include tests *.py
+
+# Служебное и генерируемое не распространяем.
+prune venv
+prune yet_another_project
+prune saves
+prune build
+prune dist
+prune .git
+prune .pytest_cache
+recursive-exclude * __pycache__
+global-exclude *.py[cod] *.log

@@ -1,2 +1,78 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ozvering"
+version = "0.1.0"
+description = "Операция «Озверин»: модель 4-2-1, среды обучения агентов и игра"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Eisenprogrammierer" }]
+keywords = ["reinforcement-learning", "game", "simulation", "pygame"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Games/Entertainment :: Simulation",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Игра и среды обучения не требуют matplotlib: он нужен только
+# экспериментам и построению графиков (см. optional-dependencies).
+dependencies = [
+    "numpy>=1.21,<3",
+    "pygame-ce>=2.5,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7,<10",
+    "matplotlib>=3.5,<4",
+    "black>=24,<27",
+    "pycodestyle>=2.11,<3",
+]
+experiments = ["matplotlib>=3.5,<4"]
+build = ["pyinstaller>=6,<7"]
+
+[project.scripts]
+ozvering = "main:main"
+
+[tool.setuptools]
+# Корневые модули игры и канона не входят ни в один пакет.
+py-modules = [
+    "main",
+    "game_engine",
+    "simulation",
+    "warfare",
+    "information",
+    "lod",
+    "observability",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "agents*",
+    "automata*",
+    "campaign*",
+    "core41*",
+    "interaction*",
+    "naming*",
+    "organizations*",
+    "systems*",
+    "ui*",
+    "view*",
+]
+exclude = [
+    "tests*",
+    "experiments*",
+    "docs*",
+    "patches*",
+    "venv*",
+    "yet_another_project*",
+]
+
 [tool.black]
 line-length = 79

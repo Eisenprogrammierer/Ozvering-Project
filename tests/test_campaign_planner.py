@@ -101,9 +101,15 @@ def test_world_runs_due_message_intent_before_ai_turn():
     text = "Гонец приносит весть."
     # Край суток (слот 0): намерение исполняется до хода ИИ — полным
     # циклом `end_day()` в начале дня срока (контракт A5).
-    engine.schedule_intent(engine.day + 1, "message", payload={"text": text}, due_slot=0)
+    engine.schedule_intent(
+        engine.day + 1,
+        "message",
+        payload={"text": text},
+        due_slot=0,
+    )
 
-    engine.end_day()  # переход в день 2: очередь края исполняется до `_ai_action`
+    # Переход в день 2: очередь края исполняется до `_ai_action`.
+    engine.end_day()
 
     assert engine.day == 2
     assert len(engine.intents) == 0
@@ -124,7 +130,8 @@ def test_world_contact_intent_moves_affinity():
         },
     )
 
-    result = engine.end_day()  # слот 0: срок «день 2» исполняется в начале суток
+    # Слот 0: срок «день 2» исполняется в начале суток.
+    result = engine.end_day()
 
     assert float(character["affinity"]) > before + 0.05
     assert any(
@@ -182,9 +189,14 @@ def test_autonomous_character_schedules_contact_and_fires_next_day():
     pending = engine.intents.due(engine.day)[0]
     assert pending.source == "autonomy"
     assert pending.actor == character["id"]
-    # Персонаж лоялен (affinity 0.84, trust 0.78) — политика выбирает сближение.
+    # Персонаж лоялен (affinity 0.84, trust 0.78) — политика
+    # выбирает сближение.
     assert pending.payload["policy"] == "rapprochement"
-    assert pending.cancel_when == {"field": "affinity", "op": "gt", "value": 0.8}
+    assert pending.cancel_when == {
+        "field": "affinity",
+        "op": "gt",
+        "value": 0.8,
+    }
 
     engine.end_day()
     result = engine.end_day()
@@ -206,8 +218,11 @@ def test_autonomous_character_schedules_contact_and_fires_next_day():
 
 
 def test_hostile_autonomous_character_reconciles_with_priority():
-    """Враждебный персонаж тянется к примирению (`reconcile`) с приоритетом 1,
-    исход бросается общей формулой успеха — событие исполняется, а не снимается."""
+    """Враждебный персонаж тянется к примирению (`reconcile`).
+
+    Приоритет 1, исход бросается общей формулой успеха — событие
+    исполняется, а не снимается.
+    """
     engine = _engine(seed=11)
     character = engine.characters[engine.character_order[1]]
     character["autonomous"] = True
@@ -317,17 +332,37 @@ def test_intent_queue_cancel_by_criteria():
 
 def test_condition_holds_semantics():
     character = {"affinity": 0.5, "trust": -0.2}
-    assert condition_holds({"field": "affinity", "op": "gt", "value": 0.4}, character)
-    assert condition_holds({"field": "affinity", "op": ">", "value": 0.4}, character)
-    assert not condition_holds({"field": "affinity", "op": "ge", "value": 0.6}, character)
-    assert condition_holds({"field": "trust", "op": "lt", "value": 0.0}, character)
-    assert condition_holds({"field": "trust", "op": "eq", "value": -0.2}, character)
-    assert condition_holds({"field": "trust", "op": "ne", "value": 0.0}, character)
+    affinity = {"field": "affinity"}
+    trust = {"field": "trust"}
+    assert condition_holds(
+        dict(affinity, op="gt", value=0.4), character
+    )
+    assert condition_holds(
+        dict(affinity, op=">", value=0.4), character
+    )
+    assert not condition_holds(
+        dict(affinity, op="ge", value=0.6), character
+    )
+    assert condition_holds(
+        dict(trust, op="lt", value=0.0), character
+    )
+    assert condition_holds(
+        dict(trust, op="eq", value=-0.2), character
+    )
+    assert condition_holds(
+        dict(trust, op="ne", value=0.0), character
+    )
     # Неизвестное поле/операция — условие НЕ истинно (безопаснее исполнить).
-    assert not condition_holds({"field": "mystery", "op": "gt", "value": 0}, character)
-    assert not condition_holds({"field": "affinity", "op": "??"}, character)
+    assert not condition_holds(
+        {"field": "mystery", "op": "gt", "value": 0}, character
+    )
+    assert not condition_holds(
+        {"field": "affinity", "op": "??"}, character
+    )
     assert not condition_holds(None, character)
-    assert not condition_holds({"field": "affinity", "op": "gt", "value": 0}, None)
+    assert not condition_holds(
+        {"field": "affinity", "op": "gt", "value": 0}, None
+    )
 
 
 def test_world_cancels_intent_when_condition_holds():
@@ -415,7 +450,9 @@ def test_intent_queue_limit_is_documented():
 def test_intent_sorts_by_day_then_slot_then_priority():
     queue = IntentQueue()
     queue.schedule(3, "message", payload={"text": "поздний слот"}, due_slot=2)
-    queue.schedule(3, "message", payload={"text": "срочный у края"}, priority=5)
+    queue.schedule(
+        3, "message", payload={"text": "срочный у края"}, priority=5
+    )
     queue.schedule(3, "message", payload={"text": "обычный у края"})
     # Внутри одного дня: сначала край (слот 0, приоритет выше), потом слот 2.
     assert [item.due_slot for item in queue] == [0, 0, 2]
@@ -568,7 +605,10 @@ def test_tick_and_end_day_do_not_double_execute():
     engine.schedule_action(action_id, due_day=engine.day, due_slot=1)
 
     fired_by_tick = engine.tick(max_slot=SLOTS_MAX)
-    assert len([e for e in fired_by_tick if e.get("source") == "player_action"]) == 1
+    fired = [
+        e for e in fired_by_tick if e.get("source") == "player_action"
+    ]
+    assert len(fired) == 1
     actions_after_tick = engine.action_count
 
     result = engine.end_day()
@@ -624,7 +664,9 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
     assert len(engine.intents) == 0  # очередь очищена
 
     result = engine.end_day()  # очередь пуста — задвоений нет
-    fired_later = [e for e in result["events"] if e.get("source") == "player_action"]
+    fired_later = [
+        e for e in result["events"] if e.get("source") == "player_action"
+    ]
     assert fired_later == []
     assert engine.action_count == 1
 

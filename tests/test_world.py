@@ -969,7 +969,9 @@ def test_campaign_wound_survives_snapshot_roundtrip():
         load_world(), snapshot=json.loads(json.dumps(engine.to_dict()))
     )
     assert restored.player_condition()["wound"] == pytest.approx(0.35)
-    assert restored.character_condition("mira_svet")["wound"] == pytest.approx(0.2)
+    assert restored.character_condition("mira_svet")["wound"] == (
+        pytest.approx(0.2)
+    )
     assert restored.treat_wound_player(0.25) == pytest.approx(0.10)
 
 

@@ -65,7 +65,6 @@ def campaign_success_chance(
     return _clamp(blended, 0.05, 0.95)
 
 
-
 class CampaignActor:
     """Игровой персонаж кампании: `Automaton` + дневной бюджет действий."""
 

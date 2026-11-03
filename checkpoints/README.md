@@ -33,7 +33,14 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 `checkpoints/duel_mlp_production.json` — поставляемый production-агент
 (ось A, задача A9; обучен через `python3 -m agents.train --env arena
 --policy duel-mlp`). Он намеренно закоммичен, чтобы автопоиск игры
-находил его «из коробки».
+находил его «из коробки». Файл хранится в формате A9 (`version=5`,
+30 признаков). Обучен заново под профиль награды `advantage_cost`
+(seed 1, 500 эпизодов, best-эпизод 400, `updates=135780`); все 30
+признаков обучены, слотов-заглушек нет. Матрица N=50 в режиме живой
+арены: `bdi 33/0/17`, `qtable 39/10/1`, `random 50/0/0` (seed 100000);
+на независимом seed 200000 — `34/0/16`, `35/12/3`, `50/0/0`.
+Воспроизведение на seed 2 слабое, поэтому выбор сделан по held-out.
+Подробности — `docs/ALGORITHMS.md` §6.7 и §8.6.
 
 ```bash
 python3 main.py --list-checkpoints            # что найдено

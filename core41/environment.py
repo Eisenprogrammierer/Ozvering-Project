@@ -27,14 +27,14 @@
 - **окно уязвимости** (`window_open()`): достигнув порога, среда на
   короткое время усиливает успех атак обеих сторон (канонный
   `ENV_BONUS`) — наблюдательный сигнал в `public_state()["window"]`
-  попадает в 21-й признак политик (`env_window`);
+  попадает в 22-й признак политик (`env_window`);
 - **собственная сила и доход**: среда копит `force` (канонный
   `ENV_INCOME` за такт, потолок `rest_ceiling`) и обслуживает её
   (`UPKEEP`), т.е. имеет собственный ресурсный цикл;
 - **цель существования**: `goal_reached()` — накопить целевую силу за
-  отведённый горизонт; недостижение цели означает коллапс среды
-  (`collapse=True`), и обе стороны теряют внешнего партнёра (событие
-  `environment/collapse`);
+  отведённый горизонт; достижение цели переводит фон в усиленный режим,
+  а недостижение — в коллапс. Это **события среды**, а не конец дуэли:
+  партия продолжается до смерти, захвата или лимита тактов;
 - **реакция на истощение сторон**: при очень низком `E` у стороны среда
   даёт ей передышку раньше расписания — «заинтересована» в том, чтобы
   дуэль не угасла.
@@ -88,14 +88,21 @@ ENV_OPEN_TTL = 8                # тактов окно держится пос�
 ENV_OFF_FRAC = 0.4              # закрытие: w_adopt < OFF_FRAC * порог
 ENV_INCOME = 2.0                # собственный доход силы за такт
 ENV_UPKEEP = 1.0                # обслуживание силы за такт
+# Логистическая экономика: обслуживание растёт с силой, поэтому фон
+# выходит на равновесие, а не копится линейно. При высоком давлении
+# равновесие ≈ 100, цель 96 достигается примерно за 310 тактов; без
+# давления равновесие ≈ 50, и к дедлайну 900 наступает коллапс.
+ENV_INCOME_FLOOR = 0.75         # доля дохода при нулевом давлении
+ENV_UPKEEP_RATE = 0.01          # доля силы, уходящая на обслуживание
+ENV_GOAL_BONUS_MULT = 1.5       # усиление бонуса работы после цели
 ENV_BONUS = 0.25                # успех работы при открытом окне среды
 ENV_FORCE_BASE = 10.0           # стартовая сила среды
 ENV_GOAL_RATIO = 0.60           # цель: 60% потолка к deadline
 ENV_GOAL_HORIZON = 900          # тактов на достижение цели
 ENV_STARVING_E = 2.0            # E стороны ниже — среда даёт передышку
-# A6: величина смещённой награды при терминальном исходе среды
-# («goal» — фон укрепился, «collapse» — фон рухнул). Симметрична для
-# обеих сторон и не перекрывает ±1.0 терминала дуэли.
+# A6: легаси-константа. Исход среды больше не завершает партию и не даёт
+# терминального смещения; состояние фона влияет на механику через
+# `work_bonus()`. Оставлена для совместимости импортов.
 ENV_OUTCOME_GOAL_REWARD = 0.3
 
 
@@ -159,8 +166,10 @@ class ArenaEnvironment:
     Слой A1 добавляет среде собственную экономику и цель (канон
     `simulation.Environment`): накопленное давление с окном уязвимости
     (`ingest`/`window_open`), собственная сила с доходом/обслуживанием и
-    горизонтом цели (`goal_reached`/`collapse`). Экономика фоновая: среда
-    не воюет, окно лишь усиливает успех работы обеих сторон.
+    горизонтом цели (`goal_reached`/`collapse`). Цель и коллапс — события
+    состояния фона, а не конец дуэли: strengthened усиливает бонус работы,
+    collapsed убирает его и поддержку. Экономика фоновая: среда не воюет,
+    окно лишь усиливает успех работы обеих сторон.
     """
 
     def __init__(
@@ -228,6 +237,8 @@ class ArenaEnvironment:
 
     def ingest(self, work):
         """Симметричный вход экономики: давление и накопление rest-единиц."""
+        if not self.with_economy or self.collapsed:
+            return False
         opened = self.receive_pressure(work)
         self.pressure_rest = min(
             ENV_REST_CAP,
@@ -239,12 +250,36 @@ class ArenaEnvironment:
     def window_open(self):
         return bool(self.in_window and not self.collapsed)
 
+    @property
+    def status(self):
+        """Состояние фона: active / strengthened / collapsed."""
+        if self.collapsed:
+            return "collapsed"
+        if self.goal_reached:
+            return "strengthened"
+        return "active"
+
+    def work_bonus(self):
+        """Аддитивный бонус успеха работы от состояния фона.
+
+        Обычное окно даёт `ENV_BONUS`; достигнутая цель делает фон
+        устойчиво сильнее (`ENV_BONUS * ENV_GOAL_BONUS_MULT`); коллапс
+        убирает бонус полностью.
+        """
+        if self.collapsed:
+            return 0.0
+        if self.goal_reached:
+            return float(ENV_BONUS * ENV_GOAL_BONUS_MULT)
+        if self.window_open():
+            return float(ENV_BONUS)
+        return 0.0
+
     def _tick_window(self):
         """Шмиттов гистерезис окна: спад давления и закрытие по TTL/порогу."""
         if not self.with_economy:
             return None
         self.pressure *= ENV_DECAY_ADOPT
-        if not self.in_window:
+        if self.collapsed or not self.in_window:
             return None
         self.open_timer -= 1
         off_now = ENV_OFF_FRAC * self.schmitt_on()
@@ -259,31 +294,59 @@ class ArenaEnvironment:
         return None
 
     def _tick_economy(self):
-        """Собственный ресурсный цикл среды и проверка цели/коллапса."""
-        if not self.with_economy or self.collapsed:
+        """Собственный ресурсный цикл среды и проверка цели/коллапса.
+
+        Доход зависит от давления (фон «живёт» активной дуэлью), а
+        обслуживание растёт с силой. Это даёт логистическое равновесие:
+        при высоком давлении фон выходит на ~100 силы и достигает цели 96,
+        при низком — застревает около 50 и коллапсирует к дедлайну.
+        Событие цели/коллапса одноразовое: после него экономика
+        останавливается, но дуэль продолжается.
+        """
+        if not self.with_economy:
             return None
-        self.force = min(self.force + ENV_INCOME, self.rest_ceiling)
-        self.force = max(0.0, self.force - ENV_UPKEEP)
+        if self.collapsed or self.goal_reached:
+            return None
+        ratio = min(
+            1.0,
+            max(
+                0.0,
+                self.pressure / max(1.0, self.schmitt_on()),
+            ),
+        )
+        income = ENV_INCOME * (
+            ENV_INCOME_FLOOR + (1.0 - ENV_INCOME_FLOOR) * ratio
+        )
+        upkeep = ENV_UPKEEP + ENV_UPKEEP_RATE * self.force
+        self.force = min(
+            self.rest_ceiling,
+            max(0.0, self.force + income - upkeep),
+        )
         if self.force >= self.goal_force:
             self.goal_reached = True
-            self.collapsed = True
             return {
                 "kind": "environment",
                 "event": "goal",
                 "ticks": self.ticks,
                 "force": float(self.force),
                 "target": float(self.goal_force),
+                "status": self.status,
+                "work_bonus": self.work_bonus(),
                 "text": "Среда: цель достигнута (%.1f) — фон укрепился."
                 % self.force,
             }
         if self.ticks >= self.goal_horizon:
             self.collapsed = True
+            self.in_window = False
+            self.open_timer = 0
             return {
                 "kind": "environment",
                 "event": "collapse",
                 "ticks": self.ticks,
                 "force": float(self.force),
                 "target": float(self.goal_force),
+                "status": self.status,
+                "work_bonus": self.work_bonus(),
                 "text": "Среда: цель не достигнута за %d тактов — коллапс "
                 "фона (сила %.1f/%.1f)."
                 % (self.ticks, self.force, self.goal_force),
@@ -354,6 +417,8 @@ class ArenaEnvironment:
             "asymmetric": self.asymmetric,
             # --- A1: наблюдаемая экономика и цель ----------------------
             "window": self.window_open(),
+            "status": self.status,
+            "work_bonus": self.work_bonus(),
             "pressure": float(self.pressure),
             "pressure_ratio": (
                 min(1.0, self.pressure / max(1.0, self.schmitt_on()))

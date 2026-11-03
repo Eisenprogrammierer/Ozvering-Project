@@ -16,6 +16,7 @@ from .preset import (
     default_root as default_presets_root,
     default_template_path,
     generate_preset,
+    list_templates,
     load_template,
 )
 from .strategy import (
@@ -53,6 +54,7 @@ __all__ = [
     "default_presets_root",
     "default_template_path",
     "generate_preset",
+    "list_templates",
     "load_template",
     "DEFAULT_STRATEGY_PATH",
     "StrategyEngine",

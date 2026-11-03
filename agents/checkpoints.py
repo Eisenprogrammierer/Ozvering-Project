@@ -78,7 +78,7 @@ def is_loadable(path, kind=None):
         return False
     if kind and state_kind != kind:
         return False
-    # A8: duel-MLP имеет собственный формат чекпойнтов (v4); для него
+    # A8/A9: duel-MLP имеет собственный формат чекпойнтов (v5); для него
     # предельная версия — DUEL_CHECKPOINT_VERSION, остальные политики
     # используют базовый CHECKPOINT_VERSION.
     limit = (

@@ -55,10 +55,19 @@ class MainMenuScene(MenuScene):
 
     def _campaign(self):
         # B2: единая точка входа — из главного меню запускаем view-кампанию.
+        # Абсолютный путь и cwd корня проекта: иначе запуск из другого
+        # каталога (ярлык, .desktop, PyInstaller) не находит main.py.
         import subprocess
         import sys
+        from pathlib import Path
 
-        subprocess.Popen([sys.executable, "main.py", "--campaign"])
+        root = Path(__file__).resolve().parents[2]
+        if getattr(sys, "frozen", False):
+            # PyInstaller: рядом с exe нет main.py, но exe сам и есть вход.
+            command = [sys.executable, "--view"]
+        else:
+            command = [sys.executable, str(root / "main.py"), "--view"]
+        subprocess.Popen(command, cwd=str(root))
         self.app.quit()
 
     def _new_game(self):

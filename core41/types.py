@@ -15,6 +15,9 @@ class Action:
     form: str = "force"
     fraction: float = 0.0
     target: str = "opponent"
+    # Длительность работы в тактах. Единица — мгновенное действие; больше
+    # единицы — подготовка, которую противник успевает увидеть.
+    duration: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -48,8 +51,18 @@ class Observation:
     env_season: float = 1.0
     # A1: наблюдаемое окно среды (0/1). При `with_env=False` или
     # отключённой экономике остаётся 0.0 — прежняя калибровка не меняется,
-    # длина вектора признаков (21) тоже.
+    # длина вектора признаков (22) тоже.
     env_window: float = 0.0
+    # A9: частичная наблюдаемость. `opponent_confidence` — уверенность в
+    # оценках скрытых полей (1.0 = точное знание), `opponent_weak_point` —
+    # свежая уязвимость, найденная разведкой. Занятость и подготовка
+    # противника видимы: это внешняя стойка, а не скрытое состояние.
+    opponent_confidence: float = 1.0
+    opponent_weak_point: float = 0.0
+    self_busy: float = 0.0
+    opponent_busy: float = 0.0
+    opponent_pending_form: str = ""
+    opponent_pending_fraction: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -14,8 +14,9 @@
 
 ```bash
 pip install pygame-ce
-python3 main.py               # единая точка входа: игра (старт — главное меню)
-python3 main.py --view        # кампанийный интерфейс view (лагерь + RTS-карта)
+python3 main.py               # точка входа: клиент view (по умолчанию)
+python3 main.py --classic     # легаси-сценный слой ui
+python3 main.py --view        # явно кампанийный интерфейс view
 python3 main.py --fullscreen  # (или -f) полноэкранный режим
 python3 main.py --arena       # арена отдельно (автономный game_engine)
 python3 main.py --interaction # экран взаимодействий (объект → действие → исход)
@@ -28,9 +29,9 @@ python3 -m ui --scene game    # сразу открыть экран игры (�
 ```
 
 Кампанийный UI-каркас `view/` (лагерные сцены, интерактивная 2-D
-изометрическая RTS-карта, приказы, документы и нарратив) запускается отдельно
-через `python3 main.py --view`; его состояние строится на `warfare.py`, а не на
-`simulation.py`. Подробности — [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
+изометрическая RTS-карта, приказы, документы и нарратив) открывается по
+умолчанию (`python3 main.py`, он же `--view`); его состояние строится на
+`warfare.py`, а не на `simulation.py`. Подробности — [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
 
 `game_engine.py` по-прежнему запускается автономно (`python3 game_engine.py`) —
 это прежний одиночный экран «арена + HUD». Сценный слой встраивает тот же

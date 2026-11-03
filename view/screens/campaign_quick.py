@@ -61,7 +61,8 @@ class CampaignQuickScreen(BaseScreen):
         engine = self.env.engine
         label = _service_label(action.kind)
         if label is None:
-            label = str(engine.actions.get(action.kind, {}).get("label") or action.kind)
+            entry = engine.actions.get(action.kind, {})
+            label = str(entry.get("label") or action.kind)
         if action.target:
             label = "%s → %s" % (label, engine.node_label(action.target))
         return label
@@ -82,7 +83,12 @@ class CampaignQuickScreen(BaseScreen):
             )
             y += 42
         buttons.append(
-            Button((60, 600, 200, 40), "В меню", self.app.font_body, self._back_to_menu)
+            Button(
+                (60, 600, 200, 40),
+                "В меню",
+                self.app.font_body,
+                self._back_to_menu,
+            )
         )
         self.buttons = buttons
 
@@ -92,16 +98,26 @@ class CampaignQuickScreen(BaseScreen):
         self.app.manager.pop()
 
     def _do(self, action):
-        if self.env.engine is None or self.env.engine.finished or self.env._terminal:
-            return  # защита от «мёртвых» кнопок после финала (см. handle_event)
+        if (
+            self.env.engine is None
+            or self.env.engine.finished
+            or self.env._terminal
+        ):
+            return  # защита от «мёртвых» кнопок после финала
         obs, reward, done, truncated, info = self.env.step(action)
         self.observation = obs
         result = info.get("result") or {}
         outcome = str(result.get("outcome") or "")
-        self.message = "награда %+.2f · %s" % (reward, outcome or result.get("reason") or "")
+        detail = outcome or result.get("reason") or ""
+        self.message = "награда %+.2f · %s" % (reward, detail)
         if done or truncated:
-            final = obs.outcome or ("горизонт" if truncated else "нейтрально")
-            self.message = "Кампания завершена: %s (%s)" % (final, self.message)
+            final = obs.outcome or (
+                "горизонт" if truncated else "нейтрально"
+            )
+            self.message = "Кампания завершена: %s (%s)" % (
+                final,
+                self.message,
+            )
             logger.info("Быстрая кампания завершена: %s", final)
         self._rebuild_buttons()
 
@@ -159,7 +175,9 @@ class CampaignQuickScreen(BaseScreen):
     def draw(self, screen):
         screen.fill((18, 20, 28))
         self.panel.draw(screen)
-        title = self.app.font_title.render("Быстрая кампания", True, (220, 220, 230))
+        title = self.app.font_title.render(
+            "Быстрая кампания", True, (220, 220, 230)
+        )
         screen.blit(title, title.get_rect(center=(640, 70)))
         y = 96
         for line in self._status_lines():
@@ -167,7 +185,9 @@ class CampaignQuickScreen(BaseScreen):
             screen.blit(surf, (60, y))
             y += 18
         if self.message:
-            surf = self.app.font_small.render(self.message, True, (210, 200, 150))
+            surf = self.app.font_small.render(
+                self.message, True, (210, 200, 150)
+            )
             screen.blit(surf, (60, y + 4))
         for button in self.buttons:
             button.draw(screen)

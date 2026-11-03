@@ -566,3 +566,55 @@ def test_world_screen_autopilot_falls_back_on_broken_checkpoint(tmp_path):
     # Битая политика не должна ронять игру: используется свежая BDI.
     assert isinstance(policy, BDIPolicy)
     pygame.quit()
+
+
+def test_world_screen_autopilot_rejects_arena_only_checkpoint(tmp_path):
+    """P0: валидный duel-mlp не читает CampaignObservation.
+
+    Автопилот обязан проверить контракт до `act()`, выбрать BDI и
+    действительно продвинуть кампанию, а не упасть на AttributeError.
+    """
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    from agents import BDIPolicy, DuelMLPPolicy
+
+    source = DuelMLPPolicy(seed=5)
+    path = tmp_path / "duel_mlp_production.json"
+    source.save(str(path))
+
+    _app, screen = _world_screen_with_checkpoint(str(path))
+    policy = screen._autopilot_policy_instance()
+    assert isinstance(policy, BDIPolicy)
+    assert "аренный" in screen.autopilot_note
+
+    day_before = screen.engine.day
+    screen.autopilot = True
+    for _ in range(40):
+        screen._autopilot_step()
+        if screen.engine.day > day_before or screen.engine.finished:
+            break
+    assert screen.engine.day > day_before or screen.engine.finished
+    assert "AttributeError" not in screen.message
+    pygame.quit()
+
+
+def test_world_screen_autopilot_stops_on_policy_error():
+    """P0: любая ошибка политики останавливает автопилот, не цикл игры."""
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+
+    class _BoomPolicy:
+        supports_campaign = True
+
+        def act(self, observation, actions, explore=True):
+            raise ValueError("boom")
+
+    _app, screen = _world_screen_with_checkpoint("")
+    screen.autopilot_policy = _BoomPolicy()
+    screen.autopilot = True
+    assert screen._autopilot_step() is None
+    assert screen.autopilot is False
+    assert "boom" in screen.message
+    pygame.quit()

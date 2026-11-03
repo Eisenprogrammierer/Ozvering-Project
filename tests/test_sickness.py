@@ -167,7 +167,7 @@ def test_match_engine_passes_sickness():
     assert match.sickness == 0.5
 
 
-def test_sickness_reduces_work_effectiveness_without_touching_skill_or_energy():
+def test_sickness_reduces_work_effectiveness_without_side_effects():
     unit = Automaton(id="worker", skills={"force": 0.6}, energy=100.0)
     assert unit.work_effectiveness() == pytest.approx(1.0)
 
@@ -339,7 +339,7 @@ def test_run_duel_tick_transmits_sickness_on_hit():
     right = ArenaAgent("right", energy=100)
     _events, result, _other = run_duel_tick(
         left,
-        Action("WORK", form="force", fraction=0.7),
+        Action("WORK", form="force", fraction=0.3),
         right,
         Action("REST", form="rest"),
         rng=_FixedRng(0.0),
@@ -349,7 +349,7 @@ def test_run_duel_tick_transmits_sickness_on_hit():
         CONTAGION_SEVERITY * 1.0
     )
     assert right.sickness == pytest.approx(
-        CONTAGION_SEVERITY - SICKNESS_REST_RECOVERY
+        CONTAGION_SEVERITY * 1.0
     )
     assert any(event["kind"] == "infection" for event in _events)
 

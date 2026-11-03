@@ -15,7 +15,7 @@
 ## Запуск
 
 ```bash
-python3 main.py                         # меню → «Взаимодействие»
+python3 main.py --classic               # меню ui → «Взаимодействие»
 python3 main.py --interaction           # сразу экран взаимодействий
 python3 main.py --scene interaction     # то же через общий --scene
 ```

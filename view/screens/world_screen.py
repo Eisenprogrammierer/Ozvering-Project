@@ -93,6 +93,9 @@ class WorldScreen(BaseScreen):
         # журнал/сейв видят те же действия, что и игрок.
         self.autopilot = False
         self.autopilot_policy = None
+        # Пояснение к выбранной политике: чекпойнт может быть валиден, но
+        # аренным (duel-mlp), и автопилот обязан честно сказать, что взял BDI.
+        self.autopilot_note = ""
         self.campaign_env = None
         self.autopilot_timer = 0.0
         self.autopilot_interval = 0.45
@@ -343,16 +346,14 @@ class WorldScreen(BaseScreen):
 
     def _autopilot_policy_instance(self):
         if self.autopilot_policy is None:
+            self.autopilot_note = ""
             checkpoint = str(getattr(self.app, "checkpoint", "") or "")
             if checkpoint:
-                from agents import load_policy
+                from agents import load_policy, supports_campaign
 
                 try:
-                    self.autopilot_policy = load_policy(
+                    policy = load_policy(
                         checkpoint, seed=int(self.engine.seed)
-                    )
-                    logger.info(
-                        "Автопилот: чекпойнт загружен (%s)", checkpoint
                     )
                 except Exception as error:  # noqa: BLE001 — игра не падает
                     logger.warning(
@@ -361,7 +362,28 @@ class WorldScreen(BaseScreen):
                         checkpoint,
                         error,
                     )
-                    self.autopilot_policy = None
+                else:
+                    # Валидный аренный чекпойнт (duel-mlp) не читает
+                    # CampaignObservation. Проверяем контракт заранее:
+                    # иначе первый `act()` бросил бы AttributeError.
+                    if supports_campaign(policy):
+                        self.autopilot_policy = policy
+                        logger.info(
+                            "Автопилот: чекпойнт загружен (%s, %s)",
+                            checkpoint,
+                            type(policy).__name__,
+                        )
+                    else:
+                        self.autopilot_note = (
+                            "чекпойнт %s — аренный (%s), для кампании "
+                            "используется BDI" % (
+                                checkpoint,
+                                type(policy).__name__,
+                            )
+                        )
+                        logger.warning(
+                            "Автопилот: %s", self.autopilot_note
+                        )
             if self.autopilot_policy is None:
                 from agents import BDIPolicy
 
@@ -380,8 +402,12 @@ class WorldScreen(BaseScreen):
         self.selected_action_id = None
         if self.autopilot:
             self._autopilot_env()
-            self._autopilot_policy_instance()
-            self.message = "Автопилот включён: политика BDI."
+            policy = self._autopilot_policy_instance()
+            self.message = "Автопилот включён: политика %s." % (
+                type(policy).__name__
+            )
+            if self.autopilot_note:
+                self.message += " " + self.autopilot_note
         else:
             self.message = "Автопилот выключен."
         logger.info("Автопилот кампании: %s", self.autopilot)
@@ -399,9 +425,14 @@ class WorldScreen(BaseScreen):
             _obs, _reward, done, truncated, info = env.advance(
                 self._autopilot_policy_instance(), explore=False
             )
-        except RuntimeError as error:
+        except Exception as error:  # noqa: BLE001 — живой UI не падает
+            # Политика может быть чужой/битой/несовместимой с наблюдением:
+            # автопилот — необязательный режим, кампания должна продолжиться.
             self.autopilot = False
             self.message = "Автопилот остановлен: %s" % error
+            logger.warning(
+                "Автопилот кампании остановлен: %r", error, exc_info=True
+            )
             return None
         result = info.get("result") or {}
         if result.get("ok"):

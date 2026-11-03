@@ -225,7 +225,7 @@
 
 ### 2.2 `core41/model.py` (341 строка) — автомат и здоровье
 
-Константы: давление (`OPEN_PRESSURE=8.0`, `PRESSURE_DECAY=0.82`, `PRESSURE_PER_WORK=0.30`), отдых (`REST_REGEN=14.0`, `REST_FORCE=0.6`), три блока H-механики: `HEALTH_*` (max 100, крит 25, `HEALTH_DAMAGE_RATIO=0.62` — урон по силе капает и в здоровье), `SICKNESS_*` (0..1, прогресс 0.004/такт, штраф работы ×0.6→пол 0.4, заражение `CONTAGION_CHANCE=0.35`), `WOUND_*` (устойчивая рана: капает здоровьем, замедляет реген, лечится отдыхом/TREAT).
+Константы: давление (`OPEN_PRESSURE=8.0`, `PRESSURE_DECAY=0.82`, `PRESSURE_PER_WORK=0.30`), отдых (`REST_REGEN=14.0`, `REST_FORCE=0.6`), три блока H-механики: `HEALTH_*` (max 100, крит 25, `HEALTH_DAMAGE_RATIO=0.50` — урон по силе капает и в здоровье), `SICKNESS_*` (0..1, прогресс 0.004/такт, штраф работы ×0.6→пол 0.4, заражение `CONTAGION_CHANCE=0.35`), `WOUND_*` (устойчивая рана: капает здоровьем, замедляет реген, лечится отдыхом/TREAT).
 
 - `sigmoid(value)`, `success_probability(attacker, defender, work, is_open) -> float` — вероятность попадания: скилл атакующего против сопротивления защитника, открытость увеличивает шанс.
 - `transmit_sickness(source, target, rng, form="force")` — контактная передача болезни при успешной работе (шанс × тяжесть).
@@ -264,7 +264,7 @@
 ### 2.7 `core41/arena.py` (985 строк) — активная арена (полный матч)
 
 Константы: `FORMS=("force","info")`, `FRACTIONS=(0.3,0.7)`, `CORE_ACTIONS` (REST/MOVE/ATTACK/DEFEND… индекс↔Action), захват `CAPTURE_RATIO=1.5, CAPTURE_STREAK=20, CAPTURE_FRAC=0.10`, `L_STEP=10.0`, профили `PROFILE_SKILLS` (CANON/AGGR/DEFN/SNEAK…), награды `REWARD_*` (цена энергии 0.6, своя болезнь −1.0, чужая +0.5, раны, терминал ±1.0).
-- `reward_delta(me, before, other, other_before) -> float` — пошаговая награда из изменений E/F/H/sickness/wound обеих сторон; `terminal_reward(winner, side)`; `action_from_index(i) -> Action`; `_default_action(obs)`.
+- `reward_delta(me, before, other, other_before, profile=None) -> float` — пошаговая награда из изменений E/F/H/sickness/wound обеих сторон; профили `REWARD_PROFILES` (`advantage_cost` по умолчанию, `legacy` — прежняя формула); `terminal_reward(winner, side)`; `action_from_index(i) -> Action`; `_default_action(obs)`.
 - `class _RestPolicy` — заглушка политики (всегда REST; интерфейс `act/observe/state_dict/load_state_dict`).
 - `_perform(attacker, defender, action, world)` — исполнение действия: атака (вероятность успеха → урон F+H, info-канал → давление/дезинформация, open-окно), DEFEND (смена защиты), REST (реген E/F/H через `tick_health`), результат с событиями; `_transfer_event(side, agent, result)` — описание перелива для UI.
 - `class ArenaAgent(id, policy=None, profile="CANON", seed, health_factors, sickness, wound)` — автомат + окно Шмитта (`defense`, `in_open`, `w_adopt`, `open_timer`, `schmitt_on`, `Q`) + свойства E/F/H/sickness/wound + `set_profile`, `reset_state`, `condition_state()/load_condition()` (состояние для реплея), `actions()`, `needs_recovery()`, `observe(opponent) -> Observation` (частичная видимость: `opponent_open`, давление), `choose_action(opponent, explore)` (делегат в policy или эвристику), `record_action`, `learn(reward, next_obs, done, opponent)` (обратная связь в policy), обработчики `_force_handler/_info_handler/_receive_work` (получение работы: урон, заражение через `transmit_sickness`, давление).
@@ -301,7 +301,7 @@
 - `_play_episode(env, policy, opp_policy, seed, learn, explore, max_steps)` — прогон эпизода с обновлением политики; `_play_campaign_episode` — то же для дневной кампании (CampaignAction).
 - `_count_winner(info, wins, losses, draws)`; `_warmup_baseline(...)` — прогрев (случайные эпизоды до обучения).
 - `wilson_interval(successes, trials, z=1.96) -> (lo, hi)` — CI для отчётов.
-- `evaluate(policy, env spec, episodes, seeds, ...) -> dict` — оценка win-rate с Wilson CI; `evaluate_matrix(...)` — сетка «политика × профиль оппонента × домен».
+- `evaluate(policy, env spec, episodes, seeds, ..., explore=False) -> dict` — оценка win-rate с Wilson CI (по умолчанию greedy; `explore=True` — режим живой арены); `evaluate_matrix(...)` — сетка «политика × профиль оппонента × домен».
 - `train(kind, episodes, seed, env options, eval_every, out, ...) -> dict` — главный цикл: warmup → эпизоды → периодическая оценка → сохранение лучшего чекпойнта; `_train_seed_worker(payload)` + `train_seeds(...)` — мульти-сид параллельно (через multiprocessing).
 - `main(argv=None)` — argparse-CLI (`python -m agents.train --kind mlp --episodes 500 ...`), печать итогов.
 

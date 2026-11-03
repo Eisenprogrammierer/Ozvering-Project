@@ -151,7 +151,9 @@ class CampaignEnv:
         self.config = dict(config or load_world())
         self.seed = int(seed)
         self.max_days = (
-            int(max_days) if max_days is not None else int(self.config.get("days", 30))
+            int(max_days)
+            if max_days is not None
+            else int(self.config.get("days", 30))
         )
         self._start_profile = profile
         self._start_node = node_id
@@ -221,7 +223,6 @@ class CampaignEnv:
         """Один шаг политики в живой кампании (тот же контракт, что `step`)."""
         return self.step(self.choose_action(policy, explore=explore))
 
-
     def randomize_draw(
         self,
         rng=None,
@@ -255,7 +256,10 @@ class CampaignEnv:
             "sickness": round(
                 rng.uniform(
                     max(0.0, float(sickness_min)),
-                    max(max(0.0, float(sickness_min)), min(1.0, float(sickness_max))),
+                    max(
+                        max(0.0, float(sickness_min)),
+                        min(1.0, float(sickness_max)),
+                    ),
                 ),
                 4,
             ),
@@ -337,7 +341,14 @@ class CampaignEnv:
         stats = (node or {}).get("stats") or {}
         return {
             key: float(stats.get(key, 0.0))
-            for key in ("power", "wealth", "legitimacy", "cohesion", "reach", "capacity")
+            for key in (
+                "power",
+                "wealth",
+                "legitimacy",
+                "cohesion",
+                "reach",
+                "capacity",
+            )
         }
 
     def _metrics(self):
@@ -412,7 +423,11 @@ class CampaignEnv:
             finished=bool(metrics["finished"] or self._terminal),
             outcome=str(
                 metrics["outcome"]
-                or ("neutral" if self._terminal and not metrics["attached"] else "")
+                or (
+                    "neutral"
+                    if self._terminal and not metrics["attached"]
+                    else ""
+                )
             ),
             collapsed=bool(metrics["collapsed"]),
             dismissed=bool(metrics["dismissed"]),
@@ -623,7 +638,10 @@ class CampaignEnv:
             success = bool(result.get("ok"))
         else:
             result = engine.execute(action.kind, action.target or None)
-            success = bool(result.get("ok")) and result.get("outcome") == "success"
+            success = (
+                bool(result.get("ok"))
+                and result.get("outcome") == "success"
+            )
         # Действие вне правил (например, политика выбрала нелегальный ход):
         # WorldEngine вернул ok=False — это не исключение, а нулевой шаг со
         # штрафом за потерянную инициативу; цикл обучения получает корректный

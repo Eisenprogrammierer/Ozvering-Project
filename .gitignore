@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 *.log
+
+# Упаковка и локальные артефакты
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.venv/

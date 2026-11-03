@@ -586,7 +586,10 @@ class App:
 
         engine = engine if engine is not None else self.world
         self.manager.replace_all(AutomatonSelectScreen(self, engine=engine))
-        logger.info("Открыт выбор должности: день=%s", getattr(engine, "day", "?"))
+        logger.info(
+            "Открыт выбор должности: день=%s",
+            getattr(engine, "day", "?"),
+        )
 
     def _play_world(self, scene):
         from campaign.world import WorldEngine, load_world

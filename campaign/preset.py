@@ -167,6 +167,33 @@ def load_template(path=None):
     return dict(data)
 
 
+def list_templates(directory=None):
+    """Найти JSON-шаблоны кампаний и вернуть их краткие описания."""
+    root = Path(directory) if directory is not None else default_root()
+    root = root.resolve()
+    templates = []
+    if not root.is_dir():
+        return templates
+    for path in sorted(root.glob("*.json")):
+        try:
+            data = _read_json(path)
+        except CampaignPresetError:
+            continue
+        if not isinstance(data, Mapping):
+            continue
+        if not data.get("factions"):
+            continue
+        templates.append(
+            {
+                "template_id": str(data.get("template_id") or path.stem),
+                "title": str(data.get("title") or path.stem),
+                "path": str(path),
+            }
+        )
+    templates.sort(key=lambda item: (item["title"], item["template_id"]))
+    return templates
+
+
 def _validate_template(template):
     if not isinstance(template, Mapping):
         raise CampaignPresetError("template должен быть объектом")
@@ -1512,6 +1539,7 @@ __all__ = [
     "CampaignPresetGenerator",
     "default_root",
     "default_template_path",
+    "list_templates",
     "load_template",
     "generate_preset",
 ]

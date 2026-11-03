@@ -31,7 +31,13 @@ import json
 import os
 import random
 
-from core41 import ArenaEnv, DuelEnv, randomize_draw
+from core41 import (
+    ArenaEnv,
+    DuelEnv,
+    REWARD_PROFILE_DEFAULT,
+    REWARD_PROFILES,
+    randomize_draw,
+)
 from core41.types import Action, CampaignAction, Transition
 
 from .policies import load_policy, make_policy
@@ -108,6 +114,7 @@ def _play_duel_episode(env, policy, opponent, seed, *, learn, explore):
                     next_observation=next_observation,
                     done=terminal,
                     next_actions=env.legal_actions("rl"),
+                    info={"opponent_action": opponent_action},
                 )
             )
             opponent.observe(
@@ -118,6 +125,7 @@ def _play_duel_episode(env, policy, opponent, seed, *, learn, explore):
                     next_observation=next_opponent_observation,
                     done=terminal,
                     next_actions=env.legal_actions("ai"),
+                    info={"opponent_action": action},
                 )
             )
         observation = next_observation
@@ -251,7 +259,10 @@ def _play_episode(
                     next_observation=next_observation,
                     done=terminal,
                     next_actions=env.legal_actions("rl"),
-                    info=dict(info),
+                    info={
+                        **dict(info),
+                        "opponent_action": opponent_action,
+                    },
                 )
             )
             if self_play:
@@ -263,7 +274,10 @@ def _play_episode(
                         next_observation=next_opponent_observation,
                         done=terminal,
                         next_actions=env.legal_actions("ai"),
-                        info=dict(info),
+                        info={
+                            **dict(info),
+                            "opponent_action": action,
+                        },
                     )
                 )
 
@@ -349,7 +363,8 @@ def _warmup_baseline(
     матрице силы измеряла бы инициализацию, а не baseline. Здесь политика
     обучается на отдельном потоке seed'ов против стабильного `bdi`, не
     касаясь ни основной политики, ни eval seed'ов. Возвращает
-    `(policy, trained_episodes)`; для политик с готовыми весами — `(policy, 0)`.
+    `(policy, trained_episodes)`; для политик с готовыми весами —
+    `(policy, 0)`.
 
     Для кампании (`single_agent`) прогрев идёт против детерминированного
     мира: `qtable-campaign`/`mlp` получают тот же шанс, что и аренные
@@ -400,7 +415,10 @@ def _save_policy(policy, path):
 
 
 def _seed_out_path(path, seed):
-    """Путь чекпойнта для конкретного seed: `model.json` → `model.seed3.json`."""
+    """Путь чекпойнта для seed.
+
+    `model.json` → `model.seed3.json`.
+    """
     stem, suffix = os.path.splitext(path)
     return "%s.seed%d%s" % (stem, int(seed), suffix)
 
@@ -427,7 +445,6 @@ def wilson_interval(successes, trials, z=1.96):
     return max(0.0, center - margin), min(1.0, center + margin)
 
 
-
 def evaluate(
     policy,
     opponent,
@@ -437,12 +454,18 @@ def evaluate(
     env_name="arena",
     env_kwargs=None,
     domain_opts=None,
+    explore=False,
 ):
     """Оценить `policy` против `opponent` на held-out seed'ах.
 
     Для одиночных сред (`campaign`) аргумент `opponent` игнорируется:
     оценка идёт против детерминированного среза мира `WorldEngine`.
     Усечение горизонта считается ничьей (`draws`), а не поражением.
+
+    `explore=False` — детерминированная (greedy) оценка, историческое
+    поведение. `explore=True` — тот же исследовательский режим, в котором
+    политика играет в активной арене (`ArenaMatch.choose_action`) и учится;
+    для аренных чекпойнтов он показывает силу ближе к живой игре.
 
     По умолчанию оценка идёт на фиксированном домене из `env_kwargs` —
     иначе матрица силы несравнима между запусками. Если `domain_opts`
@@ -470,7 +493,10 @@ def evaluate(
     wins = losses = draws = 0
     for episode in range(episodes):
         if domain_rng is not None:
-            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+            draw = _domain_draw(
+                env, env_name, domain_rng, domain_opts
+            )
+            _apply_domain(env, draw)
         info = _play_episode(
             env,
             policy,
@@ -478,7 +504,7 @@ def evaluate(
             seed + episode,
             self_play=False,
             learn=False,
-            explore=False,
+            explore=explore,
         )
         wins, losses, draws = _count_winner(info, wins, losses, draws)
     result = {
@@ -509,11 +535,13 @@ def evaluate_matrix(
     env_name="arena",
     env_kwargs=None,
     domain_opts=None,
+    explore=False,
 ):
     """Матрица силы: каждая политика против каждого оппонента.
 
     `policies` и `opponents` — словари `{name: policy}` или пары
-    `(name, policy)`. Оценка не меняет веса и не использует exploration.
+    `(name, policy)`. `explore=False` — детерминированная оценка без
+    исследования; `explore=True` — режим живой арены и обучения.
     `domain_opts` (проблема №7) — усреднение по распределению доменов;
     по умолчанию None — фиксированный канонический домен.
     """
@@ -529,6 +557,7 @@ def evaluate_matrix(
                 env_name=env_name,
                 env_kwargs=env_kwargs,
                 domain_opts=domain_opts,
+                explore=explore,
             )
             row = {"policy": policy_name, "opponent": opponent_name}
             row.update(stats)
@@ -551,6 +580,7 @@ def train(
     eval_baseline_episodes=DEFAULT_EVAL_BASELINE_EPISODES,
     eval_campaign_baselines=False,
     eval_checkpoints=None,
+    eval_explore=False,
     resume=None,
     resume_opponent=None,
     domain_randomize=False,
@@ -598,7 +628,10 @@ def train(
     best_episode = 0
     for episode in range(episodes):
         if domain_rng is not None:
-            _apply_domain(env, _domain_draw(env, env_name, domain_rng, domain_opts))
+            draw = _domain_draw(
+                env, env_name, domain_rng, domain_opts
+            )
+            _apply_domain(env, draw)
         info = _play_episode(
             env,
             policy,
@@ -623,6 +656,7 @@ def train(
                 max_steps=max_steps,
                 env_name=env_name,
                 env_kwargs=env_kwargs,
+                explore=eval_explore,
             )
             score = float(probe["win_rate"])
             if score > best_score:
@@ -640,6 +674,7 @@ def train(
         "seed": int(seed),
         "env": env_name,
         "with_env": bool(getattr(env, "with_env", False)),
+        "reward_profile": getattr(env, "reward_profile", None),
         "self_play": bool(self_play and not single_agent),
         "policy_updates": int(getattr(policy, "updates", 0)),
         "resumed_from": resume or "",
@@ -724,6 +759,7 @@ def train(
                         env_name=env_name,
                         env_kwargs=env_kwargs,
                         domain_opts=eval_domain_opts,
+                        explore=eval_explore,
                     ),
                     policy=name,
                     opponent="world",
@@ -770,6 +806,7 @@ def train(
                 env_name=env_name,
                 env_kwargs=env_kwargs,
                 domain_opts=eval_domain_opts,
+                explore=eval_explore,
             )
             for row in stats["eval"]:
                 row.update(sources.get(row["opponent"], {}))
@@ -913,6 +950,16 @@ def main(argv=None):
         ),
     )
     parser.add_argument(
+        "--reward-profile",
+        choices=REWARD_PROFILES,
+        default=REWARD_PROFILE_DEFAULT,
+        help=(
+            "профиль награды арены: legacy — исходная смесь, advantage — "
+            "только потери сторон без награды за восстановление, "
+            "advantage_cost — advantage плюс цена потраченной энергии"
+        ),
+    )
+    parser.add_argument(
         "--eval-episodes",
         type=int,
         default=20,
@@ -945,6 +992,14 @@ def main(argv=None):
             "в кампании добавить в held-out матрицу warmed baseline-строки "
             "(qtable-campaign/mlp); дороже, по умолчанию только основная "
             "политика против мира"
+        ),
+    )
+    parser.add_argument(
+        "--eval-explore",
+        action="store_true",
+        help=(
+            "оценивать с exploration, как в живой арене и обучении; "
+            "по умолчанию held-out матрица детерминированная (greedy)"
         ),
     )
     parser.add_argument(
@@ -1010,7 +1065,10 @@ def main(argv=None):
     parser.add_argument(
         "--profiles",
         default="",
-        help="профили арены для жеребьёвки через запятую (CANON,ZEALOT,ORTHODOX)",
+        help=(
+            "профили арены для жеребьёвки через запятую "
+            "(CANON,ZEALOT,ORTHODOX)"
+        ),
     )
     parser.add_argument(
         "--sickness-min",
@@ -1027,7 +1085,10 @@ def main(argv=None):
     parser.add_argument(
         "--health-factors",
         default="",
-        help="факторы здоровья с джиттером через запятую (aging,illness,stress,care)",
+        help=(
+            "факторы здоровья с джиттером через запятую "
+            "(aging,illness,stress,care)"
+        ),
     )
     parser.add_argument(
         "--health-min",
@@ -1097,6 +1158,8 @@ def main(argv=None):
     env_kwargs = {}
     if args.env == "arena" and args.no_with_env:
         env_kwargs["with_env"] = False
+    if args.env == "arena":
+        env_kwargs["reward_profile"] = args.reward_profile
     if args.env == "campaign" and args.campaign_career:
         # Готовность A3: политика сама выбирает повышение/перевод/отставку.
         env_kwargs["career_actions"] = True
@@ -1114,6 +1177,7 @@ def main(argv=None):
         eval_baseline_episodes=args.eval_baseline_episodes,
         eval_campaign_baselines=args.eval_campaign_baselines,
         eval_checkpoints=eval_checkpoints,
+        eval_explore=args.eval_explore,
         resume=args.resume or None,
         resume_opponent=args.resume_opponent or None,
         domain_randomize=args.domain_randomize,

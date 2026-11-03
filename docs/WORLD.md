@@ -212,12 +212,17 @@ department -> workshop`, у обмена и статуса — свои уров
 
 | Путь | Назначение |
 |---|---|
-| `configs/roles/roles.json` | роль `world_actor`, легаси-тег `faction_leader` |
+| `configs/roles/roles.json` | роль `world_actor`, легаси-тег `faction_leader`; дополнительные роли — `configs/roles/*.json` |
 | `configs/storylines/world_demo.json` | сюжет, привязка мира и биографии |
 | `configs/storylines/world_char.json` | 12 шагов создания персонажа |
 | `configs/storylines/world_demo_scenes.json` | вступления, выбор автомата, сцена мира |
 | `configs/worlds/agora_world.json` | домены, политии, узлы, должности, действия, персонажи, предметы и навыки |
 | `configs/worlds/biography.json` | таблицы происхождения, навыков, черт и связей |
+
+Новый мир добавляется как `configs/worlds/<name>.json`; `list_worlds()`
+находит все валидные миры в папке, а `load_world(path)` загружает выбранный.
+Биография миром не считается и в список не попадает. Полная карта
+JSON-контента — [`CONTENT.md`](CONTENT.md).
 | `campaign/world.py` | профиль, иерархия, валидатор, ход мира, персонажи, предметы, карьера, снимки |
 | `campaign/clock.py` | фоновые часы кампании, оффлайн-догон и причины авто-паузы |
 | `view/screens/character_creation.py` | биография и сборка профиля |

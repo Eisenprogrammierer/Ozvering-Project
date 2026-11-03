@@ -6,7 +6,11 @@ from pathlib import Path
 import sys
 
 from .errors import CampaignError
-from .preset import CampaignPresetGenerator
+from .preset import (
+    CampaignPresetGenerator,
+    default_root as default_templates_root,
+    list_templates,
+)
 from .roles import RoleCatalog
 from .storage import (
     default_presets_dir,
@@ -23,8 +27,11 @@ def _template_path(value):
     if path.exists():
         return path
     name = value if str(value).endswith(".json") else "%s.json" % value
-    candidate = default_presets_dir() / name
-    return candidate if candidate.exists() else path
+    for base in (default_templates_root(), default_presets_dir()):
+        candidate = base / name
+        if candidate.exists():
+            return candidate
+    return path
 
 
 def _print_summary(preset):
@@ -57,6 +64,17 @@ def _cmd_list_presets(args):
             )
         )
         print("  %s" % item.get("path"))
+    return 0
+
+
+def _cmd_list_templates(args):
+    items = list_templates(args.templates_directory)
+    if not items:
+        print("Шаблонов пока нет: %s" % default_templates_root())
+        return 0
+    for item in items:
+        print("%-24s %s" % (item["template_id"], item["title"]))
+        print("  %s" % item["path"])
     return 0
 
 
@@ -99,6 +117,11 @@ def build_parser():
         help="показать пресеты в campaigns/",
     )
     parser.add_argument(
+        "--list-templates",
+        action="store_true",
+        help="показать шаблоны кампаний в configs/campaigns/",
+    )
+    parser.add_argument(
         "--generate", action="store_true", help="сгенерировать тестовый пресет"
     )
     parser.add_argument(
@@ -136,6 +159,11 @@ def build_parser():
         default=None,
         help="каталог пресетов (по умолчанию campaigns/)",
     )
+    parser.add_argument(
+        "--templates-directory",
+        default=None,
+        help="каталог шаблонов (по умолчанию configs/campaigns/)",
+    )
     return parser
 
 
@@ -147,6 +175,8 @@ def main(argv=None):
             return _cmd_list_roles(args)
         if args.list_presets:
             return _cmd_list_presets(args)
+        if args.list_templates:
+            return _cmd_list_templates(args)
         if args.show:
             return _cmd_show(args)
         if args.generate:

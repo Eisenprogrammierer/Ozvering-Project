@@ -525,6 +525,10 @@ class BattlefieldModel:
                 "enemy", "Тень", "enemy", 7, 3, "vanguard", self.enemy
             ),
         }
+        # A9: стартовые знания о скрытом состоянии противника. Туман
+        # включён в активной игре; без снимка `Intel` не скрывал бы поля.
+        self.player.agent.intel.reset(self.enemy.agent.unit)
+        self.enemy.agent.intel.reset(self.player.agent.unit)
         self.selected = "player"
         self.objective = (5, 4)
         self._objective_owner = None
@@ -664,7 +668,9 @@ class BattlefieldModel:
                 self._after_player_action("HOLD", duel=False)
         elif order == "TREAT":
             if self.contact:
-                self._duel("TREAT", TREAT_ENERGY_FRACTION, "TREAT", finish=True)
+                self._duel(
+                    "TREAT", TREAT_ENERGY_FRACTION, "TREAT", finish=True
+                )
             else:
                 self._duel(
                     "TREAT",

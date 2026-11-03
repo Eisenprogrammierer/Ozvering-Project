@@ -101,7 +101,7 @@ def test_main_menu_cycle_draws_without_errors(app):
 
 
 def test_menu_navigation_reaches_world_screen(app):
-    """Путь «Новая игра» кликами мыши по реальному главному циклу (B2-затравка).
+    """Путь «Новая игра» кликами мыши по главному циклу (B2-затравка).
 
     Кнопки MainMenuScreen работают по MOUSEBUTTONDOWN (виджет Button),
     поэтому кликаем «Новая игра», затем — если открылся выбор сюжета/роли,
@@ -176,9 +176,13 @@ def test_quick_campaign_screen_lifecycle(app):
     for line in lines:
         if "энергия" in line:
             pct = float(line.split("энергия")[1].rstrip("%"))
-            assert pct <= 100.0, "энергия в UI обязана быть в процентах: %s" % line
+            assert pct <= 100.0, (
+                "энергия в UI обязана быть в процентах: %s" % line
+            )
     # Возврат в меню кнопкой.
-    menu_btn = next(b for b in app.manager.current.buttons if b.text == "В меню")
+    menu_btn = next(
+        b for b in app.manager.current.buttons if b.text == "В меню"
+    )
     _click(menu_btn.rect)
     _drain_cycle(app, max_frames=20)
     assert type(app.manager.current).__name__ == "MainMenuScreen"

@@ -148,8 +148,8 @@ python3 -m systems --playwright --turns 20 --seed 7
 игровая механика, а контракт для будущего контента.
 
 ```bash
-python3 main.py --interaction      # экран взаимодействий
-python3 main.py                    # главное меню -> «Взаимодействие»
+python3 main.py --interaction      # экран взаимодействий (легаси ui)
+python3 main.py --classic          # главное меню ui -> «Взаимодействие»
 ```
 
 Модель `interaction/model.py` не импортирует pygame и не меняет канон
@@ -297,25 +297,27 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 
 ```bash
 python3 simulation.py            # канон: пакет из 10 партий + график динамики силы
-python3 main.py                  # ИГРА: сценный слой ui (меню -> нарратив -> партия)
-python3 main.py --view           # КАМПАНИЯ: интерфейс view (мир, роли, легаси RTS)
+python3 main.py                  # ИГРА: современный клиент view (меню кампании)
+python3 main.py --classic        # ЛЕГАСИ: сценный слой ui (меню -> нарратив -> партия)
 python3 main.py --automata       # РЕДАКТОР: графовый редактор автоматов (JSON)
 python3 -m organizations         # ГЕНЕРАТОР: аналитические организации -> JSON
 python3 -m organizations --runtime  # runtime-демо организации в warfare
 python3 -m campaign              # РОЛИ/ПРЕСЕТЫ: каталог ролей и тестовая кампания
 python3 -m campaign --generate --seed 7  # пресет в campaigns/
-python3 main.py --scene battlefield  # сразу стратегическое поле (RTS)
+python3 main.py --scene battlefield  # легаси RTS (флаг --scene подразумевает --classic)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
+python3 main.py --list-checkpoints   # чекпойнты без открытия окна
 python3 warfare.py               # войсковая симуляция: отделения, паника, банзай
 pytest -q                        # весь тестовый набор (см. ниже)
 ```
 
-**Единая точка запуска — `main.py`** (по умолчанию игра; `--view` — кампанийный
-интерфейс, `--automata` — редактор автоматов, `--arena` — арена;
-`--fullscreen`/`-f`, `--scene NAME`, `--open SLUG`, `--new` — дополнительные
-флаги). Отдельные точки входа тоже сохранены: `python3 -m ui` (игра),
-`python3 -m view` (кампания), `python3 -m automata` (редактор) и
-`python3 game_engine.py` (арена).
+**Единая точка запуска — `main.py`** (по умолчанию современный клиент `view/`;
+`--classic`/`--ui` — легаси `ui/`, `--automata` — редактор автоматов,
+`--arena` — арена; `--fullscreen`/`-f`, `--scene NAME`, `--checkpoint`,
+`--checkpoints-dir` — дополнительные флаги). `--scene` без `--view`
+автоматически уходит в легаси-клиент. Отдельные точки входа тоже сохранены:
+`python3 -m ui` (легаси-игра), `python3 -m view` (кампания),
+`python3 -m automata` (редактор) и `python3 game_engine.py` (арена).
 Кампанийный UI использует `warfare.py` только в легаси-потоке `mvp_demo`;
 подробности — [`docs/CAMPAIGN_UI.md`](docs/CAMPAIGN_UI.md). Новая игра
 начинается с роли `world_actor`: игрок создаёт человека по полной биографии,
@@ -414,22 +416,27 @@ python3 experiments/exp_warfare.py               # войсковые автом
 
 # Графический слой (экраны и наблюдение за партией)
 
-Игровая оболочка — **сценный 2-D слой** [`ui/`](ui): главное меню, настройки,
-сохранения/автосохранения, нарративные экраны и игровое поле. Единая точка запуска —
-`python3 main.py`. Требуется `pygame-ce` (рекомендуется — корректные шрифты и кириллица):
+Современная игровая оболочка — **кампанийный клиент** [`view/`](view):
+меню, выбор роли, мир, RTS-карта, сохранения и арена. Единая точка запуска —
+`python3 main.py`. Легаси-сценный слой [`ui/`](ui) (меню, настройки,
+нарративные экраны, поле боя) доступен через `--classic`/`--ui`.
+Требуется `pygame-ce` (рекомендуется — корректные шрифты и кириллица):
 
 ```bash
-pip install pygame-ce
-python3 main.py               # игра (старт — главное меню)
-python3 main.py --view        # кампанийный интерфейс view (лагерь + RTS-карта)
+pip install -e ".[dev]"       # или: pip install -r requirements-dev.txt
+python3 main.py               # современный клиент view (старт — меню)
+python3 main.py --classic     # легаси-слой ui
 python3 main.py --fullscreen  # полноэкранный режим
 python3 main.py --arena       # арена отдельно (то же, что game_engine.py)
+python3 main.py --list-checkpoints            # чекпойнты без окна
 python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-политику в активные сцены
 python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
 python3 main.py --sickness 0.5                      # начальная болезнь 0..1
 python3 main.py --speed 4                           # 1x/2x/4x/8x/16x
 python3 main.py --no-auto-pause                     # без авто-паузы
 ```
+
+Сборка дистрибутива описана в [`packaging/README.md`](packaging/README.md).
 
 `game_engine.py` — слой «основное игровое поле» (арена + HUD дуэли
 `core41.ArenaAgent`: QTable-политика против BDI, одна универсальная энергия,
@@ -449,8 +456,8 @@ python3 main.py --no-auto-pause                     # без авто-паузы
 `core41` даёт одну универсальную энергию, обработчики, `DuelEnv` и runtime
 активной арены (`ArenaAgent`, `ArenaMatch`), а `BDIPolicy`/`QTablePolicy` —
 обучаемые политики. Здоровье — отдельное состояние `S` (`H=100`): отдых
-`+0.75/тик` восстанавливает его, голод `-1/тик` и переполнение урона с
-коэффициентом `0.70` после `F=0` уменьшают; смерть наступает при `H<=0`. Множители
+`+0.78/тик` восстанавливает его, голод `-1.25/тик` и переполнение урона с
+коэффициентом `0.50` после `F=0` уменьшают; смерть наступает при `H<=0`. Множители
 `aging/illness/stress/care` задаются через `--health-factors`. Болезнь —
 процесс `sickness ∈ [0,1]`: без отдыха прогрессирует и наносит урон, отдых и
 `treat()` снижают её, начальное значение — `--sickness`
@@ -464,14 +471,31 @@ python3 main.py --no-auto-pause                     # без авто-паузы
 смерть героя/персонажей и распад организации идут дневным шагом; условия
 сохраняются в сейве. Дуэльный
 срез откалиброван (`experiments/exp_health_calibration.py`, §2.3.2–2.3.3
-`docs/WORLD_CORE_MODEL.md`). Награда арены переопределена: `F`/`H` нормированы,
-стоимость `E` — `0.6·ΔE/E_max`, снятие своей болезни `+1.0·Δsickness`, заражение
-противника `+0.5·Δsickness`, терминальные победа/поражение `±1.0`
-(`reward_delta`/`terminal_reward` в `core41/arena.py`). Обучение —
-`python3 -m agents.train --episodes 500 --seed 0` (по умолчанию `ArenaEnv` и
-self-play: обе политики обновляются; `--no-self-play` оставляет противника
-фиксированным). После обучения CLI играет held-out матрицу силы на отдельных
-seed'ах без исследования и обновления весов
+`docs/WORLD_CORE_MODEL.md`).
+
+Активная арена (A9) считает такт **одновременно**: оба действия выбираются и
+оплачиваются по снимку начала такта, а успех, урон и лечение разрешаются
+атомарно, поэтому убитый бьёт в ответ. Здоровье ограничивает нападение
+(`HEALTH_ATTACK_FLOOR = 0.50`), `F` задаёт пропускную способность работы за
+такт (`FORCE_WORK_RATIO`), а силовой удар с `fraction >= 0.7` требует
+подготовки: первый такт — `WAIT`/charge, второй — удар с `CHARGE_DAMAGE_BONUS`.
+Наблюдаемость частичная: туман (`fog=True`) скрывает `E/H/sickness/wound`
+противника, оставляя видимыми `F`, давление, открытость и подготовку. Дешёвая
+разведка `info` (`INFO_COST_FACTOR = 0.60`) не наносит урона, но раскрывает
+скрытые поля и ставит слабую точку, по которой `force` бьёт сильнее
+(`INTEL_ATTACK_BONUS`/`INTEL_DAMAGE_BONUS`). `--no-fog` у калибровочного
+эксперимента оставляет плечо с точным знанием. Награда арены
+(`reward_delta`/`terminal_reward` в `core41/arena.py`) по умолчанию —
+`advantage_cost`: оплачивается реальный урон противнику и потраченная
+энергия, но не восстановление `E/F/H`; снятие своей болезни `+1.0·Δsickness`,
+заражение противника `+0.5·Δsickness`, терминальные победа/поражение `±1.0`.
+Профиль `legacy` (`--reward-profile legacy`) сохраняет прежнюю формулу.
+Production-чекпойнт переобучен под `advantage_cost` (seed 1, best-эпизод
+400): N=50 живой арены — `bdi 33/0/17`, `qtable 39/10/1`,
+`random 50/0/0`. Обучение — `python3 -m agents.train --episodes 500 --seed 0` (по умолчанию
+`ArenaEnv` и self-play: обе политики обновляются; `--no-self-play` оставляет
+противника фиксированным). После обучения CLI играет held-out матрицу силы на
+отдельных seed'ах без обновления весов
 (`--eval-episodes`, `--eval-seed`, `--eval-opponents bdi,qtable,random,mlp`;
 `--eval-episodes 0` выключает оценку). Ёмкость политик растёт через встроенный
 `MLPPolicy` (tanh-MLP с online TD(0), target-сетью с периодической синхронизацией и без внешних зависимостей;
@@ -509,9 +533,12 @@ Held-out кампании — одна строка «политика прот�
 в `saves/` (в репозиторий не попадают). Подробности сценного слоя —
 [`docs/UI.md`](docs/UI.md), история движка — [`GAME_ENGINE_CHANGES.md`](GAME_ENGINE_CHANGES.md).
 
-Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). Код и документация разделены: в Python-файлах нет комментариев и docstrings. Описание модулей, классов и функций, а также перенесённые inline-заметки собраны в [`docs/code/README.md`](docs/code/README.md) и [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md). Форматирование — `black` и `pycodestyle` с длиной строки 79 (настройки в `pyproject.toml` и `setup.cfg`).
+Точный справочник текущих алгоритмов арены и Duel-MLP (порядок такта, формулы, 30 признаков, TD(0), чекпойнты и известные расхождения) — [`docs/ALGORITHMS.md`](docs/ALGORITHMS.md).
+
+Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). Модули и публичные API сопровождаются docstrings, а перенесённые заметки собраны в [`docs/code/README.md`](docs/code/README.md) и [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md). Форматирование — `pycodestyle` с длиной строки 79 (настройки в `setup.cfg`).
 
 Краткая выжимка по всему проекту (онтология, законы, слои, статус) — [`docs/SUMMARY.md`](docs/SUMMARY.md).
+JSON-контент и папки: что можно добавить, изменить или удалить без кода, — [`docs/CONTENT.md`](docs/CONTENT.md).
 Графический редактор автоматов — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
 
 # Новые слои (MVP, выключены по умолчанию)

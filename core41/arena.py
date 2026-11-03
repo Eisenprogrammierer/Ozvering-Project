@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 
-from .environment import (
-    ENV_BONUS,
-    ENV_OUTCOME_GOAL_REWARD,
-    ArenaEnvironment,
-)
+from .environment import ArenaEnvironment
+from .intel import Intel
 from .model import (
     DEFAULT_HEALTH_FACTORS,
     HEALTH_FACTOR_MAX,
@@ -20,6 +18,7 @@ from .model import (
     TREAT_ENERGY_FRACTION,
     WOUND_MAX,
     WOUND_TREAT_RATE,
+    INTEL_DAMAGE_BONUS,
     Automaton,
     success_probability,
     transmit_sickness,
@@ -38,12 +37,28 @@ CORE_ACTIONS = (
     ("info", FRACTIONS[1]),
 )
 
+# A9: `F` — пропускная способность, а не только запас прочности. Работа за
+# такт не может превысить `F * duration`; при полной силе это не связывает
+# действие 0.7, а после потери силы — ограничивает удар.
+FORCE_WORK_RATIO = 1.0
+# A9: разведка дешевле силовой работы при том же объёме.
+INFO_COST_FACTOR = 0.60
+# A9: сильный удар — двухтактная подготовка. Противник видит её и успевает
+# ответить; компенсация — чуть больший урон при завершении.
+CHARGE_DAMAGE_BONUS = 0.20
+# Разведка давит на цель сильнее обычной работы: она вскрывает стойку.
+INFO_PRESSURE_PER_WORK = 0.50
+PRESSURE_MAX = 30.0
+
+WAIT_ACTION = Action("WAIT", form="wait", duration=1.0)
+
 CAPTURE_RATIO = 1.5
 # A2: доля тяжести раны за каждый процент максимального здоровья,
 # выжженного переполнением силы при успешном ударе (максимум WOUND_MAX).
 WOUND_HIT_SEVERITY = 0.30
-# 20 тактов удержания — калибровка 2026-10-29 после активации среды и
-# пересчёта здоровья (0.62/0.78): при 21–22 захват уходит к нижней полосе.
+# 20 тактов удержания — калибровка A9 2026-11-02 (N=200, env on/off):
+# одновременный бой сместил исходы к смерти, и чуть более короткое
+# доминирование возвращает контрольное плечо в полосы §2.3.2.
 CAPTURE_STREAK = 20
 CAPTURE_FRAC = 0.10
 L_STEP = 10.0
@@ -64,6 +79,15 @@ REWARD_WOUND_OPPONENT = 0.4
 REWARD_TERMINAL_WIN = 1.0
 REWARD_TERMINAL_LOSS = -1.0
 
+# Профили награды. `legacy` — исходная смесь: оплачивает потраченную
+# энергию и начисляет за восстановление E/F/H, из-за чего отдых может
+# «фармить» награду. `advantage` — только реальный урон/потери сторон,
+# без награды за регенерацию. `advantage_cost` дополнительно списывает
+# потраченную (не восстановленную) энергию; это профиль по умолчанию.
+REWARD_PROFILES = ("legacy", "advantage", "advantage_cost")
+REWARD_PROFILE_DEFAULT = "advantage_cost"
+REWARD_ADVANTAGE_ENERGY_COST = 0.10
+
 
 def _energy(agent):
     value = getattr(agent, "energy_pool", None)
@@ -72,7 +96,26 @@ def _energy(agent):
     return float(value)
 
 
-def reward_delta(me, before, other, other_before):
+def _wound_reward(me, before, other, other_before):
+    """Вклад устойчивых ран: своя рана — штраф, чужая — награда."""
+    if len(before) <= 4 or len(other_before) <= 4:
+        return 0.0
+    return (
+        REWARD_WOUND_SELF
+        * (before[4] - me.wound)
+        / WOUND_MAX
+        + REWARD_WOUND_OPPONENT
+        * (other.wound - other_before[4])
+        / WOUND_MAX
+    )
+
+
+def _loss(before, now, maximum):
+    """Потеря ресурса (только уменьшение, без награды за регенерацию)."""
+    return max(0.0, float(before) - float(now)) / max(1.0, maximum)
+
+
+def reward_delta(me, before, other, other_before, profile=None):
     """Пошаговая награда: F, H, стоимость E, динамика sickness и wound.
 
     `before`/`other_before` — кортежи
@@ -80,34 +123,53 @@ def reward_delta(me, before, other, other_before):
     только там, где ведётся учёт острых ран; трёх- и четырёхэлементные
     кортежи легаси-вызовов трактуются как `wound = 0`, поэтому прежняя
     калибровка сохраняется.
+
+    `profile` выбирает семантику (`REWARD_PROFILES`):
+    `legacy` — исходная награда; `advantage` — только потери сторон без
+    оплаты восстановления; `advantage_cost` — то же плюс цена потраченной
+    энергии.
     """
-    wound_term = 0.0
-    if len(before) > 4 and len(other_before) > 4:
-        wound_term = (
-            REWARD_WOUND_SELF
-            * (before[4] - me.wound)
-            / WOUND_MAX
-            + REWARD_WOUND_OPPONENT
-            * (other.wound - other_before[4])
-            / WOUND_MAX
+    profile = profile or REWARD_PROFILE_DEFAULT
+    if profile not in REWARD_PROFILES:
+        raise ValueError("неизвестный профиль награды: %r" % (profile,))
+    wound_term = _wound_reward(me, before, other, other_before)
+    if profile == "legacy":
+        return (
+            (me.force - before[0]) / max(1.0, me.max_force)
+            + (other_before[0] - other.force) / max(1.0, other.max_force)
+            - REWARD_ENERGY_COST
+            * (before[1] - _energy(me))
+            / max(1.0, me.max_energy)
+            + (me.health - before[2]) / max(1.0, me.max_health)
+            + (other_before[2] - other.health)
+            / max(1.0, other.max_health)
+            + REWARD_SICKNESS_SELF
+            * (before[3] - me.sickness)
+            / SICKNESS_MAX
+            + REWARD_SICKNESS_OPPONENT
+            * (other.sickness - other_before[3])
+            / SICKNESS_MAX
+            + wound_term
         )
-    return (
-        (me.force - before[0]) / max(1.0, me.max_force)
-        + (other_before[0] - other.force) / max(1.0, other.max_force)
-        - REWARD_ENERGY_COST
-        * (before[1] - _energy(me))
-        / max(1.0, me.max_energy)
-        + (me.health - before[2]) / max(1.0, me.max_health)
-        + (other_before[2] - other.health)
-        / max(1.0, other.max_health)
+    reward = (
+        _loss(other_before[0], other.force, other.max_force)
+        + _loss(other_before[2], other.health, other.max_health)
+        - _loss(before[0], me.force, me.max_force)
+        - _loss(before[2], me.health, me.max_health)
         + REWARD_SICKNESS_SELF
-        * (before[3] - me.sickness)
+        * max(0.0, before[3] - me.sickness)
         / SICKNESS_MAX
         + REWARD_SICKNESS_OPPONENT
-        * (other.sickness - other_before[3])
+        * max(0.0, other.sickness - other_before[3])
         / SICKNESS_MAX
-        + wound_term
     )
+    if profile == "advantage_cost":
+        reward -= (
+            REWARD_ADVANTAGE_ENERGY_COST
+            * max(0.0, float(before[1]) - _energy(me))
+            / max(1.0, me.max_energy)
+        )
+    return reward + wound_term
 
 
 def terminal_reward(winner, side):
@@ -120,13 +182,30 @@ def terminal_reward(winner, side):
     return REWARD_TERMINAL_WIN if won else REWARD_TERMINAL_LOSS
 
 
+def work_duration(form, fraction):
+    """Длительность работы: силовой удар 0.7 — двухтактная подготовка."""
+    if str(form) == "force" and float(fraction) >= 0.7:
+        return 2.0
+    return 1.0
+
+
 def action_from_index(index):
     name, fraction = CORE_ACTIONS[int(index) % len(CORE_ACTIONS)]
     if name == "REST":
-        return Action("REST", form="rest")
+        return Action("REST", form="rest", duration=1.0)
     if name == "TREAT":
-        return Action("TREAT", form="care", fraction=fraction)
-    return Action("WORK", form=name, fraction=fraction)
+        return Action(
+            "TREAT",
+            form="care",
+            fraction=fraction,
+            duration=1.0,
+        )
+    return Action(
+        "WORK",
+        form=name,
+        fraction=fraction,
+        duration=work_duration(name, fraction),
+    )
 
 
 def _action_tag(action):
@@ -134,6 +213,8 @@ def _action_tag(action):
         return action.form
     if action.kind == "TREAT":
         return "TREAT"
+    if action.kind == "WAIT":
+        return "WAIT"
     return "REST"
 
 
@@ -155,77 +236,539 @@ class _RestPolicy:
         return None
 
 
-def _perform(attacker, defender, action, world):
-    attacker.last_action = action
+def _clamp(value, low, high):
+    return max(float(low), min(float(high), float(value)))
+
+
+def _work_cost_factor(action):
+    if action.kind == "WORK" and action.form == "info":
+        return INFO_COST_FACTOR
+    return 1.0
+
+
+def work_amount(unit, action):
+    """Объём работы с учётом `E`, доли действия и пропускной `F`.
+
+    `F` ограничивает работу за такт; для многотактной подготовки предел
+    масштабируется длительностью, потому что работа распределена по тактам.
+    """
+    if action.kind != "WORK":
+        return 0.0
+    fraction = _clamp(action.fraction, 0.0, 1.0)
+    duration = max(1.0, float(action.duration or 1.0))
+    cost_factor = _work_cost_factor(action)
+    energy_budget = unit.energy / max(1e-9, cost_factor)
+    nominal = fraction * unit.max_energy
+    force_budget = max(0.0, unit.force) * duration * FORCE_WORK_RATIO
+    return max(0.0, min(energy_budget, nominal, force_budget))
+
+
+@dataclass
+class PendingWork:
+    work: Work
+    action: Action
+    remaining: int
+
+
+def _unit_delta(before, after):
+    return {
+        "force": after.force - before.force,
+        "energy": after.energy - before.energy,
+        "health": after.health - before.health,
+        "sickness": after.sickness - before.sickness,
+        "wound": after.wound - before.wound,
+        "pressure": after.pressure() - before.pressure(),
+    }
+
+
+def _apply_delta(unit, delta):
+    unit.force = _clamp(
+        unit.force + delta.get("force", 0.0),
+        0.0,
+        unit.max_force,
+    )
+    unit.energy = _clamp(
+        unit.energy + delta.get("energy", 0.0),
+        0.0,
+        unit.max_energy,
+    )
+    unit.health = _clamp(
+        unit.health + delta.get("health", 0.0),
+        0.0,
+        unit.max_health,
+    )
+    unit.sickness = _clamp(
+        unit.sickness + delta.get("sickness", 0.0),
+        0.0,
+        SICKNESS_MAX,
+    )
+    unit.wound = _clamp(
+        unit.wound + delta.get("wound", 0.0),
+        0.0,
+        WOUND_MAX,
+    )
+    unit.state["pressure"] = _clamp(
+        unit.pressure() + delta.get("pressure", 0.0),
+        0.0,
+        PRESSURE_MAX,
+    )
+    return unit
+
+
+def _sum_deltas(deltas):
+    keys = ("force", "energy", "health", "sickness", "wound", "pressure")
+    return {
+        key: sum(delta.get(key, 0.0) for delta in deltas)
+        for key in keys
+    }
+
+
+def resolve_work(
+    attacker_unit,
+    defender_unit,
+    work,
+    rng,
+    env_bonus=0.0,
+    weak_point=0.0,
+):
+    """Разрешить работу против снимка защитника, не трогая здоровье атакующего.
+
+    Функция меняет переданные автоматы (обычно клоны снимка такта):
+    энергия/давление/рана цели и прирост силы атакующего. Штраф здоровья
+    атакующего (`tick_health`) накладывается отдельно, чтобы оба действия
+    такта считались от одного снимка.
+    """
+    if not defender_unit.can_receive(work.form):
+        return {
+            "accepted": False,
+            "success": False,
+            "energy": 0.0,
+            "force": 0.0,
+            "pressure": 0.0,
+        }
+    was_open = defender_unit.is_open()
+    chance = success_probability(
+        attacker_unit,
+        defender_unit,
+        work,
+        was_open,
+        env_bonus=env_bonus,
+        weak_point=weak_point,
+    )
+    form = work.form
+    pressure_rate = (
+        INFO_PRESSURE_PER_WORK if form == "info" else PRESSURE_PER_WORK
+    )
+    pressure = work.amount * pressure_rate
+    success = rng.random() < chance
+    damage = 0.0
+    gain = 0.0
+    health_damage = 0.0
+    wound_severity = 0.0
+    infection = 0.0
+    if form == "info":
+        defender_unit.state["pressure"] = min(
+            PRESSURE_MAX,
+            defender_unit.pressure() + pressure,
+        )
+        return {
+            "accepted": True,
+            "success": bool(success),
+            "energy": 0.0,
+            "force": 0.0,
+            "damage": 0.0,
+            "health": 0.0,
+            "wound": 0.0,
+            "gain": 0.0,
+            "pressure": pressure,
+            "chance": chance,
+            "was_open": was_open,
+            "form": form,
+            "revealed": bool(success),
+            "duration": float(work.duration),
+        }
+    defender_unit.energy = min(
+        defender_unit.max_energy,
+        defender_unit.energy + work.amount * 0.12,
+    )
+    defender_unit.state["pressure"] = min(
+        PRESSURE_MAX,
+        defender_unit.pressure() + pressure,
+    )
+    if success:
+        charge = 1.0 + CHARGE_DAMAGE_BONUS * max(
+            0.0, float(work.duration) - 1.0
+        )
+        # A9: удар по свежей слабой точке, найденной разведкой, наносит
+        # больше урона. Бонус действует только на `force`.
+        exploit = 1.0 + INTEL_DAMAGE_BONUS * min(
+            1.0, max(0.0, float(weak_point))
+        )
+        damage = max(
+            0.0,
+            work.amount
+            * (0.55 - 0.30 * defender_unit.resistance(form))
+            * charge
+            * exploit,
+        )
+        _absorbed, _overflow, health_damage = (
+            defender_unit.apply_force_damage(damage)
+        )
+        gain = min(
+            attacker_unit.max_force - attacker_unit.force,
+            damage * 0.20,
+        )
+        attacker_unit.force += max(0.0, gain)
+        if health_damage > 0.0:
+            wound_severity = min(
+                WOUND_MAX,
+                WOUND_HIT_SEVERITY * health_damage
+                / max(1.0, defender_unit.max_health),
+            )
+            if wound_severity > 0.0:
+                defender_unit.injure(wound_severity)
+        infection = transmit_sickness(
+            attacker_unit, defender_unit, rng, form
+        )
+    return {
+        "accepted": True,
+        "success": bool(success),
+        "energy": work.amount * 0.12,
+        "force": damage,
+        "damage": damage,
+        "health": health_damage,
+        "wound": wound_severity,
+        "gain": gain,
+        "pressure": pressure,
+        "chance": chance,
+        "was_open": was_open,
+        "form": form,
+        "revealed": False,
+        "duration": float(work.duration),
+        "infection": infection,
+    }
+
+
+def _rest_effect(agent):
+    agent.unit.energy = min(
+        agent.unit.max_energy,
+        agent.unit.energy + REST_REGEN,
+    )
+    agent.unit.force = min(
+        agent.unit.max_force,
+        agent.unit.force + REST_FORCE,
+    )
+    agent.unit.state["pressure"] = agent.unit.pressure() * 0.5
+    return {
+        "kind": "rest",
+        "spent": 0.0,
+        "success": True,
+        "damage": 0.0,
+        "form": "REST",
+    }
+
+
+def _prepare_action(agent, action):
+    """Самостоятельная часть действия: оплата, отдых, лечение, подготовка.
+
+    Удар по противнику здесь не разрешается: `resolve_pair` делает это по
+    общему снимку такта. Возвращает план с полями `kind`, `action`, `work`,
+    `spent`, `resting`, `result`.
+    """
+    action = action or WAIT_ACTION
+    if agent.pending is not None:
+        pending = agent.pending
+        work = agent.advance_pending()
+        agent.last_action = pending.action
+        if work is None:
+            result = {
+                "kind": "wait",
+                "spent": 0.0,
+                "success": True,
+                "damage": 0.0,
+                "form": pending.work.form,
+                "duration": float(pending.work.duration),
+            }
+            return {
+                "kind": "wait",
+                "action": pending.action,
+                "work": None,
+                "spent": 0.0,
+                "resting": False,
+                "result": result,
+            }
+        return {
+            "kind": "work",
+            "action": pending.action,
+            "work": work,
+            "spent": float(work.amount),
+            "resting": False,
+            "result": None,
+        }
+    agent.last_action = action
     if action.kind == "TREAT":
         amount = min(
-            attacker.energy_pool,
-            max(0.0, min(1.0, action.fraction))
-            * attacker.unit.max_energy,
+            agent.unit.energy,
+            _clamp(action.fraction, 0.0, 1.0)
+            * agent.unit.max_energy,
         )
-        attacker.energy_pool -= amount
+        agent.unit.energy = max(0.0, agent.unit.energy - amount)
         if amount > 0.0:
-            if attacker.unit.sickness > 0.0:
-                attacker.unit.treat(SICKNESS_TREAT_RATE)
-            if attacker.unit.wound > 0.0:
-                attacker.unit.treat_wound(WOUND_TREAT_RATE)
-        attacker.unit.tick_health(resting=False)
-        return {
+            if agent.unit.sickness > 0.0:
+                agent.unit.treat(SICKNESS_TREAT_RATE)
+            if agent.unit.wound > 0.0:
+                agent.unit.treat_wound(WOUND_TREAT_RATE)
+        result = {
             "kind": "treat",
             "spent": amount,
             "success": True,
             "damage": 0.0,
             "form": "care",
-            "treated": float(attacker.unit.sickness),
-            "wound": float(attacker.unit.wound),
+            "treated": float(agent.unit.sickness),
+            "wound": float(agent.unit.wound),
+        }
+        return {
+            "kind": "treat",
+            "action": action,
+            "work": None,
+            "spent": amount,
+            "resting": False,
+            "result": result,
+        }
+    if action.kind == "WAIT":
+        return {
+            "kind": "wait",
+            "action": action,
+            "work": None,
+            "spent": 0.0,
+            "resting": False,
+            "result": {
+                "kind": "wait",
+                "spent": 0.0,
+                "success": True,
+                "damage": 0.0,
+                "form": "wait",
+            },
+        }
+    if action.kind == "REST":
+        result = _rest_effect(agent)
+        return {
+            "kind": "rest",
+            "action": action,
+            "work": None,
+            "spent": 0.0,
+            "resting": True,
+            "result": result,
         }
     if action.kind != "WORK":
-        attacker.unit.energy = min(
-            attacker.unit.max_energy,
-            attacker.unit.energy + REST_REGEN,
-        )
-        attacker.unit.force = min(
-            attacker.unit.max_force,
-            attacker.unit.force + REST_FORCE,
-        )
-        attacker.unit.state["pressure"] = attacker.unit.pressure() * 0.5
-        attacker.unit.tick_health(resting=True)
+        result = _rest_effect(agent)
         return {
             "kind": "rest",
+            "action": action,
+            "work": None,
             "spent": 0.0,
-            "success": True,
-            "damage": 0.0,
-            "form": "REST",
+            "resting": True,
+            "result": result,
         }
-    amount = min(
-        attacker.energy_pool,
-        max(0.0, min(1.0, action.fraction)) * attacker.unit.max_energy,
-    )
+    amount = work_amount(agent.unit, action)
     if amount <= 0.0:
-        attacker.unit.state["pressure"] = attacker.unit.pressure() * 0.5
-        attacker.unit.tick_health(resting=True)
+        result = _rest_effect(agent)
         return {
             "kind": "rest",
+            "action": action,
+            "work": None,
             "spent": 0.0,
+            "resting": True,
+            "result": result,
+        }
+    cost_factor = _work_cost_factor(action)
+    cost = amount * cost_factor
+    agent.unit.energy = max(0.0, agent.unit.energy - cost)
+    duration = max(
+        1.0,
+        float(action.duration or 1.0),
+        work_duration(action.form, action.fraction),
+    )
+    work = Work(
+        amount=amount,
+        form=action.form or "force",
+        duration=duration,
+    )
+    if work.duration > 1.0:
+        agent.pending = PendingWork(
+            work=work,
+            action=action,
+            remaining=max(1, int(work.duration) - 1),
+        )
+        result = {
+            "kind": "charge",
+            "spent": amount,
+            "cost": cost,
             "success": True,
             "damage": 0.0,
-            "form": "REST",
+            "form": work.form,
+            "duration": float(work.duration),
         }
-    attacker.energy_pool -= amount
-    work = Work(amount=amount, form=action.form or "force")
-    result = defender.unit.receive(work, attacker.unit, world)
-    result["kind"] = "work"
-    result["spent"] = amount
-    result["form"] = work.form
-    infection = 0.0
-    rng = getattr(world, "rng", None)
-    if result.get("success") and rng is not None:
-        infection = transmit_sickness(
-            attacker.unit, defender.unit, rng, work.form
+        return {
+            "kind": "charge",
+            "action": action,
+            "work": None,
+            "spent": amount,
+            "cost": cost,
+            "duration": float(work.duration),
+            "resting": False,
+            "result": result,
+        }
+    return {
+        "kind": "work",
+        "action": action,
+        "work": work,
+        "spent": amount,
+        "cost": cost,
+        "duration": float(work.duration),
+        "resting": False,
+        "result": None,
+    }
+
+
+def _plan_events(side, agent, plan, result):
+    events = []
+    if plan.get("kind") == "charge":
+        events.append(
+            {
+                "kind": "charge",
+                "frm": side,
+                "form": str(plan["action"].form),
+                "duration": float(plan.get("duration", 1.0)),
+                "work": float(plan.get("spent", 0.0)),
+            }
         )
-    result["infection"] = infection
-    attacker.unit.tick_health(resting=False)
-    return result
+    elif plan.get("kind") == "work":
+        events.extend(_transfer_event(side, agent, result))
+    return events
+
+
+def resolve_pair(left, right, left_action, right_action, rng, env=None):
+    """Одновременный такт: оба действия считаются от снимка до разрешения.
+
+    `left`/`right` — `ArenaAgent`. Возвращает планы и результаты сторон.
+    Эффекты применяются после того, как оба удара разрешены на клонах,
+    поэтому первый ход не даёт преимущества, а убитый успевает ударить.
+    """
+    snap_left = left.unit.clone_for_tick()
+    snap_right = right.unit.clone_for_tick()
+    left_plan = _prepare_action(left, left_action)
+    right_plan = _prepare_action(right, right_action)
+
+    tick_left = left.unit.clone_for_tick()
+    tick_right = right.unit.clone_for_tick()
+    tick_left.tick_health(resting=left_plan["resting"])
+    tick_right.tick_health(resting=right_plan["resting"])
+    left_deltas = [_unit_delta(left.unit, tick_left)]
+    right_deltas = [_unit_delta(right.unit, tick_right)]
+
+    env_bonus = 0.0
+    if env is not None:
+        env_bonus = float(env.work_bonus())
+
+    left_result = left_plan["result"]
+    right_result = right_plan["result"]
+    left_reveal = False
+    right_reveal = False
+    for side in ("left", "right"):
+        plan = left_plan if side == "left" else right_plan
+        work = plan.get("work")
+        if work is None:
+            continue
+        attacker = left if side == "left" else right
+        defender = right if side == "left" else left
+        attacker_snap = snap_left if side == "left" else snap_right
+        defender_snap = snap_right if side == "left" else snap_left
+        probe_attacker = attacker_snap.clone_for_tick()
+        probe_defender = defender_snap.clone_for_tick()
+        result = resolve_work(
+            probe_attacker,
+            probe_defender,
+            work,
+            rng,
+            env_bonus=env_bonus,
+            weak_point=float(attacker.intel.weak_point),
+        )
+        result["kind"] = "work"
+        result["spent"] = float(work.amount)
+        result["cost"] = float(plan.get("cost", work.amount))
+        result["form"] = work.form
+        if side == "left":
+            left_result = result
+            left_deltas.append(_unit_delta(snap_left, probe_attacker))
+            right_deltas.append(_unit_delta(snap_right, probe_defender))
+            left_reveal = bool(
+                work.form == "info" and result.get("success")
+            )
+        else:
+            right_result = result
+            right_deltas.append(_unit_delta(snap_right, probe_attacker))
+            left_deltas.append(_unit_delta(snap_left, probe_defender))
+            right_reveal = bool(
+                work.form == "info" and result.get("success")
+            )
+        if env is not None:
+            env.ingest(work.amount)
+
+    _apply_delta(left.unit, _sum_deltas(left_deltas))
+    _apply_delta(right.unit, _sum_deltas(right_deltas))
+    left.unit.decay_pressure()
+    right.unit.decay_pressure()
+
+    if left_plan["kind"] == "work":
+        if left_plan["work"].form == "info":
+            if left_reveal:
+                left.intel.reveal(right.unit)
+            else:
+                left.intel.note_failure()
+        elif left_result and left_result.get("success"):
+            if left.intel.weak_point > 0.0:
+                left.intel.consume_weak_point()
+    if right_plan["kind"] == "work":
+        if right_plan["work"].form == "info":
+            if right_reveal:
+                right.intel.reveal(left.unit)
+            else:
+                right.intel.note_failure()
+        elif right_result and right_result.get("success"):
+            if right.intel.weak_point > 0.0:
+                right.intel.consume_weak_point()
+
+    # A9: без новой разведки знания стареют. Успешная или проваленная
+    # разведка уже обновила `age`/`confidence`, поэтому шаг старения к ней
+    # не применяется.
+    for agent, plan in ((left, left_plan), (right, right_plan)):
+        was_info = (
+            plan.get("kind") == "work"
+            and plan.get("work") is not None
+            and plan["work"].form == "info"
+        )
+        if not was_info:
+            agent.intel.decay()
+
+    for agent, plan, result in (
+        (left, left_plan, left_result),
+        (right, right_plan, right_result),
+    ):
+        if result is None:
+            result = {
+                "kind": plan["kind"],
+                "spent": 0.0,
+                "success": False,
+                "damage": 0.0,
+            }
+        agent.last_action = plan["action"]
+        agent.last_act = _action_tag(plan["action"])
+        agent.last_work = float(result.get("spent", 0.0))
+        agent.rest_units = max(
+            0.0, agent.rest_ceiling - agent.force
+        )
+    return left_plan, right_plan, left_result, right_result
 
 
 def _transfer_event(side, agent, result):
@@ -269,12 +812,19 @@ class ArenaAgent:
         health_factors=None,
         sickness=0.0,
         wound=0.0,
+        fog=True,
     ):
         self.id = str(agent_id)
         self.profile = str(profile)
         self.seed = int(seed)
         self.rng = random.Random(seed)
         self.policy = policy if policy is not None else _RestPolicy()
+        # A9: туман наблюдаемости. `False` — точное знание (легаси-срез и
+        # калибровочное плечо без тумана).
+        self.fog = bool(fog)
+        # A9: знания о скрытом состоянии противника и подготовка.
+        self.intel = Intel()
+        self.pending = None
         skill, authority = PROFILE_SKILLS.get(
             self.profile, PROFILE_SKILLS["CANON"]
         )
@@ -468,6 +1018,8 @@ class ArenaAgent:
         self.last_act = "REST"
         self.last_work = 0.0
         self.rest_units = 0.0
+        self.pending = None
+        self.intel = Intel()
         self._last_observation = None
         self._last_action = None
 
@@ -500,6 +1052,10 @@ class ArenaAgent:
         return self.condition_state()
 
     def actions(self):
+        # A9: пока идёт подготовка, единственное легальное действие —
+        # `WAIT`. Это не отдых: подготовка уже оплачена и должна завершиться.
+        if self.pending is not None:
+            return (WAIT_ACTION,)
         # `REST` — не no-op: он восстанавливает E/F/здоровье и снимает
         # болезнь. Если восстанавливать нечего, действие не предлагается:
         # иначе две полностью отдохнувшие стороны могут бесконечно
@@ -523,6 +1079,17 @@ class ArenaAgent:
             or self.wound > 0.0
         )
 
+    def advance_pending(self):
+        """Продвинуть многотактную работу; вернуть `Work` в такт удара."""
+        pending = self.pending
+        if pending is None:
+            return None
+        pending.remaining -= 1
+        if pending.remaining > 0:
+            return None
+        self.pending = None
+        return pending.work
+
     def observe(self, opponent):
         other = opponent.unit if hasattr(opponent, "unit") else opponent
         forms = tuple(
@@ -530,13 +1097,35 @@ class ArenaAgent:
         )
         if not forms:
             forms = ("force",)
+        # A9: туман скрывает внутреннее состояние (`E/H/sickness/wound`),
+        # но не внешнюю стойку: силу, давление, открытость, подготовку.
+        if self.fog:
+            opponent_energy = self.intel.estimate(
+                "energy", other.energy
+            )
+            opponent_health = self.intel.estimate(
+                "health", other.health
+            )
+            opponent_sickness = self.intel.estimate(
+                "sickness", other.sickness
+            )
+            opponent_wound = self.intel.estimate(
+                "wound", other.wound
+            )
+        else:
+            opponent_energy = float(other.energy)
+            opponent_health = float(other.health)
+            opponent_sickness = float(other.sickness)
+            opponent_wound = float(other.wound)
+        pending = getattr(opponent, "pending", None)
+        pending_action = pending.action if pending is not None else None
         observation = Observation(
             self_force=self.force,
             self_energy=self.energy_pool,
             self_max_force=self.unit.max_force,
             self_max_energy=self.unit.max_energy,
             opponent_force=float(other.force),
-            opponent_energy=float(other.energy),
+            opponent_energy=opponent_energy,
             opponent_max_force=float(other.max_force),
             opponent_max_energy=float(other.max_energy),
             opponent_pressure=float(other.pressure()),
@@ -551,14 +1140,28 @@ class ArenaAgent:
             self_health=self.health,
             self_max_health=self.max_health,
             self_sickness=self.sickness,
-            opponent_health=float(other.health),
+            opponent_health=opponent_health,
             opponent_max_health=float(other.max_health),
-            opponent_sickness=float(other.sickness),
+            opponent_sickness=opponent_sickness,
             self_wound=self.wound,
-            opponent_wound=float(other.wound),
+            opponent_wound=opponent_wound,
             env_pressure=float(getattr(self, "_env_pressure", 0.0)),
             env_season=float(getattr(self, "_env_season", 1.0)),
             env_window=float(getattr(self, "_env_window", 0.0)),
+            opponent_confidence=(
+                float(self.intel.confidence) if self.fog else 1.0
+            ),
+            opponent_weak_point=(
+                float(self.intel.weak_point) if self.fog else 0.0
+            ),
+            self_busy=1.0 if self.pending is not None else 0.0,
+            opponent_busy=1.0 if pending is not None else 0.0,
+            opponent_pending_form=(
+                str(pending_action.form) if pending_action else ""
+            ),
+            opponent_pending_fraction=(
+                float(pending_action.fraction) if pending_action else 0.0
+            ),
         )
         return observation
 
@@ -576,7 +1179,14 @@ class ArenaAgent:
         self._last_opponent = opponent
         return action
 
-    def learn(self, reward, next_observation, done, opponent=None):
+    def learn(
+        self,
+        reward,
+        next_observation,
+        done,
+        opponent=None,
+        opponent_action=None,
+    ):
         if self._last_observation is None or self._last_action is None:
             return
         other = opponent if opponent is not None else self._last_opponent
@@ -585,9 +1195,15 @@ class ArenaAgent:
             next_actions = tuple(
                 action
                 for action in self.actions()
-                if action.kind == "REST"
+                if action.kind in ("REST", "WAIT")
                 or other.unit.can_receive(action.form)
             )
+        info = {}
+        if opponent_action is not None:
+            # A9: модель противника обновляется по действию, которое он
+            # реально выбрал в этом такте. Передаётся через `info`, чтобы
+            # `Transition` остался неизменным контрактом.
+            info["opponent_action"] = opponent_action
         transition = Transition(
             observation=self._last_observation,
             action=self._last_action,
@@ -595,6 +1211,7 @@ class ArenaAgent:
             next_observation=next_observation,
             done=bool(done),
             next_actions=next_actions,
+            info=info,
         )
         self.policy.observe(transition)
         self._last_observation = None
@@ -624,8 +1241,8 @@ class ArenaAgent:
         # бонус равен 0 — прежняя калибровка дуэлей не меняется.
         env = getattr(world, "env", None)
         env_bonus = 0.0
-        if env is not None and env.window_open():
-            env_bonus = float(ENV_BONUS)
+        if env is not None:
+            env_bonus = float(env.work_bonus())
         chance = success_probability(
             source, target, work, was_open, env_bonus=env_bonus
         )
@@ -706,12 +1323,22 @@ class ArenaMatch:
         wound_ai=0.0,
         with_env=False,
         auto_learn=True,
+        fog=True,
+        reward_profile=REWARD_PROFILE_DEFAULT,
     ):
         self.seed = int(seed)
         self.steps_total = int(steps)
         self.rng = random.Random(self.seed)
         self.with_env = bool(with_env)
         self.auto_learn = bool(auto_learn)
+        if reward_profile not in REWARD_PROFILES:
+            raise ValueError(
+                "неизвестный профиль награды: %r" % (reward_profile,)
+            )
+        self.reward_profile = str(reward_profile)
+        # A9: туман наблюдаемости включён всегда в активной арене. Явный
+        # `fog=False` оставлен для калибровочного плеча «точное знание».
+        self.fog = bool(fog)
         self.time = 0
         self.step = 0
         self.winner = None
@@ -726,9 +1353,10 @@ class ArenaMatch:
         self.ai_rest_ticks = 0
         self.last_rl_action = ("REST", 0.0)
         self.last_ai_action = ("REST", 0.0)
-        # A6: исход среды (goal/collapse) — терминальное событие фона.
-        # None, пока среда не завершила свой горизонт цели.
+        # A6: последний исход среды (goal/collapse) и событие текущего
+        # такта. Это состояния фона, а не терминал партии.
         self.env_outcome = None
+        self.env_event = None
         self.rl = ArenaAgent(
             "rl",
             policy=rl_policy,
@@ -737,6 +1365,7 @@ class ArenaMatch:
             health_factors=health_factors_rl,
             sickness=sickness_rl,
             wound=wound_rl,
+            fog=self.fog,
         )
         self.ai = ArenaAgent(
             "ai",
@@ -746,7 +1375,13 @@ class ArenaMatch:
             health_factors=health_factors_ai,
             sickness=sickness_ai,
             wound=wound_ai,
+            fog=self.fog,
         )
+        # A9: стартовые знания о скрытом состоянии. Без снимка `Intel`
+        # подставлял бы точные значения как «оценку», поэтому снимок
+        # создаётся сразу после появления бойцов.
+        self.rl.intel.reset(self.ai.unit)
+        self.ai.intel.reset(self.rl.unit)
         # Актор среды (проблема с мёртвым `with_env`): не воюет, а по
         # фиксированному расписанию добавляет обоим одинаковое внешнее
         # давление/передышку. При `with_env=False` его нет — прежняя
@@ -766,6 +1401,7 @@ class ArenaMatch:
         if self.finished:
             return
         self.events = []
+        self.env_event = None
         rl, ai = self.rl, self.ai
 
         rl._time = self.time
@@ -789,6 +1425,14 @@ class ArenaMatch:
         if self.env is not None:
             env_events = self.env.tick(rl, ai)
             self.events.extend(env_events)
+            for event in env_events:
+                if (
+                    event.get("kind") == "environment"
+                    and event.get("event") in ("goal", "collapse")
+                ):
+                    self.env_event = event["event"]
+                    self.env_outcome = self.env_event
+                    break
 
         if forced_rl_action is None:
             rl_action, _ = rl.choose_action(ai, explore=True)
@@ -817,11 +1461,16 @@ class ArenaMatch:
             ai.wound,
         )
 
-        rl_result = self._perform(rl, ai, rl_action)
-        ai_result = self._perform(ai, rl, ai_action)
-
-        rl.unit.decay_pressure()
-        ai.unit.decay_pressure()
+        # A9: одновременный такт. Оба действия считаются от снимка до
+        # разрешения, эффекты применяются атомарно.
+        rl_plan, ai_plan, rl_result, ai_result = resolve_pair(
+            rl,
+            ai,
+            rl_action,
+            ai_action,
+            self.rng,
+            env=self.env,
+        )
         self.time += 1
         self.step += 1
 
@@ -829,17 +1478,6 @@ class ArenaMatch:
         reward_ai = self._reward(ai, ai_before, rl, rl_before)
 
         terminal = self._check_terminal()
-        env_outcome = None
-        if not terminal and self.env is not None:
-            # A6: у среды появился собственный терминальный исход —
-            # достигнутая цель фона («укрепление») или коллапс по дедлайну.
-            # Это завершает партию как усечение (truncation), а не победа
-            # одной из сторон: winner остаётся None, ±1.0 не присуждается.
-            if self.env.goal_reached or self.env.collapsed:
-                env_outcome = "goal" if self.env.goal_reached else "collapse"
-                self.env_outcome = env_outcome
-                self.finished = True
-                terminal = True
         if not terminal:
             capture_winner, cap = self._check_capture()
             if capture_winner and not self.finished:
@@ -857,41 +1495,45 @@ class ArenaMatch:
         if terminal:
             reward_rl += terminal_reward(self.winner, "rl")
             reward_ai += terminal_reward(self.winner, "ai")
-            if env_outcome is not None:
-                # A6: исход среды — смещённая награда обеих сторон (фон
-                # «усилился» или «рухнул»), симметричная и modest по
-                # величине, чтобы не перекрывать сигнал дуэли. Терминал
-                # усечения: winner остаётся None, ±1.0 нет.
-                shift = ENV_OUTCOME_GOAL_REWARD if env_outcome == "goal" else -ENV_OUTCOME_GOAL_REWARD
-                reward_rl += shift
-                reward_ai += shift
         self.last_rewards = {"rl": reward_rl, "ai": reward_ai}
 
         rl_next = rl.observe(ai)
         ai_next = ai.observe(rl)
         if self.auto_learn:
-            rl.learn(reward_rl, rl_next, terminal, ai)
-            ai.learn(reward_ai, ai_next, terminal, rl)
+            rl.learn(
+                reward_rl,
+                rl_next,
+                terminal,
+                ai,
+                opponent_action=ai_action,
+            )
+            ai.learn(
+                reward_ai,
+                ai_next,
+                terminal,
+                rl,
+                opponent_action=rl_action,
+            )
 
-        self.events.extend(self._event("rl", rl, rl_result))
-        self.events.extend(self._event("ai", ai, ai_result))
+        self.events.extend(
+            _plan_events("rl", rl, rl_plan, rl_result)
+        )
+        self.events.extend(
+            _plan_events("ai", ai, ai_plan, ai_result)
+        )
 
         self.last_rl_action = (
-            _action_tag(rl_action),
+            rl.last_act,
             float(rl_result.get("spent", 0.0)),
         )
         self.last_ai_action = (
-            _action_tag(ai_action),
+            ai.last_act,
             float(ai_result.get("spent", 0.0)),
         )
-        rl.last_act = self.last_rl_action[0]
-        ai.last_act = self.last_ai_action[0]
-        rl.last_work = rl_result.get("spent", 0.0)
-        ai.last_work = ai_result.get("spent", 0.0)
 
-        if rl_result.get("spent", 0.0) <= 0.0:
+        if rl_plan.get("kind") == "rest":
             self.rl_rest_ticks += 1
-        if ai_result.get("spent", 0.0) <= 0.0:
+        if ai_plan.get("kind") == "rest":
             self.ai_rest_ticks += 1
 
         self.rl.rest_units = max(0.0, rl.rest_ceiling - rl.force)
@@ -900,13 +1542,13 @@ class ArenaMatch:
         self.ai_hist.append(ai.force)
 
     def _reward(self, me, before, other, other_before):
-        return reward_delta(me, before, other, other_before)
-
-    def _perform(self, attacker, defender, action):
-        return _perform(attacker, defender, action, self)
-
-    def _event(self, side, agent, result):
-        return _transfer_event(side, agent, result)
+        return reward_delta(
+            me,
+            before,
+            other,
+            other_before,
+            profile=self.reward_profile,
+        )
 
     def _check_terminal(self):
         if self.finished:
@@ -949,36 +1591,22 @@ def run_duel_tick(
     left_id="left",
     right_id="right",
 ):
-    match = _DuelTick(left, right, rng or random.Random(0))
-    left_result = match.perform(left, right, left_action)
-    right_result = match.perform(right, left, right_action)
-    left.last_action = left_action
-    right.last_action = right_action
-    left.last_act = _action_tag(left_action)
-    right.last_act = _action_tag(right_action)
-    left.last_work = float(left_result.get("spent", 0.0))
-    right.last_work = float(right_result.get("spent", 0.0))
-    left.unit.decay_pressure()
-    right.unit.decay_pressure()
-    left.rest_units = max(0.0, left.rest_ceiling - left.force)
-    right.rest_units = max(0.0, right.rest_ceiling - right.force)
+    """Один одновременный такт дуэли для UI и экспериментов.
+
+    Оба действия считаются от снимка начала такта; результат не зависит от
+    порядка сторон. Возвращает события, результат левой и правой стороны.
+    """
+    left_plan, right_plan, left_result, right_result = resolve_pair(
+        left,
+        right,
+        left_action,
+        right_action,
+        rng or random.Random(0),
+    )
     events = []
-    for side, agent, result in (
-        (left_id, left, left_result),
-        (right_id, right, right_result),
-    ):
-        events.extend(_transfer_event(side, agent, result))
+    events.extend(_plan_events(left_id, left, left_plan, left_result))
+    events.extend(_plan_events(right_id, right, right_plan, right_result))
     return events, left_result, right_result
-
-
-class _DuelTick:
-    def __init__(self, left, right, rng):
-        self.left = left
-        self.right = right
-        self.rng = rng
-
-    def perform(self, attacker, defender, action):
-        return _perform(attacker, defender, action, self)
 
 
 def _resolve_capture(
@@ -1038,11 +1666,19 @@ __all__ = [
     "CAPTURE_RATIO",
     "CAPTURE_STREAK",
     "CORE_ACTIONS",
+    "FORCE_WORK_RATIO",
     "FORMS",
     "FRACTIONS",
+    "INFO_COST_FACTOR",
     "L_STEP",
     "OPEN_PRESSURE",
+    "PendingWork",
+    "WAIT_ACTION",
     "action_from_index",
     "check_capture",
+    "resolve_pair",
+    "resolve_work",
     "run_duel_tick",
+    "work_amount",
+    "work_duration",
 ]

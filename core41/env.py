@@ -21,7 +21,11 @@
 
 import random
 
-from .arena import PROFILE_SKILLS, ArenaMatch
+from .arena import (
+    PROFILE_SKILLS,
+    REWARD_PROFILE_DEFAULT,
+    ArenaMatch,
+)
 from .duel import DuelWorld
 from .model import DEFAULT_HEALTH_FACTORS, HEALTH_FACTOR_MAX, SICKNESS_MAX
 
@@ -175,6 +179,13 @@ class ArenaEnv:
         # игра (`MatchEngine`/`BattlefieldModel`): среда включена. Для
         # контрольного плеча без среды передайте `with_env=False`.
         with_env=True,
+        # A9: туман наблюдаемости. В активной игре включён; `False` —
+        # калибровочное плечо с точным знанием скрытых полей.
+        fog=True,
+        # Профиль награды (`core41.arena.REWARD_PROFILES`); `legacy` —
+        # исходная семантика, `advantage`/`advantage_cost` — без награды
+        # за регенерацию.
+        reward_profile=REWARD_PROFILE_DEFAULT,
     ):
         self.seed = int(seed)
         self.steps = int(steps)
@@ -189,6 +200,8 @@ class ArenaEnv:
         self.wound_rl = float(wound_rl)
         self.wound_ai = float(wound_ai)
         self.with_env = bool(with_env)
+        self.fog = bool(fog)
+        self.reward_profile = str(reward_profile)
         self.match = None
         self.last_rewards = {"rl": 0.0, "ai": 0.0}
         self.reset(seed=self.seed)
@@ -266,6 +279,8 @@ class ArenaEnv:
             wound_ai=self.wound_ai,
             with_env=self.with_env,
             auto_learn=False,
+            fog=self.fog,
+            reward_profile=self.reward_profile,
         )
         return self.match.rl.observe(self.match.ai)
 
@@ -295,19 +310,16 @@ class ArenaEnv:
         observation = match.rl.observe(match.ai)
         reward = float(match.last_rewards["rl"])
         done = bool(match.finished)
-        # A6: исход среды («goal»/«collapse») — усечение, а не терминал
-        # победы: агент не должен учиться «выигрывать» у фона.
+        # Исход среды («goal»/«collapse») — событие фона, а не терминал
+        # партии: матч продолжается до смерти, захвата или лимита шагов.
+        # Поэтому усечение определяется только лимитом шагов.
         env_outcome = getattr(match, "env_outcome", None)
+        env_event = getattr(match, "env_event", None)
         truncated = bool(
             done
-            and (
-                env_outcome is not None
-                or (
-                    match.step >= match.steps_total
-                    and not match.rl.is_dead
-                    and not match.ai.is_dead
-                )
-            )
+            and match.step >= match.steps_total
+            and not match.rl.is_dead
+            and not match.ai.is_dead
         )
         info = {
             "winner": match.winner,
@@ -318,5 +330,7 @@ class ArenaEnv:
             "rl_action": match.last_rl_action,
             "ai_action": match.last_ai_action,
             "env_outcome": env_outcome,
+            "env_event": env_event,
+            "fog": bool(match.fog),
         }
         return observation, reward, done, truncated, info

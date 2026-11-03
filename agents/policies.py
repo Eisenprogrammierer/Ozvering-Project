@@ -52,6 +52,7 @@ def _migrate_qtable_key(key):
         return head + (0, 0, 0, 0) + tail
     raise ValueError("unsupported qtable key length: %d" % len(key))
 
+
 COUNTERS = {
     ("FIRE", "EARTH"),
     ("EARTH", "WATER"),
@@ -66,6 +67,9 @@ def default_actions(observation):
         if observation.finished:
             return tuple()
         return (CampaignAction(END_DAY),)
+    # A9: пока идёт подготовка, единственное легальное действие — WAIT.
+    if getattr(observation, "self_busy", 0.0) > 0.0:
+        return (Action("WAIT", form="wait"),)
     actions = [Action("REST", form="rest")]
     if getattr(observation, "self_sickness", 0.0) > 0.0:
         actions.append(
@@ -91,6 +95,7 @@ def default_actions(observation):
 ACTION_FEATURE_CODES = {
     ("REST", "rest"): 0.00,
     ("REST", ""): 0.00,
+    ("WAIT", "wait"): 0.02,
     ("TREAT", "care"): 0.05,
     ("TREAT", ""): 0.05,
     ("WORK", "force"): 0.10,
@@ -201,15 +206,32 @@ def _clamp01(value):
 _OPP_REST = "REST"
 _OPP_TREAT = "TREAT"
 _OPP_WORK = "WORK"
+_OPP_WAIT = "WAIT"
 OPPONENT_STAT_SLOTS = 4
+# A9: дополнительные наблюдаемые слоты дуэльного вектора — уверенность
+# разведки, слабая точка, форма и доля подготовки противника.
+DUEL_OBS_SLOTS = 4
+
+
+def _pending_form_code(form):
+    """Код видимой подготовки противника: 0 — нет, 1 — force."""
+    form = str(form or "")
+    if form == "force":
+        return 1.0
+    if form == "info":
+        return 0.5
+    if form:
+        return 0.25
+    return 0.0
 
 
 def duel_features(observation, action):
     """Базовый 22-признаковый аренный вектор (без A8-статистик).
 
     Общая часть для `features()` и кампанейного диспетчера: BDI/MLP/QTable
-    остаются на 22 слотах; расширенный 26-слотовый вектор использует
-    только `DuelMLPPolicy` (A8 — оппонентное моделирование).
+    остаются на 22 слотах; расширенный 30-слотовый вектор использует
+    только `DuelMLPPolicy` (A8 — оппонентное моделирование, A9 — туман,
+    слабая точка и подготовка).
     """
     max_energy = max(1.0, observation.self_max_energy)
     max_force = max(1.0, observation.self_max_force)
@@ -254,7 +276,7 @@ class OpponentModel:
 
     Копит доли последних действий противника (REST, TREAT, атаки) и
     долю силовой формы среди атак; передаётся в `features()` как 4
-    дополнительных признака (вектор 22 -> 26). Модель не обучается
+    дополнительных признака (вектор 22 -> 30). Модель не обучается
     градиентами — это скользящая статистика (alpha по умолчанию 0.2),
     устойчивая к дрейфу стиля оппонента в self-play.
     """
@@ -280,13 +302,25 @@ class OpponentModel:
         """
         if isinstance(action, tuple):
             tag = action[0] if action else ""
-            kind, form = ("ATTACK", tag) if tag in ("force", "info") else (tag, "")
+            if tag in ("force", "info"):
+                kind, form = "ATTACK", tag
+            else:
+                kind, form = tag, ""
         else:
             kind = getattr(action, "kind", "") or ""
             form = getattr(action, "form", "") or ""
+            # `ArenaEnv` и `ArenaMatch.learn` передают сам `Action`, а не
+            # аренный тег: работа формы force/info — это атака, хотя её
+            # `kind` равен WORK. Без этого статистика оппонента видела только
+            # REST и моделировала «пассивного» противника.
+            if kind == _OPP_WORK and form in ("force", "info"):
+                kind = "ATTACK"
         is_rest = kind == _OPP_REST
         is_treat = kind == _OPP_TREAT
-        is_attack = not (is_rest or is_treat or kind == _OPP_WORK)
+        is_wait = kind == _OPP_WAIT
+        is_attack = not (
+            is_rest or is_treat or is_wait or kind == _OPP_WORK
+        )
         a = self.alpha
         self.rest += a * ((1.0 if is_rest else 0.0) - self.rest)
         self.treat += a * ((1.0 if is_treat else 0.0) - self.treat)
@@ -326,32 +360,42 @@ def features(observation, action, opponent_stats=None):
 
     Базовая длина — `FEATURE_COUNT` (22, общий канон для BDI/MLP/QTable).
     При переданной `opponent_stats` (A8) к вектору добавляются 4 слота
-    EMA-статистики оппонента — такой расширенный вектор (26) использует
-    только `DuelMLPPolicy`; для него длина выводится через
-    `feature_count_for()`.
+    EMA-статистики оппонента, а затем 4 наблюдаемых слота A9 — такой
+    расширенный вектор (30) использует только `DuelMLPPolicy`; для него
+    длина выводится через `feature_count_for()`.
     """
     base = duel_features(observation, action)
     if not opponent_stats:
         return base
     return base + tuple(
         _clamp01(value) for value in opponent_stats
+    ) + (
+        _clamp01(getattr(observation, "opponent_confidence", 1.0)),
+        _clamp01(getattr(observation, "opponent_weak_point", 0.0)),
+        _pending_form_code(
+            getattr(observation, "opponent_pending_form", "")
+        ),
+        _clamp01(getattr(observation, "opponent_pending_fraction", 0.0)),
     )
 
 
 def feature_count_for(opponent_stats=None):
     """Длина вектора `features()` для данного набора статистик."""
     if opponent_stats:
-        return FEATURE_COUNT + OPPONENT_STAT_SLOTS
+        return FEATURE_COUNT + OPPONENT_STAT_SLOTS + DUEL_OBS_SLOTS
     return FEATURE_COUNT
 
 
 FEATURE_COUNT = 22
 # A8: DuelMLPPolicy строит вектор из FEATURE_COUNT + OPPONENT_STAT_SLOTS
-# признаков; общая CHECKPOINT_VERSION (3) относится к политикам на
-# базовом векторе, duel-чекпойнты используют DUEL_CHECKPOINT_VERSION (4).
-DUEL_FEATURE_COUNT = FEATURE_COUNT + OPPONENT_STAT_SLOTS
+# признаков, A9 добавляет 4 наблюдаемых слота. Общая CHECKPOINT_VERSION (3)
+# относится к политикам на базовом векторе, duel-чекпойнты используют
+# DUEL_CHECKPOINT_VERSION (5).
+DUEL_FEATURE_COUNT = (
+    FEATURE_COUNT + OPPONENT_STAT_SLOTS + DUEL_OBS_SLOTS
+)
 CHECKPOINT_VERSION = 3
-DUEL_CHECKPOINT_VERSION = 4
+DUEL_CHECKPOINT_VERSION = 5
 LEGACY_CHECKPOINT_VERSION = 0
 
 
@@ -378,6 +422,8 @@ def dot(left, right):
 
 class RandomPolicy:
 
+    supports_campaign = True
+
     def __init__(self, seed=0):
         self.rng = random.Random(seed)
 
@@ -400,6 +446,8 @@ class RandomPolicy:
 
 
 class BDIPolicy:
+
+    supports_campaign = True
 
     def __init__(
         self,
@@ -642,6 +690,8 @@ class BDIPolicy:
 
 class QTablePolicy:
 
+    supports_campaign = True
+
     def __init__(
         self,
         seed=0,
@@ -759,7 +809,10 @@ class QTablePolicy:
             # ключей могут дать один новый) — берём среднее, а не перезапись.
             if parsed in migrated:
                 old_value, count = migrated[parsed]
-                migrated[parsed] = ((old_value * count + merged) / (count + 1), count + 1)
+                merged_mean = (
+                    old_value * count + merged
+                ) / (count + 1)
+                migrated[parsed] = (merged_mean, count + 1)
             else:
                 migrated[parsed] = (merged, 1)
         self.table = {key: value for key, (value, _count) in migrated.items()}
@@ -781,6 +834,8 @@ class MLPPolicy:
     только по выбранному действию. `BDIPolicy` и `QTablePolicy` остаются
     baseline и не меняются.
     """
+
+    supports_campaign = True
 
     def __init__(
         self,
@@ -1034,13 +1089,20 @@ class DuelMLPPolicy:
 
     A8: внутри ведётся `OpponentModel` (EMA-статистика действий
     противника); при наличии `transition.opponent_action` модель
-    обновляется до построения вектора, добавляя 4 признака к 22 базовым
-    (вектор = DUEL_FEATURE_COUNT = 26). Без статистики слоты равны нулю — старые
-    чекпойнты (v3, 22 признака) мигрируют с дополнением нулями.
+    обновляется после построения текущего вектора, добавляя 4 признака к
+    22 базовым. A9 добавляет ещё 4 наблюдаемых слота — уверенность
+    разведки, слабую точку и подготовку противника (вектор =
+    DUEL_FEATURE_COUNT = 30). Без статистики слоты равны нулю — старые
+    чекпойнты мигрируют с дополнением нулями.
 
     Ёмкость выше таблицы: обобщение по непрерывным нормированным
     признакам вместо 12-полевой квантованной сетки ключей QTable.
     """
+
+    # Аренный вектор читает только `Observation` из core41: у
+    # `CampaignObservation` нет `self_max_energy` и других дуэльных полей.
+    # Живой автопилот кампании обязан проверить этот флаг до `act()`.
+    supports_campaign = False
 
     def __init__(
         self,
@@ -1127,15 +1189,15 @@ class DuelMLPPolicy:
         return max(actions, key=lambda item: self.score(observation, item))
 
     def observe(self, transition):
-        # A8: сначала обновляем модель оппонента на действие противника
-        # этого шага (из info["ai_action"] или opponent_action), затем
-        # строим вектор — признаки отражают статистику ДО текущего хода.
+        # A9: вектор текущего такта строится по статистике ДО текущего
+        # действия противника; модель обновляется в конце. Иначе политика
+        # «подсматривала» бы действие, которое ещё не совершено.
         opponent_action = getattr(transition, "opponent_action", None)
         if opponent_action is None:
             info = getattr(transition, "info", None) or {}
-            opponent_action = info.get("ai_action")
-        if opponent_action is not None:
-            self.opponent_model.update(opponent_action)
+            opponent_action = info.get("opponent_action")
+            if opponent_action is None:
+                opponent_action = info.get("ai_action")
         vector = features(
             transition.observation,
             transition.action,
@@ -1169,6 +1231,8 @@ class DuelMLPPolicy:
             for feature_index, value in enumerate(vector):
                 row[feature_index] += delta * value
             self.bias1[index] += delta
+        if opponent_action is not None:
+            self.opponent_model.update(opponent_action)
         self.updates += 1
         if self.updates % self.target_sync == 0:
             self._sync_target()
@@ -1364,12 +1428,23 @@ def checkpoint_version(state):
         return LEGACY_CHECKPOINT_VERSION
 
 
+def supports_campaign(policy):
+    """Умеет ли политика выбирать действия по `CampaignObservation`.
+
+    Контракт политики один (`act/observe/state_dict`), но вектор признаков
+    разный: `DuelMLPPolicy` читает только аренные поля. Живой автопилот
+    кампании проверяет флаг до первого `act()`, а не ловит `AttributeError`
+    уже в игровом цикле.
+    """
+    return bool(getattr(policy, "supports_campaign", True))
+
+
 def load_policy(path, seed=0, kind=None):
     with open(path, encoding="utf-8") as handle:
         state = json.load(handle)
     policy_kind = kind or state.get("kind")
     version = checkpoint_version(state)
-    # A8: duel-MLP живёт на собственном формате (v4, вектор 26);
+    # A8/A9: duel-MLP живёт на собственном формате (v5, вектор 30);
     # остальные политики — на базовом CHECKPOINT_VERSION (v3, вектор 22).
     supported = (
         DUEL_CHECKPOINT_VERSION

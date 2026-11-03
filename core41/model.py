@@ -1,3 +1,4 @@
+import copy
 import math
 from dataclasses import dataclass, field
 
@@ -11,13 +12,21 @@ REST_FORCE = 0.6
 
 HEALTH_MAX = 100.0
 HEALTH_CRITICAL = 25.0
-# Калибровка 2026-10-29 (N=100, env on/off): 0.62/0.78 и
-# CAPTURE_STREAK=20 удерживают смерть/захват/таймаут/медиану в полосах
-# §2.3.2 и при включённом ArenaEnvironment.
+# Калибровка 2026-11-02 (A9, N=200, env on/off): одновременный бой и
+# штраф нападения от здоровья сделали дуэль смертельнее, поэтому доля
+# переполнения в здоровье снижена до 0.50, а голод ускорен до 1.25;
+# вместе с CAPTURE_STREAK=20 это удерживает полосы §2.3.2.
 HEALTH_REST_REGEN = 0.78
-HEALTH_STARVE_DECAY = 1.0
-HEALTH_DAMAGE_RATIO = 0.62
+HEALTH_STARVE_DECAY = 1.25
+HEALTH_DAMAGE_RATIO = 0.50
 HEALTH_FACTOR_MAX = 10.0
+# A9: здоровье влияет на нападение. Живой боец не теряет способности
+# действовать полностью: множитель не опускается ниже 0.5.
+HEALTH_ATTACK_FLOOR = 0.50
+# A9: разведка вскрывает слабую точку. Бонус к логиту успеха силовой
+# атаки и к её урону; действует только на `force`, не на `info`.
+INTEL_ATTACK_BONUS = 0.80
+INTEL_DAMAGE_BONUS = 0.25
 
 SICKNESS_MAX = 1.0
 SICKNESS_CRITICAL = 0.75
@@ -65,21 +74,39 @@ def sigmoid(value):
     return 1.0 / (1.0 + math.exp(-value))
 
 
-def success_probability(attacker, defender, work, is_open, env_bonus=0.0):
+def success_probability(
+    attacker,
+    defender,
+    work,
+    is_open,
+    env_bonus=0.0,
+    weak_point=0.0,
+):
     """Вероятность успеха работы (канон ядра 4-2-1).
 
     `env_bonus` — аддитивный бонус открытого окна среды (слой A1,
     `ENV_BONUS` легаси-канона `simulation`). По умолчанию 0.0, поэтому
     прежняя калибровка дуэлей и контрольного плеча `with_env=False`
     не меняется.
+
+    `weak_point` — свежая уязвимость, найденная разведкой (A9). Бонус
+    применяется только к силовой форме: информационная работа сама
+    вскрывает точку, но не пользуется ею.
     """
+    intel_bonus = 0.0
+    if work.form == "force" and weak_point > 0.0:
+        intel_bonus = INTEL_ATTACK_BONUS * min(1.0, float(weak_point))
     return sigmoid(
         -0.4
-        + 2.2 * attacker.skill(work.form) * attacker.work_effectiveness()
+        + 2.2
+        * attacker.skill(work.form)
+        * attacker.work_effectiveness()
+        * attacker.attack_effectiveness()
         + 1.3 * attacker.authority
         - 1.8 * defender.resistance(work.form)
         + (0.9 if is_open else 0.0)
         + float(env_bonus or 0.0)
+        + intel_bonus
         - 0.5 * min(1.0, work.amount / max(1.0, defender.max_force))
     )
 
@@ -165,7 +192,33 @@ class Automaton:
 
     @property
     def health_ratio(self):
-        return self.health / max(1.0, self.max_health)
+        return max(
+            0.0,
+            min(1.0, self.health / max(1.0, self.max_health)),
+        )
+
+    def attack_effectiveness(self):
+        """Множитель нападения от текущего здоровья (A9).
+
+        Полное здоровье даёт 1.0, критическое — около 0.5; боец остаётся
+        способным действовать, но бьёт слабее. Рана и болезнь уже входят
+        в `work_effectiveness`, поэтому здесь только здоровье.
+        """
+        return HEALTH_ATTACK_FLOOR + (
+            1.0 - HEALTH_ATTACK_FLOOR
+        ) * self.health_ratio
+
+    def clone_for_tick(self):
+        """Лёгкая копия для одновременного разрешения такта.
+
+        Копируются только изменяемые поля (`state`). Обработчики не
+        переносятся: резолвер такта вызывает чистые функции, а не
+        привязанные к `ArenaAgent` методы.
+        """
+        clone = copy.copy(self)
+        clone.state = dict(self.state)
+        clone.handlers = {}
+        return clone
 
     def health_factor(self, name):
         value = float(self.health_factors.get(name, 1.0))

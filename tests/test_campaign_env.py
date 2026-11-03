@@ -35,7 +35,7 @@ from core41.types import (
 
 
 def _run_random(env, rng, limit=80):
-    """Прогон случайной политики до done/truncated; возвращает (steps, info)."""
+    """Случайная политика до done/truncated: (steps, info)."""
     steps = 0
     info = {}
     while steps < limit:
@@ -125,7 +125,9 @@ def test_campaign_env_all_target_mode_exposes_multiple_targets():
 
 def test_campaign_env_first_target_mode_keeps_narrow_space():
     env = CampaignEnv(seed=2, max_days=5, target_mode="first")
-    targets = {action.target for action in env.legal_actions() if action.target}
+    targets = {
+        action.target for action in env.legal_actions() if action.target
+    }
     assert len(targets) <= 1
 
 
@@ -180,7 +182,9 @@ def test_campaign_env_truncates_at_horizon_without_outcome():
     env.reset(seed=1)
     truncated_seen = False
     for _ in range(30):
-        _obs, _reward, done, truncated, info = env.step(CampaignAction(END_DAY))
+        _obs, _reward, done, truncated, info = env.step(
+            CampaignAction(END_DAY)
+        )
         if truncated:
             truncated_seen = True
             assert done is False
@@ -354,7 +358,9 @@ def test_campaign_features_vector_shape_and_flags():
         attached=True,
     )
     end_day = campaign_features(observation, CampaignAction(END_DAY))
-    work = campaign_features(observation, CampaignAction("inspect", target="n"))
+    work = campaign_features(
+        observation, CampaignAction("inspect", target="n")
+    )
     heal = campaign_features(observation, CampaignAction("build_network"))
     # A1: длина кампанейного вектора выровнена с FEATURE_COUNT (22;
     # 22-й слот — окно среды, у кампании всегда 0.0).
@@ -473,7 +479,9 @@ def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
     arena_key = arena_table.key(arena_obs, Action("WORK", form="force"))
     # campaign-объект с тем же действием даёт другой ключ: таблицы не
     # смешиваются даже при совпадении action.kind.
-    campaign_same_action = campaign_table.key(observation, Action("WORK", form="force"))
+    campaign_same_action = campaign_table.key(
+        observation, Action("WORK", form="force")
+    )
     assert campaign_same_action != arena_key
     assert key[9] == END_DAY and arena_key[9] == "WORK"
     # Флаг среза сохраняется в чекпойнте и возвращается при загрузке.
@@ -638,7 +646,8 @@ def test_campaign_env_treat_wound_is_legal_only_when_wounded():
     env.engine.player_wound = 0.3
     kinds = [action.kind for action in env.legal_actions()]
     assert TREAT_WOUND in kinds
-    # Здоровье без ран: TREAT_SELF не обязан быть доступен — действия разделены.
+    # Здоровье без ран: TREAT_SELF не обязан быть доступен —
+    # действия разделены.
     assert TREAT_SELF not in kinds
 
 
@@ -648,7 +657,9 @@ def test_campaign_env_treat_wound_step_reduces_wound_not_sickness():
     env.engine.player_sickness = 0.2
     env.engine.player_wound = 0.4
     actions_left = env.engine.actions_left
-    _obs, reward, _done, _truncated, info = env.step(CampaignAction(TREAT_WOUND))
+    _obs, reward, _done, _truncated, info = env.step(
+        CampaignAction(TREAT_WOUND)
+    )
     result = info["result"]
     assert result["ok"] and result["action"] == TREAT_WOUND
     assert env.engine.player_wound == pytest.approx(0.15)

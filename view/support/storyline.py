@@ -72,24 +72,26 @@ def loss_limit_percent(storyline, default=DEFAULT_LOSS_LIMIT_PERCENT):
     return max(1, int(round(float(default))))
 
 
-def list_storylines():
+def list_storylines(directory=None):
+    root = os.path.abspath(directory or STORYLINES_DIR)
     storylines = []
-    if not os.path.isdir(STORYLINES_DIR):
-        logger.warning("Директория сюжетов не найдена: %s", STORYLINES_DIR)
+    if not os.path.isdir(root):
+        logger.warning("Директория сюжетов не найдена: %s", root)
         return storylines
-    for f in sorted(os.listdir(STORYLINES_DIR)):
+    for f in sorted(os.listdir(root)):
         if not f.endswith(".json"):
             continue
-        if "_char" in f or "_scenes" in f:
+        stem = os.path.splitext(f)[0]
+        if stem.endswith("_char") or stem.endswith("_scenes"):
             continue
-        path = os.path.join(STORYLINES_DIR, f)
+        path = os.path.join(root, f)
         data = load_json(path, None)
         if data is None:
             continue
         storylines.append(
             {
-                "storyline_id": data.get("storyline_id", f[:-5]),
-                "title": data.get("title", f[:-5]),
+                "storyline_id": data.get("storyline_id", stem),
+                "title": data.get("title", stem),
                 "description": data.get("description", ""),
             }
         )
@@ -97,8 +99,9 @@ def list_storylines():
     return storylines
 
 
-def load_storyline(storyline_id):
-    main_path = os.path.join(STORYLINES_DIR, f"{storyline_id}.json")
+def load_storyline(storyline_id, directory=None):
+    root = os.path.abspath(directory or STORYLINES_DIR)
+    main_path = os.path.join(root, f"{storyline_id}.json")
     main_data = load_json(main_path, None)
     if main_data is None:
         logger.warning(
@@ -108,12 +111,12 @@ def load_storyline(storyline_id):
     char_id = main_data.get("character_creation")
     char_data = {}
     if char_id:
-        char_path = os.path.join(STORYLINES_DIR, f"{char_id}.json")
+        char_path = os.path.join(root, f"{char_id}.json")
         char_data = load_json(char_path, {}) or {}
     scenes_id = main_data.get("scenes")
     scenes_data = {}
     if scenes_id:
-        scenes_path = os.path.join(STORYLINES_DIR, f"{scenes_id}.json")
+        scenes_path = os.path.join(root, f"{scenes_id}.json")
         scenes_data = load_json(scenes_path, {}) or {}
     logger.info(
         "load_storyline: '%s' загружен, шагов персонажа: %d, сцен: %d",
