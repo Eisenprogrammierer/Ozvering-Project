@@ -1,0 +1,877 @@
+{
+  "schema": 1,
+  "class": "exchange",
+  "label": "Обмен",
+  "description": "Торг, деньги, договор и посредничество; лексика рынка, гильдии, банка и каравана.",
+  "default_theme": "market",
+  "need_themes": {
+    "hunger": "market",
+    "thirst": "market",
+    "status": "market",
+    "knowledge": "guild",
+    "skill": "guild",
+    "creativity": "guild",
+    "fear": "bank",
+    "anxiety": "bank",
+    "health": "market",
+    "fatigue": "logistics",
+    "loneliness": "guild",
+    "friendship": "guild",
+    "love": "market",
+    "reproduction": "market",
+    "spirituality": "guild",
+    "boredom": "market"
+  },
+  "base": {
+    "heads": [
+      "rynok",
+      "yarmarka",
+      "birzha",
+      "bank",
+      "kassa",
+      "lavka",
+      "magazin",
+      "sklad",
+      "kontora",
+      "artel",
+      "liga",
+      "soyuz",
+      "kliring",
+      "obmen",
+      "torg",
+      "auktsion",
+      "port",
+      "pristan",
+      "tamozhnya",
+      "karavan",
+      "kompaniya",
+      "kooperativ",
+      "tovarishchestvo"
+    ],
+    "adjectives": [
+      "torgovy",
+      "rynochny",
+      "birzhevoy",
+      "bankovskiy",
+      "finansovy",
+      "denezhny",
+      "zolotoy",
+      "serebryany",
+      "medny",
+      "kupecheskiy",
+      "artelny",
+      "gildeyskiy",
+      "obmenny",
+      "raspredelitelny",
+      "skladskoy",
+      "portovyy",
+      "rechnoy",
+      "morskoy",
+      "karavanniy",
+      "dalniy",
+      "blizhniy",
+      "mestny",
+      "stolichny",
+      "nochnoy",
+      "tayny",
+      "cherny",
+      "krupny",
+      "melkiy",
+      "pribylny",
+      "nadezhny",
+      "chestny",
+      "khitriy",
+      "bystry",
+      "gibkiy",
+      "svobodny",
+      "otkryty",
+      "zakryty",
+      "dobrovolny",
+      "dogovornoy",
+      "posrednicheskiy",
+      "kliringovyy",
+      "nalogovyy",
+      "tamozhennyy"
+    ],
+    "dependents": [
+      "torg",
+      "obmen",
+      "sdelka",
+      "dogovor",
+      "kontrakt",
+      "tovar",
+      "usluga",
+      "postavka",
+      "perevozka",
+      "rynok",
+      "yarmarka",
+      "birzha",
+      "bank",
+      "kassa",
+      "dengi",
+      "zoloto",
+      "serebro",
+      "moneta",
+      "dolg",
+      "kredit",
+      "protsent",
+      "pribyl",
+      "nalog",
+      "poshlina",
+      "vznos",
+      "partiya",
+      "lot",
+      "auktsion",
+      "karavan",
+      "port",
+      "pristan",
+      "tamozhnya",
+      "sklad",
+      "kontora",
+      "artel",
+      "liga",
+      "soyuz",
+      "kupets",
+      "broker",
+      "tsena",
+      "kliring"
+    ],
+    "dependent_adjectives": [
+      "torgovy",
+      "rynochny",
+      "birzhevoy",
+      "bankovskiy",
+      "finansovy",
+      "denezhny",
+      "zolotoy",
+      "serebryany",
+      "medny",
+      "kupecheskiy",
+      "artelny",
+      "gildeyskiy",
+      "obmenny",
+      "raspredelitelny",
+      "skladskoy",
+      "portovyy",
+      "rechnoy",
+      "morskoy",
+      "karavanniy",
+      "dalniy",
+      "blizhniy",
+      "mestny",
+      "stolichny",
+      "nochnoy",
+      "tayny",
+      "cherny",
+      "krupny",
+      "melkiy",
+      "pribylny",
+      "nadezhny",
+      "chestny",
+      "khitriy",
+      "bystry",
+      "gibkiy",
+      "svobodny",
+      "otkryty",
+      "zakryty",
+      "dobrovolny",
+      "dogovornoy",
+      "posrednicheskiy",
+      "kliringovyy",
+      "nalogovyy",
+      "tamozhennyy"
+    ],
+    "extensions": [
+      "po_pervomu_trebovaniyu",
+      "bez_lishnikh_slov",
+      "po_pravu_silnogo",
+      "v_teni_zakona",
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  },
+  "themes": {
+    "market": {
+      "heads": [
+        "rynok",
+        "yarmarka",
+        "lavka",
+        "magazin",
+        "torg",
+        "auktsion",
+        "kassa",
+        "kontora",
+        "artel",
+        "kompaniya",
+        "kooperativ"
+      ],
+      "adjectives": [
+        "torgovy",
+        "rynochny",
+        "kupecheskiy",
+        "artelny",
+        "obmenny",
+        "svobodny",
+        "otkryty",
+        "chestny",
+        "khitriy",
+        "bystry",
+        "melkiy",
+        "krupny"
+      ],
+      "dependents": [
+        "tovar",
+        "usluga",
+        "sdelka",
+        "dogovor",
+        "kontrakt",
+        "obmen",
+        "torg",
+        "rynok",
+        "yarmarka",
+        "tsena",
+        "dengi",
+        "moneta",
+        "partiya",
+        "lot",
+        "auktsion",
+        "kupets",
+        "broker"
+      ],
+      "dependent_adjectives": [
+        "torgovy",
+        "rynochny",
+        "kupecheskiy",
+        "obmenny",
+        "chestny",
+        "bystry",
+        "melkiy",
+        "krupny",
+        "pribylny"
+      ]
+    },
+    "guild": {
+      "heads": [
+        "liga",
+        "soyuz",
+        "artel",
+        "tovarishchestvo",
+        "kompaniya",
+        "kooperativ",
+        "kontora",
+        "sklad",
+        "bank",
+        "birzha"
+      ],
+      "adjectives": [
+        "artelny",
+        "gildeyskiy",
+        "kupecheskiy",
+        "nadezhny",
+        "chestny",
+        "dogovornoy",
+        "posrednicheskiy",
+        "finansovy",
+        "bankovskiy"
+      ],
+      "dependents": [
+        "tovar",
+        "usluga",
+        "postavka",
+        "perevozka",
+        "kontrakt",
+        "dogovor",
+        "soyuz",
+        "liga",
+        "artel",
+        "vznos",
+        "dolg",
+        "kredit",
+        "pribyl",
+        "nalog",
+        "poshlina",
+        "kliring"
+      ],
+      "dependent_adjectives": [
+        "artelny",
+        "gildeyskiy",
+        "kupecheskiy",
+        "nadezhny",
+        "chestny",
+        "dogovornoy",
+        "posrednicheskiy",
+        "finansovy",
+        "bankovskiy",
+        "kliringovyy"
+      ]
+    },
+    "bank": {
+      "heads": [
+        "bank",
+        "birzha",
+        "kassa",
+        "kliring",
+        "kontora",
+        "soyuz",
+        "kompaniya",
+        "palata"
+      ],
+      "adjectives": [
+        "bankovskiy",
+        "finansovy",
+        "denezhny",
+        "birzhevoy",
+        "kliringovyy",
+        "nalogovyy",
+        "nadezhny",
+        "zakryty",
+        "krupny"
+      ],
+      "dependents": [
+        "dengi",
+        "zoloto",
+        "serebro",
+        "moneta",
+        "dolg",
+        "kredit",
+        "protsent",
+        "pribyl",
+        "nalog",
+        "poshlina",
+        "vznos",
+        "kliring",
+        "sdelka",
+        "kontrakt",
+        "bank"
+      ],
+      "dependent_adjectives": [
+        "bankovskiy",
+        "finansovy",
+        "denezhny",
+        "birzhevoy",
+        "kliringovyy",
+        "nalogovyy",
+        "nadezhny",
+        "zakryty",
+        "krupny"
+      ]
+    },
+    "logistics": {
+      "heads": [
+        "port",
+        "pristan",
+        "tamozhnya",
+        "karavan",
+        "sklad",
+        "kontora",
+        "kompaniya",
+        "artel",
+        "kooperativ"
+      ],
+      "adjectives": [
+        "portovyy",
+        "rechnoy",
+        "morskoy",
+        "karavanniy",
+        "skladskoy",
+        "tamozhennyy",
+        "bystry",
+        "nadezhny",
+        "dalniy",
+        "blizhniy"
+      ],
+      "dependents": [
+        "tovar",
+        "postavka",
+        "perevozka",
+        "karavan",
+        "port",
+        "pristan",
+        "tamozhnya",
+        "sklad",
+        "marshrut",
+        "put",
+        "doroga",
+        "kontrakt",
+        "dogovor",
+        "partiya",
+        "lot",
+        "usluga"
+      ],
+      "dependent_adjectives": [
+        "portovyy",
+        "rechnoy",
+        "morskoy",
+        "karavanniy",
+        "skladskoy",
+        "tamozhennyy",
+        "bystry",
+        "nadezhny",
+        "dalniy",
+        "blizhniy"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "lavka",
+        "kassa",
+        "artel",
+        "gruppa",
+        "komanda",
+        "karavan",
+        "kontora",
+        "sklad"
+      ],
+      "adjectives": [
+        "mestny",
+        "melkiy",
+        "bystry",
+        "khitriy",
+        "nochnoy",
+        "skromny"
+      ]
+    },
+    "2": {
+      "heads": [
+        "rynok",
+        "yarmarka",
+        "magazin",
+        "kompaniya",
+        "kooperativ",
+        "tovarishchestvo",
+        "liga",
+        "soyuz",
+        "port",
+        "pristan",
+        "tamozhnya",
+        "sklad",
+        "bank",
+        "birzha"
+      ],
+      "adjectives": [
+        "gorodskoy",
+        "stolichny",
+        "torgovy",
+        "rynochny",
+        "finansovy",
+        "bankovskiy",
+        "nadezhny"
+      ]
+    },
+    "3": {
+      "heads": [
+        "bank",
+        "birzha",
+        "soyuz",
+        "liga",
+        "kompaniya",
+        "palata",
+        "soviet",
+        "glavk",
+        "gosudarstvo"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "glavny",
+        "tsentralny",
+        "finansovy",
+        "bankovskiy",
+        "krupny",
+        "gosudarstvenny",
+        "federalny",
+        "nadezhny"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "offer",
+        "label": "предложение",
+        "kind": "information",
+        "keywords": [
+          "цена",
+          "товар",
+          "услуга",
+          "срок",
+          "качество",
+          "условие",
+          "слово",
+          "выгода"
+        ]
+      },
+      {
+        "id": "demand",
+        "label": "спрос",
+        "kind": "information",
+        "keywords": [
+          "нужда",
+          "очередь",
+          "желание",
+          "цена",
+          "слух",
+          "мода",
+          "голод",
+          "страх"
+        ]
+      },
+      {
+        "id": "payment",
+        "label": "плата",
+        "kind": "resource",
+        "keywords": [
+          "деньги",
+          "золото",
+          "серебро",
+          "долг",
+          "кредит",
+          "вексель",
+          "доля",
+          "процент"
+        ]
+      },
+      {
+        "id": "goods",
+        "label": "товар",
+        "kind": "resource",
+        "keywords": [
+          "хлеб",
+          "ткань",
+          "металл",
+          "оружие",
+          "соль",
+          "лекарство",
+          "скот",
+          "инструмент"
+        ]
+      },
+      {
+        "id": "route",
+        "label": "маршрут",
+        "kind": "logistics",
+        "keywords": [
+          "дорога",
+          "порт",
+          "караван",
+          "склад",
+          "граница",
+          "срок",
+          "риск",
+          "таможня"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "deal",
+        "label": "сделка",
+        "kind": "event",
+        "keywords": [
+          "договор",
+          "цена",
+          "рука",
+          "слово",
+          "печать",
+          "свидетель",
+          "срок",
+          "выгода"
+        ]
+      },
+      {
+        "id": "profit",
+        "label": "прибыль",
+        "kind": "resource",
+        "keywords": [
+          "выручка",
+          "доля",
+          "процент",
+          "наценка",
+          "баланс",
+          "золото",
+          "успех",
+          "риск"
+        ]
+      },
+      {
+        "id": "delivery",
+        "label": "поставка",
+        "kind": "resource",
+        "keywords": [
+          "партия",
+          "обоз",
+          "караван",
+          "склад",
+          "срок",
+          "адрес",
+          "груз",
+          "печать"
+        ]
+      },
+      {
+        "id": "credit",
+        "label": "кредит",
+        "kind": "resource",
+        "keywords": [
+          "долг",
+          "процент",
+          "срок",
+          "залог",
+          "доверие",
+          "вексель",
+          "риск",
+          "слово"
+        ]
+      },
+      {
+        "id": "reputation",
+        "label": "репутация",
+        "kind": "status",
+        "keywords": [
+          "имя",
+          "слово",
+          "надёжность",
+          "слух",
+          "цена",
+          "доверие",
+          "печать",
+          "память"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "bargaining",
+        "label": "торг",
+        "kind": "state",
+        "keywords": [
+          "цена",
+          "слово",
+          "пауза",
+          "взгляд",
+          "уступка",
+          "риск",
+          "выгода",
+          "обман"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "договор",
+        "kind": "state",
+        "keywords": [
+          "печать",
+          "подпись",
+          "свидетель",
+          "срок",
+          "слово",
+          "копия",
+          "залог",
+          "рука"
+        ]
+      },
+      {
+        "id": "delivery_state",
+        "label": "доставка",
+        "kind": "state",
+        "keywords": [
+          "дорога",
+          "караван",
+          "груз",
+          "охрана",
+          "срок",
+          "порт",
+          "таможня",
+          "риск"
+        ]
+      },
+      {
+        "id": "default",
+        "label": "неисполнение",
+        "kind": "state",
+        "keywords": [
+          "долг",
+          "позор",
+          "суд",
+          "угроза",
+          "потеря",
+          "слух",
+          "граница",
+          "разрыв"
+        ]
+      },
+      {
+        "id": "boom",
+        "label": "оживление",
+        "kind": "state",
+        "keywords": [
+          "шум",
+          "цена",
+          "поток",
+          "удача",
+          "толпа",
+          "золото",
+          "слух",
+          "праздник"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "broker",
+        "label": "посредник",
+        "kind": "nested_automaton",
+        "keywords": [
+          "цена",
+          "слово",
+          "слух",
+          "связь",
+          "выгода",
+          "риск",
+          "доверие",
+          "тайна"
+        ]
+      },
+      {
+        "id": "caravan_guard",
+        "label": "караванная охрана",
+        "kind": "nested_automaton",
+        "keywords": [
+          "дорога",
+          "груз",
+          "охрана",
+          "ночлег",
+          "риск",
+          "порт",
+          "таможня",
+          "слово"
+        ]
+      },
+      {
+        "id": "clerk",
+        "label": "писарь",
+        "kind": "nested_automaton",
+        "keywords": [
+          "счёт",
+          "печать",
+          "список",
+          "долг",
+          "срок",
+          "копия",
+          "подпись",
+          "архив"
+        ]
+      },
+      {
+        "id": "price_scheme",
+        "label": "схема цен",
+        "kind": "scheme",
+        "keywords": [
+          "спрос",
+          "запас",
+          "цена",
+          "наценка",
+          "риск",
+          "срок",
+          "слух",
+          "порог"
+        ]
+      },
+      {
+        "id": "contract_scheme",
+        "label": "схема договора",
+        "kind": "scheme",
+        "keywords": [
+          "условие",
+          "срок",
+          "залог",
+          "свидетель",
+          "печать",
+          "исключение",
+          "спор",
+          "цена"
+        ]
+      },
+      {
+        "id": "risk_scheme",
+        "label": "схема рисков",
+        "kind": "scheme",
+        "keywords": [
+          "риск",
+          "потеря",
+          "цена",
+          "дорога",
+          "долг",
+          "слух",
+          "запас",
+          "порог"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "competitors",
+        "label": "конкуренты",
+        "kind": "actor",
+        "keywords": [
+          "цена",
+          "перехват",
+          "слух",
+          "товар",
+          "демпинг",
+          "союз",
+          "удар",
+          "тайна"
+        ]
+      },
+      {
+        "id": "authority",
+        "label": "власть",
+        "kind": "actor",
+        "keywords": [
+          "налог",
+          "пошлина",
+          "разрешение",
+          "проверка",
+          "запрет",
+          "суд",
+          "печать",
+          "охрана"
+        ]
+      },
+      {
+        "id": "bankers",
+        "label": "банкиры",
+        "kind": "actor",
+        "keywords": [
+          "кредит",
+          "процент",
+          "долг",
+          "залог",
+          "риск",
+          "доверие",
+          "золото",
+          "слух"
+        ]
+      },
+      {
+        "id": "road",
+        "label": "дорога и таможня",
+        "kind": "environment",
+        "keywords": [
+          "караван",
+          "порт",
+          "граница",
+          "пошлина",
+          "разбой",
+          "погода",
+          "срок",
+          "склад"
+        ]
+      }
+    ]
+  }
+}

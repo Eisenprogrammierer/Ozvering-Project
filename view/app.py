@@ -51,6 +51,16 @@ class _ArenaHostScreen(BaseScreen):
             logger.warning("Арена: ошибка draw: %s", exc)
 
 
+class _AutomataSaveState:
+    """Минимальный адаптер снимка автоматов к формату сохранения."""
+
+    def __init__(self, snapshot):
+        self.snapshot = dict(snapshot or {})
+
+    def to_snapshot(self):
+        return {"automata": self.snapshot}
+
+
 def _build_logger(name):
     logger = logging.getLogger(name)
     if not logger.handlers:
@@ -147,6 +157,7 @@ class App:
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None
+        self.automata_campaign = None
         from .ui.music_manager import MusicManager
 
         self.music = MusicManager(
@@ -156,17 +167,28 @@ class App:
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
+        from campaign.errors import CampaignError
 
         self.content = Content()
-        state = build_world(content=self.content)
+        state = None
+        if self.role_catalog is not None:
+            try:
+                state = build_world(content=self.content)
+            except (ValueError, CampaignError) as exc:
+                logger.warning("Базовый военный мир не собран: %s", exc)
         self.state = state
-        self.engine = CampaignEngine(state)
-        self.engine.engagements = getattr(state, "engagements", [])
-        self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(
-            state, engine=self.engine, app=self
-        )
-        self.engine.time_system = self.time_system
+        if state is None:
+            self.engine = None
+            self.player_idx = 0
+            self.time_system = None
+        else:
+            self.engine = CampaignEngine(state)
+            self.engine.engagements = getattr(state, "engagements", [])
+            self.player_idx = state.player_idx
+            self.time_system = CampaignTimeSystem(
+                state, engine=self.engine, app=self
+            )
+            self.engine.time_system = self.time_system
         from .ui.time_hud import TimeHUD
 
         self.time_hud = TimeHUD(self)
@@ -275,6 +297,7 @@ class App:
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None
+        self.automata_campaign = None
         self.strategy = None
         self.strategy_config = None
         self.world = None
@@ -354,6 +377,82 @@ class App:
         )
         self._play_next_scene()
 
+    def _start_automata_storyline(self, storyline, role):
+        from campaign.automata import AutomataCampaign
+        from view.support.storyline import StorylineInterpreter
+
+        preset = self.campaign_preset
+        self.automata_campaign = AutomataCampaign(
+            preset, seed=self._campaign_seed(storyline)
+        )
+        self.state = None
+        self.engine = None
+        self.player_idx = 0
+        self.time_system = None
+        self.strategy = None
+        self.strategy_config = None
+        self.world = None
+        self.player_profile = None
+        self.pending_storyline_outcome = None
+        self.storyline_interpreter = StorylineInterpreter(self, storyline)
+        interp = self.storyline_interpreter
+        interp.set_variable("campaign_mode", "automata")
+        for key, value in (role.grants or {}).items():
+            interp.set_variable(str(key), value)
+        interp.set_variable("player_role", role.id)
+        interp.set_variable("player_role_label", role.label)
+        interp.set_variable("player_faction_id", preset.player_faction_id)
+        interp.set_variable("campaign_preset_id", preset.preset_id)
+        interp.set_variable("player_side", self.automata_campaign.player_side)
+        interp.set_variable("enemy_side", self.automata_campaign.rival_side)
+        player_character = preset.player_character or {}
+        player_faction = preset.player_faction or {}
+        enemy_faction = preset.enemy_faction or {}
+        player_organization = preset.player_organization or {}
+        enemy_organization = (
+            preset.organization(enemy_faction.get("organization_id")) or {}
+        )
+        interp.set_variable(
+            "player_character_id", player_character.get("id")
+        )
+        interp.set_variable(
+            "player_character_name",
+            player_character.get("name") or "Лидер фракции",
+        )
+        interp.set_variable(
+            "player_faction_name", player_faction.get("name") or "ваша фракция"
+        )
+        interp.set_variable(
+            "enemy_faction_name", enemy_faction.get("name") or "противник"
+        )
+        interp.set_variable(
+            "player_organization_name",
+            player_organization.get("name") or "организация",
+        )
+        interp.set_variable(
+            "enemy_organization_name",
+            enemy_organization.get("name") or "чужая организация",
+        )
+        interp.set_variable(
+            "player_faction_goals", player_faction.get("goals") or []
+        )
+        populations = preset.scenario.get("populations") or {}
+        interp.set_variable(
+            "player_companies", int(populations.get(preset.player_side, 0))
+        )
+        interp.set_variable(
+            "enemy_companies", int(populations.get(preset.enemy_side, 0))
+        )
+        interp.state["automata"] = self.automata_campaign.snapshot()
+        logger.info(
+            "Кампания автоматов запущена: %s; роль=%s; игрок=%s; ходов=%d",
+            storyline.get("storyline_id", "?"),
+            role.id,
+            self.automata_campaign.player_side,
+            self.automata_campaign.max_turns,
+        )
+        self._play_next_scene()
+
     def start_storyline(self, storyline, faction_id=None):
         from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
@@ -382,6 +481,10 @@ class App:
             player_faction_id=self.selected_faction_id,
         )
         self.selected_faction_id = self.campaign_preset.player_faction_id
+        if str(self.campaign_preset.scenario.get("mode") or "") == "automata":
+            self._start_automata_storyline(storyline, role)
+            return
+        self.automata_campaign = None
         self.scenario_path = storyline.get(
             "scenario_path", "scenarios/mvp.json"
         )
@@ -549,8 +652,12 @@ class App:
             self._play_gameplay(scene)
         elif scene_type == "strategy":
             self._play_strategy(scene)
+        elif scene_type == "automata":
+            self._play_automata(scene)
         elif scene_type == "gameplay":
-            if self._is_strategy_campaign():
+            if self._is_automata_campaign():
+                self._play_automata(scene)
+            elif self._is_strategy_campaign():
                 self._play_strategy(scene)
             else:
                 self._play_gameplay(scene)
@@ -695,6 +802,15 @@ class App:
                 return True
         return self.world is not None
 
+    def _is_automata_campaign(self):
+        if getattr(self, "automata_campaign", None) is not None:
+            return True
+        preset = self.campaign_preset
+        return bool(
+            preset is not None
+            and str(preset.scenario.get("mode") or "") == "automata"
+        )
+
     def _is_strategy_campaign(self):
         preset = self.campaign_preset
         if preset is not None:
@@ -743,6 +859,27 @@ class App:
             "Стратегическая кампания открыта: %s, день=%d",
             self.strategy_config.get("title", "?"),
             self.strategy.day,
+        )
+
+    def _play_automata(self, scene):
+        from .screens.automata_screen import AutomataScreen
+
+        campaign = getattr(self, "automata_campaign", None)
+        if campaign is None:
+            from campaign.automata import AutomataCampaign
+
+            campaign = AutomataCampaign(
+                self.campaign_preset,
+                seed=self.campaign_preset.seed,
+            )
+            self.automata_campaign = campaign
+        self.music.request_category("ambient")
+        self.manager.replace_all(AutomataScreen(self, campaign))
+        logger.info(
+            "Кампания автоматов открыта: %s, ход=%d/%d",
+            campaign.preset_id,
+            campaign.turn,
+            campaign.max_turns,
         )
 
     def _play_gameplay(self, scene):
@@ -794,6 +931,7 @@ class App:
     def _return_to_menu(self):
         self.storyline_interpreter = None
         self.pending_storyline_outcome = None
+        self.automata_campaign = None
         self.strategy = None
         self.strategy_config = None
         self.world = None
@@ -870,7 +1008,77 @@ class App:
         )
         return len(results)
 
+    def _save_automata_game(self, slot_name, campaign):
+        from view.support.save_system import save_game as do_save
+
+        storyline_snapshot = None
+        if self.storyline_interpreter is not None:
+            storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
+        path = do_save(
+            _AutomataSaveState(campaign.save_snapshot()),
+            None,
+            slot_name,
+            scenario_path="automata",
+            storyline_snapshot=storyline_snapshot,
+            campaign_role=self.selected_role,
+            campaign_preset=self.campaign_preset,
+        )
+        logger.info(
+            "Сохранение автоматов записано: слот=%s, ход=%d",
+            slot_name,
+            campaign.turn,
+        )
+        return path
+
+    def _load_automata_game(self, snapshot, preset, automata_snapshot):
+        from campaign.automata import AutomataCampaign
+        from view.support.storyline import (
+            StorylineInterpreter,
+            load_storyline,
+        )
+
+        if preset is None:
+            logger.warning(
+                "Сохранение автоматов без пресета: восстановление невозможно"
+            )
+            return False
+        self.state = None
+        self.engine = None
+        self.player_idx = 0
+        self.time_system = None
+        self.strategy = None
+        self.strategy_config = None
+        self.world = None
+        self.world_config = None
+        self.player_profile = None
+        self.pending_storyline_outcome = None
+        self.automata_campaign = AutomataCampaign(
+            preset, snapshot=automata_snapshot
+        )
+        self.storyline_interpreter = None
+        storyline_snapshot = snapshot.get("storyline")
+        if storyline_snapshot:
+            storyline_id = storyline_snapshot.get("storyline_id")
+            storyline = load_storyline(storyline_id) if storyline_id else None
+            if storyline is not None:
+                self.storyline_interpreter = StorylineInterpreter(
+                    self, storyline
+                )
+                self.storyline_interpreter.load_from_snapshot(
+                    storyline_snapshot
+                )
+        from .screens.automata_screen import AutomataScreen
+
+        self.music.request_category("ambient")
+        self.manager.replace_all(
+            AutomataScreen(self, self.automata_campaign)
+        )
+        return True
+
     def save_game(self, slot_name):
+        campaign = getattr(self, "automata_campaign", None)
+        if campaign is not None:
+            return self._save_automata_game(slot_name, campaign)
         if self.engine is None or self.time_system is None:
             return None
         self.engine.state.engagements = list(self.engine.engagements)
@@ -958,6 +1166,18 @@ class App:
                     self.selected_role = self.role_catalog.role(role_id)
                 except Exception:
                     logger.warning("Роль из сохранения не прочитана: %s", exc)
+        automata_snapshot = (snapshot.get("campaign") or {}).get(
+            "automata"
+        )
+        if automata_snapshot is not None:
+            if self._load_automata_game(
+                snapshot, preset, automata_snapshot
+            ):
+                logger.info(
+                    "Загрузка автоматов выполнена: слот=%s", slot_name
+                )
+                return True
+            return False
         state = build_world(
             scenario_path=scenario_path,
             campaign_snapshot=snapshot.get("campaign", {}),

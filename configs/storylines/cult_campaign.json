@@ -1,0 +1,36 @@
+{
+  "storyline_id": "cult_campaign",
+  "title": "Культ Земли: энтропия во плоти",
+  "description": "Кампания за Культ Земли: размывать лояльность государств и не потерять нарратив.",
+  "campaign_template": "configs/campaigns/cult_campaign.json",
+  "campaign_seed": 7,
+  "scenes": "cult_campaign_scenes",
+  "win_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/cult_win",
+        "text": "Империя не проиграла бой, но потеряла веру в собственную правоту. Этого достаточно: государства держатся не только на штыках."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/cult_lose",
+        "text": "Нарратив рассыпался. Общины ещё существуют, но никто больше не готов умирать за слова верховного жреца."
+      }
+    ]
+  }
+}

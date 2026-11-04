@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "template_id": "cult_campaign",
+  "title": "Культ Земли: энтропия во плоти",
+  "description": "Вы — верховный жрец. У Культа нет армии, способной победить государства в поле. Его работа — менять то, во что люди верят, размывать чужую лояльность и превращать обиду в общину. Ваша слабость — низкая энергия и зависимость от нарратива.",
+  "factions_path": "base/lore_factions.json",
+  "default_seed": 7,
+  "player_side": "green",
+  "enemy_side": "red",
+  "faction_slots": {
+    "player": "green",
+    "enemy": "red"
+  },
+  "scenario": {
+    "mode": "automata",
+    "turns": 72,
+    "characters_per_faction": 10,
+    "rivals": {
+      "red": "blue",
+      "blue": "red",
+      "green": "red",
+      "amber": "red"
+    },
+    "model": {
+      "success_base": -0.05,
+      "success_slope": 1.9,
+      "organization_cohesion": 0.06,
+      "organization_legitimacy": 0.03,
+      "organization_supply_drain": 0.005,
+      "organization_fear": 0.02,
+      "collapse_streak": 3,
+      "effect_scale": 0.45,
+      "asset_relax": 0.06
+    },
+    "outcome": {
+      "streak_turns": 3,
+      "defeat": {
+        "green": {
+          "legitimacy": 0.05,
+          "cohesion": 0.04
+        },
+        "red": {
+          "legitimacy": 0.08
+        }
+      },
+      "score_margin": 0.045,
+      "score_bias": 0.007,
+      "score_basis": "progress"
+    },
+    "upkeep": {
+      "supply": 0.004,
+      "energy": 0.003
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "ruins",
+      "crossroads",
+      "storm",
+      "fog"
+    ],
+    "drift_chance": 0.2
+  },
+  "events": {
+    "categories": [
+      "war",
+      "politics",
+      "society",
+      "economy",
+      "disaster"
+    ],
+    "count": 8,
+    "context": {
+      "place": "«Двойная переправа»",
+      "object": "глиняная печать общины",
+      "cause": "проповедь у братской могилы",
+      "consequence": "люди слушают не приказ, а обещание смысла",
+      "amount": "сорок общин"
+    }
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}

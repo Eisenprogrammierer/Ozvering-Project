@@ -294,6 +294,38 @@ def check_storyline_condition(condition, state, time_system, storyline_state):
             result = snapshot.get("outcome") == condition.get("value")
         else:
             result = False
+    elif t.startswith("automata_"):
+        snapshot = storyline_state.get("automata") or {}
+        factions = snapshot.get("factions") or {}
+        if t == "automata_outcome":
+            result = snapshot.get("outcome") == condition.get("value")
+        elif t == "automata_turn_at_least":
+            result = int(snapshot.get("turn", 0)) >= int(
+                condition.get("value", 0)
+            )
+        elif t in (
+            "automata_asset_at_least",
+            "automata_asset_at_most",
+        ):
+            side = str(condition.get("side") or "")
+            asset = str(condition.get("asset") or "")
+            value = float(
+                ((factions.get(side) or {}).get("assets") or {}).get(
+                    asset, 0.0
+                )
+            )
+            threshold = float(condition.get("value", 0.0))
+            if t == "automata_asset_at_least":
+                result = value >= threshold
+            else:
+                result = value <= threshold
+        elif t == "automata_faction_dissolved":
+            side = str(condition.get("side") or "")
+            result = bool(
+                (factions.get(side) or {}).get("dissolved", False)
+            )
+        else:
+            result = False
     else:
         result = False
     logger.debug("check_storyline_condition: тип=%s, результат=%s", t, result)
@@ -388,6 +420,10 @@ class StorylineInterpreter:
         logger.debug("resolve_variant: вариант не применён")
         return self._interpolate_value(scene)
 
+    def _state(self):
+        engine = getattr(self.app, "engine", None)
+        return getattr(engine, "state", None)
+
     def check_win_conditions(self):
         conditions = self.storyline.get("win_conditions", [])
         if not conditions:
@@ -395,8 +431,8 @@ class StorylineInterpreter:
         result = all(
             check_storyline_condition(
                 c,
-                self.app.engine.state,
-                self.app.time_system,
+                self._state(),
+                getattr(self.app, "time_system", None),
                 self.state,
             )
             for c in conditions
@@ -411,8 +447,8 @@ class StorylineInterpreter:
         result = any(
             check_storyline_condition(
                 c,
-                self.app.engine.state,
-                self.app.time_system,
+                self._state(),
+                getattr(self.app, "time_system", None),
                 self.state,
             )
             for c in conditions

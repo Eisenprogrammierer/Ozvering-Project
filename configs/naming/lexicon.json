@@ -1,0 +1,4471 @@
+{
+  "schema": 1,
+  "language": "ru",
+  "words": {
+    "gvardiya": {
+      "kind": "noun",
+      "nom": "гвардия",
+      "gen": "гвардии",
+      "gender": "f"
+    },
+    "korpus": {
+      "kind": "noun",
+      "nom": "корпус",
+      "gen": "корпуса",
+      "gender": "m"
+    },
+    "sluzhba": {
+      "kind": "noun",
+      "nom": "служба",
+      "gen": "службы",
+      "gender": "f"
+    },
+    "upravlenie": {
+      "kind": "noun",
+      "nom": "управление",
+      "gen": "управления",
+      "gender": "n"
+    },
+    "komitet": {
+      "kind": "noun",
+      "nom": "комитет",
+      "gen": "комитета",
+      "gender": "m"
+    },
+    "otdel": {
+      "kind": "noun",
+      "nom": "отдел",
+      "gen": "отдела",
+      "gender": "m"
+    },
+    "departament": {
+      "kind": "noun",
+      "nom": "департамент",
+      "gen": "департамента",
+      "gender": "m"
+    },
+    "direktorat": {
+      "kind": "noun",
+      "nom": "директорат",
+      "gen": "директората",
+      "gender": "m"
+    },
+    "ministerstvo": {
+      "kind": "noun",
+      "nom": "министерство",
+      "gen": "министерства",
+      "gender": "n"
+    },
+    "vedomstvo": {
+      "kind": "noun",
+      "nom": "ведомство",
+      "gen": "ведомства",
+      "gender": "n"
+    },
+    "inspektsiya": {
+      "kind": "noun",
+      "nom": "инспекция",
+      "gen": "инспекции",
+      "gender": "f"
+    },
+    "politsiya": {
+      "kind": "noun",
+      "nom": "полиция",
+      "gen": "полиции",
+      "gender": "f"
+    },
+    "zhandarmeriya": {
+      "kind": "noun",
+      "nom": "жандармерия",
+      "gen": "жандармерии",
+      "gender": "f"
+    },
+    "militsiya": {
+      "kind": "noun",
+      "nom": "милиция",
+      "gen": "милиции",
+      "gender": "f"
+    },
+    "strazha": {
+      "kind": "noun",
+      "nom": "стража",
+      "gen": "стражи",
+      "gender": "f"
+    },
+    "patrul": {
+      "kind": "noun",
+      "nom": "патруль",
+      "gen": "патруля",
+      "gender": "m",
+      "forms": {
+        "ins": "патрулём"
+      }
+    },
+    "legion": {
+      "kind": "noun",
+      "nom": "легион",
+      "gen": "легиона",
+      "gender": "m"
+    },
+    "divizion": {
+      "kind": "noun",
+      "nom": "дивизион",
+      "gen": "дивизиона",
+      "gender": "m"
+    },
+    "brigada": {
+      "kind": "noun",
+      "nom": "бригада",
+      "gen": "бригады",
+      "gender": "f"
+    },
+    "polk": {
+      "kind": "noun",
+      "nom": "полк",
+      "gen": "полка",
+      "gender": "m"
+    },
+    "otryad": {
+      "kind": "noun",
+      "nom": "отряд",
+      "gen": "отряда",
+      "gender": "m"
+    },
+    "zastava": {
+      "kind": "noun",
+      "nom": "застава",
+      "gen": "заставы",
+      "gender": "f"
+    },
+    "garnizon": {
+      "kind": "noun",
+      "nom": "гарнизон",
+      "gen": "гарнизона",
+      "gender": "m"
+    },
+    "shtab": {
+      "kind": "noun",
+      "nom": "штаб",
+      "gen": "штаба",
+      "gender": "m"
+    },
+    "soviet": {
+      "kind": "noun",
+      "nom": "совет",
+      "gen": "совета",
+      "gender": "m"
+    },
+    "tribunal": {
+      "kind": "noun",
+      "nom": "трибунал",
+      "gen": "трибунала",
+      "gender": "m"
+    },
+    "komendatura": {
+      "kind": "noun",
+      "nom": "комендатура",
+      "gen": "комендатуры",
+      "gender": "f"
+    },
+    "kontrrazvedka": {
+      "kind": "noun",
+      "nom": "контрразведка",
+      "gen": "контрразведки",
+      "gender": "f"
+    },
+    "razvedka": {
+      "kind": "noun",
+      "nom": "разведка",
+      "gen": "разведки",
+      "gender": "f"
+    },
+    "spetznaz": {
+      "kind": "noun",
+      "nom": "спецназ",
+      "gen": "спецназа",
+      "gender": "m"
+    },
+    "okhrana": {
+      "kind": "noun",
+      "nom": "охрана",
+      "gen": "охраны",
+      "gender": "f"
+    },
+    "bezopasnost": {
+      "kind": "noun",
+      "nom": "безопасность",
+      "gen": "безопасности",
+      "gender": "f"
+    },
+    "poryadok": {
+      "kind": "noun",
+      "nom": "порядок",
+      "gen": "порядка",
+      "gender": "m"
+    },
+    "zakon": {
+      "kind": "noun",
+      "nom": "закон",
+      "gen": "закона",
+      "gender": "m"
+    },
+    "sila": {
+      "kind": "noun",
+      "nom": "сила",
+      "gen": "силы",
+      "gender": "f"
+    },
+    "vlast": {
+      "kind": "noun",
+      "nom": "власть",
+      "gen": "власти",
+      "gender": "f"
+    },
+    "granitsa": {
+      "kind": "noun",
+      "nom": "граница",
+      "gen": "границы",
+      "gender": "f"
+    },
+    "gorod": {
+      "kind": "noun",
+      "nom": "город",
+      "gen": "города",
+      "gender": "m"
+    },
+    "stolitsa": {
+      "kind": "noun",
+      "nom": "столица",
+      "gen": "столицы",
+      "gender": "f"
+    },
+    "territoriya": {
+      "kind": "noun",
+      "nom": "территория",
+      "gen": "территории",
+      "gender": "f"
+    },
+    "naselenie": {
+      "kind": "noun",
+      "nom": "население",
+      "gen": "населения",
+      "gender": "n"
+    },
+    "prestupnost": {
+      "kind": "noun",
+      "nom": "преступность",
+      "gen": "преступности",
+      "gender": "f"
+    },
+    "ugroza": {
+      "kind": "noun",
+      "nom": "угроза",
+      "gen": "угрозы",
+      "gender": "f"
+    },
+    "terror": {
+      "kind": "noun",
+      "nom": "террор",
+      "gen": "террора",
+      "gender": "m"
+    },
+    "diversiya": {
+      "kind": "noun",
+      "nom": "диверсия",
+      "gen": "диверсии",
+      "gender": "f"
+    },
+    "banditizm": {
+      "kind": "noun",
+      "nom": "бандитизм",
+      "gen": "бандитизма",
+      "gender": "m"
+    },
+    "korruptsiya": {
+      "kind": "noun",
+      "nom": "коррупция",
+      "gen": "коррупции",
+      "gender": "f"
+    },
+    "krizis": {
+      "kind": "noun",
+      "nom": "кризис",
+      "gen": "кризиса",
+      "gender": "m"
+    },
+    "mobilizatsiya": {
+      "kind": "noun",
+      "nom": "мобилизация",
+      "gen": "мобилизации",
+      "gender": "f"
+    },
+    "operatsiya": {
+      "kind": "noun",
+      "nom": "операция",
+      "gen": "операции",
+      "gender": "f"
+    },
+    "proverka": {
+      "kind": "noun",
+      "nom": "проверка",
+      "gen": "проверки",
+      "gender": "f"
+    },
+    "dopusk": {
+      "kind": "noun",
+      "nom": "допуск",
+      "gen": "допуска",
+      "gender": "m"
+    },
+    "rezhim": {
+      "kind": "noun",
+      "nom": "режим",
+      "gen": "режима",
+      "gender": "m"
+    },
+    "konvoi": {
+      "kind": "noun",
+      "nom": "конвой",
+      "gen": "конвоя",
+      "gender": "m"
+    },
+    "kolonna": {
+      "kind": "noun",
+      "nom": "колонна",
+      "gen": "колонны",
+      "gender": "f"
+    },
+    "obekt": {
+      "kind": "noun",
+      "nom": "объект",
+      "gen": "объекта",
+      "gender": "m"
+    },
+    "perimetr": {
+      "kind": "noun",
+      "nom": "периметр",
+      "gen": "периметра",
+      "gender": "m"
+    },
+    "batalon": {
+      "kind": "noun",
+      "nom": "батальон",
+      "gen": "батальона",
+      "gender": "m"
+    },
+    "rota": {
+      "kind": "noun",
+      "nom": "рота",
+      "gen": "роты",
+      "gender": "f"
+    },
+    "vzvod": {
+      "kind": "noun",
+      "nom": "взвод",
+      "gen": "взвода",
+      "gender": "m"
+    },
+    "gruppa": {
+      "kind": "noun",
+      "nom": "группа",
+      "gen": "группы",
+      "gender": "f"
+    },
+    "vakhta": {
+      "kind": "noun",
+      "nom": "вахта",
+      "gen": "вахты",
+      "gender": "f"
+    },
+    "yacheyka": {
+      "kind": "noun",
+      "nom": "ячейка",
+      "gen": "ячейки",
+      "gender": "f"
+    },
+    "druzhina": {
+      "kind": "noun",
+      "nom": "дружина",
+      "gen": "дружины",
+      "gender": "f"
+    },
+    "baza": {
+      "kind": "noun",
+      "nom": "база",
+      "gen": "базы",
+      "gender": "f"
+    },
+    "punkt": {
+      "kind": "noun",
+      "nom": "пункт",
+      "gen": "пункта",
+      "gender": "m"
+    },
+    "tsentr": {
+      "kind": "noun",
+      "nom": "центр",
+      "gen": "центра",
+      "gender": "m"
+    },
+    "okrug": {
+      "kind": "noun",
+      "nom": "округ",
+      "gen": "округа",
+      "gender": "m"
+    },
+    "sektor": {
+      "kind": "noun",
+      "nom": "сектор",
+      "gen": "сектора",
+      "gender": "m"
+    },
+    "uchastok": {
+      "kind": "noun",
+      "nom": "участок",
+      "gen": "участка",
+      "gender": "m"
+    },
+    "post": {
+      "kind": "noun",
+      "nom": "пост",
+      "gen": "поста",
+      "gender": "m"
+    },
+    "armiya": {
+      "kind": "noun",
+      "nom": "армия",
+      "gen": "армии",
+      "gender": "f"
+    },
+    "flot": {
+      "kind": "noun",
+      "nom": "флот",
+      "gen": "флота",
+      "gender": "m"
+    },
+    "eskadra": {
+      "kind": "noun",
+      "nom": "эскадра",
+      "gen": "эскадры",
+      "gender": "f"
+    },
+    "aviatsiya": {
+      "kind": "noun",
+      "nom": "авиация",
+      "gen": "авиации",
+      "gender": "f"
+    },
+    "artilleriya": {
+      "kind": "noun",
+      "nom": "артиллерия",
+      "gen": "артиллерии",
+      "gender": "f"
+    },
+    "pekhota": {
+      "kind": "noun",
+      "nom": "пехота",
+      "gen": "пехоты",
+      "gender": "f"
+    },
+    "kavaleriya": {
+      "kind": "noun",
+      "nom": "кавалерия",
+      "gen": "кавалерии",
+      "gender": "f"
+    },
+    "rezerv": {
+      "kind": "noun",
+      "nom": "резерв",
+      "gen": "резерва",
+      "gender": "m"
+    },
+    "shturm": {
+      "kind": "noun",
+      "nom": "штурм",
+      "gen": "штурма",
+      "gender": "m"
+    },
+    "oborona": {
+      "kind": "noun",
+      "nom": "оборона",
+      "gen": "обороны",
+      "gender": "f"
+    },
+    "ataka": {
+      "kind": "noun",
+      "nom": "атака",
+      "gen": "атаки",
+      "gender": "f"
+    },
+    "blokada": {
+      "kind": "noun",
+      "nom": "блокада",
+      "gen": "блокады",
+      "gender": "f"
+    },
+    "osada": {
+      "kind": "noun",
+      "nom": "осада",
+      "gen": "осады",
+      "gender": "f"
+    },
+    "marsh": {
+      "kind": "noun",
+      "nom": "марш",
+      "gen": "марша",
+      "gender": "m"
+    },
+    "pozitsiya": {
+      "kind": "noun",
+      "nom": "позиция",
+      "gen": "позиции",
+      "gender": "f"
+    },
+    "rubezh": {
+      "kind": "noun",
+      "nom": "рубеж",
+      "gen": "рубежа",
+      "gender": "m"
+    },
+    "okop": {
+      "kind": "noun",
+      "nom": "окоп",
+      "gen": "окопа",
+      "gender": "m"
+    },
+    "komanda": {
+      "kind": "noun",
+      "nom": "команда",
+      "gen": "команды",
+      "gender": "f"
+    },
+    "komissiya": {
+      "kind": "noun",
+      "nom": "комиссия",
+      "gen": "комиссии",
+      "gender": "f"
+    },
+    "kollegiya": {
+      "kind": "noun",
+      "nom": "коллегия",
+      "gen": "коллегии",
+      "gender": "f"
+    },
+    "palata": {
+      "kind": "noun",
+      "nom": "палата",
+      "gen": "палаты",
+      "gender": "f"
+    },
+    "byuro": {
+      "kind": "noun",
+      "nom": "бюро",
+      "gen": "бюро",
+      "gender": "n",
+      "forms": {
+        "nom": "бюро",
+        "gen": "бюро",
+        "dat": "бюро",
+        "acc": "бюро",
+        "ins": "бюро",
+        "prep": "бюро"
+      }
+    },
+    "kantselyariya": {
+      "kind": "noun",
+      "nom": "канцелярия",
+      "gen": "канцелярии",
+      "gender": "f"
+    },
+    "sekretariat": {
+      "kind": "noun",
+      "nom": "секретариат",
+      "gen": "секретариата",
+      "gender": "m"
+    },
+    "uprava": {
+      "kind": "noun",
+      "nom": "управа",
+      "gen": "управы",
+      "gender": "f"
+    },
+    "administratsiya": {
+      "kind": "noun",
+      "nom": "администрация",
+      "gen": "администрации",
+      "gender": "f"
+    },
+    "glavk": {
+      "kind": "noun",
+      "nom": "главк",
+      "gen": "главка",
+      "gender": "m"
+    },
+    "gosudarstvo": {
+      "kind": "noun",
+      "nom": "государство",
+      "gen": "государства",
+      "gender": "n"
+    },
+    "imperiya": {
+      "kind": "noun",
+      "nom": "империя",
+      "gen": "империи",
+      "gender": "f"
+    },
+    "derzhava": {
+      "kind": "noun",
+      "nom": "держава",
+      "gen": "державы",
+      "gender": "f"
+    },
+    "natsiya": {
+      "kind": "noun",
+      "nom": "нация",
+      "gen": "нации",
+      "gender": "f"
+    },
+    "narod": {
+      "kind": "noun",
+      "nom": "народ",
+      "gen": "народа",
+      "gender": "m"
+    },
+    "obshchestvo": {
+      "kind": "noun",
+      "nom": "общество",
+      "gen": "общества",
+      "gender": "n"
+    },
+    "soslovie": {
+      "kind": "noun",
+      "nom": "сословие",
+      "gen": "сословия",
+      "gender": "n"
+    },
+    "sobor": {
+      "kind": "noun",
+      "nom": "собор",
+      "gen": "собора",
+      "gender": "m"
+    },
+    "khram": {
+      "kind": "noun",
+      "nom": "храм",
+      "gen": "храма",
+      "gender": "m"
+    },
+    "altar": {
+      "kind": "noun",
+      "nom": "алтарь",
+      "gen": "алтаря",
+      "gender": "m",
+      "forms": {
+        "ins": "алтарём"
+      }
+    },
+    "orden": {
+      "kind": "noun",
+      "nom": "орден",
+      "gen": "ордена",
+      "gender": "m"
+    },
+    "bratstvo": {
+      "kind": "noun",
+      "nom": "братство",
+      "gen": "братства",
+      "gender": "n"
+    },
+    "monastyr": {
+      "kind": "noun",
+      "nom": "монастырь",
+      "gen": "монастыря",
+      "gender": "m",
+      "forms": {
+        "ins": "монастырём"
+      }
+    },
+    "tserkov": {
+      "kind": "noun",
+      "nom": "церковь",
+      "gen": "церкви",
+      "gender": "f",
+      "forms": {
+        "nom": "церковь",
+        "gen": "церкви",
+        "dat": "церкви",
+        "acc": "церковь",
+        "ins": "церковью",
+        "prep": "церкви"
+      }
+    },
+    "prikhod": {
+      "kind": "noun",
+      "nom": "приход",
+      "gen": "прихода",
+      "gender": "m"
+    },
+    "missiya": {
+      "kind": "noun",
+      "nom": "миссия",
+      "gen": "миссии",
+      "gender": "f"
+    },
+    "propoved": {
+      "kind": "noun",
+      "nom": "проповедь",
+      "gen": "проповеди",
+      "gender": "f",
+      "forms": {
+        "ins": "проповедью"
+      }
+    },
+    "obryad": {
+      "kind": "noun",
+      "nom": "обряд",
+      "gen": "обряда",
+      "gender": "m"
+    },
+    "ritual": {
+      "kind": "noun",
+      "nom": "ритуал",
+      "gen": "ритуала",
+      "gender": "m"
+    },
+    "dogma": {
+      "kind": "noun",
+      "nom": "догма",
+      "gen": "догмы",
+      "gender": "f"
+    },
+    "vera": {
+      "kind": "noun",
+      "nom": "вера",
+      "gen": "веры",
+      "gender": "f"
+    },
+    "dukh": {
+      "kind": "noun",
+      "nom": "дух",
+      "gen": "духа",
+      "gender": "m"
+    },
+    "svet": {
+      "kind": "noun",
+      "nom": "свет",
+      "gen": "света",
+      "gender": "m"
+    },
+    "zavet": {
+      "kind": "noun",
+      "nom": "завет",
+      "gen": "завета",
+      "gender": "m"
+    },
+    "blagodat": {
+      "kind": "noun",
+      "nom": "благодать",
+      "gen": "благодати",
+      "gender": "f"
+    },
+    "tayna": {
+      "kind": "noun",
+      "nom": "тайна",
+      "gen": "тайны",
+      "gender": "f"
+    },
+    "ispoved": {
+      "kind": "noun",
+      "nom": "исповедь",
+      "gen": "исповеди",
+      "gender": "f",
+      "forms": {
+        "ins": "исповедью"
+      }
+    },
+    "molitva": {
+      "kind": "noun",
+      "nom": "молитва",
+      "gen": "молитвы",
+      "gender": "f"
+    },
+    "krest": {
+      "kind": "noun",
+      "nom": "крест",
+      "gen": "креста",
+      "gender": "m"
+    },
+    "znamya": {
+      "kind": "noun",
+      "nom": "знамя",
+      "gen": "знамени",
+      "gender": "n",
+      "forms": {
+        "nom": "знамя",
+        "gen": "знамени",
+        "dat": "знамени",
+        "acc": "знамя",
+        "ins": "знаменем",
+        "prep": "знамени"
+      }
+    },
+    "pastyr": {
+      "kind": "noun",
+      "nom": "пастырь",
+      "gen": "пастыря",
+      "gender": "m",
+      "forms": {
+        "ins": "пастырем"
+      }
+    },
+    "klir": {
+      "kind": "noun",
+      "nom": "клир",
+      "gen": "клира",
+      "gender": "m"
+    },
+    "obshchina": {
+      "kind": "noun",
+      "nom": "община",
+      "gen": "общины",
+      "gender": "f"
+    },
+    "seminariya": {
+      "kind": "noun",
+      "nom": "семинария",
+      "gen": "семинарии",
+      "gender": "f"
+    },
+    "dukhovenstvo": {
+      "kind": "noun",
+      "nom": "духовенство",
+      "gen": "духовенства",
+      "gender": "n"
+    },
+    "patriarkhat": {
+      "kind": "noun",
+      "nom": "патриархат",
+      "gen": "патриархата",
+      "gender": "m"
+    },
+    "yeparkhiya": {
+      "kind": "noun",
+      "nom": "епархия",
+      "gen": "епархии",
+      "gender": "f"
+    },
+    "lozha": {
+      "kind": "noun",
+      "nom": "ложа",
+      "gen": "ложи",
+      "gender": "f"
+    },
+    "sekta": {
+      "kind": "noun",
+      "nom": "секта",
+      "gen": "секты",
+      "gender": "f"
+    },
+    "uchenie": {
+      "kind": "noun",
+      "nom": "учение",
+      "gen": "учения",
+      "gender": "n"
+    },
+    "pisanie": {
+      "kind": "noun",
+      "nom": "писание",
+      "gen": "писания",
+      "gender": "n"
+    },
+    "relikviya": {
+      "kind": "noun",
+      "nom": "реликвия",
+      "gen": "реликвии",
+      "gender": "f"
+    },
+    "chudo": {
+      "kind": "noun",
+      "nom": "чудо",
+      "gen": "чуда",
+      "gender": "n"
+    },
+    "pokoy": {
+      "kind": "noun",
+      "nom": "покой",
+      "gen": "покоя",
+      "gender": "m"
+    },
+    "smysl": {
+      "kind": "noun",
+      "nom": "смысл",
+      "gen": "смысла",
+      "gender": "m"
+    },
+    "nadezhda": {
+      "kind": "noun",
+      "nom": "надежда",
+      "gen": "надежды",
+      "gender": "f"
+    },
+    "lyubov": {
+      "kind": "noun",
+      "nom": "любовь",
+      "gen": "любви",
+      "gender": "f",
+      "forms": {
+        "nom": "любовь",
+        "gen": "любви",
+        "dat": "любви",
+        "acc": "любовь",
+        "ins": "любовью",
+        "prep": "любви"
+      }
+    },
+    "miloserdie": {
+      "kind": "noun",
+      "nom": "милосердие",
+      "gen": "милосердия",
+      "gender": "n"
+    },
+    "proshchenie": {
+      "kind": "noun",
+      "nom": "прощение",
+      "gen": "прощения",
+      "gender": "n"
+    },
+    "spasenie": {
+      "kind": "noun",
+      "nom": "спасение",
+      "gen": "спасения",
+      "gender": "n"
+    },
+    "vechnost": {
+      "kind": "noun",
+      "nom": "вечность",
+      "gen": "вечности",
+      "gender": "f"
+    },
+    "svyatynya": {
+      "kind": "noun",
+      "nom": "святыня",
+      "gen": "святыни",
+      "gender": "f"
+    },
+    "chasovnya": {
+      "kind": "noun",
+      "nom": "часовня",
+      "gen": "часовни",
+      "gender": "f"
+    },
+    "obitel": {
+      "kind": "noun",
+      "nom": "обитель",
+      "gen": "обители",
+      "gender": "f"
+    },
+    "skit": {
+      "kind": "noun",
+      "nom": "скит",
+      "gen": "скита",
+      "gender": "m"
+    },
+    "kafedra": {
+      "kind": "noun",
+      "nom": "кафедра",
+      "gen": "кафедры",
+      "gender": "f"
+    },
+    "nebesa": {
+      "kind": "noun",
+      "nom": "небеса",
+      "gen": "небес",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "небеса",
+        "gen": "небес",
+        "dat": "небесам",
+        "acc": "небеса",
+        "ins": "небесами",
+        "prep": "небесах"
+      }
+    },
+    "artel": {
+      "kind": "noun",
+      "nom": "артель",
+      "gen": "артели",
+      "gender": "f"
+    },
+    "kompaniya": {
+      "kind": "noun",
+      "nom": "компания",
+      "gen": "компании",
+      "gender": "f"
+    },
+    "liga": {
+      "kind": "noun",
+      "nom": "лига",
+      "gen": "лиги",
+      "gender": "f"
+    },
+    "soyuz": {
+      "kind": "noun",
+      "nom": "союз",
+      "gen": "союза",
+      "gender": "m"
+    },
+    "tovarishchestvo": {
+      "kind": "noun",
+      "nom": "товарищество",
+      "gen": "товарищества",
+      "gender": "n"
+    },
+    "kooperativ": {
+      "kind": "noun",
+      "nom": "кооператив",
+      "gen": "кооператива",
+      "gender": "m"
+    },
+    "sklad": {
+      "kind": "noun",
+      "nom": "склад",
+      "gen": "склада",
+      "gender": "m"
+    },
+    "depo": {
+      "kind": "noun",
+      "nom": "депо",
+      "gen": "депо",
+      "gender": "n",
+      "forms": {
+        "nom": "депо",
+        "gen": "депо",
+        "dat": "депо",
+        "acc": "депо",
+        "ins": "депо",
+        "prep": "депо"
+      }
+    },
+    "oboz": {
+      "kind": "noun",
+      "nom": "обоз",
+      "gen": "обоза",
+      "gender": "m"
+    },
+    "karavan": {
+      "kind": "noun",
+      "nom": "караван",
+      "gen": "каравана",
+      "gender": "m"
+    },
+    "port": {
+      "kind": "noun",
+      "nom": "порт",
+      "gen": "порта",
+      "gender": "m"
+    },
+    "pristan": {
+      "kind": "noun",
+      "nom": "пристань",
+      "gen": "пристани",
+      "gender": "f",
+      "forms": {
+        "ins": "пристанью"
+      }
+    },
+    "rynok": {
+      "kind": "noun",
+      "nom": "рынок",
+      "gen": "рынка",
+      "gender": "m"
+    },
+    "lavka": {
+      "kind": "noun",
+      "nom": "лавка",
+      "gen": "лавки",
+      "gender": "f"
+    },
+    "magazin": {
+      "kind": "noun",
+      "nom": "магазин",
+      "gen": "магазина",
+      "gender": "m"
+    },
+    "postavka": {
+      "kind": "noun",
+      "nom": "поставка",
+      "gen": "поставки",
+      "gender": "f"
+    },
+    "zapas": {
+      "kind": "noun",
+      "nom": "запас",
+      "gen": "запаса",
+      "gender": "m"
+    },
+    "prodovolstvie": {
+      "kind": "noun",
+      "nom": "продовольствие",
+      "gen": "продовольствия",
+      "gender": "n"
+    },
+    "voda": {
+      "kind": "noun",
+      "nom": "вода",
+      "gen": "воды",
+      "gender": "f"
+    },
+    "toplivo": {
+      "kind": "noun",
+      "nom": "топливо",
+      "gen": "топлива",
+      "gender": "n"
+    },
+    "syrje": {
+      "kind": "noun",
+      "nom": "сырьё",
+      "gen": "сырья",
+      "gender": "n",
+      "forms": {
+        "nom": "сырьё",
+        "gen": "сырья",
+        "dat": "сырью",
+        "acc": "сырьё",
+        "ins": "сырьём",
+        "prep": "сырье"
+      }
+    },
+    "produkt": {
+      "kind": "noun",
+      "nom": "продукт",
+      "gen": "продукта",
+      "gender": "m"
+    },
+    "resurs": {
+      "kind": "noun",
+      "nom": "ресурс",
+      "gen": "ресурса",
+      "gender": "m"
+    },
+    "potok": {
+      "kind": "noun",
+      "nom": "поток",
+      "gen": "потока",
+      "gender": "m"
+    },
+    "marshrut": {
+      "kind": "noun",
+      "nom": "маршрут",
+      "gen": "маршрута",
+      "gender": "m"
+    },
+    "put": {
+      "kind": "noun",
+      "nom": "путь",
+      "gen": "пути",
+      "gender": "m",
+      "forms": {
+        "nom": "путь",
+        "gen": "пути",
+        "dat": "пути",
+        "acc": "путь",
+        "ins": "путём",
+        "prep": "пути"
+      }
+    },
+    "doroga": {
+      "kind": "noun",
+      "nom": "дорога",
+      "gen": "дороги",
+      "gender": "f"
+    },
+    "most": {
+      "kind": "noun",
+      "nom": "мост",
+      "gen": "моста",
+      "gender": "m"
+    },
+    "pereval": {
+      "kind": "noun",
+      "nom": "перевал",
+      "gen": "перевала",
+      "gender": "m"
+    },
+    "ambar": {
+      "kind": "noun",
+      "nom": "амбар",
+      "gen": "амбара",
+      "gender": "m"
+    },
+    "ferma": {
+      "kind": "noun",
+      "nom": "ферма",
+      "gen": "фермы",
+      "gender": "f"
+    },
+    "promysel": {
+      "kind": "noun",
+      "nom": "промысел",
+      "gen": "промысла",
+      "gender": "m"
+    },
+    "pekarnya": {
+      "kind": "noun",
+      "nom": "пекарня",
+      "gen": "пекарни",
+      "gender": "f"
+    },
+    "kuhnya": {
+      "kind": "noun",
+      "nom": "кухня",
+      "gen": "кухни",
+      "gender": "f"
+    },
+    "stolovaya": {
+      "kind": "noun",
+      "nom": "столовая",
+      "gen": "столовой",
+      "gender": "f",
+      "forms": {
+        "nom": "столовая",
+        "gen": "столовой",
+        "dat": "столовой",
+        "acc": "столовую",
+        "ins": "столовой",
+        "prep": "столовой"
+      }
+    },
+    "khozyaystvo": {
+      "kind": "noun",
+      "nom": "хозяйство",
+      "gen": "хозяйства",
+      "gender": "n"
+    },
+    "remont": {
+      "kind": "noun",
+      "nom": "ремонт",
+      "gen": "ремонта",
+      "gender": "m"
+    },
+    "masterskaya": {
+      "kind": "noun",
+      "nom": "мастерская",
+      "gen": "мастерской",
+      "gender": "f",
+      "forms": {
+        "nom": "мастерская",
+        "gen": "мастерской",
+        "dat": "мастерской",
+        "acc": "мастерскую",
+        "ins": "мастерской",
+        "prep": "мастерской"
+      }
+    },
+    "fabrika": {
+      "kind": "noun",
+      "nom": "фабрика",
+      "gen": "фабрики",
+      "gender": "f"
+    },
+    "zavod": {
+      "kind": "noun",
+      "nom": "завод",
+      "gen": "завода",
+      "gender": "m"
+    },
+    "melnitsa": {
+      "kind": "noun",
+      "nom": "мельница",
+      "gen": "мельницы",
+      "gender": "f"
+    },
+    "kolodets": {
+      "kind": "noun",
+      "nom": "колодец",
+      "gen": "колодца",
+      "gender": "m"
+    },
+    "istochnik": {
+      "kind": "noun",
+      "nom": "источник",
+      "gen": "источника",
+      "gender": "m"
+    },
+    "norma": {
+      "kind": "noun",
+      "nom": "норма",
+      "gen": "нормы",
+      "gender": "f"
+    },
+    "payok": {
+      "kind": "noun",
+      "nom": "паёк",
+      "gen": "пайка",
+      "gender": "m"
+    },
+    "ratsion": {
+      "kind": "noun",
+      "nom": "рацион",
+      "gen": "рациона",
+      "gender": "m"
+    },
+    "urozay": {
+      "kind": "noun",
+      "nom": "урожай",
+      "gen": "урожая",
+      "gender": "m"
+    },
+    "ryba": {
+      "kind": "noun",
+      "nom": "рыба",
+      "gen": "рыбы",
+      "gender": "f"
+    },
+    "myaso": {
+      "kind": "noun",
+      "nom": "мясо",
+      "gen": "мяса",
+      "gender": "n"
+    },
+    "khleb": {
+      "kind": "noun",
+      "nom": "хлеб",
+      "gen": "хлеба",
+      "gender": "m"
+    },
+    "sol": {
+      "kind": "noun",
+      "nom": "соль",
+      "gen": "соли",
+      "gender": "f"
+    },
+    "krupa": {
+      "kind": "noun",
+      "nom": "крупа",
+      "gen": "крупы",
+      "gender": "f"
+    },
+    "ovoshchi": {
+      "kind": "noun",
+      "nom": "овощи",
+      "gen": "овощей",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "овощи",
+        "gen": "овощей",
+        "dat": "овощам",
+        "acc": "овощи",
+        "ins": "овощами",
+        "prep": "овощах"
+      }
+    },
+    "moloko": {
+      "kind": "noun",
+      "nom": "молоко",
+      "gen": "молока",
+      "gender": "n"
+    },
+    "med": {
+      "kind": "noun",
+      "nom": "мёд",
+      "gen": "мёда",
+      "gender": "m"
+    },
+    "sherst": {
+      "kind": "noun",
+      "nom": "шерсть",
+      "gen": "шерсти",
+      "gender": "f"
+    },
+    "kozha": {
+      "kind": "noun",
+      "nom": "кожа",
+      "gen": "кожи",
+      "gender": "f"
+    },
+    "metall": {
+      "kind": "noun",
+      "nom": "металл",
+      "gen": "металла",
+      "gender": "m"
+    },
+    "ugol": {
+      "kind": "noun",
+      "nom": "уголь",
+      "gen": "угля",
+      "gender": "m"
+    },
+    "les": {
+      "kind": "noun",
+      "nom": "лес",
+      "gen": "леса",
+      "gender": "m"
+    },
+    "neft": {
+      "kind": "noun",
+      "nom": "нефть",
+      "gen": "нефти",
+      "gender": "f"
+    },
+    "gaz": {
+      "kind": "noun",
+      "nom": "газ",
+      "gen": "газа",
+      "gender": "m"
+    },
+    "tovar": {
+      "kind": "noun",
+      "nom": "товар",
+      "gen": "товара",
+      "gender": "m"
+    },
+    "usluga": {
+      "kind": "noun",
+      "nom": "услуга",
+      "gen": "услуги",
+      "gender": "f"
+    },
+    "perevozka": {
+      "kind": "noun",
+      "nom": "перевозка",
+      "gen": "перевозки",
+      "gender": "f"
+    },
+    "kontrakt": {
+      "kind": "noun",
+      "nom": "контракт",
+      "gen": "контракта",
+      "gender": "m"
+    },
+    "dogovor": {
+      "kind": "noun",
+      "nom": "договор",
+      "gen": "договора",
+      "gender": "m"
+    },
+    "partiya": {
+      "kind": "noun",
+      "nom": "партия",
+      "gen": "партии",
+      "gender": "f"
+    },
+    "lot": {
+      "kind": "noun",
+      "nom": "лот",
+      "gen": "лота",
+      "gender": "m"
+    },
+    "auktsion": {
+      "kind": "noun",
+      "nom": "аукцион",
+      "gen": "аукциона",
+      "gender": "m"
+    },
+    "broker": {
+      "kind": "noun",
+      "nom": "брокер",
+      "gen": "брокера",
+      "gender": "m"
+    },
+    "kupets": {
+      "kind": "noun",
+      "nom": "купец",
+      "gen": "купца",
+      "gender": "m",
+      "animate": true
+    },
+    "torgovets": {
+      "kind": "noun",
+      "nom": "торговец",
+      "gen": "торговца",
+      "gender": "m",
+      "animate": true
+    },
+    "tamozhnya": {
+      "kind": "noun",
+      "nom": "таможня",
+      "gen": "таможни",
+      "gender": "f"
+    },
+    "nalog": {
+      "kind": "noun",
+      "nom": "налог",
+      "gen": "налога",
+      "gender": "m"
+    },
+    "poshlina": {
+      "kind": "noun",
+      "nom": "пошлина",
+      "gen": "пошлины",
+      "gender": "f"
+    },
+    "vznos": {
+      "kind": "noun",
+      "nom": "взнос",
+      "gen": "взноса",
+      "gender": "m"
+    },
+    "pribyl": {
+      "kind": "noun",
+      "nom": "прибыль",
+      "gen": "прибыли",
+      "gender": "f"
+    },
+    "protsent": {
+      "kind": "noun",
+      "nom": "процент",
+      "gen": "процента",
+      "gender": "m"
+    },
+    "kredit": {
+      "kind": "noun",
+      "nom": "кредит",
+      "gen": "кредита",
+      "gender": "m"
+    },
+    "dolg": {
+      "kind": "noun",
+      "nom": "долг",
+      "gen": "долга",
+      "gender": "m"
+    },
+    "moneta": {
+      "kind": "noun",
+      "nom": "монета",
+      "gen": "монеты",
+      "gender": "f"
+    },
+    "zoloto": {
+      "kind": "noun",
+      "nom": "золото",
+      "gen": "золота",
+      "gender": "n"
+    },
+    "serebro": {
+      "kind": "noun",
+      "nom": "серебро",
+      "gen": "серебра",
+      "gender": "n"
+    },
+    "dengi": {
+      "kind": "noun",
+      "nom": "деньги",
+      "gen": "денег",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "деньги",
+        "gen": "денег",
+        "dat": "деньгам",
+        "acc": "деньги",
+        "ins": "деньгами",
+        "prep": "деньгах"
+      }
+    },
+    "tsena": {
+      "kind": "noun",
+      "nom": "цена",
+      "gen": "цены",
+      "gender": "f"
+    },
+    "sdelka": {
+      "kind": "noun",
+      "nom": "сделка",
+      "gen": "сделки",
+      "gender": "f"
+    },
+    "obmen": {
+      "kind": "noun",
+      "nom": "обмен",
+      "gen": "обмена",
+      "gender": "m"
+    },
+    "torg": {
+      "kind": "noun",
+      "nom": "торг",
+      "gen": "торга",
+      "gender": "m"
+    },
+    "yarmarka": {
+      "kind": "noun",
+      "nom": "ярмарка",
+      "gen": "ярмарки",
+      "gender": "f"
+    },
+    "birzha": {
+      "kind": "noun",
+      "nom": "биржа",
+      "gen": "биржи",
+      "gender": "f"
+    },
+    "bank": {
+      "kind": "noun",
+      "nom": "банк",
+      "gen": "банка",
+      "gender": "m"
+    },
+    "kassa": {
+      "kind": "noun",
+      "nom": "касса",
+      "gen": "кассы",
+      "gender": "f"
+    },
+    "kontora": {
+      "kind": "noun",
+      "nom": "контора",
+      "gen": "конторы",
+      "gender": "f"
+    },
+    "kliring": {
+      "kind": "noun",
+      "nom": "клиринг",
+      "gen": "клиринга",
+      "gender": "m"
+    },
+    "banda": {
+      "kind": "noun",
+      "nom": "банда",
+      "gen": "банды",
+      "gender": "f"
+    },
+    "klan": {
+      "kind": "noun",
+      "nom": "клан",
+      "gen": "клана",
+      "gender": "m"
+    },
+    "semya": {
+      "kind": "noun",
+      "nom": "семья",
+      "gen": "семьи",
+      "gender": "f",
+      "forms": {
+        "nom": "семья",
+        "gen": "семьи",
+        "dat": "семье",
+        "acc": "семью",
+        "ins": "семьёй",
+        "prep": "семье"
+      }
+    },
+    "dinastiya": {
+      "kind": "noun",
+      "nom": "династия",
+      "gen": "династии",
+      "gender": "f"
+    },
+    "svita": {
+      "kind": "noun",
+      "nom": "свита",
+      "gen": "свиты",
+      "gender": "f"
+    },
+    "elita": {
+      "kind": "noun",
+      "nom": "элита",
+      "gen": "элиты",
+      "gender": "f"
+    },
+    "aristokratiya": {
+      "kind": "noun",
+      "nom": "аристократия",
+      "gen": "аристократии",
+      "gender": "f"
+    },
+    "znat": {
+      "kind": "noun",
+      "nom": "знать",
+      "gen": "знати",
+      "gender": "f"
+    },
+    "kasta": {
+      "kind": "noun",
+      "nom": "каста",
+      "gen": "касты",
+      "gender": "f"
+    },
+    "ierarkhiya": {
+      "kind": "noun",
+      "nom": "иерархия",
+      "gen": "иерархии",
+      "gender": "f"
+    },
+    "status": {
+      "kind": "noun",
+      "nom": "статус",
+      "gen": "статуса",
+      "gender": "m"
+    },
+    "chest": {
+      "kind": "noun",
+      "nom": "честь",
+      "gen": "чести",
+      "gender": "f"
+    },
+    "slava": {
+      "kind": "noun",
+      "nom": "слава",
+      "gen": "славы",
+      "gender": "f"
+    },
+    "imya": {
+      "kind": "noun",
+      "nom": "имя",
+      "gen": "имени",
+      "gender": "n",
+      "forms": {
+        "nom": "имя",
+        "gen": "имени",
+        "dat": "имени",
+        "acc": "имя",
+        "ins": "именем",
+        "prep": "имени"
+      }
+    },
+    "reputatsiya": {
+      "kind": "noun",
+      "nom": "репутация",
+      "gen": "репутации",
+      "gender": "f"
+    },
+    "vliyanie": {
+      "kind": "noun",
+      "nom": "влияние",
+      "gen": "влияния",
+      "gender": "n"
+    },
+    "dan": {
+      "kind": "noun",
+      "nom": "дань",
+      "gen": "дани",
+      "gender": "f"
+    },
+    "kodeks": {
+      "kind": "noun",
+      "nom": "кодекс",
+      "gen": "кодекса",
+      "gender": "m"
+    },
+    "duel": {
+      "kind": "noun",
+      "nom": "дуэль",
+      "gen": "дуэли",
+      "gender": "f"
+    },
+    "klyatva": {
+      "kind": "noun",
+      "nom": "клятва",
+      "gen": "клятвы",
+      "gender": "f"
+    },
+    "znak": {
+      "kind": "noun",
+      "nom": "знак",
+      "gen": "знака",
+      "gender": "m"
+    },
+    "gerb": {
+      "kind": "noun",
+      "nom": "герб",
+      "gen": "герба",
+      "gender": "m"
+    },
+    "korona": {
+      "kind": "noun",
+      "nom": "корона",
+      "gen": "короны",
+      "gender": "f"
+    },
+    "tron": {
+      "kind": "noun",
+      "nom": "трон",
+      "gen": "трона",
+      "gender": "m"
+    },
+    "titul": {
+      "kind": "noun",
+      "nom": "титул",
+      "gen": "титула",
+      "gender": "m"
+    },
+    "rang": {
+      "kind": "noun",
+      "nom": "ранг",
+      "gen": "ранга",
+      "gender": "m"
+    },
+    "zvanie": {
+      "kind": "noun",
+      "nom": "звание",
+      "gen": "звания",
+      "gender": "n"
+    },
+    "nagrada": {
+      "kind": "noun",
+      "nom": "награда",
+      "gen": "награды",
+      "gender": "f"
+    },
+    "krov": {
+      "kind": "noun",
+      "nom": "кровь",
+      "gen": "крови",
+      "gender": "f"
+    },
+    "rod": {
+      "kind": "noun",
+      "nom": "род",
+      "gen": "рода",
+      "gender": "m"
+    },
+    "ulitsa": {
+      "kind": "noun",
+      "nom": "улица",
+      "gen": "улицы",
+      "gender": "f"
+    },
+    "kvartal": {
+      "kind": "noun",
+      "nom": "квартал",
+      "gen": "квартала",
+      "gender": "m"
+    },
+    "mafiya": {
+      "kind": "noun",
+      "nom": "мафия",
+      "gen": "мафии",
+      "gender": "f"
+    },
+    "syndikat": {
+      "kind": "noun",
+      "nom": "синдикат",
+      "gen": "синдиката",
+      "gender": "m"
+    },
+    "kartel": {
+      "kind": "noun",
+      "nom": "картель",
+      "gen": "картеля",
+      "gender": "m",
+      "forms": {
+        "ins": "картелем"
+      }
+    },
+    "gruppirovka": {
+      "kind": "noun",
+      "nom": "группировка",
+      "gen": "группировки",
+      "gender": "f"
+    },
+    "klub": {
+      "kind": "noun",
+      "nom": "клуб",
+      "gen": "клуба",
+      "gender": "m"
+    },
+    "dvorets": {
+      "kind": "noun",
+      "nom": "дворец",
+      "gen": "дворца",
+      "gender": "m"
+    },
+    "prazdnik": {
+      "kind": "noun",
+      "nom": "праздник",
+      "gen": "праздника",
+      "gender": "m"
+    },
+    "akademiya": {
+      "kind": "noun",
+      "nom": "академия",
+      "gen": "академии",
+      "gender": "f"
+    },
+    "universitet": {
+      "kind": "noun",
+      "nom": "университет",
+      "gen": "университета",
+      "gender": "m"
+    },
+    "shkola": {
+      "kind": "noun",
+      "nom": "школа",
+      "gen": "школы",
+      "gender": "f"
+    },
+    "uchebishche": {
+      "kind": "noun",
+      "nom": "училище",
+      "gen": "училища",
+      "gender": "n"
+    },
+    "litsey": {
+      "kind": "noun",
+      "nom": "лицей",
+      "gen": "лицея",
+      "gender": "m"
+    },
+    "gimnaziya": {
+      "kind": "noun",
+      "nom": "гимназия",
+      "gen": "гимназии",
+      "gender": "f"
+    },
+    "kollegium": {
+      "kind": "noun",
+      "nom": "коллегиум",
+      "gen": "коллегиума",
+      "gender": "m"
+    },
+    "kruzhok": {
+      "kind": "noun",
+      "nom": "кружок",
+      "gen": "кружка",
+      "gender": "m"
+    },
+    "seminar": {
+      "kind": "noun",
+      "nom": "семинар",
+      "gen": "семинара",
+      "gender": "m"
+    },
+    "laboratoriya": {
+      "kind": "noun",
+      "nom": "лаборатория",
+      "gen": "лаборатории",
+      "gender": "f"
+    },
+    "observatoriya": {
+      "kind": "noun",
+      "nom": "обсерватория",
+      "gen": "обсерватории",
+      "gender": "f"
+    },
+    "biblioteka": {
+      "kind": "noun",
+      "nom": "библиотека",
+      "gen": "библиотеки",
+      "gender": "f"
+    },
+    "arkhiv": {
+      "kind": "noun",
+      "nom": "архив",
+      "gen": "архива",
+      "gender": "m"
+    },
+    "muzey": {
+      "kind": "noun",
+      "nom": "музей",
+      "gen": "музея",
+      "gender": "m"
+    },
+    "institut": {
+      "kind": "noun",
+      "nom": "институт",
+      "gen": "института",
+      "gender": "m"
+    },
+    "fakultet": {
+      "kind": "noun",
+      "nom": "факультет",
+      "gen": "факультета",
+      "gender": "m"
+    },
+    "ekspeditsiya": {
+      "kind": "noun",
+      "nom": "экспедиция",
+      "gen": "экспедиции",
+      "gender": "f"
+    },
+    "issledovanie": {
+      "kind": "noun",
+      "nom": "исследование",
+      "gen": "исследования",
+      "gender": "n"
+    },
+    "opyt": {
+      "kind": "noun",
+      "nom": "опыт",
+      "gen": "опыта",
+      "gender": "m"
+    },
+    "znanie": {
+      "kind": "noun",
+      "nom": "знание",
+      "gen": "знания",
+      "gender": "n"
+    },
+    "nauka": {
+      "kind": "noun",
+      "nom": "наука",
+      "gen": "науки",
+      "gender": "f"
+    },
+    "iskusstvo": {
+      "kind": "noun",
+      "nom": "искусство",
+      "gen": "искусства",
+      "gender": "n"
+    },
+    "remeslo": {
+      "kind": "noun",
+      "nom": "ремесло",
+      "gen": "ремесла",
+      "gender": "n"
+    },
+    "masterstvo": {
+      "kind": "noun",
+      "nom": "мастерство",
+      "gen": "мастерства",
+      "gender": "n"
+    },
+    "uchenik": {
+      "kind": "noun",
+      "nom": "ученик",
+      "gen": "ученика",
+      "gender": "m",
+      "animate": true
+    },
+    "nastavnik": {
+      "kind": "noun",
+      "nom": "наставник",
+      "gen": "наставника",
+      "gender": "m",
+      "animate": true
+    },
+    "professor": {
+      "kind": "noun",
+      "nom": "профессор",
+      "gen": "профессора",
+      "gender": "m",
+      "animate": true
+    },
+    "magistr": {
+      "kind": "noun",
+      "nom": "магистр",
+      "gen": "магистра",
+      "gender": "m",
+      "animate": true
+    },
+    "doktor": {
+      "kind": "noun",
+      "nom": "доктор",
+      "gen": "доктора",
+      "gender": "m",
+      "animate": true
+    },
+    "letopis": {
+      "kind": "noun",
+      "nom": "летопись",
+      "gen": "летописи",
+      "gender": "f",
+      "forms": {
+        "ins": "летописью"
+      }
+    },
+    "kniga": {
+      "kind": "noun",
+      "nom": "книга",
+      "gen": "книги",
+      "gender": "f"
+    },
+    "rukopis": {
+      "kind": "noun",
+      "nom": "рукопись",
+      "gen": "рукописи",
+      "gender": "f",
+      "forms": {
+        "ins": "рукописью"
+      }
+    },
+    "perevod": {
+      "kind": "noun",
+      "nom": "перевод",
+      "gen": "перевода",
+      "gender": "m"
+    },
+    "yazyk": {
+      "kind": "noun",
+      "nom": "язык",
+      "gen": "языка",
+      "gender": "m"
+    },
+    "matematika": {
+      "kind": "noun",
+      "nom": "математика",
+      "gen": "математики",
+      "gender": "f"
+    },
+    "astronomiya": {
+      "kind": "noun",
+      "nom": "астрономия",
+      "gen": "астрономии",
+      "gender": "f"
+    },
+    "meditsina": {
+      "kind": "noun",
+      "nom": "медицина",
+      "gen": "медицины",
+      "gender": "f"
+    },
+    "mekhanika": {
+      "kind": "noun",
+      "nom": "механика",
+      "gen": "механики",
+      "gender": "f"
+    },
+    "istina": {
+      "kind": "noun",
+      "nom": "истина",
+      "gen": "истины",
+      "gender": "f"
+    },
+    "pamyat": {
+      "kind": "noun",
+      "nom": "память",
+      "gen": "памяти",
+      "gender": "f"
+    },
+    "traditsiya": {
+      "kind": "noun",
+      "nom": "традиция",
+      "gen": "традиции",
+      "gender": "f"
+    },
+    "metod": {
+      "kind": "noun",
+      "nom": "метод",
+      "gen": "метода",
+      "gender": "m"
+    },
+    "praktika": {
+      "kind": "noun",
+      "nom": "практика",
+      "gen": "практики",
+      "gender": "f"
+    },
+    "teoriya": {
+      "kind": "noun",
+      "nom": "теория",
+      "gen": "теории",
+      "gender": "f"
+    },
+    "gipoteza": {
+      "kind": "noun",
+      "nom": "гипотеза",
+      "gen": "гипотезы",
+      "gender": "f"
+    },
+    "priroda": {
+      "kind": "noun",
+      "nom": "природа",
+      "gen": "природы",
+      "gender": "f"
+    },
+    "mir": {
+      "kind": "noun",
+      "nom": "мир",
+      "gen": "мира",
+      "gender": "m"
+    },
+    "chelovek": {
+      "kind": "noun",
+      "nom": "человек",
+      "gen": "человека",
+      "gender": "m",
+      "animate": true
+    },
+    "budushchee": {
+      "kind": "noun",
+      "nom": "будущее",
+      "gen": "будущего",
+      "gender": "n",
+      "forms": {
+        "nom": "будущее",
+        "gen": "будущего",
+        "dat": "будущему",
+        "acc": "будущее",
+        "ins": "будущим",
+        "prep": "будущем"
+      }
+    },
+    "sestrinstvo": {
+      "kind": "noun",
+      "nom": "сестринство",
+      "gen": "сестринства",
+      "gender": "n"
+    },
+    "priyut": {
+      "kind": "noun",
+      "nom": "приют",
+      "gen": "приюта",
+      "gender": "m"
+    },
+    "bolnitsa": {
+      "kind": "noun",
+      "nom": "больница",
+      "gen": "больницы",
+      "gender": "f"
+    },
+    "lazaret": {
+      "kind": "noun",
+      "nom": "лазарет",
+      "gen": "лазарета",
+      "gender": "m"
+    },
+    "klinika": {
+      "kind": "noun",
+      "nom": "клиника",
+      "gen": "клиники",
+      "gender": "f"
+    },
+    "apteka": {
+      "kind": "noun",
+      "nom": "аптека",
+      "gen": "аптеки",
+      "gender": "f"
+    },
+    "sanatoriy": {
+      "kind": "noun",
+      "nom": "санаторий",
+      "gen": "санатория",
+      "gender": "m"
+    },
+    "bogadelnya": {
+      "kind": "noun",
+      "nom": "богадельня",
+      "gen": "богадельни",
+      "gender": "f"
+    },
+    "gospital": {
+      "kind": "noun",
+      "nom": "госпиталь",
+      "gen": "госпиталя",
+      "gender": "m",
+      "forms": {
+        "ins": "госпиталем"
+      }
+    },
+    "medpunkt": {
+      "kind": "noun",
+      "nom": "медпункт",
+      "gen": "медпункта",
+      "gender": "m"
+    },
+    "fond": {
+      "kind": "noun",
+      "nom": "фонд",
+      "gen": "фонда",
+      "gender": "m"
+    },
+    "vzaimopomoshch": {
+      "kind": "noun",
+      "nom": "взаимопомощь",
+      "gen": "взаимопомощи",
+      "gender": "f",
+      "forms": {
+        "ins": "взаимопомощью"
+      }
+    },
+    "pomoshch": {
+      "kind": "noun",
+      "nom": "помощь",
+      "gen": "помощи",
+      "gender": "f",
+      "forms": {
+        "ins": "помощью"
+      }
+    },
+    "zabota": {
+      "kind": "noun",
+      "nom": "забота",
+      "gen": "заботы",
+      "gender": "f"
+    },
+    "popechenie": {
+      "kind": "noun",
+      "nom": "попечение",
+      "gen": "попечения",
+      "gender": "n"
+    },
+    "dom": {
+      "kind": "noun",
+      "nom": "дом",
+      "gen": "дома",
+      "gender": "m"
+    },
+    "ochag": {
+      "kind": "noun",
+      "nom": "очаг",
+      "gen": "очага",
+      "gender": "m"
+    },
+    "kolybel": {
+      "kind": "noun",
+      "nom": "колыбель",
+      "gen": "колыбели",
+      "gender": "f"
+    },
+    "zdorovye": {
+      "kind": "noun",
+      "nom": "здоровье",
+      "gen": "здоровья",
+      "gender": "n"
+    },
+    "lechenie": {
+      "kind": "noun",
+      "nom": "лечение",
+      "gen": "лечения",
+      "gender": "n"
+    },
+    "ukhod": {
+      "kind": "noun",
+      "nom": "уход",
+      "gen": "ухода",
+      "gender": "m"
+    },
+    "pitanie": {
+      "kind": "noun",
+      "nom": "питание",
+      "gen": "питания",
+      "gender": "n"
+    },
+    "teplo": {
+      "kind": "noun",
+      "nom": "тепло",
+      "gen": "тепла",
+      "gender": "n"
+    },
+    "krov_priyut": {
+      "kind": "noun",
+      "nom": "кров",
+      "gen": "крова",
+      "gender": "m"
+    },
+    "deti": {
+      "kind": "noun",
+      "nom": "дети",
+      "gen": "детей",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "дети",
+        "gen": "детей",
+        "dat": "детям",
+        "acc": "детей",
+        "ins": "детьми",
+        "prep": "детьях"
+      }
+    },
+    "stariki": {
+      "kind": "noun",
+      "nom": "старики",
+      "gen": "стариков",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "старики",
+        "gen": "стариков",
+        "dat": "старикам",
+        "acc": "стариков",
+        "ins": "стариками",
+        "prep": "стариках"
+      }
+    },
+    "bolnye": {
+      "kind": "noun",
+      "nom": "больные",
+      "gen": "больных",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "больные",
+        "gen": "больных",
+        "dat": "больным",
+        "acc": "больных",
+        "ins": "больными",
+        "prep": "больных"
+      }
+    },
+    "ranenye": {
+      "kind": "noun",
+      "nom": "раненые",
+      "gen": "раненых",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "раненые",
+        "gen": "раненых",
+        "dat": "раненым",
+        "acc": "раненых",
+        "ins": "ранеными",
+        "prep": "раненых"
+      }
+    },
+    "sestry": {
+      "kind": "noun",
+      "nom": "сёстры",
+      "gen": "сестёр",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "сёстры",
+        "gen": "сестёр",
+        "dat": "сёстрам",
+        "acc": "сестёр",
+        "ins": "сёстрами",
+        "prep": "сёстрах"
+      }
+    },
+    "bratya": {
+      "kind": "noun",
+      "nom": "братья",
+      "gen": "братьев",
+      "gender": "pl",
+      "animate": true,
+      "number": "pl",
+      "forms": {
+        "nom": "братья",
+        "gen": "братьев",
+        "dat": "братьям",
+        "acc": "братьев",
+        "ins": "братьями",
+        "prep": "братьях"
+      }
+    },
+    "zhizn": {
+      "kind": "noun",
+      "nom": "жизнь",
+      "gen": "жизни",
+      "gender": "f"
+    },
+    "materinstvo": {
+      "kind": "noun",
+      "nom": "материнство",
+      "gen": "материнства",
+      "gender": "n"
+    },
+    "otechestvo": {
+      "kind": "noun",
+      "nom": "отечество",
+      "gen": "отечества",
+      "gender": "n"
+    },
+    "sily": {
+      "kind": "noun",
+      "nom": "силы",
+      "gen": "сил",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "силы",
+        "gen": "сил",
+        "dat": "силам",
+        "acc": "силы",
+        "ins": "силами",
+        "prep": "силах"
+      }
+    },
+    "voyska": {
+      "kind": "noun",
+      "nom": "войска",
+      "gen": "войск",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "войска",
+        "gen": "войск",
+        "dat": "войскам",
+        "acc": "войска",
+        "ins": "войсками",
+        "prep": "войсках"
+      }
+    },
+    "organy": {
+      "kind": "noun",
+      "nom": "органы",
+      "gen": "органов",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "органы",
+        "gen": "органов",
+        "dat": "органам",
+        "acc": "органы",
+        "ins": "органами",
+        "prep": "органах"
+      }
+    },
+    "nochnoy": {
+      "kind": "adj",
+      "nom": "ночной"
+    },
+    "zhelezny": {
+      "kind": "adj",
+      "nom": "железный"
+    },
+    "vnutrenniy": {
+      "kind": "adj",
+      "nom": "внутренний"
+    },
+    "gosudarstvenny": {
+      "kind": "adj",
+      "nom": "государственный"
+    },
+    "tayny": {
+      "kind": "adj",
+      "nom": "тайный"
+    },
+    "pogranichny": {
+      "kind": "adj",
+      "nom": "пограничный"
+    },
+    "gorodskoy": {
+      "kind": "adj",
+      "nom": "городской"
+    },
+    "stolichny": {
+      "kind": "adj",
+      "nom": "столичный"
+    },
+    "osoby": {
+      "kind": "adj",
+      "nom": "особый"
+    },
+    "spetsialny": {
+      "kind": "adj",
+      "nom": "специальный"
+    },
+    "operativny": {
+      "kind": "adj",
+      "nom": "оперативный"
+    },
+    "boevoy": {
+      "kind": "adj",
+      "nom": "боевой"
+    },
+    "gvardeyskiy": {
+      "kind": "adj",
+      "nom": "гвардейский"
+    },
+    "politseyskiy": {
+      "kind": "adj",
+      "nom": "полицейский"
+    },
+    "zhandarmskiy": {
+      "kind": "adj",
+      "nom": "жандармский"
+    },
+    "karatelny": {
+      "kind": "adj",
+      "nom": "карательный"
+    },
+    "okhranny": {
+      "kind": "adj",
+      "nom": "охранный"
+    },
+    "zashchitny": {
+      "kind": "adj",
+      "nom": "защитный"
+    },
+    "verny": {
+      "kind": "adj",
+      "nom": "верный"
+    },
+    "strogi": {
+      "kind": "adj",
+      "nom": "строгий"
+    },
+    "sekretny": {
+      "kind": "adj",
+      "nom": "секретный"
+    },
+    "tsentralny": {
+      "kind": "adj",
+      "nom": "центральный"
+    },
+    "verkhovny": {
+      "kind": "adj",
+      "nom": "верховный"
+    },
+    "glavny": {
+      "kind": "adj",
+      "nom": "главный"
+    },
+    "imperskiy": {
+      "kind": "adj",
+      "nom": "имперский"
+    },
+    "federalny": {
+      "kind": "adj",
+      "nom": "федеральный"
+    },
+    "mestny": {
+      "kind": "adj",
+      "nom": "местный"
+    },
+    "territorialny": {
+      "kind": "adj",
+      "nom": "территориальный"
+    },
+    "mobilny": {
+      "kind": "adj",
+      "nom": "мобильный"
+    },
+    "rezervny": {
+      "kind": "adj",
+      "nom": "резервный"
+    },
+    "udarny": {
+      "kind": "adj",
+      "nom": "ударный"
+    },
+    "shturmovoy": {
+      "kind": "adj",
+      "nom": "штурмовой"
+    },
+    "razvedyvatelny": {
+      "kind": "adj",
+      "nom": "разведывательный"
+    },
+    "kontrrazvedyvatelny": {
+      "kind": "adj",
+      "nom": "контрразведывательный"
+    },
+    "distsiplinarny": {
+      "kind": "adj",
+      "nom": "дисциплинарный"
+    },
+    "sledstvenny": {
+      "kind": "adj",
+      "nom": "следственный"
+    },
+    "nadzorny": {
+      "kind": "adj",
+      "nom": "надзорный"
+    },
+    "administrativny": {
+      "kind": "adj",
+      "nom": "административный"
+    },
+    "voenny": {
+      "kind": "adj",
+      "nom": "военный"
+    },
+    "militseskiy": {
+      "kind": "adj",
+      "nom": "милицейский"
+    },
+    "polevoy": {
+      "kind": "adj",
+      "nom": "полевой"
+    },
+    "lineyny": {
+      "kind": "adj",
+      "nom": "линейный"
+    },
+    "beregovoy": {
+      "kind": "adj",
+      "nom": "береговой"
+    },
+    "vozdushny": {
+      "kind": "adj",
+      "nom": "воздушный"
+    },
+    "morskoy": {
+      "kind": "adj",
+      "nom": "морской"
+    },
+    "sukhoputny": {
+      "kind": "adj",
+      "nom": "сухопутный"
+    },
+    "vneshniy": {
+      "kind": "adj",
+      "nom": "внешний"
+    },
+    "obshchiy": {
+      "kind": "adj",
+      "nom": "общий"
+    },
+    "grazhdanskiy": {
+      "kind": "adj",
+      "nom": "гражданский"
+    },
+    "cherny": {
+      "kind": "adj",
+      "nom": "чёрный"
+    },
+    "krasny": {
+      "kind": "adj",
+      "nom": "красный"
+    },
+    "bely": {
+      "kind": "adj",
+      "nom": "белый"
+    },
+    "stary": {
+      "kind": "adj",
+      "nom": "старый"
+    },
+    "novy": {
+      "kind": "adj",
+      "nom": "новый"
+    },
+    "peredovoy": {
+      "kind": "adj",
+      "nom": "передовой"
+    },
+    "bravy": {
+      "kind": "adj",
+      "nom": "бравый"
+    },
+    "surovy": {
+      "kind": "adj",
+      "nom": "суровый"
+    },
+    "gordy": {
+      "kind": "adj",
+      "nom": "гордый"
+    },
+    "molchalivy": {
+      "kind": "adj",
+      "nom": "молчаливый"
+    },
+    "nepreklonny": {
+      "kind": "adj",
+      "nom": "непреклонный"
+    },
+    "bessmertny": {
+      "kind": "adj",
+      "nom": "бессмертный"
+    },
+    "ognenny": {
+      "kind": "adj",
+      "nom": "огненный"
+    },
+    "stalnoy": {
+      "kind": "adj",
+      "nom": "стальной"
+    },
+    "medny": {
+      "kind": "adj",
+      "nom": "медный"
+    },
+    "serebryany": {
+      "kind": "adj",
+      "nom": "серебряный"
+    },
+    "zolotoy": {
+      "kind": "adj",
+      "nom": "золотой"
+    },
+    "drevniy": {
+      "kind": "adj",
+      "nom": "древний"
+    },
+    "vechny": {
+      "kind": "adj",
+      "nom": "вечный"
+    },
+    "svyashchenny": {
+      "kind": "adj",
+      "nom": "священный"
+    },
+    "blagorodny": {
+      "kind": "adj",
+      "nom": "благородный"
+    },
+    "vysokiy": {
+      "kind": "adj",
+      "nom": "высокий"
+    },
+    "nizkiy": {
+      "kind": "adj",
+      "nom": "низкий"
+    },
+    "dalniy": {
+      "kind": "adj",
+      "nom": "дальний"
+    },
+    "blizhniy": {
+      "kind": "adj",
+      "nom": "ближний"
+    },
+    "severny": {
+      "kind": "adj",
+      "nom": "северный"
+    },
+    "yuzhny": {
+      "kind": "adj",
+      "nom": "южный"
+    },
+    "zapadny": {
+      "kind": "adj",
+      "nom": "западный"
+    },
+    "vostochny": {
+      "kind": "adj",
+      "nom": "восточный"
+    },
+    "tsarskiy": {
+      "kind": "adj",
+      "nom": "царский"
+    },
+    "knyazheskiy": {
+      "kind": "adj",
+      "nom": "княжеский"
+    },
+    "boyarskiy": {
+      "kind": "adj",
+      "nom": "боярский"
+    },
+    "kupecheskiy": {
+      "kind": "adj",
+      "nom": "купеческий"
+    },
+    "remeslenny": {
+      "kind": "adj",
+      "nom": "ремесленный"
+    },
+    "rabochiy": {
+      "kind": "adj",
+      "nom": "рабочий"
+    },
+    "krestyanskiy": {
+      "kind": "adj",
+      "nom": "крестьянский"
+    },
+    "nauchny": {
+      "kind": "adj",
+      "nom": "научный"
+    },
+    "uchebny": {
+      "kind": "adj",
+      "nom": "учебный"
+    },
+    "torgovy": {
+      "kind": "adj",
+      "nom": "торговый"
+    },
+    "promyshlenny": {
+      "kind": "adj",
+      "nom": "промышленный"
+    },
+    "finansovy": {
+      "kind": "adj",
+      "nom": "финансовый"
+    },
+    "bankovskiy": {
+      "kind": "adj",
+      "nom": "банковский"
+    },
+    "konspirativny": {
+      "kind": "adj",
+      "nom": "конспиративный"
+    },
+    "kriminalny": {
+      "kind": "adj",
+      "nom": "криминальный"
+    },
+    "nebesny": {
+      "kind": "adj",
+      "nom": "небесный"
+    },
+    "blagodatny": {
+      "kind": "adj",
+      "nom": "благодатный"
+    },
+    "dukhovny": {
+      "kind": "adj",
+      "nom": "духовный"
+    },
+    "svetly": {
+      "kind": "adj",
+      "nom": "светлый"
+    },
+    "blagoy": {
+      "kind": "adj",
+      "nom": "благой"
+    },
+    "krotkiy": {
+      "kind": "adj",
+      "nom": "кроткий"
+    },
+    "torzhestvenny": {
+      "kind": "adj",
+      "nom": "торжественный"
+    },
+    "velichavy": {
+      "kind": "adj",
+      "nom": "величавый"
+    },
+    "neprelozhny": {
+      "kind": "adj",
+      "nom": "непреложный"
+    },
+    "zhivoy": {
+      "kind": "adj",
+      "nom": "живой"
+    },
+    "zvezdny": {
+      "kind": "adj",
+      "nom": "звёздный"
+    },
+    "solnechny": {
+      "kind": "adj",
+      "nom": "солнечный"
+    },
+    "lunny": {
+      "kind": "adj",
+      "nom": "лунный"
+    },
+    "tikh": {
+      "kind": "adj",
+      "nom": "тихий"
+    },
+    "velikiy": {
+      "kind": "adj",
+      "nom": "великий"
+    },
+    "maly": {
+      "kind": "adj",
+      "nom": "малый"
+    },
+    "skromny": {
+      "kind": "adj",
+      "nom": "скромный"
+    },
+    "prodovolstvenny": {
+      "kind": "adj",
+      "nom": "продовольственный"
+    },
+    "vodny": {
+      "kind": "adj",
+      "nom": "водный"
+    },
+    "toplivny": {
+      "kind": "adj",
+      "nom": "топливный"
+    },
+    "syryevoy": {
+      "kind": "adj",
+      "nom": "сырьевой"
+    },
+    "zapasnoy": {
+      "kind": "adj",
+      "nom": "запасной"
+    },
+    "rechnoy": {
+      "kind": "adj",
+      "nom": "речной"
+    },
+    "zimny": {
+      "kind": "adj",
+      "nom": "зимний"
+    },
+    "letniy": {
+      "kind": "adj",
+      "nom": "летний"
+    },
+    "ranniy": {
+      "kind": "adj",
+      "nom": "ранний"
+    },
+    "trudovoy": {
+      "kind": "adj",
+      "nom": "трудовой"
+    },
+    "artelny": {
+      "kind": "adj",
+      "nom": "артельный"
+    },
+    "obshchinny": {
+      "kind": "adj",
+      "nom": "общинный"
+    },
+    "berezhny": {
+      "kind": "adj",
+      "nom": "бережный"
+    },
+    "dobrotny": {
+      "kind": "adj",
+      "nom": "добротный"
+    },
+    "krepkiy": {
+      "kind": "adj",
+      "nom": "крепкий"
+    },
+    "nadezhny": {
+      "kind": "adj",
+      "nom": "надёжный"
+    },
+    "bystry": {
+      "kind": "adj",
+      "nom": "быстрый"
+    },
+    "legkiy": {
+      "kind": "adj",
+      "nom": "лёгкий"
+    },
+    "tyazhely": {
+      "kind": "adj",
+      "nom": "тяжёлый"
+    },
+    "uzlovoy": {
+      "kind": "adj",
+      "nom": "узловой"
+    },
+    "perevalochny": {
+      "kind": "adj",
+      "nom": "перевалочный"
+    },
+    "skladskoy": {
+      "kind": "adj",
+      "nom": "складской"
+    },
+    "portovyy": {
+      "kind": "adj",
+      "nom": "портовый"
+    },
+    "rynochny": {
+      "kind": "adj",
+      "nom": "рыночный"
+    },
+    "obmenny": {
+      "kind": "adj",
+      "nom": "обменный"
+    },
+    "raspredelitelny": {
+      "kind": "adj",
+      "nom": "распределительный"
+    },
+    "blagotvoritelny": {
+      "kind": "adj",
+      "nom": "благотворительный"
+    },
+    "miloserdny": {
+      "kind": "adj",
+      "nom": "милосердный"
+    },
+    "zabotlivy": {
+      "kind": "adj",
+      "nom": "заботливый"
+    },
+    "dobry": {
+      "kind": "adj",
+      "nom": "добрый"
+    },
+    "teply": {
+      "kind": "adj",
+      "nom": "тёплый"
+    },
+    "semeyny": {
+      "kind": "adj",
+      "nom": "семейный"
+    },
+    "rodovoy": {
+      "kind": "adj",
+      "nom": "родовой"
+    },
+    "domashniy": {
+      "kind": "adj",
+      "nom": "домашний"
+    },
+    "selskiy": {
+      "kind": "adj",
+      "nom": "сельский"
+    },
+    "meditsinskiy": {
+      "kind": "adj",
+      "nom": "медицинский"
+    },
+    "sanitarny": {
+      "kind": "adj",
+      "nom": "санитарный"
+    },
+    "spasatelny": {
+      "kind": "adj",
+      "nom": "спасательный"
+    },
+    "priyutny": {
+      "kind": "adj",
+      "nom": "приютный"
+    },
+    "chistiy": {
+      "kind": "adj",
+      "nom": "чистый"
+    },
+    "bratskiy": {
+      "kind": "adj",
+      "nom": "братский"
+    },
+    "sestrinskiy": {
+      "kind": "adj",
+      "nom": "сестринский"
+    },
+    "materinskiy": {
+      "kind": "adj",
+      "nom": "материнский"
+    },
+    "otsovskiy": {
+      "kind": "adj",
+      "nom": "отцовский"
+    },
+    "detskiy": {
+      "kind": "adj",
+      "nom": "детский"
+    },
+    "starcheskiy": {
+      "kind": "adj",
+      "nom": "старческий"
+    },
+    "gumanitarny": {
+      "kind": "adj",
+      "nom": "гуманитарный"
+    },
+    "vzaimny": {
+      "kind": "adj",
+      "nom": "взаимный"
+    },
+    "besplatny": {
+      "kind": "adj",
+      "nom": "бесплатный"
+    },
+    "dostupny": {
+      "kind": "adj",
+      "nom": "доступный"
+    },
+    "kruglosutochny": {
+      "kind": "adj",
+      "nom": "круглосуточный"
+    },
+    "birzhevoy": {
+      "kind": "adj",
+      "nom": "биржевой"
+    },
+    "denezhny": {
+      "kind": "adj",
+      "nom": "денежный"
+    },
+    "gildeyskiy": {
+      "kind": "adj",
+      "nom": "гильдейский"
+    },
+    "karavanniy": {
+      "kind": "adj",
+      "nom": "караванный"
+    },
+    "krupny": {
+      "kind": "adj",
+      "nom": "крупный"
+    },
+    "melkiy": {
+      "kind": "adj",
+      "nom": "мелкий"
+    },
+    "pribylny": {
+      "kind": "adj",
+      "nom": "прибыльный"
+    },
+    "chestny": {
+      "kind": "adj",
+      "nom": "честный"
+    },
+    "khitriy": {
+      "kind": "adj",
+      "nom": "хитрый"
+    },
+    "gibkiy": {
+      "kind": "adj",
+      "nom": "гибкий"
+    },
+    "svobodny": {
+      "kind": "adj",
+      "nom": "свободный"
+    },
+    "otkryty": {
+      "kind": "adj",
+      "nom": "открытый"
+    },
+    "zakryty": {
+      "kind": "adj",
+      "nom": "закрытый"
+    },
+    "dobrovolny": {
+      "kind": "adj",
+      "nom": "добровольный"
+    },
+    "dogovornoy": {
+      "kind": "adj",
+      "nom": "договорной"
+    },
+    "posrednicheskiy": {
+      "kind": "adj",
+      "nom": "посреднический"
+    },
+    "kliringovyy": {
+      "kind": "adj",
+      "nom": "клиринговый"
+    },
+    "nalogovyy": {
+      "kind": "adj",
+      "nom": "налоговый"
+    },
+    "tamozhennyy": {
+      "kind": "adj",
+      "nom": "таможенный"
+    },
+    "svyatoy": {
+      "kind": "adj",
+      "nom": "святой"
+    },
+    "rodnoy": {
+      "kind": "adj",
+      "nom": "родной"
+    },
+    "bolshoy": {
+      "kind": "adj",
+      "nom": "большой"
+    },
+    "khoroshiy": {
+      "kind": "adj",
+      "nom": "хороший"
+    },
+    "svezhiy": {
+      "kind": "adj",
+      "nom": "свежий"
+    },
+    "goryachiy": {
+      "kind": "adj",
+      "nom": "горячий"
+    },
+    "moguchiy": {
+      "kind": "adj",
+      "nom": "могучий"
+    },
+    "dorogoy": {
+      "kind": "adj",
+      "nom": "дорогой"
+    },
+    "sukhoy": {
+      "kind": "adj",
+      "nom": "сухой"
+    },
+    "plokhoy": {
+      "kind": "adj",
+      "nom": "плохой"
+    },
+    "chuzhoy": {
+      "kind": "adj",
+      "nom": "чужой"
+    },
+    "russkiy": {
+      "kind": "adj",
+      "nom": "русский"
+    },
+    "vsemogushchiy": {
+      "kind": "adj",
+      "nom": "всемогущий"
+    },
+    "nepobedimy": {
+      "kind": "adj",
+      "nom": "непобедимый"
+    },
+    "mudry": {
+      "kind": "adj",
+      "nom": "мудрый"
+    },
+    "tochny": {
+      "kind": "adj",
+      "nom": "точный"
+    },
+    "prikladnoy": {
+      "kind": "adj",
+      "nom": "прикладной"
+    },
+    "teoreticheskiy": {
+      "kind": "adj",
+      "nom": "теоретический"
+    },
+    "eksperimentalny": {
+      "kind": "adj",
+      "nom": "экспериментальный"
+    },
+    "arkhivny": {
+      "kind": "adj",
+      "nom": "архивный"
+    },
+    "bibliotechny": {
+      "kind": "adj",
+      "nom": "библиотечный"
+    },
+    "knizhny": {
+      "kind": "adj",
+      "nom": "книжный"
+    },
+    "pismenny": {
+      "kind": "adj",
+      "nom": "письменный"
+    },
+    "ustny": {
+      "kind": "adj",
+      "nom": "устный"
+    },
+    "yazykovoy": {
+      "kind": "adj",
+      "nom": "языковой"
+    },
+    "matematicheskiy": {
+      "kind": "adj",
+      "nom": "математический"
+    },
+    "astronomicheskiy": {
+      "kind": "adj",
+      "nom": "астрономический"
+    },
+    "inzhenerny": {
+      "kind": "adj",
+      "nom": "инженерный"
+    },
+    "masterskoy": {
+      "kind": "adj",
+      "nom": "мастерской"
+    },
+    "uchenicheskiy": {
+      "kind": "adj",
+      "nom": "ученический"
+    },
+    "nastavnicheskiy": {
+      "kind": "adj",
+      "nom": "наставнический"
+    },
+    "kollegialny": {
+      "kind": "adj",
+      "nom": "коллегиальный"
+    },
+    "diskussionny": {
+      "kind": "adj",
+      "nom": "дискуссионный"
+    },
+    "gordiy": {
+      "kind": "adj",
+      "nom": "гордый"
+    },
+    "bezzhalostny": {
+      "kind": "adj",
+      "nom": "безжалостный"
+    },
+    "krovavyy": {
+      "kind": "adj",
+      "nom": "кровавый"
+    },
+    "temnyy": {
+      "kind": "adj",
+      "nom": "тёмный"
+    },
+    "skrytyy": {
+      "kind": "adj",
+      "nom": "скрытый"
+    },
+    "dvoystvennyy": {
+      "kind": "adj",
+      "nom": "двойственный"
+    },
+    "elitarnyy": {
+      "kind": "adj",
+      "nom": "элитарный"
+    },
+    "zakrytyy": {
+      "kind": "adj",
+      "nom": "закрытый"
+    },
+    "semeynyy": {
+      "kind": "adj",
+      "nom": "семейный"
+    },
+    "mogushchestvennyy": {
+      "kind": "adj",
+      "nom": "могущественный"
+    },
+    "vliyatelnyy": {
+      "kind": "adj",
+      "nom": "влиятельный"
+    },
+    "bogatyy": {
+      "kind": "adj",
+      "nom": "богатый"
+    },
+    "bednyy": {
+      "kind": "adj",
+      "nom": "бедный"
+    },
+    "derzkiy": {
+      "kind": "adj",
+      "nom": "дерзкий"
+    },
+    "smelyy": {
+      "kind": "adj",
+      "nom": "смелый"
+    },
+    "opasnyy": {
+      "kind": "adj",
+      "nom": "опасный"
+    },
+    "molodoy": {
+      "kind": "adj",
+      "nom": "молодой"
+    },
+    "vybornyy": {
+      "kind": "adj",
+      "nom": "выборный"
+    },
+    "naslednyy": {
+      "kind": "adj",
+      "nom": "наследный"
+    },
+    "loyalnyy": {
+      "kind": "adj",
+      "nom": "лояльный"
+    },
+    "zhestokiy": {
+      "kind": "adj",
+      "nom": "жестокий"
+    },
+    "tikhi": {
+      "kind": "adj",
+      "nom": "тихий"
+    },
+    "zheleznyy": {
+      "kind": "adj",
+      "nom": "железный"
+    },
+    "mednyy": {
+      "kind": "adj",
+      "nom": "медный"
+    },
+    "serebryanyy": {
+      "kind": "adj",
+      "nom": "серебряный"
+    },
+    "derevyannyy": {
+      "kind": "adj",
+      "nom": "деревянный"
+    },
+    "kamennoy": {
+      "kind": "adj",
+      "nom": "каменный"
+    },
+    "ognevyy": {
+      "kind": "adj",
+      "nom": "огневой"
+    },
+    "zvezdnyy": {
+      "kind": "adj",
+      "nom": "звёздный"
+    },
+    "solnechnyy": {
+      "kind": "adj",
+      "nom": "солнечный"
+    },
+    "lunnyy": {
+      "kind": "adj",
+      "nom": "лунный"
+    },
+    "vechnyy": {
+      "kind": "adj",
+      "nom": "вечный"
+    },
+    "svyashchennyy": {
+      "kind": "adj",
+      "nom": "священный"
+    },
+    "blagorodnyy": {
+      "kind": "adj",
+      "nom": "благородный"
+    },
+    "nepreklonnyy": {
+      "kind": "adj",
+      "nom": "непреклонный"
+    },
+    "bessmertnyy": {
+      "kind": "adj",
+      "nom": "бессмертный"
+    },
+    "ognennyy": {
+      "kind": "adj",
+      "nom": "огненный"
+    },
+    "osobogo_naznacheniya": {
+      "kind": "phrase",
+      "nom": "особого назначения"
+    },
+    "pod_lichnym_kontrolem": {
+      "kind": "phrase",
+      "nom": "под личным контролем"
+    },
+    "vo_imya_poryadka": {
+      "kind": "phrase",
+      "nom": "во имя порядка"
+    },
+    "na_strazhe_zakona": {
+      "kind": "phrase",
+      "nom": "на страже закона"
+    },
+    "po_zovu_dolga": {
+      "kind": "phrase",
+      "nom": "по зову долга"
+    },
+    "v_chas_trevogi": {
+      "kind": "phrase",
+      "nom": "в час тревоги"
+    },
+    "protiv_obshchey_ugrozy": {
+      "kind": "phrase",
+      "nom": "против общей угрозы"
+    },
+    "radi_obshchego_blaga": {
+      "kind": "phrase",
+      "nom": "ради общего блага"
+    },
+    "bez_prava_na_oshibku": {
+      "kind": "phrase",
+      "nom": "без права на ошибку"
+    },
+    "do_poslednego_rubezha": {
+      "kind": "phrase",
+      "nom": "до последнего рубежа"
+    },
+    "s_pravom_primeneniya_sily": {
+      "kind": "phrase",
+      "nom": "с правом применения силы"
+    },
+    "po_pervomu_trebovaniyu": {
+      "kind": "phrase",
+      "nom": "по первому требованию"
+    },
+    "v_interesakh_gosudarstva": {
+      "kind": "phrase",
+      "nom": "в интересах государства"
+    },
+    "pod_znakom_very": {
+      "kind": "phrase",
+      "nom": "под знаком веры"
+    },
+    "vo_slavu_predkov": {
+      "kind": "phrase",
+      "nom": "во славу предков"
+    },
+    "radi_vechnosti": {
+      "kind": "phrase",
+      "nom": "ради вечности"
+    },
+    "v_poiskakh_istiny": {
+      "kind": "phrase",
+      "nom": "в поисках истины"
+    },
+    "na_puti_k_znaniyu": {
+      "kind": "phrase",
+      "nom": "на пути к знанию"
+    },
+    "dlya_obshchego_blaga": {
+      "kind": "phrase",
+      "nom": "для общего блага"
+    },
+    "bez_lishnikh_slov": {
+      "kind": "phrase",
+      "nom": "без лишних слов"
+    },
+    "po_pravu_silnogo": {
+      "kind": "phrase",
+      "nom": "по праву сильного"
+    },
+    "v_teni_zakona": {
+      "kind": "phrase",
+      "nom": "в тени закона"
+    },
+    "na_krayu_propasti": {
+      "kind": "phrase",
+      "nom": "на краю пропасти"
+    },
+    "prinuzhdenie": {
+      "kind": "noun",
+      "nom": "принуждение",
+      "gen": "принуждения",
+      "gender": "n"
+    },
+    "davlenie": {
+      "kind": "noun",
+      "nom": "давление",
+      "gen": "давления",
+      "gender": "n"
+    },
+    "ultimatum": {
+      "kind": "noun",
+      "nom": "ультиматум",
+      "gen": "ультиматума",
+      "gender": "m"
+    },
+    "sanktsiya": {
+      "kind": "noun",
+      "nom": "санкция",
+      "gen": "санкции",
+      "gender": "f"
+    },
+    "ustrashenie": {
+      "kind": "noun",
+      "nom": "устрашение",
+      "gen": "устрашения",
+      "gender": "n"
+    },
+    "aktsiya": {
+      "kind": "noun",
+      "nom": "акция",
+      "gen": "акции",
+      "gender": "f"
+    },
+    "mera": {
+      "kind": "noun",
+      "nom": "мера",
+      "gen": "меры",
+      "gender": "f"
+    },
+    "kontrol": {
+      "kind": "noun",
+      "nom": "контроль",
+      "gen": "контроля",
+      "gender": "m"
+    },
+    "nadzor": {
+      "kind": "noun",
+      "nom": "надзор",
+      "gen": "надзора",
+      "gender": "m"
+    },
+    "arest": {
+      "kind": "noun",
+      "nom": "арест",
+      "gen": "ареста",
+      "gender": "m"
+    },
+    "obysk": {
+      "kind": "noun",
+      "nom": "обыск",
+      "gen": "обыска",
+      "gender": "m"
+    },
+    "zaderzhanie": {
+      "kind": "noun",
+      "nom": "задержание",
+      "gen": "задержания",
+      "gender": "n"
+    },
+    "konvoirovanie": {
+      "kind": "noun",
+      "nom": "конвоирование",
+      "gen": "конвоирования",
+      "gender": "n"
+    },
+    "peregovory": {
+      "kind": "noun",
+      "nom": "переговоры",
+      "gen": "переговоров",
+      "gender": "pl",
+      "number": "pl",
+      "forms": {
+        "nom": "переговоры",
+        "gen": "переговоров",
+        "dat": "переговорам",
+        "acc": "переговоры",
+        "ins": "переговорами",
+        "prep": "переговорах"
+      }
+    },
+    "soveshchanie": {
+      "kind": "noun",
+      "nom": "совещание",
+      "gen": "совещания",
+      "gender": "n"
+    },
+    "soglashenie": {
+      "kind": "noun",
+      "nom": "соглашение",
+      "gen": "соглашения",
+      "gender": "n"
+    },
+    "kompromiss": {
+      "kind": "noun",
+      "nom": "компромисс",
+      "gen": "компромисса",
+      "gender": "m"
+    },
+    "uslovie": {
+      "kind": "noun",
+      "nom": "условие",
+      "gen": "условия",
+      "gender": "n"
+    },
+    "ustupka": {
+      "kind": "noun",
+      "nom": "уступка",
+      "gen": "уступки",
+      "gender": "f"
+    },
+    "trebovanie": {
+      "kind": "noun",
+      "nom": "требование",
+      "gen": "требования",
+      "gender": "n"
+    },
+    "predlozhenie": {
+      "kind": "noun",
+      "nom": "предложение",
+      "gen": "предложения",
+      "gender": "n"
+    },
+    "otvet": {
+      "kind": "noun",
+      "nom": "ответ",
+      "gen": "ответа",
+      "gender": "m"
+    },
+    "obeshchanie": {
+      "kind": "noun",
+      "nom": "обещание",
+      "gen": "обещания",
+      "gender": "n"
+    },
+    "podderzhka": {
+      "kind": "noun",
+      "nom": "поддержка",
+      "gen": "поддержки",
+      "gender": "f"
+    },
+    "obuchenie": {
+      "kind": "noun",
+      "nom": "обучение",
+      "gen": "обучения",
+      "gender": "n"
+    },
+    "nastavlenie": {
+      "kind": "noun",
+      "nom": "наставление",
+      "gen": "наставления",
+      "gender": "n"
+    },
+    "urok": {
+      "kind": "noun",
+      "nom": "урок",
+      "gen": "урока",
+      "gender": "m"
+    },
+    "verbovka": {
+      "kind": "noun",
+      "nom": "вербовка",
+      "gen": "вербовки",
+      "gender": "f"
+    },
+    "nabor": {
+      "kind": "noun",
+      "nom": "набор",
+      "gen": "набора",
+      "gender": "m"
+    },
+    "prisyaga": {
+      "kind": "noun",
+      "nom": "присяга",
+      "gen": "присяги",
+      "gender": "f"
+    },
+    "vyslezhivanie": {
+      "kind": "noun",
+      "nom": "выслеживание",
+      "gen": "выслеживания",
+      "gender": "n"
+    },
+    "slezhka": {
+      "kind": "noun",
+      "nom": "слежка",
+      "gen": "слежки",
+      "gender": "f"
+    },
+    "donos": {
+      "kind": "noun",
+      "nom": "донос",
+      "gen": "доноса",
+      "gender": "m"
+    },
+    "agent": {
+      "kind": "noun",
+      "nom": "агент",
+      "gen": "агента",
+      "gender": "m",
+      "animate": true
+    },
+    "informator": {
+      "kind": "noun",
+      "nom": "информатор",
+      "gen": "информатора",
+      "gender": "m",
+      "animate": true
+    },
+    "zakladka": {
+      "kind": "noun",
+      "nom": "закладка",
+      "gen": "закладки",
+      "gender": "f"
+    },
+    "perekhvat": {
+      "kind": "noun",
+      "nom": "перехват",
+      "gen": "перехвата",
+      "gender": "m"
+    },
+    "nablyudenie": {
+      "kind": "noun",
+      "nom": "наблюдение",
+      "gen": "наблюдения",
+      "gender": "n"
+    },
+    "soprotivlenie": {
+      "kind": "noun",
+      "nom": "сопротивление",
+      "gen": "сопротивления",
+      "gender": "n"
+    },
+    "pokornost": {
+      "kind": "noun",
+      "nom": "покорность",
+      "gen": "покорности",
+      "gender": "f"
+    },
+    "doverie": {
+      "kind": "noun",
+      "nom": "доверие",
+      "gen": "доверия",
+      "gender": "n"
+    },
+    "loyalnost": {
+      "kind": "noun",
+      "nom": "лояльность",
+      "gen": "лояльности",
+      "gender": "f"
+    },
+    "interes": {
+      "kind": "noun",
+      "nom": "интерес",
+      "gen": "интереса",
+      "gender": "m"
+    },
+    "vygoda": {
+      "kind": "noun",
+      "nom": "выгода",
+      "gen": "выгоды",
+      "gender": "f"
+    },
+    "nablyudatel": {
+      "kind": "noun",
+      "nom": "наблюдатель",
+      "gen": "наблюдателя",
+      "gender": "m",
+      "animate": true
+    },
+    "posrednik": {
+      "kind": "noun",
+      "nom": "посредник",
+      "gen": "посредника",
+      "gender": "m",
+      "animate": true
+    },
+    "svidetel": {
+      "kind": "noun",
+      "nom": "свидетель",
+      "gen": "свидетеля",
+      "gender": "m",
+      "animate": true
+    },
+    "garant": {
+      "kind": "noun",
+      "nom": "гарант",
+      "gen": "гаранта",
+      "gender": "m",
+      "animate": true
+    },
+    "protokol": {
+      "kind": "noun",
+      "nom": "протокол",
+      "gen": "протокола",
+      "gender": "m"
+    },
+    "reglament": {
+      "kind": "noun",
+      "nom": "регламент",
+      "gen": "регламента",
+      "gender": "m"
+    },
+    "mandat": {
+      "kind": "noun",
+      "nom": "мандат",
+      "gen": "мандата",
+      "gender": "m"
+    },
+    "pechat": {
+      "kind": "noun",
+      "nom": "печать",
+      "gen": "печати",
+      "gender": "f"
+    },
+    "podpis": {
+      "kind": "noun",
+      "nom": "подпись",
+      "gen": "подписи",
+      "gender": "f"
+    },
+    "prikaz": {
+      "kind": "noun",
+      "nom": "приказ",
+      "gen": "приказа",
+      "gender": "m"
+    },
+    "otchet": {
+      "kind": "noun",
+      "nom": "отчёт",
+      "gen": "отчёта",
+      "gender": "m"
+    },
+    "svodka": {
+      "kind": "noun",
+      "nom": "сводка",
+      "gen": "сводки",
+      "gender": "f"
+    },
+    "doklad": {
+      "kind": "noun",
+      "nom": "доклад",
+      "gen": "доклада",
+      "gender": "m"
+    },
+    "meropriyatie": {
+      "kind": "noun",
+      "nom": "мероприятие",
+      "gen": "мероприятия",
+      "gender": "n"
+    },
+    "kampaniya": {
+      "kind": "noun",
+      "nom": "кампания",
+      "gen": "кампании",
+      "gender": "f"
+    },
+    "programma": {
+      "kind": "noun",
+      "nom": "программа",
+      "gen": "программы",
+      "gender": "f"
+    },
+    "doktrina": {
+      "kind": "noun",
+      "nom": "доктрина",
+      "gen": "доктрины",
+      "gender": "f"
+    },
+    "strategiya": {
+      "kind": "noun",
+      "nom": "стратегия",
+      "gen": "стратегии",
+      "gender": "f"
+    },
+    "taktika": {
+      "kind": "noun",
+      "nom": "тактика",
+      "gen": "тактики",
+      "gender": "f"
+    },
+    "model": {
+      "kind": "noun",
+      "nom": "модель",
+      "gen": "модели",
+      "gender": "f"
+    },
+    "protsedura": {
+      "kind": "noun",
+      "nom": "процедура",
+      "gen": "процедуры",
+      "gender": "f"
+    },
+    "pravilo": {
+      "kind": "noun",
+      "nom": "правило",
+      "gen": "правила",
+      "gender": "n"
+    },
+    "printsip": {
+      "kind": "noun",
+      "nom": "принцип",
+      "gen": "принципа",
+      "gender": "m"
+    },
+    "zadacha": {
+      "kind": "noun",
+      "nom": "задача",
+      "gen": "задачи",
+      "gender": "f"
+    },
+    "tsel": {
+      "kind": "noun",
+      "nom": "цель",
+      "gen": "цели",
+      "gender": "f"
+    },
+    "risk": {
+      "kind": "noun",
+      "nom": "риск",
+      "gen": "риска",
+      "gender": "m"
+    },
+    "reshenie": {
+      "kind": "noun",
+      "nom": "решение",
+      "gen": "решения",
+      "gender": "n"
+    },
+    "vybor": {
+      "kind": "noun",
+      "nom": "выбор",
+      "gen": "выбора",
+      "gender": "m"
+    },
+    "oshibka": {
+      "kind": "noun",
+      "nom": "ошибка",
+      "gen": "ошибки",
+      "gender": "f"
+    },
+    "uspekh": {
+      "kind": "noun",
+      "nom": "успех",
+      "gen": "успеха",
+      "gender": "m"
+    },
+    "proval": {
+      "kind": "noun",
+      "nom": "провал",
+      "gen": "провала",
+      "gender": "m"
+    },
+    "rezultat": {
+      "kind": "noun",
+      "nom": "результат",
+      "gen": "результата",
+      "gender": "m"
+    },
+    "effekt": {
+      "kind": "noun",
+      "nom": "эффект",
+      "gen": "эффекта",
+      "gender": "m"
+    },
+    "stimul": {
+      "kind": "noun",
+      "nom": "стимул",
+      "gen": "стимула",
+      "gender": "m"
+    },
+    "zashchita": {
+      "kind": "noun",
+      "nom": "защита",
+      "gen": "защиты",
+      "gender": "f"
+    },
+    "napadenie": {
+      "kind": "noun",
+      "nom": "нападение",
+      "gen": "нападения",
+      "gender": "n"
+    },
+    "zhertva": {
+      "kind": "noun",
+      "nom": "жертва",
+      "gen": "жертвы",
+      "gender": "f",
+      "animate": true
+    },
+    "pobeda": {
+      "kind": "noun",
+      "nom": "победа",
+      "gen": "победы",
+      "gender": "f"
+    },
+    "porazhenie": {
+      "kind": "noun",
+      "nom": "поражение",
+      "gen": "поражения",
+      "gender": "n"
+    },
+    "zhestkiy": {
+      "kind": "adj",
+      "nom": "жёсткий"
+    },
+    "myagkiy": {
+      "kind": "adj",
+      "nom": "мягкий"
+    },
+    "preventivnyy": {
+      "kind": "adj",
+      "nom": "превентивный"
+    },
+    "demonstrativnyy": {
+      "kind": "adj",
+      "nom": "демонстративный"
+    },
+    "vynuzhdennyy": {
+      "kind": "adj",
+      "nom": "вынужденный"
+    },
+    "ravnyy": {
+      "kind": "adj",
+      "nom": "равный"
+    },
+    "dlitelnyy": {
+      "kind": "adj",
+      "nom": "длительный"
+    },
+    "kratkiy": {
+      "kind": "adj",
+      "nom": "краткий"
+    },
+    "uspeshnyy": {
+      "kind": "adj",
+      "nom": "успешный"
+    },
+    "riskovannyy": {
+      "kind": "adj",
+      "nom": "рискованный"
+    },
+    "pokaznoy": {
+      "kind": "adj",
+      "nom": "показной"
+    },
+    "masshtabnyy": {
+      "kind": "adj",
+      "nom": "масштабный"
+    },
+    "lokalnyy": {
+      "kind": "adj",
+      "nom": "локальный"
+    },
+    "ekonomicheskiy": {
+      "kind": "adj",
+      "nom": "экономический"
+    },
+    "politicheskiy": {
+      "kind": "adj",
+      "nom": "политический"
+    },
+    "sotsialnyy": {
+      "kind": "adj",
+      "nom": "социальный"
+    },
+    "kulturnyy": {
+      "kind": "adj",
+      "nom": "культурный"
+    },
+    "informatsionnyy": {
+      "kind": "adj",
+      "nom": "информационный"
+    },
+    "psikhologicheskiy": {
+      "kind": "adj",
+      "nom": "психологический"
+    },
+    "fizicheskiy": {
+      "kind": "adj",
+      "nom": "физический"
+    },
+    "pravovoy": {
+      "kind": "adj",
+      "nom": "правовой"
+    },
+    "peregovornyy": {
+      "kind": "adj",
+      "nom": "переговорный"
+    },
+    "prinuditelnyy": {
+      "kind": "adj",
+      "nom": "принудительный"
+    },
+    "sanktsionnyy": {
+      "kind": "adj",
+      "nom": "санкционный"
+    },
+    "blokadnyy": {
+      "kind": "adj",
+      "nom": "блокадный"
+    },
+    "otvetnyy": {
+      "kind": "adj",
+      "nom": "ответный"
+    },
+    "vstrechnyy": {
+      "kind": "adj",
+      "nom": "встречный"
+    },
+    "sovmestnyy": {
+      "kind": "adj",
+      "nom": "совместный"
+    },
+    "odnostoronniy": {
+      "kind": "adj",
+      "nom": "односторонний"
+    },
+    "mnogostoronniy": {
+      "kind": "adj",
+      "nom": "многосторонний"
+    },
+    "yavnyy": {
+      "kind": "adj",
+      "nom": "явный"
+    },
+    "vnezapnyy": {
+      "kind": "adj",
+      "nom": "внезапный"
+    },
+    "postepennnyy": {
+      "kind": "adj",
+      "nom": "постепенный"
+    },
+    "mgnovennyy": {
+      "kind": "adj",
+      "nom": "мгновенный"
+    },
+    "sluzhebnyy": {
+      "kind": "adj",
+      "nom": "служебный"
+    },
+    "ustav": {
+      "kind": "noun",
+      "nom": "устав",
+      "gen": "устава",
+      "gender": "m"
+    },
+    "navyk": {
+      "kind": "noun",
+      "nom": "навык",
+      "gen": "навыка",
+      "gender": "m"
+    },
+    "rabota": {
+      "kind": "noun",
+      "nom": "работа",
+      "gen": "работы",
+      "gender": "f"
+    },
+    "molodezh": {
+      "kind": "noun",
+      "nom": "молодёжь",
+      "gen": "молодёжи",
+      "gender": "f"
+    },
+    "master": {
+      "kind": "noun",
+      "nom": "мастер",
+      "gen": "мастера",
+      "gender": "m",
+      "animate": true
+    },
+    "voin": {
+      "kind": "noun",
+      "nom": "воин",
+      "gen": "воина",
+      "gender": "m",
+      "animate": true
+    },
+    "informatsiya": {
+      "kind": "noun",
+      "nom": "информация",
+      "gen": "информации",
+      "gender": "f"
+    },
+    "sled": {
+      "kind": "noun",
+      "nom": "след",
+      "gen": "следа",
+      "gender": "m"
+    },
+    "storona": {
+      "kind": "noun",
+      "nom": "сторона",
+      "gen": "стороны",
+      "gender": "f"
+    },
+    "konflikt": {
+      "kind": "noun",
+      "nom": "конфликт",
+      "gen": "конфликта",
+      "gender": "m"
+    },
+    "obet": {
+      "kind": "noun",
+      "nom": "обет",
+      "gen": "обета",
+      "gender": "m"
+    },
+    "simvol": {
+      "kind": "noun",
+      "nom": "символ",
+      "gen": "символа",
+      "gender": "m"
+    },
+    "pesn": {
+      "kind": "noun",
+      "nom": "песня",
+      "gen": "песни",
+      "gender": "f"
+    },
+    "ogon": {
+      "kind": "noun",
+      "nom": "огонь",
+      "gen": "огня",
+      "gender": "m"
+    },
+    "zemlya": {
+      "kind": "noun",
+      "nom": "земля",
+      "gen": "земли",
+      "gender": "f"
+    },
+    "nebo": {
+      "kind": "noun",
+      "nom": "небо",
+      "gen": "неба",
+      "gender": "n"
+    },
+    "solntse": {
+      "kind": "noun",
+      "nom": "солнце",
+      "gen": "солнца",
+      "gender": "n"
+    },
+    "luna": {
+      "kind": "noun",
+      "nom": "луна",
+      "gen": "луны",
+      "gender": "f"
+    },
+    "smert": {
+      "kind": "noun",
+      "nom": "смерть",
+      "gen": "смерти",
+      "gender": "f"
+    },
+    "blagoslovenie": {
+      "kind": "noun",
+      "nom": "благословение",
+      "gen": "благословения",
+      "gender": "n"
+    },
+    "iskushenie": {
+      "kind": "noun",
+      "nom": "искушение",
+      "gen": "искушения",
+      "gender": "n"
+    },
+    "predatelstvo": {
+      "kind": "noun",
+      "nom": "предательство",
+      "gen": "предательства",
+      "gender": "n"
+    },
+    "podozrenie": {
+      "kind": "noun",
+      "nom": "подозрение",
+      "gen": "подозрения",
+      "gender": "n"
+    },
+    "soglasie": {
+      "kind": "noun",
+      "nom": "согласие",
+      "gen": "согласия",
+      "gender": "n"
+    },
+    "otkaz": {
+      "kind": "noun",
+      "nom": "отказ",
+      "gen": "отказа",
+      "gender": "m"
+    },
+    "eskalatsiya": {
+      "kind": "noun",
+      "nom": "эскалация",
+      "gen": "эскалации",
+      "gender": "f"
+    },
+    "ispolnenie": {
+      "kind": "noun",
+      "nom": "исполнение",
+      "gen": "исполнения",
+      "gender": "n"
+    },
+    "demonstratsiya": {
+      "kind": "noun",
+      "nom": "демонстрация",
+      "gen": "демонстрации",
+      "gender": "f"
+    },
+    "gotovnost": {
+      "kind": "noun",
+      "nom": "готовность",
+      "gen": "готовности",
+      "gender": "f"
+    },
+    "podchinenie": {
+      "kind": "noun",
+      "nom": "подчинение",
+      "gen": "подчинения",
+      "gender": "n"
+    },
+    "sabotazh": {
+      "kind": "noun",
+      "nom": "саботаж",
+      "gen": "саботажа",
+      "gender": "m"
+    },
+    "otsenka": {
+      "kind": "noun",
+      "nom": "оценка",
+      "gen": "оценки",
+      "gender": "f"
+    },
+    "strakh": {
+      "kind": "noun",
+      "nom": "страх",
+      "gen": "страха",
+      "gender": "m"
+    },
+    "volya": {
+      "kind": "noun",
+      "nom": "воля",
+      "gen": "воли",
+      "gender": "f"
+    },
+    "slovo": {
+      "kind": "noun",
+      "nom": "слово",
+      "gen": "слова",
+      "gender": "n"
+    },
+    "srok": {
+      "kind": "noun",
+      "nom": "срок",
+      "gen": "срока",
+      "gender": "m"
+    }
+  }
+}

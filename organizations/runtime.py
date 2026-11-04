@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import Mapping
 
 import simulation as S
 
@@ -46,6 +47,10 @@ def _clamp(value, low=0.0, high=1.0):
     return max(low, min(high, value))
 
 
+def _as_mapping(value):
+    return value if isinstance(value, Mapping) else {}
+
+
 class OrganizationRuntime(S.Environment):
 
     def __init__(
@@ -64,6 +69,7 @@ class OrganizationRuntime(S.Environment):
         coercion_factor=0.5,
         leader_morale_bonus=10.0,
         allow_rejoin=False,
+        jitter_salt=None,
     ):
         detachments = list(detachments or [])
         characters = list(characters or [])
@@ -77,7 +83,9 @@ class OrganizationRuntime(S.Environment):
         self.detachments = detachments
         self.characters = characters
         self.parameters = parameters or OrganizationParameters()
-        self.solver = OrganizationSolver(self.parameters)
+        self.solver = OrganizationSolver(
+            self.parameters, jitter_salt=jitter_salt or name
+        )
         self.complete_weight = _clamp(complete_weight, 0.0, 1.0)
         self.links = list(links) if links is not None else None
         self.leader_id = leader_id
@@ -354,6 +362,92 @@ class OrganizationRuntime(S.Environment):
         snapshot = self.snapshot()
         snapshot["events"] = list(events)
         return snapshot
+
+    def _iter_member_characters(self):
+        for det in self.detachments:
+            for character in list(getattr(det, "characters", []) or []):
+                yield character
+        for character in self.characters:
+            yield character
+
+    @staticmethod
+    def _character_state(character):
+        return {
+            "name": str(getattr(character, "name", "")),
+            "needs": dict(getattr(character, "needs", {}) or {}),
+            "morale": float(getattr(character, "morale", 0.0)),
+            "desires": dict(getattr(character, "desires", {}) or {}),
+        }
+
+    def state_dict(self):
+        """Состояние, без которого следующий такт после загрузки разойдётся."""
+        return {
+            "force": float(self.force),
+            "energy_pool": float(self.energy_pool),
+            "tick": int(self.tick_count),
+            "phase": str(self.phase),
+            "active": bool(self.active),
+            "exited": sorted(str(item) for item in self.exited),
+            "last_effects": {
+                str(key): float(value)
+                for key, value in self.last_effects.items()
+            },
+            "events": list(self.events),
+            "phase_cursor": int(self._phase_cursor),
+            "announced_active": bool(self._announced_active),
+            "dissolved_event_sent": bool(self._dissolved_event_sent),
+            "dissolution_applied": bool(self._dissolution_applied),
+            "last_crisis": bool(self._last_crisis),
+            "characters": [
+                self._character_state(character)
+                for character in self._iter_member_characters()
+            ],
+        }
+
+    def load_state_dict(self, state):
+        if not isinstance(state, Mapping):
+            return
+        self.force = float(state.get("force", self.force))
+        self.energy_pool = float(state.get("energy_pool", self.energy_pool))
+        self.tick_count = int(state.get("tick", self.tick_count))
+        self.phase = str(state.get("phase", self.phase))
+        self.active = bool(state.get("active", self.active))
+        self.exited = {
+            str(item) for item in (state.get("exited") or [])
+        }
+        self.last_effects = {
+            str(key): float(value)
+            for key, value in _as_mapping(state.get("last_effects")).items()
+        }
+        self.events = list(state.get("events") or [])
+        self._phase_cursor = int(state.get("phase_cursor", 0))
+        self._announced_active = bool(state.get("announced_active", False))
+        self._dissolved_event_sent = bool(
+            state.get("dissolved_event_sent", False)
+        )
+        self._dissolution_applied = bool(
+            state.get("dissolution_applied", False)
+        )
+        self._last_crisis = bool(state.get("last_crisis", False))
+        records = list(state.get("characters") or [])
+        for character, record in zip(self._iter_member_characters(), records):
+            if not isinstance(record, Mapping):
+                continue
+            needs = dict(getattr(character, "needs", {}) or {})
+            for key, value in _as_mapping(record.get("needs")).items():
+                if key in needs:
+                    needs[key] = _clamp(value)
+            character.needs = needs
+            character.morale = max(
+                0.0,
+                min(100.0, float(record.get("morale", character.morale))),
+            )
+            character.desires = {
+                str(key): float(value)
+                for key, value in _as_mapping(record.get("desires")).items()
+                if key in needs
+            }
+        self.analysis = None
 
     def snapshot(self):
         analysis = self.analysis

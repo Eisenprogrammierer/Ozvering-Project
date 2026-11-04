@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "roles": [
+    {
+      "id": "empire_leader",
+      "label": "Император",
+      "short_label": "Император",
+      "description": "Номинальный лидер Империи. Вы отвечаете за монополию на законность, вертикаль власти и миф о непобедимости. Поражение бьёт по вам сильнее, чем по армии.",
+      "storyline_id": "empire_campaign",
+      "sort_order": 0,
+      "grants": {
+        "player_role": "empire_leader",
+        "leadership_mode": "nominal",
+        "faction_control": "automaton"
+      },
+      "tags": [
+        "lore",
+        "empire",
+        "nominal",
+        "leader"
+      ]
+    },
+    {
+      "id": "republic_leader",
+      "label": "Председатель парламента",
+      "short_label": "Председатель",
+      "description": "Номинальный лидер Республики. Ваша власть опирается на процедуру и плебс, а не на страх. Вы сильны в манёвре и информации, но каждое поражение быстрее размывает веру в законность.",
+      "storyline_id": "republic_campaign",
+      "sort_order": 10,
+      "grants": {
+        "player_role": "republic_leader",
+        "leadership_mode": "nominal",
+        "faction_control": "automaton"
+      },
+      "tags": [
+        "lore",
+        "republic",
+        "nominal",
+        "leader"
+      ]
+    },
+    {
+      "id": "cult_leader",
+      "label": "Верховный жрец",
+      "short_label": "Верховный жрец",
+      "description": "Номинальный лидер Культа Земли. У вас нет армии, способной победить государства в поле. Ваше оружие — нарратив, общины и энтропия чужой лояльности.",
+      "storyline_id": "cult_campaign",
+      "sort_order": 20,
+      "grants": {
+        "player_role": "cult_leader",
+        "leadership_mode": "nominal",
+        "faction_control": "automaton"
+      },
+      "tags": [
+        "lore",
+        "cult",
+        "nominal",
+        "leader"
+      ]
+    },
+    {
+      "id": "corporation_leader",
+      "label": "Генеральный директор",
+      "short_label": "Генеральный директор",
+      "description": "Номинальный лидер Торговой планеты. Вы торгуете со всеми и не принадлежите никому. Ваша сила — канал, инфраструктура и баланс; ваша слабость — отсутствие легитимности.",
+      "storyline_id": "corporation_campaign",
+      "sort_order": 30,
+      "grants": {
+        "player_role": "corporation_leader",
+        "leadership_mode": "nominal",
+        "faction_control": "automaton"
+      },
+      "tags": [
+        "lore",
+        "corporation",
+        "nominal",
+        "leader"
+      ]
+    }
+  ]
+}

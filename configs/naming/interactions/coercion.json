@@ -1,0 +1,429 @@
+{
+  "schema": 1,
+  "type": "coercion",
+  "label": "Принуждение",
+  "description": "Отправитель требует подчинения, получатель оценивает угрозу и сопротивление; давление может быть правовым, военным или психологическим.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "сигнал требования",
+      "kind": "signal",
+      "keywords": [
+        "приказ",
+        "ультиматум",
+        "угроза",
+        "санкция",
+        "срок",
+        "условие",
+        "страх",
+        "боль"
+      ]
+    },
+    "sender_output": {
+      "label": "принуждающее воздействие",
+      "kind": "action",
+      "keywords": [
+        "давление",
+        "арест",
+        "обыск",
+        "блокада",
+        "конвой",
+        "удар",
+        "штраф",
+        "изоляция"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "отряд принуждения",
+          "kind": "nested_automaton",
+          "keywords": [
+            "приказ",
+            "сила",
+            "оцепление",
+            "обыск",
+            "конвой",
+            "срок",
+            "доклад",
+            "страх"
+          ]
+        },
+        {
+          "label": "схема санкций",
+          "kind": "scheme",
+          "keywords": [
+            "норма",
+            "нарушение",
+            "мера",
+            "срок",
+            "список",
+            "печать",
+            "апелляция",
+            "исполнение"
+          ]
+        },
+        {
+          "label": "переговорщик силы",
+          "kind": "nested_automaton",
+          "keywords": [
+            "голос",
+            "угроза",
+            "пауза",
+            "условие",
+            "уступка",
+            "слово",
+            "взгляд",
+            "приказ"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "узел сопротивления",
+          "kind": "nested_automaton",
+          "keywords": [
+            "баррикада",
+            "связь",
+            "запас",
+            "страх",
+            "воля",
+            "слух",
+            "укрытие",
+            "удар"
+          ]
+        },
+        {
+          "label": "схема подчинения",
+          "kind": "scheme",
+          "keywords": [
+            "приказ",
+            "норма",
+            "страх",
+            "выгода",
+            "наказание",
+            "слово",
+            "срок",
+            "покорность"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "готовность",
+          "kind": "state",
+          "keywords": [
+            "приказ",
+            "сила",
+            "оцепление",
+            "срок",
+            "страх",
+            "решение",
+            "печать",
+            "тишина"
+          ]
+        },
+        {
+          "label": "демонстрация",
+          "kind": "state",
+          "keywords": [
+            "показ",
+            "сила",
+            "шум",
+            "знак",
+            "улица",
+            "взгляд",
+            "страх",
+            "пауза"
+          ]
+        },
+        {
+          "label": "эскалация",
+          "kind": "state",
+          "keywords": [
+            "угроза",
+            "удар",
+            "блокада",
+            "ультиматум",
+            "страх",
+            "огонь",
+            "граница",
+            "крик"
+          ]
+        },
+        {
+          "label": "исполнение",
+          "kind": "state",
+          "keywords": [
+            "арест",
+            "обыск",
+            "конвой",
+            "протокол",
+            "печать",
+            "список",
+            "доклад",
+            "пыль"
+          ]
+        },
+        {
+          "label": "исчерпание",
+          "kind": "state",
+          "keywords": [
+            "усталость",
+            "потеря",
+            "долг",
+            "кризис",
+            "молчание",
+            "отход",
+            "поражение",
+            "тень"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "сопротивление",
+          "kind": "state",
+          "keywords": [
+            "воля",
+            "баррикада",
+            "связь",
+            "страх",
+            "злость",
+            "слух",
+            "удар",
+            "крик"
+          ]
+        },
+        {
+          "label": "оценка угрозы",
+          "kind": "state",
+          "keywords": [
+            "взгляд",
+            "слух",
+            "страх",
+            "расчёт",
+            "выбор",
+            "слово",
+            "срок",
+            "сомнение"
+          ]
+        },
+        {
+          "label": "подчинение",
+          "kind": "state",
+          "keywords": [
+            "покорность",
+            "страх",
+            "приказ",
+            "наказание",
+            "слово",
+            "печать",
+            "тишина",
+            "долг"
+          ]
+        },
+        {
+          "label": "саботаж",
+          "kind": "state",
+          "keywords": [
+            "тайна",
+            "ошибка",
+            "проволочка",
+            "слух",
+            "улыбка",
+            "нож",
+            "молчание",
+            "риск"
+          ]
+        },
+        {
+          "label": "уступка",
+          "kind": "state",
+          "keywords": [
+            "торг",
+            "слово",
+            "цена",
+            "страх",
+            "выгода",
+            "пауза",
+            "договор",
+            "усталость"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "закон",
+            "приказ",
+            "печать",
+            "суд",
+            "страх",
+            "награда",
+            "граница",
+            "воля"
+          ]
+        },
+        {
+          "label": "союзники",
+          "kind": "actor",
+          "keywords": [
+            "поддержка",
+            "долг",
+            "слово",
+            "сила",
+            "страх",
+            "выгода",
+            "обещание",
+            "тень"
+          ]
+        },
+        {
+          "label": "наблюдатели",
+          "kind": "actor",
+          "keywords": [
+            "взгляд",
+            "слух",
+            "протокол",
+            "печать",
+            "молва",
+            "стыд",
+            "запись",
+            "имя"
+          ]
+        },
+        {
+          "label": "общественное мнение",
+          "kind": "environment",
+          "keywords": [
+            "слух",
+            "страх",
+            "молва",
+            "улица",
+            "толпа",
+            "гнев",
+            "надежда",
+            "молчание"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "prinuzhdenie",
+      "davlenie",
+      "ultimatum",
+      "sanktsiya",
+      "ustrashenie",
+      "aktsiya",
+      "mera",
+      "kontrol",
+      "nadzor",
+      "arest",
+      "obysk",
+      "zaderzhanie",
+      "konvoirovanie",
+      "operatsiya",
+      "blokada",
+      "shturm",
+      "ataka",
+      "ugroza"
+    ],
+    "adjectives": [
+      "zhestkiy",
+      "myagkiy",
+      "preventivnyy",
+      "demonstrativnyy",
+      "vynuzhdennyy",
+      "prinuditelnyy",
+      "sanktsionnyy",
+      "blokadnyy",
+      "karatelny",
+      "surovy",
+      "strogi",
+      "vnezapnyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "politicheskiy",
+      "psikhologicheskiy",
+      "fizicheskiy",
+      "pravovoy",
+      "sluzhebnyy",
+      "pokaznoy",
+      "yavnyy",
+      "sekretny",
+      "tayny"
+    ],
+    "dependents": [
+      "soprotivlenie",
+      "pokornost",
+      "strakh",
+      "ugroza",
+      "dolg",
+      "prisyaga",
+      "zakon",
+      "prikaz",
+      "norma",
+      "granitsa",
+      "perimetr",
+      "kontrol",
+      "nadzor",
+      "arest",
+      "obysk",
+      "konvoi",
+      "okhrana",
+      "sila",
+      "vlast",
+      "volya",
+      "vybor",
+      "peregovory",
+      "soglasie",
+      "otkaz",
+      "podozrenie",
+      "podchinenie",
+      "sabotazh",
+      "eskalatsiya"
+    ],
+    "dependent_adjectives": [
+      "zhestkiy",
+      "surovy",
+      "strogi",
+      "vynuzhdennyy",
+      "prinuditelnyy",
+      "sanktsionnyy",
+      "blokadnyy",
+      "karatelny",
+      "vnezapnyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "politicheskiy",
+      "psikhologicheskiy",
+      "fizicheskiy",
+      "pravovoy",
+      "sluzhebnyy",
+      "yavnyy",
+      "sekretny",
+      "tayny",
+      "vnutrenniy",
+      "vneshniy"
+    ],
+    "extensions": [
+      "po_pravu_silnogo",
+      "do_poslednego_rubezha",
+      "na_krayu_propasti",
+      "v_chas_trevogi",
+      "po_pervomu_trebovaniyu",
+      "bez_lishnikh_slov",
+      "v_teni_zakona",
+      "radi_obshchego_blaga"
+    ]
+  }
+}

@@ -1,0 +1,392 @@
+{
+  "schema": 1,
+  "type": "ritual",
+  "label": "Ритуал",
+  "description": "Отправитель проводит обряд или присягу, получатель принимает знак и подтверждает принадлежность.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "знак и зов",
+      "kind": "signal",
+      "keywords": [
+        "знак",
+        "слово",
+        "звук",
+        "свет",
+        "огонь",
+        "тишина",
+        "присяга",
+        "имя"
+      ]
+    },
+    "sender_output": {
+      "label": "обряд и присяга",
+      "kind": "meaning",
+      "keywords": [
+        "обряд",
+        "ритуал",
+        "присяга",
+        "благословение",
+        "слово",
+        "знак",
+        "память",
+        "жертва"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "жрец",
+          "kind": "nested_automaton",
+          "keywords": [
+            "слово",
+            "обряд",
+            "огонь",
+            "тишина",
+            "знак",
+            "память",
+            "голос",
+            "вера"
+          ]
+        },
+        {
+          "label": "схема обряда",
+          "kind": "scheme",
+          "keywords": [
+            "шаг",
+            "слово",
+            "знак",
+            "время",
+            "место",
+            "тишина",
+            "присяга",
+            "печать"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "община",
+          "kind": "nested_automaton",
+          "keywords": [
+            "круг",
+            "слово",
+            "память",
+            "вера",
+            "надежда",
+            "тишина",
+            "знак",
+            "огонь"
+          ]
+        },
+        {
+          "label": "схема участия",
+          "kind": "scheme",
+          "keywords": [
+            "место",
+            "шаг",
+            "слово",
+            "знак",
+            "тишина",
+            "присяга",
+            "имя",
+            "память"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "подготовка",
+          "kind": "state",
+          "keywords": [
+            "тишина",
+            "свет",
+            "огонь",
+            "знак",
+            "слово",
+            "место",
+            "время",
+            "память"
+          ]
+        },
+        {
+          "label": "совершение",
+          "kind": "state",
+          "keywords": [
+            "голос",
+            "огонь",
+            "слово",
+            "знак",
+            "круг",
+            "тишина",
+            "присяга",
+            "трепет"
+          ]
+        },
+        {
+          "label": "тишина",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "свет",
+            "память",
+            "знак",
+            "взгляд",
+            "огонь",
+            "время",
+            "трепет"
+          ]
+        },
+        {
+          "label": "завершение",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "печать",
+            "имя",
+            "знак",
+            "память",
+            "тепло",
+            "тишина",
+            "покой"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "ожидание",
+          "kind": "state",
+          "keywords": [
+            "тишина",
+            "взгляд",
+            "слово",
+            "знак",
+            "время",
+            "трепет",
+            "надежда",
+            "страх"
+          ]
+        },
+        {
+          "label": "причастность",
+          "kind": "state",
+          "keywords": [
+            "круг",
+            "слово",
+            "память",
+            "вера",
+            "тепло",
+            "знак",
+            "имя",
+            "радость"
+          ]
+        },
+        {
+          "label": "трепет",
+          "kind": "state",
+          "keywords": [
+            "страх",
+            "тишина",
+            "свет",
+            "огонь",
+            "дрожь",
+            "слово",
+            "знак",
+            "молчание"
+          ]
+        },
+        {
+          "label": "разочарование",
+          "kind": "state",
+          "keywords": [
+            "пустота",
+            "молчание",
+            "тень",
+            "сомнение",
+            "уход",
+            "холод",
+            "память",
+            "слеза"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "традиция",
+          "kind": "environment",
+          "keywords": [
+            "канон",
+            "память",
+            "слово",
+            "обряд",
+            "знак",
+            "имя",
+            "граница",
+            "спор"
+          ]
+        },
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "печать",
+            "приказ",
+            "запрет",
+            "суд",
+            "страх",
+            "награда",
+            "граница",
+            "слово"
+          ]
+        },
+        {
+          "label": "община",
+          "kind": "actor",
+          "keywords": [
+            "круг",
+            "поддержка",
+            "слух",
+            "доля",
+            "сосед",
+            "доверие",
+            "граница",
+            "молчание"
+          ]
+        },
+        {
+          "label": "неверие",
+          "kind": "environment",
+          "keywords": [
+            "сомнение",
+            "насмешка",
+            "молчание",
+            "тьма",
+            "слух",
+            "спор",
+            "тень",
+            "хаос"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "ritual",
+      "obryad",
+      "prisyaga",
+      "propoved",
+      "traditsiya",
+      "pamyat",
+      "znak",
+      "simvol",
+      "pesn",
+      "molitva",
+      "prazdnik",
+      "sluzhba",
+      "obet"
+    ],
+    "adjectives": [
+      "torzhestvenny",
+      "svyashchenny",
+      "dukhovny",
+      "vechny",
+      "tayny",
+      "drevniy",
+      "strogi",
+      "verny",
+      "krotkiy",
+      "svetly",
+      "zolotoy",
+      "serebryany",
+      "nochnoy",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "semeyny",
+      "rodovoy",
+      "kulturnyy",
+      "sotsialnyy",
+      "politicheskiy",
+      "psikhologicheskiy",
+      "masshtabnyy",
+      "lokalnyy",
+      "yavnyy",
+      "sekretny",
+      "pokaznoy"
+    ],
+    "dependents": [
+      "prisyaga",
+      "obet",
+      "molitva",
+      "vera",
+      "nadezhda",
+      "lyubov",
+      "pamyat",
+      "traditsiya",
+      "obryad",
+      "ritual",
+      "zhertva",
+      "slovo",
+      "znak",
+      "simvol",
+      "imya",
+      "semya",
+      "rod",
+      "obshchina",
+      "bratya",
+      "sestry",
+      "zhizn",
+      "smert",
+      "ogon",
+      "zemlya",
+      "nebo",
+      "solntse",
+      "luna",
+      "blagoslovenie"
+    ],
+    "dependent_adjectives": [
+      "torzhestvenny",
+      "svyashchenny",
+      "dukhovny",
+      "vechny",
+      "tayny",
+      "drevniy",
+      "strogi",
+      "verny",
+      "krotkiy",
+      "svetly",
+      "zolotoy",
+      "serebryany",
+      "nochnoy",
+      "obshchinny",
+      "bratskiy",
+      "sestrinskiy",
+      "semeyny",
+      "rodovoy",
+      "kulturnyy",
+      "sotsialnyy",
+      "politicheskiy",
+      "psikhologicheskiy",
+      "masshtabnyy",
+      "lokalnyy",
+      "yavnyy",
+      "sekretny",
+      "pokaznoy"
+    ],
+    "extensions": [
+      "radi_vechnosti",
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "po_zovu_dolga",
+      "v_chas_trevogi",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha",
+      "bez_lishnikh_slov"
+    ]
+  }
+}

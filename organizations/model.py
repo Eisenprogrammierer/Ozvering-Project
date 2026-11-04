@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import math
 from typing import Dict, List, Mapping, Optional, Tuple
 
@@ -32,6 +33,22 @@ def _number(value, default=0.0):
 
 def _clamp(value, low=0.0, high=1.0):
     return max(low, min(high, _number(value, low)))
+
+
+def _stable_jitter(identifier, amplitude):
+    """Детерминированная добавка к внешней полезности участника.
+
+    Хеш не зависит от процесса и seed'а интерпретатора, поэтому одинаковый
+    участник в одинаковой организации всегда получает одну и ту же добавку.
+    Это даёт гетерогенность без скрытого состояния и без случайности в
+    сохранении/загрузке.
+    """
+    amplitude = max(0.0, _number(amplitude, 0.0))
+    if amplitude <= 0.0:
+        return 0.0
+    digest = hashlib.sha256(str(identifier).encode("utf-8")).digest()
+    raw = int.from_bytes(digest[:4], "big") / float(0xFFFFFFFF)
+    return (raw * 2.0 - 1.0) * amplitude
 
 
 def organization_level(effective_count, threshold=165.0):
@@ -259,6 +276,7 @@ class OrganizationParameters:
     network_bonus: float = 0.25
     outside_base: float = 0.30
     outside_dominant_discount: float = 0.20
+    outside_jitter: float = 0.0
 
     contribution_base: float = 0.05
     contribution_order: float = 0.12
@@ -282,6 +300,7 @@ class OrganizationParameters:
             self.leader_priority_weight, 0.0, 1.0
         )
         self.centrality_weight = max(0.0, _number(self.centrality_weight, 0.5))
+        self.outside_jitter = _clamp(self.outside_jitter, 0.0, 1.0)
         self.max_iterations = max(1, int(self.max_iterations))
 
 
@@ -454,8 +473,9 @@ class OrganizationAnalysis:
 
 class OrganizationSolver:
 
-    def __init__(self, parameters=None):
+    def __init__(self, parameters=None, jitter_salt=None):
         self.parameters = parameters or OrganizationParameters()
+        self.jitter_salt = str(jitter_salt or "")
 
     def analyze(self, population):
         if not isinstance(population, Population):
@@ -749,6 +769,15 @@ class OrganizationSolver:
                 parameters.outside_base * demand
                 - parameters.outside_dominant_discount * demand * top_weight,
             )
+            if parameters.outside_jitter > 0.0:
+                outside_utility = max(
+                    0.0,
+                    outside_utility
+                    + _stable_jitter(
+                        "%s:%s" % (self.jitter_salt, member_id),
+                        parameters.outside_jitter,
+                    ),
+                )
             margin = (
                 benefit
                 - contribution

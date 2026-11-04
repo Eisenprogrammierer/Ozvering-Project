@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "template_id": "corporation_campaign",
+  "title": "Торговая планета: канал без репутации",
+  "description": "Вы — генеральный директор Торговой планеты. Вы торгуете со всеми и не принадлежите никому. Ваша сила — канал, инфраструктура и баланс; ваша слабость — отсутствие легитимности. Кампания идёт не за территорию, а за право оставаться незаменимым посредником.",
+  "factions_path": "base/lore_factions.json",
+  "default_seed": 23,
+  "player_side": "amber",
+  "enemy_side": "red",
+  "faction_slots": {
+    "player": "amber",
+    "enemy": "red"
+  },
+  "scenario": {
+    "mode": "automata",
+    "turns": 72,
+    "characters_per_faction": 10,
+    "rivals": {
+      "red": "blue",
+      "blue": "red",
+      "green": "red",
+      "amber": "red"
+    },
+    "model": {
+      "success_base": 0.05,
+      "success_slope": 1.7,
+      "organization_cohesion": 0.05,
+      "organization_legitimacy": 0.03,
+      "organization_supply_drain": 0.005,
+      "organization_fear": 0.02,
+      "collapse_streak": 3,
+      "effect_scale": 0.45,
+      "asset_relax": 0.06
+    },
+    "outcome": {
+      "streak_turns": 3,
+      "defeat": {
+        "amber": {
+          "legitimacy": 0.04,
+          "cohesion": 0.05
+        },
+        "red": {
+          "legitimacy": 0.08
+        }
+      },
+      "score_margin": 0.039,
+      "score_bias": -0.038,
+      "score_basis": "progress"
+    },
+    "upkeep": {
+      "supply": 0.004,
+      "energy": 0.003
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "ruins",
+      "crossroads",
+      "storm",
+      "fog"
+    ],
+    "drift_chance": 0.16
+  },
+  "events": {
+    "categories": [
+      "war",
+      "politics",
+      "society",
+      "economy",
+      "disaster"
+    ],
+    "count": 8,
+    "context": {
+      "place": "«Двойная переправа»",
+      "object": "торговый жетон корпорации",
+      "cause": "закрытие маршрута на восемнадцать часов",
+      "consequence": "обе стороны считают цену, но обе нуждаются в канале",
+      "amount": "девять кораблей"
+    }
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}

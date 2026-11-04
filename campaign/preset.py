@@ -37,6 +37,28 @@ class CampaignPresetError(CampaignError):
     pass
 
 
+def _organization_parameters(data):
+    """Параметры организации из JSON с проверкой типов и умолчаниями."""
+    overrides = data if isinstance(data, Mapping) else {}
+    defaults = OrganizationParameters()
+    values = {}
+    for name in OrganizationParameters.__dataclass_fields__:
+        if name not in overrides:
+            continue
+        default = getattr(defaults, name)
+        try:
+            if isinstance(default, int) and not isinstance(default, bool):
+                values[name] = max(1, int(float(overrides[name])))
+            else:
+                values[name] = float(overrides[name])
+        except (TypeError, ValueError):
+            continue
+    try:
+        return OrganizationParameters(**values)
+    except (TypeError, ValueError):
+        return defaults
+
+
 _RED_SECTORS = ["front"] * 8 + ["left"] * 3 + ["right"] * 3 + ["rear"] * 2
 _BLUE_SECTORS = ["front"] * 12 + ["left"] * 8 + ["right"] * 8 + ["rear"] * 4
 _RED_POSITIONS = [
@@ -154,17 +176,48 @@ def default_root():
 
 
 def default_template_path():
-    return default_root() / "test_skirmish.json"
+    root = default_root()
+    preferred = root / "test_skirmish.json"
+    if preferred.is_file():
+        return preferred
+    templates = list_templates(root)
+    if templates:
+        return Path(templates[0]["path"])
+    return preferred
 
 
 def load_template(path=None):
     path = Path(path) if path is not None else default_template_path()
     if path.is_dir():
-        path = path / "test_skirmish.json"
+        preferred = path / "test_skirmish.json"
+        if preferred.is_file():
+            path = preferred
+        else:
+            templates = list_templates(path)
+            if not templates:
+                raise CampaignPresetError(
+                    "в %s нет JSON-шаблонов кампаний" % path
+                )
+            path = Path(templates[0]["path"])
     data = _read_json(path)
     if not isinstance(data, Mapping):
         raise CampaignPresetError("шаблон пресета должен быть объектом")
-    return dict(data)
+    data = dict(data)
+    factions_path = _text(data.get("factions_path"))
+    if factions_path:
+        base_path = Path(factions_path)
+        if not base_path.is_absolute():
+            base_path = path.parent / base_path
+        base = _read_json(base_path)
+        if not isinstance(base, Mapping):
+            raise CampaignPresetError(
+                "factions_path должен указывать на объект"
+            )
+        merged = dict(base.get("factions") or {})
+        merged.update(dict(data.get("factions") or {}))
+        data["factions"] = merged
+        data.setdefault("factions_source", str(base_path))
+    return data
 
 
 def list_templates(directory=None):
@@ -181,7 +234,7 @@ def list_templates(directory=None):
             continue
         if not isinstance(data, Mapping):
             continue
-        if not data.get("factions"):
+        if not data.get("factions") and not data.get("factions_path"):
             continue
         templates.append(
             {
@@ -214,8 +267,22 @@ def _validate_template(template):
     scenario = template.get("scenario")
     if not isinstance(scenario, Mapping):
         raise CampaignPresetError("template.scenario должен быть объектом")
-    strategy_mode = _text(scenario.get("mode")) == "strategy"
-    if strategy_mode:
+    mode = _text(scenario.get("mode"))
+    automata_mode = mode == "automata"
+    strategy_mode = mode == "strategy"
+    if automata_mode:
+        per_faction = _as_int(scenario.get("characters_per_faction"), 0)
+        if per_faction < 0:
+            raise CampaignPresetError(
+                "scenario.characters_per_faction не может быть отрицательным"
+            )
+        for side, cfg in factions.items():
+            population = _as_int(cfg.get("population"), per_faction)
+            if population <= 0:
+                raise CampaignPresetError(
+                    "factions[%s].population должно быть > 0" % side
+                )
+    elif strategy_mode:
         groups = scenario.get("groups")
         if not isinstance(groups, Mapping) or not groups:
             raise CampaignPresetError(
@@ -423,11 +490,24 @@ def _build_organization(cfg, side, characters, seed):
                 force=character["force"],
             )
         )
+    runtime_cfg = org_cfg.get("runtime") or {}
     weight = max(
-        0.0, min(1.0, _as_float(org_cfg.get("complete_weight"), 0.84))
+        0.0,
+        min(
+            1.0,
+            _as_float(
+                runtime_cfg.get("complete_weight"),
+                _as_float(org_cfg.get("complete_weight"), 0.84),
+            ),
+        ),
+    )
+    parameters = _organization_parameters(
+        runtime_cfg.get("parameters")
     )
     population = Population.complete(members, weight=weight)
-    analysis = OrganizationSolver(OrganizationParameters()).analyze(population)
+    analysis = OrganizationSolver(
+        parameters, jitter_salt=org_id
+    ).analyze(population)
     automaton = build_organization_automaton(
         analysis,
         name=_text(org_cfg.get("name"), "Организация"),
@@ -466,7 +546,20 @@ def _build_organization(cfg, side, characters, seed):
             "leader_title": _text(
                 org_cfg.get("leader_title"), "номинальный председатель"
             ),
-            "parameters": OrganizationParameters().__dict__,
+            "satisfaction_per_tick": _as_float(
+                runtime_cfg.get("satisfaction_per_tick"), 0.03
+            ),
+            "contribution_cost": _as_float(
+                runtime_cfg.get("contribution_cost"), 0.08
+            ),
+            "coercion_factor": _as_float(
+                runtime_cfg.get("coercion_factor"), 0.5
+            ),
+            "leader_morale_bonus": _as_float(
+                runtime_cfg.get("leader_morale_bonus"), 10.0
+            ),
+            "allow_rejoin": bool(runtime_cfg.get("allow_rejoin", False)),
+            "parameters": parameters.__dict__,
         },
     }
     return record, automaton
@@ -497,6 +590,10 @@ def _build_faction_record(
         "priority_needs": list(cfg.get("priority_needs") or ()),
         "goals": list(cfg.get("goals") or ()),
         "assets": dict(cfg.get("assets") or {}),
+        "score_assets": dict(cfg.get("score_assets") or {}),
+        "rival_side": _text(cfg.get("rival_side")),
+        "population": _as_int(cfg.get("population"), 0),
+        "actions": [dict(item) for item in (cfg.get("actions") or ())],
         "character_ids": [character["id"] for character in characters],
         "is_player": side == player_side,
     }
@@ -648,6 +745,10 @@ class CampaignPreset:
             "event_hooks": len(events),
             "mode": self.scenario.get("mode", "military"),
             "groups": dict(self.scenario.get("groups") or {}),
+            "populations": dict(self.scenario.get("populations") or {}),
+            "characters_per_faction": int(
+                self.scenario.get("characters_per_faction") or 0
+            ),
             "companies": {
                 side: len(items)
                 for side, items in self.roster_by_side().items()
@@ -759,12 +860,15 @@ class CampaignPresetGenerator:
 
     def generate(
         self,
-        role_id="faction_leader",
+        role_id=None,
         seed=None,
         preset_id=None,
         player_faction_id=None,
     ):
-        role = self.role_catalog.select(role_id)
+        if role_id is None:
+            role = self.role_catalog.default_role()
+        else:
+            role = self.role_catalog.select(role_id)
         base_seed = _as_int(
             seed if seed is not None else self.template.get("default_seed", 7),
             7,
@@ -785,6 +889,7 @@ class CampaignPresetGenerator:
         scenario_cfg = template.get("scenario") or {}
         companies = scenario_cfg.get("companies") or {}
         groups = scenario_cfg.get("groups") or {}
+        default_population = scenario_cfg.get("characters_per_faction") or 0
         slots = template.get("faction_slots") or {}
         default_side = _text(
             slots.get("player", template.get("player_side")), "red"
@@ -814,6 +919,9 @@ class CampaignPresetGenerator:
                     "organization_name": _text(organization.get("name")),
                     "companies": max(0, _as_int(companies.get(side), 0)),
                     "groups": max(0, _as_int(groups.get(side), 0)),
+                    "population": max(
+                        0, _as_int(cfg.get("population"), default_population)
+                    ),
                     "support": max(0.0, min(1.0, support)),
                     "goals": list(cfg.get("goals") or ()),
                     "assets": assets,
@@ -825,7 +933,15 @@ class CampaignPresetGenerator:
     def _generate(self, role, seed, preset_id=None, player_faction_id=None):
         template = self.template
         scenario_cfg = template.get("scenario") or {}
-        if _text(scenario_cfg.get("mode")) == "strategy":
+        mode = _text(scenario_cfg.get("mode"))
+        if mode == "automata":
+            return self._generate_automata(
+                role,
+                seed,
+                preset_id=preset_id,
+                player_faction_id=player_faction_id,
+            )
+        if mode == "strategy":
             return self._generate_strategy(
                 role,
                 seed,
@@ -1075,6 +1191,247 @@ class CampaignPresetGenerator:
             template_id=_text(template.get("template_id"), "test_skirmish"),
             preset_id=preset_id,
             title=_text(template.get("title"), "Тестовая кампания"),
+            description=_text(template.get("description")),
+            seed=seed,
+            role=role,
+            player_faction_id=player_faction["id"],
+            player_character_id=player_character["id"],
+            factions=factions,
+            characters=characters,
+            organizations=organizations,
+            automata=automata,
+            environment=environment,
+            events=events,
+            playwright=playwright,
+            scenario=scenario,
+        )
+
+    def _generate_automata(
+        self, role, seed, preset_id=None, player_faction_id=None
+    ):
+        template = self.template
+        scenario_cfg = template.get("scenario") or {}
+        slots = template.get("faction_slots") or {}
+        slot = role.faction_slot or "player"
+        other_slot = "enemy" if slot == "player" else "player"
+        default_player_side = _text(
+            slots.get(slot, template.get("player_side")), "red"
+        )
+        player_side = default_player_side
+        if player_faction_id:
+            chosen = next(
+                (
+                    side
+                    for side, cfg in template["factions"].items()
+                    if _text(cfg.get("id")) == _text(player_faction_id)
+                ),
+                None,
+            )
+            if chosen is None:
+                raise CampaignPresetError(
+                    "нет фракции %r" % (player_faction_id,)
+                )
+            player_side = chosen
+        enemy_side = _text(
+            slots.get(other_slot, template.get("enemy_side")), "blue"
+        )
+        if player_side not in template["factions"]:
+            raise CampaignPresetError("нет фракции игрока %r" % player_side)
+        if enemy_side not in template["factions"]:
+            raise CampaignPresetError("нет фракции противника %r" % enemy_side)
+        if player_side == enemy_side:
+            enemy_side = next(
+                (
+                    side
+                    for side in _ordered_sides(template)
+                    if side != player_side
+                ),
+                enemy_side,
+            )
+        if player_side == enemy_side:
+            raise CampaignPresetError("не удалось выбрать фракцию противника")
+        sides = _ordered_sides(template)
+        default_population = max(
+            1, _as_int(scenario_cfg.get("characters_per_faction"), 8)
+        )
+        name_generator = PersonNameGenerator(seed=seed)
+        characters = []
+        side_characters = {side: [] for side in sides}
+        for side in sides:
+            cfg = template["factions"][side]
+            count = max(
+                1,
+                _as_int(
+                    cfg.get("population"),
+                    default_population,
+                ),
+            )
+            names = name_generator.generate_many(
+                count,
+                culture=_text(cfg.get("culture")),
+                seed=seed + _stable_offset("names:%s" % side),
+            )
+            posts = list(cfg.get("posts") or ())
+            line_posts = list(cfg.get("line_posts") or ())
+            archetypes = cfg.get("archetypes") or {}
+            flat_archetypes = []
+            if isinstance(archetypes, Mapping):
+                for values in archetypes.values():
+                    if isinstance(values, (list, tuple)):
+                        flat_archetypes.extend(str(item) for item in values)
+            default_archetype = (
+                _text(cfg.get("default_archetype"))
+                or (flat_archetypes[0] if flat_archetypes else "citizen")
+            )
+            priority_needs = cfg.get("priority_needs") or ()
+            side_offset = _stable_offset("side:%s" % side)
+            for index in range(count):
+                name = names[index]
+                if index < len(posts):
+                    post = dict(posts[index])
+                else:
+                    title = (
+                        line_posts[index % len(line_posts)]
+                        if line_posts
+                        else "Участник"
+                    )
+                    post = {
+                        "id": "participant_%d" % (index + 1),
+                        "title": title,
+                        "archetype": default_archetype,
+                        "force": 1.0,
+                    }
+                archetype = _text(post.get("archetype")) or default_archetype
+                force = post.get("force", 1.0)
+                char_id = "char_%s_%03d" % (side, index + 1)
+                char_seed = seed + side_offset + index * 37 + 17
+                is_leader = index == 0
+                is_player = side == player_side and index == 0
+                randomizer = random.Random(char_seed + 101)
+                character = _make_character(
+                    randomizer,
+                    name,
+                    side,
+                    cfg,
+                    _text((cfg.get("organization") or {}).get("id")),
+                    char_id,
+                    post,
+                    archetype,
+                    force,
+                    priority_needs,
+                    char_seed,
+                    is_player=is_player,
+                    is_leader=is_leader,
+                )
+                if is_player:
+                    character["campaign_role_id"] = role.id
+                characters.append(character)
+                side_characters[side].append(character)
+
+        organizations = []
+        automata = []
+        factions = []
+        for side in sides:
+            cfg = template["factions"][side]
+            side_chars = side_characters[side]
+            organization, org_automaton = _build_organization(
+                cfg,
+                side,
+                side_chars,
+                seed + _stable_offset("org:%s" % side),
+            )
+            organizations.append(organization)
+            automata.append(
+                {
+                    "id": organization["automaton_id"],
+                    "kind": "organization",
+                    "owner_id": organization["id"],
+                    "name": org_automaton.name,
+                    "automaton": org_automaton.to_dict(),
+                }
+            )
+            leader = next(
+                (item for item in side_chars if item.get("is_faction_leader")),
+                side_chars[0],
+            )
+            priority = (cfg.get("priority_needs") or [""])[0]
+            faction_automaton = _build_faction_automaton(
+                cfg["name"],
+                leader["name"],
+                priority,
+                seed + _stable_offset("faction:%s" % side),
+            )
+            factions.append(
+                _build_faction_record(
+                    cfg,
+                    side,
+                    side_chars,
+                    organization,
+                    faction_automaton,
+                    player_side,
+                )
+            )
+            automata.append(
+                {
+                    "id": "automaton_%s" % cfg["id"],
+                    "kind": "faction",
+                    "owner_id": cfg["id"],
+                    "name": faction_automaton.name,
+                    "automaton": faction_automaton.to_dict(),
+                }
+            )
+
+        player_faction = next(
+            item for item in factions if item["side"] == player_side
+        )
+        player_character = next(
+            item
+            for item in side_characters[player_side]
+            if item.get("is_player")
+        )
+        player_character["campaign_role_id"] = role.id
+        environment = self._build_environment(seed)
+        events = self._build_events(
+            seed,
+            player_faction,
+            characters,
+            next(item for item in factions if item["side"] == enemy_side),
+            organizations,
+        )
+        playwright = self._build_playwright(seed, characters, organizations)
+        scenario = {
+            "mode": "automata",
+            "template_id": _text(
+                template.get("template_id"), "automata_campaign"
+            ),
+            "seed": seed,
+            "turns": _as_int(scenario_cfg.get("turns"), 72),
+            "player_side": player_side,
+            "enemy_side": enemy_side,
+            "characters_per_faction": default_population,
+            "populations": {
+                side: len(side_characters[side]) for side in sides
+            },
+            "rivals": dict(scenario_cfg.get("rivals") or {}),
+            "model": dict(scenario_cfg.get("model") or {}),
+            "outcome": dict(scenario_cfg.get("outcome") or {}),
+        }
+        explicit_id = _text(preset_id).strip()
+        preset_id = explicit_id or "%s_seed%d" % (
+            _text(template.get("template_id"), "automata_campaign"),
+            seed,
+        )
+        if not explicit_id and player_side != default_player_side:
+            preset_id += "_%s" % _text(player_faction["id"]).replace(
+                "faction_", ""
+            )
+        return CampaignPreset(
+            schema=SCHEMA,
+            template_id=_text(
+                template.get("template_id"), "automata_campaign"
+            ),
+            preset_id=preset_id,
+            title=_text(template.get("title"), "Кампания автоматов"),
             description=_text(template.get("description")),
             seed=seed,
             role=role,

@@ -1,0 +1,1163 @@
+{
+  "schema": 1,
+  "factions": {
+    "red": {
+      "id": "faction_empire",
+      "name": "Империя",
+      "kind": "automaton",
+      "culture": "germanic",
+      "role_title": "император",
+      "rival_side": "blue",
+      "population": 12,
+      "default_archetype": "veteran",
+      "priority_needs": [
+        "status",
+        "fear",
+        "anxiety"
+      ],
+      "goals": [
+        "сохранить монополию на законность и не признать Республику",
+        "вернуть символически значимую территорию любой ценой",
+        "удержать вертикаль и миф о непобедимости"
+      ],
+      "assets": {
+        "legitimacy": 0.72,
+        "influence": 0.74,
+        "cohesion": 0.68,
+        "supply": 0.84,
+        "fear": 0.7,
+        "morale": 0.64,
+        "energy": 0.66
+      },
+      "archetypes": {
+        "front": [
+          "veteran",
+          "machinegunner",
+          "rifleman",
+          "commissar"
+        ],
+        "rear": [
+          "commissar",
+          "chaplain",
+          "medic",
+          "rifleman"
+        ]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Император",
+          "archetype": "veteran",
+          "force": 26.0
+        },
+        {
+          "id": "chief_of_staff",
+          "title": "Начальник Генерального штаба",
+          "archetype": "veteran",
+          "force": 13.0
+        },
+        {
+          "id": "justice",
+          "title": "Министр юстиции",
+          "archetype": "commissar",
+          "force": 8.0
+        },
+        {
+          "id": "guard",
+          "title": "Начальник Гвардейского корпуса",
+          "archetype": "veteran",
+          "force": 7.0
+        },
+        {
+          "id": "abwehr",
+          "title": "Начальник Абвера",
+          "archetype": "scout",
+          "force": 5.0
+        },
+        {
+          "id": "propaganda",
+          "title": "Начальник пропагандистской службы",
+          "archetype": "commissar",
+          "force": 4.0
+        },
+        {
+          "id": "intendant",
+          "title": "Интендант",
+          "archetype": "rifleman",
+          "force": 3.0
+        },
+        {
+          "id": "cathedral",
+          "title": "Глава Имперского собора",
+          "archetype": "chaplain",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Легионер",
+        "Офицер",
+        "Унтер-офицер",
+        "Комиссар порядка"
+      ],
+      "organization": {
+        "id": "org_empire",
+        "name": "Имперская ставка",
+        "complete_weight": 0.84,
+        "leader_title": "император",
+        "runtime": {
+          "satisfaction_per_tick": 0.018,
+          "contribution_cost": 0.11,
+          "parameters": {
+            "outside_base": 0.4,
+            "service_base": 0.35,
+            "outside_jitter": 0.02
+          },
+          "allow_rejoin": true
+        }
+      },
+      "actions": [
+        {
+          "id": "imperial_edict",
+          "label": "Опубликовать имперский эдикт",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.1,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.06
+          },
+          "ai_priority": 1.4,
+          "effects": {
+            "self": {
+              "legitimacy": 0.025,
+              "fear": 0.02
+            },
+            "target": {
+              "legitimacy": -0.035
+            },
+            "text": "Эдикт объявляет мятеж незаконным; сомнение в нём само становится преступлением."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Эдикт звучит как признание слабости: законность приходится доказывать."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "show_of_force",
+          "label": "Провести демонстрацию силы",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.2,
+          "cost": {
+            "supply": 0.05,
+            "influence": 0.03
+          },
+          "ai_priority": 1.25,
+          "effects": {
+            "self": {
+              "fear": 0.03,
+              "cohesion": 0.015
+            },
+            "target": {
+              "cohesion": -0.05,
+              "fear": 0.02
+            },
+            "needs": {
+              "target": {
+                "fear": 0.02,
+                "anxiety": 0.01
+              }
+            },
+            "text": "Колонны идут через площадь: миф о непобедимости должен быть виден."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.025
+            },
+            "target": {
+              "cohesion": 0.01
+            },
+            "text": "Демонстрация выглядит дорогой и пустой; свои устают, чужие смелеют."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "garrison_network",
+          "label": "Укрепить гарнизонную сеть",
+          "form": "provision",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.04
+          },
+          "ai_priority": 0.8,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "cohesion": 0.03
+            },
+            "text": "Гарнизоны в каждом селе дают предсказуемость, но распыляют силы."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            }
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "enemy_of_state",
+          "label": "Назначить врага государства",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "legitimacy",
+          "base": -0.1,
+          "slope": 2.4,
+          "cost": {
+            "legitimacy": 0.02,
+            "influence": 0.04
+          },
+          "ai_priority": 1.1,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "fear": 0.035,
+              "cohesion": 0.02
+            },
+            "target": {
+              "legitimacy": -0.05,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "fear": 0.03
+              }
+            },
+            "text": "Внутренний враг получает имя; вертикаль снова объясняет всё."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.03,
+              "cohesion": -0.02
+            },
+            "text": "Обвинение не убеждает: общество видит в нём борьбу аппаратов."
+          }
+        },
+        {
+          "id": "imperial_church",
+          "label": "Созвать Имперский собор",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.25,
+          "slope": 1.2,
+          "cost": {
+            "influence": 0.03
+          },
+          "ai_priority": 0.7,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "cohesion": 0.02,
+              "fear": -0.01
+            },
+            "needs": {
+              "self": {
+                "spirituality": 0.02
+              }
+            },
+            "text": "Церковь связывает порядок с традицией, а традицию — с троном."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            }
+          },
+          "cooldown": 2
+        }
+      ],
+      "income": {
+        "supply": 0.012,
+        "energy": 0.008,
+        "influence": 0.006
+      },
+      "score_assets": {
+        "legitimacy": 0.4,
+        "cohesion": 0.3,
+        "fear": 0.2,
+        "morale": 0.1
+      }
+    },
+    "blue": {
+      "id": "faction_republic",
+      "name": "Республика",
+      "kind": "automaton",
+      "culture": "russian",
+      "role_title": "председатель парламента",
+      "rival_side": "red",
+      "population": 12,
+      "default_archetype": "citizen",
+      "priority_needs": [
+        "status",
+        "knowledge",
+        "friendship"
+      ],
+      "goals": [
+        "разрушить миф о непобедимости Империи, не потеряв собственное лицо",
+        "сохранить внешний канал через Торговую планету",
+        "не допустить внесудебных казней и раскола парламента"
+      ],
+      "assets": {
+        "legitimacy": 0.58,
+        "influence": 0.64,
+        "cohesion": 0.52,
+        "supply": 0.68,
+        "fear": 0.18,
+        "morale": 0.61,
+        "energy": 0.6
+      },
+      "archetypes": {
+        "front": [
+          "rifleman",
+          "veteran",
+          "scout",
+          "machinegunner"
+        ],
+        "rear": [
+          "medic",
+          "commissar",
+          "rifleman",
+          "scout"
+        ]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Председатель парламента",
+          "archetype": "veteran",
+          "force": 26.0
+        },
+        {
+          "id": "chief_of_staff",
+          "title": "Начальник федерального генштаба",
+          "archetype": "veteran",
+          "force": 13.0
+        },
+        {
+          "id": "information",
+          "title": "Министр информации",
+          "archetype": "scout",
+          "force": 8.0
+        },
+        {
+          "id": "diplomacy",
+          "title": "Глава дипломатического ведомства",
+          "archetype": "rifleman",
+          "force": 7.0
+        },
+        {
+          "id": "precision",
+          "title": "Командир корпуса высокоточных вооружений",
+          "archetype": "veteran",
+          "force": 5.0
+        },
+        {
+          "id": "rights",
+          "title": "Правозащитник",
+          "archetype": "medic",
+          "force": 4.0
+        },
+        {
+          "id": "intendant",
+          "title": "Интендант",
+          "archetype": "rifleman",
+          "force": 3.0
+        },
+        {
+          "id": "channel",
+          "title": "Связной Торговой планеты",
+          "archetype": "scout",
+          "force": 2.0
+        }
+      ],
+      "line_posts": [
+        "Контрактник",
+        "Доброволец",
+        "Офицер",
+        "Связной"
+      ],
+      "organization": {
+        "id": "org_republic",
+        "name": "Парламент Республики",
+        "complete_weight": 0.84,
+        "leader_title": "председатель парламента",
+        "runtime": {
+          "satisfaction_per_tick": 0.018,
+          "contribution_cost": 0.11,
+          "parameters": {
+            "outside_base": 0.4,
+            "service_base": 0.35,
+            "outside_jitter": 0.02
+          },
+          "allow_rejoin": true
+        }
+      },
+      "actions": [
+        {
+          "id": "information_campaign",
+          "label": "Развернуть информационную кампанию",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.05,
+          "slope": 2.1,
+          "cost": {
+            "influence": 0.06
+          },
+          "ai_priority": 1.5,
+          "effects": {
+            "self": {
+              "legitimacy": 0.015,
+              "cohesion": 0.015
+            },
+            "target": {
+              "legitimacy": -0.04,
+              "cohesion": -0.015
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Листовки и фейки бьют не по армии противника, а по его мифу."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.015
+            },
+            "text": "Кампания выглядит как пропаганда; доверие к процедуре падает."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "parliament_debate",
+          "label": "Провести парламентские слушания",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.3,
+          "slope": 1.1,
+          "cost": {
+            "influence": 0.03
+          },
+          "ai_priority": 0.85,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "status": 0.02
+              }
+            },
+            "text": "Публичный спор укрепляет процедуру, даже когда решение откладывается."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.01
+            }
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "precision_strike",
+          "label": "Нанести точный удар",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "supply",
+          "base": -0.05,
+          "slope": 2.0,
+          "cost": {
+            "supply": 0.05,
+            "influence": 0.03
+          },
+          "ai_priority": 1.15,
+          "effects": {
+            "target": {
+              "supply": -0.04,
+              "cohesion": -0.03
+            },
+            "self": {
+              "legitimacy": 0.01
+            },
+            "text": "Удар по складам и штабам должен быть зрелищным, но не кровавым."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02,
+              "legitimacy": -0.02
+            },
+            "text": "Операция провалилась; противник получил повод говорить о терроре."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "human_rights_court",
+          "label": "Созвать суд по правам человека",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.2,
+          "slope": 1.3,
+          "cost": {
+            "influence": 0.03
+          },
+          "ai_priority": 0.7,
+          "effects": {
+            "self": {
+              "legitimacy": 0.025,
+              "fear": -0.02
+            },
+            "needs": {
+              "self": {
+                "anxiety": -0.02
+              }
+            },
+            "text": "Суд напоминает, что Республика сильна не только ненавистью к Империи."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.01
+            }
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "channel_deal",
+          "label": "Удержать торговый канал",
+          "form": "exchange",
+          "target": "amber",
+          "attack_asset": "influence",
+          "defense_asset": "supply",
+          "base": 0.15,
+          "slope": 1.4,
+          "cost": {
+            "influence": 0.04
+          },
+          "ai_priority": 0.95,
+          "effects": {
+            "self": {
+              "supply": 0.03,
+              "influence": 0.02
+            },
+            "target": {
+              "supply": 0.01
+            },
+            "text": "Канал остаётся открытым: без него Республике нечем платить за войну."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            }
+          },
+          "cooldown": 1
+        }
+      ],
+      "income": {
+        "supply": 0.01,
+        "energy": 0.01,
+        "influence": 0.008
+      },
+      "score_assets": {
+        "legitimacy": 0.45,
+        "cohesion": 0.3,
+        "morale": 0.15,
+        "fear": -0.1
+      }
+    },
+    "green": {
+      "id": "faction_cult",
+      "name": "Культ Земли",
+      "kind": "automaton",
+      "culture": "russian",
+      "role_title": "верховный жрец",
+      "rival_side": "red",
+      "population": 10,
+      "default_archetype": "chaplain",
+      "priority_needs": [
+        "spirituality",
+        "friendship",
+        "anxiety"
+      ],
+      "goals": [
+        "размывать лояльность государств, не вступая с ними в открытый бой",
+        "превратить обиду и страх в общины и ритуал",
+        "сохранить нарратив и фигуру верховного жреца"
+      ],
+      "assets": {
+        "legitimacy": 0.22,
+        "influence": 0.44,
+        "cohesion": 0.4,
+        "supply": 0.34,
+        "fear": 0.42,
+        "morale": 0.55,
+        "energy": 0.38
+      },
+      "archetypes": {
+        "front": [
+          "chaplain",
+          "scout",
+          "medic",
+          "conscript"
+        ],
+        "rear": [
+          "chaplain",
+          "medic",
+          "rifleman",
+          "scout"
+        ]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Верховный жрец",
+          "archetype": "chaplain",
+          "force": 26.0
+        },
+        {
+          "id": "voice",
+          "title": "Голос Земли",
+          "archetype": "chaplain",
+          "force": 13.0
+        },
+        {
+          "id": "network",
+          "title": "Хранитель сети общин",
+          "archetype": "scout",
+          "force": 8.0
+        },
+        {
+          "id": "rite",
+          "title": "Мастер обряда",
+          "archetype": "chaplain",
+          "force": 7.0
+        },
+        {
+          "id": "care",
+          "title": "Служитель милосердия",
+          "archetype": "medic",
+          "force": 5.0
+        },
+        {
+          "id": "memory",
+          "title": "Хранитель памяти",
+          "archetype": "scout",
+          "force": 4.0
+        }
+      ],
+      "line_posts": [
+        "Послушник",
+        "Общинник",
+        "Проповедник",
+        "Свидетель"
+      ],
+      "organization": {
+        "id": "org_cult",
+        "name": "Собор Земли",
+        "complete_weight": 0.72,
+        "leader_title": "верховный жрец",
+        "runtime": {
+          "satisfaction_per_tick": 0.018,
+          "contribution_cost": 0.11,
+          "parameters": {
+            "outside_base": 0.4,
+            "service_base": 0.35,
+            "outside_jitter": 0.02
+          },
+          "allow_rejoin": true
+        }
+      },
+      "actions": [
+        {
+          "id": "sermon",
+          "label": "Произнести проповедь",
+          "form": "meaning",
+          "target": "rival",
+          "attack_asset": "morale",
+          "defense_asset": "legitimacy",
+          "base": 0.0,
+          "slope": 2.0,
+          "cost": {
+            "energy": 0.04
+          },
+          "ai_priority": 1.4,
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "legitimacy": 0.01
+            },
+            "target": {
+              "legitimacy": -0.03,
+              "cohesion": -0.03
+            },
+            "needs": {
+              "target": {
+                "spirituality": 0.03,
+                "anxiety": -0.01
+              }
+            },
+            "text": "Проповедь не спорит с законом — она спрашивает, кому он служит."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.02
+            },
+            "text": "Слова падают в пустоту: община ждала чуда, а получила текст."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "community_network",
+          "label": "Собрать сеть общин",
+          "form": "care",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.2,
+          "slope": 1.2,
+          "cost": {
+            "supply": 0.03
+          },
+          "ai_priority": 0.9,
+          "effects": {
+            "self": {
+              "cohesion": 0.04,
+              "supply": 0.02
+            },
+            "needs": {
+              "self": {
+                "friendship": 0.02,
+                "loneliness": -0.02
+              }
+            },
+            "text": "Общины кормят друг друга и запоминают, кто помог первым."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            }
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "martyr_narrative",
+          "label": "Рассказать о мученике",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "cohesion",
+          "base": -0.15,
+          "slope": 2.3,
+          "cost": {
+            "energy": 0.05
+          },
+          "ai_priority": 1.2,
+          "cooldown": 2,
+          "effects": {
+            "target": {
+              "legitimacy": -0.04,
+              "fear": 0.04,
+              "cohesion": -0.02
+            },
+            "self": {
+              "cohesion": 0.02
+            },
+            "needs": {
+              "target": {
+                "fear": 0.03,
+                "anxiety": 0.02
+              }
+            },
+            "text": "Смерть одного становится доказательством для тысяч."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "История не убеждает: её слишком легко проверить."
+          }
+        },
+        {
+          "id": "infiltration",
+          "label": "Войти в чужую организацию",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": -0.2,
+          "slope": 2.6,
+          "cost": {
+            "influence": 0.05,
+            "energy": 0.03
+          },
+          "ai_priority": 1.0,
+          "effects": {
+            "target": {
+              "cohesion": -0.05
+            },
+            "self": {
+              "influence": 0.02
+            },
+            "text": "Культ не ломает структуру — он занимает её пустые места."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.03,
+              "influence": -0.02
+            },
+            "text": "Внедрение раскрыто; чужой аппарат получил удобную мишень."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "earth_ritual",
+          "label": "Провести обряд Земли",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.25,
+          "slope": 1.1,
+          "cost": {
+            "supply": 0.02
+          },
+          "ai_priority": 0.65,
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "morale": 0.03,
+              "legitimacy": 0.01
+            },
+            "needs": {
+              "self": {
+                "spirituality": 0.03,
+                "anxiety": -0.02
+              }
+            },
+            "text": "Ритуал напоминает: планета была колыбелью, а не окраиной."
+          },
+          "failure": {
+            "self": {
+              "morale": -0.01
+            }
+          },
+          "cooldown": 2
+        }
+      ],
+      "income": {
+        "supply": 0.007,
+        "energy": 0.007,
+        "influence": 0.007
+      },
+      "score_assets": {
+        "legitimacy": 0.3,
+        "cohesion": 0.35,
+        "morale": 0.2,
+        "fear": 0.15
+      }
+    },
+    "amber": {
+      "id": "faction_corporation",
+      "name": "Торговая планета",
+      "kind": "automaton",
+      "culture": "anglo",
+      "role_title": "генеральный директор",
+      "rival_side": "red",
+      "population": 10,
+      "default_archetype": "scout",
+      "priority_needs": [
+        "skill",
+        "status",
+        "knowledge"
+      ],
+      "goals": [
+        "сохранить канал и инфраструктуру, не принадлежа ни одной стороне",
+        "продавать обеим сторонам так, чтобы война не закончилась слишком быстро",
+        "не потерять автономию перед Империей"
+      ],
+      "assets": {
+        "legitimacy": 0.34,
+        "influence": 0.72,
+        "cohesion": 0.46,
+        "supply": 0.88,
+        "fear": 0.2,
+        "morale": 0.58,
+        "energy": 0.82
+      },
+      "archetypes": {
+        "front": [
+          "scout",
+          "rifleman",
+          "medic",
+          "conscript"
+        ],
+        "rear": [
+          "scout",
+          "medic",
+          "rifleman",
+          "veteran"
+        ]
+      },
+      "posts": [
+        {
+          "id": "leader",
+          "title": "Генеральный директор",
+          "archetype": "scout",
+          "force": 26.0
+        },
+        {
+          "id": "logistics",
+          "title": "Директор по логистике",
+          "archetype": "rifleman",
+          "force": 13.0
+        },
+        {
+          "id": "intelligence",
+          "title": "Начальник отдела информации",
+          "archetype": "scout",
+          "force": 8.0
+        },
+        {
+          "id": "trade",
+          "title": "Главный переговорщик",
+          "archetype": "scout",
+          "force": 7.0
+        },
+        {
+          "id": "security",
+          "title": "Начальник безопасности",
+          "archetype": "veteran",
+          "force": 5.0
+        },
+        {
+          "id": "medicine",
+          "title": "Директор медицинской службы",
+          "archetype": "medic",
+          "force": 4.0
+        }
+      ],
+      "line_posts": [
+        "Курьер",
+        "Аналитик",
+        "Охрана",
+        "Торговый агент"
+      ],
+      "organization": {
+        "id": "org_corporation",
+        "name": "Директорат Торговой планеты",
+        "complete_weight": 0.78,
+        "leader_title": "генеральный директор",
+        "runtime": {
+          "satisfaction_per_tick": 0.018,
+          "contribution_cost": 0.11,
+          "parameters": {
+            "outside_base": 0.4,
+            "service_base": 0.35,
+            "outside_jitter": 0.02
+          },
+          "allow_rejoin": true
+        }
+      },
+      "actions": [
+        {
+          "id": "trade_route",
+          "label": "Открыть торговый маршрут",
+          "form": "exchange",
+          "target": "self",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": 0.35,
+          "slope": 1.0,
+          "cost": {
+            "energy": 0.03
+          },
+          "ai_priority": 1.0,
+          "effects": {
+            "self": {
+              "supply": 0.04,
+              "influence": 0.03
+            },
+            "needs": {
+              "self": {
+                "hunger": -0.02,
+                "skill": 0.02
+              }
+            },
+            "text": "Маршрут работает, пока обе стороны нуждаются в посреднике."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.015
+            }
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "credit_offer",
+          "label": "Предложить кредит",
+          "form": "exchange",
+          "target": "weakest",
+          "attack_asset": "influence",
+          "defense_asset": "legitimacy",
+          "base": 0.15,
+          "slope": 1.6,
+          "cost": {
+            "supply": 0.05
+          },
+          "ai_priority": 1.1,
+          "effects": {
+            "self": {
+              "influence": 0.03
+            },
+            "target": {
+              "legitimacy": 0.02,
+              "cohesion": -0.02
+            },
+            "text": "Кредит покупает не лояльность, а право задавать неудобные вопросы."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03
+            },
+            "text": "Кредит сочли взяткой; репутация канала пострадала."
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "embargo",
+          "label": "Перекрыть поставки",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": -0.1,
+          "slope": 2.0,
+          "cost": {
+            "supply": 0.06
+          },
+          "ai_priority": 1.25,
+          "cooldown": 2,
+          "effects": {
+            "target": {
+              "supply": -0.06,
+              "cohesion": -0.02
+            },
+            "self": {
+              "influence": 0.02
+            },
+            "needs": {
+              "target": {
+                "hunger": 0.02,
+                "fatigue": 0.02
+              }
+            },
+            "text": "Поставки остановлены: война внезапно становится вопросом логистики."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03,
+              "influence": -0.02
+            },
+            "text": "Эмбарго обошли через третьи руки; канал потерял лицо."
+          }
+        },
+        {
+          "id": "information_broker",
+          "label": "Продать информацию",
+          "form": "information",
+          "target": "strongest",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": 0.1,
+          "slope": 1.8,
+          "cost": {
+            "energy": 0.04
+          },
+          "ai_priority": 0.95,
+          "effects": {
+            "self": {
+              "influence": 0.03,
+              "supply": 0.01
+            },
+            "target": {
+              "cohesion": -0.03
+            },
+            "text": "Сведения стоят дороже, когда их покупают обе стороны."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            }
+          },
+          "cooldown": 1
+        },
+        {
+          "id": "neutral_hub",
+          "label": "Подчеркнуть нейтралитет",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.2,
+          "slope": 1.2,
+          "cost": {
+            "influence": 0.03
+          },
+          "ai_priority": 0.7,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "supply": 0.02
+            },
+            "text": "Нейтралитет — не позиция, а услуга, которую все хотят купить."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.01
+            }
+          },
+          "cooldown": 2
+        }
+      ],
+      "income": {
+        "supply": 0.016,
+        "energy": 0.016,
+        "influence": 0.008
+      },
+      "score_assets": {
+        "legitimacy": 0.3,
+        "cohesion": 0.35,
+        "morale": 0.15,
+        "fear": -0.1
+      }
+    }
+  }
+}

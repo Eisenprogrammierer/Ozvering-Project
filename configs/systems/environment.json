@@ -1,0 +1,603 @@
+{
+  "schema": 1,
+  "drift_chance": 0.12,
+  "features": [
+    {
+      "id": "river",
+      "name": "Река",
+      "description": "Быстрая река с бродом, рыбацкими тропами и старым мостом.",
+      "tags": ["water", "barrier", "resource", "cover"],
+      "states": [
+        {"id": "calm", "name": "Спокойное течение", "description": "Вода стоит низко, брод просматривается.", "difficulty": 0.35, "passable": true, "tags": ["crossing"], "outcome_bias": {"crossed": 1.5, "swept": 0.5}},
+        {"id": "flood", "name": "Паводок", "description": "Река вышла из берегов; брод скрыт под мутной водой.", "difficulty": 0.9, "passable": false, "tags": ["hazard", "barrier"], "outcome_bias": {"crossed": 0.2, "swept": 2.0, "lost": 1.5}, "blocked_actions": ["ford"], "uncertainty": 0.15},
+        {"id": "frozen", "name": "Ледяная переправа", "description": "Река схвачена льдом, но у берега лёд тонок.", "difficulty": 0.55, "passable": true, "tags": ["ice", "crossing"], "outcome_bias": {"crossed": 1.2, "swept": 0.8, "fell_through": 2.0}},
+        {"id": "bridged", "name": "Наведённая переправа", "description": "Через реку переброшены брёвна и верёвки.", "difficulty": 0.15, "passable": true, "tags": ["crossing", "safe"], "outcome_bias": {"crossed": 3.0, "swept": 0.1}}
+      ],
+      "transitions": [
+        {"id": "t_river_flood", "source": "calm", "target": "flood", "event": "паводок", "weight": 1.0},
+        {"id": "t_river_fall", "source": "flood", "target": "calm", "event": "спад воды", "weight": 2.0},
+        {"id": "t_river_freeze", "source": "calm", "target": "frozen", "event": "ледостав", "weight": 1.0},
+        {"id": "t_river_melt", "source": "frozen", "target": "flood", "event": "ледоход", "weight": 1.0},
+        {"id": "t_river_repair", "source": "flood", "target": "bridged", "event": "переправа восстановлена", "weight": 0.3}
+      ],
+      "actions": [
+        {
+          "id": "ford", "label": "Перейти вброд", "description": "Идти через реку по известному броду.", "tags": ["move", "water"], "uncertainty": 0.22,
+          "outcomes": [
+            {"id": "crossed", "label": "Переправа удалась", "description": "Отряд выбрался на другой берег промокшим, но целым.", "probability": 3.0, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.15, "noise": 0.1}},
+            {"id": "swept", "label": "Течением снесло", "description": "Людей и груз разметало по воде.", "probability": 1.2, "tone": "negative", "effects": {"progress": 0.1, "injury": 0.35, "noise": 0.4}},
+            {"id": "lost", "label": "Переправа сорвана", "description": "Пришлось вернуться на исходный берег.", "probability": 0.4, "tone": "warning", "effects": {"progress": 0.0, "lost": 0.2, "time": 0.5}}
+          ]
+        },
+        {
+          "id": "build_bridge", "label": "Навести переправу", "description": "Связать брёвна и верёвки, чтобы переправить обоз.", "tags": ["build", "water", "time"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "built", "label": "Переправа готова", "description": "Через реку легла надёжная переправа.", "probability": 2.5, "tone": "positive", "next_state": "bridged", "effects": {"progress": 1.0, "time": 0.5, "noise": 0.2, "control": 0.2}},
+            {"id": "failed", "label": "Постройка не удалась", "description": "Брёвна разошлись, работу пришлось бросить.", "probability": 0.8, "tone": "warning", "effects": {"fatigue": 0.4, "time": 0.8}},
+            {"id": "washed", "label": "Переправу смыло", "description": "Готовая переправа ушла в воду вместе с частью груза.", "probability": 0.3, "tone": "negative", "effects": {"resource": -0.3, "injury": 0.15, "time": 0.6}}
+          ]
+        },
+        {
+          "id": "use_as_cover", "label": "Укрыться у воды", "description": "Спуститься к берегу и использовать шум реки как прикрытие.", "tags": ["cover", "stealth", "water"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "hidden", "label": "Укрытие найдено", "description": "Шум воды заглушает шаги, берег скрывает силуэты.", "probability": 3.0, "tone": "positive", "effects": {"cover": 0.45, "noise": -0.25, "fatigue": 0.05}},
+            {"id": "discovered", "label": "Укрытие раскрыто", "description": "Противник заметил движение у берега.", "probability": 0.7, "tone": "warning", "effects": {"cover": 0.1, "noise": 0.35}},
+            {"id": "slip", "label": "Сорвался с обрыва", "description": "Мокрый берег оказался скользким.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.25, "noise": 0.2}}
+          ]
+        },
+        {
+          "id": "drink", "label": "Набрать воду", "description": "Пополнить запасы воды у реки.", "tags": ["resource", "water"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "clean_water", "label": "Вода чистая", "description": "Запасы пополнены свежей водой.", "probability": 3.0, "tone": "positive", "effects": {"resource": 0.4, "thirst": -0.5}},
+            {"id": "contaminated", "label": "Вода испорчена", "description": "В воде была гниль или трупный яд.", "probability": 0.8, "tone": "negative", "effects": {"resource": 0.1, "health": -0.3, "thirst": -0.1}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ravine",
+      "name": "Овраг",
+      "description": "Глубокий овраг с осыпающимися склонами и дном, поросшим кустарником.",
+      "tags": ["barrier", "cover", "height"],
+      "states": [
+        {"id": "open", "name": "Открытый склон", "description": "Склоны видны, спуск возможен.", "difficulty": 0.45, "passable": true, "tags": ["crossing"]},
+        {"id": "overgrown", "name": "Заросший овраг", "description": "Кустарник скрывает тропу и дно.", "difficulty": 0.65, "passable": true, "tags": ["concealment"], "outcome_bias": {"hidden": 1.6, "spotted": 0.7}},
+        {"id": "collapsed", "name": "Обвал", "description": "Свежий обвал перекрыл дно и сделал спуск опасным.", "difficulty": 0.9, "passable": false, "tags": ["hazard"], "blocked_actions": ["descend"], "outcome_bias": {"fell": 1.8, "trapped": 1.5}}
+      ],
+      "transitions": [
+        {"id": "t_ravine_grow", "source": "open", "target": "overgrown", "event": "зарастание", "weight": 1.0},
+        {"id": "t_ravine_collapse", "source": "overgrown", "target": "collapsed", "event": "обвал", "weight": 1.1},
+        {"id": "t_ravine_clear", "source": "collapsed", "target": "open", "event": "расчистка", "weight": 0.5}
+      ],
+      "actions": [
+        {
+          "id": "descend", "label": "Спуститься в овраг", "description": "Использовать овраг как скрытый путь.", "tags": ["move", "cover"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "descended", "label": "Спуск удался", "description": "Отряд прошёл дном оврага, оставаясь невидимым.", "probability": 2.5, "tone": "positive", "effects": {"progress": 1.0, "cover": 0.3, "fatigue": 0.25}},
+            {"id": "fell", "label": "Склон осыпался", "description": "Камни и люди покатились вниз.", "probability": 0.9, "tone": "negative", "effects": {"injury": 0.35, "noise": 0.3, "progress": 0.2}},
+            {"id": "trapped", "label": "Путь завален", "description": "Обвал отрезал обратный путь.", "probability": 0.3, "tone": "warning", "effects": {"time": 0.7, "progress": 0.1}}
+          ]
+        },
+        {
+          "id": "bypass", "label": "Обойти овраг", "description": "Не рисковать и поискать обход.", "tags": ["move", "time"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "detour", "label": "Обход найден", "description": "Отряд потерял время, но сохранил силы.", "probability": 3.0, "tone": "positive", "effects": {"progress": 0.6, "time": 0.4}},
+            {"id": "lost", "label": "Сбились с пути", "description": "Обход оказался ложной тропой.", "probability": 1.0, "tone": "warning", "effects": {"progress": 0.1, "fatigue": 0.3, "time": 0.6}}
+          ]
+        },
+        {
+          "id": "ambush", "label": "Устроить засаду на дне", "description": "Спуститься и ждать в кустах на дне оврага.", "tags": ["tactics", "cover", "ambush"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "position", "label": "Позиция занята", "description": "Засада укрыта кустарником, противник ничего не подозревает.", "probability": 2.5, "tone": "positive", "effects": {"cover": 0.55, "surprise": 0.45, "noise": -0.15}},
+            {"id": "spotted", "label": "Засаду заметили", "description": "Кто-то выдал движение на склоне.", "probability": 0.8, "tone": "negative", "effects": {"cover": 0.1, "noise": 0.35}},
+            {"id": "rockslide", "label": "Камнепад", "description": "Потревоженный склон рухнул на засаду.", "probability": 0.25, "tone": "negative", "effects": {"injury": 0.4, "noise": 0.5}}
+          ]
+        },
+        {
+          "id": "salvage", "label": "Обыскать дно", "description": "Проверить, что осталось после обвала.", "tags": ["resource", "search"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "find", "label": "Находка", "description": "Под камнями нашлись брошенные вещи.", "probability": 1.6, "tone": "positive", "effects": {"resource": 0.4, "time": 0.3}},
+            {"id": "nothing", "label": "Ничего нет", "description": "Овраг пуст.", "probability": 1.4, "tone": "neutral", "effects": {"time": 0.2}},
+            {"id": "slide", "label": "Новый обвал", "description": "Склон не выдержал веса людей.", "probability": 0.4, "tone": "negative", "effects": {"injury": 0.3, "time": 0.4}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "swamp",
+      "name": "Болото",
+      "description": "Топкое болото с камышами, твёрдыми островками и гнилой водой.",
+      "tags": ["water", "hazard", "cover", "resource"],
+      "states": [
+        {"id": "firm", "name": "Твёрдая окраина", "description": "Почва держит, есть тропа.", "difficulty": 0.5, "passable": true, "tags": ["crossing"]},
+        {"id": "boggy", "name": "Топь", "description": "Под водой скрываются глубокие ямы.", "difficulty": 0.85, "passable": true, "tags": ["hazard"], "outcome_bias": {"crossed": 0.6, "stuck": 2.0, "swallowed": 1.5}},
+        {"id": "frozen", "name": "Мёрзлая топь", "description": "Поверхность схватило морозом, но лёд ненадёжен.", "difficulty": 0.65, "passable": true, "tags": ["ice"], "outcome_bias": {"crossed": 1.2, "swallowed": 1.3}}
+      ],
+      "transitions": [
+        {"id": "t_swamp_bog", "source": "firm", "target": "boggy", "event": "подтопление", "weight": 1.2},
+        {"id": "t_swamp_dry", "source": "boggy", "target": "firm", "event": "сушь", "weight": 0.5},
+        {"id": "t_swamp_freeze", "source": "firm", "target": "frozen", "event": "заморозки", "weight": 0.8},
+        {"id": "t_swamp_thaw", "source": "frozen", "target": "boggy", "event": "оттепель", "weight": 1.0}
+      ],
+      "actions": [
+        {
+          "id": "wade", "label": "Пройти напрямик", "description": "Идти по топи, проверяя дно шестом.", "tags": ["move", "hazard"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "crossed", "label": "Топь пройдена", "description": "Отряд выбрался на твёрдую землю.", "probability": 2.0, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.35}},
+            {"id": "stuck", "label": "Застряли", "description": "Люди и обоз увязли, пришлось вытаскивать друг друга.", "probability": 1.3, "tone": "warning", "effects": {"progress": 0.2, "time": 0.6, "fatigue": 0.3}},
+            {"id": "swallowed", "label": "Топь забрала", "description": "Один из бойцов ушёл под воду.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.45, "lost": 0.3, "noise": 0.2}}
+          ]
+        },
+        {
+          "id": "forage", "label": "Собрать болотные травы", "description": "Пополнить провизию и лекарственные запасы.", "tags": ["resource", "forage"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "harvest", "label": "Сбор удался", "description": "Найдены съедобные коренья и травы.", "probability": 2.2, "tone": "positive", "effects": {"resource": 0.4, "hunger": -0.3, "time": 0.3}},
+            {"id": "poison", "label": "Ядовитая трава", "description": "Собранное оказалось ядовитым.", "probability": 0.7, "tone": "negative", "effects": {"health": -0.3, "time": 0.2}},
+            {"id": "nothing", "label": "Пусто", "description": "Урожай скуден.", "probability": 1.0, "tone": "neutral", "effects": {"time": 0.2}}
+          ]
+        },
+        {
+          "id": "hide", "label": "Укрыться в камышах", "description": "Использовать камыш и туман для скрытого отхода.", "tags": ["cover", "stealth"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "hidden", "label": "Скрылись", "description": "Камыш полностью скрыл отряд.", "probability": 3.0, "tone": "positive", "effects": {"cover": 0.6, "noise": -0.3}},
+            {"id": "found", "label": "Обнаружены", "description": "Противник заметил колебание камыша.", "probability": 0.6, "tone": "negative", "effects": {"cover": 0.1, "noise": 0.4}},
+            {"id": "sink", "label": "Увязли в иле", "description": "Укрытие оказалось слишком топким.", "probability": 0.35, "tone": "warning", "effects": {"fatigue": 0.25, "injury": 0.15}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "forest",
+      "name": "Лес",
+      "description": "Старый лес с буреломом, тропами и сухим валежником.",
+      "tags": ["cover", "resource", "concealment", "wood"],
+      "states": [
+        {"id": "open", "name": "Светлый лес", "description": "Между деревьями видно далеко.", "difficulty": 0.3, "passable": true, "tags": ["crossing"]},
+        {"id": "dense", "name": "Чаща", "description": "Бурелом и подлесок сковывают движение.", "difficulty": 0.6, "passable": true, "tags": ["concealment"], "outcome_bias": {"hidden": 1.8, "lost": 1.5}},
+        {"id": "burning", "name": "Лесной пожар", "description": "Огонь идёт по кронам, дым закрывает небо.", "difficulty": 0.95, "passable": false, "tags": ["hazard", "fire"], "blocked_actions": ["hide", "gather"], "outcome_bias": {"burned": 2.0, "hidden": 0.1}}
+      ],
+      "transitions": [
+        {"id": "t_forest_dense", "source": "open", "target": "dense", "event": "бурелом", "weight": 1.0},
+        {"id": "t_forest_fire", "source": "dense", "target": "burning", "event": "пожар", "weight": 1.1},
+        {"id": "t_forest_regrow", "source": "burning", "target": "open", "event": "поросль", "weight": 0.4}
+      ],
+      "actions": [
+        {
+          "id": "hide", "label": "Скрыться в чаще", "description": "Раствориться среди стволов и подлеска.", "tags": ["cover", "stealth"], "uncertainty": 0.16,
+          "outcomes": [
+            {"id": "hidden", "label": "Лес укрыл", "description": "Отряд исчез из виду.", "probability": 3.0, "tone": "positive", "effects": {"cover": 0.5, "noise": -0.3}},
+            {"id": "tracked", "label": "След найден", "description": "Противник заметил сломанные ветки.", "probability": 0.8, "tone": "warning", "effects": {"cover": 0.1, "noise": 0.2}},
+            {"id": "snake", "label": "Змея", "description": "В чаще потревожили змею.", "probability": 0.25, "tone": "negative", "effects": {"injury": 0.2, "noise": 0.15}}
+          ]
+        },
+        {
+          "id": "gather", "label": "Собрать хворост", "description": "Заготовить топливо и материал для укрытий.", "tags": ["resource", "wood"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "wood", "label": "Хворост собран", "description": "Набрано достаточно сухого дерева.", "probability": 2.8, "tone": "positive", "effects": {"resource": 0.5, "time": 0.3}},
+            {"id": "snakes", "label": "Потревожили гнездо", "description": "В валежнике оказались змеи.", "probability": 0.6, "tone": "negative", "effects": {"injury": 0.2, "noise": 0.2}},
+            {"id": "nothing", "label": "Мало топлива", "description": "Лес сырой, хворост не горит.", "probability": 0.5, "tone": "neutral", "effects": {"time": 0.3}}
+          ]
+        },
+        {
+          "id": "ambush", "label": "Устроить засаду", "description": "Занять позицию у тропы и ждать.", "tags": ["tactics", "cover", "ambush"], "uncertainty": 0.24,
+          "outcomes": [
+            {"id": "advantage", "label": "Засада готова", "description": "Позиция скрыта, путь противника простреливается.", "probability": 2.2, "tone": "positive", "effects": {"cover": 0.55, "surprise": 0.5, "noise": -0.1}},
+            {"id": "detected", "label": "Засада раскрыта", "description": "Противник обнаружил движение в подлеске.", "probability": 0.9, "tone": "negative", "effects": {"cover": 0.1, "noise": 0.35}}
+          ]
+        },
+        {
+          "id": "navigate", "label": "Пройти по лесной тропе", "description": "Использовать старую тропу, чтобы не сбиться.", "tags": ["move", "path"], "uncertainty": 0.15,
+          "outcomes": [
+            {"id": "path", "label": "Тропа вывела", "description": "Отряд быстро вышел к нужной точке.", "probability": 2.8, "tone": "positive", "effects": {"progress": 1.0, "time": 0.2}},
+            {"id": "lost", "label": "Тропа потерялась", "description": "Лес закончился болотом, пришлось возвращаться.", "probability": 0.8, "tone": "warning", "effects": {"progress": 0.2, "time": 0.4, "fatigue": 0.2}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mountain_pass",
+      "name": "Горный перевал",
+      "description": "Узкий перевал над облаками, с карнизами и снежными заносами.",
+      "tags": ["barrier", "height", "hazard", "cold"],
+      "states": [
+        {"id": "clear", "name": "Ясный перевал", "description": "Видимость хорошая, тропа открыта.", "difficulty": 0.5, "passable": true, "tags": ["crossing", "height"]},
+        {"id": "snowed", "name": "Снегопад", "description": "Тропу замело, ветер сбивает с ног.", "difficulty": 0.85, "passable": true, "tags": ["cold", "hazard"], "blocked_actions": ["climb"], "outcome_bias": {"crossed": 0.5, "frostbite": 2.0, "lost": 1.6}},
+        {"id": "avalanche", "name": "Лавина", "description": "Сход лавины перекрыл перевал.", "difficulty": 0.95, "passable": false, "tags": ["hazard", "cold"], "outcome_bias": {"crossed": 0.1, "injury": 2.0}}
+      ],
+      "transitions": [
+        {"id": "t_pass_snow", "source": "clear", "target": "snowed", "event": "снегопад", "weight": 1.0},
+        {"id": "t_pass_clear", "source": "snowed", "target": "clear", "event": "прояснение", "weight": 1.0},
+        {"id": "t_pass_avalanche", "source": "snowed", "target": "avalanche", "event": "лавина", "weight": 0.8},
+        {"id": "t_pass_dig", "source": "avalanche", "target": "clear", "event": "расчистка", "weight": 0.3}
+      ],
+      "actions": [
+        {
+          "id": "climb", "label": "Подняться на перевал", "description": "Идти вверх по узкой тропе.", "tags": ["move", "climb", "cold"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "crossed", "label": "Перевал взят", "description": "Отряд перешёл хребет.", "probability": 2.5, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.4, "height": 0.3}},
+            {"id": "frostbite", "label": "Обморожение", "description": "Холод и ветер вывели людей из строя.", "probability": 0.8, "tone": "negative", "effects": {"health": -0.3, "fatigue": 0.25, "progress": 0.2}},
+            {"id": "fall", "label": "Срыв с карниза", "description": "Камень выскользнул из-под ноги.", "probability": 0.35, "tone": "negative", "effects": {"injury": 0.45, "progress": 0.1, "noise": 0.3}}
+          ]
+        },
+        {
+          "id": "wait", "label": "Переждать непогоду", "description": "Укрыться за скалой и переждать снегопад.", "tags": ["rest", "survival"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "safe", "label": "Непогода переждана", "description": "Буря прошла, люди сохранили силы.", "probability": 3.0, "tone": "positive", "effects": {"time": 0.6, "fatigue": -0.2}},
+            {"id": "exposure", "label": "Переохлаждение", "description": "Укрытие оказалось хуже, чем казалось.", "probability": 0.7, "tone": "negative", "effects": {"health": -0.25, "fatigue": 0.2}}
+          ]
+        },
+        {
+          "id": "guide", "label": "Провести отряд", "description": "Взять на себя роль проводника через перевал.", "tags": ["move", "leadership", "cold"], "uncertainty": 0.28,
+          "outcomes": [
+            {"id": "guided", "label": "Отряд проведён", "description": "Проводник вывел людей безопасной тропой.", "probability": 2.5, "tone": "positive", "effects": {"progress": 1.0, "morale": 0.2, "fatigue": 0.25}},
+            {"id": "lost", "label": "Сбились с тропы", "description": "Отряд заблудился среди карнизов.", "probability": 1.0, "tone": "warning", "effects": {"progress": 0.2, "fatigue": 0.3, "time": 0.5}},
+            {"id": "avalanche_hit", "label": "Под лавину", "description": "Шум шагов спровоцировал сход снега.", "probability": 0.25, "tone": "negative", "effects": {"injury": 0.5, "lost": 0.3}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "storm",
+      "name": "Буря",
+      "description": "Грозовой фронт с ливнем, молниями и шквальным ветром.",
+      "tags": ["weather", "hazard", "noise", "cover"],
+      "states": [
+        {"id": "gathering", "name": "Сгущаются тучи", "description": "Ветер свежеет, приближается гроза.", "difficulty": 0.4, "passable": true, "tags": ["weather"]},
+        {"id": "raging", "name": "Буря", "description": "Ливень и молнии бьют по открытой местности.", "difficulty": 0.9, "passable": true, "tags": ["hazard", "noise"], "outcome_bias": {"sheltered": 0.6, "exposed": 2.0, "lightning": 1.5}},
+        {"id": "passed", "name": "Затишье", "description": "Гроза ушла, оставив после себя лужи и тишину.", "difficulty": 0.2, "passable": true, "tags": ["weather"]}
+      ],
+      "transitions": [
+        {"id": "t_storm_rage", "source": "gathering", "target": "raging", "event": "удар бури", "weight": 1.5},
+        {"id": "t_storm_pass", "source": "raging", "target": "passed", "event": "стихание", "weight": 1.0},
+        {"id": "t_storm_new", "source": "passed", "target": "gathering", "event": "новый фронт", "weight": 0.4}
+      ],
+      "actions": [
+        {
+          "id": "shelter", "label": "Укрыться от бури", "description": "Найти естественное укрытие и переждать.", "tags": ["survival", "cover"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "sheltered", "label": "Укрытие найдено", "description": "Отряд переждал бурю без потерь.", "probability": 3.0, "tone": "positive", "effects": {"cover": 0.45, "fatigue": -0.1, "time": 0.3}},
+            {"id": "exposed", "label": "Укрытие ненадёжно", "description": "Ветер сорвал навес, люди промокли.", "probability": 0.8, "tone": "warning", "effects": {"fatigue": 0.2, "injury": 0.15}},
+            {"id": "lightning", "label": "Удар молнии", "description": "Молния ударила рядом с укрытием.", "probability": 0.2, "tone": "negative", "effects": {"injury": 0.5, "noise": 0.5}}
+          ]
+        },
+        {
+          "id": "press_on", "label": "Идти сквозь бурю", "description": "Не останавливаться и двигаться вперёд.", "tags": ["move", "hazard"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "advance", "label": "Сквозь бурю", "description": "Отряд продолжил путь, несмотря на стихию.", "probability": 2.0, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.5, "morale": -0.1}},
+            {"id": "lost", "label": "Сбились с направления", "description": "Буря скрыла ориентиры.", "probability": 1.0, "tone": "warning", "effects": {"progress": 0.1, "fatigue": 0.4, "time": 0.4}},
+            {"id": "lightning_hit", "label": "Разряд в колонну", "description": "Молния ударила в идущих.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.45, "lost": 0.2}}
+          ]
+        },
+        {
+          "id": "use_lightning", "label": "Использовать грозу", "description": "Попытаться обратить молнии против врага.", "tags": ["tactics", "hazard"], "uncertainty": 0.4,
+          "outcomes": [
+            {"id": "strike", "label": "Молния поразила цель", "description": "Разряд ударил в нужное место.", "probability": 1.2, "tone": "positive", "effects": {"surprise": 0.5, "noise": 0.6, "progress": 0.3}},
+            {"id": "backfire", "label": "Гроза обратилась против", "description": "Молния ударила слишком близко.", "probability": 0.6, "tone": "negative", "effects": {"injury": 0.4, "noise": 0.5}}
+          ]
+        },
+        {
+          "id": "signal", "label": "Подать сигнал", "description": "Использовать гром, чтобы передать сообщение.", "tags": ["signal", "noise"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "heard", "label": "Сигнал услышан", "description": "Сообщение дошло до союзников.", "probability": 2.0, "tone": "positive", "effects": {"signal": 0.5, "noise": 0.3}},
+            {"id": "lost_signal", "label": "Сигнал потерян", "description": "Буря заглушила передачу.", "probability": 1.0, "tone": "neutral", "effects": {"signal": 0.1}},
+            {"id": "exposure", "label": "Выдали позицию", "description": "Сигнал привлёк внимание противника.", "probability": 0.5, "tone": "warning", "effects": {"cover": -0.2, "noise": 0.4}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wildfire",
+      "name": "Лесной пожар",
+      "description": "Очаг лесного пожара, который может стать оружием или катастрофой.",
+      "tags": ["fire", "hazard", "smoke", "tactics"],
+      "states": [
+        {"id": "smoldering", "name": "Тлеет", "description": "Огонь ещё не набрал силу.", "difficulty": 0.5, "passable": true, "tags": ["fire"]},
+        {"id": "spreading", "name": "Распространяется", "description": "Ветер несёт пламя по сухостою.", "difficulty": 0.9, "passable": false, "tags": ["hazard", "fire"], "outcome_bias": {"burns": 2.0, "escaped": 0.5, "trapped": 1.8}},
+        {"id": "contained", "name": "Локализован", "description": "Пожар остановлен, остались дым и угли.", "difficulty": 0.3, "passable": true, "tags": ["fire"]}
+      ],
+      "transitions": [
+        {"id": "t_fire_spread", "source": "smoldering", "target": "spreading", "event": "ветер раздул огонь", "weight": 1.2},
+        {"id": "t_fire_contain", "source": "spreading", "target": "contained", "event": "локализация", "weight": 0.8},
+        {"id": "t_fire_again", "source": "contained", "target": "smoldering", "event": "тлеющие угли", "weight": 0.3}
+      ],
+      "actions": [
+        {
+          "id": "fight", "label": "Тушить пожар", "description": "Сбивать огонь ветками и засыпать землёй.", "tags": ["fire", "rescue"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "contained", "label": "Огонь остановлен", "description": "Пожар удалось локализовать.", "probability": 2.0, "tone": "positive", "next_state": "contained", "effects": {"control": 0.4, "fatigue": 0.4, "morale": 0.2}},
+            {"id": "burns", "label": "Ожоги", "description": "Огонь достал до людей.", "probability": 0.8, "tone": "negative", "effects": {"injury": 0.4, "fatigue": 0.3}},
+            {"id": "spread_more", "label": "Огонь вырвался", "description": "Пламя перекинулось дальше.", "probability": 0.5, "tone": "negative", "next_state": "spreading", "effects": {"injury": 0.2, "noise": 0.4}}
+          ]
+        },
+        {
+          "id": "flee", "label": "Бежать от огня", "description": "Уходить в подветренную сторону.", "tags": ["move", "survival"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "escaped", "label": "Вырвались из огня", "description": "Отряд вышел из зоны пожара.", "probability": 2.8, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.4, "injury": 0.1}},
+            {"id": "smoke", "label": "Угорели", "description": "Дым отравил людей.", "probability": 0.8, "tone": "negative", "effects": {"health": -0.3, "fatigue": 0.2}},
+            {"id": "trapped", "label": "Огонь окружил", "description": "Путь отрезан пламенем.", "probability": 0.25, "tone": "negative", "effects": {"injury": 0.5, "lost": 0.3}}
+          ]
+        },
+        {
+          "id": "diversion", "label": "Направить огонь на врага", "description": "Попытаться пустить пожар в сторону противника.", "tags": ["tactics", "fire", "risk"], "uncertainty": 0.4,
+          "outcomes": [
+            {"id": "diverted", "label": "Огонь пошёл на врага", "description": "Пламя ударило в нужную сторону.", "probability": 1.4, "tone": "positive", "next_state": "spreading", "effects": {"surprise": 0.5, "progress": 0.3, "noise": 0.4}},
+            {"id": "backfire", "label": "Огонь повернул", "description": "Ветер переменился, пламя пошло на своих.", "probability": 0.7, "tone": "negative", "effects": {"injury": 0.45, "morale": -0.3}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ruins",
+      "name": "Руины",
+      "description": "Развалины старой крепости с подвалами, обрушенными стенами и тайниками.",
+      "tags": ["cover", "resource", "fortification", "mystery"],
+      "states": [
+        {"id": "intact", "name": "Целые развалины", "description": "Стены ещё держат своды.", "difficulty": 0.4, "passable": true, "tags": ["cover"]},
+        {"id": "unstable", "name": "Осыпаются", "description": "Кладка трещит, своды могут рухнуть.", "difficulty": 0.7, "passable": true, "tags": ["hazard", "cover"], "outcome_bias": {"collapse": 2.0, "hidden": 1.2}},
+        {"id": "cleared", "name": "Расчищены", "description": "Завалы разобраны, руины пригодны для обороны.", "difficulty": 0.2, "passable": true, "tags": ["fortification", "cover"], "outcome_bias": {"fortified": 2.0}}
+      ],
+      "transitions": [
+        {"id": "t_ruins_collapse", "source": "intact", "target": "unstable", "event": "обрушение", "weight": 0.6},
+        {"id": "t_ruins_clear", "source": "unstable", "target": "cleared", "event": "расчистка", "weight": 0.8},
+        {"id": "t_ruins_rebuild", "source": "cleared", "target": "intact", "event": "восстановление", "weight": 0.2}
+      ],
+      "actions": [
+        {
+          "id": "hide", "label": "Спрятаться в руинах", "description": "Использовать развалины как укрытие.", "tags": ["cover", "stealth"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "hidden", "label": "Укрытие надёжно", "description": "Стены скрыли отряд от чужих глаз.", "probability": 2.7, "tone": "positive", "effects": {"cover": 0.55, "noise": -0.25}},
+            {"id": "collapse", "label": "Свод рухнул", "description": "Ветхая кладка не выдержала.", "probability": 0.5, "tone": "negative", "effects": {"injury": 0.35, "noise": 0.4}},
+            {"id": "found", "label": "Укрытие обнаружено", "description": "Противник заметил движение среди камней.", "probability": 0.7, "tone": "warning", "effects": {"cover": 0.1, "noise": 0.3}}
+          ]
+        },
+        {
+          "id": "salvage", "label": "Обыскать руины", "description": "Проверить подвалы и тайники.", "tags": ["resource", "search"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "find", "label": "Находка", "description": "В тайнике сохранились припасы и инструменты.", "probability": 2.0, "tone": "positive", "effects": {"resource": 0.5, "time": 0.3}},
+            {"id": "nothing", "label": "Пусто", "description": "Всё давно разграблено.", "probability": 1.0, "tone": "neutral", "effects": {"time": 0.3}},
+            {"id": "collapse", "label": "Обвал", "description": "Потолок подвала рухнул.", "probability": 0.4, "tone": "negative", "effects": {"injury": 0.4, "time": 0.5}}
+          ]
+        },
+        {
+          "id": "fortify", "label": "Укрепить руины", "description": "Расчистить завалы и превратить развалины в опорный пункт.", "tags": ["build", "fortification"], "uncertainty": 0.22,
+          "outcomes": [
+            {"id": "fortified", "label": "Оборона готова", "description": "В стенах пробиты бойницы, завалы превращены в вал.", "probability": 2.2, "tone": "positive", "next_state": "cleared", "effects": {"cover": 0.7, "control": 0.4, "time": 0.4}},
+            {"id": "collapse", "label": "Стена обрушилась", "description": "При укреплении рухнула несущая кладка.", "probability": 0.8, "tone": "negative", "effects": {"injury": 0.3, "time": 0.5}}
+          ]
+        },
+        {
+          "id": "explore", "label": "Спуститься в подвал", "description": "Исследовать подземелья под руинами.", "tags": ["search", "mystery"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "discovered", "label": "Найдена тайна", "description": "В подвале обнаружены старые знаки и схрон.", "probability": 1.5, "tone": "positive", "effects": {"secret": 0.5, "resource": 0.3, "progress": 0.3}},
+            {"id": "trapped", "label": "Завал отрезал путь", "description": "Выход засыпало, пришлось раскапывать.", "probability": 0.5, "tone": "warning", "effects": {"time": 0.8, "fatigue": 0.3}},
+            {"id": "nothing", "label": "Пустой подвал", "description": "Ничего, кроме плесени и старых костей.", "probability": 1.0, "tone": "neutral", "effects": {"time": 0.3}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fog",
+      "name": "Туман",
+      "description": "Плотный туман, скрывающий дорогу и превращающий звуки в ловушки.",
+      "tags": ["weather", "concealment", "sensory"],
+      "states": [
+        {"id": "light", "name": "Лёгкая дымка", "description": "Видимость ограничена, но ориентиры видны.", "difficulty": 0.2, "passable": true},
+        {"id": "dense", "name": "Плотный туман", "description": "Видимость почти нулевая.", "difficulty": 0.8, "passable": true, "tags": ["concealment", "hazard"], "outcome_bias": {"hidden": 2.0, "lost": 1.5, "spotted": 0.5}},
+        {"id": "clearing", "name": "Рассеивается", "description": "Туман поднимается, открывая местность.", "difficulty": 0.3, "passable": true}
+      ],
+      "transitions": [
+        {"id": "t_fog_dense", "source": "light", "target": "dense", "event": "сгущение", "weight": 1.0},
+        {"id": "t_fog_clear", "source": "dense", "target": "clearing", "event": "ветер", "weight": 1.0},
+        {"id": "t_fog_settle", "source": "clearing", "target": "light", "event": "остатки тумана", "weight": 0.5}
+      ],
+      "actions": [
+        {
+          "id": "hide", "label": "Раствориться в тумане", "description": "Уйти в сторону и замереть.", "tags": ["cover", "stealth"], "uncertainty": 0.15,
+          "outcomes": [
+            {"id": "hidden", "label": "Туман укрыл", "description": "Отряд полностью исчез из виду.", "probability": 3.0, "tone": "positive", "effects": {"cover": 0.65, "noise": -0.2}},
+            {"id": "spotted", "label": "Туман обманул", "description": "Противник подошёл слишком близко.", "probability": 0.6, "tone": "warning", "effects": {"cover": 0.1, "noise": 0.2}},
+            {"id": "lost_contact", "label": "Потеряли связь", "description": "В тумане отряд потерял друг друга.", "probability": 0.4, "tone": "negative", "effects": {"time": 0.5, "morale": -0.1}}
+          ]
+        },
+        {
+          "id": "navigate", "label": "Идти по ориентирам", "description": "Двигаться по звуку, компасу и памяти.", "tags": ["move", "navigation"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "route", "label": "Путь найден", "description": "Ориентиры вывели отряд куда нужно.", "probability": 2.2, "tone": "positive", "effects": {"progress": 1.0, "time": 0.2}},
+            {"id": "lost", "label": "Сбились с пути", "description": "Туман скрыл поворот.", "probability": 1.2, "tone": "warning", "effects": {"progress": 0.1, "time": 0.5, "fatigue": 0.2}},
+            {"id": "circle", "label": "Вернулись на место", "description": "Отряд описал круг и вышел к прежней точке.", "probability": 0.4, "tone": "neutral", "effects": {"progress": 0.0, "time": 0.6}}
+          ]
+        },
+        {
+          "id": "signal", "label": "Подать световой сигнал", "description": "Использовать фонарь, чтобы подать знак своим.", "tags": ["signal", "risk"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "seen", "label": "Сигнал замечен", "description": "Свои увидели свет.", "probability": 1.5, "tone": "positive", "effects": {"signal": 0.5, "noise": 0.2}},
+            {"id": "exposed", "label": "Сигнал выдал позицию", "description": "Свет заметили и чужие.", "probability": 0.8, "tone": "warning", "effects": {"cover": -0.2, "noise": 0.4}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cave",
+      "name": "Пещера",
+      "description": "Естественная пещера с сухими камерами, подземным ручьём и следами зверя.",
+      "tags": ["cover", "shelter", "resource", "mystery"],
+      "states": [
+        {"id": "dry", "name": "Сухая пещера", "description": "Внутри сухо, можно укрыться.", "difficulty": 0.3, "passable": true, "tags": ["shelter"]},
+        {"id": "flooded", "name": "Затопленная", "description": "Подземный ручей поднялся и залил камеры.", "difficulty": 0.8, "passable": true, "tags": ["water", "hazard"], "outcome_bias": {"rested": 0.2, "sick": 1.5}},
+        {"id": "occupied", "name": "Занята зверем", "description": "В пещере устроился крупный хищник.", "difficulty": 0.85, "passable": true, "tags": ["hazard"], "blocked_actions": ["rest"], "outcome_bias": {"beast": 2.0}}
+      ],
+      "transitions": [
+        {"id": "t_cave_flood", "source": "dry", "target": "flooded", "event": "паводок", "weight": 0.5},
+        {"id": "t_cave_dry", "source": "flooded", "target": "dry", "event": "отлив", "weight": 0.8},
+        {"id": "t_cave_beast", "source": "dry", "target": "occupied", "event": "зверь", "weight": 0.4},
+        {"id": "t_cave_clear", "source": "occupied", "target": "dry", "event": "изгнание", "weight": 0.6}
+      ],
+      "actions": [
+        {
+          "id": "rest", "label": "Устроить привал", "description": "Развести огонь и дать людям отдых.", "tags": ["rest", "shelter"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "rested", "label": "Привал удался", "description": "Люди отдохнули и согрелись.", "probability": 3.0, "tone": "positive", "effects": {"fatigue": -0.6, "morale": 0.2, "cover": 0.3}},
+            {"id": "disturbed", "label": "Потревожили зверя", "description": "Шум разбудил обитателя пещеры.", "probability": 0.7, "tone": "warning", "effects": {"fatigue": -0.1, "noise": 0.2}},
+            {"id": "beast", "label": "Нападение зверя", "description": "Хищник атаковал спящих.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.35, "noise": 0.4}}
+          ]
+        },
+        {
+          "id": "explore", "label": "Исследовать глубину", "description": "Пройти в дальние камеры пещеры.", "tags": ["search", "mystery"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "find", "label": "Находка в глубине", "description": "В дальней камере обнаружены следы древних обитателей.", "probability": 1.5, "tone": "positive", "effects": {"resource": 0.3, "secret": 0.3, "progress": 0.2}},
+            {"id": "lost", "label": "Заблудились", "description": "Подземные ходы увели не туда.", "probability": 0.8, "tone": "warning", "effects": {"time": 0.6, "fatigue": 0.2}},
+            {"id": "cave_in", "label": "Обвал в глубине", "description": "Потолок не выдержал.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.4, "time": 0.5}}
+          ]
+        },
+        {
+          "id": "smoke_out", "label": "Выкурить зверя", "description": "Развести дым, чтобы освободить пещеру.", "tags": ["tactics", "fire", "shelter"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "cleared", "label": "Пещера свободна", "description": "Зверь ушёл, укрытие снова доступно.", "probability": 2.0, "tone": "positive", "next_state": "dry", "effects": {"control": 0.3, "time": 0.3, "cover": 0.2}},
+            {"id": "fire", "label": "Огонь вышел из-под контроля", "description": "Дым и пламя заполнили камеру.", "probability": 0.7, "tone": "negative", "effects": {"injury": 0.2, "health": -0.2}},
+            {"id": "nothing", "label": "Зверь не ушёл", "description": "Дым не выгнал хищника.", "probability": 0.5, "tone": "neutral", "effects": {"time": 0.3}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snowfield",
+      "name": "Снежное поле",
+      "description": "Открытое поле, покрытое настом, с трещинами и следами метели.",
+      "tags": ["cold", "barrier", "tracking"],
+      "states": [
+        {"id": "crust", "name": "Наст", "description": "Снег держит человека, но проваливается под тяжестью.", "difficulty": 0.4, "passable": true},
+        {"id": "blizzard", "name": "Пурга", "description": "Ветер и снег скрывают всё вокруг.", "difficulty": 0.9, "passable": true, "tags": ["hazard", "cold"], "blocked_actions": ["track"], "outcome_bias": {"crossed": 0.4, "frostbite": 2.0, "lost": 1.8}},
+        {"id": "thaw", "name": "Оттепель", "description": "Снег рыхлый, ноги вязнут.", "difficulty": 0.6, "passable": true, "tags": ["cold"], "outcome_bias": {"crossed": 0.8, "lost": 1.3}}
+      ],
+      "transitions": [
+        {"id": "t_snow_blizzard", "source": "crust", "target": "blizzard", "event": "пурга", "weight": 1.0},
+        {"id": "t_snow_thaw", "source": "blizzard", "target": "thaw", "event": "потепление", "weight": 0.8},
+        {"id": "t_snow_crust", "source": "thaw", "target": "crust", "event": "заморозок", "weight": 0.7}
+      ],
+      "actions": [
+        {
+          "id": "cross", "label": "Пересечь поле", "description": "Идти напрямик, проверяя наст.", "tags": ["move", "cold"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "crossed", "label": "Поле пройдено", "description": "Отряд пересёк открытое пространство.", "probability": 2.5, "tone": "positive", "effects": {"progress": 1.0, "fatigue": 0.4}},
+            {"id": "frostbite", "label": "Обморожение", "description": "Мороз и ветер вывели людей из строя.", "probability": 0.8, "tone": "negative", "effects": {"health": -0.3, "fatigue": 0.2}},
+            {"id": "lost", "label": "Сбились с пути", "description": "Снег скрыл ориентиры.", "probability": 0.5, "tone": "warning", "effects": {"progress": 0.1, "time": 0.4}}
+          ]
+        },
+        {
+          "id": "track", "label": "Пройти по следам", "description": "Использовать старые следы как проводник.", "tags": ["tracking", "move"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "tracked", "label": "Следы вывели", "description": "Отряд быстро нашёл путь.", "probability": 2.2, "tone": "positive", "effects": {"progress": 0.5, "intel": 0.4, "time": 0.2}},
+            {"id": "lost", "label": "Следы пропали", "description": "Метель замела следы.", "probability": 1.0, "tone": "warning", "effects": {"time": 0.4, "progress": 0.1}}
+          ]
+        },
+        {
+          "id": "shelter", "label": "Вырыть укрытие", "description": "Сделать снежную пещеру и переждать холод.", "tags": ["survival", "cold"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "sheltered", "label": "Укрытие готово", "description": "Снежная нора защитила от ветра.", "probability": 2.6, "tone": "positive", "effects": {"cover": 0.4, "fatigue": -0.3, "time": 0.3}},
+            {"id": "exposed", "label": "Укрытие обрушилось", "description": "Свод не выдержал.", "probability": 0.8, "tone": "negative", "effects": {"health": -0.2, "fatigue": 0.2}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crossroads",
+      "name": "Перекрёсток",
+      "description": "Пересечение старых дорог с колодцем, следами караванов и удобной засадой.",
+      "tags": ["road", "trade", "cover", "information"],
+      "states": [
+        {"id": "quiet", "name": "Пусто", "description": "На перекрёстке никого нет.", "difficulty": 0.2, "passable": true},
+        {"id": "busy", "name": "Оживлён", "description": "Мимо идут караваны и беженцы.", "difficulty": 0.4, "passable": true, "tags": ["trade"], "outcome_bias": {"deal": 1.5}},
+        {"id": "blocked", "name": "Перекрыт", "description": "Дорога перекрыта завалом или засадой.", "difficulty": 0.7, "passable": false, "tags": ["barrier"], "blocked_actions": ["trade"], "outcome_bias": {"ambush": 1.5, "spotted": 1.2}}
+      ],
+      "transitions": [
+        {"id": "t_cross_busy", "source": "quiet", "target": "busy", "event": "караван", "weight": 1.0},
+        {"id": "t_cross_block", "source": "busy", "target": "blocked", "event": "засада", "weight": 0.6},
+        {"id": "t_cross_clear", "source": "blocked", "target": "quiet", "event": "дорога свободна", "weight": 0.8},
+        {"id": "t_cross_night", "source": "busy", "target": "quiet", "event": "ночь", "weight": 1.0}
+      ],
+      "actions": [
+        {
+          "id": "scout", "label": "Осмотреть перекрёсток", "description": "Проверить дороги, следы и возможные укрытия.", "tags": ["recon", "information"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "info", "label": "Сведения собраны", "description": "Удалось понять, кто и куда прошёл.", "probability": 2.5, "tone": "positive", "effects": {"intel": 0.5, "cover": 0.2, "time": 0.2}},
+            {"id": "ambush", "label": "Попали в засаду", "description": "Перекрёсток уже контролировали чужие.", "probability": 0.7, "tone": "negative", "effects": {"injury": 0.3, "noise": 0.4}},
+            {"id": "nothing", "label": "Ничего важного", "description": "Следы старые, сведений мало.", "probability": 0.8, "tone": "neutral", "effects": {"time": 0.2}}
+          ]
+        },
+        {
+          "id": "trade", "label": "Торговать с проезжими", "description": "Обменять часть груза на нужные вещи.", "tags": ["trade", "resource"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "deal", "label": "Сделка состоялась", "description": "Обмен оказался выгодным.", "probability": 2.2, "tone": "positive", "effects": {"resource": 0.5, "morale": 0.1, "time": 0.3}},
+            {"id": "cheated", "label": "Обманули", "description": "Вместо товара подсунули гнильё.", "probability": 0.8, "tone": "negative", "effects": {"resource": -0.2, "morale": -0.1}},
+            {"id": "nothing", "label": "Торг не задался", "description": "Проезжие не захотели меняться.", "probability": 0.8, "tone": "neutral", "effects": {"time": 0.2}}
+          ]
+        },
+        {
+          "id": "ambush", "label": "Устроить засаду", "description": "Занять позицию и ждать добычу.", "tags": ["tactics", "ambush", "risk"], "uncertainty": 0.3,
+          "outcomes": [
+            {"id": "position", "label": "Засада готова", "description": "Позиция скрыта, путь простреливается.", "probability": 2.0, "tone": "positive", "effects": {"cover": 0.45, "surprise": 0.5, "noise": -0.1}},
+            {"id": "spotted", "label": "Засаду заметили", "description": "Караван свернул и ушёл.", "probability": 0.8, "tone": "warning", "effects": {"cover": 0.1, "noise": 0.3}},
+            {"id": "backfire", "label": "Засада провалилась", "description": "Противник оказался сильнее.", "probability": 0.3, "tone": "negative", "effects": {"injury": 0.4, "lost": 0.2}}
+          ]
+        },
+        {
+          "id": "block", "label": "Перекрыть дорогу", "description": "Завалить путь и установить контроль над перекрёстком.", "tags": ["build", "control"], "uncertainty": 0.2,
+          "outcomes": [
+            {"id": "blocked", "label": "Дорога перекрыта", "description": "Перекрёсток взят под контроль.", "probability": 2.0, "tone": "positive", "next_state": "blocked", "effects": {"control": 0.5, "time": 0.4, "noise": 0.2}},
+            {"id": "bypassed", "label": "Путь обошли", "description": "Караван нашёл объезд.", "probability": 0.8, "tone": "warning", "effects": {"control": 0.1, "time": 0.3}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spring",
+      "name": "Источник",
+      "description": "Чистый родник у скалы — вода, убежище и уязвимое место.",
+      "tags": ["water", "resource", "shelter", "strategic"],
+      "states": [
+        {"id": "clear", "name": "Прозрачный", "description": "Вода чистая, берега утоптаны.", "difficulty": 0.2, "passable": true, "tags": ["water"]},
+        {"id": "muddy", "name": "Мутный", "description": "После дождей вода стала мутной.", "difficulty": 0.5, "passable": true, "tags": ["water"], "outcome_bias": {"sick": 1.5}},
+        {"id": "poisoned", "name": "Отравленный", "description": "В воду что-то попало, берега пахнут гнилью.", "difficulty": 0.8, "passable": true, "tags": ["hazard"], "blocked_actions": ["drink"], "outcome_bias": {"sick": 2.0, "poisoned": 2.0}}
+      ],
+      "transitions": [
+        {"id": "t_spring_mud", "source": "clear", "target": "muddy", "event": "дожди", "weight": 0.7},
+        {"id": "t_spring_clear", "source": "muddy", "target": "clear", "event": "очищение", "weight": 0.8},
+        {"id": "t_spring_poison", "source": "clear", "target": "poisoned", "event": "отрава", "weight": 0.25},
+        {"id": "t_spring_poison_mud", "source": "muddy", "target": "poisoned", "event": "отрава", "weight": 0.4}
+      ],
+      "actions": [
+        {
+          "id": "drink", "label": "Напиться", "description": "Утолить жажду из источника.", "tags": ["water", "survival"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "refreshed", "label": "Вода освежила", "description": "Жажда утолена, силы восстановлены.", "probability": 3.0, "tone": "positive", "effects": {"thirst": -0.7, "health": 0.1, "morale": 0.1}},
+            {"id": "sick", "label": "Вода оказалась плохой", "description": "Живот свело, людей замутило.", "probability": 0.8, "tone": "negative", "effects": {"health": -0.3, "fatigue": 0.2}},
+            {"id": "poisoned", "label": "Яд в воде", "description": "Источник отравлен.", "probability": 0.2, "tone": "negative", "effects": {"health": -0.5, "lost": 0.2}}
+          ]
+        },
+        {
+          "id": "fill", "label": "Набрать воды", "description": "Наполнить фляги и бочки.", "tags": ["resource", "water"], "uncertainty": 0.12,
+          "outcomes": [
+            {"id": "water", "label": "Запасы пополнены", "description": "Вода набрана для отряда.", "probability": 3.0, "tone": "positive", "effects": {"resource": 0.5, "thirst": -0.3}},
+            {"id": "spill", "label": "Пролили", "description": "Часть воды потеряна.", "probability": 0.5, "tone": "neutral", "effects": {"resource": 0.1}},
+            {"id": "contaminated", "label": "Вода испорчена", "description": "В источнике плавала гниль.", "probability": 0.4, "tone": "negative", "effects": {"resource": 0.2, "health": -0.2}}
+          ]
+        },
+        {
+          "id": "guard", "label": "Охранять источник", "description": "Занять позицию у воды и контролировать подходы.", "tags": ["control", "tactics"], "uncertainty": 0.18,
+          "outcomes": [
+            {"id": "secure", "label": "Источник под контролем", "description": "Подходы перекрыты, вода своя.", "probability": 2.5, "tone": "positive", "effects": {"control": 0.4, "resource": 0.3, "cover": 0.2}},
+            {"id": "attacked", "label": "Нападение на пост", "description": "Чужие попытались отбить источник.", "probability": 0.8, "tone": "negative", "effects": {"injury": 0.3, "noise": 0.4}},
+            {"id": "nothing", "label": "Тишина", "description": "Никто не пришёл.", "probability": 0.6, "tone": "neutral", "effects": {"time": 0.2}}
+          ]
+        },
+        {
+          "id": "poison", "label": "Отравить воду", "description": "Испортить источник, чтобы им не воспользовался враг.", "tags": ["tactics", "risk", "water"], "uncertainty": 0.25,
+          "outcomes": [
+            {"id": "poisoned", "label": "Вода отравлена", "description": "Источник надолго стал непригоден.", "probability": 1.5, "tone": "positive", "next_state": "poisoned", "effects": {"control": 0.3, "secret": 0.3, "noise": 0.1}},
+            {"id": "detected", "label": "Замели следы", "description": "Противник раскрыл отравление.", "probability": 0.8, "tone": "warning", "effects": {"reputation": -0.3, "noise": 0.3}}
+          ]
+        }
+      ]
+    }
+  ]
+}

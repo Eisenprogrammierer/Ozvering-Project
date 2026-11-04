@@ -1,0 +1,36 @@
+{
+  "storyline_id": "empire_campaign",
+  "title": "Империя: порядок против хаоса",
+  "description": "Кампания за Империю: удержать монополию на законность и не проиграть публично в столкновении автоматов.",
+  "campaign_template": "configs/campaigns/empire_campaign.json",
+  "campaign_seed": 11,
+  "scenes": "empire_campaign_scenes",
+  "win_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/empire_win",
+        "text": "Переправа удержана. Сводки говорят о порядке, а не о цене. Миф о непобедимости выдержал ещё один день."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/empire_lose",
+        "text": "Линия дрогнула. Поражение оказалось не тактическим, а символическим: в него поверили и свои, и чужие."
+      }
+    ]
+  }
+}

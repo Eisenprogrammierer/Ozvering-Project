@@ -1,0 +1,828 @@
+{
+  "schema": 1,
+  "class": "meaning",
+  "label": "Смысл",
+  "description": "Вера, ритуал, авторитет и картина мира; лексика храма, ордена и общины.",
+  "default_theme": "temple",
+  "need_themes": {
+    "spirituality": "temple",
+    "loneliness": "charity",
+    "love": "charity",
+    "friendship": "charity",
+    "anxiety": "mystery",
+    "fear": "order",
+    "status": "order",
+    "knowledge": "order",
+    "creativity": "mystery",
+    "reproduction": "charity",
+    "health": "charity",
+    "fatigue": "temple",
+    "hunger": "charity",
+    "thirst": "charity",
+    "skill": "order",
+    "boredom": "mystery"
+  },
+  "base": {
+    "heads": [
+      "sobor",
+      "khram",
+      "orden",
+      "bratstvo",
+      "monastyr",
+      "tserkov",
+      "prikhod",
+      "missiya",
+      "seminariya",
+      "dukhovenstvo",
+      "patriarkhat",
+      "yeparkhiya",
+      "lozha",
+      "sekta",
+      "obshchina",
+      "obitel",
+      "chasovnya",
+      "skit",
+      "kafedra"
+    ],
+    "adjectives": [
+      "svyashchenny",
+      "dukhovny",
+      "vechny",
+      "nebesny",
+      "blagodatny",
+      "tayny",
+      "drevniy",
+      "verny",
+      "svetly",
+      "blagoy",
+      "krotkiy",
+      "surovy",
+      "torzhestvenny",
+      "velichavy",
+      "neprelozhny",
+      "zhivoy",
+      "zolotoy",
+      "serebryany",
+      "bely",
+      "cherny",
+      "krasny",
+      "ognenny",
+      "zvezdny",
+      "solnechny",
+      "lunny",
+      "tikh",
+      "velikiy",
+      "maly",
+      "skromny",
+      "blizhniy",
+      "dalniy",
+      "vostochny",
+      "zapadny",
+      "severny",
+      "yuzhny"
+    ],
+    "dependents": [
+      "vera",
+      "smysl",
+      "dukh",
+      "svet",
+      "zavet",
+      "blagodat",
+      "spasenie",
+      "lyubov",
+      "nadezhda",
+      "miloserdie",
+      "proshchenie",
+      "pokoy",
+      "vechnost",
+      "istina",
+      "tayna",
+      "obryad",
+      "molitva",
+      "dukhovenstvo",
+      "pastyr",
+      "obshchina",
+      "klir",
+      "uchenie",
+      "pisanie",
+      "relikviya",
+      "chudo",
+      "nebesa",
+      "svyatynya",
+      "zhizn"
+    ],
+    "dependent_adjectives": [
+      "svyashchenny",
+      "dukhovny",
+      "vechny",
+      "nebesny",
+      "blagodatny",
+      "tayny",
+      "drevniy",
+      "verny",
+      "svetly",
+      "blagoy",
+      "krotkiy",
+      "torzhestvenny",
+      "velichavy",
+      "neprelozhny",
+      "zolotoy",
+      "serebryany",
+      "ognenny",
+      "zvezdny",
+      "solnechny",
+      "lunny",
+      "velikiy",
+      "blizhniy",
+      "dalniy"
+    ],
+    "extensions": [
+      "pod_znakom_very",
+      "vo_slavu_predkov",
+      "radi_vechnosti",
+      "v_poiskakh_istiny",
+      "na_puti_k_znaniyu",
+      "dlya_obshchego_blaga",
+      "bez_lishnikh_slov",
+      "v_teni_zakona",
+      "na_krayu_propasti"
+    ]
+  },
+  "themes": {
+    "temple": {
+      "heads": [
+        "sobor",
+        "khram",
+        "monastyr",
+        "tserkov",
+        "prikhod",
+        "missiya",
+        "seminariya",
+        "dukhovenstvo",
+        "patriarkhat",
+        "yeparkhiya",
+        "obitel",
+        "chasovnya",
+        "skit",
+        "kafedra"
+      ],
+      "adjectives": [
+        "svyashchenny",
+        "dukhovny",
+        "vechny",
+        "nebesny",
+        "blagodatny",
+        "torzhestvenny",
+        "velichavy",
+        "drevniy",
+        "zolotoy",
+        "solnechny",
+        "svetly",
+        "blagoy",
+        "krotkiy",
+        "tikh",
+        "velikiy"
+      ],
+      "dependents": [
+        "vera",
+        "smysl",
+        "dukh",
+        "svet",
+        "zavet",
+        "blagodat",
+        "molitva",
+        "obryad",
+        "relikviya",
+        "svyatynya",
+        "spasenie",
+        "nadezhda",
+        "lyubov",
+        "nebesa",
+        "zhizn"
+      ],
+      "dependent_adjectives": [
+        "svyashchenny",
+        "dukhovny",
+        "vechny",
+        "nebesny",
+        "blagodatny",
+        "drevniy",
+        "zolotoy",
+        "solnechny",
+        "svetly",
+        "velikiy"
+      ]
+    },
+    "order": {
+      "heads": [
+        "orden",
+        "bratstvo",
+        "lozha",
+        "klir",
+        "dukhovenstvo",
+        "sobor",
+        "soviet",
+        "kafedra",
+        "missiya",
+        "obitel"
+      ],
+      "adjectives": [
+        "surovy",
+        "neprelozhny",
+        "verny",
+        "tayny",
+        "drevniy",
+        "zhelezny",
+        "stalnoy",
+        "cherny",
+        "bely",
+        "strogi",
+        "sekretny"
+      ],
+      "dependents": [
+        "uchenie",
+        "dogma",
+        "kodeks",
+        "klyatva",
+        "chest",
+        "slava",
+        "vlast",
+        "vera",
+        "zakon",
+        "dukh",
+        "smysl",
+        "istina"
+      ],
+      "dependent_adjectives": [
+        "surovy",
+        "neprelozhny",
+        "verny",
+        "tayny",
+        "drevniy",
+        "zhelezny",
+        "stalnoy",
+        "cherny",
+        "bely",
+        "strogi",
+        "sekretny"
+      ]
+    },
+    "charity": {
+      "heads": [
+        "obshchina",
+        "priyut",
+        "bogadelnya",
+        "missiya",
+        "sestrinstvo",
+        "bratstvo",
+        "bolnitsa",
+        "prikhod",
+        "sobor",
+        "obitel"
+      ],
+      "adjectives": [
+        "miloserdny",
+        "dobry",
+        "krotkiy",
+        "teply",
+        "svetly",
+        "blagoy",
+        "zabotlivy",
+        "nadezhny",
+        "chistiy",
+        "skromny"
+      ],
+      "dependents": [
+        "miloserdie",
+        "pomoshch",
+        "zabota",
+        "popechenie",
+        "lyubov",
+        "nadezhda",
+        "proshchenie",
+        "spasenie",
+        "zhizn",
+        "deti",
+        "stariki",
+        "bolnye",
+        "ranenye",
+        "obshchina",
+        "semya"
+      ],
+      "dependent_adjectives": [
+        "miloserdny",
+        "dobry",
+        "krotkiy",
+        "teply",
+        "svetly",
+        "blagoy",
+        "zabotlivy",
+        "nadezhny",
+        "chistiy",
+        "skromny"
+      ]
+    },
+    "mystery": {
+      "heads": [
+        "lozha",
+        "orden",
+        "sekta",
+        "khram",
+        "altar",
+        "skit",
+        "obitel",
+        "chasovnya",
+        "monastyr",
+        "kafedra"
+      ],
+      "adjectives": [
+        "tayny",
+        "sekretny",
+        "drevniy",
+        "vechny",
+        "cherny",
+        "bely",
+        "krasny",
+        "ognenny",
+        "zvezdny",
+        "lunny",
+        "molchalivy",
+        "neprelozhny"
+      ],
+      "dependents": [
+        "tayna",
+        "ritual",
+        "obryad",
+        "dogma",
+        "znanie",
+        "istina",
+        "klyatva",
+        "kodeks",
+        "dukh",
+        "svet",
+        "znak",
+        "gerb",
+        "relikviya"
+      ],
+      "dependent_adjectives": [
+        "tayny",
+        "sekretny",
+        "drevniy",
+        "vechny",
+        "cherny",
+        "bely",
+        "krasny",
+        "ognenny",
+        "zvezdny",
+        "lunny",
+        "molchalivy",
+        "neprelozhny"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "prikhod",
+        "skit",
+        "chasovnya",
+        "obshchina",
+        "sekta",
+        "priyut",
+        "bratstvo",
+        "kafedra",
+        "kruzhok"
+      ],
+      "adjectives": [
+        "mestny",
+        "skromny",
+        "maly",
+        "tikh",
+        "blizhniy",
+        "teply",
+        "dobry",
+        "krotkiy"
+      ]
+    },
+    "2": {
+      "heads": [
+        "sobor",
+        "monastyr",
+        "tserkov",
+        "orden",
+        "bratstvo",
+        "seminariya",
+        "missiya",
+        "obitel",
+        "kafedra",
+        "soviet"
+      ],
+      "adjectives": [
+        "gorodskoy",
+        "mestny",
+        "drevniy",
+        "verny",
+        "torzhestvenny",
+        "surovy",
+        "svyashchenny",
+        "velichavy"
+      ]
+    },
+    "3": {
+      "heads": [
+        "patriarkhat",
+        "yeparkhiya",
+        "dukhovenstvo",
+        "sobor",
+        "orden",
+        "lozha",
+        "akademiya",
+        "soviet",
+        "obitel"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "glavny",
+        "tsentralny",
+        "svyashchenny",
+        "vechny",
+        "nebesny",
+        "velikiy",
+        "vsemogushchiy",
+        "nepobedimy"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "revelation",
+        "label": "откровение",
+        "kind": "event",
+        "keywords": [
+          "видение",
+          "знак",
+          "чудо",
+          "голос",
+          "свет",
+          "сон",
+          "пророчество",
+          "тайна"
+        ]
+      },
+      {
+        "id": "scripture",
+        "label": "писание и предание",
+        "kind": "information",
+        "keywords": [
+          "текст",
+          "канон",
+          "догма",
+          "притча",
+          "заповедь",
+          "толкование",
+          "список",
+          "архив"
+        ]
+      },
+      {
+        "id": "congregation",
+        "label": "община",
+        "kind": "social",
+        "keywords": [
+          "молитва",
+          "покаяние",
+          "потребность",
+          "скорбь",
+          "надежда",
+          "сомнение",
+          "пожертвование",
+          "молчание"
+        ]
+      },
+      {
+        "id": "ritual_time",
+        "label": "ритуальное время",
+        "kind": "cycle",
+        "keywords": [
+          "праздник",
+          "пост",
+          "год",
+          "луна",
+          "солнце",
+          "звезда",
+          "утро",
+          "вечер"
+        ]
+      },
+      {
+        "id": "challenge",
+        "label": "испытание веры",
+        "kind": "threat",
+        "keywords": [
+          "ересь",
+          "сомнение",
+          "гонение",
+          "раскол",
+          "соблазн",
+          "молчание",
+          "утрата",
+          "смерть"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "meaning",
+        "label": "смысл",
+        "kind": "meaning",
+        "keywords": [
+          "ответ",
+          "утешение",
+          "надежда",
+          "цель",
+          "путь",
+          "свет",
+          "тишина",
+          "слово"
+        ]
+      },
+      {
+        "id": "ritual",
+        "label": "ритуал",
+        "kind": "action",
+        "keywords": [
+          "обряд",
+          "молитва",
+          "песнопение",
+          "шествие",
+          "жертва",
+          "благословение",
+          "очищение",
+          "память"
+        ]
+      },
+      {
+        "id": "doctrine",
+        "label": "учение",
+        "kind": "information",
+        "keywords": [
+          "догма",
+          "канон",
+          "заповедь",
+          "толкование",
+          "проповедь",
+          "символ",
+          "текст",
+          "запрет"
+        ]
+      },
+      {
+        "id": "authority",
+        "label": "авторитет",
+        "kind": "status",
+        "keywords": [
+          "сан",
+          "благословение",
+          "престол",
+          "кафедра",
+          "слово",
+          "собор",
+          "суд",
+          "отлучение"
+        ]
+      },
+      {
+        "id": "consolation",
+        "label": "утешение",
+        "kind": "care",
+        "keywords": [
+          "милосердие",
+          "прощение",
+          "надежда",
+          "молитва",
+          "помощь",
+          "тишина",
+          "тепло",
+          "приют"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "prayer",
+        "label": "молитва",
+        "kind": "state",
+        "keywords": [
+          "тишина",
+          "свеча",
+          "колено",
+          "шёпот",
+          "вечер",
+          "утро",
+          "знак",
+          "ожидание"
+        ]
+      },
+      {
+        "id": "service",
+        "label": "богослужение",
+        "kind": "state",
+        "keywords": [
+          "хор",
+          "слово",
+          "кадило",
+          "икона",
+          "крест",
+          "община",
+          "песня",
+          "процессия"
+        ]
+      },
+      {
+        "id": "doubt",
+        "label": "сомнение",
+        "kind": "state",
+        "keywords": [
+          "вопрос",
+          "молчание",
+          "страх",
+          "потеря",
+          "тень",
+          "испытание",
+          "тайна",
+          "разрыв"
+        ]
+      },
+      {
+        "id": "schism",
+        "label": "раскол",
+        "kind": "state",
+        "keywords": [
+          "спор",
+          "ересь",
+          "собор",
+          "партия",
+          "изгнание",
+          "анафема",
+          "кровь",
+          "граница"
+        ]
+      },
+      {
+        "id": "renewal",
+        "label": "обновление",
+        "kind": "state",
+        "keywords": [
+          "покаяние",
+          "реформа",
+          "новый путь",
+          "свет",
+          "весна",
+          "прощение",
+          "обет",
+          "надежда"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "priest",
+        "label": "жрец",
+        "kind": "nested_automaton",
+        "keywords": [
+          "сан",
+          "слово",
+          "обряд",
+          "паства",
+          "молитва",
+          "благословение",
+          "исповедь",
+          "тишина"
+        ]
+      },
+      {
+        "id": "choir",
+        "label": "хор",
+        "kind": "nested_automaton",
+        "keywords": [
+          "голос",
+          "песня",
+          "ритм",
+          "строй",
+          "слово",
+          "тишина",
+          "эхо",
+          "община"
+        ]
+      },
+      {
+        "id": "council",
+        "label": "собор",
+        "kind": "nested_automaton",
+        "keywords": [
+          "канон",
+          "спор",
+          "голос",
+          "решение",
+          "догма",
+          "собор",
+          "печать",
+          "согласие"
+        ]
+      },
+      {
+        "id": "ritual_scheme",
+        "label": "схема обряда",
+        "kind": "scheme",
+        "keywords": [
+          "порядок",
+          "шаг",
+          "слово",
+          "жест",
+          "время",
+          "место",
+          "свеча",
+          "вода"
+        ]
+      },
+      {
+        "id": "canon_scheme",
+        "label": "канон толкования",
+        "kind": "scheme",
+        "keywords": [
+          "текст",
+          "смысл",
+          "толкование",
+          "граница",
+          "исключение",
+          "традиция",
+          "авторитет",
+          "спор"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "congregation",
+        "label": "паства",
+        "keywords": [
+          "вера",
+          "сомнение",
+          "нужда",
+          "надежда",
+          "пожертвование",
+          "молчание",
+          "молитва",
+          "страх"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "other_faiths",
+        "label": "иные веры",
+        "keywords": [
+          "ересь",
+          "спор",
+          "граница",
+          "миссия",
+          "обращение",
+          "вражда",
+          "терпимость",
+          "тайна"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "state",
+        "label": "государство",
+        "keywords": [
+          "закон",
+          "разрешение",
+          "гонение",
+          "союз",
+          "налог",
+          "мандат",
+          "запрет",
+          "защита"
+        ],
+        "kind": "actor"
+      },
+      {
+        "id": "tradition",
+        "label": "традиция",
+        "keywords": [
+          "обычай",
+          "память",
+          "предок",
+          "канон",
+          "праздник",
+          "запрет",
+          "слово",
+          "время"
+        ],
+        "kind": "environment"
+      }
+    ]
+  }
+}

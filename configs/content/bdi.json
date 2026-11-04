@@ -1,0 +1,8 @@
+{
+  "confidence_decay": {
+    "past": 0.995,
+    "present": 0.985,
+    "future": 0.95,
+    "conditional": 0.94
+  }
+}

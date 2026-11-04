@@ -195,3 +195,40 @@ def test_main_menu_has_quick_paths(app):
     texts = [b.text for b in menu.buttons]
     assert "Быстрая кампания" in texts and "Дуэль (арена)" in texts
     assert callable(app.quick_campaign) and callable(app.open_arena)
+
+
+def test_automata_screen_advances_one_turn_per_work(app):
+    """«Выполнить выбранное» проводит ровно одну работу и один ход."""
+    from pathlib import Path
+
+    from campaign.automata import AutomataCampaign
+    from campaign.preset import CampaignPresetGenerator
+    from campaign.roles import RoleCatalog
+    from view.screens.automata_screen import AutomataScreen
+
+    root = Path(__file__).resolve().parents[1]
+    preset = CampaignPresetGenerator(
+        catalog=RoleCatalog.load(root / "configs" / "roles"),
+        template_path=root / "configs" / "campaigns" / "empire_campaign.json",
+    ).generate(seed=11)
+    campaign = AutomataCampaign(preset, seed=11)
+    app.storyline_interpreter = None
+    screen = AutomataScreen(app, campaign)
+    app.manager.replace_all(screen)
+
+    available = campaign.available_actions(campaign.player_side)
+    assert available
+    before = campaign.turn
+    screen.selected_action_id = available[0]
+    screen._execute_selected()
+
+    assert campaign.turn == before + 1
+    assert screen.selected_action_id is None
+    player_actions = [
+        item
+        for item in campaign.log
+        if item.get("turn") == campaign.turn
+        and item.get("actor_side") == campaign.player_side
+    ]
+    assert len(player_actions) == 1
+    assert player_actions[0]["action_id"] == available[0]

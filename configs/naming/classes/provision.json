@@ -1,0 +1,953 @@
+{
+  "schema": 1,
+  "class": "provision",
+  "label": "Снабжение",
+  "description": "Запасы, производство, логистика и рынок; лексика артели, склада, обоза и фабрики.",
+  "default_theme": "trade",
+  "need_themes": {
+    "hunger": "harvest",
+    "thirst": "harvest",
+    "fatigue": "logistics",
+    "health": "harvest",
+    "fear": "logistics",
+    "anxiety": "logistics",
+    "status": "trade",
+    "knowledge": "production",
+    "creativity": "production",
+    "skill": "production",
+    "spirituality": "harvest",
+    "loneliness": "trade",
+    "love": "harvest",
+    "friendship": "trade",
+    "reproduction": "harvest",
+    "boredom": "trade"
+  },
+  "base": {
+    "heads": [
+      "artel",
+      "kompaniya",
+      "liga",
+      "soyuz",
+      "tovarishchestvo",
+      "kooperativ",
+      "sklad",
+      "baza",
+      "depo",
+      "oboz",
+      "karavan",
+      "port",
+      "pristan",
+      "rynok",
+      "lavka",
+      "magazin",
+      "fabrika",
+      "zavod",
+      "masterskaya",
+      "ferma",
+      "pekarnya",
+      "kuhnya",
+      "stolovaya",
+      "khozyaystvo",
+      "melnitsa",
+      "ambar",
+      "kolodets",
+      "istochnik",
+      "kontora",
+      "birzha",
+      "yarmarka",
+      "kassa"
+    ],
+    "adjectives": [
+      "torgovy",
+      "promyshlenny",
+      "prodovolstvenny",
+      "vodny",
+      "toplivny",
+      "syryevoy",
+      "rezervny",
+      "zapasnoy",
+      "mestny",
+      "dalniy",
+      "blizhniy",
+      "rechnoy",
+      "morskoy",
+      "sukhoputny",
+      "polevoy",
+      "zimny",
+      "letniy",
+      "nochnoy",
+      "ranniy",
+      "trudovoy",
+      "rabochiy",
+      "remeslenny",
+      "kupecheskiy",
+      "artelny",
+      "obshchinny",
+      "berezhny",
+      "skromny",
+      "dobrotny",
+      "krepkiy",
+      "nadezhny",
+      "bystry",
+      "legkiy",
+      "tyazhely",
+      "mobilny",
+      "lineyny",
+      "uzlovoy",
+      "perevalochny",
+      "skladskoy",
+      "portovyy",
+      "rynochny",
+      "obmenny",
+      "raspredelitelny",
+      "karavanniy",
+      "krupny",
+      "melkiy",
+      "pribylny",
+      "chestny"
+    ],
+    "dependents": [
+      "prodovolstvie",
+      "voda",
+      "toplivo",
+      "syrje",
+      "resurs",
+      "zapas",
+      "postavka",
+      "potok",
+      "marshrut",
+      "put",
+      "doroga",
+      "sklad",
+      "baza",
+      "rynok",
+      "obmen",
+      "tovar",
+      "usluga",
+      "perevozka",
+      "urozay",
+      "ryba",
+      "myaso",
+      "khleb",
+      "sol",
+      "krupa",
+      "ovoshchi",
+      "moloko",
+      "med",
+      "sherst",
+      "kozha",
+      "metall",
+      "ugol",
+      "les",
+      "neft",
+      "gaz",
+      "produkt",
+      "ratsion",
+      "payok",
+      "norma",
+      "remont",
+      "promysel",
+      "remeslo"
+    ],
+    "dependent_adjectives": [
+      "prodovolstvenny",
+      "vodny",
+      "toplivny",
+      "syryevoy",
+      "rezervny",
+      "zapasnoy",
+      "mestny",
+      "rechnoy",
+      "morskoy",
+      "sukhoputny",
+      "polevoy",
+      "zimny",
+      "letniy",
+      "nochnoy",
+      "ranniy",
+      "trudovoy",
+      "rabochiy",
+      "remeslenny",
+      "kupecheskiy",
+      "artelny",
+      "obshchinny",
+      "berezhny",
+      "krepkiy",
+      "nadezhny",
+      "bystry",
+      "legkiy",
+      "tyazhely",
+      "uzlovoy",
+      "perevalochny",
+      "skladskoy",
+      "portovyy",
+      "rynochny",
+      "obmenny",
+      "raspredelitelny"
+    ],
+    "extensions": [
+      "osobogo_naznacheniya",
+      "po_pervomu_trebovaniyu",
+      "v_interesakh_gosudarstva",
+      "radi_obshchego_blaga",
+      "bez_lishnikh_slov",
+      "do_poslednego_rubezha",
+      "na_krayu_propasti",
+      "dlya_obshchego_blaga"
+    ]
+  },
+  "themes": {
+    "trade": {
+      "heads": [
+        "artel",
+        "kompaniya",
+        "liga",
+        "soyuz",
+        "tovarishchestvo",
+        "kooperativ",
+        "rynok",
+        "lavka",
+        "magazin",
+        "yarmarka",
+        "birzha",
+        "bank",
+        "kassa",
+        "kontora",
+        "port",
+        "pristan"
+      ],
+      "adjectives": [
+        "torgovy",
+        "kupecheskiy",
+        "rynochny",
+        "birzhevoy",
+        "finansovy",
+        "bankovskiy",
+        "denezhny",
+        "svobodny",
+        "otkryty",
+        "chestny",
+        "khitriy",
+        "bystry",
+        "krupny",
+        "melkiy"
+      ],
+      "dependents": [
+        "tovar",
+        "usluga",
+        "sdelka",
+        "dogovor",
+        "kontrakt",
+        "obmen",
+        "torg",
+        "rynok",
+        "yarmarka",
+        "birzha",
+        "tsena",
+        "dengi",
+        "zoloto",
+        "serebro",
+        "moneta",
+        "dolg",
+        "kredit",
+        "pribyl",
+        "nalog",
+        "poshlina",
+        "partiya",
+        "lot",
+        "auktsion",
+        "kupets",
+        "broker"
+      ],
+      "dependent_adjectives": [
+        "torgovy",
+        "rynochny",
+        "birzhevoy",
+        "finansovy",
+        "bankovskiy",
+        "denezhny",
+        "zolotoy",
+        "serebryany",
+        "kupecheskiy",
+        "chestny",
+        "krupny",
+        "melkiy",
+        "pribylny"
+      ]
+    },
+    "harvest": {
+      "heads": [
+        "ferma",
+        "pekarnya",
+        "kuhnya",
+        "stolovaya",
+        "melnitsa",
+        "ambar",
+        "kolodets",
+        "istochnik",
+        "promysel",
+        "artel",
+        "kooperativ",
+        "baza",
+        "sklad"
+      ],
+      "adjectives": [
+        "prodovolstvenny",
+        "polevoy",
+        "letniy",
+        "ranniy",
+        "trudovoy",
+        "rabochiy",
+        "remeslenny",
+        "berezhny",
+        "dobrotny",
+        "krepkiy",
+        "nadezhny",
+        "chistiy",
+        "vodny"
+      ],
+      "dependents": [
+        "urozay",
+        "ryba",
+        "myaso",
+        "khleb",
+        "sol",
+        "krupa",
+        "ovoshchi",
+        "moloko",
+        "med",
+        "sherst",
+        "kozha",
+        "prodovolstvie",
+        "voda",
+        "zapas",
+        "ratsion",
+        "payok",
+        "norma"
+      ],
+      "dependent_adjectives": [
+        "prodovolstvenny",
+        "vodny",
+        "polevoy",
+        "letniy",
+        "ranniy",
+        "trudovoy",
+        "rabochiy",
+        "remeslenny",
+        "berezhny",
+        "dobrotny",
+        "krepkiy",
+        "nadezhny",
+        "chistiy"
+      ]
+    },
+    "logistics": {
+      "heads": [
+        "sklad",
+        "baza",
+        "depo",
+        "oboz",
+        "karavan",
+        "port",
+        "pristan",
+        "doroga",
+        "most",
+        "pereval",
+        "kolonna",
+        "konvoi",
+        "gruppa",
+        "komanda",
+        "punkt",
+        "kontora"
+      ],
+      "adjectives": [
+        "rezervny",
+        "zapasnoy",
+        "mobilny",
+        "lineyny",
+        "uzlovoy",
+        "perevalochny",
+        "skladskoy",
+        "portovyy",
+        "rechnoy",
+        "morskoy",
+        "sukhoputny",
+        "bystry",
+        "legkiy",
+        "tyazhely",
+        "nadezhny",
+        "krepkiy",
+        "karavanniy"
+      ],
+      "dependents": [
+        "put",
+        "doroga",
+        "most",
+        "pereval",
+        "marshrut",
+        "potok",
+        "postavka",
+        "tovar",
+        "resurs",
+        "zapas",
+        "toplivo",
+        "voda",
+        "prodovolstvie",
+        "sklad",
+        "baza",
+        "perevozka"
+      ],
+      "dependent_adjectives": [
+        "rezervny",
+        "zapasnoy",
+        "mobilny",
+        "lineyny",
+        "uzlovoy",
+        "perevalochny",
+        "skladskoy",
+        "portovyy",
+        "rechnoy",
+        "morskoy",
+        "sukhoputny",
+        "bystry",
+        "legkiy",
+        "tyazhely",
+        "nadezhny",
+        "krepkiy",
+        "karavanniy"
+      ]
+    },
+    "production": {
+      "heads": [
+        "fabrika",
+        "zavod",
+        "masterskaya",
+        "remont",
+        "artel",
+        "kooperativ",
+        "kompaniya",
+        "promysel",
+        "baza",
+        "sklad"
+      ],
+      "adjectives": [
+        "promyshlenny",
+        "rabochiy",
+        "trudovoy",
+        "remeslenny",
+        "artelny",
+        "krepkiy",
+        "tyazhely",
+        "nadezhny",
+        "dobrotny",
+        "bystry",
+        "mobilny",
+        "lineyny"
+      ],
+      "dependents": [
+        "syrje",
+        "metall",
+        "ugol",
+        "les",
+        "neft",
+        "gaz",
+        "tovar",
+        "produkt",
+        "remont",
+        "promysel",
+        "remeslo",
+        "resurs",
+        "potok",
+        "postavka",
+        "norma"
+      ],
+      "dependent_adjectives": [
+        "promyshlenny",
+        "rabochiy",
+        "trudovoy",
+        "remeslenny",
+        "artelny",
+        "krepkiy",
+        "tyazhely",
+        "nadezhny",
+        "dobrotny",
+        "bystry",
+        "mobilny",
+        "lineyny"
+      ]
+    }
+  },
+  "levels": {
+    "1": {
+      "heads": [
+        "lavka",
+        "artel",
+        "ferma",
+        "pekarnya",
+        "stolovaya",
+        "kuhnya",
+        "ambar",
+        "kolodets",
+        "promysel",
+        "gruppa",
+        "komanda",
+        "oboz"
+      ],
+      "adjectives": [
+        "mestny",
+        "maly",
+        "skromny",
+        "nochnoy",
+        "ranniy",
+        "letniy",
+        "polevoy",
+        "trudovoy",
+        "berezhny"
+      ]
+    },
+    "2": {
+      "heads": [
+        "kompaniya",
+        "liga",
+        "soyuz",
+        "tovarishchestvo",
+        "kooperativ",
+        "sklad",
+        "baza",
+        "rynok",
+        "yarmarka",
+        "birzha",
+        "port",
+        "pristan",
+        "karavan",
+        "fabrika",
+        "zavod",
+        "masterskaya"
+      ],
+      "adjectives": [
+        "mestny",
+        "lineyny",
+        "uzlovoy",
+        "skladskoy",
+        "portovyy",
+        "torgovy",
+        "promyshlenny",
+        "rezervny",
+        "nadezhny"
+      ]
+    },
+    "3": {
+      "heads": [
+        "soyuz",
+        "liga",
+        "kompaniya",
+        "bank",
+        "birzha",
+        "port",
+        "sklad",
+        "baza",
+        "glavk",
+        "soviet",
+        "palata"
+      ],
+      "adjectives": [
+        "verkhovny",
+        "glavny",
+        "tsentralny",
+        "gosudarstvenny",
+        "federalny",
+        "finansovy",
+        "promyshlenny",
+        "krupny",
+        "nadezhny"
+      ]
+    }
+  },
+  "ontology": {
+    "inputs": [
+      {
+        "id": "raw_material",
+        "label": "сырьё и комплектующие",
+        "kind": "resource",
+        "keywords": [
+          "руда",
+          "зерно",
+          "ткань",
+          "металл",
+          "деталь",
+          "полуфабрикат",
+          "древесина",
+          "вода"
+        ]
+      },
+      {
+        "id": "energy",
+        "label": "энергия",
+        "kind": "resource",
+        "keywords": [
+          "топливо",
+          "электричество",
+          "пар",
+          "огонь",
+          "масло",
+          "заряд",
+          "свет",
+          "тепло"
+        ]
+      },
+      {
+        "id": "order",
+        "label": "заказ",
+        "kind": "information",
+        "keywords": [
+          "заявка",
+          "план",
+          "наряд",
+          "спецификация",
+          "срок",
+          "объём",
+          "цена",
+          "требование"
+        ]
+      },
+      {
+        "id": "labour",
+        "label": "рабочая сила",
+        "kind": "social",
+        "keywords": [
+          "смена",
+          "бригада",
+          "мастер",
+          "ученик",
+          "руки",
+          "усталость",
+          "навык",
+          "оплата"
+        ]
+      },
+      {
+        "id": "transport",
+        "label": "транспорт",
+        "kind": "logistics",
+        "keywords": [
+          "подвода",
+          "баржа",
+          "поезд",
+          "караван",
+          "дорога",
+          "порт",
+          "склад",
+          "маршрут"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "id": "product",
+        "label": "продукт",
+        "kind": "resource",
+        "keywords": [
+          "хлеб",
+          "ткань",
+          "инструмент",
+          "оружие",
+          "снаряд",
+          "кирпич",
+          "лекарство",
+          "деталь"
+        ]
+      },
+      {
+        "id": "supply",
+        "label": "поставка",
+        "kind": "resource",
+        "keywords": [
+          "партия",
+          "обоз",
+          "запас",
+          "норма",
+          "паёк",
+          "склад",
+          "срок",
+          "адрес"
+        ]
+      },
+      {
+        "id": "service",
+        "label": "услуга",
+        "kind": "action",
+        "keywords": [
+          "ремонт",
+          "перевозка",
+          "хранение",
+          "обмен",
+          "кредит",
+          "страховка",
+          "наём",
+          "доставка"
+        ]
+      },
+      {
+        "id": "profit",
+        "label": "прибыль",
+        "kind": "resource",
+        "keywords": [
+          "выручка",
+          "доля",
+          "процент",
+          "цена",
+          "наценка",
+          "баланс",
+          "золото",
+          "расчёт"
+        ]
+      },
+      {
+        "id": "waste",
+        "label": "отходы",
+        "kind": "resource",
+        "keywords": [
+          "брак",
+          "стружка",
+          "зола",
+          "грязь",
+          "дым",
+          "остаток",
+          "потеря",
+          "сброс"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "id": "procurement",
+        "label": "закупка",
+        "kind": "state",
+        "keywords": [
+          "торг",
+          "цена",
+          "склад",
+          "обоз",
+          "заказ",
+          "срок",
+          "караван",
+          "договор"
+        ]
+      },
+      {
+        "id": "production_state",
+        "label": "производство",
+        "kind": "state",
+        "keywords": [
+          "смена",
+          "станок",
+          "огонь",
+          "ритм",
+          "деталь",
+          "мастер",
+          "шум",
+          "поток"
+        ]
+      },
+      {
+        "id": "storage",
+        "label": "хранение",
+        "kind": "state",
+        "keywords": [
+          "склад",
+          "запас",
+          "учёт",
+          "сухость",
+          "холод",
+          "крыша",
+          "норма",
+          "инвентарь"
+        ]
+      },
+      {
+        "id": "shortage",
+        "label": "дефицит",
+        "kind": "state",
+        "keywords": [
+          "пустота",
+          "очередь",
+          "голод",
+          "срыв",
+          "долг",
+          "тревога",
+          "норма",
+          "поиск"
+        ]
+      },
+      {
+        "id": "surplus",
+        "label": "изобилие",
+        "kind": "state",
+        "keywords": [
+          "полный склад",
+          "излишек",
+          "торг",
+          "цена",
+          "дар",
+          "праздник",
+          "запас",
+          "поток"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "shift",
+        "label": "смена",
+        "kind": "nested_automaton",
+        "keywords": [
+          "бригада",
+          "мастер",
+          "станок",
+          "норма",
+          "учёт",
+          "перерыв",
+          "качество",
+          "доклад"
+        ]
+      },
+      {
+        "id": "convoy",
+        "label": "обоз",
+        "kind": "nested_automaton",
+        "keywords": [
+          "караван",
+          "охрана",
+          "маршрут",
+          "лошади",
+          "груз",
+          "ночлег",
+          "дорога",
+          "срок"
+        ]
+      },
+      {
+        "id": "dispatcher",
+        "label": "диспетчер",
+        "kind": "nested_automaton",
+        "keywords": [
+          "заявка",
+          "маршрут",
+          "склад",
+          "срок",
+          "связь",
+          "карта",
+          "груз",
+          "отчёт"
+        ]
+      },
+      {
+        "id": "stock_scheme",
+        "label": "схема запасов",
+        "kind": "scheme",
+        "keywords": [
+          "норма",
+          "порог",
+          "учёт",
+          "заказ",
+          "срок",
+          "дефицит",
+          "резерв",
+          "ротация"
+        ]
+      },
+      {
+        "id": "route_scheme",
+        "label": "маршрутная схема",
+        "kind": "scheme",
+        "keywords": [
+          "узел",
+          "дорога",
+          "перевал",
+          "склад",
+          "порт",
+          "время",
+          "риск",
+          "запасной путь"
+        ]
+      },
+      {
+        "id": "recipe",
+        "label": "рецепт",
+        "kind": "scheme",
+        "keywords": [
+          "пропорция",
+          "сырьё",
+          "время",
+          "температура",
+          "качество",
+          "проба",
+          "секрет",
+          "норма"
+        ]
+      }
+    ],
+    "surrounding": [
+      {
+        "id": "suppliers",
+        "label": "поставщики",
+        "kind": "actor",
+        "keywords": [
+          "сырьё",
+          "цена",
+          "срок",
+          "договор",
+          "караван",
+          "качество",
+          "долг",
+          "торг"
+        ]
+      },
+      {
+        "id": "consumers",
+        "label": "потребители",
+        "kind": "actor",
+        "keywords": [
+          "спрос",
+          "цена",
+          "нужда",
+          "очередь",
+          "жалоба",
+          "выбор",
+          "плата",
+          "доверие"
+        ]
+      },
+      {
+        "id": "rivals",
+        "label": "конкуренты",
+        "kind": "actor",
+        "keywords": [
+          "цена",
+          "перехват",
+          "склад",
+          "слух",
+          "демпинг",
+          "союз",
+          "удар",
+          "тайна"
+        ]
+      },
+      {
+        "id": "authority",
+        "label": "власть",
+        "kind": "actor",
+        "keywords": [
+          "налог",
+          "разрешение",
+          "проверка",
+          "запрет",
+          "заказ",
+          "охрана",
+          "суд",
+          "печать"
+        ]
+      }
+    ]
+  }
+}

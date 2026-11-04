@@ -277,18 +277,45 @@ def test_load_world_falls_back_to_first_json(tmp_path, monkeypatch):
     assert world["title"] == "Новый мир"
 
 
-def test_runtime_content_folders_start_empty():
-    """Игровой контент не поставляется: его добавляют JSON-файлами."""
-    assert list_worlds() == []
-    assert list_templates(ROOT / "configs" / "campaigns") == []
-    assert AutomataStore(ROOT / "configs" / "automata").list_entries() == []
-    assert list_storylines(ROOT / "configs" / "storylines") == []
-    assert not list((ROOT / "configs").rglob("*.json"))
+def test_runtime_lore_content_is_complete_and_loadable():
+    """Рабочий контент: четыре фракции, их роли и сюжеты согласованы."""
+    configs = ROOT / "configs"
+    templates = list_templates(configs / "campaigns")
+    assert {item["template_id"] for item in templates} == {
+        "empire_campaign",
+        "republic_campaign",
+        "cult_campaign",
+        "corporation_campaign",
+    }
+
+    roles = RoleCatalog.load(configs / "roles")
+    lore_roles = [
+        role for role in roles.available_roles() if "lore" in role.tags
+    ]
+    assert {role.id for role in lore_roles} == {
+        "empire_leader",
+        "republic_leader",
+        "cult_leader",
+        "corporation_leader",
+    }
+
+    storylines = list_storylines(configs / "storylines")
+    storyline_ids = {item["storyline_id"] for item in storylines}
+    for role in lore_roles:
+        assert role.storyline_id in storyline_ids
+        storyline = load_storyline(role.storyline_id, configs / "storylines")
+        assert storyline is not None
+        assert storyline["scenes"], role.id
+        template_path = ROOT / storyline["campaign_template"]
+        assert template_path.is_file(), role.id
+        assert template_path.stem == role.storyline_id
+
+    # Автоматы по-прежнему добавляются только JSON-файлами.
+    assert AutomataStore(configs / "automata").list_entries() == []
     assert not list((ROOT / "campaigns").glob("*.json"))
-    # Тестовый набор существует отдельно и не является игровым контентом.
-    assert (FIXTURE_ROOT / "configs" / "worlds" / "agora_world.json").is_file()
-    assert NamingCatalog.load().class_ids()
-    assert Content().names()
+    # Инфраструктурные каталоги, нужные генератору пресетов, поставляются.
+    assert NamingCatalog.load(configs / "naming").class_ids()
+    assert Content(configs / "content").names()
     assert list_storylines()
 
 

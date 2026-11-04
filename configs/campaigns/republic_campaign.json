@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "template_id": "republic_campaign",
+  "title": "Республика: свобода против тирании",
+  "description": "Вы — председатель парламента. Республика не может признать Империю законной, не уничтожив собственное основание. Ваша сила — процедура, информация и гибкость; ваша уязвимость — лицо, которое приходится сохранять в каждом обмене работами.",
+  "factions_path": "base/lore_factions.json",
+  "default_seed": 23,
+  "player_side": "blue",
+  "enemy_side": "red",
+  "faction_slots": {
+    "player": "blue",
+    "enemy": "red"
+  },
+  "scenario": {
+    "mode": "automata",
+    "turns": 72,
+    "characters_per_faction": 12,
+    "rivals": {
+      "red": "blue",
+      "blue": "red",
+      "green": "red",
+      "amber": "red"
+    },
+    "model": {
+      "success_base": 0.0,
+      "success_slope": 1.8,
+      "organization_cohesion": 0.05,
+      "organization_legitimacy": 0.04,
+      "organization_supply_drain": 0.006,
+      "organization_fear": 0.02,
+      "collapse_streak": 3,
+      "effect_scale": 0.45,
+      "asset_relax": 0.06
+    },
+    "outcome": {
+      "streak_turns": 3,
+      "defeat": {
+        "blue": {
+          "legitimacy": 0.06,
+          "cohesion": 0.05
+        },
+        "red": {
+          "legitimacy": 0.08
+        }
+      },
+      "score_margin": 0.048,
+      "score_bias": 0.11,
+      "score_basis": "progress"
+    },
+    "upkeep": {
+      "supply": 0.004,
+      "energy": 0.003
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "ruins",
+      "crossroads",
+      "storm",
+      "fog"
+    ],
+    "drift_chance": 0.16
+  },
+  "events": {
+    "categories": [
+      "war",
+      "politics",
+      "society",
+      "economy",
+      "disaster"
+    ],
+    "count": 8,
+    "context": {
+      "place": "«Двойная переправа»",
+      "object": "мандат парламентской комиссии",
+      "cause": "публикация списка внесудебных казней",
+      "consequence": "парламент требует ответа, а улица требует крови",
+      "amount": "две тысячи подписей"
+    }
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}

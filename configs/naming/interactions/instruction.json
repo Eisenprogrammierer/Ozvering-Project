@@ -1,0 +1,427 @@
+{
+  "schema": 1,
+  "type": "instruction",
+  "label": "Наставление",
+  "description": "Отправитель передаёт знание, норму или навык, а получатель осваивает их и меняет поведение.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "учебная задача",
+      "kind": "signal",
+      "keywords": [
+        "вопрос",
+        "пример",
+        "текст",
+        "правило",
+        "ошибка",
+        "упражнение",
+        "приказ",
+        "срок"
+      ]
+    },
+    "sender_output": {
+      "label": "знание или норма",
+      "kind": "meaning",
+      "keywords": [
+        "знание",
+        "навык",
+        "метод",
+        "правило",
+        "норма",
+        "закон",
+        "пример",
+        "оценка"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "наставник",
+          "kind": "nested_automaton",
+          "keywords": [
+            "слово",
+            "пример",
+            "вопрос",
+            "терпение",
+            "ошибка",
+            "опыт",
+            "путь",
+            "оценка"
+          ]
+        },
+        {
+          "label": "схема программы",
+          "kind": "scheme",
+          "keywords": [
+            "урок",
+            "тема",
+            "срок",
+            "упражнение",
+            "экзамен",
+            "повтор",
+            "навык",
+            "оценка"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "ученик",
+          "kind": "nested_automaton",
+          "keywords": [
+            "вопрос",
+            "усилие",
+            "ошибка",
+            "повтор",
+            "интерес",
+            "страх",
+            "надежда",
+            "навык"
+          ]
+        },
+        {
+          "label": "схема усвоения",
+          "kind": "scheme",
+          "keywords": [
+            "шаг",
+            "повтор",
+            "ошибка",
+            "контроль",
+            "память",
+            "практика",
+            "результат",
+            "граница"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "подготовка",
+          "kind": "state",
+          "keywords": [
+            "план",
+            "текст",
+            "пример",
+            "тишина",
+            "свет",
+            "срок",
+            "порядок",
+            "сомнение"
+          ]
+        },
+        {
+          "label": "объяснение",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "голос",
+            "пример",
+            "вопрос",
+            "пауза",
+            "тишина",
+            "взгляд",
+            "терпение"
+          ]
+        },
+        {
+          "label": "контроль",
+          "kind": "state",
+          "keywords": [
+            "вопрос",
+            "ошибка",
+            "оценка",
+            "повтор",
+            "список",
+            "строгость",
+            "слово",
+            "вывод"
+          ]
+        },
+        {
+          "label": "оценка",
+          "kind": "state",
+          "keywords": [
+            "балл",
+            "слово",
+            "печать",
+            "ошибка",
+            "успех",
+            "провал",
+            "имя",
+            "молчание"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "внимание",
+          "kind": "state",
+          "keywords": [
+            "тишина",
+            "взгляд",
+            "слово",
+            "вопрос",
+            "свет",
+            "усилие",
+            "страх",
+            "интерес"
+          ]
+        },
+        {
+          "label": "понимание",
+          "kind": "state",
+          "keywords": [
+            "свет",
+            "связь",
+            "ответ",
+            "тишина",
+            "удивление",
+            "слово",
+            "смысл",
+            "радость"
+          ]
+        },
+        {
+          "label": "ошибка",
+          "kind": "state",
+          "keywords": [
+            "сбой",
+            "стыд",
+            "повтор",
+            "вопрос",
+            "страх",
+            "путаница",
+            "слово",
+            "тень"
+          ]
+        },
+        {
+          "label": "навык",
+          "kind": "state",
+          "keywords": [
+            "повтор",
+            "ритм",
+            "уверенность",
+            "рука",
+            "опыт",
+            "результат",
+            "гордость",
+            "покой"
+          ]
+        },
+        {
+          "label": "сопротивление",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "спор",
+            "страх",
+            "гордость",
+            "уход",
+            "насмешка",
+            "граница",
+            "отказ"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "программа",
+            "приказ",
+            "проверка",
+            "печать",
+            "запрет",
+            "срок",
+            "оценка",
+            "страх"
+          ]
+        },
+        {
+          "label": "традиция",
+          "kind": "environment",
+          "keywords": [
+            "канон",
+            "пример",
+            "память",
+            "слово",
+            "обряд",
+            "имя",
+            "граница",
+            "спор"
+          ]
+        },
+        {
+          "label": "среда",
+          "kind": "environment",
+          "keywords": [
+            "свет",
+            "тишина",
+            "теснота",
+            "шум",
+            "голод",
+            "дорога",
+            "погода",
+            "время"
+          ]
+        },
+        {
+          "label": "соперники",
+          "kind": "actor",
+          "keywords": [
+            "спор",
+            "критика",
+            "зависть",
+            "ошибка",
+            "приоритет",
+            "слух",
+            "удар",
+            "тайна"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "obuchenie",
+      "nastavlenie",
+      "urok",
+      "prikaz",
+      "reglament",
+      "protokol",
+      "programma",
+      "doktrina",
+      "strategiya",
+      "taktika",
+      "model",
+      "protsedura",
+      "pravilo",
+      "printsip",
+      "zadacha",
+      "ustav"
+    ],
+    "adjectives": [
+      "uchebny",
+      "nastavnicheskiy",
+      "sluzhebnyy",
+      "strogi",
+      "myagkiy",
+      "zhestkiy",
+      "yavnyy",
+      "sekretny",
+      "tayny",
+      "kratkiy",
+      "dlitelnyy",
+      "postepennnyy",
+      "mgnovennyy",
+      "uspeshnyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "kulturnyy",
+      "pravovoy",
+      "politicheskiy",
+      "voenny",
+      "nauchny",
+      "teoreticheskiy",
+      "prikladnoy",
+      "eksperimentalny",
+      "peredovoy",
+      "novy",
+      "drevniy"
+    ],
+    "dependents": [
+      "znanie",
+      "uchenie",
+      "opyt",
+      "praktika",
+      "metod",
+      "pravilo",
+      "norma",
+      "zakon",
+      "prikaz",
+      "protokol",
+      "reglament",
+      "programma",
+      "doktrina",
+      "strategiya",
+      "taktika",
+      "zadacha",
+      "tsel",
+      "urok",
+      "nastavlenie",
+      "obuchenie",
+      "masterstvo",
+      "remeslo",
+      "yazyk",
+      "kniga",
+      "pamyat",
+      "traditsiya",
+      "istina",
+      "oshibka",
+      "uspekh",
+      "proval",
+      "rezultat",
+      "effekt",
+      "stimul",
+      "interes",
+      "doverie",
+      "loyalnost",
+      "prisyaga",
+      "navyk",
+      "rabota",
+      "sluzhba"
+    ],
+    "dependent_adjectives": [
+      "uchebny",
+      "nastavnicheskiy",
+      "sluzhebnyy",
+      "strogi",
+      "myagkiy",
+      "zhestkiy",
+      "yavnyy",
+      "sekretny",
+      "tayny",
+      "kratkiy",
+      "dlitelnyy",
+      "postepennnyy",
+      "mgnovennyy",
+      "uspeshnyy",
+      "masshtabnyy",
+      "lokalnyy",
+      "informatsionnyy",
+      "psikhologicheskiy",
+      "sotsialnyy",
+      "kulturnyy",
+      "pravovoy",
+      "politicheskiy",
+      "voenny",
+      "nauchny",
+      "teoreticheskiy",
+      "prikladnoy",
+      "eksperimentalny",
+      "peredovoy",
+      "novy",
+      "drevniy"
+    ],
+    "extensions": [
+      "v_poiskakh_istiny",
+      "na_puti_k_znaniyu",
+      "bez_lishnikh_slov",
+      "radi_vechnosti",
+      "dlya_obshchego_blaga",
+      "v_chas_trevogi",
+      "do_poslednego_rubezha",
+      "na_krayu_propasti"
+    ]
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "schema": 1,
+  "type": "exchange",
+  "label": "Обмен",
+  "description": "Добровольная или вынужденная передача товара, услуги или права; стороны торгуются, заключают договор и несут риск неисполнения.",
+  "quintuple": {
+    "recipient_input": {
+      "label": "предложение обмена",
+      "kind": "signal",
+      "keywords": [
+        "товар",
+        "услуга",
+        "цена",
+        "срок",
+        "условие",
+        "выгода",
+        "слово",
+        "договор"
+      ]
+    },
+    "sender_output": {
+      "label": "передаваемый ресурс",
+      "kind": "resource",
+      "keywords": [
+        "товар",
+        "плата",
+        "услуга",
+        "кредит",
+        "доля",
+        "золото",
+        "обещание",
+        "печать"
+      ]
+    },
+    "handlers": {
+      "sender": [
+        {
+          "label": "посредник",
+          "kind": "nested_automaton",
+          "keywords": [
+            "цена",
+            "слово",
+            "слух",
+            "связь",
+            "выгода",
+            "риск",
+            "доверие",
+            "тайна"
+          ]
+        },
+        {
+          "label": "схема договора",
+          "kind": "scheme",
+          "keywords": [
+            "условие",
+            "срок",
+            "залог",
+            "свидетель",
+            "печать",
+            "исключение",
+            "спор",
+            "цена"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "писарь",
+          "kind": "nested_automaton",
+          "keywords": [
+            "счёт",
+            "печать",
+            "список",
+            "долг",
+            "срок",
+            "копия",
+            "подпись",
+            "архив"
+          ]
+        },
+        {
+          "label": "схема цен",
+          "kind": "scheme",
+          "keywords": [
+            "спрос",
+            "запас",
+            "цена",
+            "наценка",
+            "риск",
+            "срок",
+            "слух",
+            "порог"
+          ]
+        }
+      ]
+    },
+    "states": {
+      "sender": [
+        {
+          "label": "торг",
+          "kind": "state",
+          "keywords": [
+            "цена",
+            "слово",
+            "пауза",
+            "взгляд",
+            "уступка",
+            "риск",
+            "выгода",
+            "обман"
+          ]
+        },
+        {
+          "label": "договор",
+          "kind": "state",
+          "keywords": [
+            "печать",
+            "подпись",
+            "свидетель",
+            "срок",
+            "слово",
+            "копия",
+            "залог",
+            "рука"
+          ]
+        },
+        {
+          "label": "доставка",
+          "kind": "state",
+          "keywords": [
+            "дорога",
+            "караван",
+            "груз",
+            "охрана",
+            "срок",
+            "порт",
+            "таможня",
+            "риск"
+          ]
+        },
+        {
+          "label": "неисполнение",
+          "kind": "state",
+          "keywords": [
+            "долг",
+            "позор",
+            "суд",
+            "угроза",
+            "потеря",
+            "слух",
+            "граница",
+            "разрыв"
+          ]
+        }
+      ],
+      "recipient": [
+        {
+          "label": "оценка",
+          "kind": "state",
+          "keywords": [
+            "цена",
+            "качество",
+            "слух",
+            "взгляд",
+            "расчёт",
+            "сомнение",
+            "выгода",
+            "риск"
+          ]
+        },
+        {
+          "label": "торг",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "пауза",
+            "уступка",
+            "цена",
+            "взгляд",
+            "обман",
+            "выгода",
+            "рука"
+          ]
+        },
+        {
+          "label": "согласие",
+          "kind": "state",
+          "keywords": [
+            "слово",
+            "печать",
+            "рука",
+            "договор",
+            "доверие",
+            "срок",
+            "цена",
+            "облегчение"
+          ]
+        },
+        {
+          "label": "отказ",
+          "kind": "state",
+          "keywords": [
+            "молчание",
+            "слово",
+            "цена",
+            "страх",
+            "гордость",
+            "риск",
+            "уход",
+            "тень"
+          ]
+        },
+        {
+          "label": "оживление",
+          "kind": "state",
+          "keywords": [
+            "шум",
+            "цена",
+            "поток",
+            "удача",
+            "толпа",
+            "золото",
+            "слух",
+            "праздник"
+          ]
+        }
+      ]
+    },
+    "surrounding_influence": {
+      "label": "влияние окружающих автоматов",
+      "sources": [
+        {
+          "label": "конкуренты",
+          "kind": "actor",
+          "keywords": [
+            "цена",
+            "перехват",
+            "слух",
+            "товар",
+            "демпинг",
+            "союз",
+            "удар",
+            "тайна"
+          ]
+        },
+        {
+          "label": "власть",
+          "kind": "actor",
+          "keywords": [
+            "налог",
+            "пошлина",
+            "разрешение",
+            "проверка",
+            "запрет",
+            "суд",
+            "печать",
+            "охрана"
+          ]
+        },
+        {
+          "label": "банкиры",
+          "kind": "actor",
+          "keywords": [
+            "кредит",
+            "процент",
+            "долг",
+            "залог",
+            "риск",
+            "доверие",
+            "золото",
+            "слух"
+          ]
+        },
+        {
+          "label": "дорога и таможня",
+          "kind": "environment",
+          "keywords": [
+            "караван",
+            "порт",
+            "граница",
+            "пошлина",
+            "разбой",
+            "погода",
+            "срок",
+            "склад"
+          ]
+        }
+      ]
+    }
+  },
+  "naming": {
+    "heads": [
+      "obmen",
+      "torg",
+      "sdelka",
+      "dogovor",
+      "kontrakt",
+      "soglashenie",
+      "kompromiss",
+      "uslovie",
+      "ustupka",
+      "predlozhenie",
+      "otvet",
+      "operatsiya",
+      "bank",
+      "birzha",
+      "rynok",
+      "karavan"
+    ],
+    "adjectives": [
+      "torgovy",
+      "rynochny",
+      "birzhevoy",
+      "bankovskiy",
+      "finansovy",
+      "denezhny",
+      "obmenny",
+      "dogovornoy",
+      "dobrovolny",
+      "ravnyy",
+      "vzaimny",
+      "otkryty",
+      "zakryty",
+      "chestny",
+      "khitriy",
+      "bystry",
+      "dlitelnyy",
+      "kratkiy",
+      "uspeshnyy",
+      "riskovannyy",
+      "ekonomicheskiy",
+      "politicheskiy",
+      "sotsialnyy",
+      "informatsionnyy",
+      "sluzhebnyy",
+      "yavnyy",
+      "tayny",
+      "sekretny",
+      "lokalnyy",
+      "masshtabnyy"
+    ],
+    "dependents": [
+      "tovar",
+      "usluga",
+      "sdelka",
+      "dogovor",
+      "kontrakt",
+      "obmen",
+      "torg",
+      "rynok",
+      "tsena",
+      "dengi",
+      "zoloto",
+      "serebro",
+      "moneta",
+      "dolg",
+      "kredit",
+      "protsent",
+      "pribyl",
+      "nalog",
+      "poshlina",
+      "partiya",
+      "lot",
+      "auktsion",
+      "karavan",
+      "port",
+      "sklad",
+      "vygoda",
+      "interes",
+      "doverie",
+      "garant",
+      "posrednik",
+      "svidetel",
+      "protokol",
+      "pechat",
+      "podpis",
+      "uslovie",
+      "ustupka",
+      "predlozhenie",
+      "otvet",
+      "soglashenie",
+      "kompromiss",
+      "mandat",
+      "reglament",
+      "risk",
+      "uspekh",
+      "proval"
+    ],
+    "dependent_adjectives": [
+      "torgovy",
+      "rynochny",
+      "birzhevoy",
+      "bankovskiy",
+      "finansovy",
+      "denezhny",
+      "obmenny",
+      "dogovornoy",
+      "dobrovolny",
+      "ravnyy",
+      "vzaimny",
+      "otkryty",
+      "zakryty",
+      "chestny",
+      "khitriy",
+      "bystry",
+      "dlitelnyy",
+      "kratkiy",
+      "uspeshnyy",
+      "riskovannyy",
+      "ekonomicheskiy",
+      "politicheskiy",
+      "sotsialnyy",
+      "informatsionnyy",
+      "sluzhebnyy",
+      "yavnyy",
+      "tayny",
+      "sekretny",
+      "lokalnyy",
+      "masshtabnyy"
+    ],
+    "extensions": [
+      "po_pervomu_trebovaniyu",
+      "bez_lishnikh_slov",
+      "po_pravu_silnogo",
+      "v_teni_zakona",
+      "radi_obshchego_blaga",
+      "dlya_obshchego_blaga",
+      "na_krayu_propasti",
+      "do_poslednego_rubezha"
+    ]
+  }
+}

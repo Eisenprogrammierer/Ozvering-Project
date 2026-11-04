@@ -1,0 +1,29 @@
+{
+  "loss_scale": 0.003,
+  "loss_daily_break_max": 0.25,
+  "max_loss_fraction": 0.03,
+  "max_loss_fraction_per_tick": 0.08,
+  "total_loss_fraction_per_tick": 0.12,
+  "attacker_loss_mult": 0.55,
+  "defender_loss_mult": 1.6,
+  "supremacy_exponent": 0.5,
+  "supremacy_min": 0.7,
+  "supremacy_max": 1.8,
+  "supply_consumption_per_loss": 0.5,
+  "personnel_loss_share": 0.7,
+  "casualty_rate": 0.01,
+  "experience_gain_cap": 0.2,
+  "experience_gain_factor": 0.0002,
+  "equipment_loss_factor": 0.1,
+  "equipment_channel_prefix": "U_",
+  "equipment_excluded_channels": [
+    "U_manpower",
+    "U_casualties",
+    "U_experience_progress"
+  ],
+  "channels": {
+    "manpower": "U_manpower",
+    "casualties": "U_casualties",
+    "experience": "U_experience_progress"
+  }
+}

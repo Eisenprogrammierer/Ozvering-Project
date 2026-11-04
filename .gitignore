@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.log
+*.pdf
 
 # Упаковка и локальные артефакты
 build/
@@ -8,3 +9,4 @@ dist/
 *.egg-info/
 .pytest_cache/
 .venv/
+saves/

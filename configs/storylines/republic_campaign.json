@@ -1,0 +1,36 @@
+{
+  "storyline_id": "republic_campaign",
+  "title": "Республика: свобода против тирании",
+  "description": "Кампания за Республику: разрушить миф Империи, сохранив процедуру и собственное лицо.",
+  "campaign_template": "configs/campaigns/republic_campaign.json",
+  "campaign_seed": 23,
+  "scenes": "republic_campaign_scenes",
+  "win_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "automata_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/republic_win",
+        "text": "Империя не получила символической победы. Республика сохранила лицо — и впервые за долгое время получила повод говорить о будущем."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/republic_lose",
+        "text": "Оборона рассыпалась. Теперь спорят не о свободе, а о том, кто виноват в поражении."
+      }
+    ]
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "template_id": "empire_campaign",
+  "title": "Империя: порядок против хаоса",
+  "description": "Вы — император. Империя не может признать Республику, не уничтожив основание собственной власти. Ваша кампания — не бой рот, а работа с легитимностью, страхом и вертикалью: каждый эдикт и каждая демонстрация силы меняют состояние сразу нескольких автоматов.",
+  "factions_path": "base/lore_factions.json",
+  "default_seed": 11,
+  "player_side": "red",
+  "enemy_side": "blue",
+  "faction_slots": {
+    "player": "red",
+    "enemy": "blue"
+  },
+  "scenario": {
+    "mode": "automata",
+    "turns": 72,
+    "characters_per_faction": 12,
+    "rivals": {
+      "red": "blue",
+      "blue": "red",
+      "green": "red",
+      "amber": "red"
+    },
+    "model": {
+      "success_base": 0.0,
+      "success_slope": 1.8,
+      "organization_cohesion": 0.05,
+      "organization_legitimacy": 0.035,
+      "organization_supply_drain": 0.006,
+      "organization_fear": 0.025,
+      "collapse_streak": 3,
+      "effect_scale": 0.45,
+      "asset_relax": 0.06
+    },
+    "outcome": {
+      "streak_turns": 3,
+      "defeat": {
+        "red": {
+          "legitimacy": 0.06,
+          "cohesion": 0.05
+        },
+        "blue": {
+          "legitimacy": 0.08
+        }
+      },
+      "score_margin": 0.045,
+      "score_bias": -0.045,
+      "score_basis": "progress"
+    },
+    "upkeep": {
+      "supply": 0.004,
+      "energy": 0.003
+    }
+  },
+  "environment": {
+    "features": [
+      "river",
+      "ruins",
+      "crossroads",
+      "storm",
+      "fog"
+    ],
+    "drift_chance": 0.16
+  },
+  "events": {
+    "categories": [
+      "war",
+      "politics",
+      "society",
+      "economy",
+      "disaster"
+    ],
+    "count": 8,
+    "context": {
+      "place": "«Двойная переправа»",
+      "object": "имперская полевая печать",
+      "cause": "первый залп на переправе",
+      "consequence": "линия фронта дрогнула, но сводка всё ещё говорит о порядке",
+      "amount": "триста легионеров"
+    }
+  },
+  "playwright": {
+    "max_actors": 8,
+    "turns": 12
+  }
+}
