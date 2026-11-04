@@ -1,5 +1,7 @@
 """Актор среды в core41: флаг `with_env` больше не мёртвый."""
 
+from pathlib import Path
+
 import pytest
 
 from core41 import (
@@ -19,6 +21,15 @@ from core41.environment import (
     ENV_HEALTH_DRAIN,
     ENV_HEALTH_RELIEF,
     ENV_RELIEF_INTERVAL,
+)
+
+PLAN_PATH = str(
+    Path(__file__).resolve().parent
+    / "fixtures"
+    / "content"
+    / "configs"
+    / "environments"
+    / "agora_seasons.json"
 )
 
 
@@ -421,7 +432,7 @@ def test_arena_env_exposes_fog_switch():
 
 
 def test_environment_plan_loads_and_exposes_phases():
-    plan = load_environment_plan("configs/environments/agora_seasons.json")
+    plan = load_environment_plan(PLAN_PATH)
     assert len(plan) == 4
     assert plan[0]["label"] == "спокойствие"
 
@@ -451,7 +462,7 @@ def test_environment_plan_advances_phase_before_final_goal():
 
 
 def test_environment_plan_round_trips_in_state():
-    plan = load_environment_plan("configs/environments/agora_seasons.json")
+    plan = load_environment_plan(PLAN_PATH)
     env = ArenaEnvironment(seed=3, plan=plan)
     env.phase_index = 2
     env.phase_start_tick = 77

@@ -14,6 +14,10 @@ from campaign.preset import (
 from campaign.roles import RoleCatalog, RoleError, RoleSpec
 from campaign.storage import load_preset, save_preset
 
+FIXTURE_ROOT = (
+    Path(__file__).resolve().parent / "fixtures" / "content"
+)
+
 
 @pytest.fixture(autouse=True)
 def _reset_audio():
@@ -26,9 +30,15 @@ def _reset_audio():
         pygame.mixer.quit()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def preset():
-    return generate_preset(seed=7)
+    return generate_preset(
+        seed=7,
+        catalog=RoleCatalog.load(FIXTURE_ROOT / "configs" / "roles"),
+        template_path=(
+            FIXTURE_ROOT / "configs" / "campaigns" / "test_skirmish.json"
+        ),
+    )
 
 
 def test_campaign_layer_is_headless():
@@ -359,9 +369,11 @@ def test_faction_leader_storyline_skips_character_creation():
         "strategy",
     ]
     assert storyline["campaign_template"] == (
-        "configs/campaigns/agora_charter.json"
+        "tests/fixtures/content/configs/campaigns/agora_charter.json"
     )
-    assert storyline["strategy_path"] == "configs/strategy/agora_charter.json"
+    assert storyline["strategy_path"] == (
+        "tests/fixtures/content/configs/strategy/agora_charter.json"
+    )
     assert storyline["scenes"][0]["slides"][0]["image"].startswith("campaign/")
 
 
@@ -493,6 +505,57 @@ def test_role_select_screen_constructs_and_draws():
     assert app.campaign_preset is None
     assert app.world_config is not None
     assert app.manager.current.__class__.__name__ == "VisualNovelScreen"
+
+
+def test_app_starts_without_roles(tmp_path, monkeypatch):
+    import os
+
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    import campaign.roles as roles_module
+    from view.app import App
+    from view.screens.role_select import RoleSelectScreen
+
+    empty_roles = tmp_path / "roles"
+    empty_roles.mkdir()
+    monkeypatch.setattr(
+        roles_module, "default_root", lambda: empty_roles
+    )
+    monkeypatch.setattr(roles_module, "_DEFAULT", None)
+
+    app = App()
+    assert app.role_catalog is None
+    screen = RoleSelectScreen(app)
+    assert screen.empty is True
+    screen.draw(pygame.Surface((1280, 720)))
+    screen.select("missing")
+    assert app.selected_role is None
+    app.quit()
+
+
+def test_quick_campaign_without_world(tmp_path, monkeypatch):
+    import os
+
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    pygame = pytest.importorskip("pygame")
+    import campaign.env as env_module
+    from campaign.world import WorldError
+    from view.app import App
+    from view.screens.campaign_quick import CampaignQuickScreen
+
+    def _missing_world(path=None):
+        raise WorldError("нет JSON-мира")
+
+    monkeypatch.setattr(env_module, "load_world", _missing_world)
+
+    app = App()
+    screen = CampaignQuickScreen(app, seed=7)
+    assert screen.env is None
+    assert "configs/worlds" in screen.error
+    screen.draw(pygame.Surface((1280, 720)))
+    app.quit()
 
 
 def test_faction_select_screen_constructs_and_draws():

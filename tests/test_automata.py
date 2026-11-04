@@ -249,7 +249,9 @@ def test_store_rejects_bad_slug(tmp_path):
 
 def test_example_file_is_valid():
     root = Path(__file__).resolve().parents[1]
-    store = AutomataStore(root / "configs" / "automata")
+    store = AutomataStore(
+        root / "tests" / "fixtures" / "content" / "configs" / "automata"
+    )
     automaton = store.load("example")
     assert automaton.counts() == (4, 6)
     assert automaton.validate() == []

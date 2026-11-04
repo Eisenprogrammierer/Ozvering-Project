@@ -7,6 +7,13 @@
 > [`SYSTEMS.md`](SYSTEMS.md), [`WORLD.md`](WORLD.md),
 > [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
 
+> **Поставка пустая.** В репозитории нет игрового JSON-контента: каталоги
+> `configs/` и `campaigns/` содержат только `.gitkeep`. Миры, роли,
+> сюжеты, автоматы, события, имена и шаблоны добавляются файлами по
+> схемам ниже. Старый набор данных сохранён только для тестов в
+> `tests/fixtures/content/`; это не игровой контент, и рабочая сборка его
+> не видит.
+
 ## 1. Правила
 
 1. **Один источник — JSON.** Игровые данные не дублируются в Python-коде.
@@ -14,7 +21,8 @@
    папку: `configs/automata/`, `configs/naming/classes/`,
    `configs/naming/interactions/`, `configs/storylines/`, `configs/roles/`,
    `configs/worlds/`, `configs/campaigns/`, `configs/content/`,
-   `campaigns/`.
+   `campaigns/`. Каталоги существуют и пусты, поэтому новый файл сразу
+   попадает в обход без правки кода.
 3. **Удаление файла = удаление контента.** Ссылки на удалённый id должны
    быть убраны из других файлов; загрузчики сообщают об ошибке, а списки
    просто перестают показывать запись.
@@ -30,6 +38,9 @@
    действие с новой формулой или новый экран — код.
 
 ## 2. Карта папок
+
+Все перечисленные каталоги в поставке пусты (кроме `.gitkeep`). Таблица
+показывает, куда положить новый JSON и какой загрузчик его прочитает.
 
 | Путь | Что это | Загрузчик | Добавить | Изменить | Удалить |
 |---|---|---|---|---|---|
@@ -74,7 +85,7 @@
   "faction_kind": "automaton",
   "faction_slot": "office",
   "faction_choice": false,
-  "storyline_id": "world_demo",
+  "storyline_id": "mini",
   "available": true,
   "sort_order": 20,
   "grants": {"player_role": "new_role"},
@@ -107,7 +118,7 @@
 
 ```json
 {
-  "strategies_path": "configs/worlds/agora_strategies.json",
+  "strategies_path": "configs/worlds/mini_strategies.json",
   "labor_market": {
     "rivals": 2,
     "refresh_days": 3,
@@ -151,7 +162,7 @@
 {
   "storyline_id": "mini",
   "title": "Мини-сюжет",
-  "world_path": "configs/worlds/agora_world.json",
+  "world_path": "configs/worlds/mini_world.json",
   "character_creation": "mini_char",
   "scenes": "mini_scenes"
 }
@@ -202,32 +213,56 @@ custom = content.get("my_new_file", {})
 ## 4. Проверка после правки
 
 ```bash
-# все JSON в configs читаются
+# все JSON в configs и тестовых фикстурах читаются
 python3 -m pytest -q tests/test_content_pipeline.py
 
-# роли видны каталогу
+# роли видны каталогу (после добавления configs/roles/*.json)
 python3 -m campaign --list-roles
 
 # шаблоны кампаний видны и разрешаются по имени
 python3 -m campaign --list-templates
-python3 -m campaign --generate --template test_skirmish \
-  --role faction_leader --out /tmp/preset.json
+python3 -m campaign --generate --template <template_id> \
+  --role <role_id> --out /tmp/preset.json
 
 # пресеты в campaigns/
 python3 -m campaign --list-presets
 ```
 
-В Python:
+Проверки в Python выполняются для тех данных, которые вы добавили:
 
 ```python
 from campaign.world import list_worlds, load_world
 from campaign.roles import RoleCatalog
 from view.support.storyline import list_storylines, load_storyline
 
-assert any(w["world_id"] == "agora_world" for w in list_worlds())
-assert RoleCatalog.load().select("world_actor")
-assert load_storyline("world_demo") is not None
+worlds = list_worlds()
+if worlds:
+    assert load_world(worlds[0]["path"])["id"] == worlds[0]["world_id"]
+roles = RoleCatalog.load()
+assert roles.all_roles()
+storylines = list_storylines()
+if storylines:
+    assert load_storyline(storylines[0]["storyline_id"]) is not None
 ```
+
+Если контента ещё нет, `list_worlds()`, `list_storylines()` и
+`RoleCatalog.load()` ведут себя предсказуемо: первые два возвращают пустой
+список, а `RoleCatalog` поднимает `RoleError`. UI это переживает: меню
+открывается, экран ролей показывает пустое состояние, а быстрая кампания
+просит добавить мир.
+
+### Первый запуск без контента
+
+* `load_world()` без пути ищет `configs/worlds/agora_world.json`; если его
+  нет, берётся первый валидный `*.json` из `configs/worlds/`. Поэтому новый
+  мир можно назвать как угодно — переименовывать файл под код не нужно.
+* Если ролей нет, `App` ловит `RoleError`, `RoleSelectScreen` показывает
+  пустое состояние, а `python3 -m campaign --list-roles` печатает
+  сообщение вместо traceback.
+* Если мира нет, быстрая кампания показывает подсказку добавить JSON в
+  `configs/worlds/` и не роняет приложение.
+* `tests/fixtures/content/` подключается только тестовой фикстурой
+  `tests/conftest.py`; это изолированный набор для проверки механик.
 
 ## 5. Что проверить при удалении
 

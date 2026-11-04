@@ -39,7 +39,11 @@ def _print_summary(preset):
 
 
 def _cmd_list_roles(args):
-    catalog = RoleCatalog.load()
+    try:
+        catalog = RoleCatalog.load()
+    except CampaignError as exc:
+        print("Ролей пока нет: %s" % exc)
+        return 0
     for role in catalog.all_roles():
         mark = "доступна" if role.available else "недоступна"
         print("%-20s %-8s %s" % (role.id, mark, role.label))

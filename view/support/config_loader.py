@@ -4,12 +4,13 @@ from pathlib import Path
 from .log_journal import get_logger
 
 logger = get_logger("view.config_loader")
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_json(path, default=None):
     p = Path(path)
     if not p.is_absolute():
-        p = Path(__file__).resolve().parents[2] / p
+        p = ROOT / p
     if not p.exists():
         logger.warning("JSON не найден: %s", p)
         return default

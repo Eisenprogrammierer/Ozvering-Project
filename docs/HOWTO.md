@@ -255,12 +255,14 @@ git diff --check
 ### 3.5. Куда добавить новый контент
 
 - Новый мир, роль или сюжет — `configs/` и `campaign/`, без правки движка,
-  если хватает существующих полей. Примеры арок: `configs/storylines/
-  agora_crisis.json`, `agora_reform.json`, `agora_legacy.json`.
-- **Стратегии узлов** — `configs/worlds/agora_strategies.json` (или
-  `strategies` прямо в мире). Достаточно id, селекторов узлов/целей,
+  если хватает существующих полей. Каталоги контента пусты: сюжет
+  добавляется файлом `configs/storylines/<id>.json` вместе с
+  `*_char.json`/`*_scenes.json`, мир — `configs/worlds/<name>.json`,
+  роль — `configs/roles/<name>.json`.
+- **Стратегии узлов** — `strategies` прямо в мире или отдельный
+  `*_strategies.json`. Достаточно id, селекторов узлов/целей,
   `horizon_days`, `goal` и весов `actions`; код не меняется.
-- **План среды** — JSON вида `configs/environments/agora_seasons.json`
+- **План среды** — JSON вида `configs/environments/<name>.json`
   (`goals` с `ratio`/`horizon`/`label`); подключается через
   `ArenaEnvironment(plan_path=...)` или `ArenaMatch(env_plan=...)`.
 - **Рынок труда** — блок `labor_market` в мире: `rivals`,

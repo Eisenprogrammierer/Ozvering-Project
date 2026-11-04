@@ -350,14 +350,12 @@ def test_systems_layer_does_not_import_pygame():
     assert result.returncode == 0, result.stderr
 
 
-def test_systems_cli_covers_environment_events_and_playwright():
-    root = str(Path(__file__).resolve().parents[1])
+def test_systems_cli_covers_environment_events_and_playwright(capsys):
+    from systems.__main__ import main as systems_main
+
     commands = [
-        [sys.executable, "-m", "systems", "--list"],
+        ["--list"],
         [
-            sys.executable,
-            "-m",
-            "systems",
             "--environment",
             "river",
             "--interact",
@@ -365,29 +363,9 @@ def test_systems_cli_covers_environment_events_and_playwright():
             "--seed",
             "7",
         ],
-        [
-            sys.executable,
-            "-m",
-            "systems",
-            "--event",
-            "birth_child",
-            "--seed",
-            "7",
-        ],
-        [
-            sys.executable,
-            "-m",
-            "systems",
-            "--playwright",
-            "--turns",
-            "12",
-            "--seed",
-            "7",
-        ],
+        ["--event", "birth_child", "--seed", "7"],
+        ["--playwright", "--turns", "12", "--seed", "7"],
     ]
     for command in commands:
-        result = subprocess.run(
-            command, cwd=root, capture_output=True, text=True
-        )
-        assert result.returncode == 0, result.stderr
-        assert result.stdout.strip()
+        assert systems_main(command) == 0
+        assert capsys.readouterr().out.strip()

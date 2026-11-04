@@ -19670,7 +19670,7 @@
     }
   ],
   "environment": {
-    "catalog": "configs/systems/environment.json",
+    "catalog": "tests/fixtures/content/configs/systems/environment.json",
     "seed": 3213,
     "drift_chance": 0.18,
     "feature_ids": [
@@ -21555,7 +21555,7 @@
     }
   },
   "events": {
-    "catalog": "configs/systems/events.json",
+    "catalog": "tests/fixtures/content/configs/systems/events.json",
     "seed": 4106,
     "categories": [
       "war",
@@ -21796,7 +21796,7 @@
     ]
   },
   "playwright": {
-    "catalog": "configs/systems/playwright.json",
+    "catalog": "tests/fixtures/content/configs/systems/playwright.json",
     "seed": 84186,
     "turns": 12,
     "max_actors": 8,

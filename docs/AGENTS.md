@@ -380,7 +380,7 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 `lose.days`). `WorldEngine._check_storyline()` проверяет правила на границе
 дня: ранний провал — несколько дней подряд ниже порога доверия, а в
 `deadline_day` глава заканчивается `win`, `lose` или `neutral`. Без блока
-мир остаётся бесконечным; `world_demo.json` ссылается на исход через
+мир остаётся бесконечным; сюжет может ссылаться на исход через
 `world_outcome`, поэтому UI и `CampaignEnv` видят один и тот же финал.
 Счётчик `storyline_days` входит в снимок мира и в наблюдение среды.
 

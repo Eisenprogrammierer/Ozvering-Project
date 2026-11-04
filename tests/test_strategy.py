@@ -7,8 +7,9 @@ from campaign.roles import RoleCatalog
 from campaign.strategy import StrategyEngine, StrategyError, load_strategy
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = "configs/campaigns/agora_charter.json"
-CONFIG = "configs/strategy/agora_charter.json"
+FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "content"
+TEMPLATE = str(FIXTURE_ROOT / "configs" / "campaigns" / "agora_charter.json")
+CONFIG = str(FIXTURE_ROOT / "configs" / "strategy" / "agora_charter.json")
 
 
 def _preset(faction_id="faction_red"):

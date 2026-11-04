@@ -3,8 +3,8 @@
 > **Статус.** Чистый Python-слой без pygame. Он не меняет канон
 > `simulation.py` / `warfare.py`, не подключается к UI автоматически и не
 > затрагивает редактор `automata/`. Всё поведение задаётся JSON-конфигами из
-> [`configs/systems/`](../configs/systems); имена персонажей — из
-> [`configs/naming/people.json`](../configs/naming/people.json).
+> [`configs/systems/`](../configs/systems) (каталог в поставке пуст);
+> имена персонажей — из `configs/naming/people.json`, если файл добавлен.
 
 Пакет [`systems/`](../systems) добавляет два самостоятельных системных
 автомата и общий каталог событий:

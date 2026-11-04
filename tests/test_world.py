@@ -385,8 +385,12 @@ def test_world_storyline_conditions_read_world_snapshot():
 def test_world_storyline_definition_is_complete():
     storyline = load_storyline("world_demo")
     assert storyline is not None
-    assert storyline["world_path"] == "configs/worlds/agora_world.json"
-    assert storyline["biography_path"] == "configs/worlds/biography.json"
+    assert storyline["world_path"] == (
+        "tests/fixtures/content/configs/worlds/agora_world.json"
+    )
+    assert storyline["biography_path"] == (
+        "tests/fixtures/content/configs/worlds/biography.json"
+    )
     assert storyline["campaign_seed"] == 7
     assert len(storyline["character_creation"]["steps"]) == 12
     assert [scene["type"] for scene in storyline["scenes"]] == [

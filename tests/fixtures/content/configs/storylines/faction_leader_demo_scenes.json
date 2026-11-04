@@ -48,7 +48,7 @@
     },
     {
       "type": "strategy",
-      "strategy_path": "configs/strategy/agora_charter.json"
+      "strategy_path": "tests/fixtures/content/configs/strategy/agora_charter.json"
     }
   ]
 }

@@ -354,7 +354,20 @@ def _read_json(path):
 
 
 def load_world(path=None):
-    data = _read_json(path if path is not None else DEFAULT_WORLD_PATH)
+    """Загрузить мир из JSON.
+
+    Если явный путь не задан, сначала берётся `agora_world.json` для
+    обратной совместимости, а при его отсутствии — первый валидный мир
+    из `configs/worlds/`. Так добавление нового JSON-мира не требует
+    правки кода или переименования файла.
+    """
+    if path is None:
+        path = DEFAULT_WORLD_PATH
+        if not Path(path).is_file():
+            worlds = list_worlds()
+            if worlds:
+                path = worlds[0]["path"]
+    data = _read_json(path)
     if not isinstance(data, dict):
         raise WorldError("мир должен быть объектом")
     return validate_world(data)

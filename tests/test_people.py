@@ -105,13 +105,11 @@ def test_people_layer_does_not_import_pygame():
     assert result.returncode == 0, result.stderr
 
 
-def test_naming_cli_generates_people_names():
-    root = str(Path(__file__).resolve().parents[1])
-    result = subprocess.run(
+def test_naming_cli_generates_people_names(capsys):
+    from naming.__main__ import main as naming_main
+
+    assert naming_main(
         [
-            sys.executable,
-            "-m",
-            "naming",
             "--person",
             "--culture",
             "russian",
@@ -121,19 +119,13 @@ def test_naming_cli_generates_people_names():
             "3",
             "--seed",
             "7",
-        ],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("\n") >= 3
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert output.count("\n") >= 3
 
-    result = subprocess.run(
+    assert naming_main(
         [
-            sys.executable,
-            "-m",
-            "naming",
             "--person",
             "--fantasy",
             "cyberpunk",
@@ -142,11 +134,8 @@ def test_naming_cli_generates_people_names():
             "--seed",
             "7",
             "--json",
-        ],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("\n") >= 2
-    assert "cyberpunk" in result.stdout
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert output.count("\n") >= 2
+    assert "cyberpunk" in output

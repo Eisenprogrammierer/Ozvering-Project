@@ -22,6 +22,7 @@ from view.support.storyline import list_storylines, load_storyline
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "content"
 
 
 def _write(path, data):
@@ -38,12 +39,13 @@ def _read(path):
 
 def test_all_config_json_files_are_parseable():
     broken = []
-    for path in sorted((ROOT / "configs").rglob("*.json")):
-        try:
-            _read(path)
-        except Exception as exc:  # pragma: no cover - диагностика
-            broken.append("%s: %s" % (path, exc))
-    assert not broken, "битый JSON в configs:\n" + "\n".join(broken)
+    for base in (ROOT / "configs", FIXTURE_ROOT / "configs"):
+        for path in sorted(base.rglob("*.json")):
+            try:
+                _read(path)
+            except Exception as exc:  # pragma: no cover - диагностика
+                broken.append("%s: %s" % (path, exc))
+    assert not broken, "битый JSON:\n" + "\n".join(broken)
 
 
 def test_world_folder_add_edit_remove(tmp_path):
@@ -160,7 +162,7 @@ def test_content_folder_is_generic_and_reloadable(tmp_path):
 
 def test_naming_class_folder_add_remove(tmp_path):
     root = tmp_path / "naming"
-    shutil.copytree(ROOT / "configs" / "naming", root)
+    shutil.copytree(FIXTURE_ROOT / "configs" / "naming", root)
     catalog = NamingCatalog.load(root)
     before = catalog.class_ids()
 
@@ -254,10 +256,37 @@ def test_automata_folder_add_edit_remove(tmp_path):
     assert store.list_entries() == []
 
 
-def test_real_content_folders_are_non_empty():
-    assert list_worlds()
-    assert list_templates()
-    assert [item["slug"] for item in AutomataStore().list_entries()]
+def test_load_world_falls_back_to_first_json(tmp_path, monkeypatch):
+    import campaign.world as world_module
+
+    data = _read(FIXTURE_ROOT / "configs" / "worlds" / "agora_world.json")
+    data = dict(data)
+    data["id"] = "new_world"
+    data["title"] = "Новый мир"
+    _write(tmp_path / "any_name.json", data)
+    monkeypatch.setattr(
+        world_module, "default_worlds_dir", lambda: tmp_path
+    )
+    monkeypatch.setattr(
+        world_module, "DEFAULT_WORLD_PATH", tmp_path / "missing.json"
+    )
+
+    world = load_world()
+
+    assert world["id"] == "new_world"
+    assert world["title"] == "Новый мир"
+
+
+def test_runtime_content_folders_start_empty():
+    """Игровой контент не поставляется: его добавляют JSON-файлами."""
+    assert list_worlds() == []
+    assert list_templates(ROOT / "configs" / "campaigns") == []
+    assert AutomataStore(ROOT / "configs" / "automata").list_entries() == []
+    assert list_storylines(ROOT / "configs" / "storylines") == []
+    assert not list((ROOT / "configs").rglob("*.json"))
+    assert not list((ROOT / "campaigns").glob("*.json"))
+    # Тестовый набор существует отдельно и не является игровым контентом.
+    assert (FIXTURE_ROOT / "configs" / "worlds" / "agora_world.json").is_file()
     assert NamingCatalog.load().class_ids()
     assert Content().names()
     assert list_storylines()

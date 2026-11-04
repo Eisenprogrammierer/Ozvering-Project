@@ -18,7 +18,7 @@
       "blue": 2
     },
     "characters_per_group": 4,
-    "strategy_path": "configs/strategy/agora_charter.json"
+    "strategy_path": "tests/fixtures/content/configs/strategy/agora_charter.json"
   },
   "factions": {
     "red": {

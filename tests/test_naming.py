@@ -241,13 +241,11 @@ def test_naming_does_not_import_pygame():
     assert result.returncode == 0, result.stderr
 
 
-def test_naming_cli_previews_names_and_ontology():
-    root = str(Path(__file__).resolve().parents[1])
-    result = subprocess.run(
+def test_naming_cli_previews_names_and_ontology(capsys):
+    from naming.__main__ import main as naming_main
+
+    assert naming_main(
         [
-            sys.executable,
-            "-m",
-            "naming",
             "--mode",
             "order",
             "--need",
@@ -258,29 +256,20 @@ def test_naming_cli_previews_names_and_ontology():
             "3",
             "--seed",
             "7",
-        ],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("\n") >= 3
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert output.count("\n") >= 3
 
-    result = subprocess.run(
+    assert naming_main(
         [
-            sys.executable,
-            "-m",
-            "naming",
             "--interaction",
             "coercion",
             "--count",
             "2",
             "--seed",
             "7",
-        ],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("\n") >= 2
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert output.count("\n") >= 2

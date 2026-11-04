@@ -2,7 +2,7 @@
   "storyline_id": "mvp_demo",
   "title": "Операция «Озверин»",
   "description": "...",
-  "scenario_path": "scenarios/mvp.json",
+  "scenario_path": "tests/fixtures/content/scenarios/mvp.json",
   "character_creation": "mvp_demo_char",
   "scenes": "mvp_demo_scenes",
   "win_conditions": [

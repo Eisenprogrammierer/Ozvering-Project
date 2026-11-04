@@ -8,6 +8,11 @@ from view.support.storyline import loss_limit_percent
 from view.support.time_system import CampaignTimeSystem
 from view.support.world import CampaignEngine
 from view.support import save_system
+from pathlib import Path
+
+FIXTURE_ROOT = (
+    Path(__file__).resolve().parent / "fixtures" / "content"
+)
 
 
 def _world():
@@ -210,9 +215,9 @@ def test_evening_scene_uses_hq_evening_background():
 
     root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/content/mandatory_scenes.json").read_text(
-            encoding="utf-8"
-        )
+        (
+            FIXTURE_ROOT / "configs/content/mandatory_scenes.json"
+        ).read_text(encoding="utf-8")
     )
     assert data["evening_inspection"]["background"] == "scenes/hq_evening"
     assert (root / "assets/images/scenes/hq_evening.jpg").exists()
@@ -558,7 +563,9 @@ def test_mvp_win_scene_uses_existing_outtro_assets():
 
     root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/storylines/mvp_demo.json").read_text(encoding="utf-8")
+        (
+            FIXTURE_ROOT / "configs/storylines/mvp_demo.json"
+        ).read_text(encoding="utf-8")
     )
     slides = data["win_scene"]["slides"]
     images = []
@@ -586,9 +593,10 @@ def test_mvp_loss_threshold_allows_meaningful_battle():
     import json
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/storylines/mvp_demo.json").read_text(encoding="utf-8")
+        (
+            FIXTURE_ROOT / "configs/storylines/mvp_demo.json"
+        ).read_text(encoding="utf-8")
     )
     loss_condition = next(
         condition
@@ -820,9 +828,9 @@ def test_morning_camp_content_has_distinct_texts_and_existing_assets():
 
     root = Path(__file__).resolve().parents[1]
     data = json.loads(
-        (root / "configs/content/mandatory_scenes.json").read_text(
-            encoding="utf-8"
-        )
+        (
+            FIXTURE_ROOT / "configs/content/mandatory_scenes.json"
+        ).read_text(encoding="utf-8")
     )
     morning = data["morning_inspection"]
     expected = {"fresh", "wounded", "critical"}

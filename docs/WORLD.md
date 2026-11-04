@@ -13,8 +13,8 @@
 
 ## 1. Статус и границы
 
-* `world_actor` — основная роль новой игры. Она открывает сюжет
-  `configs/storylines/world_demo.json`.
+* `world_actor` — основная роль новой игры. Она открывает сюжет, который
+  добавляется в `configs/storylines/`; в поставке контента нет.
 * `faction_leader` сохранён для старых тестов и легаси-потока «Хартия Агоры».
   У роли есть тег `legacy`, поэтому `RoleSelectScreen` не показывает её в
   обычном списке.
@@ -64,9 +64,11 @@
 > Ядро модели 4-2-1, решения обсуждения и расширение вопросов 3–4:
 > [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md).
 
-`configs/worlds/agora_world.json` содержит:
+Мир задаётся JSON-файлом в `configs/worlds/`. В поставке таких файлов нет;
+таблица ниже описывает разделы схемы и объём тестового набора из
+`tests/fixtures/content/`, а не обязательный контент:
 
-| Элемент | Количество | Смысл |
+| Элемент | В тестовом наборе | Смысл |
 |---|---:|---|
 | домены | 7 | `order`, `meaning`, `provision`, `status`, `knowledge`, `care`, `exchange` |
 | политии | 10 | государства, церкви, лиги, дома, ордена и городские структуры |
@@ -212,17 +214,19 @@ department -> workshop`, у обмена и статуса — свои уров
 
 | Путь | Назначение |
 |---|---|
-| `configs/roles/roles.json` | роль `world_actor`, легаси-тег `faction_leader`; дополнительные роли — `configs/roles/*.json` |
-| `configs/storylines/world_demo.json` | сюжет, привязка мира и биографии |
-| `configs/storylines/world_char.json` | 12 шагов создания персонажа |
-| `configs/storylines/world_demo_scenes.json` | вступления, выбор автомата, сцена мира |
-| `configs/worlds/agora_world.json` | домены, политии, узлы, должности, действия, персонажи, предметы и навыки |
+| `configs/roles/*.json` | роли; основная — `world_actor`, легаси-тег `faction_leader` |
+| `configs/storylines/<id>.json` | сюжет, привязка мира и биографии |
+| `configs/storylines/<id>_char.json` | шаги создания персонажа |
+| `configs/storylines/<id>_scenes.json` | вступления, выбор автомата, сцена мира |
+| `configs/worlds/<name>.json` | домены, политии, узлы, должности, действия, персонажи, предметы и навыки |
 | `configs/worlds/biography.json` | таблицы происхождения, навыков, черт и связей |
 
-Новый мир добавляется как `configs/worlds/<name>.json`; `list_worlds()`
-находит все валидные миры в папке, а `load_world(path)` загружает выбранный.
-Биография миром не считается и в список не попадает. Полная карта
-JSON-контента — [`CONTENT.md`](CONTENT.md).
+Все эти каталоги в поставке пусты. Новый мир добавляется как
+`configs/worlds/<name>.json`; `list_worlds()` находит все валидные миры в
+папке, а `load_world(path)` загружает выбранный. Если путь не указан,
+`load_world()` берёт `agora_world.json`, а при его отсутствии — первый
+валидный мир из папки. Биография миром не считается и в список не попадает.
+Полная карта JSON-контента — [`CONTENT.md`](CONTENT.md).
 | `campaign/world.py` | профиль, иерархия, валидатор, ход мира, персонажи, предметы, карьера, снимки |
 | `campaign/clock.py` | фоновые часы кампании, оффлайн-догон и причины авто-паузы |
 | `view/screens/character_creation.py` | биография и сборка профиля |

@@ -43,15 +43,24 @@ class CampaignQuickScreen(BaseScreen):
         self.panel = Panel((40, 40, 1200, 640))
         if seed is None:
             seed = getattr(app, "campaign_seed_value", None)
-        self.env = CampaignEnv(seed=int(seed) if seed is not None else 7)
-        self.observation = self.env.reset()
+        self.env = None
+        self.observation = None
         self.message = ""
+        self.error = ""
+        try:
+            self.env = CampaignEnv(seed=int(seed) if seed is not None else 7)
+            self.observation = self.env.reset()
+        except Exception as exc:
+            # Пустой контент — штатное состояние: мир добавляется JSON-файлом.
+            self.error = "Добавьте мир в configs/worlds/*.json: %s" % exc
+            logger.warning(self.error)
         self._rebuild_buttons()
-        logger.info(
-            "Быстрая кампания начата: seed=%s, действий=%d",
-            self.env.engine.seed,
-            len(self.env.legal_actions()),
-        )
+        if self.env is not None:
+            logger.info(
+                "Быстрая кампания начата: seed=%s, действий=%d",
+                self.env.engine.seed,
+                len(self.env.legal_actions()),
+            )
 
     # ------------------------------------------------------------------
     # Действия
@@ -59,6 +68,8 @@ class CampaignQuickScreen(BaseScreen):
 
     def _action_label(self, action):
         engine = self.env.engine
+        if engine is None:
+            return str(action.kind)
         label = _service_label(action.kind)
         if label is None:
             entry = engine.actions.get(action.kind, {})
@@ -70,18 +81,19 @@ class CampaignQuickScreen(BaseScreen):
     def _rebuild_buttons(self):
         buttons = []
         y = 150
-        for action in self.env.legal_actions():
-            if y > 560:
-                break
-            buttons.append(
-                Button(
-                    (60, y, 560, 38),
-                    self._action_label(action),
-                    self.app.font_small,
-                    lambda a=action: self._do(a),
+        if self.env is not None:
+            for action in self.env.legal_actions():
+                if y > 560:
+                    break
+                buttons.append(
+                    Button(
+                        (60, y, 560, 38),
+                        self._action_label(action),
+                        self.app.font_small,
+                        lambda a=action: self._do(a),
+                    )
                 )
-            )
-            y += 42
+                y += 42
         buttons.append(
             Button(
                 (60, 600, 200, 40),
@@ -98,6 +110,8 @@ class CampaignQuickScreen(BaseScreen):
         self.app.manager.pop()
 
     def _do(self, action):
+        if self.env is None:
+            return
         if (
             self.env.engine is None
             or self.env.engine.finished
@@ -126,7 +140,7 @@ class CampaignQuickScreen(BaseScreen):
     # ------------------------------------------------------------------
 
     def handle_event(self, event):
-        if self.env.engine is not None and (
+        if self.env is not None and self.env.engine is not None and (
             self.env.engine.finished or self.env._terminal
         ):
             # После финала остаётся только выход в меню.
@@ -136,6 +150,8 @@ class CampaignQuickScreen(BaseScreen):
                 return
 
     def _status_lines(self):
+        if self.observation is None or self.env is None:
+            return []
         obs = self.observation
         engine = self.env.engine
         # `energy`/`max_energy` в наблюдении — абсолютные (шкала мира ~100),
@@ -163,6 +179,8 @@ class CampaignQuickScreen(BaseScreen):
         return lines
 
     def _log_lines(self):
+        if self.env is None:
+            return []
         rows = list(self.env.engine.log)[-MAX_LOG_LINES:]
         lines = []
         for row in rows:
@@ -184,6 +202,14 @@ class CampaignQuickScreen(BaseScreen):
             surf = self.app.font_small.render(line, True, (180, 190, 205))
             screen.blit(surf, (60, y))
             y += 18
+        if self.error:
+            for offset, text in enumerate(
+                self.error.split(": ", 1)
+            ):
+                surf = self.app.font_small.render(
+                    text, True, (210, 150, 150)
+                )
+                screen.blit(surf, (60, y + 4 + offset * 20))
         if self.message:
             surf = self.app.font_small.render(
                 self.message, True, (210, 200, 150)

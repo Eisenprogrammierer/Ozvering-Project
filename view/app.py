@@ -134,9 +134,16 @@ class App:
         self.world_config = None
         self.player_profile = None
 
-        from campaign import RoleCatalog
+        from campaign import RoleCatalog, RoleError
 
-        self.role_catalog = RoleCatalog.load()
+        try:
+            self.role_catalog = RoleCatalog.load()
+        except RoleError as exc:
+            # Контент пуст по умолчанию: роли добавляются JSON-файлами.
+            # Меню должно открыться даже без них, иначе игрок не увидит,
+            # что именно нужно добавить.
+            logger.warning("Роли не загружены: %s", exc)
+            self.role_catalog = None
         self.selected_role = None
         self.selected_faction_id = None
         self.campaign_preset = None

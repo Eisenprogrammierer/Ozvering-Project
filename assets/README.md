@@ -12,7 +12,7 @@
 |---|---|---|
 | Портрет персонажа | `characters/<character_id>.png` | `characters/<character_id>_portrait.png`, затем плейсхолдер |
 | Герб организации | `organizations/<node_id>.png` | `organizations/<polity_id>.png`, `organizations/<domain_id>.png`, плейсхолдер |
-| Предмет | путь из `icon` в `agora_world.json` | `items/<item_id>.png`, затем плейсхолдер |
+| Предмет | путь из поля `icon` в JSON мира | `items/<item_id>.png`, затем плейсхолдер |
 | Навык | `skills/<skill_id>.png` | плейсхолдер |
 | Тайлсет | `tilesets/<world_id>/` с изображениями | `tilesets/<world_id>.png`, `tilesets/<world_id>_background.png`, затем плейсхолдер |
 
@@ -21,10 +21,11 @@
 
 ## Тайлсеты
 
-Для мира `agora_world` папка `assets/images/tilesets/agora_world/` уже создана.
-Файлы в ней сортируются по имени и выкладываются плиткой 128×128. Если файлов
-нет, используется `tilesets/agora_world.png` как цельный фон. Если нет и его,
-`WorldScreen` показывает процедурный плейсхолдер.
+Каталог называется по `world_id` из JSON мира. В репозитории остаётся
+пример `assets/images/tilesets/agora_world/`; игрового мира с таким id в
+поставке нет. Файлы в каталоге сортируются по имени и выкладываются плиткой
+128×128. Если файлов нет, используется `tilesets/<world_id>.png` как цельный
+фон. Если нет и его, `WorldScreen` показывает процедурный плейсхолдер.
 
 ## Плейсхолдеры
 
@@ -36,7 +37,7 @@
 ## Данные мира
 
 Персонажи, их стартовые отношения, разговоры, предметы и древо навыков
-описаны в `configs/worlds/agora_world.json`:
+описаны в JSON мира (`configs/worlds/<name>.json`):
 
 * `characters` — именованные люди с `circle` (`close`, `companion`,
   `acquaintance`), `affinity`, `trust`, `node_id`, тегами и описанием;

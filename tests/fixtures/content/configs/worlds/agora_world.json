@@ -4,7 +4,7 @@
   "subtitle": "Семь сфер, несколько держав и церквей. Вы — должностное лицо.",
   "days": 30,
   "actions_per_day": 3,
-  "strategies_path": "configs/worlds/agora_strategies.json",
+  "strategies_path": "tests/fixtures/content/configs/worlds/agora_strategies.json",
   "labor_market": {
     "rivals": 2,
     "refresh_days": 3,

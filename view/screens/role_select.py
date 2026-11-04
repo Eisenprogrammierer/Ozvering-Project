@@ -30,9 +30,10 @@ class RoleSelectScreen(BaseScreen):
         super().__init__(app)
         self.panel = Panel((250, 70, 780, 580))
         self.buttons = []
-        self.roles = [
+        catalog = getattr(app, "role_catalog", None)
+        self.roles = [] if catalog is None else [
             role
-            for role in app.role_catalog.available_roles()
+            for role in catalog.available_roles()
             if "legacy" not in role.tags
         ]
         self.empty = not self.roles
@@ -61,6 +62,9 @@ class RoleSelectScreen(BaseScreen):
         )
 
     def select(self, role_id):
+        if self.app.role_catalog is None:
+            logger.warning("Выбор роли недоступен: каталог пуст")
+            return
         role = self.app.role_catalog.select(role_id)
         self.app.selected_role = role
         self.app.selected_faction_id = None

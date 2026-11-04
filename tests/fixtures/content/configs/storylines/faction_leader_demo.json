@@ -2,9 +2,9 @@
   "storyline_id": "faction_leader_demo",
   "title": "Хартия Агоры",
   "description": "Гранд-стратегическая кампания: вы — конкретный человек во главе гражданской коалиции. Убедите организации, людей, институты и городское имущество поддержать общую Хартию. Автоматы здесь — только аналитические модели, а не роботы или боевые единицы.",
-  "scenario_path": "scenarios/mvp.json",
-  "campaign_template": "configs/campaigns/agora_charter.json",
-  "strategy_path": "configs/strategy/agora_charter.json",
+  "scenario_path": "tests/fixtures/content/scenarios/mvp.json",
+  "campaign_template": "tests/fixtures/content/configs/campaigns/agora_charter.json",
+  "strategy_path": "tests/fixtures/content/configs/strategy/agora_charter.json",
   "campaign_seed": 7,
   "scenes": "faction_leader_demo_scenes",
   "win_conditions": [
