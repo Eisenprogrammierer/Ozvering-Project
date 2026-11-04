@@ -872,6 +872,21 @@ Greedy-режим (`explore=False`) систематически занижае�
 меняется между замерами; при малом `best_eval_episodes` шум остаётся, но
 выбор больше не фиксирует первый же нулевой результат.
 
+### 7.6. Кампанийная калибровка и стратегии узлов
+
+Кампания оценивается `experiments/exp_campaign_calibration.py` на
+held-out seed'ах; `--days` — горизонт усечения, `--deadline` — сюжетный
+дедлайн. Плечи `--drift-scale`, `--dismissal-standing`,
+`--dismissal-legitimacy`, `--collapse-grace` переопределяют конфиг мира
+только на время прогона.
+
+Стратегии узлов (`campaign/node_strategy.py`) добавляют к `_ai_score()`
+бонус `bonus · action_weight · max(0.05, 1-progress) · urgency`, где
+`urgency = 1 + 0.5 · elapsed / horizon_days`. Прогресс считается по
+`goal.stat` от стартового значения узла; завершение/просрочка применяют
+`completion`/`expiry.stats` один раз. Это не заменяет сиюминутные
+интересы узла, а смещает выбор в их рамках.
+
 ---
 
 ## 8. Актор среды

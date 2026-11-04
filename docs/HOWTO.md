@@ -71,6 +71,11 @@ python3 main.py --fullscreen     # полноэкранный режим
   завершённом сюжете и отсутствии должности.
 - После загрузки оффлайн-догон ограничен `saved_at` и `max_offline_days`.
 - Сохранения лежат в `saves/`. Этот каталог не коммитится.
+- Формат сохранения версионирован (`SAVE_VERSION = 2`). Старые снимки
+  мигрируют аддитивно: получают контейнеры `node_strategy_state` и
+  `environment_plan`, не теряя остальных полей. Файл будущей версии
+  загружается как есть с предупреждением в логе, поэтому откат сборки не
+  уничтожает сейв.
 
 ### 1.4. Арена и чекпойнты
 
@@ -126,6 +131,11 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 | `--env arena\|duel\|campaign` | среда обучения |
 | `--episodes N`, `--seed N` | длина и воспроизводимость прогона |
 | `--campaign-career` | открыть `seek_promotion`/`request_transfer`/`resign` |
+| `--drift-scale X` | множитель темпа организационного дрейфа (1.0 — канон) |
+| `--deadline N` | сюжетный дедлайн главы (не путать с `--days`) |
+| `--dismissal-standing X` | порог репутации для смены роли |
+| `--dismissal-legitimacy X` | порог легитимности структуры |
+| `--collapse-grace N` | дней подряд ниже порога до распада |
 | `--reward-profile legacy\|advantage\|advantage_cost` | формула награды арены |
 | `--resume PATH` | продолжить обучение с чекпойнта |
 | `--out PATH` | сохранить веса |
@@ -163,10 +173,24 @@ venv/bin/python experiments/exp_campaign_calibration.py \
     --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp
 ```
 
+Плечи для тонкой калибровки:
+
+```bash
+# жёсткий/мягкий дрейф и другой дедлайн
+venv/bin/python experiments/exp_campaign_calibration.py \
+    --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp \
+    --drift-scale 0.5 --deadline 20
+# смена порогов карьеры/распада
+venv/bin/python experiments/exp_campaign_calibration.py \
+    --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp \
+    --dismissal-standing 0.02 --dismissal-legitimacy 0.04 \
+    --collapse-grace 3
+```
+
 Скрипт ничего не меняет в коде: политики прогреваются на отдельном потоке
 seed'ов, а метрики (победы, поражения, `neutral`, усечения, смены роли,
-распады) печатаются в JSON и таблицу. Актуальные числа — в
-`WORLD_CORE_MODEL.md` §2.3.4.
+распады) печатаются в JSON и таблицу. Актуальные числа и трактовка
+плеч — в `WORLD_CORE_MODEL.md` §2.3.4–2.3.6 и `TODO.md`.
 
 ### 2.4. Интерпретация результатов
 
@@ -231,12 +255,34 @@ git diff --check
 ### 3.5. Куда добавить новый контент
 
 - Новый мир, роль или сюжет — `configs/` и `campaign/`, без правки движка,
-  если хватает существующих полей.
+  если хватает существующих полей. Примеры арок: `configs/storylines/
+  agora_crisis.json`, `agora_reform.json`, `agora_legacy.json`.
+- **Стратегии узлов** — `configs/worlds/agora_strategies.json` (или
+  `strategies` прямо в мире). Достаточно id, селекторов узлов/целей,
+  `horizon_days`, `goal` и весов `actions`; код не меняется.
+- **План среды** — JSON вида `configs/environments/agora_seasons.json`
+  (`goals` с `ratio`/`horizon`/`label`); подключается через
+  `ArenaEnvironment(plan_path=...)` или `ArenaMatch(env_plan=...)`.
+- **Рынок труда** — блок `labor_market` в мире: `rivals`,
+  `refresh_days`, `structure_quota`, `quota`, `weights`. Новые поля
+  сохраняются в конфиге, поэтому расширение не ломает старые миры.
 - Новая механика — сначала тест и раздел в `WORLD_CORE_MODEL.md`, затем код.
 - Новый эксперимент — `experiments/`, с детерминированным сидом и печатью
   JSON; результаты не коммитятся, если это не эталонная матрица.
 - Новый агент/политика — `agents/`, с `state_dict()`/`load_state_dict()`,
   версией чекпойнта и записью в `AGENTS.md` §4.
+
+### 3.6. Data-Driven чек-лист
+
+1. Добавьте/измените JSON в `configs/`.
+2. Проверьте загрузку точечным тестом (`load_world`, `load_storyline`,
+   `load_environment_plan`) и отсутствие «висячих» id.
+3. Для новой механики добавьте поле в валидатор и docstring, а не только
+   в контент.
+4. Обновите `docs/CONTENT.md` (карта папок) и `docs/WORLD_CORE_MODEL.md`
+   (формулы/пороги), если поведение стало новым.
+5. Прогоните `pytest`, `pycodestyle` и `git diff --check`; сохранения
+   проверяйте на старом сейве и на текущем.
 
 ---
 

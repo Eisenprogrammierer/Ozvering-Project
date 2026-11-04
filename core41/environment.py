@@ -44,6 +44,9 @@
 агентов). Полная миграция организационных шкал — всё ещё следующий слой.
 """
 
+import json
+from pathlib import Path
+
 from .model import SICKNESS_MAX
 
 ENV_EVENT_INTERVAL = 17
@@ -108,6 +111,45 @@ ENV_STARVING_E = 2.0            # E стороны ниже — среда да�
 # терминального смещения; состояние фона влияет на механику через
 # `work_bonus()`. Оставлена для совместимости импортов.
 ENV_OUTCOME_GOAL_REWARD = 0.3
+
+
+def _normalize_plan(plan):
+    """Нормализовать многофазный план среды (Data-Driven JSON).
+
+    Каждая фаза — словарь с `ratio` (доля потолка), `horizon` (тактов на
+    фазу) и необязательным `label`. Пустой план сохраняет прежнее
+    однофазное поведение.
+    """
+    normalized = []
+    for index, raw in enumerate(plan or ()):
+        if not isinstance(raw, dict):
+            raise ValueError("фаза плана среды должна быть объектом")
+        ratio = max(0.0, min(1.0, float(raw.get("ratio", 0.6))))
+        horizon = max(1, int(raw.get("horizon", ENV_GOAL_HORIZON)))
+        label = str(raw.get("label") or "фаза %d" % (index + 1)).strip()
+        normalized.append(
+            {
+                "ratio": ratio,
+                "horizon": horizon,
+                "label": label or "фаза %d" % (index + 1),
+            }
+        )
+    return normalized
+
+
+def load_environment_plan(path):
+    """Прочитать план среды из JSON.
+
+    Поддерживаются формы `{"goals": [...]}` и `{"plan": [...]}`.
+    """
+    resolved = Path(path)
+    with open(resolved, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if isinstance(payload, dict):
+        payload = payload.get("goals") or payload.get("plan") or []
+    if not isinstance(payload, list):
+        raise ValueError("%s: план среды должен быть списком" % resolved)
+    return _normalize_plan(payload)
 
 
 def _env_rng(world):
@@ -188,6 +230,8 @@ class ArenaEnvironment:
         force=ENV_FORCE_BASE,
         goal_ratio=ENV_GOAL_RATIO,
         goal_horizon=ENV_GOAL_HORIZON,
+        plan=None,
+        plan_path=None,
         with_economy=True,
         with_defense=True,
     ):
@@ -212,6 +256,16 @@ class ArenaEnvironment:
         self.in_window = False
         self.collapsed = False
         self.goal_reached = False
+        # A12: многофазная цель среды. Пустой план — прежняя однофазная
+        # модель; непустой задаёт последовательность сезонов/этапов.
+        if plan_path is not None:
+            plan = load_environment_plan(plan_path)
+        self.plan = _normalize_plan(plan)
+        self.phase_index = 0
+        self.phase_start_tick = 0
+        if self.plan:
+            self.goal_ratio = self.plan[0]["ratio"]
+            self.goal_horizon = self.plan[0]["horizon"]
 
     @property
     def rest_ceiling(self):
@@ -291,6 +345,20 @@ class ArenaEnvironment:
             return "strengthened"
         return "active"
 
+    @property
+    def phase_label(self):
+        if not self.plan:
+            return ""
+        index = max(0, min(len(self.plan) - 1, self.phase_index))
+        return self.plan[index]["label"]
+
+    @property
+    def phase_count(self):
+        return len(self.plan)
+
+    def phase_elapsed(self):
+        return max(0, self.ticks - self.phase_start_tick)
+
     def work_bonus(self):
         """Аддитивный бонус успеха работы от состояния фона.
 
@@ -355,11 +423,34 @@ class ArenaEnvironment:
             max(0.0, self.force + income - upkeep),
         )
         if self.force >= self.goal_force:
+            if self.plan and self.phase_index < len(self.plan) - 1:
+                self.phase_index += 1
+                phase = self.plan[self.phase_index]
+                self.goal_ratio = phase["ratio"]
+                self.goal_horizon = phase["horizon"]
+                self.phase_start_tick = self.ticks
+                return {
+                    "kind": "environment",
+                    "event": "phase",
+                    "ticks": self.ticks,
+                    "phase": self.phase_index,
+                    "phase_label": self.phase_label,
+                    "phase_count": self.phase_count,
+                    "force": float(self.force),
+                    "target": float(self.goal_force),
+                    "status": self.status,
+                    "work_bonus": self.work_bonus(),
+                    "text": "Среда: этап «%s» достигнут — новый горизонт."
+                    % self.phase_label,
+                }
             self.goal_reached = True
             return {
                 "kind": "environment",
                 "event": "goal",
                 "ticks": self.ticks,
+                "phase": self.phase_index,
+                "phase_label": self.phase_label,
+                "phase_count": self.phase_count,
                 "force": float(self.force),
                 "target": float(self.goal_force),
                 "status": self.status,
@@ -367,7 +458,7 @@ class ArenaEnvironment:
                 "text": "Среда: цель достигнута (%.1f) — фон укрепился."
                 % self.force,
             }
-        if self.ticks >= self.goal_horizon:
+        if self.phase_elapsed() >= self.goal_horizon:
             self.collapsed = True
             self.in_window = False
             self.open_timer = 0
@@ -375,13 +466,16 @@ class ArenaEnvironment:
                 "kind": "environment",
                 "event": "collapse",
                 "ticks": self.ticks,
+                "phase": self.phase_index,
+                "phase_label": self.phase_label,
+                "phase_count": self.phase_count,
                 "force": float(self.force),
                 "target": float(self.goal_force),
                 "status": self.status,
                 "work_bonus": self.work_bonus(),
                 "text": "Среда: цель не достигнута за %d тактов — коллапс "
                 "фона (сила %.1f/%.1f)."
-                % (self.ticks, self.force, self.goal_force),
+                % (self.goal_horizon, self.force, self.goal_force),
             }
         return None
 
@@ -467,6 +561,16 @@ class ArenaEnvironment:
                 else 0.0
             ),
             "deadline": int(self.goal_horizon),
+            "phase": self.phase_label,
+            "phase_index": int(self.phase_index),
+            "phase_count": int(self.phase_count),
+            "phase_horizon": int(self.goal_horizon),
+            "phase_elapsed": int(self.phase_elapsed()),
+            "phase_progress": (
+                min(1.0, self.phase_elapsed() / float(self.goal_horizon))
+                if self.with_economy
+                else 0.0
+            ),
             "collapsed": bool(self.collapsed),
             "goal_reached": bool(self.goal_reached),
         }
@@ -626,9 +730,13 @@ class ArenaEnvironment:
             # A1: экономика/цель. Старые снимки без этих ключей грузятся
             # в значения по умолчанию — совместимость сохранена.
             "with_economy": self.with_economy,
+            "with_defense": self.with_defense,
             "force": float(self.force),
             "goal_ratio": float(self.goal_ratio),
             "goal_horizon": int(self.goal_horizon),
+            "plan": [dict(phase) for phase in self.plan],
+            "phase_index": int(self.phase_index),
+            "phase_start_tick": int(self.phase_start_tick),
             "pressure": float(self.pressure),
             "pressure_rest": float(getattr(self, "pressure_rest", 0.0)),
             "open_timer": int(self.open_timer),
@@ -666,12 +774,29 @@ class ArenaEnvironment:
         self.with_economy = bool(
             state.get("with_economy", self.with_economy)
         )
+        self.with_defense = bool(
+            state.get("with_defense", self.with_defense)
+        )
         self.force = max(0.0, float(state.get("force", self.force)))
         self.goal_ratio = max(
             0.0, min(1.0, float(state.get("goal_ratio", self.goal_ratio)))
         )
         self.goal_horizon = max(
             1, int(state.get("goal_horizon", self.goal_horizon))
+        )
+        # A12: план и текущая фаза. Старые снимки без плана сохраняют
+        # однофазное поведение.
+        if "plan" in state:
+            self.plan = _normalize_plan(state.get("plan") or ())
+        self.phase_index = max(
+            0,
+            min(
+                max(0, len(self.plan) - 1),
+                int(state.get("phase_index", self.phase_index)),
+            ),
+        )
+        self.phase_start_tick = max(
+            0, int(state.get("phase_start_tick", self.phase_start_tick))
         )
         self.pressure = max(
             0.0, float(state.get("pressure", self.pressure))

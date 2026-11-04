@@ -2,9 +2,11 @@
 
 Документ отвечает на процессные вопросы ревью (пункт D5) и фиксирует уже
 сложившуюся практику. Правки механики/архитектуры описываются в
-[`docs/MODEL.md`](docs/MODEL.md), воспроизводимая базовая линия — в
-[`docs/BASELINE.md`](docs/BASELINE.md). Пошаговый практический справочник
-(запуск, обучение, проверки) — в [`docs/HOWTO.md`](docs/HOWTO.md).
+[`docs/WORLD_CORE_MODEL.md`](docs/WORLD_CORE_MODEL.md), воспроизводимая
+базовая линия — в [`docs/BASELINE.md`](docs/BASELINE.md). Пошаговый
+практический справочник (запуск, обучение, проверки) — в
+[`docs/HOWTO.md`](docs/HOWTO.md). Карта JSON-контента —
+[`docs/CONTENT.md`](docs/CONTENT.md).
 
 ## Язык и сообщения коммитов
 
@@ -26,38 +28,51 @@
 Параллельные ветки (в т.ч. агентские `qwen-code…`, `review-…`) согласуются через
 **единую точку правды и проверки**, а не через устные договорённости:
 
-* **Канон — `simulation.py`.** Модель меняется только здесь; документация
-  (`MODEL.md`, `BASELINE.md`, `README.md`) синхронна коду.
-* **`game_engine.py` — отдельный слой наблюдения**, использует только публичное
-  API `simulation.py` и модель не изменяет (см. `GAME_ENGINE_CHANGES.md`).
-* **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) на каждый push/PR
-  компилирует ядро/GUI/эксперименты и запускает `pytest`. Расхождения «доки ↔ код»
-  ловит `tests/test_docs_sync.py`.
+* **Канон 4-2-1 — `core41/`.** Кампанийный слой `campaign/` и активная
+  арена используют это ядро; `simulation.py` остаётся легаси-baseline и
+  не является активным игровым потоком. Модель меняется только в `core41/`
+  (или в `campaign/` для кампанийных правил), документация синхронна коду.
+* **`campaign/` — дневной мир**, `core41/` — арена и автоматы. Новые
+  механики кампании не должны переписывать аренные константы без
+  перекалибровки.
+* **Data-Driven контент — `configs/`.** Стратегии узлов, планы среды,
+  сюжетные арки, рынок труда и биография — JSON; код читает их через
+  загрузчики с явной ошибкой. Новое поведение сначала описывается
+  схемой/полем, затем кодом и тестом.
+* **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) на каждый
+  push/PR компилирует ядро/GUI/эксперименты и запускает `pytest`. Расхождения
+  «доки ↔ код» ловит `tests/test_docs_sync.py`.
 * **PR-чек-лист** ([`.github/pull_request_template.md`](.github/pull_request_template.md))
   фиксирует обязательные проверки (канон не изменился, синхронность констант,
   детерминизм, отражение в доках).
-* Слияние — через PR с прогоном CI; канонический результат (`run_batch(10)` =
-  RL 1 / UtilityAI 9 / без захвата 0) должен сохраняться либо изменение
-  обосновывается и вносится в `BASELINE.md`.
+* Слияние — через PR с прогоном CI; изменение канонического результата
+  (`run_batch(10)` = RL 1 / UtilityAI 9 / без захвата 0) обосновывается и
+  вносится в `BASELINE.md`.
 
 ## Код и документация
 
 * Публичные модули, классы и функции сопровождаются docstrings; комментарии
   допустимы там, где объясняют причину решения, а не пересказывают код.
-* Тематические документы (`MODEL.md`, `BASELINE.md`, `CONTENT.md`,
-  `CAMPAIGN_UI.md` и т.п.) описывают контракты, формулы и границы; исторический
-  справочник символов — [`docs/code/`](docs/code/README.md).
+* Тематические документы (`WORLD_CORE_MODEL.md`, `BASELINE.md`, `CONTENT.md`,
+  `CAMPAIGN_UI.md` и т.п.) описывают контракты, формулы и границы;
+  исторический справочник символов — [`docs/code/`](docs/code/README.md).
 * Форматирование — `black --line-length 79`; стиль — `pycodestyle` с
   настройками из `setup.cfg`. Исключения `E402`, `E203`, `W503` зафиксированы
   из-за bootstrap-импортов в экспериментах и совместимости с `black`.
+* Новые константы/пороги либо остаются константами с docstring, либо
+  читаются из конфига мира, если нужны калибровочные плечи. Не добавляйте
+  «магические числа» в горячие циклы.
+* Сохранения версионируются (`view/support/save_system.SAVE_VERSION`):
+  изменение формы снимка требует миграции и теста со старым файлом.
 
 ## Перед отправкой PR
 
 ```bash
 black --line-length 79 $(git ls-files '*.py')
-python3 -m pycodestyle $(git ls-files '*.py')
-python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view automata interaction organizations experiments tests
-pytest -q
+venv/bin/python -m pycodestyle $(git ls-files '*.py')
+venv/bin/python -m compileall -q core41 campaign agents view experiments tests
+venv/bin/python -m pytest -q
+git diff --check
 ```
 
 Полный чек-лист — в `.github/pull_request_template.md`.

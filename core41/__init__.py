@@ -56,6 +56,7 @@ from .environment import (
     ENV_WOUND_INTERVAL,
     ENV_WOUND_SEVERITY,
     ArenaEnvironment,
+    load_environment_plan,
 )
 from .model import (
     CONTAGION_CHANCE,
@@ -107,6 +108,7 @@ __all__ = [
     "ArenaAgent",
     "ArenaEnv",
     "ArenaEnvironment",
+    "load_environment_plan",
     "ArenaMatch",
     "Automaton",
     "BASE_TICK_SECONDS",

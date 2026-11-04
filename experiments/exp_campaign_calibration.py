@@ -34,8 +34,47 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.train import _play_campaign_episode, _warmup_baseline
 from campaign.env import CampaignEnv
+from campaign.world import load_world
 
 POLICIES = ("bdi", "qtable-campaign", "mlp")
+
+
+def _campaign_config(
+    days,
+    drift_scale=None,
+    deadline=None,
+    dismissal_standing=None,
+    dismissal_legitimacy=None,
+    collapse_grace=None,
+):
+    """Собрать конфиг мира для калибровочного плеча.
+
+    Параметры не меняют код игры: они лишь переопределяют конфиг на
+    время эксперимента. `--drift-scale 0` отключает эрозию, `1` — канон;
+    `--deadline` задаёт сюжетный дедлайн, не трогая `days` (горизонт
+    усечения).
+    """
+    config = load_world()
+    config["days"] = max(1, int(days))
+    if drift_scale is not None:
+        config["organizational_drift_scale"] = max(
+            0.0, float(drift_scale)
+        )
+    if deadline is not None:
+        storyline = dict(config.get("storyline") or {})
+        storyline["deadline_day"] = max(1, int(deadline))
+        config["storyline"] = storyline
+    if dismissal_standing is not None:
+        config["dismissal_standing"] = max(
+            0.0, min(1.0, float(dismissal_standing))
+        )
+    if dismissal_legitimacy is not None:
+        config["dismissal_legitimacy"] = max(
+            0.0, min(1.0, float(dismissal_legitimacy))
+        )
+    if collapse_grace is not None:
+        config["collapse_grace_days"] = max(1, int(collapse_grace))
+    return config
 
 
 def _median(values, default=0.0):
@@ -44,7 +83,13 @@ def _median(values, default=0.0):
 
 
 def _run_policy(
-    name, seeds, days, train_episodes, train_seed, career_actions=False
+    name,
+    seeds,
+    days,
+    train_episodes,
+    train_seed,
+    career_actions=False,
+    config=None,
 ):
     policy, trained = _warmup_baseline(
         name,
@@ -52,7 +97,7 @@ def _run_policy(
         episodes=train_episodes,
         max_steps=days,
         env_name="campaign",
-        env_kwargs=None,
+        env_kwargs={"config": config} if config is not None else None,
     )
     rows = []
     for seed in seeds:
@@ -60,6 +105,7 @@ def _run_policy(
             seed=seed,
             max_days=days,
             career_actions=career_actions,
+            config=config,
         )
         result = _play_campaign_episode(
             env, policy, seed=seed, learn=False, explore=False
@@ -242,6 +288,36 @@ def main(argv=None):
         action="store_true",
         help="разрешить политике seek_promotion/request_transfer/resign",
     )
+    parser.add_argument(
+        "--drift-scale",
+        type=float,
+        default=None,
+        help="множитель темпа организационного дрейфа (1.0 — канон)",
+    )
+    parser.add_argument(
+        "--deadline",
+        type=int,
+        default=None,
+        help="сюжетный дедлайн главы в днях (не путать с --days)",
+    )
+    parser.add_argument(
+        "--dismissal-standing",
+        type=float,
+        default=None,
+        help="порог репутации для смены роли (0..1)",
+    )
+    parser.add_argument(
+        "--dismissal-legitimacy",
+        type=float,
+        default=None,
+        help="порог легитимности структуры для смены роли",
+    )
+    parser.add_argument(
+        "--collapse-grace",
+        type=int,
+        default=None,
+        help="сколько дней подряд ниже порога до распада",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -251,6 +327,14 @@ def main(argv=None):
     unknown = [item for item in policies if item not in POLICIES]
     if unknown:
         parser.error("неизвестные политики: %s" % ", ".join(unknown))
+    config = _campaign_config(
+        args.days,
+        drift_scale=args.drift_scale,
+        deadline=args.deadline,
+        dismissal_standing=args.dismissal_standing,
+        dismissal_legitimacy=args.dismissal_legitimacy,
+        collapse_grace=args.collapse_grace,
+    )
     seeds = [args.eval_seed + index for index in range(max(1, args.seeds))]
     report = [
         _run_policy(
@@ -260,6 +344,7 @@ def main(argv=None):
             max(0, args.train_episodes),
             args.train_seed,
             career_actions=args.career_actions,
+            config=config,
         )
         for name in policies
     ]

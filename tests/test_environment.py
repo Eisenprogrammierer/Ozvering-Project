@@ -8,6 +8,7 @@ from core41 import (
     ArenaEnv,
     ArenaEnvironment,
     ArenaMatch,
+    load_environment_plan,
 )
 from core41.environment import (
     ENV_BONUS,
@@ -414,3 +415,54 @@ def test_arena_env_exposes_fog_switch():
         Action("REST", form="rest")
     )
     assert info["fog"] is False
+
+
+# --- A12: многофазная цель среды (Data-Driven план) --------------------
+
+
+def test_environment_plan_loads_and_exposes_phases():
+    plan = load_environment_plan("configs/environments/agora_seasons.json")
+    assert len(plan) == 4
+    assert plan[0]["label"] == "спокойствие"
+
+    env = ArenaEnvironment(seed=1, plan=plan)
+    state = env.public_state()
+    assert state["phase"] == "спокойствие"
+    assert state["phase_index"] == 0
+    assert state["phase_count"] == 4
+    assert state["phase_horizon"] == plan[0]["horizon"]
+
+
+def test_environment_plan_advances_phase_before_final_goal():
+    plan = [
+        {"label": "разминка", "ratio": 0.1, "horizon": 50},
+        {"label": "испытание", "ratio": 0.2, "horizon": 60},
+    ]
+    env = ArenaEnvironment(seed=1, force=160.0, plan=plan)
+    env.pressure = 100.0
+
+    event = env._tick_economy()
+
+    assert event is not None
+    assert event["event"] == "phase"
+    assert env.phase_index == 1
+    assert env.phase_label == "испытание"
+    assert env.goal_reached is False
+
+
+def test_environment_plan_round_trips_in_state():
+    plan = load_environment_plan("configs/environments/agora_seasons.json")
+    env = ArenaEnvironment(seed=3, plan=plan)
+    env.phase_index = 2
+    env.phase_start_tick = 77
+    env.goal_ratio = plan[2]["ratio"]
+    env.goal_horizon = plan[2]["horizon"]
+
+    restored = ArenaEnvironment(seed=0)
+    restored.load_state_dict(env.state_dict())
+
+    assert restored.plan == plan
+    assert restored.phase_index == 2
+    assert restored.phase_label == "испытание"
+    assert restored.phase_start_tick == 77
+    assert restored.goal_ratio == pytest.approx(plan[2]["ratio"])

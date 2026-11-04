@@ -1322,6 +1322,7 @@ class ArenaMatch:
         wound_rl=0.0,
         wound_ai=0.0,
         with_env=False,
+        env_plan=None,
         auto_learn=True,
         fog=True,
         reward_profile=REWARD_PROFILE_DEFAULT,
@@ -1387,7 +1388,7 @@ class ArenaMatch:
         # давление/передышку. При `with_env=False` его нет — прежняя
         # калибровка сохраняется.
         self.env = (
-            ArenaEnvironment(seed=self.seed ^ 0xE7E7)
+            ArenaEnvironment(seed=self.seed ^ 0xE7E7, plan=env_plan)
             if self.with_env
             else None
         )

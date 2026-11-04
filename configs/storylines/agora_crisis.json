@@ -1,0 +1,47 @@
+{
+  "storyline_id": "agora_crisis",
+  "title": "Агора: хрупкий порядок",
+  "description": "Городская арка о кризисе доверия: удержать структуру, пока улица, казна и церковь тянут в разные стороны. Победа — пережить главу, не потеряв должность и доверие.",
+  "scenario_path": "scenarios/mvp.json",
+  "world_path": "configs/worlds/agora_world.json",
+  "biography_path": "configs/worlds/biography.json",
+  "character_creation": "world_char",
+  "campaign_seed": 13,
+  "scenes": "agora_crisis_scenes",
+  "win_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_square",
+        "text": "Кризис не закончился, но город пережил его вместе с вами. Доверие не стало безоблачным — оно стало рабочим."
+      },
+      {
+        "image": "campaign/agora_charter",
+        "text": "Вы сохранили не власть, а возможность действовать. Это менее красиво, чем победа, и гораздо прочнее."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_empty",
+        "text": "Структура не выдержала. Люди разошлись по другим кабинетам, а ваша подпись осталась только в старых протоколах."
+      },
+      {
+        "image": "campaign/agora_archive",
+        "text": "Город запомнил не ваши обещания, а то, что случилось после них."
+      }
+    ]
+  }
+}

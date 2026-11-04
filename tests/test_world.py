@@ -183,8 +183,13 @@ def test_every_world_node_acts_on_autonomous_tick():
         assert result["ok"] is True
         assert engine.day == day + 1
         assert engine.actions_left == engine.actions_per_day
-        assert len(result["events"]) == len(engine.nodes)
-        assert len({event["source"] for event in result["events"]}) == len(
+        world_events = [
+            event
+            for event in result["events"]
+            if event.get("kind") == "world"
+        ]
+        assert len(world_events) == len(engine.nodes)
+        assert len({event["source"] for event in world_events}) == len(
             engine.nodes
         )
         assert all(event["day"] == day for event in result["events"])

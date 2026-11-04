@@ -1,0 +1,47 @@
+{
+  "storyline_id": "agora_reform",
+  "title": "Агора: тихая реформа",
+  "description": "Арка о долгой реформе: не выиграть день, а собрать коалицию и довести изменения через сопротивление структур. Победа — устойчивое доверие к концу срока.",
+  "scenario_path": "scenarios/mvp.json",
+  "world_path": "configs/worlds/agora_world.json",
+  "biography_path": "configs/worlds/biography.json",
+  "character_creation": "world_char",
+  "campaign_seed": 21,
+  "scenes": "agora_reform_scenes",
+  "win_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_charter",
+        "text": "Реформа не стала триумфом. Она стала расписанием, которое город согласился соблюдать."
+      },
+      {
+        "image": "campaign/agora_archive",
+        "text": "В архиве остались не лозунги, а инструкции, бюджеты и имена тех, кто взял на себя обязательства."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_empty",
+        "text": "Реформа утонула в согласованиях. Каждое ведомство сохранило своё право не меняться."
+      },
+      {
+        "image": "campaign/agora_square",
+        "text": "На площади снова говорят о том, что ничего не меняется. На этот раз — с вашим именем в примере."
+      }
+    ]
+  }
+}

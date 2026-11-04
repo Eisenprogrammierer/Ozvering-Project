@@ -356,8 +356,16 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 `career_actions=True` открывает их для калибровки карьерной политики;
 `CampaignEnv.state_dict()` сохраняет флаг вместе с `target_mode`.
 `office_options()` отдаёт `competition` — детерминированную очередь
-кандидатов; если лучший соперник сильнее игрока по навыку и репутации,
-карьерное действие недоступно и не тратит ресурсы (§2.3.4, №29).
+кандидатов; если лучший соперник сильнее игрока по навыку, репутации и
+связям, карьерное действие недоступно и не тратит ресурсы (§2.3.4, №29).
+Очередь обновляется блоками `labor_market.refresh_days`, ротируется между
+поколениями и уважает `structure_quota`/`quota`; публичное API —
+`vacancy_board()`. Стратегии узлов читаются из `strategies_path`
+(`campaign/node_strategy.py`), прогресс сохраняется в
+`node_strategy_state` и виден через `strategy_progress()`. Калибровка
+кампании получила `--drift-scale`, `--deadline`, `--dismissal-standing`,
+`--dismissal-legitimacy`, `--collapse-grace`; все они переопределяют
+конфиг мира только на время прогона.
 
 Влияние и связи — политическая проекция `E`, а не второй бюджет:
 `WorldEngine._apply_daily_income()` каждый день возвращает

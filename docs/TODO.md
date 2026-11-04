@@ -206,8 +206,20 @@
   сохраняется в снимке и защищает от двойного хода. Тесты —
   `tests/test_campaign_planner.py::test_tick_spreads_node_actions_across_day_and_end_day_finishes`,
   `::test_node_action_day_persists_in_snapshot`.
-- [ ] Осталось: долгосрочная стратегия узлов (цели на несколько дней), а не
-  выбор одного действия в сутки.
+- [x] **Долгосрочная стратегия узлов (2026-11-04).** `campaign/node_strategy.py`
+  читает стратегии из `strategies` мира или внешнего `strategies_path`
+  (пример — `configs/worlds/agora_strategies.json`). У стратегии есть
+  селекторы узлов/целей, `horizon_days`, цель по шкале, веса действий,
+  бонус к `_ai_score()`, завершение/просрочка и `repeat`. Прогресс
+  сохраняется в снимке (`node_strategy_state`), публичный срез —
+  `WorldEngine.strategy_progress()`. Тесты —
+  `tests/test_node_strategy.py`.
+- [x] **Рынок труда — расширение (2026-11-04).** Очередь обновляется
+  блоками `refresh_days`, состав ротируется между поколениями, действует
+  межструктурная квота (`structure_quota`) и квота вакансии по узлу/домену
+  (`quota`). Связи профиля дают вклад `connection` в оценку игрока.
+  Публичное API — `vacancy_board()`; `office_options()` сохраняет прежнюю
+  форму `competition`. Настройки — `world["labor_market"]`.
 
 ### Калибровка кампании — первый прогон (2026-10-29)
 
@@ -296,9 +308,22 @@
   baseline выбирает только из них; `END_DAY` остаётся легальным, если это
   единственный вариант. Аренные веса не меняются. Тесты —
   `tests/test_campaign_env.py::test_bdi_campaign_does_not_end_day_while_action_is_available`.
-- [ ] **Открыто:** тонкая калибровка темпа дрейфа, порогов и дедлайна
-  (включая насыщение `standing` у `bdi`), роль болезни и карьеры в
-  финалах, полный набор сюжетных арок.
+- [x] **Тонкая калибровка темпа дрейфа, порогов и дедлайна (2026-11-04).**
+  Темп дрейфа вынесен в `organizational_drift_scale`, пороги — в
+  `dismissal_standing`, `dismissal_legitimacy`, `collapse_legitimacy`,
+  `collapse_power`, `collapse_cohesion`, `decay_broke_wealth`. Скрипт
+  калибровки получил `--drift-scale`, `--deadline`,
+  `--dismissal-standing`, `--dismissal-legitimacy`, `--collapse-grace`.
+  N=20: канон `bdi 35/20/45`, `qtable 45/0/55`, `mlp 100/0/0`;
+  `--deadline 20` даёт `bdi 55/35/10`, `qtable 45/0/55`, `mlp 95/0/5`;
+  `--drift-scale 0.5` повышает `qtable` до `75/0/25`, не меняя `bdi`/`mlp`.
+  Смягчение порогов (`0.02/0.04`) снижает смены роли у `bdi` с 24 до 9,
+  но делает `qtable`/`mlp` тривиальными, поэтому канонические `0.05/0.08`
+  оставлены по умолчанию; плечи доступны для будущих решений.
+- [ ] **Осталось открытым:** автоматическая карьера политики (сейчас
+  карьерные действия — решение игрока/UI; `career_actions=True` только
+  открывает их для калибровки), переговоры с конкретным соперником на
+  рынке труда и полная экономика распада коалиций.
 
 ### Рост навыков кампании — первый срез (2026-10-29)
 
@@ -351,11 +376,21 @@
   `work.form`, `public_state()` отдаёт `defense`/`in_open`. Тесты —
   `tests/test_environment.py::test_environment_defense_resists_matching_work_channel`,
   `::test_environment_public_state_exposes_defense_and_in_open`.
-- [ ] **Открыто:** долгосрочные цели среды (планирование на несколько
-  сезонов). Устойчивые раны с отдельным состоянием и лечением закрыты
-  срезом A2 (`wound` в арене и кампании); событие среды `wound` остаётся
-  острым уроном, а не отдельным состоянием. Кампанийная передача болезни
-  закрыта отдельным срезом §2.3.4.
+- [x] **Долгосрочные цели среды (2026-11-04).** `ArenaEnvironment` принимает
+  `plan`/`plan_path`: список фаз с `ratio`, `horizon`, `label`. Достижение
+  промежуточной фазы не завершает дуэль, а переводит фон на новый горизонт;
+  финальная фаза даёт `goal_reached`, пропуск дедлайна — `collapse`.
+  `public_state()` отдаёт `phase/phase_index/phase_count/phase_horizon/
+  phase_progress`, состояние сохраняется в `state_dict()`. Пример —
+  `configs/environments/agora_seasons.json`; загрузчик —
+  `load_environment_plan()`; `ArenaMatch(env_plan=...)`. Тесты —
+  `tests/test_environment.py::test_environment_plan_*`.
+- [ ] **Открыто:** долгосрочные цели кампанийных узлов за пределами
+  аренного фона (сейчас стратегии узлов и план среды — отдельные слои);
+  устойчивые раны с отдельным состоянием и лечением закрыты срезом A2
+  (`wound` в арене и кампании); событие среды `wound` остаётся острым
+  уроном, а не отдельным состоянием. Кампанийная передача болезни закрыта
+  отдельным срезом §2.3.4.
 
 ---
 
@@ -587,12 +622,20 @@
   0.60·standing`. Если лучший соперник сильнее, карьерное действие
   недоступно и не списывает ресурсы. Тесты —
   `tests/test_world.py::test_campaign_labor_market_*`.
-- [ ] **Осталось открытым:** тонкая калибровка темпа дрейфа и дедлайна;
-  межструктурные квоты, приход/уход кандидатов между днями и влияние
-  связей на оценку вакансии; полный набор сюжетных финалов; долгосрочная
-  стратегия узлов (цели на несколько дней). Тесты —
-  `tests/test_world.py`, `tests/test_campaign_clock.py`,
-  `tests/test_campaign_env.py`, `tests/test_view_world.py`.
+- [x] **Сюжетные арки и миграция сейвов (2026-11-04).** Добавлены JSON-арки
+  `agora_crisis`, `agora_reform`, `agora_legacy` (общие правила и сцены
+  лежат рядом, `configs/storylines/*_scenes.json`). `SAVE_VERSION = 2` с
+  аддитивной миграцией `1 → 2`: старые снимки получают
+  `node_strategy_state`/`environment_plan`, будущая версия не ломает
+  загрузку. Тесты — `tests/test_story_arcs.py`,
+  `tests/test_save_system.py`.
+- [ ] **Осталось открытым:** автоматическая карьера политики, переговоры
+  с конкретным соперником на рынке труда, полная экономика распада
+  коалиций и дальнейшее расширение сюжетных арок (фреймворк и три арки
+  уже в репозитории). Тесты —
+  `tests/test_world.py`, `tests/test_node_strategy.py`,
+  `tests/test_campaign_clock.py`, `tests/test_campaign_env.py`,
+  `tests/test_view_world.py`.
 
 ---
 

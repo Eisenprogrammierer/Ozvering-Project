@@ -47,6 +47,8 @@
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
 | `configs/worlds/*.json` | миры кампании | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
+| `configs/worlds/*_strategies.json` | долгосрочные стратегии узлов | `campaign.node_strategy.StrategyBook` | новый файл или поле `strategies` | селекторы/цель/веса | файл |
+| `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
 | `configs/campaigns/*.json` | шаблоны пресетов | `campaign.preset.load_template()` | новый шаблон | фракции/сценарий | файл |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
@@ -98,6 +100,48 @@
   "nodes": [{"id": "hall", "domain": "court", "level": "low"}],
   "offices": [{"id": "clerk", "domain": "court", "levels": ["low"]}],
   "actions": [{"id": "inspect", "label": "Осмотреть"}]
+}
+```
+
+Дополнительные Data-Driven блоки мира:
+
+```json
+{
+  "strategies_path": "configs/worlds/agora_strategies.json",
+  "labor_market": {
+    "rivals": 2,
+    "refresh_days": 3,
+    "structure_quota": 1,
+    "quota": {"order": 3},
+    "weights": {"skill": 0.4, "standing": 0.6, "connection": 0.1}
+  }
+}
+```
+
+Стратегия узла (в файле `strategies` или внешнем `strategies_path`):
+
+```json
+{
+  "id": "order_consolidation",
+  "label": "Укрепить порядок",
+  "nodes": {"domains": ["order"]},
+  "target": {"kinds": ["institution"]},
+  "horizon_days": 8,
+  "goal": {"stat": "legitimacy", "target": 0.78},
+  "actions": {"reform": 0.9, "negotiate": 0.5},
+  "bonus": 0.25
+}
+```
+
+Селекторы: `ids`/`id`, `domains`, `levels`, `kinds`, `polities`, `tags`.
+План среды (`configs/environments/<name>.json`):
+
+```json
+{
+  "goals": [
+    {"label": "спокойствие", "ratio": 0.45, "horizon": 240},
+    {"label": "испытание", "ratio": 0.75, "horizon": 420}
+  ]
 }
 ```
 

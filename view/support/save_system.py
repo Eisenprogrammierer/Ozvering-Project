@@ -8,7 +8,75 @@ from .log_journal import get_logger
 logger = get_logger("view.save")
 ROOT = Path(__file__).resolve().parents[2]
 SAVES_DIR = ROOT / "saves" / "campaign"
-SAVE_VERSION = 1
+# Версия формата сохранения. Миграции аддитивны: старый снимок получает
+# недостающие ветки состояния, а неизвестные поля сохраняются как есть.
+SAVE_VERSION = 2
+
+
+def _migrate_v1_to_v2(data):
+    """Миграция 1 → 2: стратегии узлов и долгосрочные планы среды.
+
+    Оба поля необязательны и при отсутствии означают «поведение прежних
+    версий». Поэтому миграция не переписывает кампанию, а только создаёт
+    контейнеры, в которые `WorldEngine.load_snapshot()` и среда положат
+    состояние при следующем сохранении.
+    """
+    campaign = data.get("campaign")
+    if not isinstance(campaign, dict):
+        campaign = {}
+    campaign.setdefault("node_strategy_state", {})
+    campaign.setdefault("environment_plan", {})
+    data["campaign"] = campaign
+    return data
+
+
+def _ensure_containers(data):
+    """Гарантировать контейнеры текущей версии даже у свежего сейва."""
+    campaign = data.get("campaign")
+    if not isinstance(campaign, dict):
+        campaign = {}
+    campaign.setdefault("node_strategy_state", {})
+    campaign.setdefault("environment_plan", {})
+    data["campaign"] = campaign
+    return data
+
+
+MIGRATIONS = {
+    1: _migrate_v1_to_v2,
+}
+
+
+def migrate_save(data):
+    """Привести сохранение к текущей версии, не теряя старые поля.
+
+    Неизвестная будущая версия не ломает загрузку: снимок возвращается
+    как есть, а предупреждение попадает в лог. Это позволяет откатиться
+    на старую сборку без потери файла.
+    """
+    if not isinstance(data, dict):
+        return None
+    version = data.get("version")
+    try:
+        version = int(version) if version is not None else 1
+    except (TypeError, ValueError):
+        version = 1
+    if version > SAVE_VERSION:
+        logger.warning(
+            "Сохранение новее этой сборки: %s > %s",
+            version,
+            SAVE_VERSION,
+        )
+        return data
+    guarded = 0
+    while version < SAVE_VERSION and guarded < 16:
+        migrate = MIGRATIONS.get(version)
+        if migrate is None:
+            break
+        data = migrate(data)
+        version += 1
+        guarded += 1
+    data["version"] = SAVE_VERSION
+    return _ensure_containers(data)
 
 
 def _now():
@@ -64,6 +132,7 @@ def save_game(
         "campaign_role": _jsonable(campaign_role),
         "campaign_preset": _jsonable(campaign_preset),
     }
+    payload = _ensure_containers(payload)
     path = _path(slot_name)
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
@@ -83,7 +152,7 @@ def load_game(slot_name):
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        return data if isinstance(data, dict) else None
+        return migrate_save(data)
     except Exception as exc:
         logger.warning("Не удалось прочитать %s: %s", path, exc)
         return None

@@ -22,6 +22,7 @@ from .planner import (
     _as_slot,
     condition_holds,
 )
+from .node_strategy import StrategyBook
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
@@ -153,6 +154,16 @@ LABOR_MARKET_RIVAL_SPREAD = 0.20
 LABOR_MARKET_RANK_BONUS = 0.05
 LABOR_MARKET_SKILL_WEIGHT = 0.40
 LABOR_MARKET_STANDING_WEIGHT = 0.60
+# Срез A11: очередь обновляется блоками дней, а не каждый день. Внутри
+# блока UI и `execute()` видят одних и тех же кандидатов, между блоками
+# состав меняется — это даёт «приход/уход» без хранения отдельного списка.
+LABOR_MARKET_REFRESH_DAYS = 1
+# Межструктурная квота: сколько кандидатов из одной структуры может
+# одновременно претендовать на должность. 0 — без ограничения.
+LABOR_MARKET_STRUCTURE_QUOTA = 2
+# Связи профиля дают небольшой бонус: знакомство помогает попасть в
+# очередь, но не заменяет навык и репутацию.
+LABOR_MARKET_CONNECTION_WEIGHT = 0.10
 # Ежедневное восстановление легитимности: рутинное управление возвращает
 # доверие, если структура не ниже порога распада. Это противовес
 # дорогим действиям (`tax`, `martial_law` и т.п.), которые тратят
@@ -232,6 +243,55 @@ class WorldError(CampaignError):
 
 def _clamp(value, low=0.0, high=1.0):
     return max(float(low), min(float(high), float(value)))
+
+
+def _normalize_labor_market(raw):
+    """Data-Driven настройки рынка труда с обратной совместимостью.
+
+    Все ключи необязательны. Неизвестные поля сохраняются в словаре,
+    поэтому будущий контент может добавить новую механику, не ломая
+    текущий `WorldEngine`.
+    """
+    raw = dict(raw or {})
+    weights = dict(raw.get("weights") or {})
+    result = dict(raw)
+    result["rivals"] = max(
+        0, _as_int(raw.get("rivals"), LABOR_MARKET_RIVALS)
+    )
+    result["refresh_days"] = max(
+        1, _as_int(raw.get("refresh_days"), LABOR_MARKET_REFRESH_DAYS)
+    )
+    result["structure_quota"] = max(
+        0,
+        _as_int(
+            raw.get("structure_quota"),
+            LABOR_MARKET_STRUCTURE_QUOTA,
+        ),
+    )
+    result["rival_base"] = _as_float(
+        raw.get("rival_base"), LABOR_MARKET_RIVAL_BASE
+    )
+    result["rival_spread"] = _as_float(
+        raw.get("rival_spread"), LABOR_MARKET_RIVAL_SPREAD
+    )
+    result["rank_bonus"] = _as_float(
+        raw.get("rank_bonus"), LABOR_MARKET_RANK_BONUS
+    )
+    result["skill_weight"] = _as_float(
+        weights.get("skill"), LABOR_MARKET_SKILL_WEIGHT
+    )
+    result["standing_weight"] = _as_float(
+        weights.get("standing"), LABOR_MARKET_STANDING_WEIGHT
+    )
+    result["connection_weight"] = _as_float(
+        weights.get("connection"), LABOR_MARKET_CONNECTION_WEIGHT
+    )
+    result["weights"] = weights
+    result["quota"] = {
+        str(key): max(0, _as_int(value))
+        for key, value in (raw.get("quota") or {}).items()
+    }
+    return result
 
 
 def _as_float(value, default=0.0):
@@ -501,6 +561,17 @@ def validate_world(data):
                 days = _as_int(goal.get("days"), 1)
                 if days < 1:
                     raise WorldError("storyline.lose.days должен быть >= 1")
+    # A10: стратегии узлов — часть контента мира. Проверяем ссылки на
+    # действия и узлы до первого хода, чтобы ошибка JSON не всплывала в
+    # середине кампании.
+    try:
+        strategies = StrategyBook.from_config(data)
+        strategies.validate(
+            action_ids={item["id"] for item in data["actions"]},
+            node_ids={item["id"] for item in data["nodes"]},
+        )
+    except CampaignError as exc:
+        raise WorldError(str(exc))
     return data
 
 
@@ -701,8 +772,53 @@ class WorldEngine:
                 LEGITIMACY_RECOVERY,
             ),
         )
+        # Пороги карьеры и распада — часть контента мира, а не жёстко
+        # зашитые числа. Калибровка может менять их без правки кода.
+        self.dismissal_standing = _clamp(
+            _as_float(
+                self.config.get("dismissal_standing"),
+                DISMISSAL_STANDING,
+            )
+        )
+        self.dismissal_legitimacy = _clamp(
+            _as_float(
+                self.config.get("dismissal_legitimacy"),
+                DISMISSAL_LEGITIMACY,
+            )
+        )
+        self.collapse_min_power = _clamp(
+            _as_float(
+                self.config.get("collapse_power"), COLLAPSE_POWER
+            )
+        )
+        self.collapse_min_cohesion = _clamp(
+            _as_float(
+                self.config.get("collapse_cohesion"),
+                COLLAPSE_COHESION,
+            )
+        )
+        self.collapse_legitimacy = _clamp(
+            _as_float(
+                self.config.get("collapse_legitimacy"),
+                COLLAPSE_LEGITIMACY,
+            )
+        )
+        self.decay_broke_wealth = _clamp(
+            _as_float(
+                self.config.get("decay_broke_wealth"),
+                DECAY_BROKE_WEALTH,
+            )
+        )
         self.organizational_drift = bool(
             self.config.get("organizational_drift", True)
+        )
+        # Темп дрейфа — отдельный множитель, чтобы калибровка могла
+        # сравнивать сценарии без правки констант. 1.0 — канонический темп.
+        self.organizational_drift_scale = max(
+            0.0,
+            _as_float(
+                self.config.get("organizational_drift_scale"), 1.0
+            ),
         )
         # Оффлайн-догон (вопрос §7 №31): значения можно переопределить
         # конфигом мира, но по умолчанию фон ограничен.
@@ -746,6 +862,14 @@ class WorldEngine:
         }
         self.nodes = self._build_nodes()
         self.node_order = [item["id"] for item in self.config["nodes"]]
+        # Долгосрочные стратегии узлов (A10): контент из JSON мира или
+        # внешнего `strategies_path`. Состояние прогресса живёт отдельно и
+        # попадает в снимок; сам список стратегий не сериализуется.
+        self.strategies = StrategyBook.from_config(self.config)
+        self.strategy_state = {}
+        self.labor_market = _normalize_labor_market(
+            self.config.get("labor_market") or {}
+        )
         self.profile = normalize_profile(
             profile or self.config.get("default_profile") or {}
         )
@@ -1076,15 +1200,32 @@ class WorldEngine:
     def _vacancy_competition(self, node, office):
         """Очередь кандидатов на должность и шанс игрока в ней.
 
-        Кандидаты — живые персонажи того же домена; если их меньше
-        `LABOR_MARKET_RIVALS`, очередь добирается внешними претендентами.
-        Оценка детерминирована seed'ом, днём и id должности, поэтому UI и
-        `execute()` видят одинаковую картину. Игрок сравнивается с лучшим
-        кандидатом по навыку и репутации; при проигрыше вакансия считается
-        закрытой, и действие недоступно до следующего дня.
+        Очередь детерминирована seed'ом, блоком дней и id должности.
+        Кандидаты — живые персонажи того же домена; состав блока
+        перемешивается, поэтому между блоками кто-то приходит, а кто-то
+        уходит. Межструктурная квота не даёт одной структуре занять всю
+        очередь. При нехватке добавляются внешние претенденты.
+
+        Игрок сравнивается с лучшим кандидатом по навыку, репутации и
+        связям. При проигрыше вакансия считается закрытой, и карьерное
+        действие недоступно без списания ресурсов.
         """
+        settings = self.labor_market
         rank = _as_int(office.get("rank"), 99)
-        bonus = max(0, 5 - rank) * LABOR_MARKET_RANK_BONUS
+        bonus = max(0, 5 - rank) * settings["rank_bonus"]
+        refresh_days = max(1, _as_int(settings["refresh_days"], 1))
+        generation = self.day // refresh_days
+        rivals_count = max(0, _as_int(settings["rivals"], 0))
+        quota_by_key = settings.get("quota") or {}
+        quota = max(
+            0,
+            _as_int(
+                quota_by_key.get(node["id"])
+                or quota_by_key.get(node.get("domain"))
+                or rivals_count,
+                rivals_count,
+            ),
+        )
         pool = []
         for character in self.characters.values():
             if not character.get("alive"):
@@ -1097,37 +1238,62 @@ class WorldEngine:
                 continue
             roll = self._roll(
                 "labor:%s:%s:%s"
-                % (self.day, office["id"], character["id"])
+                % (generation, office["id"], character["id"])
             )
             pool.append(
                 {
                     "id": character["id"],
                     "name": character["name"],
+                    "node_id": character_node["id"],
+                    "structure": character_node["name"],
+                    "roll": roll,
                     "score": _clamp(
-                        LABOR_MARKET_RIVAL_BASE
-                        + LABOR_MARKET_RIVAL_SPREAD * roll
+                        settings["rival_base"]
+                        + settings["rival_spread"] * roll
                         + bonus
                     ),
                 }
             )
-        pool.sort(key=lambda item: (-item["score"], item["id"]))
-        rivals = pool[:LABOR_MARKET_RIVALS]
-        for index in range(len(rivals), LABOR_MARKET_RIVALS):
+        # Порядок по блоку дней задаёт ротацию состава, а не силу
+        # кандидата: очередь на вакансию может возглавить слабейший.
+        pool.sort(key=lambda item: (-item["roll"], item["id"]))
+        structure_quota = max(
+            0, _as_int(settings.get("structure_quota"), 0)
+        )
+        rivals = []
+        per_structure = {}
+        for candidate in pool:
+            key = candidate["node_id"]
+            if (
+                structure_quota
+                and per_structure.get(key, 0) >= structure_quota
+            ):
+                continue
+            per_structure[key] = per_structure.get(key, 0) + 1
+            rivals.append(candidate)
+            if len(rivals) >= rivals_count:
+                break
+        rivals.sort(key=lambda item: (-item["score"], item["id"]))
+        for index in range(len(rivals), rivals_count):
             roll = self._roll(
                 "labor:%s:%s:external:%s"
-                % (self.day, office["id"], index)
+                % (generation, office["id"], index)
             )
             rivals.append(
                 {
                     "id": "external:%s" % index,
                     "name": "Внешний претендент",
+                    "node_id": "",
+                    "structure": "внешняя",
+                    "roll": roll,
                     "score": _clamp(
-                        LABOR_MARKET_RIVAL_BASE
-                        + LABOR_MARKET_RIVAL_SPREAD * roll
+                        settings["rival_base"]
+                        + settings["rival_spread"] * roll
                         + bonus
                     ),
                 }
             )
+        rivals.sort(key=lambda item: (-item["score"], item["id"]))
         skill_key = _text(office.get("skill"))
         if skill_key:
             skill = _profile_skill(self.profile, skill_key)
@@ -1137,9 +1303,16 @@ class WorldEngine:
                 _profile_skill(self.profile, key) for key in domain_skills
             ) / max(1, len(domain_skills))
         standing = _as_float(self.player_resources.get("standing"), 0.0)
+        connection = _profile_connection_strength(
+            self.profile,
+            office.get("connection_kinds")
+            or node.get("tags")
+            or (node.get("domain"),),
+        )
         player_score = _clamp(
-            LABOR_MARKET_SKILL_WEIGHT * skill
-            + LABOR_MARKET_STANDING_WEIGHT * standing
+            settings["skill_weight"] * skill
+            + settings["standing_weight"] * standing
+            + settings["connection_weight"] * connection
         )
         best_rival = max(
             (item["score"] for item in rivals),
@@ -1148,11 +1321,55 @@ class WorldEngine:
         return {
             "office_id": office["id"],
             "rank": rank,
-            "rivals": rivals,
+            "generation": generation,
+            "refresh_days": refresh_days,
+            "refresh_in": refresh_days - (self.day % refresh_days),
+            "rivals": [
+                {
+                    "id": item["id"],
+                    "name": item["name"],
+                    "node_id": item["node_id"],
+                    "structure": item["structure"],
+                    "score": item["score"],
+                }
+                for item in rivals
+            ],
             "player_score": player_score,
+            "player_skill": _clamp(skill),
+            "player_standing": _clamp(standing),
+            "player_connection": _clamp(connection),
             "best_rival": best_rival,
             "available": player_score + 1e-9 >= best_rival,
         }
+
+    def vacancy_board(self, node_id=None):
+        """Публичная доска вакансий: все должности или один узел.
+
+        API нужен UI и калибровке, чтобы показать не только флаг
+        доступности, но и очередь, силу игрока и момент обновления.
+        Форма записи стабильна и не зависит от внутренних ключей оценки.
+        """
+        nodes = [self.node(node_id)] if node_id else list(
+            self.sorted_nodes()
+        )
+        board = []
+        for node in nodes:
+            if node is None:
+                continue
+            for option in self.office_options(node["id"]):
+                board.append(
+                    {
+                        "node_id": node["id"],
+                        "node_name": node["name"],
+                        "office_id": option["id"],
+                        "label": option["label"],
+                        "rank": option["rank"],
+                        "enabled": option["enabled"],
+                        "reason": option["reason"],
+                        "competition": option["competition"],
+                    }
+                )
+        return board
 
     def office_options(self, node_id):
         node = self.node(node_id)
@@ -2362,8 +2579,8 @@ class WorldEngine:
         if self.legitimacy_recovery <= 0.0:
             return []
         if (
-            float(stats["power"]) <= COLLAPSE_POWER
-            or float(stats["cohesion"]) <= COLLAPSE_COHESION
+            float(stats["power"]) <= self.collapse_min_power
+            or float(stats["cohesion"]) <= self.collapse_min_cohesion
         ):
             return []
         before = float(stats["legitimacy"])
@@ -2400,24 +2617,28 @@ class WorldEngine:
         power = float(stats["power"])
         d_cohesion = 0.0
         d_power = 0.0
-        if legitimacy <= COLLAPSE_LEGITIMACY:
+        if legitimacy <= self.collapse_legitimacy:
             d_cohesion -= DECAY_CRISIS_COHESION
             d_power -= DECAY_CRISIS_POWER
-        elif legitimacy <= DISMISSAL_LEGITIMACY:
+        elif legitimacy <= self.dismissal_legitimacy:
             d_cohesion -= DECAY_STRAIN_COHESION
             d_power -= DECAY_STRAIN_POWER
-        if wealth <= DECAY_BROKE_WEALTH:
+        if wealth <= self.decay_broke_wealth:
             d_cohesion -= DECAY_BROKE_COHESION
         if (
             legitimacy >= DECAY_RECOVERY_LEGITIMACY
-            and wealth > DECAY_BROKE_WEALTH
-            and power > COLLAPSE_POWER
-            and cohesion > COLLAPSE_COHESION
+            and wealth > self.decay_broke_wealth
+            and power > self.collapse_min_power
+            and cohesion > self.collapse_min_cohesion
         ):
             d_cohesion += DECAY_RECOVERY_COHESION
             d_power += DECAY_RECOVERY_POWER
         changed = []
-        for key, delta in (("cohesion", d_cohesion), ("power", d_power)):
+        scale = self.organizational_drift_scale
+        for key, delta in (
+            ("cohesion", d_cohesion * scale),
+            ("power", d_power * scale),
+        ):
             if abs(delta) <= 1e-9:
                 continue
             before = float(stats[key])
@@ -3068,6 +3289,120 @@ class WorldEngine:
                 result.append(node)
         return result
 
+    def _ensure_strategy_state(self, node, strategy):
+        """Лениво создать/перезапустить состояние стратегии узла."""
+        per_node = self.strategy_state.setdefault(node["id"], {})
+        state = per_node.get(strategy.id)
+        if state is not None and (
+            state.get("completed") or state.get("expired")
+        ):
+            resolved = _as_int(state.get("resolved_day"), self.day)
+            if (
+                strategy.repeat
+                and self.day - resolved >= strategy.cooldown_days
+            ):
+                state = strategy.new_state(node, self.day)
+                per_node[strategy.id] = state
+        if state is None:
+            state = strategy.new_state(node, self.day)
+            per_node[strategy.id] = state
+        return state
+
+    def _strategy_bonus(self, action, context, target):
+        """Бонус долгосрочной стратегии к выбору действия узла."""
+        node = context.get("node")
+        if node is None or not len(self.strategies):
+            return 0.0
+        total = 0.0
+        for strategy in self.strategies.for_node(node):
+            if not strategy.matches_target(target):
+                continue
+            state = self._ensure_strategy_state(node, strategy)
+            total += strategy.score_bonus(
+                action["id"], node, state, self.day
+            )
+        return total
+
+    def _advance_strategies(self):
+        """Оценить прогресс стратегий на границе дня.
+
+        Завершённая/просроченная стратегия применяет свои эффекты один раз
+        и попадает в журнал. `repeat`-стратегии перезапускаются после
+        `cooldown_days`, поэтому долгосрочная цель может быть циклом, а не
+        одноразовым событием.
+        """
+        events = []
+        for node_id, per_node in list(self.strategy_state.items()):
+            node = self.nodes.get(node_id)
+            if node is None:
+                continue
+            for strategy_id, state in list(per_node.items()):
+                strategy = self.strategies.get(strategy_id)
+                if strategy is None:
+                    continue
+                event = strategy.advance(node, state, self.day)
+                if event is None:
+                    continue
+                changed = self._apply_stat_map(node, event.get("stats"))
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "strategy",
+                        "source": node_id,
+                        "text": "%s: %s"
+                        % (node["name"], event["text"]),
+                    }
+                )
+                entry = dict(event)
+                entry["kind"] = "strategy"
+                entry["day"] = self.day
+                entry["node_id"] = node_id
+                entry["node_name"] = node["name"]
+                entry["changes"] = changed
+                events.append(entry)
+                if strategy.repeat and strategy.cooldown_days <= 0:
+                    per_node[strategy_id] = strategy.new_state(
+                        node, self.day
+                    )
+        return events
+
+    def strategy_progress(self):
+        """Публичный срез долгосрочных целей узлов для UI и калибровки."""
+        result = []
+        for node_id, per_node in self.strategy_state.items():
+            node = self.nodes.get(node_id)
+            if node is None:
+                continue
+            for strategy_id, state in per_node.items():
+                strategy = self.strategies.get(strategy_id)
+                if strategy is None:
+                    continue
+                start = _as_int(state.get("start_day"), self.day)
+                result.append(
+                    {
+                        "node_id": node_id,
+                        "node_name": node["name"],
+                        "strategy_id": strategy_id,
+                        "label": strategy.label,
+                        "progress": strategy.progress(node, state),
+                        "days_left": max(
+                            0, strategy.horizon_days - (self.day - start)
+                        ),
+                        "completed": bool(state.get("completed")),
+                        "expired": bool(state.get("expired")),
+                        "goal": dict(strategy.goal),
+                    }
+                )
+        result.sort(
+            key=lambda item: (
+                item["completed"],
+                item["expired"],
+                item["node_id"],
+                item["strategy_id"],
+            )
+        )
+        return result
+
     def _ai_base(self, action, context):
         """Часть оценки действия, не зависящая от цели.
 
@@ -3111,6 +3446,10 @@ class WorldEngine:
             target["id"] if target else "-",
         )
         score += 0.20 * self._roll(token)
+        # A10: стратегия с горизонтом добавляет бонус к действиям своей
+        # цели. Он убывает по мере прогресса и не отменяет сиюминутные
+        # интересы узла — только смещает выбор в их рамках.
+        score += self._strategy_bonus(action, context, target)
         return score
 
     def _ai_action(self, node_id):
@@ -3213,15 +3552,18 @@ class WorldEngine:
         cohesion = float(stats["cohesion"])
         legitimacy = float(stats["legitimacy"])
         strain = (
-            power <= COLLAPSE_POWER or cohesion <= COLLAPSE_COHESION
+            power <= self.collapse_min_power
+            or cohesion <= self.collapse_min_cohesion
         )
         power_gap = max(
             0.0,
-            (COLLAPSE_POWER - power) / max(COLLAPSE_POWER, 1e-9),
+            (self.collapse_min_power - power)
+            / max(self.collapse_min_power, 1e-9),
         )
         cohesion_gap = max(
             0.0,
-            (COLLAPSE_COHESION - cohesion) / max(COLLAPSE_COHESION, 1e-9),
+            (self.collapse_min_cohesion - cohesion)
+            / max(self.collapse_min_cohesion, 1e-9),
         )
         return {
             "node_id": node["id"],
@@ -3230,7 +3572,7 @@ class WorldEngine:
             "legitimacy": legitimacy,
             "strain": bool(strain),
             "deep_risk": bool(
-                legitimacy <= COLLAPSE_LEGITIMACY and strain
+                legitimacy <= self.collapse_legitimacy and strain
             ),
             "pressure": max(power_gap, cohesion_gap),
             "collapse_days": int(self.collapse_days),
@@ -3364,7 +3706,8 @@ class WorldEngine:
         power = float(node["stats"]["power"])
         cohesion = float(node["stats"]["cohesion"])
         strain = (
-            power <= COLLAPSE_POWER or cohesion <= COLLAPSE_COHESION
+            power <= self.collapse_min_power
+            or cohesion <= self.collapse_min_cohesion
         )
         total_collapse = power <= 0.0 and cohesion <= 0.0
         if total_collapse:
@@ -3423,10 +3766,10 @@ class WorldEngine:
             < self.role_change_cooldown_days
         ):
             return
-        if self.player_resources["standing"] <= DISMISSAL_STANDING:
+        if self.player_resources["standing"] <= self.dismissal_standing:
             self._dismissal_day = self.day
             self._dismiss("потеря опоры и репутации")
-        elif node["stats"]["legitimacy"] <= DISMISSAL_LEGITIMACY:
+        elif node["stats"]["legitimacy"] <= self.dismissal_legitimacy:
             self._dismissal_day = self.day
             self._dismiss("структура потеряла легитимность")
 
@@ -3984,6 +4327,7 @@ class WorldEngine:
             changed.extend(self._apply_player_map(daily.get("player")))
         changed.extend(self._apply_legitimacy_recovery())
         changed.extend(self._apply_organizational_drift())
+        events.extend(self._advance_strategies())
         changed.extend(self._apply_daily_income())
         changed.extend(self._advance_conditions())
         self.day += 1
@@ -4151,6 +4495,13 @@ class WorldEngine:
             "storyline_days": int(self.storyline_days),
             "intents": self.intents.to_list(),
             "node_action_day": dict(self.node_action_day),
+            "node_strategy_state": {
+                node_id: {
+                    strategy_id: dict(state)
+                    for strategy_id, state in per_node.items()
+                }
+                for node_id, per_node in self.strategy_state.items()
+            },
         }
 
     def load_snapshot(self, snapshot):
@@ -4293,6 +4644,37 @@ class WorldEngine:
                 snapshot.get("node_action_day") or {}
             ).items()
         }
+        # A10: прогресс стратегий узлов. Старые снимки без ветки получают
+        # пустое состояние — стратегии просто начнутся с текущего дня.
+        self.strategy_state = {}
+        for node_id, per_node in (
+            snapshot.get("node_strategy_state") or {}
+        ).items():
+            if node_id not in self.nodes or not isinstance(per_node, dict):
+                continue
+            kept = {}
+            for strategy_id, state in per_node.items():
+                if self.strategies.get(strategy_id) is None:
+                    continue
+                if not isinstance(state, dict):
+                    continue
+                kept[strategy_id] = {
+                    "start_day": _as_int(state.get("start_day"), self.day),
+                    "start_value": _as_float(
+                        state.get("start_value"), 0.0
+                    ),
+                    "completed": bool(state.get("completed")),
+                    "expired": bool(state.get("expired")),
+                    "resolved_day": _as_int(
+                        state.get("resolved_day"), 0
+                    ),
+                    "actions": {
+                        str(key): _as_int(value, 0)
+                        for key, value in (state.get("actions") or {}).items()
+                    },
+                }
+            if kept:
+                self.strategy_state[node_id] = kept
         self.attached = bool(
             snapshot.get("attached")
             or (self.player_node_id and self.player_office_id)
