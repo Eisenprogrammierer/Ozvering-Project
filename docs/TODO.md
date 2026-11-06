@@ -36,6 +36,37 @@
 
 ---
 
+## Семантика ядра и отношения — первый срез (2026-11-06)
+
+- [x] **Единицы и потери `E/F`.** `E` — пункты оплаты работы `[0,
+  max_energy]`, `E=0` — истощение; `F` — одновременно целостность и
+  пропускная способность (`F · duration · FORCE_WORK_RATIO`). Конверсия
+  работы учитывается аддитивно: `loss + entropy + stored = amount`
+  (`conversion_report`, `FORM_CONVERSION_EFFICIENCY`,
+  `ENERGY_STORAGE_SHARE`). Числовые значения прежней калибровки не
+  изменились. Обработчики — детерминированные функции, заменяются явно
+  через `Automaton.set_handler()`. Тесты —
+  `tests/test_core41.py::test_conversion_report_conserves_work_and_marks_entropy`,
+  `::test_automaton_energy_is_capped_and_reports_conversion_loss`,
+  `::test_handler_can_be_replaced_at_runtime_but_must_be_callable`;
+  раздел — `WORLD_CORE_MODEL.md` §2.6.
+- [x] **Асимметричные отношения.** Оси `affinity/trust/fear/respect`
+  хранятся для каждого направления: `node["relations"]` остаётся
+  проекцией `affinity`, полные оси — в `relation_axes`; у персонажа
+  `affinity/trust/fear/respect` — чувства к игроку, а `player_relations` —
+  отношение игрока. `_shift_relation()` по умолчанию даёт обратному
+  направлению `RELATION_BACK_SHARE = 0.5` эффекта; контент может задать
+  `relation_back`/`relation_axes*`. Оси и `player_relations` входят в
+  снимок; карточка персонажа показывает `страх/уважение`. Тесты —
+  `tests/test_world.py::test_relations_are_asymmetric_and_keep_legacy_projection`,
+  `::test_character_relations_store_two_directions_and_axes`,
+  `::test_relation_axes_and_player_view_survive_snapshot_roundtrip`;
+  раздел — `WORLD_CORE_MODEL.md` §2.2.
+- [ ] **Осталось открытым:** агрегация `F/E/S` составных автоматов и
+  распределение работы между детьми (§7.1 №7–8), типизированные
+  `payload`, `obligation` и влияние осей отношений на вход/обработчик/
+  выход (§7.6 №36–38), визуализация асимметрии узлов в UI.
+
 ## Три ограничения среды обучения — закрыто (2026-10-29)
 
 Закрыты три известных разрыва между активным runtime и обучением. Изменения
@@ -320,10 +351,18 @@
   Смягчение порогов (`0.02/0.04`) снижает смены роли у `bdi` с 24 до 9,
   но делает `qtable`/`mlp` тривиальными, поэтому канонические `0.05/0.08`
   оставлены по умолчанию; плечи доступны для будущих решений.
+- [x] **Переговоры с соперником — первый срез (2026-11-06).**
+  `labor_negotiation_offer()` и `negotiate_rival()`: стоимость в
+  влиянии/связях плюс одно действие дня, шанс от разницы оценок и
+  отношения, успех снимает кандидатуру до следующего поколения очереди,
+  провал ухудшает отношение. Состояние входит в снимок
+  (`labor_negotiations`). Тесты —
+  `tests/test_world.py::test_labor_negotiation_offer_reports_cost_and_chance`,
+  `::test_negotiate_rival_spends_action_and_withdraws_on_success`,
+  `::test_negotiate_rival_failure_keeps_candidate_and_worsens_relation`.
 - [ ] **Осталось открытым:** автоматическая карьера политики (сейчас
   карьерные действия — решение игрока/UI; `career_actions=True` только
-  открывает их для калибровки), переговоры с конкретным соперником на
-  рынке труда и полная экономика распада коалиций.
+  открывает их для калибровки) и полная экономика распада коалиций.
 
 ### Рост навыков кампании — первый срез (2026-10-29)
 
@@ -629,10 +668,14 @@
   `node_strategy_state`/`environment_plan`, будущая версия не ломает
   загрузку. Тесты — `tests/test_story_arcs.py`,
   `tests/test_save_system.py`.
-- [ ] **Осталось открытым:** автоматическая карьера политики, переговоры
-  с конкретным соперником на рынке труда, полная экономика распада
-  коалиций и дальнейшее расширение сюжетных арок (фреймворк и три арки
-  уже в репозитории). Тесты —
+- [x] **Переговоры с соперником (2026-11-06).** `labor_negotiation_offer()`/
+  `negotiate_rival()` стоят одно действие дня и политические ресурсы,
+  снимают кандидатуру до следующего поколения очереди при успехе и
+  ухудшают отношение при провале; состояние входит в снимок. Тесты —
+  `tests/test_world.py::test_labor_negotiation_*`.
+- [ ] **Осталось открытым:** автоматическая карьера политики, полная
+  экономика распада коалиций и дальнейшее расширение сюжетных арок
+  (фреймворк и три арки уже в репозитории). Тесты —
   `tests/test_world.py`, `tests/test_node_strategy.py`,
   `tests/test_campaign_clock.py`, `tests/test_campaign_env.py`,
   `tests/test_view_world.py`.

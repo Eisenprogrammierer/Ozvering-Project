@@ -17,6 +17,8 @@ from campaign.world import (
     COLLAPSE_GRACE_DAYS,
     DOMAIN_SKILLS,
     LABOR_MARKET_RIVALS,
+    LABOR_NEGOTIATION_FAVOR,
+    LABOR_NEGOTIATION_INFLUENCE,
     WorldEngine,
     WorldError,
     build_player_profile,
@@ -614,6 +616,251 @@ def test_characters_have_circles_actions_and_qualitative_preview():
     assert engine.actions_left == before_actions - 1
     assert engine.character_relation("mira_svet") != before_affinity
     assert engine.last_result == result
+
+
+def test_relations_are_asymmetric_and_keep_legacy_projection():
+    engine = _engine()
+    target = engine.organization_groups()["neutral"][0]
+    source = engine.node(engine.player_node_id)
+    target_node = engine.node(target["id"])
+    before_forward = engine.relation(source["id"], target_node["id"])
+    before_backward = engine.relation(target_node["id"], source["id"])
+
+    engine._apply_effects(
+        {"relation": 0.2},
+        {"node": source},
+        target_node,
+    )
+
+    forward = engine.relation(source["id"], target_node["id"])
+    backward = engine.relation(target_node["id"], source["id"])
+    assert forward == pytest.approx(before_forward + 0.2)
+    assert backward == pytest.approx(before_backward + 0.1)
+    assert forward != backward
+    assert engine.relation_axes(source["id"], target_node["id"])[
+        "affinity"
+    ] == pytest.approx(forward)
+    assert engine.relation_axes(target_node["id"], source["id"])[
+        "affinity"
+    ] == pytest.approx(backward)
+
+
+def test_character_relations_store_two_directions_and_axes():
+    engine = _engine()
+    character = engine.character("mira_svet")
+    before = engine.character_relations("mira_svet")
+
+    engine._apply_character_effects(
+        {
+            "affinity": 0.1,
+            "trust": 0.05,
+            "fear": 0.2,
+            "respect": 0.15,
+            "player_affinity": -0.1,
+            "player_fear": 0.05,
+        },
+        character,
+    )
+
+    after = engine.character_relations("mira_svet")
+    assert after["character_to_player"]["affinity"] == pytest.approx(
+        before["character_to_player"]["affinity"] + 0.1
+    )
+    assert after["character_to_player"]["fear"] == pytest.approx(0.2)
+    assert after["character_to_player"]["respect"] == pytest.approx(0.15)
+    assert after["player_to_character"]["affinity"] == pytest.approx(-0.1)
+    assert after["player_to_character"]["fear"] == pytest.approx(0.05)
+    assert engine.player_relation("mira_svet", "affinity") == pytest.approx(
+        -0.1
+    )
+
+
+def test_relation_axes_and_player_view_survive_snapshot_roundtrip():
+    engine = _engine()
+    target = engine.organization_groups()["neutral"][0]
+    source = engine.node(engine.player_node_id)
+    target_node = engine.node(target["id"])
+    engine.set_relation_axes(
+        source["id"],
+        target_node["id"],
+        {"affinity": 0.3, "trust": 0.2, "fear": 0.4, "respect": 0.1},
+    )
+    engine._apply_character_effects(
+        {"player_affinity": -0.2, "player_respect": 0.3},
+        engine.character("mira_svet"),
+    )
+
+    snapshot = json.loads(json.dumps(engine.to_dict()))
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+    assert restored.relation_axes(source["id"], target_node["id"]) == (
+        pytest.approx(
+            {
+                "affinity": 0.3,
+                "trust": 0.2,
+                "fear": 0.4,
+                "respect": 0.1,
+            }
+        )
+    )
+    assert restored.player_relation(
+        "mira_svet", "affinity"
+    ) == pytest.approx(-0.2)
+    assert restored.player_relation(
+        "mira_svet", "respect"
+    ) == pytest.approx(0.3)
+
+
+def test_labor_negotiation_offer_reports_cost_and_chance():
+    engine = _engine(office_id="state_advisor")
+    option = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    rival = option["competition"]["rivals"][0]
+    offer = engine.labor_negotiation_offer("state_advisor", rival["id"])
+    assert offer["available"] is True
+    assert offer["rival"]["id"] == rival["id"]
+    assert 0.05 <= offer["chance"] <= 0.95
+    assert offer["cost"] == {
+        "influence": LABOR_NEGOTIATION_INFLUENCE,
+        "favor": LABOR_NEGOTIATION_FAVOR,
+    }
+
+
+def test_negotiate_rival_spends_action_and_withdraws_on_success(monkeypatch):
+    engine = _engine(office_id="state_advisor")
+    option = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    rival = option["competition"]["rivals"][0]
+    original_roll = engine._roll
+    monkeypatch.setattr(
+        engine,
+        "_roll",
+        lambda token: (
+            0.0 if token.startswith("negotiation:") else original_roll(token)
+        ),
+    )
+    actions_before = engine.actions_left
+    influence_before = engine.player_resources["influence"]
+    favor_before = engine.player_resources["favor"]
+    affected = engine.character(rival["id"])
+    affinity_before = engine.character_relation(rival["id"])
+
+    result = engine.negotiate_rival("state_advisor", rival["id"])
+
+    assert result["ok"] is True
+    assert result["outcome"] == "success"
+    assert engine.actions_left == actions_before - 1
+    assert engine.player_resources["influence"] == pytest.approx(
+        influence_before - LABOR_NEGOTIATION_INFLUENCE
+    )
+    assert engine.player_resources["favor"] == pytest.approx(
+        favor_before - LABOR_NEGOTIATION_FAVOR
+    )
+    assert engine.log[-1]["kind"] == "negotiation"
+    if affected is not None:
+        assert engine.character_relation(rival["id"]) > affinity_before
+
+    updated = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    assert rival["id"] not in [
+        item["id"] for item in updated["competition"]["rivals"]
+    ]
+
+    snapshot = json.loads(json.dumps(engine.to_dict()))
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+    restored_option = next(
+        item
+        for item in restored.office_options(restored.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    assert rival["id"] not in [
+        item["id"] for item in restored_option["competition"]["rivals"]
+    ]
+
+
+def test_negotiate_rival_failure_keeps_candidate_and_worsens_relation(monkeypatch):
+    engine = _engine(office_id="state_advisor")
+    option = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    rival = option["competition"]["rivals"][0]
+    original_roll = engine._roll
+    monkeypatch.setattr(
+        engine,
+        "_roll",
+        lambda token: (
+            0.99 if token.startswith("negotiation:") else original_roll(token)
+        ),
+    )
+    affected = engine.character(rival["id"])
+    affinity_before = engine.character_relation(rival["id"])
+
+    result = engine.negotiate_rival("state_advisor", rival["id"])
+
+    assert result["ok"] is True
+    assert result["outcome"] == "failure"
+    if affected is not None:
+        assert engine.character_relation(rival["id"]) < affinity_before
+    updated = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    assert rival["id"] in [
+        item["id"] for item in updated["competition"]["rivals"]
+    ]
+
+
+def test_labor_negotiation_rejects_external_rival_and_empty_actions():
+    engine = _engine(office_id="state_advisor")
+    engine.actions_left = 0
+    option = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    rival = option["competition"]["rivals"][0]
+    offer = engine.labor_negotiation_offer("state_advisor", rival["id"])
+    assert offer["available"] is False
+    assert "действий" in offer["reason"]
+
+    engine.actions_left = engine.actions_per_day
+    external = None
+    external_office = None
+    for option in engine.office_options(engine.player_node_id):
+        candidate = next(
+            (
+                item
+                for item in option["competition"]["rivals"]
+                if item["id"].startswith("external:")
+            ),
+            None,
+        )
+        if candidate is not None:
+            external = candidate
+            external_office = option["id"]
+            break
+    if external is not None:
+        offer = engine.labor_negotiation_offer(
+            external_office, external["id"]
+        )
+        assert offer["available"] is False
+        assert "внешний" in offer["reason"].lower()
+    else:
+        offer = engine.labor_negotiation_offer(
+            "state_advisor", "external:missing"
+        )
+        assert offer["available"] is False
 
 
 def test_character_actions_and_items_survive_snapshot_roundtrip():

@@ -1233,9 +1233,14 @@ class WorldScreen(BaseScreen):
             )
         affinity = float(character.get("affinity", 0.0))
         trust = float(character.get("trust", 0.0))
-        for index, (label, value) in enumerate(
-            (("расположение", affinity), ("доверие", trust))
-        ):
+        stat_rows = [("расположение", affinity), ("доверие", trust)]
+        fear = float(character.get("fear", 0.0))
+        respect = float(character.get("respect", 0.0))
+        if abs(fear) > 1e-9:
+            stat_rows.append(("страх", fear))
+        if abs(respect) > 1e-9:
+            stat_rows.append(("уважение", respect))
+        for index, (label, value) in enumerate(stat_rows):
             y = MID_RECT.y + 136 + index * 18
             screen.blit(
                 self.app.font_tiny.render(label, True, DIM),
@@ -1253,7 +1258,7 @@ class WorldScreen(BaseScreen):
                 ),
                 (x + 220, y),
             )
-        action_top = MID_RECT.y + 182
+        action_top = MID_RECT.y + 136 + len(stat_rows) * 18 + 10
         screen.blit(
             self.app.font_tiny.render(
                 "РАЗГОВОР · доступные и закрытые", True, WARN

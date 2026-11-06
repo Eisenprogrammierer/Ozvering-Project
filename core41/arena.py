@@ -7,10 +7,12 @@ from .environment import ArenaEnvironment
 from .intel import Intel
 from .model import (
     DEFAULT_HEALTH_FACTORS,
+    FORCE_FEEDBACK_SHARE,
     HEALTH_FACTOR_MAX,
     HEALTH_MAX,
     OPEN_PRESSURE,
     PRESSURE_PER_WORK,
+    RECEIVE_ENERGY_SHARE,
     REST_FORCE,
     REST_REGEN,
     SICKNESS_TREAT_RATE,
@@ -20,6 +22,7 @@ from .model import (
     WOUND_TREAT_RATE,
     INTEL_DAMAGE_BONUS,
     Automaton,
+    conversion_report,
     success_probability,
     transmit_sickness,
 )
@@ -1228,13 +1231,17 @@ class ArenaAgent:
         if source is None:
             return target.default_receive(work)
         if not target.can_receive(form):
-            return {
-                "accepted": False,
-                "success": False,
-                "energy": 0.0,
-                "force": 0.0,
-                "pressure": 0.0,
-            }
+            report = conversion_report(work.amount, form, 0.0, 0.0)
+            report.update(
+                {
+                    "accepted": False,
+                    "success": False,
+                    "energy": 0.0,
+                    "force": 0.0,
+                    "pressure": 0.0,
+                }
+            )
+            return report
         was_open = target.is_open()
         # A1: открытое окно среды аддитивно усиливает успех работы обеих
         # сторон (канонный ENV_BONUS). Вне арены с активным env-актором
@@ -1247,9 +1254,7 @@ class ArenaAgent:
             source, target, work, was_open, env_bonus=env_bonus
         )
         rng = getattr(world, "rng", self.rng)
-        target.energy = min(
-            target.max_energy, target.energy + work.amount * 0.12
-        )
+        stored = target.add_energy(work.amount * RECEIVE_ENERGY_SHARE)
         pressure = work.amount * PRESSURE_PER_WORK
         target.state["pressure"] = min(
             30.0, target.pressure() + pressure
@@ -1274,7 +1279,8 @@ class ArenaAgent:
                 damage
             )
             gain = min(
-                source.max_force - source.force, damage * 0.20
+                source.max_force - source.force,
+                damage * FORCE_FEEDBACK_SHARE,
             )
             source.force += max(0.0, gain)
         # A2: устойчивая рана в дуэли. Сильный успешный удар с
@@ -1291,19 +1297,23 @@ class ArenaAgent:
             )
             if wound_severity > 0.0:
                 target.injure(wound_severity)
-        return {
-            "accepted": True,
-            "success": success,
-            "energy": work.amount * 0.12,
-            "force": damage,
-            "damage": damage,
-            "health": health_damage,
-            "wound": wound_severity,
-            "gain": gain,
-            "pressure": pressure,
-            "chance": chance,
-            "was_open": was_open,
-        }
+        report = conversion_report(work.amount, form, stored)
+        report.update(
+            {
+                "accepted": True,
+                "success": success,
+                "energy": work.amount * RECEIVE_ENERGY_SHARE,
+                "force": damage,
+                "damage": damage,
+                "health": health_damage,
+                "wound": wound_severity,
+                "gain": gain,
+                "pressure": pressure,
+                "chance": chance,
+                "was_open": was_open,
+            }
+        )
+        return report
 
 
 class ArenaMatch:

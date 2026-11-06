@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
@@ -214,7 +215,31 @@ ORGANIZATION_CATEGORIES = {
 CHARACTER_STAT_LABELS = {
     "affinity": "расположение",
     "trust": "доверие",
+    "fear": "страх",
+    "respect": "уважение",
 }
+# Оси отношений (§2.2, §7.6 №36–37). Легаси-шкала `relations` остаётся
+# проекцией `affinity`, поэтому старые сейвы, UI и `_ai_score` не ломаются.
+# Каждое направление R_ij хранится отдельно: помощь может повысить
+# расположение получателя и одновременно вызвать у отправителя подозрение,
+# принуждение — усилить страх у одного и обиду у другого.
+RELATION_AXES = ("affinity", "trust", "fear", "respect")
+# Доля обратного эффекта по умолчанию. Действие может задать
+# `relation_back`/`relation_axes_back` явно, если асимметрия сильнее.
+RELATION_BACK_SHARE = 0.5
+
+# Рынок труда: переговоры с конкретным соперником (§7.5 №29). Игрок
+# тратит действие и политические ресурсы; успех снимает кандидатуру
+# соперника до следующего поколения очереди, провал ухудшает отношение.
+LABOR_NEGOTIATION_INFLUENCE = 0.03
+LABOR_NEGOTIATION_FAVOR = 0.05
+LABOR_NEGOTIATION_SUCCESS_AFFINITY = 0.04
+LABOR_NEGOTIATION_FAILURE_AFFINITY = -0.04
+LABOR_NEGOTIATION_BASE_LOGIT = -0.20
+LABOR_NEGOTIATION_MARGIN_WEIGHT = 4.0
+LABOR_NEGOTIATION_RELATION_WEIGHT = 1.2
+LABOR_NEGOTIATION_RETRY_BONUS = 0.12
+LABOR_NEGOTIATION_RETRY_BONUS_MAX = 0.36
 SKILL_ORDER = (
     "administration",
     "diplomacy",
@@ -866,6 +891,11 @@ class WorldEngine:
             item["id"]: self._build_character(item)
             for item in self.config["characters"]
         }
+        # Направление «игрок → персонаж» (§2.2): R_ij ≠ R_ji. Легаси-поля
+        # `affinity/trust/fear/respect` персонажа хранят R_character→player;
+        # здесь — отношение игрока к собеседнику. Оно не переписывает
+        # характер персонажа и не влияет на его автономию.
+        self.player_relations = {}
         self.character_actions = {
             item["id"]: item for item in self.config["character_actions"]
         }
@@ -883,6 +913,9 @@ class WorldEngine:
         self.labor_market = _normalize_labor_market(
             self.config.get("labor_market") or {}
         )
+        # Переговоры с соперниками: office_id → rival_id → состояние
+        # (поколение очереди, попытки, снята ли кандидатура).
+        self.labor_negotiations = {}
         self.profile = normalize_profile(
             profile or self.config.get("default_profile") or {}
         )
@@ -1084,6 +1117,8 @@ class WorldEngine:
             "circle": _text(raw.get("circle"), "acquaintance"),
             "affinity": _clamp(raw.get("affinity", 0.0), -1.0, 1.0),
             "trust": _clamp(raw.get("trust", 0.0), -1.0, 1.0),
+            "fear": _clamp(raw.get("fear", 0.0), -1.0, 1.0),
+            "respect": _clamp(raw.get("respect", 0.0), -1.0, 1.0),
             "health": health,
             "sickness": _clamp(
                 _as_float(raw.get("sickness"), 0.0),
@@ -1167,6 +1202,102 @@ class WorldEngine:
     def relation(self, source_id, target_id):
         source = self.node(source_id) or {}
         return _as_float((source.get("relations") or {}).get(target_id), 0.0)
+
+    def relation_axes(self, source_id, target_id):
+        """Направленные оси R_ij: `affinity/trust/fear/respect`.
+
+        Легаси-шкала `relations` — проекция `affinity`. Оси создаются
+        лениво из текущей скалярной проекции, поэтому старые сейвы и
+        конфиги без блока отношений получают осмысленные значения.
+        """
+        source = self.node(source_id)
+        if source is None:
+            return {axis: 0.0 for axis in RELATION_AXES}
+        target_id = _text(target_id)
+        store = source.setdefault("relation_axes", {})
+        axes = store.get(target_id)
+        if axes is None:
+            axes = {axis: 0.0 for axis in RELATION_AXES}
+            axes["affinity"] = self.relation(source_id, target_id)
+            store[target_id] = axes
+        return {
+            axis: _clamp(
+                _as_float(axes.get(axis), 0.0), -1.0, 1.0
+            )
+            for axis in RELATION_AXES
+        }
+
+    def set_relation_axes(self, source_id, target_id, values):
+        """Записать оси одного направления и обновить проекцию `affinity`."""
+        source = self.node(source_id)
+        target = self.node(target_id)
+        if source is None or target is None:
+            return self.relation_axes(source_id, target_id)
+        axes = self.relation_axes(source_id, target_id)
+        for axis in RELATION_AXES:
+            if axis in values:
+                axes[axis] = _clamp(
+                    _as_float(values.get(axis), axes[axis]), -1.0, 1.0
+                )
+        source.setdefault("relation_axes", {})[target["id"]] = axes
+        source.setdefault("relations", {})[target["id"]] = axes["affinity"]
+        return axes
+
+    def _shift_relation(
+        self,
+        source,
+        target,
+        affinity=0.0,
+        affinity_back=None,
+        axes=None,
+        axes_back=None,
+    ):
+        """Сдвинуть отношения в двух направлениях независимо.
+
+        По умолчанию обратное направление получает половину эффекта
+        (`RELATION_BACK_SHARE`): действие игрока сильнее меняет его
+        отношение к цели, чем отношение цели к игроку. Явные
+        `relation_back`/`relation_axes_back` в контенте переопределяют
+        это правило.
+        """
+        if source is None or target is None:
+            return 0.0
+        if affinity_back is None:
+            affinity_back = float(affinity) * RELATION_BACK_SHARE
+        forward = dict(axes or {})
+        if abs(float(affinity)) > 1e-12:
+            forward["affinity"] = forward.get("affinity", 0.0) + float(
+                affinity
+            )
+        backward = dict(axes_back or {})
+        if abs(float(affinity_back)) > 1e-12:
+            backward["affinity"] = backward.get(
+                "affinity", 0.0
+            ) + float(affinity_back)
+        changed = 0.0
+        if forward:
+            before = self.relation(source["id"], target["id"])
+            current = self.relation_axes(source["id"], target["id"])
+            payload = {
+                axis: current[axis] + _as_float(forward.get(axis), 0.0)
+                for axis in forward
+            }
+            after = self.set_relation_axes(
+                source["id"], target["id"], payload
+            )
+            changed += abs(after["affinity"] - before)
+        if backward:
+            before = self.relation(target["id"], source["id"])
+            current = self.relation_axes(target["id"], source["id"])
+            payload = {
+                axis: current[axis] + _as_float(backward.get(axis), 0.0)
+                for axis in backward
+            }
+            after = self.set_relation_axes(
+                target["id"], source["id"], payload
+            )
+            changed += abs(after["affinity"] - before)
+        return changed
 
     def office_templates_for_node(self, node):
         if not node:
@@ -1307,6 +1438,11 @@ class WorldEngine:
                 }
             )
         rivals.sort(key=lambda item: (-item["score"], item["id"]))
+        withdrawn = self._withdrawn_rivals(office["id"], generation)
+        if withdrawn:
+            rivals = [
+                item for item in rivals if item["id"] not in withdrawn
+            ]
         skill_key = _text(office.get("skill"))
         if skill_key:
             skill = _profile_skill(self.profile, skill_key)
@@ -1354,6 +1490,235 @@ class WorldEngine:
             "best_rival": best_rival,
             "available": player_score + 1e-9 >= best_rival,
         }
+
+    def _labor_round(self, office_id):
+        return self.labor_negotiations.setdefault(_text(office_id), {})
+
+    def _withdrawn_rivals(self, office_id, generation):
+        """Соперники, снявшие кандидатуру в текущем поколении очереди."""
+        state = self._labor_round(office_id)
+        withdrawn = set()
+        for rival_id, record in state.items():
+            if _as_int(record.get("generation"), -1) != generation:
+                continue
+            if record.get("withdrawn"):
+                withdrawn.add(rival_id)
+        return withdrawn
+
+    def _labor_negotiation(self, office_id, rival_id):
+        return self._labor_round(office_id).get(_text(rival_id))
+
+    @staticmethod
+    def _negotiation_chance(player_score, rival_score, relation=0.0, attempts=0):
+        """Шанс переговоров: сила позиции, отношение и накопленный опыт.
+
+        Каждая предыдущая неудачная попытка в том же поколении даёт
+        небольшой бонус (соперник уже вовлечён в разговор), но не больше
+        `LABOR_NEGOTIATION_RETRY_BONUS_MAX`.
+        """
+        margin = float(player_score) - float(rival_score)
+        bonus = min(
+            LABOR_NEGOTIATION_RETRY_BONUS_MAX,
+            LABOR_NEGOTIATION_RETRY_BONUS * max(0, _as_int(attempts, 0)),
+        )
+        logit = (
+            LABOR_NEGOTIATION_BASE_LOGIT
+            + LABOR_NEGOTIATION_MARGIN_WEIGHT * margin
+            + LABOR_NEGOTIATION_RELATION_WEIGHT * float(relation)
+            + bonus
+        )
+        return max(0.05, min(0.95, 1.0 / (1.0 + math.exp(-logit))))
+
+    def labor_negotiation_offer(self, office_id, rival_id):
+        """Публичный прогноз переговоров без списания ресурсов.
+
+        Возвращает причину недоступности, стоимость, шанс и самого
+        соперника. UI и `negotiate_rival()` видят один и тот же расчёт.
+        """
+        office_id = _text(office_id)
+        rival_id = _text(rival_id)
+        if self.finished:
+            return {"available": False, "reason": "кампания завершена"}
+        if not self.attached:
+            return {"available": False, "reason": "сначала выберите должность"}
+        options = {
+            item["id"]: item
+            for item in self.office_options(self.player_node_id)
+        }
+        option = options.get(office_id)
+        if option is None:
+            return {
+                "available": False,
+                "reason": "должность не относится к вашей структуре",
+            }
+        competition = option.get("competition") or {}
+        rival = next(
+            (
+                item
+                for item in competition.get("rivals") or ()
+                if item.get("id") == rival_id
+            ),
+            None,
+        )
+        if rival is None:
+            return {
+                "available": False,
+                "reason": "этот соперник уже не участвует в очереди",
+            }
+        if rival_id.startswith("external:"):
+            return {
+                "available": False,
+                "reason": "внешний претендент не выходит на переговоры",
+                "rival": rival,
+            }
+        if self.actions_left <= 0:
+            return {
+                "available": False,
+                "reason": "не осталось действий на сегодня",
+                "rival": rival,
+            }
+        influence = _as_float(self.player_resources.get("influence"), 0.0)
+        favor = _as_float(self.player_resources.get("favor"), 0.0)
+        cost = {
+            "influence": LABOR_NEGOTIATION_INFLUENCE,
+            "favor": LABOR_NEGOTIATION_FAVOR,
+        }
+        if influence + 1e-9 < cost["influence"]:
+            return {
+                "available": False,
+                "reason": "недостаточно влияния",
+                "rival": rival,
+                "cost": cost,
+            }
+        if favor + 1e-9 < cost["favor"]:
+            return {
+                "available": False,
+                "reason": "недостаточно связей",
+                "rival": rival,
+                "cost": cost,
+            }
+        record = self._labor_negotiation(office_id, rival_id) or {}
+        relation = 0.0
+        character = self.character(rival_id)
+        if character is not None:
+            relation = self.character_relation(rival_id)
+        chance = self._negotiation_chance(
+            competition.get("player_score", 0.0),
+            rival.get("score", 0.0),
+            relation=relation,
+            attempts=record.get("attempts", 0),
+        )
+        return {
+            "available": True,
+            "reason": "",
+            "office_id": office_id,
+            "office_label": option.get("label", office_id),
+            "rival": rival,
+            "player_score": competition.get("player_score", 0.0),
+            "best_rival": competition.get("best_rival", 0.0),
+            "chance": chance,
+            "cost": cost,
+            "generation": competition.get("generation", 0),
+        }
+
+    def negotiate_rival(self, office_id, rival_id):
+        """Переговоры с конкретным соперником на рынке труда (§7.5 №29).
+
+        Стоит одно действие дня и немного влияния/связей. Успех снимает
+        кандидатуру соперника до следующего поколения очереди и улучшает
+        отношение; провал ухудшает отношение и оставляет соперника в
+        очереди. Исход детерминирован seed'ом, днём, должностью и номером
+        попытки.
+        """
+        offer = self.labor_negotiation_offer(office_id, rival_id)
+        if not offer.get("available"):
+            return {"ok": False, "reason": offer.get("reason", "")}
+        office_id = offer["office_id"]
+        rival_id = _text(rival_id)
+        cost = offer.get("cost") or {}
+        changed = self._apply_player_map(
+            {
+                "influence": -_as_float(cost.get("influence"), 0.0),
+                "favor": -_as_float(cost.get("favor"), 0.0),
+            }
+        )
+        record = self._labor_round(office_id).setdefault(rival_id, {})
+        generation = _as_int(offer.get("generation"), 0)
+        if _as_int(record.get("generation"), -1) != generation:
+            record.clear()
+            record["generation"] = generation
+            record["attempts"] = 0
+        attempts = _as_int(record.get("attempts"), 0)
+        relation = 0.0
+        character = self.character(rival_id)
+        if character is not None:
+            relation = self.character_relation(rival_id)
+        chance = offer["chance"]
+        roll = self._roll(
+            "negotiation:%s:%s:%s:%s:%d"
+            % (self.seed, self.day, office_id, rival_id, attempts)
+        )
+        success = roll < chance
+        record["attempts"] = attempts + 1
+        record["chance"] = chance
+        if success:
+            record["withdrawn"] = True
+            record["withdrawn_day"] = self.day
+            if character is not None:
+                changed.extend(
+                    self._apply_character_effects(
+                        {
+                            "affinity": LABOR_NEGOTIATION_SUCCESS_AFFINITY,
+                            "trust": LABOR_NEGOTIATION_SUCCESS_AFFINITY / 2.0,
+                        },
+                        character,
+                    )
+                )
+            text = "%s снял(а) кандидатуру: вы договорились." % (
+                offer["rival"]["name"]
+            )
+            outcome = "success"
+        else:
+            if character is not None:
+                changed.extend(
+                    self._apply_character_effects(
+                        {
+                            "affinity": LABOR_NEGOTIATION_FAILURE_AFFINITY,
+                            "trust": LABOR_NEGOTIATION_FAILURE_AFFINITY / 2.0,
+                        },
+                        character,
+                    )
+                )
+            text = "%s отказался(ась) снимать кандидатуру." % (
+                offer["rival"]["name"]
+            )
+            outcome = "failure"
+        self.player.spend_action()
+        self.action_count += 1
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "negotiation",
+                "text": "%s → %s: %s"
+                % (offer["office_label"], offer["rival"]["name"], text),
+            }
+        )
+        result = {
+            "ok": True,
+            "context": "labor_market",
+            "action": "negotiate_rival",
+            "action_label": "Переговоры с соперником",
+            "target": rival_id,
+            "target_label": offer["rival"]["name"],
+            "office_id": office_id,
+            "outcome": outcome,
+            "chance": chance,
+            "text": text,
+            "changes": self._merge_changes(changed),
+            "day": self.day,
+        }
+        self.last_result = result
+        return result
 
     def vacancy_board(self, node_id=None):
         """Публичная доска вакансий: все должности или один узел.
@@ -1536,6 +1901,73 @@ class WorldEngine:
     def character_trust(self, character_id):
         character = self.character(character_id) or {}
         return _as_float(character.get("trust"), 0.0)
+
+    def character_relations(self, character_id):
+        """Оба направления отношений с персонажем (§2.2).
+
+        `character_to_player` — чувства персонажа (легаси-поля
+        `affinity/trust/fear/respect`); `player_to_character` — отношение
+        игрока, которое хранится отдельно и не переписывает характер.
+        """
+        character = self.character(character_id)
+        if character is None:
+            return {
+                "character_to_player": {
+                    axis: 0.0 for axis in RELATION_AXES
+                },
+                "player_to_character": {
+                    axis: 0.0 for axis in RELATION_AXES
+                },
+            }
+        player_view = self.player_relations.get(character["id"]) or {}
+        return {
+            "character_to_player": {
+                axis: _clamp(
+                    _as_float(character.get(axis), 0.0), -1.0, 1.0
+                )
+                for axis in RELATION_AXES
+            },
+            "player_to_character": {
+                axis: _clamp(
+                    _as_float(player_view.get(axis), 0.0), -1.0, 1.0
+                )
+                for axis in RELATION_AXES
+            },
+        }
+
+    def player_relation(self, character_id, axis="affinity"):
+        return self.character_relations(character_id)[
+            "player_to_character"
+        ].get(axis, 0.0)
+
+    def _apply_player_view(self, effects, character):
+        """Обновить отношение игрока к персонажу (R_player→character).
+
+        Ключи эффекта — `player_affinity`, `player_trust`, `player_fear`,
+        `player_respect`. Они не смешиваются с чувствами персонажа:
+        принуждение может повысить страх персонажа и одновременно снизить
+        расположение игрока, а помощь — наоборот.
+        """
+        changed = []
+        view = self.player_relations.setdefault(character["id"], {})
+        for axis in RELATION_AXES:
+            key = "player_%s" % axis
+            if key not in effects:
+                continue
+            before = _as_float(view.get(axis), 0.0)
+            view[axis] = _clamp(
+                before + _as_float(effects.get(key)), -1.0, 1.0
+            )
+            delta = view[axis] - before
+            if abs(delta) > 1e-9:
+                changed.append(
+                    (
+                        "вы · %s"
+                        % CHARACTER_STAT_LABELS.get(axis, axis),
+                        delta,
+                    )
+                )
+        return changed
 
     def player_condition(self):
         return {
@@ -2125,7 +2557,7 @@ class WorldEngine:
     def _apply_character_effects(self, effects, character):
         effects = effects or {}
         changed = []
-        for key in ("affinity", "trust"):
+        for key in RELATION_AXES:
             if key not in effects:
                 continue
             before = _as_float(character.get(key), 0.0)
@@ -2145,24 +2577,34 @@ class WorldEngine:
                     )
                 )
         changed.extend(self._apply_player_map(effects.get("player")))
+        changed.extend(
+            self._apply_player_view(effects, character)
+        )
         node_relation = _as_float(effects.get("node_relation"), 0.0)
         if (
-            abs(node_relation) > 1e-9
+            (
+                abs(node_relation) > 1e-9
+                or effects.get("node_relation_back") is not None
+                or effects.get("node_relation_axes")
+            )
             and self.attached
             and character.get("node_id")
             and self.node(character["node_id"]) is not None
         ):
             target = self.node(character["node_id"])
-            current = self.relation(self.player_node_id, target["id"])
-            value = _clamp(current + node_relation, -1.0, 1.0)
             source = self.node(self.player_node_id)
             if source is not None:
-                source["relations"][target["id"]] = value
-            target["relations"][self.player_node_id] = value
+                self._shift_relation(
+                    source,
+                    target,
+                    affinity=node_relation,
+                    affinity_back=effects.get("node_relation_back"),
+                    axes=effects.get("node_relation_axes"),
+                )
             changed.append(
                 (
                     "%s · отношения" % target["name"],
-                    value - current,
+                    node_relation,
                 )
             )
         return self._merge_changes(changed)
@@ -2931,12 +3373,21 @@ class WorldEngine:
         if is_player:
             changed.extend(self._apply_player_map(effects.get("player")))
         relation = _as_float(effects.get("relation"), 0.0)
-        if target is not None and abs(relation) > 1e-9:
+        if target is not None and (
+            abs(relation) > 1e-9
+            or effects.get("relation_back") is not None
+            or effects.get("relation_axes")
+            or effects.get("relation_axes_back")
+        ):
             source = context["node"]
-            current = self.relation(source["id"], target["id"])
-            value = _clamp(current + relation, -1.0, 1.0)
-            source["relations"][target["id"]] = value
-            target["relations"][source["id"]] = value
+            self._shift_relation(
+                source,
+                target,
+                affinity=relation,
+                affinity_back=effects.get("relation_back"),
+                axes=effects.get("relation_axes"),
+                axes_back=effects.get("relation_axes_back"),
+            )
         if effects.get("ending"):
             self._apply_ending(effects.get("ending"), effects.get("text"))
         return self._merge_changes(changed)
@@ -4476,6 +4927,10 @@ class WorldEngine:
                 character_id: {
                     "affinity": character["affinity"],
                     "trust": character["trust"],
+                    "fear": float(_as_float(character.get("fear"), 0.0)),
+                    "respect": float(
+                        _as_float(character.get("respect"), 0.0)
+                    ),
                     "health": float(character["health"]),
                     "sickness": float(character["sickness"]),
                     "wound": float(_as_float(character.get("wound"), 0.0)),
@@ -4483,14 +4938,37 @@ class WorldEngine:
                 }
                 for character_id, character in self.characters.items()
             },
+            "player_relations": {
+                character_id: {
+                    axis: float(_as_float(view.get(axis), 0.0))
+                    for axis in RELATION_AXES
+                }
+                for character_id, view in self.player_relations.items()
+            },
             "nodes": {
                 node_id: {
                     "stats": dict(node["stats"]),
                     "relations": dict(node["relations"]),
+                    "relation_axes": {
+                        other_id: {
+                            axis: float(_as_float(axes.get(axis), 0.0))
+                            for axis in RELATION_AXES
+                        }
+                        for other_id, axes in (
+                            node.get("relation_axes") or {}
+                        ).items()
+                    },
                 }
                 for node_id, node in self.nodes.items()
             },
             "cooldowns": dict(self.cooldowns),
+            "labor_negotiations": {
+                office_id: {
+                    rival_id: dict(record)
+                    for rival_id, record in per_office.items()
+                }
+                for office_id, per_office in self.labor_negotiations.items()
+            },
             "used_actions": list(self.used_actions),
             "log": list(self.log),
             "last_result": self.last_result,
@@ -4587,6 +5065,16 @@ class WorldEngine:
             character["trust"] = _clamp(
                 saved.get("trust", character["trust"]), -1.0, 1.0
             )
+            character["fear"] = _clamp(
+                saved.get("fear", character.get("fear", 0.0)),
+                -1.0,
+                1.0,
+            )
+            character["respect"] = _clamp(
+                saved.get("respect", character.get("respect", 0.0)),
+                -1.0,
+                1.0,
+            )
             if "health" in saved:
                 character["health"] = _clamp(
                     _as_float(saved.get("health"), HEALTH_MAX),
@@ -4613,16 +5101,62 @@ class WorldEngine:
             node = self.nodes.get(node_id)
             if node is None:
                 continue
+            node["relation_axes"] = {}
             for key, value in (saved.get("stats") or {}).items():
                 if key in node["stats"]:
                     node["stats"][key] = _clamp(value)
             for other_id, value in (saved.get("relations") or {}).items():
                 if other_id in self.nodes:
                     node["relations"][other_id] = _clamp(value, -1.0, 1.0)
+            for other_id, axes in (saved.get("relation_axes") or {}).items():
+                if other_id not in self.nodes or not isinstance(axes, dict):
+                    continue
+                stored = node.setdefault("relation_axes", {})
+                stored[other_id] = {
+                    axis: _clamp(
+                        _as_float(axes.get(axis), 0.0), -1.0, 1.0
+                    )
+                    for axis in RELATION_AXES
+                }
+                # Легаси-проекция должна совпадать с загруженной осью.
+                node["relations"][other_id] = stored[other_id]["affinity"]
+        self.player_relations = {}
+        for character_id, view in (
+            snapshot.get("player_relations") or {}
+        ).items():
+            if character_id not in self.characters or not isinstance(
+                view, dict
+            ):
+                continue
+            self.player_relations[character_id] = {
+                axis: _clamp(_as_float(view.get(axis), 0.0), -1.0, 1.0)
+                for axis in RELATION_AXES
+            }
         self.cooldowns = {
             str(key): _as_int(value)
             for key, value in (snapshot.get("cooldowns") or {}).items()
         }
+        self.labor_negotiations = {}
+        for office_id, per_office in (
+            snapshot.get("labor_negotiations") or {}
+        ).items():
+            if not isinstance(per_office, dict):
+                continue
+            self.labor_negotiations[str(office_id)] = {
+                str(rival_id): {
+                    "generation": _as_int(record.get("generation"), 0),
+                    "attempts": max(
+                        0, _as_int(record.get("attempts"), 0)
+                    ),
+                    "withdrawn": bool(record.get("withdrawn", False)),
+                    "withdrawn_day": _as_int(
+                        record.get("withdrawn_day"), 0
+                    ),
+                    "chance": _as_float(record.get("chance"), 0.0),
+                }
+                for rival_id, record in per_office.items()
+                if isinstance(record, dict)
+            }
         self.used_actions = list(snapshot.get("used_actions") or [])
         self.log = list(snapshot.get("log") or [])
         self.last_result = snapshot.get("last_result")

@@ -30,7 +30,9 @@ from core41 import (
     CORE_ACTIONS,
     DuelEnv,
     DuelWorld,
+    ENERGY_STORAGE_SHARE,
     Observation,
+    RECEIVE_ENERGY_SHARE,
     REWARD_ADVANTAGE_ENERGY_COST,
     REWARD_TERMINAL_LOSS,
     REWARD_TERMINAL_WIN,
@@ -41,6 +43,8 @@ from core41 import (
     Work,
     action_from_index,
     check_capture,
+    conversion_efficiency,
+    conversion_report,
     reward_delta,
     run_duel_tick,
     terminal_reward,
@@ -85,6 +89,78 @@ def test_automaton_rejects_unhandled_form():
     result = unit.receive(Work(amount=4.0, form="info"))
     assert result["accepted"] is False
     assert unit.energy == 10.0
+
+
+def test_conversion_report_conserves_work_and_marks_entropy():
+    report = conversion_report(10.0, "info", 2.0)
+    assert report["arrived"] == pytest.approx(
+        10.0 * conversion_efficiency("info")
+    )
+    assert report["loss"] == pytest.approx(
+        10.0 * (1.0 - conversion_efficiency("info"))
+    )
+    assert report["entropy"] == pytest.approx(
+        report["arrived"] - report["stored"]
+    )
+    assert (
+        report["loss"] + report["entropy"] + report["stored"]
+        == pytest.approx(10.0)
+    )
+    assert report["efficiency"] == pytest.approx(
+        conversion_efficiency("info")
+    )
+
+
+def test_automaton_energy_is_capped_and_reports_conversion_loss():
+    unit = Automaton(id="cap", energy=99.0)
+    result = unit.receive(Work(amount=100.0, form="info"))
+    assert unit.energy == pytest.approx(unit.max_energy)
+    assert result["stored"] == pytest.approx(1.0)
+    assert result["loss"] + result["entropy"] + result["stored"] == pytest.approx(
+        100.0
+    )
+    assert result["entropy"] > 0.0
+
+
+def test_rejected_work_is_accounted_as_pure_loss():
+    unit = Automaton(id="closed", inputs=("force",), energy=10.0)
+    result = unit.receive(Work(amount=4.0, form="info"))
+    assert result["accepted"] is False
+    assert result["stored"] == 0.0
+    assert result["loss"] == pytest.approx(4.0)
+    assert result["entropy"] == 0.0
+    assert unit.energy == 10.0
+
+
+def test_force_is_integrity_and_throughput_with_caps():
+    unit = Automaton(id="unit", force=40.0, max_force=100.0)
+    assert unit.force_ratio == pytest.approx(0.4)
+    assert unit.force_throughput() == pytest.approx(40.0)
+    assert unit.add_force(1000.0) == pytest.approx(60.0)
+    assert unit.force == pytest.approx(100.0)
+    assert unit.force_ratio == pytest.approx(1.0)
+
+
+def test_handler_can_be_replaced_at_runtime_but_must_be_callable():
+    unit = Automaton(id="runtime")
+    calls = []
+
+    def handler(target, work, source, world):
+        calls.append(work.amount)
+        return {"accepted": True, "success": True, "custom": True}
+
+    unit.set_handler("info", handler)
+    result = unit.receive(Work(amount=3.0, form="info"))
+    assert result["custom"] is True
+    assert calls == [3.0]
+    unit.set_handler("info", None)
+    assert unit.receive(Work(amount=1.0, form="info"))["accepted"] is True
+    with pytest.raises(TypeError):
+        unit.set_handler("force", "not-a-function")
+
+
+def test_receive_energy_share_is_a_buffer_not_a_second_energy():
+    assert 0.0 < RECEIVE_ENERGY_SHARE < ENERGY_STORAGE_SHARE
 
 
 def test_duel_is_deterministic_for_a_seed():

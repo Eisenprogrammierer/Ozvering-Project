@@ -66,6 +66,83 @@ DEFAULT_HEALTH_FACTORS = {
     "care": 1.0,
 }
 
+# ---------------------------------------------------------------------------
+# Единицы и конверсия работы (WORLD_CORE_MODEL §2.6, §7.1 №1–4).
+#
+# `E` и `F` — не типы энергии, а две шкалы одной онтологии. Обе нормированы
+# на `max_*` (для персонажа — 100 пунктов), поэтому:
+#
+#   * 1 пункт `E` — работа, которую автомат может оплатить без потери
+#     способности действовать; `E = 0` — граница истощения;
+#   * 1 пункт `F` — одновременно запас структурной целостности и
+#     пропускная способность за такт. Урон сначала расходует `F`, а работа
+#     не может превысить `F · duration · FORCE_WORK_RATIO`;
+#   * `H` (здоровье) и `sickness`/`wound` — отдельные состояния `S`, а не
+#     ещё один запас энергии.
+#
+# Конверсия работы всегда идёт с потерями. Принятая работа делится на:
+#   `accepted = amount · efficiency(form)`,
+#   `stored   = accepted · ENERGY_STORAGE_SHARE`,
+#   `loss     = amount - accepted` (не дошло до цели),
+#   `entropy  = accepted - stored` (рассеялось внутри).
+# Это позволяет учитывать потери, не вводя типизированную энергию.
+# ---------------------------------------------------------------------------
+
+UNIT_SCALE = 100.0
+WORK_UNITS = 1.0
+FORM_CONVERSION_EFFICIENCY = {
+    "force": 0.55,
+    "info": 0.75,
+}
+DEFAULT_CONVERSION_EFFICIENCY = 0.55
+ENERGY_STORAGE_SHARE = 0.35
+# Доля успешной работы, возвращающаяся атакующему как структурный отклик.
+FORCE_FEEDBACK_SHARE = 0.20
+# Доля работы, которую получатель сохраняет как энергию давления/отклика
+# (аренный срез `_receive_work`). Это не второй вид энергии, а буфер.
+RECEIVE_ENERGY_SHARE = 0.12
+
+
+def conversion_efficiency(form):
+    """КПД канала работы: сколько принятой работы доходит до цели.
+
+    Значение зависит только от канала, а не от типа энергии: `force` и
+    `info` — две формы одной работы, поэтому КПД — контекст обработчика.
+    Неизвестный канал получает нижнюю оценку, а не бесплатную конверсию.
+    """
+    return float(
+        FORM_CONVERSION_EFFICIENCY.get(
+            str(form), DEFAULT_CONVERSION_EFFICIENCY
+        )
+    )
+
+
+def conversion_report(amount, form, stored, efficiency=None):
+    """Разложить работу на принятую часть, потери и энтропию.
+
+    `stored` — сколько фактически попало в `E` получателя. Отчёт аддитивен:
+    `loss + entropy + stored == max(0, amount)` (с точностью до округления),
+    поэтому потери не теряются из учёта и не превращаются в скрытый доход.
+    `efficiency` можно переопределить для отказа: отклонённая работа — это
+    потеря целиком, а не конверсия с КПД канала.
+    """
+    amount = max(0.0, float(amount))
+    stored = max(0.0, min(amount, float(stored)))
+    if efficiency is None:
+        efficiency = conversion_efficiency(form)
+    efficiency = max(0.0, min(1.0, float(efficiency)))
+    accepted = min(amount, amount * efficiency)
+    entropy = max(0.0, accepted - stored)
+    loss = max(0.0, amount - accepted)
+    return {
+        "amount": amount,
+        "arrived": accepted,
+        "stored": stored,
+        "loss": loss,
+        "entropy": entropy,
+        "efficiency": efficiency,
+    }
+
 
 def sigmoid(value):
     if value < -60.0:
@@ -169,6 +246,41 @@ class Automaton:
     @property
     def is_wounded(self):
         return self.wound > 0.0
+
+    @property
+    def force_ratio(self):
+        """Доля структурной целостности `F` в `[0, 1]`."""
+        return max(0.0, min(1.0, self.force / max(1.0, self.max_force)))
+
+    @property
+    def energy_ratio(self):
+        """Доля энергии `E` в `[0, 1]`; граница `0` — истощение."""
+        return max(0.0, min(1.0, self.energy / max(1.0, self.max_energy)))
+
+    def force_throughput(self):
+        """Пропускная способность `F` за такт (единицы работы).
+
+        `F` — не только запас прочности: пока он цел, он ограничивает
+        объём работы, которую автомат способен провести за такт. Умножение
+        на длительность выполняет вызывающий резолвер (`work_amount`).
+        """
+        return max(0.0, self.force)
+
+    def add_energy(self, amount):
+        """Добавить `E` с насыщением на `max_energy`; вернуть прирост."""
+        before = self.energy
+        self.energy = max(
+            0.0, min(self.max_energy, self.energy + float(amount))
+        )
+        return self.energy - before
+
+    def add_force(self, amount):
+        """Добавить `F` с насыщением на `max_force`; вернуть прирост."""
+        before = self.force
+        self.force = max(
+            0.0, min(self.max_force, self.force + float(amount))
+        )
+        return self.force - before
 
     def work_effectiveness(self):
         # Острая болезнь и устойчивая рана (слой A2) снижают успех работы,
@@ -404,25 +516,49 @@ class Automaton:
             return handler(self, work, source, world)
         return self.default_receive(work)
 
+    def set_handler(self, form, handler):
+        """Заменить обработчик канала во время жизни автомата.
+
+        Обработчик — детерминированная функция `(target, work, source,
+        world) -> result`; стохастика живёт в резолвере (`world.rng`), а не
+        внутри обработчика. `None` возвращает канал к `default_receive`.
+        """
+        form = str(form)
+        if handler is not None and not callable(handler):
+            raise TypeError("handler must be callable or None")
+        if handler is None:
+            self.handlers.pop(form, None)
+        else:
+            self.handlers[form] = handler
+        return handler
+
     def default_receive(self, work):
         if not self.can_receive(work.form):
-            return {
-                "accepted": False,
-                "success": False,
-                "energy": 0.0,
-                "force": 0.0,
-                "pressure": 0.0,
-            }
-        efficiency = 0.75 if work.form == "info" else 0.55
+            report = conversion_report(work.amount, work.form, 0.0, 0.0)
+            report.update(
+                {
+                    "accepted": False,
+                    "success": False,
+                    "energy": 0.0,
+                    "force": 0.0,
+                    "pressure": 0.0,
+                }
+            )
+            return report
+        efficiency = conversion_efficiency(work.form)
         transferred = work.amount * efficiency
-        self.energy = min(self.max_energy, self.energy + transferred * 0.35)
+        stored = self.add_energy(transferred * ENERGY_STORAGE_SHARE)
+        report = conversion_report(work.amount, work.form, stored)
         self.state["pressure"] = min(
             30.0, self.pressure() + work.amount * PRESSURE_PER_WORK
         )
-        return {
-            "accepted": True,
-            "success": True,
-            "energy": transferred,
-            "force": 0.0,
-            "pressure": work.amount * PRESSURE_PER_WORK,
-        }
+        report.update(
+            {
+                "accepted": True,
+                "success": True,
+                "energy": transferred,
+                "force": 0.0,
+                "pressure": work.amount * PRESSURE_PER_WORK,
+            }
+        )
+        return report
