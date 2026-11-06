@@ -24,6 +24,7 @@ from .planner import (
     condition_holds,
 )
 from .node_strategy import StrategyBook
+from .control import DirectiveBook
 from .projections import (
     SCHEMA_VERSION,
     ensure_supported_snapshot,
@@ -993,6 +994,9 @@ class WorldEngine:
         # события, назначенные на будущие дни, и автономные контакты
         # персонажей. Живёт в снимке мира.
         self.intents = IntentQueue()
+        # Граница управления BDI (§7.3): явные директивы игрока с сроком.
+        # Автономия персонажа не «залипает» — истёкшая директива исчезает.
+        self.directives = DirectiveBook()
         self.horizon_passed = False
         self.ending = None
         self.attached = False
@@ -2003,6 +2007,77 @@ class WorldEngine:
             "sickness": float(character["sickness"]),
             "wound": float(character.get("wound", 0.0)),
             "alive": bool(character["alive"]),
+        }
+
+    # ------------------------------------------------------------------
+    # Управление BDI-персонажами (§7.3)
+    # ------------------------------------------------------------------
+    def set_directive(
+        self,
+        character_id,
+        scope,
+        payload,
+        *,
+        days=None,
+        expires_day=None,
+    ):
+        """Дать персонажу явную директиву игрока.
+
+        Области: `autonomy` (`{"enabled": bool}`), `intentions`
+        (`reconcile/rapprochement/probe` или `""`), `beliefs`/`desires`
+        (объект чисел для UI/отладки) и `work_queue` (очередь работы живёт
+        в `IntentQueue`; здесь хранится только пометка). `days` — срок в
+        днях от текущего; `expires_day` — абсолютный день.
+        """
+        character = self.character(character_id)
+        if character is None:
+            raise CampaignError("неизвестный персонаж: %s" % character_id)
+        if expires_day is None and days is not None:
+            expires_day = self.day + max(0, _as_int(days, 0))
+        directive = self.directives.set(
+            character["id"],
+            scope,
+            payload,
+            day=self.day,
+            expires_day=expires_day,
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "directive",
+                "text": "директива %s → %s"
+                % (directive.scope, character.get("name", character["id"])),
+            }
+        )
+        return directive.to_dict()
+
+    def clear_directive(self, character_id, scope=None):
+        """Снять директиву персонажа; без `scope` — все его директивы."""
+        character = self.character(character_id)
+        target = character["id"] if character is not None else character_id
+        return self.directives.clear(target, scope)
+
+    def directive_view(self, character_id=None):
+        """Активные на текущий день директивы: target → scope → payload."""
+        return self.directives.view(day=self.day, target=character_id)
+
+    def character_control(self, character_id):
+        """Граница автономии персонажа для UI и отладки."""
+        character = self.character(character_id)
+        if character is None:
+            return None
+        return {
+            "id": character["id"],
+            "autonomous": bool(character.get("autonomous")),
+            "autonomy_enabled": self.directives.autonomy_enabled(
+                character["id"], self.day
+            ),
+            "intended_branch": self.directives.intended_branch(
+                character["id"], self.day
+            ),
+            "directives": self.directives.view(
+                day=self.day, target=character["id"]
+            ).get(character["id"], {}),
         }
 
     def infect_player(self, severity):
@@ -4566,7 +4641,15 @@ class WorldEngine:
         лояльный при высоком доверии — к сближению, остальные — к
         нейтральному разведывательному контакту. Эффекты прописаны сразу
         для исхода «успех»; бросок шанса делает `_apply_autonomy_contact`.
+
+        Явная директива игрока (`set_directive(..., "intentions", ...)`)
+        имеет приоритет над политикой, но не отменяет бросок успеха.
         """
+        forced = self.directives.intended_branch(
+            character.get("id"), self.day
+        )
+        if forced in _AUTONOMY_POLICIES:
+            return forced, dict(_AUTONOMY_POLICIES[forced])
         affinity = _as_float(character.get("affinity"), 0.0)
         trust = _as_float(character.get("trust"), 0.0)
         if affinity <= AUTONOMY_AFFINITY_THRESHOLD:
@@ -4662,6 +4745,10 @@ class WorldEngine:
         """
         for character in self.characters.values():
             if not character.get("autonomous"):
+                continue
+            if not self.directives.autonomy_enabled(
+                character["id"], self.day
+            ):
                 continue
             if not character.get("alive", True):
                 continue
@@ -4805,6 +4892,8 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
+        # Истёкшие директивы игрока больше не влияют на автономию.
+        self.directives.prune(self.day)
         # Долги, появившиеся в ходе хода ИИ (сюжет/мир запланировали их на
         # наступившие сутки): полная выборка после инкремента закрывает и
         # их, чтобы мир не вошёл в новый день с просроченной очередью.
@@ -4995,6 +5084,7 @@ class WorldEngine:
             "collapse_days": int(self.collapse_days),
             "storyline_days": int(self.storyline_days),
             "intents": self.intents.to_list(),
+            "directives": self.directives.to_list(),
             "node_action_day": dict(self.node_action_day),
             "node_strategy_state": {
                 node_id: {
@@ -5196,6 +5286,8 @@ class WorldEngine:
         # Очередь намерений: старые снимки без поля получают пустую очередь,
         # а не падают и не теряют текущий день.
         self.intents.load(snapshot.get("intents") or ())
+        # Директивы игрока переживают сохранение; старые снимки — без них.
+        self.directives.load(snapshot.get("directives") or ())
         self.node_action_day = {
             str(node_id): _as_int(day)
             for node_id, day in (

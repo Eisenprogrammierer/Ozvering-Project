@@ -85,6 +85,17 @@
   как v0, будущие отвергаются. Закрывает §7.1 №6 (гибридный планировщик,
   §2.5) и §7.2 №9–13. Тесты — `tests/test_projections.py`;
   разделы — `WORLD_CORE_MODEL.md` §2.5, §2.8.
+- [x] **Граница управления BDI.** `campaign/control.py` вводит
+  `DirectiveBook`: директивы игрока со сроком для `autonomy`,
+  `intentions`, `beliefs`, `desires`, `work_queue`. `autonomy` отключает
+  самостоятельные контакты, `intentions` подменяет ветку
+  (`reconcile/rapprochement/probe`), не отменяя бросок успеха; после
+  `expires_day` директива удаляется. `WorldEngine.set_directive()`/
+  `clear_directive()`/`directive_view()`/`character_control()` — публичный
+  API; директивы входят в снимок. Закрывает §7.3 №14–17, №20
+  (`WORLD_CORE_MODEL.md` §2.9); №18–19 остаются частично открытыми
+  (`obligation`, жёсткие ценности, распад коалиций). Тесты —
+  `tests/test_campaign_control.py`.
 - [ ] **Осталось открытым:** типизированные `payload`, `obligation` и
   влияние осей отношений на вход/обработчик/выход (§7.6 №36–38),
   визуализация асимметрии узлов в UI.
