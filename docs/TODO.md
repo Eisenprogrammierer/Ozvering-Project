@@ -62,10 +62,23 @@
   `::test_character_relations_store_two_directions_and_axes`,
   `::test_relation_axes_and_player_view_survive_snapshot_roundtrip`;
   раздел — `WORLD_CORE_MODEL.md` §2.2.
-- [ ] **Осталось открытым:** агрегация `F/E/S` составных автоматов и
-  распределение работы между детьми (§7.1 №7–8), типизированные
-  `payload`, `obligation` и влияние осей отношений на вход/обработчик/
-  выход (§7.6 №36–38), визуализация асимметрии узлов в UI.
+- [x] **Составные автоматы.** `core41/composite.py` закрывает §7.1 №7–8:
+  ёмкость (`F/E`) складывается, качество (`H/навык/эффективность`) —
+  взвешенное среднее нормированных долей по структурной массе; составной
+  автомат мёртв только без живых частей, худшие `sickness/wound`
+  передаются как `max`. Работа распределяется между листьями без
+  дублирования (`loss + entropy + stored = amount`), стратегии —
+  `proportional/even/weakest/strongest/round_robin`. Вложенность
+  ациклическая, `MAX_COMPOSITE_DEPTH = 8`, дубликаты id и циклы
+  отвергаются; `composite_state()`/`load_composite_state()` сохраняют
+  состояние и известных детей, но не обработчики. Кампанийная проекция —
+  `campaign.fractal.organ_composite()` и `AutomataCampaign.composite()`.
+  Тесты — `tests/test_composite.py`,
+  `tests/test_automata_campaign.py::test_composite_view_aggregates_organ_hierarchy`;
+  раздел — `WORLD_CORE_MODEL.md` §2.7.
+- [ ] **Осталось открытым:** типизированные `payload`, `obligation` и
+  влияние осей отношений на вход/обработчик/выход (§7.6 №36–38),
+  визуализация асимметрии узлов в UI.
 
 ## Три ограничения среды обучения — закрыто (2026-10-29)
 

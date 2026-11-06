@@ -433,6 +433,88 @@ def test_organ_hierarchy_is_data_driven_and_has_no_cycles():
     assert campaign.audit() == []
 
 
+def test_composite_view_aggregates_organ_hierarchy():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    composite = campaign.composite()
+    assert composite is not None
+    assert composite.id == "%s:faction" % campaign.player_side
+    # Иерархия сохраняется: ставка → вермахт → панцерваффе.
+    assert composite.part("imperial_staff").path_depth() == 1
+    assert composite.part("wehrmacht").path_depth() == 2
+    assert composite.part("panzerwaffe").path_depth() == 3
+
+    organs = {organ.id: organ for organ in campaign.player.organs}
+    expected_force = sum(
+        organ.integrity * 100.0 * max(1e-9, organ.weight)
+        for organ in organs.values()
+    )
+    expected_weight = sum(
+        max(1e-9, organ.weight) for organ in organs.values()
+    )
+    expected_health = sum(
+        organ.integrity * max(1e-9, organ.weight)
+        for organ in organs.values()
+    ) / expected_weight
+    state = composite.aggregate_state()
+    assert state["force"] == pytest.approx(expected_force)
+    assert state["health_ratio"] == pytest.approx(expected_health)
+    assert state["parts"] == len(organs) + 1
+    assert state["alive"] is True
+    # Стороны различаются: чужой составной автомат тоже доступен.
+    rival = campaign.composite(campaign.rival_side)
+    assert rival is not None
+    assert rival.id == "%s:faction" % campaign.rival_side
+
+
+def test_weakening_one_organ_lowers_composite_integrity():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    for organ in campaign.player.organs:
+        organ.integrity = 1.0
+    before = campaign.composite().aggregate_state()
+    organ = next(
+        item for item in campaign.player.organs
+        if item.id == "panzerwaffe"
+    )
+    organ.integrity = 0.2
+    after = campaign.composite().aggregate_state()
+    assert after["force"] < before["force"]
+    assert after["health_ratio"] < before["health_ratio"]
+    assert after["alive"] is True
+    # Ослаблен именно лист: агрегат считается по массе органа, а не
+    # перезаписывается целиком.
+    assert after["health_ratio"] == pytest.approx(
+        before["health_ratio"]
+        - (1.0 - 0.2)
+        * max(1e-9, organ.weight)
+        / sum(max(1e-9, item.weight) for item in campaign.player.organs)
+    )
+
+
+def test_composite_distribution_reaches_the_weakened_organ():
+    from core41 import Work
+
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    composite = campaign.composite()
+    leaves = [node.id for node in composite.leaves()]
+    assert "panzerwaffe" in leaves
+    report = composite.distribute(Work(amount=10.0, form="info"),
+                                  strategy="even")
+    assert report["accepted"] is True
+    # Работа не дублируется: доли складываются в исходный объём.
+    assert sum(
+        item["amount"] for item in report["shares"].values()
+    ) == pytest.approx(10.0)
+    assert report["stored"] + report["loss"] + report["entropy"] == (
+        pytest.approx(10.0)
+    )
+
+
 def test_action_budget_allows_several_actions_then_requires_end_turn():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11

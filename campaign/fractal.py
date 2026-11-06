@@ -224,6 +224,106 @@ def organ_depths(organs):
     return depths
 
 
+def organ_composite(
+    organs,
+    root_id="faction",
+    *,
+    force_of=None,
+    energy_of=None,
+    root_max_depth=None,
+):
+    """Построить `CompositeAutomaton`-представление иерархии органов.
+
+    Это диагностический слой (WORLD_CORE_MODEL §2.7): `OrganRuntime`
+    остаётся источником истины и хранит взаимодействия/перезарядки, а
+    составной автомат даёт агрегаты `F/E/S` по дереву и распределение
+    работы между листьями.
+
+    Отображение по умолчанию:
+
+    * `F` органа — его `integrity`, умноженная на `weight`;
+    * `E` органа — `readiness_scale(organ)`, то есть готовность проводить
+      работу (пол не обнуляет расформированный орган);
+    * `H` — та же `integrity`, чтобы агрегат здоровья читался как
+      взвешенная целостность.
+
+    `force_of`/`energy_of` позволяют подставить другую проекцию, не меняя
+    модуль. Повреждённая иерархия (циклы, неизвестные родители) строится
+    плоским лесом под корнем, а не роняет вызов.
+    """
+    organs = list(organs or ())
+    if not organs:
+        return None
+    from core41 import (
+        HEALTH_MAX,
+        UNIT_SCALE,
+        CompositeAutomaton,
+    )
+
+    force_of = force_of or (lambda organ: _clamp(organ.integrity))
+    energy_of = energy_of or (
+        lambda organ: _clamp(readiness_scale(organ))
+    )
+    problems = validate_organ_hierarchy(organs)
+    depths = organ_depths(organs) if not problems else {}
+    root = CompositeAutomaton(
+        id=str(root_id or "faction"),
+        force=0.0,
+        max_force=0.0,
+        energy=0.0,
+        max_energy=0.0,
+        health=0.0,
+        max_health=HEALTH_MAX,
+    )
+    if root_max_depth is not None:
+        root.max_depth = max(0, int(_number(root_max_depth, root.max_depth)))
+    nodes = {}
+    ordered = []
+    for organ in organs:
+        organ_id = str(getattr(organ, "id", "") or "")
+        if not organ_id or organ_id in nodes:
+            continue
+        weight = max(1e-9, _number(getattr(organ, "weight", 1.0), 1.0))
+        integrity = _clamp(force_of(organ))
+        readiness = _clamp(energy_of(organ))
+        node = CompositeAutomaton(
+            id=organ_id,
+            force=integrity * UNIT_SCALE * weight,
+            max_force=UNIT_SCALE * weight,
+            energy=readiness * UNIT_SCALE * weight,
+            max_energy=UNIT_SCALE * weight,
+            health=integrity * HEALTH_MAX,
+            max_health=HEALTH_MAX,
+        )
+        node.state["organ_kind"] = str(getattr(organ, "kind", "") or "")
+        nodes[organ_id] = node
+        ordered.append((organ, node))
+    ordered.sort(
+        key=lambda item: (
+            depths.get(item[1].id, 0),
+            item[1].id,
+        )
+    )
+    for organ, node in ordered:
+        parent_id = "" if problems else str(
+            getattr(organ, "parent_id", "") or ""
+        )
+        parent = nodes.get(parent_id) if parent_id else None
+        target = parent if parent is not None and parent is not node else root
+        try:
+            target.add_child(node)
+        except ValueError:
+            # Повреждённая ссылка/глубина: орган остаётся в дереве, но
+            # без спорного родителя.
+            if getattr(node, "_composite_parent", None) is not None:
+                node._composite_parent.remove_child(node.id)
+            try:
+                root.add_child(node)
+            except ValueError:
+                continue
+    return root
+
+
 @dataclass
 class OrganRuntime:
     """Состояние одного органа внутри фракции."""

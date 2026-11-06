@@ -23,6 +23,7 @@ from .fractal import (
     ORGAN_MODEL_DEFAULTS,
     OrganRuntime,
     damage_organs,
+    organ_composite,
     organ_depths,
     readiness_scale,
     spread_organ_effect,
@@ -648,6 +649,23 @@ class AutomataCampaign:
 
     def other_sides(self, side):
         return [item for item in self.factions if item != str(side or "")]
+
+    def composite(self, side=None):
+        """Составной автомат иерархии органов стороны.
+
+        Это диагностическое представление (WORLD_CORE_MODEL §2.7):
+        `OrganRuntime` остаётся источником истины, а дерево отдаёт
+        агрегаты `F/E/S` и распределение работы. ``side`` по умолчанию —
+        сторона игрока; неизвестная сторона возвращает ``None``.
+        """
+        side = str(side or self.player_side)
+        faction = self.faction(side)
+        if faction is None:
+            return None
+        return organ_composite(
+            faction.organs,
+            root_id="%s:faction" % side,
+        )
 
     # ------------------------------------------------------------------
     # Бюджет действий и ход
