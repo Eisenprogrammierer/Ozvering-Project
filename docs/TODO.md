@@ -76,6 +76,15 @@
   Тесты — `tests/test_composite.py`,
   `tests/test_automata_campaign.py::test_composite_view_aggregates_organ_hierarchy`;
   раздел — `WORLD_CORE_MODEL.md` §2.7.
+- [x] **Проекции старых шкал и версия снимка.** `campaign/projections.py`
+  фиксирует соответствие `standing→F`, `actions_left/wealth→E`,
+  `health→H`, `legitimacy/cohesion→S`, `influence/favor/evidence→
+  состояния/права/обязательства`; `WorldEngine.projection_view()` отдаёт
+  сырые `F/E/H` и легаси-имена одновременно, UI показывает `F/E` рядом с
+  чипами ресурсов. Снимки получили `SCHEMA_VERSION = 1`, старые читаются
+  как v0, будущие отвергаются. Закрывает §7.1 №6 (гибридный планировщик,
+  §2.5) и §7.2 №9–13. Тесты — `tests/test_projections.py`;
+  разделы — `WORLD_CORE_MODEL.md` §2.5, §2.8.
 - [ ] **Осталось открытым:** типизированные `payload`, `obligation` и
   влияние осей отношений на вход/обработчик/выход (§7.6 №36–38),
   визуализация асимметрии узлов в UI.

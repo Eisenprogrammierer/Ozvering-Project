@@ -24,6 +24,11 @@ from .planner import (
     condition_holds,
 )
 from .node_strategy import StrategyBook
+from .projections import (
+    SCHEMA_VERSION,
+    ensure_supported_snapshot,
+    player_projection_view,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
@@ -1983,6 +1988,10 @@ class WorldEngine:
             "force": float(self.player_force),
             "max_force": float(self.player.max_force),
         }
+
+    def projection_view(self):
+        """Ядро и легаси-проекции персонажа в одном стабильном виде."""
+        return player_projection_view(self)
 
     def character_condition(self, character_id):
         character = self.character(character_id)
@@ -4900,6 +4909,7 @@ class WorldEngine:
 
     def to_dict(self):
         return {
+            "schema_version": SCHEMA_VERSION,
             "world_id": self.config.get("id"),
             "seed": self.seed,
             "day": self.day,
@@ -4998,6 +5008,7 @@ class WorldEngine:
     def load_snapshot(self, snapshot):
         if not snapshot:
             return
+        ensure_supported_snapshot(snapshot)
         self.seed = _as_int(snapshot.get("seed"), self.seed)
         self.day = max(1, _as_int(snapshot.get("day"), 1))
         self.days = max(1, _as_int(snapshot.get("days"), self.days))

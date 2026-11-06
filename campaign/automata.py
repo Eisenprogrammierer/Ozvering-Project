@@ -31,6 +31,11 @@ from .fractal import (
     tick_organs,
     validate_organ_hierarchy,
 )
+from .projections import (
+    SCHEMA_VERSION,
+    ensure_supported_snapshot,
+    stamp_snapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1682,7 +1687,7 @@ class AutomataCampaign:
 
     def save_snapshot(self):
         """Полный снимок для сохранения игры, включая журнал и состояние ГСЧ."""
-        data = self.snapshot()
+        data = stamp_snapshot(self.snapshot(), SCHEMA_VERSION)
         data["log"] = list(self.log)
         data["events"] = list(self.events)
         data["rng_state"] = _nested_tuple(self.rng.getstate())
@@ -1751,6 +1756,7 @@ class AutomataCampaign:
         snapshot = _as_mapping(snapshot)
         if not snapshot:
             return
+        ensure_supported_snapshot(snapshot)
         self.turn = int(_number(snapshot.get("turn"), self.turn))
         saved_max = snapshot.get("max_turns")
         if saved_max is None:

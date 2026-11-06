@@ -788,6 +788,18 @@ class WorldScreen(BaseScreen):
         else:
             detail = "Должность не занята · выберите новую роль"
         condition = self.engine.player_condition()
+        max_force = max(1e-9, float(condition.get("max_force", 1.0)))
+        max_energy = max(1e-9, float(condition.get("max_energy", 1.0)))
+        detail += " · F %d%% · E %d%%" % (
+            int(round(100.0 * float(condition.get("force", 0.0)) / max_force)),
+            int(
+                round(
+                    100.0
+                    * float(condition.get("energy", 0.0))
+                    / max_energy
+                )
+            ),
+        )
         detail += " · H %d" % int(round(condition["health"]))
         if condition["sickness"] > 0.0:
             detail += " · болезнь %d%%" % int(
