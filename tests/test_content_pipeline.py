@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import character_traits as CT
 from automata.model import Automaton
 from automata.storage import AutomataStore
 from campaign.__main__ import main as campaign_main
@@ -46,6 +47,30 @@ def test_all_config_json_files_are_parseable():
             except Exception as exc:  # pragma: no cover - диагностика
                 broken.append("%s: %s" % (path, exc))
     assert not broken, "битый JSON:\n" + "\n".join(broken)
+
+
+def test_character_traits_are_valid_content():
+    import warfare as W
+
+    model = CT.load_traits()
+    assert set(model.traits) == set(W.TRAITS)
+    assert set(model.intent["need_intents"]) == set(W.NEEDS)
+    for need, intents in model.intent["need_intents"].items():
+        assert intents, "потребность %s не связана с действиями" % need
+        assert set(intents) <= set(model.intents)
+    for key, definition in model.traits.items():
+        assert definition.label and definition.summary, key
+        assert 0.0 <= definition.base <= 1.0, key
+
+
+def test_trait_loader_rejects_unknown_archetype_trait(tmp_path):
+    data = _read(CT.default_traits_path())
+    data["archetypes"]["veteran"]["modifiers"]["unknown_trait"] = 0.1
+    path = tmp_path / "traits.json"
+    _write(path, data)
+
+    with pytest.raises(CT.TraitDataError):
+        CT.load_traits(path, use_cache=False)
 
 
 def test_world_folder_add_edit_remove(tmp_path):

@@ -7,12 +7,13 @@
 > [`SYSTEMS.md`](SYSTEMS.md), [`WORLD.md`](WORLD.md),
 > [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
 
-> **Поставка пустая.** В репозитории нет игрового JSON-контента: каталоги
-> `configs/` и `campaigns/` содержат только `.gitkeep`. Миры, роли,
-> сюжеты, автоматы, события, имена и шаблоны добавляются файлами по
-> схемам ниже. Старый набор данных сохранён только для тестов в
-> `tests/fixtures/content/`; это не игровой контент, и рабочая сборка его
-> не видит.
+> **Поставка не пустая.** В `configs/` уже лежит рабочий контент: четыре
+> лорных шаблона кампаний, общие фракции/органы/работы, роли, сюжеты,
+> 12 черт характера, каталог личности, имена, события и UI-контент.
+> Часть каталогов (`configs/worlds/`, `configs/automata/`, `campaigns/`)
+> пока содержит только `.gitkeep` — это заготовки под свои данные.
+> `tests/fixtures/content/` остаётся изолированным набором для тестов и
+> не является игровым контентом.
 
 ## 1. Правила
 
@@ -21,8 +22,9 @@
    папку: `configs/automata/`, `configs/naming/classes/`,
    `configs/naming/interactions/`, `configs/storylines/`, `configs/roles/`,
    `configs/worlds/`, `configs/campaigns/`, `configs/content/`,
-   `campaigns/`. Каталоги существуют и пусты, поэтому новый файл сразу
-   попадает в обход без правки кода.
+   `configs/characters/`, `campaigns/`. Новый файл сразу попадает в обход
+   без правки кода. Общие фракции и работы кампаний подключаются не
+   сканированием, а полем `factions_path` из шаблона.
 3. **Удаление файла = удаление контента.** Ссылки на удалённый id должны
    быть убраны из других файлов; загрузчики сообщают об ошибке, а списки
    просто перестают показывать запись.
@@ -39,8 +41,9 @@
 
 ## 2. Карта папок
 
-Все перечисленные каталоги в поставке пусты (кроме `.gitkeep`). Таблица
-показывает, куда положить новый JSON и какой загрузчик его прочитает.
+Таблица показывает, куда положить новый JSON и какой загрузчик его
+прочитает. Каталоги без файлов (`.gitkeep`) — заготовки: новый файл в них
+начинает работать без правки кода, если загрузчик сканирует папку.
 
 | Путь | Что это | Загрузчик | Добавить | Изменить | Удалить |
 |---|---|---|---|---|---|
@@ -52,6 +55,8 @@
 | `configs/systems/events.json` | категории и шаблоны событий | `EventCatalog.load()` | элемент в `events` (и категорию) | `templates`/вес/категорию | элемент |
 | `configs/systems/environment.json` | особенности среды | `EnvironmentCatalog.load()` | элемент в `features` | состояния/действия/дрейф | элемент |
 | `configs/systems/playwright.json` | веса и шаблоны драматурга | `PlaywrightConfig.load()` | шаблон в `templates` | веса/ритм/шаблон | шаблон |
+| `configs/characters/traits.json` | черты характера и их влияние | `character_traits.load_traits()` | черта в `traits`, архетип в `archetypes` | `base`/`scale`/`center`, `need_*`, `intent_bias` | черта/архетип (проверить ссылки) |
+| `configs/characters/identity.json` | варианты личности героя | `campaign.identity.load_identity_catalog()` | происхождение/призвание/ценность/слабость/пол в своей секции | `label`/`summary`/`text`, `needs`, `traits` | вариант (проверить, что на него не ссылаются сохранения) |
 | `configs/storylines/<id>.json` | основной сюжет | `view.support.storyline.load_storyline` | новый `<id>.json` | поля сюжета | файл |
 | `configs/storylines/<id>_char.json` | шаги создания персонажа | тот же, по полю `character_creation` | новый файл | `steps` | файл (и ссылку) |
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
@@ -62,6 +67,7 @@
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
 | `configs/campaigns/*.json` | шаблоны пресетов | `campaign.preset.load_template()` | новый шаблон | фракции/сценарий | файл |
+| `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы и взаимодействия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions` | цели, активы, титулы, органы, работы, взаимодействия | фракция/орган/работа/взаимодействие (проверить `organ_id` и ссылки шаблонов) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
 | `configs/view/presentation.json` | плейсхолдеры/подписи ассетов | `view.ui.asset_loader` | ключ | значение | ключ |
@@ -164,13 +170,17 @@
   "title": "Мини-сюжет",
   "world_path": "configs/worlds/mini_world.json",
   "character_creation": "mini_char",
-  "scenes": "mini_scenes"
+  "scenes": "mini_scenes",
+  "identity_editor": false
 }
 ```
 
 `list_storylines()` показывает только основные файлы и пропускает
 `*_char.json`/`*_scenes.json`. Если `character_creation` или `scenes`
-не указаны, соответствующий блок остается пустым.
+не указаны, соответствующий блок остается пустым. `identity_editor: true`
+включает редактор личности перед стартом; сейчас так помечены четыре
+лорных сюжета (`empire_campaign`, `republic_campaign`, `cult_campaign`,
+`corporation_campaign`).
 
 ### Контент UI (`configs/content/<name>.json`)
 
@@ -204,6 +214,135 @@ custom = content.get("my_new_file", {})
 Категория должна быть объявлена в `categories`. Удаление события не
 требует правки кода, если на его id никто не ссылается.
 
+### Черты характера (`configs/characters/traits.json`)
+
+Один файл задаёт все 12 черт, их базы, разброс, архетипы и коэффициенты
+влияния. Потребности остаются в коде (`warfare.NEEDS`), потому что это
+контракт модели; что именно каждая потребность значит для действия —
+данные `model.intent.need_intents`.
+
+```json
+{
+  "traits": {
+    "courage": {
+      "label": "Смелость",
+      "summary": "Сопротивляется страху и панике.",
+      "base": 0.55,
+      "need_urgency": {"fear": {"base": 0.75, "scale": 0.60}},
+      "need_growth": {"fear": {"base": 1.45, "scale": -0.90}},
+      "intent_bias": {
+        "assault": {"base": 0.0, "scale": 0.10, "center": 0.5},
+        "retreat": {"base": 0.0, "scale": -0.15, "center": 0.5}
+      }
+    }
+  },
+  "archetypes": {
+    "veteran": {"label": "Ветеран", "modifiers": {"courage": 0.18}}
+  }
+}
+```
+
+Эффект считается как `base + scale · (value − center)`. Для
+`need_urgency`/`need_growth` `center` обычно равен 0 (множитель), для
+`intent_bias` — 0.5 (поправка к нейтральной черте). `model.morale`,
+`model.mind`, `model.intent` и `model.detachment` содержат пороги, таймеры
+и агрегаты отделения.
+
+### Личность героя (`configs/characters/identity.json`)
+
+Файл задаёт варианты, из которых редактор личности собирает героя перед
+стартом кампании автоматов. Секции `genders`, `origins`, `vocations`,
+`values`, `flaws` — словари `id → вариант`. Главная черта выбирается из
+12 черт `configs/characters/traits.json`, поэтому отдельной секции `traits`
+в файле личности нет.
+
+```json
+{
+  "schema": 1,
+  "label": "Личность героя",
+  "default_name": "Новый правитель",
+  "genders": {"male": {"label": "Мужчина"}},
+  "origins": {
+    "frontier": {
+      "label": "Пограничная дорога",
+      "summary": "Заставы, проводники и привычка не верить обещаниям.",
+      "text": "Вы выросли там, где власть заканчивается у заставы.",
+      "needs": {"health": 0.04, "fear": 0.03},
+      "traits": {"courage": 0.05, "endurance": 0.04}
+    }
+  },
+  "vocations": {}, "values": {}, "flaws": {}
+}
+```
+
+`label` обязателен, `summary`/`text` необязательны (тогда описание
+совпадает с названием). `needs` и `traits` — сдвиги к значениям персонажа,
+а не абсолютные значения. Личность применяется к уже собранному пресету:
+имя, биография, потребности, черты, подпись лидера и форма титула
+меняются, а seed, состав фракций и баланс — нет. Пол выбирает форму
+`role_title_female`/`leader_title_female`; например, для Империи это
+«императрица», а не «император».
+
+### Фракции, органы и работы (`configs/campaigns/base/lore_factions.json`)
+
+Общие данные четырёх лорных кампаний. Шаблон подключает файл полем
+`factions_path`. У фракции есть `goals`, `assets`, `actions`, `organs` и
+`organ_interactions`; каждая работа ссылается на орган через `organ_id`, а
+пресет превращает каждый орган в отдельный автомат
+`automaton_organ_<side>_<organ>` и сам выводит `action_ids` органа из работ.
+
+```json
+{
+  "organs": [
+    {
+      "id": "justice",
+      "name": "Ведомство юстиции",
+      "kind": "maintenance",
+      "description": "Суды, эдикты и право говорить от имени закона."
+    }
+  ],
+  "actions": [
+    {
+      "id": "imperial_edict",
+      "label": "Опубликовать имперский эдикт",
+      "description": "Эдикт объявляет мятеж незаконным; сомнение в нём само становится преступлением.",
+      "organ_id": "justice",
+      "cooldown": 2,
+      "form": "information"
+    }
+  ],
+  "organ_interactions": [
+    {
+      "id": "reinforce",
+      "label": "Усилить орган",
+      "description": "Перебросить людей и ресурсы: целостность органа растёт.",
+      "cost": {"supply": 0.04},
+      "integrity": 0.12,
+      "faction": {"cohesion": 0.015},
+      "cooldown": 2
+    }
+  ]
+}
+```
+
+`description` работы необязательно, но пресет всегда его заполняет:
+берёт явный текст, затем `effects.text`/`failure.text`, затем собирает
+подпись. Поэтому экран может показать описание даже у старых работ.
+
+`kind` органа (`command`, `coercion`, `intelligence`, `information`,
+`maintenance`, `legitimacy`, `care`, `meaning`, `exchange`) задаёт его
+проекцию на актив фракции и вес в фрактальной модели. Целостность органа
+(`integrity`) инициализируется рантаймом, а не JSON: `campaign/fractal.py`
+тянет её к уменьшенной копии состояния фракции, возвращает часть изменения
+обратно и масштабирует силу работ. Игрок влияет на органы через
+`organ_interactions`: `reinforce`, `reform`, `purge`, `resupply` (набор
+можно менять данными). Взаимодействие стоит активов, имеет перезарядку,
+меняет целостность органа и через `organ_spread` — его фракцию; выполняется
+через `AutomataCampaign.advance(organ_action=...)` или экран «Сеть».
+
+Подробная модель работ, активов, фрактала, взаимодействий и исхода — в
+[`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md).
+
 ### Автомат (`configs/automata/<slug>.json`)
 
 Один файл — один автомат. Полная схема и редактор —
@@ -233,7 +372,11 @@ python3 -m campaign --list-presets
 ```python
 from campaign.world import list_worlds, load_world
 from campaign.roles import RoleCatalog
+from character_traits import load_traits
 from view.support.storyline import list_storylines, load_storyline
+
+traits = load_traits()
+assert len(traits.traits) == 12
 
 worlds = list_worlds()
 if worlds:
@@ -245,17 +388,20 @@ if storylines:
     assert load_storyline(storylines[0]["storyline_id"]) is not None
 ```
 
-Если контента ещё нет, `list_worlds()`, `list_storylines()` и
-`RoleCatalog.load()` ведут себя предсказуемо: первые два возвращают пустой
-список, а `RoleCatalog` поднимает `RoleError`. UI это переживает: меню
-открывается, экран ролей показывает пустое состояние, а быстрая кампания
-просит добавить мир.
+Если какого-то контента нет, загрузчики ведут себя предсказуемо:
+`list_worlds()`/`list_storylines()` возвращают пустой список, а
+`RoleCatalog` поднимает `RoleError`. UI это переживает: меню открывается,
+экран ролей показывает пустое состояние, а быстрая кампания просит
+добавить мир.
 
-### Первый запуск без контента
+### Первый запуск при неполном контенте
 
 * `load_world()` без пути ищет `configs/worlds/agora_world.json`; если его
   нет, берётся первый валидный `*.json` из `configs/worlds/`. Поэтому новый
   мир можно назвать как угодно — переименовывать файл под код не нужно.
+* В текущей поставке `configs/worlds/` пуст, поэтому «Быстрая кампания»
+  из главного меню просит добавить мир. Основной рабочий путь — «Новая
+  игра» с четырьмя лорными ролями и кампаниями автоматов.
 * Если ролей нет, `App` ловит `RoleError`, `RoleSelectScreen` показывает
   пустое состояние, а `python3 -m campaign --list-roles` печатает
   сообщение вместо traceback.

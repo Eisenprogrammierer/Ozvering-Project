@@ -4,6 +4,7 @@
   "description": "Кампания за Империю: удержать монополию на законность и не проиграть публично в столкновении автоматов.",
   "campaign_template": "configs/campaigns/empire_campaign.json",
   "campaign_seed": 11,
+  "identity_editor": true,
   "scenes": "empire_campaign_scenes",
   "win_conditions": [
     {
@@ -21,7 +22,7 @@
     "slides": [
       {
         "image": "campaign/empire_win",
-        "text": "Переправа удержана. Сводки говорят о порядке, а не о цене. Миф о непобедимости выдержал ещё один день."
+        "text": "Рубеж удержан. Сводки говорят о порядке, а не о цене. Миф о непобедимости выдержал ещё один день."
       }
     ]
   },

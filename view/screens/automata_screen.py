@@ -14,7 +14,8 @@ LEFT_RECT = pygame.Rect(24, TOP_H, 344, 520)
 MID_RECT = pygame.Rect(388, TOP_H, 420, 520)
 RIGHT_RECT = pygame.Rect(828, TOP_H, 428, 520)
 BOTTOM_RECT = pygame.Rect(24, 646, 1232, 54)
-ACTION_ROW_H = 62
+ACTION_ROW_H = 56
+DESCRIPTION_H = 112
 PANEL_BG = (18, 23, 33, 238)
 PANEL_BORDER = (58, 70, 92)
 TEXT = (225, 230, 238)
@@ -82,6 +83,7 @@ class AutomataScreen(BaseScreen):
     def __init__(self, app, campaign):
         super().__init__(app)
         self.campaign = campaign
+        self.campaign.begin_turn()
         self.selected_action_id = None
         self.action_scroll = 0
         self.log_scroll = 0
@@ -89,10 +91,11 @@ class AutomataScreen(BaseScreen):
         self.last_result = None
         self._sync_storyline()
         logger.info(
-            "Экран автоматов: фракций=%d, ход=%d/%d, игрок=%s",
+            "Экран автоматов: фракций=%d, ход=%d, действий=%d/%d, игрок=%s",
             len(campaign.factions),
             campaign.turn,
-            campaign.max_turns,
+            campaign.actions_left,
+            campaign.actions_per_turn,
             campaign.player_side,
         )
 
@@ -107,6 +110,12 @@ class AutomataScreen(BaseScreen):
         interp.state["automata"] = snapshot
         interp.set_variable("automata_turn", snapshot["turn"])
         interp.set_variable("automata_max_turns", snapshot["max_turns"])
+        interp.set_variable(
+            "automata_actions_left", snapshot["actions_left"]
+        )
+        interp.set_variable(
+            "automata_actions_per_turn", snapshot["actions_per_turn"]
+        )
         interp.set_variable("automata_outcome", snapshot["outcome"])
         for side, faction in snapshot["factions"].items():
             interp.set_variable(
@@ -125,7 +134,11 @@ class AutomataScreen(BaseScreen):
         return self.campaign.action_options(self.campaign.player_side)
 
     def _visible_actions(self):
-        return max(1, (MID_RECT.height - 78) // ACTION_ROW_H)
+        return max(
+            1,
+            (MID_RECT.height - 58 - DESCRIPTION_H - 14)
+            // ACTION_ROW_H,
+        )
 
     def _action_rows(self):
         options = self._options()
@@ -141,6 +154,26 @@ class AutomataScreen(BaseScreen):
             )
             rows.append((rect, option))
         return rows
+
+    def _selected_option(self):
+        if self.selected_action_id is None:
+            return None
+        return next(
+            (
+                item
+                for item in self._options()
+                if item["id"] == self.selected_action_id
+            ),
+            None,
+        )
+
+    def _description_rect(self):
+        return pygame.Rect(
+            MID_RECT.x + 10,
+            MID_RECT.bottom - DESCRIPTION_H - 8,
+            MID_RECT.width - 20,
+            DESCRIPTION_H,
+        )
 
     def _faction_rows(self):
         rows = []
@@ -163,10 +196,6 @@ class AutomataScreen(BaseScreen):
             return
         if self.campaign.finished:
             return
-        # Одна работа за ход: «Выполнить» проводит выбранную работу и
-        # завершает ход вместе с ответом остальных автоматов. Раньше работа
-        # применялась вне цикла хода, и игрок мог выполнить несколько работ
-        # подряд, пока не кончатся ресурсы.
         action_id = self.selected_action_id
         option = next(
             (item for item in self._options() if item["id"] == action_id),
@@ -178,55 +207,56 @@ class AutomataScreen(BaseScreen):
             )
             logger.info("Работа отклонена: %s (%s)", action_id, self.message)
             return
-        self.campaign.advance(player_action=action_id)
-        self.selected_action_id = None
-        self._sync_storyline()
-        self.last_result = next(
-            (
-                item
-                for item in reversed(self.campaign.log)
-                if item.get("turn") == self.campaign.turn
-                and item.get("actor_side") == self.campaign.player_side
-            ),
-            None,
+        self.campaign.begin_turn()
+        result = self.campaign.perform(
+            self.campaign.player_side, action_id
         )
-        if self.last_result is None:
-            self.message = "Работа не выполнена: проверьте цену и перезарядку."
-            logger.info("Работа отклонена: %s", action_id)
-        else:
-            self.message = ""
-            logger.info(
-                "Работа автомата: %s → %s; успех=%s; шанс=%.3f; ход=%d",
-                self.last_result.get("actor_name", "?"),
-                self.last_result.get("target_name", "?"),
-                self.last_result.get("success"),
-                float(self.last_result.get("chance", 0.0)),
-                self.campaign.turn,
-            )
+        self._sync_storyline()
+        if not result.get("ok"):
+            self.message = result.get("reason") or "Работа не выполнена."
+            logger.info("Работа отклонена: %s (%s)", action_id, self.message)
+            return
+        self.selected_action_id = None
+        self.last_result = result
+        self.message = ""
+        logger.info(
+            "Работа автомата: %s → %s; успех=%s; шанс=%.3f; ход=%d; "
+            "действий осталось=%d",
+            result.get("actor_name", "?"),
+            result.get("target_name", "?"),
+            result.get("success"),
+            float(result.get("chance", 0.0)),
+            self.campaign.turn,
+            self.campaign.actions_left,
+        )
         if self.campaign.finished:
             self._check_storyline_outcome()
 
     def _end_turn(self):
         if self.campaign.finished:
             return
-        action_id = self.selected_action_id
-        if action_id is None:
-            action_id = self.campaign.auto_action(
-                self.campaign.player_side, turn=self.campaign.turn + 1
-            )
-        result = self.campaign.advance(player_action=action_id)
+        self.campaign.end_turn()
         self.selected_action_id = None
         self.last_result = (
             self.campaign.log[-1] if self.campaign.log else None
         )
-        self.message = ""
         self._sync_storyline()
+        if not self.campaign.finished:
+            self.campaign.begin_turn()
+            self.message = (
+                "Ход завершён. Начат ход %d; действий: %d."
+                % (self.campaign.turn, self.campaign.actions_left)
+            )
+        else:
+            self.message = "Кампания завершена."
         logger.info(
-            "Ход автоматов завершён: %d/%d, исход=%s",
-            result["turn"],
-            result["max_turns"],
-            result["outcome"],
+            "Ход автоматов завершён: ход=%d, действий=%d/%d, исход=%s",
+            self.campaign.turn,
+            self.campaign.actions_left,
+            self.campaign.actions_per_turn,
+            self.campaign.outcome,
         )
+        self._sync_storyline()
         if self.campaign.finished:
             self._check_storyline_outcome()
 
@@ -275,6 +305,12 @@ class AutomataScreen(BaseScreen):
         if self._end_turn_rect().collidepoint(pos):
             self._end_turn()
             return
+        if self._network_rect().collidepoint(pos):
+            self._open_network()
+            return
+        if self._codex_rect().collidepoint(pos):
+            self._open_codex()
+            return
         if self.campaign.finished and self._finish_rect().collidepoint(pos):
             self._accept_outcome()
             return
@@ -297,23 +333,51 @@ class AutomataScreen(BaseScreen):
         return pygame.Rect(
             MID_RECT.x + 10,
             BOTTOM_RECT.y + 7,
-            250,
+            240,
             40,
         )
 
     def _end_turn_rect(self):
         return pygame.Rect(
-            MID_RECT.x + 274,
+            MID_RECT.x + 260,
             BOTTOM_RECT.y + 7,
-            250,
+            170,
             40,
         )
 
+    def _network_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.x + 804,
+            BOTTOM_RECT.y + 7,
+            90,
+            40,
+        )
+
+    def _codex_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.x + 904,
+            BOTTOM_RECT.y + 7,
+            90,
+            40,
+        )
+
+    def _open_network(self):
+        from .automata_network import AutomataNetworkScreen
+
+        self.app.manager.push(
+            AutomataNetworkScreen(self.app, self.campaign)
+        )
+
+    def _open_codex(self):
+        from .campaign_codex import CampaignCodexScreen
+
+        self.app.manager.push(CampaignCodexScreen(self.app))
+
     def _finish_rect(self):
         return pygame.Rect(
-            BOTTOM_RECT.right - 280,
+            BOTTOM_RECT.right - 228,
             BOTTOM_RECT.y + 7,
-            270,
+            228,
             40,
         )
 
@@ -338,9 +402,10 @@ class AutomataScreen(BaseScreen):
         screen.blit(
             self.app.font_title.render(title, True, TEXT), (24, 12)
         )
-        status = "ход %d / %d" % (
+        status = "ход %d · действия %d/%d" % (
             self.campaign.turn,
-            self.campaign.max_turns,
+            self.campaign.actions_left,
+            self.campaign.actions_per_turn,
         )
         if self.campaign.outcome:
             status += " · исход: %s" % self.campaign.outcome
@@ -439,7 +504,7 @@ class AutomataScreen(BaseScreen):
                 self.app.font_small.render(
                     str(action.get("label") or option["id"]), True, color
                 ),
-                (rect.x + 10, rect.y + 7),
+                (rect.x + 10, rect.y + 6),
             )
             target = _target_name(self.campaign, action)
             cost = action.get("cost") or {}
@@ -447,15 +512,102 @@ class AutomataScreen(BaseScreen):
                 "%s −%.2f" % (ASSET_LABELS.get(key, key), float(value))
                 for key, value in cost.items()
             )
+            organ = str(action.get("organ") or action.get("organ_id") or "")
             detail = "цель: %s" % target
+            if organ:
+                detail = "орган: %s · %s" % (organ, detail)
             if cost_text:
                 detail += " · цена: %s" % cost_text
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
-            screen.blit(
-                self.app.font_tiny.render(detail, True, DIM),
-                (rect.x + 10, rect.y + 33),
+            for line_number, line in enumerate(
+                wrap_text(self.app.font_tiny, detail, rect.width - 20)[:2]
+            ):
+                screen.blit(
+                    self.app.font_tiny.render(line, True, DIM),
+                    (rect.x + 10, rect.y + 27 + line_number * 12),
+                )
+
+        description_rect = self._description_rect()
+        pygame.draw.rect(
+            screen, (16, 21, 31), description_rect, border_radius=6
+        )
+        pygame.draw.rect(
+            screen, PANEL_BORDER, description_rect, 2, border_radius=6
+        )
+        screen.blit(
+            self.app.font_tiny.render(
+                "ВЫБРАННАЯ РАБОТА", True, MUTED
+            ),
+            (description_rect.x + 10, description_rect.y + 8),
+        )
+        selected_option = self._selected_option()
+        if selected_option is None:
+            hint = (
+                "Выберите работу в списке — здесь появятся её описание, "
+                "орган-исполнитель и цель."
             )
+            for line_number, line in enumerate(
+                wrap_text(
+                    self.app.font_tiny,
+                    hint,
+                    description_rect.width - 20,
+                )[:3]
+            ):
+                screen.blit(
+                    self.app.font_tiny.render(line, True, DIM),
+                    (
+                        description_rect.x + 10,
+                        description_rect.y + 30 + line_number * 16,
+                    ),
+                )
+        else:
+            action = selected_option["action"]
+            organ_id = str(action.get("organ_id") or "")
+            organ = (
+                self._player().organ(organ_id)
+                if self._player() is not None
+                else None
+            )
+            meta = "цель: %s" % _target_name(
+                self.campaign, action
+            )
+            if organ is not None:
+                meta = "орган: %s · %.0f%% · %s" % (
+                    organ.name,
+                    organ.integrity * 100.0,
+                    meta,
+                )
+            screen.blit(
+                self.app.font_small.render(
+                    str(action.get("label") or selected_option["id"]),
+                    True,
+                    TEXT,
+                ),
+                (description_rect.x + 10, description_rect.y + 24),
+            )
+            screen.blit(
+                self.app.font_tiny.render(meta, True, ACCENT),
+                (description_rect.x + 10, description_rect.y + 44),
+            )
+            description = str(
+                action.get("description")
+                or "Описание работы не задано."
+            )
+            for line_number, line in enumerate(
+                wrap_text(
+                    self.app.font_tiny,
+                    description,
+                    description_rect.width - 20,
+                )[:4]
+            ):
+                screen.blit(
+                    self.app.font_tiny.render(line, True, MUTED),
+                    (
+                        description_rect.x + 10,
+                        description_rect.y + 62 + line_number * 14,
+                    ),
+                )
 
         _panel(screen, RIGHT_RECT)
         screen.blit(
@@ -534,8 +686,9 @@ class AutomataScreen(BaseScreen):
         self._draw_button(
             screen,
             self._execute_rect(),
-            "Выполнить выбранное",
+            "Выполнить · 1 действие",
             enabled=self.selected_action_id is not None
+            and self.campaign.actions_left > 0
             and not self.campaign.finished,
         )
         self._draw_button(
@@ -545,6 +698,18 @@ class AutomataScreen(BaseScreen):
             enabled=not self.campaign.finished,
             accent=True,
         )
+        self._draw_button(
+            screen,
+            self._network_rect(),
+            "Сеть",
+            enabled=True,
+        )
+        self._draw_button(
+            screen,
+            self._codex_rect(),
+            "Кодекс",
+            enabled=True,
+        )
         if self.campaign.finished:
             self._draw_button(
                 screen,
@@ -553,9 +718,15 @@ class AutomataScreen(BaseScreen):
                 accent=True,
             )
         else:
-            hint = "Выбрано: %s" % (
-                self.selected_action_id or "ход по приоритету ИИ"
-            )
+            if self.campaign.actions_left <= 0:
+                hint = (
+                    "Действия исчерпаны — завершите ход, чтобы начать новый."
+                )
+            else:
+                hint = "Выбрано: %s · осталось действий: %d" % (
+                    self.selected_action_id or "ничего",
+                    self.campaign.actions_left,
+                )
             screen.blit(
                 self.app.font_tiny.render(hint, True, DIM),
                 (self._finish_rect().x, BOTTOM_RECT.y + 20),

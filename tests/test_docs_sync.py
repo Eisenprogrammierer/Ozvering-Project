@@ -66,6 +66,7 @@ def test_referenced_experiments_exist():
 
 CONTENT_FOLDERS = (
     "configs/automata",
+    "configs/characters",
     "configs/naming",
     "configs/systems",
     "configs/storylines",
@@ -96,6 +97,7 @@ def test_content_doc_lists_existing_folders_and_loaders():
         "load_world",
         "load_template",
         "Content",
+        "load_traits",
     ):
         assert loader in text, "в CONTENT.md нет загрузчика %s" % loader
 

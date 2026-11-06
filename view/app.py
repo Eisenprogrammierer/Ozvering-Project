@@ -143,6 +143,7 @@ class App:
         self.world = None
         self.world_config = None
         self.player_profile = None
+        self.player_identity = None
 
         from campaign import RoleCatalog, RoleError
 
@@ -303,6 +304,7 @@ class App:
         self.world = None
         self.world_config = None
         self.player_profile = None
+        self.player_identity = None
         self.manager.push(RoleSelectScreen(self))
         logger.info("Запрошена новая игра: выбор роли")
 
@@ -377,6 +379,35 @@ class App:
         )
         self._play_next_scene()
 
+    def _set_identity_variables(self, interp):
+        """Пробросить личность героя и титул в текст сцен."""
+        if interp is None:
+            return
+        preset = getattr(self, "campaign_preset", None)
+        if preset is not None:
+            title = getattr(preset, "player_role_title", "")
+            if title:
+                interp.set_variable("player_role_title", title)
+        identity = dict(self.player_identity or {})
+        if not identity:
+            return
+        mapping = {
+            "player_character_name": "name",
+            "player_character_gender": "gender_label",
+            "player_character_origin": "origin_label",
+            "player_character_vocation": "vocation_label",
+            "player_character_value": "value_label",
+            "player_character_flaw": "flaw_label",
+            "player_character_trait": "trait_label",
+            "player_character_trait_summary": "trait_summary",
+            "player_character_biography": "biography",
+            "player_character_summary": "summary",
+        }
+        for variable, key in mapping.items():
+            value = identity.get(key)
+            if value:
+                interp.set_variable(variable, value)
+
     def _start_automata_storyline(self, storyline, role):
         from campaign.automata import AutomataCampaign
         from view.support.storyline import StorylineInterpreter
@@ -419,6 +450,7 @@ class App:
             "player_character_name",
             player_character.get("name") or "Лидер фракции",
         )
+        self._set_identity_variables(interp)
         interp.set_variable(
             "player_faction_name", player_faction.get("name") or "ваша фракция"
         )
@@ -445,15 +477,24 @@ class App:
         )
         interp.state["automata"] = self.automata_campaign.snapshot()
         logger.info(
-            "Кампания автоматов запущена: %s; роль=%s; игрок=%s; ходов=%d",
+            "Кампания автоматов запущена: %s; роль=%s; игрок=%s; "
+            "действий за ход=%d",
             storyline.get("storyline_id", "?"),
             role.id,
             self.automata_campaign.player_side,
-            self.automata_campaign.max_turns,
+            self.automata_campaign.actions_per_turn,
         )
         self._play_next_scene()
 
-    def start_storyline(self, storyline, faction_id=None):
+    def start_storyline(
+        self, storyline, faction_id=None, player_identity=None
+    ):
+        """Запустить сюжет; личность применяется до сборки кампании.
+
+        Редактор личности передаёт сюда готовый профиль. Пресет меняет
+        только игрового персонажа и подпись лидера, поэтому баланс, seed и
+        состав фракций остаются прежними.
+        """
         from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
         from view.support.scenario import build_world
@@ -480,6 +521,11 @@ class App:
             seed=self._campaign_seed(storyline),
             player_faction_id=self.selected_faction_id,
         )
+        self.player_identity = dict(player_identity or {})
+        if self.player_identity:
+            self.campaign_preset.apply_player_identity(
+                self.player_identity
+            )
         self.selected_faction_id = self.campaign_preset.player_faction_id
         if str(self.campaign_preset.scenario.get("mode") or "") == "automata":
             self._start_automata_storyline(storyline, role)
@@ -536,6 +582,7 @@ class App:
             interp.set_variable(
                 "player_character_name", player_character.get("name")
             )
+            self._set_identity_variables(interp)
             state.needs.commander.name = str(
                 player_character.get("name") or "Лидер фракции"
             )
@@ -876,10 +923,11 @@ class App:
         self.music.request_category("ambient")
         self.manager.replace_all(AutomataScreen(self, campaign))
         logger.info(
-            "Кампания автоматов открыта: %s, ход=%d/%d",
+            "Кампания автоматов открыта: %s, ход=%d, действий=%d/%d",
             campaign.preset_id,
             campaign.turn,
-            campaign.max_turns,
+            campaign.actions_left,
+            campaign.actions_per_turn,
         )
 
     def _play_gameplay(self, scene):

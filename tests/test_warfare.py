@@ -1,7 +1,29 @@
+import json
 import random
 
+import character_traits as CT
 import simulation as S
 import warfare as W
+
+
+INTENT_FOR_NEED = {
+    "hunger": "rest",
+    "thirst": "rest",
+    "fatigue": "rest",
+    "health": "rest",
+    "fear": "hold",
+    "anxiety": "hold",
+    "loneliness": "hold",
+    "reproduction": "fire",
+    "knowledge": "fire",
+    "creativity": "fire",
+    "boredom": "fire",
+    "status": "assault",
+    "spirituality": "assault",
+    "skill": "fire",
+    "love": "hold",
+    "friendship": "hold",
+}
 
 
 def _char(name, side="red", seed=0, archetype="rifleman"):
@@ -67,6 +89,182 @@ def test_personality_seed_is_reproducible_and_mutable_by_archetype():
     assert c["discipline"] >= a["discipline"]
     assert all(0.0 <= v <= 1.0 for v in c.as_dict().values())
     assert set(a.as_dict()) == set(W.TRAITS)
+
+
+def test_traits_are_loaded_from_data_not_hardcoded():
+    model = CT.load_traits()
+
+    assert W.TRAIT_MODEL is model
+    assert W.TRAITS == model.trait_names
+    assert len(W.TRAITS) == 12
+    assert W.TRAITS_RU == {
+        key: definition.label.lower()
+        for key, definition in model.traits.items()
+    }
+    assert set(model.archetypes) >= {
+        "rifleman",
+        "veteran",
+        "conscript",
+        "commissar",
+        "chaplain",
+        "medic",
+        "scout",
+        "machinegunner",
+        "citizen",
+    }
+    for key in W.TRAITS:
+        definition = model.definition(key)
+        assert definition.label
+        assert definition.summary
+        assert 0.0 <= definition.base <= 1.0
+
+    # Архетипы и коэффициенты — данные, а не дублирующиеся словари в коде.
+    veteran = W.Personality.from_seed(seed=42, archetype="veteran")
+    rifleman = W.Personality.from_seed(seed=42, archetype="rifleman")
+    assert veteran.as_dict() == model.roll(seed=42, archetype="veteran")
+    assert veteran["courage"] > rifleman["courage"]
+
+
+def test_all_sixteen_needs_have_data_driven_intent_mapping():
+    model = CT.load_traits()
+    mapping = model.intent["need_intents"]
+
+    assert set(mapping) == set(W.NEEDS)
+    neutral = {name: 0.5 for name in W.TRAITS}
+    for need, expected in INTENT_FOR_NEED.items():
+        assert mapping[need], "потребность %s не ведёт ни к одному действию" % need
+        kind, scores = model.choose_intent({need: 1.0}, neutral)
+        assert kind == expected, "%s -> %s" % (need, kind)
+        assert scores[expected] > 0.0
+
+
+def test_character_deliberates_from_each_of_sixteen_needs():
+    c = _char("needs", seed=0)
+    c.personality.values = {name: 0.5 for name in W.TRAITS}
+
+    for need, expected in INTENT_FOR_NEED.items():
+        c.needs = {name: 0.0 for name in W.NEEDS}
+        c.needs[need] = 1.0
+        intent = c.deliberate()
+        assert intent.kind == expected, "%s -> %s" % (need, intent.kind)
+        assert intent.need == need
+
+
+def test_trait_values_change_intent_scores_and_need_growth():
+    model = CT.load_traits()
+    low = {name: 0.5 for name in W.TRAITS}
+    high = dict(low)
+    low["courage"] = 0.0
+    high["courage"] = 1.0
+
+    low_scores = model.intention_scores({"fear": 0.8}, low)
+    high_scores = model.intention_scores({"fear": 0.8}, high)
+    assert high_scores["assault"] > low_scores["assault"]
+    assert high_scores["retreat"] < low_scores["retreat"]
+
+    # Выносливость замедляет рост усталости, смелость — рост страха.
+    high["endurance"] = 1.0
+    low["endurance"] = 0.0
+    assert model.growth_factor("fatigue", high) < model.growth_factor(
+        "fatigue", low
+    )
+    assert model.growth_factor("fear", high) < model.growth_factor(
+        "fear", low
+    )
+
+
+def test_same_needs_with_different_traits_choose_different_actions():
+    needs = {name: 0.0 for name in W.NEEDS}
+    needs.update({"fear": 0.5, "status": 0.4})
+
+    brave = _char("brave", seed=1)
+    brave.personality.values = {
+        name: 0.5 for name in W.TRAITS
+    }
+    brave.personality.values.update(
+        {
+            "courage": 1.0,
+            "aggression": 0.9,
+            "discipline": 0.3,
+            "empathy": 0.1,
+            "fanaticism": 0.4,
+        }
+    )
+    brave.needs = dict(needs)
+
+    cautious = _char("cautious", side="blue", seed=1)
+    cautious.personality.values = {
+        name: 0.5 for name in W.TRAITS
+    }
+    cautious.personality.values.update(
+        {
+            "courage": 0.0,
+            "aggression": 0.1,
+            "discipline": 0.95,
+            "empathy": 0.9,
+            "loyalty": 0.9,
+            "endurance": 0.9,
+        }
+    )
+    cautious.needs = dict(needs)
+
+    assert brave.deliberate().kind == "assault"
+    assert cautious.deliberate().kind == "hold"
+
+
+def test_trait_data_can_change_behavior_without_code(tmp_path):
+    data = json.loads(
+        CT.default_traits_path().read_text(encoding="utf-8")
+    )
+    data["traits"]["courage"]["need_growth"]["fear"]["scale"] = -2.0
+    data["traits"]["courage"]["intent_bias"]["retreat"]["scale"] = 0.0
+    path = tmp_path / "traits.json"
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    model = CT.load_traits(path, use_cache=False)
+    low = {name: 0.5 for name in W.TRAITS}
+    high = dict(low)
+    low["courage"] = 0.0
+    high["courage"] = 1.0
+
+    assert model.growth_factor("fear", high) < model.growth_factor(
+        "fear", low
+    )
+    low_scores = model.intention_scores({"fear": 0.8}, low)
+    high_scores = model.intention_scores({"fear": 0.8}, high)
+    assert low_scores["retreat"] == high_scores["retreat"]
+
+
+def test_detachment_trait_aggregates_drive_boldness_and_caution():
+    bold_chars = []
+    cautious_chars = []
+    for index in range(3):
+        bold = _char("bold-%d" % index, seed=index)
+        bold.personality.values.update(
+            {"aggression": 0.95, "courage": 0.95, "discipline": 0.10}
+        )
+        bold_chars.append(bold)
+
+        cautious = _char("cautious-%d" % index, seed=index)
+        cautious.personality.values.update(
+            {
+                "aggression": 0.10,
+                "courage": 0.10,
+                "discipline": 0.95,
+                "empathy": 0.80,
+                "loyalty": 0.90,
+            }
+        )
+        cautious_chars.append(cautious)
+
+    bold = W.Detachment("bold", "red", bold_chars)
+    cautious = W.Detachment("cautious", "blue", cautious_chars)
+    assert bold.boldness > cautious.boldness
+    assert cautious.caution > bold.caution
+    assert cautious._rest_score() > bold._rest_score()
+
 
 
 def test_order_is_passive_and_modulates_targets_for_duration():

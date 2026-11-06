@@ -618,7 +618,10 @@ EMA (`ENTROPY_EMA`); `H = -Σ p ln p`, `H_max = ln 4`.
   Зачин черт — `Personality.from_seed(seed, archetype)`: 12 черт
   (`courage`, `discipline`, `aggression`, `empathy`, `curiosity`, `creativity`,
   `ambition`, `spirituality`, `sociability`, `loyalty`, `fanaticism`,
-  `endurance`) и архетипы. Мораль, паника и фанатизм — производные величины;
+  `endurance`) и архетипы. Сами черты, их базы и коэффициенты влияния лежат в
+  `configs/characters/traits.json` (`character_traits.load_traits()`);
+  `deliberate()` суммирует оценки намерений, а не перебирает жёсткие ветки.
+  Мораль, паника и фанатизм — производные величины;
   кулдауны делают их событиями, а не постоянным режимом.
 * **Отделение** (`Detachment`) — суперсистема (`Environment`) из персонажей
   (`members`), но наружу — **единая боевая единица**: одна сила, один пул, один

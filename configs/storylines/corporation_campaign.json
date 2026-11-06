@@ -4,6 +4,7 @@
   "description": "Кампания за Торговую планету: сохранить автономию, нейтралитет и канал.",
   "campaign_template": "configs/campaigns/corporation_campaign.json",
   "campaign_seed": 23,
+  "identity_editor": true,
   "scenes": "corporation_campaign_scenes",
   "win_conditions": [
     {

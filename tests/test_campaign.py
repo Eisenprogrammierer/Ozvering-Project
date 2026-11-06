@@ -500,6 +500,10 @@ def test_role_select_screen_constructs_and_draws():
     screen.draw(surface)
     assert [role.id for role in screen.roles] == ["world_actor"]
     screen.select("world_actor")
+    assert screen.selected_id == "world_actor"
+    # Выбор показывает описание, но не запускает сюжет до «Продолжить».
+    assert app.selected_role is None
+    screen.continue_to_storyline()
     assert app.selected_role.id == "world_actor"
     assert app.selected_faction_id is None
     assert app.campaign_preset is None

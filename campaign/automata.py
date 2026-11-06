@@ -19,6 +19,17 @@ from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
 
 from .errors import CampaignError
+from .fractal import (
+    ORGAN_MODEL_DEFAULTS,
+    OrganRuntime,
+    damage_organs,
+    organ_depths,
+    readiness_scale,
+    spread_organ_effect,
+    strengthen_organ,
+    tick_organs,
+    validate_organ_hierarchy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +51,64 @@ MODEL_DEFAULTS = {
     "organization_morale": 0.002,
     "collapse_streak": 3,
 }
+MODEL_DEFAULTS.update(ORGAN_MODEL_DEFAULTS)
+
+DEFAULT_ACTIONS_PER_TURN = 3
+
+DEFAULT_CHARACTER_INTERACTIONS = [
+    {
+        "id": "promote",
+        "label": "Повысить",
+        "description": (
+            "Повышение закрывает потребность в статусе и повышает "
+            "лояльность, но требует влияния."
+        ),
+        "cost": {"influence": 0.04},
+        "needs": {"status": -0.15, "anxiety": -0.03},
+        "personality": {"loyalty": 0.04},
+        "morale": 6.0,
+        "organ_integrity": 0.02,
+        "cooldown": 3,
+    },
+    {
+        "id": "reward",
+        "label": "Наградить",
+        "description": (
+            "Награда поднимает мораль и снижает усталость; ресурс "
+            "расходуется из запаса фракции."
+        ),
+        "cost": {"supply": 0.03, "influence": 0.02},
+        "needs": {"status": -0.10, "fatigue": -0.05},
+        "personality": {"loyalty": 0.02},
+        "morale": 10.0,
+        "cooldown": 2,
+    },
+    {
+        "id": "reassure",
+        "label": "Поддержать",
+        "description": (
+            "Личная поддержка снижает страх, тревогу и одиночество, "
+            "возвращая человеку устойчивость."
+        ),
+        "cost": {"energy": 0.02},
+        "needs": {"fear": -0.12, "anxiety": -0.15, "loneliness": -0.05},
+        "morale": 8.0,
+        "cooldown": 2,
+    },
+    {
+        "id": "interrogate",
+        "label": "Допросить",
+        "description": (
+            "Жёсткая проверка повышает страх и тревогу, снижает "
+            "лояльность, но даёт знание о настроениях."
+        ),
+        "cost": {"influence": 0.03, "energy": 0.02},
+        "needs": {"fear": 0.12, "anxiety": 0.10, "knowledge": -0.08},
+        "personality": {"loyalty": -0.05},
+        "morale": -8.0,
+        "cooldown": 3,
+    },
+]
 
 
 def _number(value, default=0.0):
@@ -112,14 +181,22 @@ def _character_from_record(record, seed):
     for need, value in _as_mapping(record.get("needs")).items():
         if need in character.needs:
             character.needs[need] = _clamp(value)
+    personality = _as_mapping(record.get("personality"))
+    for trait, value in personality.items():
+        if trait in character.personality.values:
+            character.personality.values[trait] = _clamp(value)
     character.desires = character.weighted_urgency()
     if record.get("morale") is not None:
         character.morale = max(0.0, min(100.0, _number(record.get("morale"), character.morale)))
     character.campaign_id = record.get("id")
     character.campaign_faction_id = record.get("faction_id")
     character.campaign_post = record.get("post")
+    character.campaign_post_id = record.get("post_id", "")
+    character.campaign_organ_id = record.get("organ_id", "")
     character.campaign_role_id = record.get("campaign_role_id", "")
     character.campaign_leader = bool(record.get("is_faction_leader"))
+    character.campaign_is_player = bool(record.get("is_player"))
+    character.campaign_cooldowns = {}
     return character
 
 
@@ -136,6 +213,9 @@ class FactionRuntime:
     income: Dict[str, float] = field(default_factory=dict)
     score_assets: Dict[str, float] = field(default_factory=dict)
     actions: List[dict] = field(default_factory=list)
+    organs: List[OrganRuntime] = field(default_factory=list)
+    character_interactions: List[dict] = field(default_factory=list)
+    character_cooldowns: Dict[str, Dict[str, int]] = field(default_factory=dict)
     cooldowns: Dict[str, int] = field(default_factory=dict)
     low_streaks: Dict[str, int] = field(default_factory=dict)
     organization_snapshot: dict = field(default_factory=dict)
@@ -155,6 +235,74 @@ class FactionRuntime:
             if str(action.get("id")) == str(action_id):
                 return action
         return None
+
+    def organ(self, organ_id):
+        for organ in self.organs:
+            if str(organ.id) == str(organ_id):
+                return organ
+        return None
+
+    def character(self, character_id):
+        for character in self.characters:
+            if str(getattr(character, "campaign_id", "")) == str(character_id):
+                return character
+        return None
+
+    def character_snapshot(self, character):
+        if character is None:
+            return None
+        values = getattr(character.personality, "values", {})
+        return {
+            "id": str(getattr(character, "campaign_id", "") or ""),
+            "name": str(getattr(character, "name", "") or ""),
+            "post": str(getattr(character, "campaign_post", "") or ""),
+            "post_id": str(getattr(character, "campaign_post_id", "") or ""),
+            "organ_id": str(
+                getattr(character, "campaign_organ_id", "") or ""
+            ),
+            "morale": round(_clamp(_number(character.morale) / 100.0) * 100.0, 3),
+            "needs": {
+                str(key): round(_clamp(value), 6)
+                for key, value in character.needs.items()
+            },
+            "personality": {
+                str(key): round(_clamp(value), 6)
+                for key, value in values.items()
+            },
+            "is_leader": bool(
+                getattr(character, "campaign_leader", False)
+            ),
+            "is_player": bool(
+                getattr(character, "campaign_is_player", False)
+            ),
+            "dead": bool(getattr(character, "dead", False)),
+            "cooldowns": {
+                str(key): int(value)
+                for key, value in _as_mapping(
+                    getattr(character, "campaign_cooldowns", {})
+                ).items()
+            },
+        }
+
+    def character_options(self):
+        return [
+            item
+            for item in (
+                self.character_snapshot(character)
+                for character in self.characters
+            )
+            if item is not None
+        ]
+
+    def organ_average(self):
+        """Средняя целостность органов — самоподобный показатель фракции."""
+        if not self.organs:
+            return 0.5
+        total_weight = sum(max(0.1, organ.weight) for organ in self.organs)
+        return sum(
+            organ.integrity * max(0.1, organ.weight)
+            for organ in self.organs
+        ) / total_weight
 
     def score(self):
         """Взвешенная оценка целей фракции из данных шаблона.
@@ -222,10 +370,17 @@ class FactionRuntime:
                     willing_count / float(initial) if initial else 0.0,
                 )
             )
+        depths = organ_depths(self.organs)
+        organ_snapshots = []
+        for organ in self.organs:
+            item = organ.snapshot()
+            item["depth"] = int(depths.get(organ.id, 0))
+            organ_snapshots.append(item)
         return {
             "side": self.side,
             "id": self.id,
             "name": self.name,
+            "role_title": str(self.record.get("role_title") or ""),
             "assets": {key: round(_clamp(value), 6) for key, value in self.assets.items()},
             "score": round(self.score(), 6),
             "progress": round(self.progress(), 6),
@@ -236,6 +391,9 @@ class FactionRuntime:
             "actions": [str(item.get("id")) for item in self.actions],
             "cooldowns": {key: int(value) for key, value in self.cooldowns.items()},
             "dissolved": bool(self.dissolved),
+            "organs": organ_snapshots,
+            "characters": self.character_options(),
+            "organ_integrity": round(self.organ_average(), 6),
             "organization": dict(stored),
             "willing_share": round(_clamp(willing_share), 6),
             "willing_count": int(willing_count),
@@ -268,7 +426,27 @@ class AutomataCampaign:
         self.preset_id = str(data.get("preset_id") or data.get("template_id") or "")
         self.seed = int(_number(seed if seed is not None else data.get("seed"), 7))
         self.rng = random.Random(self.seed)
-        self.max_turns = max(1, int(_number(scenario.get("turns"), 72)))
+        turns = scenario.get("turns")
+        try:
+            turns_value = int(turns) if turns is not None else 0
+        except (TypeError, ValueError):
+            turns_value = 0
+        # Лимит ходов больше не завершает кампанию. Значение остаётся
+        # необязательным горизонтом для экспериментов и старых снимков.
+        self.max_turns = turns_value if turns_value > 0 else None
+        self.actions_per_turn = max(
+            1,
+            int(
+                _number(
+                    scenario.get("actions_per_turn"),
+                    DEFAULT_ACTIONS_PER_TURN,
+                )
+            ),
+        )
+        self.actions_left = 0
+        self._turn_active = False
+        self.score_streak = 0
+        self.score_streak_side = None
         self.player_side = str(scenario.get("player_side") or "red")
         self.rival_side = str(scenario.get("enemy_side") or "blue")
         self.model = dict(MODEL_DEFAULTS)
@@ -293,6 +471,8 @@ class AutomataCampaign:
         self.log = []
         self.events = []
         self.history = []
+        self.last_organ_result = None
+        self.last_character_result = None
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
         self._build_factions(data)
@@ -378,6 +558,35 @@ class AutomataCampaign:
                 str(key): _clamp(value)
                 for key, value in _as_mapping(faction.get("assets")).items()
             }
+            organ_interactions = [
+                dict(item)
+                for item in (faction.get("organ_interactions") or ())
+                if isinstance(item, Mapping) and item.get("id")
+            ]
+            character_interactions = [
+                dict(item)
+                for item in (faction.get("character_interactions") or ())
+                if isinstance(item, Mapping) and item.get("id")
+            ]
+            if not character_interactions:
+                character_interactions = [
+                    dict(item) for item in DEFAULT_CHARACTER_INTERACTIONS
+                ]
+            organs = []
+            for organ_record in faction.get("organs") or ():
+                if not isinstance(organ_record, Mapping):
+                    continue
+                organ = OrganRuntime.from_record(
+                    organ_record, interactions=organ_interactions
+                )
+                if organ is not None:
+                    organs.append(organ)
+            hierarchy_problems = validate_organ_hierarchy(organs)
+            if hierarchy_problems:
+                raise AutomataCampaignError(
+                    "%s: %s"
+                    % (faction_id, "; ".join(hierarchy_problems))
+                )
             runtime = FactionRuntime(
                 side=side,
                 id=faction_id,
@@ -404,6 +613,8 @@ class AutomataCampaign:
                     for item in (faction.get("actions") or ())
                     if isinstance(item, Mapping) and item.get("id")
                 ],
+                organs=organs,
+                character_interactions=character_interactions,
             )
             self.factions[side] = runtime
 
@@ -437,6 +648,46 @@ class AutomataCampaign:
 
     def other_sides(self, side):
         return [item for item in self.factions if item != str(side or "")]
+
+    # ------------------------------------------------------------------
+    # Бюджет действий и ход
+    # ------------------------------------------------------------------
+    def begin_turn(self):
+        """Начать ход, если он ещё не начат."""
+        if self.finished or self._turn_active:
+            return self.snapshot()
+        self.turn += 1
+        self.actions_left = self.actions_per_turn
+        self._turn_active = True
+        return self.snapshot()
+
+    def action_budget(self):
+        return {
+            "turn": self.turn,
+            "actions_per_turn": self.actions_per_turn,
+            "actions_left": self.actions_left,
+            "active": bool(self._turn_active),
+            "finished": bool(self.finished),
+        }
+
+    def _player_action_gate(self, side):
+        """Проверить бюджет перед действием игрока."""
+        if str(side) != self.player_side:
+            return None
+        if self.finished:
+            return "кампания завершена"
+        if not self._turn_active:
+            self.begin_turn()
+        if self.actions_left <= 0:
+            return (
+                "бюджет действий исчерпан: завершите ход "
+                "(доступно %d за ход)" % self.actions_per_turn
+            )
+        return None
+
+    def _spend_player_action(self, side):
+        if str(side) == self.player_side and self.actions_left > 0:
+            self.actions_left -= 1
 
     def _cooldown_left(self, faction, action, turn=None):
         """Сколько ходов ещё нельзя повторять работу.
@@ -489,6 +740,395 @@ class AutomataCampaign:
             if item.get("enabled")
         ]
 
+    # ------------------------------------------------------------------
+    # Органы и взаимодействие с ними
+    # ------------------------------------------------------------------
+    def organ(self, side, organ_id):
+        faction = self.faction(side)
+        if faction is None:
+            return None
+        return faction.organ(organ_id)
+
+    def organ_options(self, side):
+        """Снимки органов фракции для графа и кодекса."""
+        faction = self.faction(side)
+        if faction is None:
+            return []
+        return [organ.snapshot() for organ in faction.organs]
+
+    def organ_interaction_options(self, side, organ_id):
+        """Доступные взаимодействия с конкретным органом."""
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return []
+        organ = faction.organ(organ_id)
+        if organ is None:
+            return []
+        options = []
+        for interaction in organ.interactions:
+            cost = _as_mapping(interaction.get("cost"))
+            affordable = all(
+                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                for key, value in cost.items()
+            )
+            left = organ.cooldown_left(interaction, self.turn)
+            options.append(
+                {
+                    "interaction": interaction,
+                    "id": str(interaction.get("id")),
+                    "label": str(
+                        interaction.get("label")
+                        or interaction.get("id")
+                    ),
+                    "description": str(
+                        interaction.get("description") or ""
+                    ),
+                    "integrity": round(
+                        _number(interaction.get("integrity")), 6
+                    ),
+                    "cost": {
+                        str(key): round(_number(value), 6)
+                        for key, value in cost.items()
+                    },
+                    "enabled": bool(affordable and left <= 0),
+                    "reason": (
+                        "не хватает состояния"
+                        if not affordable
+                        else ("перезарядка ещё %d" % left if left > 0 else "")
+                    ),
+                }
+            )
+        return options
+
+    def perform_organ_interaction(
+        self, side, organ_id, interaction_id
+    ):
+        """Повлиять на орган: усилить, реформировать, почистить, снабдить.
+
+        Изменение органа распространяется на фракцию через
+        ``spread_organ_effect``: это и есть самоподобный up-масштаб.
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        gate = self._player_action_gate(side)
+        if gate:
+            return {"ok": False, "reason": gate}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        organ = faction.organ(organ_id)
+        if organ is None:
+            return {"ok": False, "reason": "орган не найден"}
+        option = next(
+            (
+                item
+                for item in self.organ_interaction_options(
+                    side, organ_id
+                )
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return {"ok": False, "reason": "взаимодействие не найдено"}
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason") or "взаимодействие недоступно",
+            }
+        interaction = option["interaction"]
+        cost = _as_mapping(interaction.get("cost"))
+        for key, value in cost.items():
+            faction.add_asset(key, -_number(value))
+        before = organ.integrity
+        delta = strengthen_organ(
+            organ, _number(interaction.get("integrity"))
+        )
+        explicit = _as_mapping(interaction.get("faction"))
+        for key, value in explicit.items():
+            faction.add_asset(key, _number(value))
+        spread = spread_organ_effect(
+            faction, organ, delta, self.model
+        )
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if cooldown > 0:
+            organ.interaction_cooldowns[
+                str(interaction.get("id"))
+            ] = self.turn
+        organ.used_turn = self.turn
+        self._spend_player_action(side)
+        result = {
+            "ok": True,
+            "turn": self.turn,
+            "actions_left": self.actions_left,
+            "side": faction.side,
+            "organ_id": organ.id,
+            "organ_name": organ.name,
+            "organ_kind": organ.kind,
+            "interaction_id": str(interaction.get("id")),
+            "label": option["label"],
+            "description": option["description"],
+            "integrity_before": round(before, 6),
+            "integrity_after": round(organ.integrity, 6),
+            "integrity_delta": round(delta, 6),
+            "faction_spread": round(spread, 6),
+            "cost": {
+                str(key): round(_number(value), 6)
+                for key, value in cost.items()
+            },
+            "text": str(interaction.get("text") or option["description"]),
+            "status": organ.status(),
+        }
+        detail = (
+            "ход %d: %s → орган «%s»: %s; целостность %.2f → %.2f"
+            % (
+                self.turn,
+                faction.name,
+                organ.name,
+                result["label"],
+                before,
+                organ.integrity,
+            )
+        )
+        self.events.append(
+            {
+                "turn": self.turn,
+                "kind": "organ",
+                "text": detail,
+                "side": faction.side,
+                "organ_id": organ.id,
+                "actor": faction.name,
+            }
+        )
+        if len(self.events) > 400:
+            self.events = self.events[-400:]
+        self.last_organ_result = result
+        return result
+
+    interact_organ = perform_organ_interaction
+
+    # ------------------------------------------------------------------
+    # Персонажи и влияние на них
+    # ------------------------------------------------------------------
+    def character(self, side, character_id):
+        faction = self.faction(side)
+        if faction is None:
+            return None
+        return faction.character(character_id)
+
+    def character_options(self, side):
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return []
+        return faction.character_options()
+
+    def _character_cooldown_left(self, character, interaction):
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if cooldown <= 0:
+            return 0
+        last = _as_mapping(
+            getattr(character, "campaign_cooldowns", {})
+        ).get(str(interaction.get("id")))
+        if last is None:
+            return 0
+        return max(
+            0,
+            cooldown + 1 - (int(self.turn) - int(last)),
+        )
+
+    def character_interaction_options(self, side, character_id):
+        """Взаимодействия с конкретным персонажем."""
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return []
+        character = faction.character(character_id)
+        if character is None:
+            return []
+        options = []
+        for interaction in faction.character_interactions:
+            cost = _as_mapping(interaction.get("cost"))
+            affordable = all(
+                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                for key, value in cost.items()
+            )
+            left = self._character_cooldown_left(character, interaction)
+            options.append(
+                {
+                    "interaction": interaction,
+                    "id": str(interaction.get("id")),
+                    "label": str(
+                        interaction.get("label")
+                        or interaction.get("id")
+                    ),
+                    "description": str(
+                        interaction.get("description") or ""
+                    ),
+                    "cost": {
+                        str(key): round(_number(value), 6)
+                        for key, value in cost.items()
+                    },
+                    "morale": round(_number(interaction.get("morale")), 6),
+                    "needs": {
+                        str(key): round(_number(value), 6)
+                        for key, value in _as_mapping(
+                            interaction.get("needs")
+                        ).items()
+                    },
+                    "personality": {
+                        str(key): round(_number(value), 6)
+                        for key, value in _as_mapping(
+                            interaction.get("personality")
+                        ).items()
+                    },
+                    "enabled": bool(affordable and left <= 0),
+                    "reason": (
+                        "не хватает состояния"
+                        if not affordable
+                        else ("перезарядка ещё %d" % left if left > 0 else "")
+                    ),
+                }
+            )
+        return options
+
+    def perform_character_interaction(
+        self, side, character_id, interaction_id
+    ):
+        """Применить действие к выбранному персонажу."""
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        gate = self._player_action_gate(side)
+        if gate:
+            return {"ok": False, "reason": gate}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        character = faction.character(character_id)
+        if character is None:
+            return {"ok": False, "reason": "персонаж не найден"}
+        option = next(
+            (
+                item
+                for item in self.character_interaction_options(
+                    side, character_id
+                )
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return {"ok": False, "reason": "взаимодействие не найдено"}
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason")
+                or "взаимодействие недоступно",
+            }
+        interaction = option["interaction"]
+        cost = _as_mapping(interaction.get("cost"))
+        for key, value in cost.items():
+            faction.add_asset(key, -_number(value))
+        needs_before = {
+            str(key): _clamp(character.needs.get(key, 0.0))
+            for key in _as_mapping(interaction.get("needs"))
+        }
+        for key, value in _as_mapping(interaction.get("needs")).items():
+            if key in character.needs:
+                character.needs[key] = _clamp(
+                    character.needs.get(key, 0.0) + _number(value)
+                )
+        values = getattr(character.personality, "values", {})
+        for key, value in _as_mapping(
+            interaction.get("personality")
+        ).items():
+            if key in values:
+                values[key] = _clamp(values.get(key, 0.0) + _number(value))
+        morale_before = _number(character.morale)
+        character.morale = max(
+            0.0,
+            min(100.0, morale_before + _number(interaction.get("morale"))),
+        )
+        organ = faction.organ(
+            getattr(character, "campaign_organ_id", "")
+        )
+        organ_before = organ.integrity if organ is not None else None
+        organ_delta = 0.0
+        integrity_delta = _number(interaction.get("organ_integrity"))
+        if organ is not None and integrity_delta:
+            organ_delta = strengthen_organ(organ, integrity_delta)
+            spread_organ_effect(faction, organ, organ_delta, self.model)
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if cooldown > 0:
+            character.campaign_cooldowns[
+                str(interaction.get("id"))
+            ] = self.turn
+        self._spend_player_action(side)
+        result = {
+            "ok": True,
+            "turn": self.turn,
+            "actions_left": self.actions_left,
+            "side": faction.side,
+            "character_id": str(
+                getattr(character, "campaign_id", character_id)
+            ),
+            "character_name": str(getattr(character, "name", "")),
+            "post": str(getattr(character, "campaign_post", "") or ""),
+            "interaction_id": str(interaction.get("id")),
+            "label": option["label"],
+            "description": option["description"],
+            "cost": {
+                str(key): round(_number(value), 6)
+                for key, value in cost.items()
+            },
+            "needs_before": {
+                key: round(value, 6) for key, value in needs_before.items()
+            },
+            "needs_after": {
+                key: round(_clamp(character.needs.get(key, 0.0)), 6)
+                for key in needs_before
+            },
+            "morale_before": round(morale_before, 6),
+            "morale_after": round(_number(character.morale), 6),
+            "organ_id": organ.id if organ is not None else "",
+            "organ_integrity_before": (
+                round(organ_before, 6) if organ_before is not None else None
+            ),
+            "organ_integrity_after": (
+                round(organ.integrity, 6) if organ is not None else None
+            ),
+            "organ_integrity_delta": round(organ_delta, 6),
+            "text": str(
+                interaction.get("text") or option["description"]
+            ),
+        }
+        detail = (
+            "ход %d: %s → персонаж «%s» (%s): %s; мораль %.0f → %.0f"
+            % (
+                self.turn,
+                faction.name,
+                result["character_name"],
+                result["post"] or "без должности",
+                result["label"],
+                morale_before,
+                character.morale,
+            )
+        )
+        self.events.append(
+            {
+                "turn": self.turn,
+                "kind": "character",
+                "text": detail,
+                "side": faction.side,
+                "character_id": result["character_id"],
+                "actor": faction.name,
+            }
+        )
+        if len(self.events) > 400:
+            self.events = self.events[-400:]
+        self.last_character_result = result
+        return result
+
+    interact_character = perform_character_interaction
+
     def _target_side(self, side, action, target=None):
         faction = self.faction(side)
         if faction is None:
@@ -516,9 +1156,10 @@ class AutomataCampaign:
                 return item.side
         return self.rival_of(side)
 
-    def _apply_branch(self, actor, target, branch):
+    def _apply_branch(self, actor, target, branch, scale=None):
         branch = _as_mapping(branch)
-        scale = self.model["effect_scale"]
+        if scale is None:
+            scale = self.model["effect_scale"]
         for key, value in _as_mapping(branch.get("self")).items():
             actor.add_asset(key, _number(value) * scale)
         for key, value in _as_mapping(branch.get("target")).items():
@@ -576,6 +1217,9 @@ class AutomataCampaign:
         actor = self.faction(side)
         if actor is None or actor.dissolved:
             return {"ok": False, "reason": "фракция недоступна"}
+        gate = self._player_action_gate(side)
+        if gate:
+            return {"ok": False, "reason": gate}
         action = actor.action(action_id)
         if action is None:
             return {"ok": False, "reason": "действие не найдено"}
@@ -613,15 +1257,44 @@ class AutomataCampaign:
         roll = self.rng.random()
         success = roll < chance
         branch = action.get("effects") if success else action.get("failure")
-        self._apply_branch(actor, target_faction, branch)
+        organ_id = str(action.get("organ_id") or "")
+        organ = actor.organ(organ_id) if organ_id else None
+        readiness = readiness_scale(organ, self.model)
+        # Самоподобие: ослабленный орган проводит работу слабее, а его
+        # успех или провал меняет целостность самого органа.
+        self._apply_branch(
+            actor,
+            target_faction,
+            branch,
+            scale=self.model["effect_scale"] * readiness,
+        )
+        if organ is not None:
+            if success:
+                gain = self.model["organ_action_gain"] * (
+                    1.0 - organ.integrity
+                )
+                strengthen_organ(organ, gain)
+            else:
+                loss = self.model["organ_action_loss"] * organ.integrity
+                strengthen_organ(organ, -loss)
+            organ.used_turn = self.turn
+        if success and target_faction.side != actor.side:
+            damage_organs(
+                target_faction,
+                defense_asset,
+                self.model["organ_damage"] * readiness,
+                self.model,
+            )
         cooldown = int(
             _number(action.get("cooldown", self.model.get("cooldown_turns")), 0)
         )
         if cooldown > 0:
             actor.cooldowns[str(action_id)] = self.turn
+        self._spend_player_action(side)
         result = {
             "ok": True,
             "turn": self.turn,
+            "actions_left": self.actions_left,
             "actor_side": actor.side,
             "actor_id": actor.id,
             "actor_name": actor.name,
@@ -630,6 +1303,15 @@ class AutomataCampaign:
             "target_name": target_faction.name,
             "action_id": str(action_id),
             "label": str(action.get("label") or action_id),
+            "organ_id": str(action.get("organ_id") or ""),
+            "organ": str(action.get("organ") or ""),
+            "organ_integrity": round(
+                organ.integrity if organ is not None else 1.0, 6
+            ),
+            "organ_status": (
+                organ.status() if organ is not None else "нет органа"
+            ),
+            "organ_readiness": round(readiness, 6),
             "form": str(action.get("form") or "work"),
             "attack_asset": attack_asset,
             "attack_value": round(attack_value, 6),
@@ -654,7 +1336,9 @@ class AutomataCampaign:
             ),
         }
         self._log_work(result)
-        self._check_outcome()
+        # Исход проверяется в конце полного хода: после работ всех
+        # автоматов и тика организаций. Иначе счёт по прогрессу мог
+        # сработать посреди хода и не совпасть с итоговым состоянием.
         return result
 
     # ------------------------------------------------------------------
@@ -695,29 +1379,104 @@ class AutomataCampaign:
     # ------------------------------------------------------------------
     # Ход
     # ------------------------------------------------------------------
-    def advance(self, player_action=None, target=None):
+    def advance(
+        self,
+        player_action=None,
+        target=None,
+        organ_action=None,
+        character_action=None,
+    ):
+        """Совместимый helper: выполнить действие и завершить ход.
+
+        Для нескольких действий за ход используйте ``perform``,
+        ``perform_organ_interaction`` и ``perform_character_interaction``,
+        а затем отдельно ``end_turn``. ``advance`` оставлен для тестов,
+        экспериментов и старых вызовов. Если ``player_action`` не задан,
+        игрок, как и ИИ, автоматически тратит оставшийся бюджет действий.
+        """
         if self.finished:
             return self.snapshot()
-        self.turn += 1
-        acted = set()
+        self.begin_turn()
+        if organ_action:
+            if isinstance(organ_action, Mapping):
+                organ_id = organ_action.get("organ_id")
+                interaction_id = organ_action.get("interaction_id")
+            elif (
+                isinstance(organ_action, (list, tuple))
+                and len(organ_action) >= 2
+            ):
+                organ_id, interaction_id = organ_action[0], organ_action[1]
+            else:
+                organ_id = interaction_id = None
+            if organ_id and interaction_id:
+                self.perform_organ_interaction(
+                    self.player_side, organ_id, interaction_id
+                )
+        if character_action:
+            if isinstance(character_action, Mapping):
+                character_id = character_action.get("character_id")
+                interaction_id = character_action.get("interaction_id")
+            elif (
+                isinstance(character_action, (list, tuple))
+                and len(character_action) >= 2
+            ):
+                character_id = character_action[0]
+                interaction_id = character_action[1]
+            else:
+                character_id = interaction_id = None
+            if character_id and interaction_id:
+                self.perform_character_interaction(
+                    self.player_side, character_id, interaction_id
+                )
         if player_action:
-            result = self.perform(self.player_side, player_action, target=target)
-            if result.get("ok"):
-                acted.add(self.player_side)
-        for side in list(self.factions):
-            if side in acted or self.finished:
-                continue
+            self.perform(self.player_side, player_action, target=target)
+        else:
+            # Без явной работы игрок действует автоматически, как и ИИ:
+            # иначе эксперименты и старые вызовы ``advance()`` оставляли бы
+            # его без хода и исход смещался бы в пользу соперников.
+            self._auto_play_side(self.player_side, self.actions_left)
+        return self.end_turn()
+
+    def _auto_play_side(self, side, budget):
+        """Потратить бюджет действий стороны на автоматический выбор."""
+        for _ in range(max(0, int(budget))):
+            if self.finished:
+                break
+            faction = self.faction(side)
+            if faction is None or faction.dissolved:
+                break
             action_id = self.auto_action(side)
             if action_id is None:
+                break
+            result = self.perform(side, action_id)
+            if not result.get("ok"):
+                break
+
+    def end_turn(self):
+        """Завершить текущий ход: ИИ действует, органы и организации тикают."""
+        if self.finished:
+            return self.snapshot()
+        self.begin_turn()
+        for side in list(self.factions):
+            if side == self.player_side or self.finished:
                 continue
-            self.perform(side, action_id)
+            faction = self.faction(side)
+            if faction is None or faction.dissolved:
+                continue
+            # У ИИ тот же бюджет действий за ход, что и у игрока.
+            self._auto_play_side(side, self.actions_per_turn)
         self._tick_organizations()
         self._check_outcome()
         self.history.append(self.snapshot())
+        self.actions_left = 0
+        self._turn_active = False
         return self.snapshot()
 
     def run(self, turns=None, player_action=None, target=None):
-        limit = self.max_turns if turns is None else max(0, int(turns))
+        if turns is None:
+            limit = self.max_turns or 72
+        else:
+            limit = max(0, int(turns))
         for _ in range(limit):
             if self.finished:
                 break
@@ -730,6 +1489,7 @@ class AutomataCampaign:
     def _tick_organizations(self):
         for faction in self.factions.values():
             if faction.organization is None:
+                tick_organs(faction, faction.organs, self.model)
                 continue
             snapshot = faction.organization.tick(turn=self.turn)
             # Доля участия считается от исходного состава фракции, а не от
@@ -787,13 +1547,22 @@ class AutomataCampaign:
                 faction.add_asset(key, value)
             for key, value in self.upkeep.items():
                 faction.add_asset(key, -value)
+            # Органы — уменьшенные копии фракции: их тик идёт после
+            # обновления общих активов и возвращает часть состояния вверх.
+            tick_organs(faction, faction.organs, self.model)
 
     def _check_outcome(self):
         if self.outcome is not None:
             return
         rules = self.outcome_rules
         streak_limit = max(
-            1, int(_number(rules.get("streak_turns"), self.model["collapse_streak"]))
+            1,
+            int(
+                _number(
+                    rules.get("streak_turns"),
+                    self.model["collapse_streak"],
+                )
+            ),
         )
         for side, thresholds in _as_mapping(rules.get("defeat")).items():
             faction = self.faction(side)
@@ -802,39 +1571,69 @@ class AutomataCampaign:
             for asset, threshold in _as_mapping(thresholds).items():
                 key = "%s:%s" % (side, asset)
                 if faction.asset(asset) <= _number(threshold, 0.0) + 1e-9:
-                    faction.low_streaks[key] = faction.low_streaks.get(key, 0) + 1
+                    faction.low_streaks[key] = (
+                        faction.low_streaks.get(key, 0) + 1
+                    )
                 else:
                     faction.low_streaks[key] = 0
                 if faction.low_streaks.get(key, 0) >= streak_limit:
-                    self.outcome = "lose" if side == self.player_side else "win"
+                    self.outcome = (
+                        "lose" if side == self.player_side else "win"
+                    )
                     self.finished = True
                     return
-        if rules.get("score_margin") is not None and self.turn >= self.max_turns:
+        if rules.get("score_margin") is not None:
             margin = _number(rules.get("score_margin"), 0.0)
             player = self.player
             rival = self.rival
             basis = str(rules.get("score_basis") or "assets")
             if basis == "progress":
-                measure = lambda faction: faction.progress()
+
+                def measure(faction):
+                    return faction.progress()
+
             else:
-                measure = lambda faction: faction.score()
+
+                def measure(faction):
+                    return faction.score()
+
             if player is not None and rival is not None:
                 difference = (
                     measure(player)
                     - measure(rival)
                     + _number(rules.get("score_bias"), 0.0)
                 )
-                if difference > margin:
-                    self.outcome = "win"
-                elif difference < -margin:
-                    self.outcome = "lose"
+                side = (
+                    "win"
+                    if difference > margin
+                    else ("lose" if difference < -margin else None)
+                )
+                after = max(1, int(_number(rules.get("score_after"), 1)))
+                required = max(
+                    1, int(_number(rules.get("score_streak"), 2))
+                )
+                # Серия считается только после разминочного периода:
+                # иначе score_after превращался бы в дату завершения, а
+                # score_streak — в счётчик ходов с самого старта.
+                if self.turn < after:
+                    self.score_streak = 0
+                    self.score_streak_side = None
+                elif side is None:
+                    self.score_streak = 0
+                    self.score_streak_side = None
+                elif side == self.score_streak_side:
+                    self.score_streak += 1
                 else:
-                    self.outcome = "stalemate"
-                self.finished = True
-                return
-        if rules.get("stalemate_at_end") and self.turn >= self.max_turns:
-            self.outcome = "stalemate"
-            self.finished = True
+                    self.score_streak = 1
+                    self.score_streak_side = side
+                if (
+                    self.turn >= after
+                    and side is not None
+                    and self.score_streak >= required
+                ):
+                    self.outcome = side
+                    self.finished = True
+                    return
 
     # ------------------------------------------------------------------
     # Снимки
@@ -845,6 +1644,11 @@ class AutomataCampaign:
             "title": self.title,
             "turn": self.turn,
             "max_turns": self.max_turns,
+            "actions_per_turn": self.actions_per_turn,
+            "actions_left": self.actions_left,
+            "turn_active": bool(self._turn_active),
+            "score_streak": self.score_streak,
+            "score_streak_side": self.score_streak_side,
             "player_side": self.player_side,
             "rival_side": self.rival_side,
             "outcome": self.outcome,
@@ -878,6 +1682,47 @@ class AutomataCampaign:
                     str(key): int(value)
                     for key, value in faction.low_streaks.items()
                 }
+                state["organ_state"] = [
+                    {
+                        "id": organ.id,
+                        "integrity": float(organ.integrity),
+                        "interaction_cooldowns": {
+                            str(key): int(value)
+                            for key, value in (
+                                organ.interaction_cooldowns.items()
+                            )
+                        },
+                        "used_turn": int(organ.used_turn),
+                    }
+                    for organ in faction.organs
+                ]
+                state["character_state"] = [
+                    {
+                        "id": str(
+                            getattr(character, "campaign_id", "") or ""
+                        ),
+                        "needs": {
+                            str(key): float(value)
+                            for key, value in character.needs.items()
+                        },
+                        "personality": {
+                            str(key): float(value)
+                            for key, value in getattr(
+                                character.personality, "values", {}
+                            ).items()
+                        },
+                        "morale": float(character.morale),
+                        "cooldowns": {
+                            str(key): int(value)
+                            for key, value in _as_mapping(
+                                getattr(
+                                    character, "campaign_cooldowns", {}
+                                )
+                            ).items()
+                        },
+                    }
+                    for character in faction.characters
+                ]
                 if faction.organization is not None:
                     state["organization_state"] = (
                         faction.organization.state_dict()
@@ -889,8 +1734,40 @@ class AutomataCampaign:
         if not snapshot:
             return
         self.turn = int(_number(snapshot.get("turn"), self.turn))
-        self.max_turns = max(
-            1, int(_number(snapshot.get("max_turns"), self.max_turns))
+        saved_max = snapshot.get("max_turns")
+        if saved_max is None:
+            self.max_turns = None
+        else:
+            value = int(_number(saved_max, 0))
+            self.max_turns = value if value > 0 else None
+        self.actions_per_turn = max(
+            1,
+            int(
+                _number(
+                    snapshot.get("actions_per_turn"),
+                    self.actions_per_turn,
+                )
+            ),
+        )
+        self.actions_left = max(
+            0,
+            min(
+                self.actions_per_turn,
+                int(
+                    _number(
+                        snapshot.get("actions_left"), self.actions_left
+                    )
+                ),
+            ),
+        )
+        self._turn_active = bool(
+            snapshot.get("turn_active", self._turn_active)
+        )
+        self.score_streak = max(
+            0, int(_number(snapshot.get("score_streak"), self.score_streak))
+        )
+        self.score_streak_side = snapshot.get(
+            "score_streak_side", self.score_streak_side
         )
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))
@@ -926,6 +1803,62 @@ class AutomataCampaign:
             faction.organization_snapshot = dict(
                 _as_mapping(state.get("organization"))
             )
+            saved_organs = {
+                str(item.get("id")): item
+                for item in (state.get("organ_state") or ())
+                if isinstance(item, Mapping) and item.get("id")
+            }
+            for organ in faction.organs:
+                saved = saved_organs.get(str(organ.id))
+                if not saved:
+                    continue
+                organ.integrity = _clamp(
+                    _number(saved.get("integrity"), organ.integrity)
+                )
+                organ.interaction_cooldowns = {
+                    str(key): int(_number(value))
+                    for key, value in _as_mapping(
+                        saved.get("interaction_cooldowns")
+                    ).items()
+                }
+                organ.used_turn = int(
+                    _number(saved.get("used_turn"), organ.used_turn)
+                )
+            saved_characters = {
+                str(item.get("id")): item
+                for item in (state.get("character_state") or ())
+                if isinstance(item, Mapping) and item.get("id")
+            }
+            for character in faction.characters:
+                saved = saved_characters.get(
+                    str(getattr(character, "campaign_id", ""))
+                )
+                if not saved:
+                    continue
+                for key, value in _as_mapping(saved.get("needs")).items():
+                    if key in character.needs:
+                        character.needs[key] = _clamp(value)
+                values = getattr(character.personality, "values", {})
+                for key, value in _as_mapping(
+                    saved.get("personality")
+                ).items():
+                    if key in values:
+                        values[key] = _clamp(value)
+                character.morale = max(
+                    0.0,
+                    min(
+                        100.0,
+                        _number(
+                            saved.get("morale"), character.morale
+                        ),
+                    ),
+                )
+                character.campaign_cooldowns = {
+                    str(key): int(_number(value))
+                    for key, value in _as_mapping(
+                        saved.get("cooldowns")
+                    ).items()
+                }
             if faction.organization is not None:
                 faction.organization.load_state_dict(
                     _as_mapping(state.get("organization_state"))
@@ -951,6 +1884,22 @@ class AutomataCampaign:
                         "%s/%s: %.6f вне диапазона [0,1]" % (side, key, _number(value))
                     )
                 seen.add(token)
+            organ_ids = set()
+            for organ in faction.organs:
+                if organ.id in organ_ids:
+                    anomalies.append(
+                        "%s: орган %s повторяется" % (side, organ.id)
+                    )
+                organ_ids.add(organ.id)
+                if not 0.0 <= _number(organ.integrity) <= 1.0:
+                    anomalies.append(
+                        "%s/%s: целостность %.6f вне [0,1]"
+                        % (side, organ.id, _number(organ.integrity))
+                    )
+            anomalies.extend(
+                "%s: %s" % (side, problem)
+                for problem in validate_organ_hierarchy(faction.organs)
+            )
             snapshot = faction.organization_snapshot
             if snapshot:
                 active = int(_number(snapshot.get("active_count"), 0))
@@ -978,6 +1927,8 @@ class AutomataCampaign:
 __all__ = [
     "AutomataCampaign",
     "AutomataCampaignError",
+    "DEFAULT_ACTIONS_PER_TURN",
+    "DEFAULT_CHARACTER_INTERACTIONS",
     "FactionRuntime",
     "MODEL_DEFAULTS",
 ]

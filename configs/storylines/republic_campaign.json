@@ -4,6 +4,7 @@
   "description": "Кампания за Республику: разрушить миф Империи, сохранив процедуру и собственное лицо.",
   "campaign_template": "configs/campaigns/republic_campaign.json",
   "campaign_seed": 23,
+  "identity_editor": true,
   "scenes": "republic_campaign_scenes",
   "win_conditions": [
     {

@@ -134,6 +134,7 @@ def load_storyline(storyline_id, directory=None):
         "world_path": main_data.get("world_path", ""),
         "biography_path": main_data.get("biography_path", ""),
         "campaign_seed": main_data.get("campaign_seed", 7),
+        "identity_editor": bool(main_data.get("identity_editor", False)),
         "character_creation": char_data,
         "scenes": scenes_data.get("sequence", []),
         "win_conditions": main_data.get("win_conditions", []),

@@ -197,8 +197,8 @@ def test_main_menu_has_quick_paths(app):
     assert callable(app.quick_campaign) and callable(app.open_arena)
 
 
-def test_automata_screen_advances_one_turn_per_work(app):
-    """«Выполнить выбранное» проводит ровно одну работу и один ход."""
+def test_automata_screen_spends_one_action_per_work(app):
+    """«Выполнить» проводит работу, тратит действие и не завершает ход."""
     from pathlib import Path
 
     from campaign.automata import AutomataCampaign
@@ -219,10 +219,13 @@ def test_automata_screen_advances_one_turn_per_work(app):
     available = campaign.available_actions(campaign.player_side)
     assert available
     before = campaign.turn
+    budget = campaign.actions_left
     screen.selected_action_id = available[0]
     screen._execute_selected()
 
-    assert campaign.turn == before + 1
+    # Работа не завершает ход: она только тратит одно действие.
+    assert campaign.turn == before
+    assert campaign.actions_left == budget - 1
     assert screen.selected_action_id is None
     player_actions = [
         item
@@ -232,3 +235,8 @@ def test_automata_screen_advances_one_turn_per_work(app):
     ]
     assert len(player_actions) == 1
     assert player_actions[0]["action_id"] == available[0]
+
+    # Отдельная кнопка «Завершить ход» начинает следующий ход.
+    screen._end_turn()
+    assert campaign.turn == before + 1
+    assert campaign.actions_left == campaign.actions_per_turn

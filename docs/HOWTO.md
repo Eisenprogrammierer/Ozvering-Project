@@ -3,7 +3,9 @@
 Практическое руководство по текущему состоянию проекта. Канон онтологии и
 границы реализации — в [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md); формулы и
 константы — в [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) и
-[`ALGORITHMS.md`](ALGORITHMS.md).
+[`ALGORITHMS.md`](ALGORITHMS.md). Если вы только входите в проект и ищете
+«что, где, как, зачем» по конкретной потребности, начните с
+[`ONBOARDING.md`](ONBOARDING.md).
 
 ---
 

@@ -4,6 +4,7 @@
   "description": "Кампания за Культ Земли: размывать лояльность государств и не потерять нарратив.",
   "campaign_template": "configs/campaigns/cult_campaign.json",
   "campaign_seed": 7,
+  "identity_editor": true,
   "scenes": "cult_campaign_scenes",
   "win_conditions": [
     {
@@ -29,7 +30,7 @@
     "slides": [
       {
         "image": "campaign/cult_lose",
-        "text": "Нарратив рассыпался. Общины ещё существуют, но никто больше не готов умирать за слова верховного жреца."
+        "text": "Нарратив рассыпался. Общины ещё существуют, но никто больше не готов умирать за слова своего лидера."
       }
     ]
   }

@@ -2,7 +2,7 @@
   "schema": 1,
   "template_id": "cult_campaign",
   "title": "Культ Земли: энтропия во плоти",
-  "description": "Вы — верховный жрец. У Культа нет армии, способной победить государства в поле. Его работа — менять то, во что люди верят, размывать чужую лояльность и превращать обиду в общину. Ваша слабость — низкая энергия и зависимость от нарратива.",
+  "description": "Вы — глава Культа Земли. У Культа нет армии, способной победить государства в поле. Его работа — менять то, во что люди верят, размывать чужую лояльность и превращать обиду в общину. Ваша слабость — низкая энергия и зависимость от нарратива.",
   "factions_path": "base/lore_factions.json",
   "default_seed": 7,
   "player_side": "green",
@@ -13,7 +13,6 @@
   },
   "scenario": {
     "mode": "automata",
-    "turns": 72,
     "characters_per_faction": 10,
     "rivals": {
       "red": "blue",
@@ -43,14 +42,17 @@
           "legitimacy": 0.08
         }
       },
-      "score_margin": 0.045,
-      "score_bias": 0.007,
-      "score_basis": "progress"
+      "score_margin": 0.055,
+      "score_bias": -0.135,
+      "score_basis": "progress",
+      "score_after": 24,
+      "score_streak": 3
     },
     "upkeep": {
       "supply": 0.004,
       "energy": 0.003
-    }
+    },
+    "actions_per_turn": 3
   },
   "environment": {
     "features": [
@@ -72,7 +74,7 @@
     ],
     "count": 8,
     "context": {
-      "place": "«Двойная переправа»",
+      "place": "«Узел связи»",
       "object": "глиняная печать общины",
       "cause": "проповедь у братской могилы",
       "consequence": "люди слушают не приказ, а обещание смысла",

@@ -5,6 +5,7 @@ from collections import Counter
 import math
 import random
 
+import character_traits as CT
 import simulation as S
 
 NEEDS = (
@@ -88,66 +89,20 @@ HEALTH_MULTIPLIER_MIN = 0.35
 HEALTH_MULTIPLIER_MAX = 3.00
 
 
-TRAITS = (
-    "courage",
-    "discipline",
-    "aggression",
-    "empathy",
-    "curiosity",
-    "creativity",
-    "ambition",
-    "spirituality",
-    "sociability",
-    "loyalty",
-    "fanaticism",
-    "endurance",
-)
+TRAIT_MODEL = CT.load_traits()
 
+# Черты и их русские подписи берутся из ``configs/characters/traits.json``.
+# Константы оставлены для совместимости: код и тесты обращаются к ним как к
+# стабильному публичному контракту слоя.
+TRAITS = TRAIT_MODEL.trait_names
 TRAITS_RU = {
-    "courage": "смелость",
-    "discipline": "дисциплина",
-    "aggression": "агрессия",
-    "empathy": "эмпатия",
-    "curiosity": "любознательность",
-    "creativity": "креативность",
-    "ambition": "амбициозность",
-    "spirituality": "духовность",
-    "sociability": "общительность",
-    "loyalty": "верность",
-    "fanaticism": "фанатизм",
-    "endurance": "выносливость",
+    key: definition.label.lower()
+    for key, definition in TRAIT_MODEL.traits.items()
 }
 
-
 _ARCHETYPES = {
-    "rifleman": {},
-    "veteran": {
-        "courage": 0.18,
-        "endurance": 0.16,
-        "discipline": 0.12,
-        "loyalty": 0.10,
-    },
-    "conscript": {
-        "courage": -0.18,
-        "discipline": -0.12,
-        "endurance": -0.10,
-        "loyalty": -0.08,
-    },
-    "commissar": {
-        "discipline": 0.22,
-        "fanaticism": 0.22,
-        "aggression": 0.15,
-        "empathy": -0.16,
-    },
-    "chaplain": {
-        "spirituality": 0.22,
-        "fanaticism": 0.18,
-        "empathy": 0.12,
-        "courage": 0.10,
-    },
-    "medic": {"empathy": 0.22, "discipline": 0.10, "aggression": -0.15},
-    "scout": {"curiosity": 0.20, "creativity": 0.14, "discipline": -0.08},
-    "machinegunner": {"discipline": 0.14, "endurance": 0.18, "courage": 0.10},
+    name: dict(item["modifiers"])
+    for name, item in TRAIT_MODEL.archetypes.items()
 }
 
 
@@ -160,28 +115,8 @@ class Personality:
 
     @classmethod
     def from_seed(cls, seed=0, archetype="rifleman"):
-        rng = random.Random(int(seed))
-        base = {name: 0.5 for name in TRAITS}
-        base["courage"] = 0.55
-        base["discipline"] = 0.55
-        base["aggression"] = 0.45
-        base["empathy"] = 0.50
-        base["curiosity"] = 0.55
-        base["creativity"] = 0.50
-        base["ambition"] = 0.50
-        base["spirituality"] = 0.45
-        base["sociability"] = 0.55
-        base["loyalty"] = 0.60
-        base["fanaticism"] = 0.30
-        base["endurance"] = 0.55
-        mods = _ARCHETYPES.get(archetype, {})
-        for name in TRAITS:
-
-            base[name] += rng.uniform(-0.12, 0.12)
-            base[name] += mods.get(name, 0.0)
-
-            base[name] = max(0.0, min(1.0, base[name]))
-        return cls(values=base, archetype=archetype, seed=int(seed))
+        values = TRAIT_MODEL.roll(seed=seed, archetype=archetype)
+        return cls(values=values, archetype=archetype, seed=int(seed))
 
     def __getitem__(self, name):
         return self.values[name]
@@ -319,7 +254,11 @@ class Character(S.UtilityAI):
         self.needs = {n: initial[n] for n in NEEDS}
         self.desires = {}
         self.intentions = []
-        self.morale = 65.0 + 12.0 * (self.personality["courage"] - 0.5)
+        self.morale = TRAIT_MODEL.morale_value(
+            "initial_base", 59.0
+        ) + TRAIT_MODEL.morale_value(
+            "initial_courage", 12.0
+        ) * self.personality["courage"]
         self.mind = "steady"
         self._last_mind = "steady"
         self.panicked = False
@@ -353,56 +292,33 @@ class Character(S.UtilityAI):
         )
 
     def weighted_urgency(self):
-        p = self.personality
-        weight = {n: 1.0 for n in NEEDS}
-        weight["fear"] *= 0.75 + 0.6 * p["courage"]
-        weight["anxiety"] *= 0.70 + 0.8 * p["discipline"]
-        weight["fatigue"] *= 0.75 + 0.5 * p["endurance"]
-        weight["health"] *= 0.80 + 0.4 * p["endurance"]
-        weight["status"] *= 0.65 + 0.9 * p["ambition"]
-        weight["spirituality"] *= 0.55 + 1.1 * p["spirituality"]
-        weight["loneliness"] *= 0.55 + 0.9 * p["sociability"]
-        weight["friendship"] *= 0.55 + 0.9 * p["sociability"]
-        weight["love"] *= 0.55 + 0.8 * p["empathy"]
-        weight["knowledge"] *= 0.60 + 0.8 * p["curiosity"]
-        weight["creativity"] *= 0.60 + 0.8 * p["creativity"]
-        weight["skill"] *= 0.60 + 0.8 * p["discipline"]
-        weight["boredom"] *= 0.60 + 0.7 * p["curiosity"]
-        weight["reproduction"] *= 0.50 + 0.9 * p["sociability"]
-        return {n: self.needs[n] * weight[n] for n in NEEDS}
+        values = self.personality.as_dict()
+        return {
+            need: self.needs[need]
+            * TRAIT_MODEL.urgency_factor(need, values)
+            for need in NEEDS
+        }
 
     def deliberate(self):
         self.desires = self.weighted_urgency()
         need = max(NEEDS, key=lambda n: self.desires[n])
         urgency = self.desires[need]
-        p = self.personality
+        values = self.personality.as_dict()
         mod = self.modulation()
 
         if self.panicked and mod.retreat_allowed:
-            intent = Intention("retreat", need, urgency, "паника")
-        elif self.fanatical or mod.fanaticism > 0.35:
-            intent = Intention("banzai", need, urgency, "фанатичный порыв")
+            kind = "retreat"
         elif (
-            need in ("fatigue", "hunger", "thirst", "health")
-            and urgency > 0.42
+            self.fanatical
+            or mod.fanaticism > TRAIT_MODEL.fanaticism_override()
         ):
-            intent = Intention("rest", need, urgency, "истощение")
-        elif (
-            need in ("fear", "anxiety")
-            and urgency > 0.40
-            and mod.retreat_allowed
-        ):
-            intent = Intention("hold", need, urgency, "страх/тревога")
-        elif (
-            need in ("status", "spirituality")
-            or p["aggression"] > 0.66
-            or mod.aggression > 0.20
-        ):
-            intent = Intention("assault", need, urgency, "порыв")
-        elif need in ("knowledge", "creativity", "skill", "boredom"):
-            intent = Intention("fire", need, urgency, "расчёт")
+            kind = "banzai"
         else:
-            intent = Intention("fire", need, urgency, "устав")
+            kind, scores = TRAIT_MODEL.choose_intent(self.desires, values, mod)
+            if kind == "retreat" and not mod.retreat_allowed:
+                scores.pop("retreat", None)
+                kind = max(scores, key=lambda key: (scores[key], key))
+        intent = Intention(kind, need, urgency, TRAIT_MODEL.reason(kind))
         self.intentions = (self.intentions + [intent])[-3:]
         return intent
 
@@ -448,7 +364,6 @@ class Character(S.UtilityAI):
             self.mind = "dead"
             self.morale = 0.0
             return
-        p = self.personality
         mod = self.modulation()
         uf = max(0.0, min(1.0, float(under_fire)))
         support = max(0.0, min(1.0, float(supported)))
@@ -457,14 +372,9 @@ class Character(S.UtilityAI):
         rate_multipliers = rate_multipliers or {}
 
         rates = dict(_NEED_RATES)
-        rates["fatigue"] *= 0.70 + 0.6 * (1.0 - p["endurance"])
-        rates["fear"] *= 0.55 + 0.9 * (1.0 - p["courage"])
-        rates["anxiety"] *= 0.60 + 0.9 * (1.0 - p["discipline"])
-        rates["health"] *= 0.70 + 0.7 * (1.0 - p["endurance"])
-        rates["loneliness"] *= 0.75 + 0.7 * (1.0 - p["sociability"])
-        rates["boredom"] *= 0.75 + 0.6 * (1.0 - p["curiosity"])
-        rates["status"] *= 0.80 + 0.5 * p["ambition"]
-        rates["spirituality"] *= 0.80 + 0.5 * p["spirituality"]
+        values = self.personality.as_dict()
+        for need in NEEDS:
+            rates[need] *= TRAIT_MODEL.growth_factor(need, values)
         for need, multiplier in rate_multipliers.items():
             if need in rates:
                 rates[need] *= max(0.0, float(multiplier))
@@ -526,27 +436,23 @@ class Character(S.UtilityAI):
                 0.0, self.needs["fear"] - 0.01 * mod.discipline * scale
             )
 
-        stress = (
-            self.needs["fear"] * 0.30
-            + self.needs["anxiety"] * 0.22
-            + self.needs["fatigue"] * 0.20
-            + self.needs["health"] * 0.18
-            + self.needs["loneliness"] * 0.10
-        )
+        stress = TRAIT_MODEL.morale_stress(self.needs)
         baseline = (
-            50.0
-            + 18.0 * p["discipline"]
-            + 10.0 * p["courage"]
+            TRAIT_MODEL.morale_value("base", 50.0)
+            + TRAIT_MODEL.morale_baseline(values)
             + float(morale_baseline_bonus)
         )
-        drift = 0.03 * (baseline - self.morale)
+        drift = TRAIT_MODEL.morale_value("drift", 0.03) * (
+            baseline - self.morale
+        )
         self.morale += scale * (
             drift
-            - 4.0 * stress
-            - 3.0 * uf
-            + 0.15 * mod.morale
-            + 0.20 * support
-            + 0.10 * mod.discipline
+            - TRAIT_MODEL.morale_value("stress_scale", 4.0) * stress
+            - TRAIT_MODEL.morale_value("under_fire_penalty", 3.0) * uf
+            + TRAIT_MODEL.morale_value("order_morale", 0.15) * mod.morale
+            + TRAIT_MODEL.morale_value("support_bonus", 0.20) * support
+            + TRAIT_MODEL.morale_value("order_discipline", 0.10)
+            * mod.discipline
         )
         self.morale = max(0.0, min(100.0, self.morale))
         self.under_fire = uf
@@ -556,34 +462,39 @@ class Character(S.UtilityAI):
         self.deliberate()
 
     def _update_mind(self, rng):
-        p = self.personality
+        values = self.personality.as_dict()
         mod = self.modulation()
         fear = self.needs["fear"]
         anxiety = self.needs["anxiety"]
-        fatigue = self.needs["fatigue"]
         morale_norm = self.morale / 100.0
-        noise = (rng.random() - 0.5) * 0.08
-
-        panic_score = (
-            0.34 * fear
-            + 0.24 * anxiety
-            + 0.18 * fatigue
-            + 0.38 * (1.0 - morale_norm)
-            + noise
-            - 0.34 * p["courage"]
-            - 0.20 * p["discipline"]
-            - 0.10 * mod.discipline
+        noise = (rng.random() - 0.5) * TRAIT_MODEL.mind_value(
+            "panic_noise", 0.08
         )
-        fanatic_score = (
-            0.30 * p["aggression"]
-            + 0.26 * p["fanaticism"]
-            + 0.16 * p["spirituality"]
-            + 0.10 * p["ambition"]
-            + 0.16 * morale_norm
+
+        panic_needs = TRAIT_MODEL.mind.get("panic_needs") or {}
+        panic_score = (
+            sum(
+                self.needs.get(str(need), 0.0) * float(weight)
+                for need, weight in panic_needs.items()
+            )
+            + TRAIT_MODEL.mind_value("panic_morale", 0.38)
+            * (1.0 - morale_norm)
             + noise
-            - 0.24 * fear
-            - 0.16 * anxiety
-            + 0.25 * mod.fanaticism
+            + TRAIT_MODEL.panic_contribution(values)
+            + TRAIT_MODEL.mind_value("panic_mod_discipline", -0.10)
+            * mod.discipline
+        )
+        fanatic_needs = TRAIT_MODEL.mind.get("fanatic_needs") or {}
+        fanatic_score = (
+            sum(
+                self.needs.get(str(need), 0.0) * float(weight)
+                for need, weight in fanatic_needs.items()
+            )
+            + TRAIT_MODEL.mind_value("fanatic_morale", 0.16) * morale_norm
+            + noise
+            + TRAIT_MODEL.fanatic_contribution(values)
+            + TRAIT_MODEL.mind_value("fanatic_mod_fanaticism", 0.25)
+            * mod.fanaticism
         )
 
         if self.fanatic_timer > 0:
@@ -596,31 +507,31 @@ class Character(S.UtilityAI):
             self.panic_cooldown -= 1
 
         panicked_now = (
-            panic_score > 0.42
+            panic_score > TRAIT_MODEL.panic_threshold()
             and mod.retreat_allowed
             and self.panic_timer == 0
             and self.panic_cooldown == 0
         )
         fanatical_now = (
-            fanatic_score > 0.48
+            fanatic_score > TRAIT_MODEL.fanatic_threshold()
             and not panicked_now
             and self.fanatic_timer == 0
             and self.fanatic_cooldown == 0
-            and self.morale > 32.0
+            and self.morale > TRAIT_MODEL.fanatic_morale_floor()
         )
         if panicked_now:
             self.panicked = True
             self.fanatical = False
             self.mind = "panicked"
-            self.panic_timer = 3
-            self.panic_cooldown = 20
+            self.panic_timer = TRAIT_MODEL.panic_timer()
+            self.panic_cooldown = TRAIT_MODEL.panic_cooldown()
         elif fanatical_now:
             self.fanatical = True
             self.panicked = False
             self.mind = "fanatical"
-            self.fanatic_timer = 3
-            self.fanatic_cooldown = 16
-        elif panic_score > 0.30:
+            self.fanatic_timer = TRAIT_MODEL.fanatic_timer()
+            self.fanatic_cooldown = TRAIT_MODEL.fanatic_cooldown()
+        elif panic_score > TRAIT_MODEL.shaken_threshold():
             self.panicked = False
             self.fanatical = False
             self.mind = "shaken"
@@ -701,6 +612,8 @@ class Detachment(S.Environment):
         self.aggression = 0.5
         self.discipline = 0.5
         self.fanaticism = 0.3
+        self.boldness = 0.5
+        self.caution = 0.5
         self.retreating = False
         self.panicked = False
         self.fanatical = False
@@ -729,6 +642,7 @@ class Detachment(S.Environment):
     def refresh_psychology(self):
         if not self.characters:
             return
+        values = [c.personality.as_dict() for c in self.characters]
         self.morale = self._avg([c.morale for c in self.characters])
         self.aggression = self._avg(
             [c.personality["aggression"] for c in self.characters]
@@ -738,6 +652,12 @@ class Detachment(S.Environment):
         )
         self.fanaticism = self._avg(
             [c.personality["fanaticism"] for c in self.characters]
+        )
+        self.boldness = self._avg(
+            [TRAIT_MODEL.aggregate("boldness", v) for v in values]
+        )
+        self.caution = self._avg(
+            [TRAIT_MODEL.aggregate("caution", v) for v in values]
         )
         self.cohesion = self._avg(
             [
@@ -850,9 +770,16 @@ class Detachment(S.Environment):
 
         leader = self.characters[0] if self.characters else None
         leader_panic = bool(leader and leader.panicked)
+        discipline_threshold = TRAIT_MODEL.detachment_value(
+            "retreat_discipline_threshold", 0.52
+        ) + TRAIT_MODEL.detachment_value(
+            "retreat_caution_shift", 0.10
+        ) * (
+            self.caution - 0.5
+        )
         should_retreat = (
             panic_frac >= 0.30
-            or (leader_panic and self.discipline < 0.52)
+            or (leader_panic and self.discipline < discipline_threshold)
             or self.morale < 20.0
         )
         if should_retreat and self.retreat_allowed and not self.fanatical:
@@ -903,7 +830,12 @@ class Detachment(S.Environment):
                 if work <= 0:
                     continue
                 score = self._attack_score(act, work, target)
-                score *= 0.70 + 0.55 * self.aggression
+                score *= 0.70 + TRAIT_MODEL.detachment_value(
+                    "attack_aggression", 0.55
+                ) * self.aggression
+                score *= 0.90 + TRAIT_MODEL.detachment_value(
+                    "attack_boldness", 0.20
+                ) * self.boldness
                 score *= 0.80 + 0.35 * (self.morale / 100.0)
                 if score > best_score:
                     best, best_score = (act, work), score
@@ -916,9 +848,14 @@ class Detachment(S.Environment):
         base = self.rest_gain()
         fatigue = self._avg([c.needs["fatigue"] for c in self.characters])
         fear = self._avg([c.needs["fear"] for c in self.characters])
-        return base * (1.0 + 1.5 * fatigue + 0.8 * fear) + (
-            1.0 - self.morale / 100.0
+        caution = TRAIT_MODEL.detachment_effect(
+            "rest_caution", self.caution, 1.0
         )
+        return (
+            base * (1.0 + 1.5 * fatigue + 0.8 * fear) + (
+                1.0 - self.morale / 100.0
+            )
+        ) * caution
 
     def _attack_score(self, act, work, target):
         if work <= 0:

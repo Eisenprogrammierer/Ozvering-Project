@@ -36,7 +36,26 @@ def test_lore_templates_are_automata_and_have_four_factions():
         assert not scenario.get("units"), template_id
         assert len(preset.factions) == 4, template_id
         assert len(preset.organizations) == 4, template_id
-        assert len(preset.automata) == 8, template_id
+        organs = [
+            organ
+            for faction in preset.factions
+            for organ in faction.get("organs") or ()
+        ]
+        assert organs, template_id
+        assert len(preset.automata) == 8 + len(organs), template_id
+        kinds = {item["kind"] for item in preset.automata}
+        assert kinds == {"organization", "faction", "organ"}, template_id
+        ids = [item["id"] for item in preset.automata]
+        assert len(ids) == len(set(ids)), template_id
+        for faction in preset.factions:
+            assert any(
+                organ["action_ids"] for organ in faction["organs"]
+            ), template_id
+            for organ in faction["organs"]:
+                assert organ["automaton_id"] in ids, template_id
+            for action in faction["actions"]:
+                assert action["organ_id"], template_id
+                assert action["organ"], template_id
         assert preset.player_character is not None, template_id
         assert preset.player_faction is not None, template_id
         assert set(scenario["populations"]) == {
@@ -147,9 +166,12 @@ def test_automata_save_snapshot_keeps_defeat_streaks():
 def test_lore_progress_outcome_is_reachable_after_full_run():
     preset = _preset("empire_campaign", seed=11)
     campaign = AutomataCampaign(preset, seed=11)
-    campaign.run()
-    assert campaign.turn == campaign.max_turns
-    assert campaign.outcome in ("win", "lose", "stalemate")
+    # Жёсткого лимита ходов больше нет: run(turns=...) — это горизонт
+    # симуляции, а не условие завершения кампании.
+    assert campaign.max_turns is None
+    campaign.run(turns=72)
+    assert campaign.turn == 72 or campaign.finished
+    assert campaign.outcome in (None, "win", "lose", "stalemate")
     assert campaign.player.progress() != 0.0
     assert campaign.rival.progress() != 0.0
 
@@ -231,9 +253,13 @@ def test_lore_actions_have_cooldowns_and_engine_enforces_them():
     assert options["imperial_edict"]["enabled"] is False
     assert "перезарядка" in options["imperial_edict"]["reason"]
     assert "imperial_edict" not in campaign.available_actions("red")
-    campaign.advance(player_action="garrison_network")
+    campaign.end_turn()
+    campaign.begin_turn()
     assert "imperial_edict" not in campaign.available_actions("red")
-    campaign.advance(player_action="imperial_edict")
+    campaign.end_turn()
+    campaign.begin_turn()
+    assert "imperial_edict" in campaign.available_actions("red")
+    assert campaign.perform("red", "imperial_edict")["ok"]
     assert any(
         item["action_id"] == "imperial_edict" and item["turn"] == campaign.turn
         for item in campaign.log
@@ -245,6 +271,8 @@ def test_cooldowns_prevent_automata_from_repeating_a_work_next_turn():
     campaign = AutomataCampaign(_preset("empire_campaign", seed=5), seed=5)
     last = {}
     for _ in range(20):
+        if campaign.finished:
+            break
         campaign.advance()
         for item in campaign.log:
             if item.get("turn") != campaign.turn:
@@ -294,3 +322,187 @@ def test_lore_storylines_use_automata_outcomes_not_manpower():
         ).read_text(encoding="utf-8")
         for legacy in ("16 рот", "32 рот", "шестнадцать", "тридцати двух"):
             assert legacy not in scene_text.lower()
+
+
+def test_lore_actions_have_player_facing_descriptions():
+    for template_id in LORE_TEMPLATES:
+        preset = _preset(template_id)
+        for faction in preset.factions:
+            for action in faction["actions"]:
+                description = str(action.get("description") or "")
+                assert description, (template_id, action["id"])
+                assert description != action["label"], (
+                    template_id,
+                    action["id"],
+                )
+
+
+def test_lore_storylines_have_no_document_scene_and_use_role_title():
+    for template_id in LORE_TEMPLATES:
+        data = json.loads(
+            (STORYLINES / ("%s_scenes.json" % template_id)).read_text(
+                encoding="utf-8"
+            )
+        )
+        types = [scene.get("type") for scene in data["sequence"]]
+        assert "document" not in types, template_id
+        text = json.dumps(data, ensure_ascii=False)
+        assert "hands" not in text.lower(), template_id
+        assert "{player_role_title}" in text, template_id
+
+
+def test_fractal_organs_are_runtime_nodes_and_snapshot_roundtrip():
+    preset = _preset("empire_campaign", seed=11)
+    campaign = AutomataCampaign(preset, seed=11)
+    assert campaign.player.organs
+    organ = campaign.player.organs[0]
+    assert 0.0 <= organ.integrity <= 1.0
+    # Орган — уменьшенная копия фракции: при общем падении активов его
+    # целостность тоже снижается.
+    for key in ("legitimacy", "cohesion", "morale", "supply", "influence"):
+        campaign.player.set_asset(key, 0.05)
+    organ.integrity = 0.95
+    campaign._tick_organizations()
+    assert organ.integrity < 0.95
+    organ.integrity = 0.321
+    restored = AutomataCampaign(
+        preset, snapshot=campaign.save_snapshot()
+    )
+    assert restored.player.organs[0].integrity == pytest.approx(0.321)
+    assert restored.snapshot() == campaign.snapshot()
+    assert campaign.audit() == []
+
+
+def test_organ_interaction_changes_organ_faction_and_cooldown():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    organ = campaign.player.organs[0]
+    organ.integrity = 0.3
+    cohesion = campaign.player.asset("cohesion")
+    supply = campaign.player.asset("supply")
+    result = campaign.perform_organ_interaction(
+        "red", organ.id, "reinforce"
+    )
+    assert result["ok"] is True
+    assert organ.integrity > 0.3
+    assert campaign.player.asset("cohesion") > cohesion
+    assert campaign.player.asset("supply") < supply
+    options = {
+        item["id"]: item
+        for item in campaign.organ_interaction_options(
+            "red", organ.id
+        )
+    }
+    assert options["reinforce"]["enabled"] is False
+    assert "перезарядка" in options["reinforce"]["reason"]
+
+
+def test_advance_accepts_organ_action_and_logs_it():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    organ = campaign.player.organs[0]
+    before = campaign.turn
+    snapshot = campaign.advance(
+        organ_action=(organ.id, "resupply")
+    )
+    assert snapshot["turn"] == before + 1
+    assert campaign.last_organ_result
+    assert campaign.last_organ_result["ok"] is True
+    assert any(
+        event.get("kind") == "organ"
+        and event.get("organ_id") == organ.id
+        for event in campaign.events
+    )
+
+
+def test_organ_hierarchy_is_data_driven_and_has_no_cycles():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    organs = {organ.id: organ for organ in campaign.player.organs}
+    assert organs["panzerwaffe"].parent_id == "wehrmacht"
+    assert organs["wehrmacht"].parent_id == "imperial_staff"
+    assert organs["imperial_staff"].parent_id == ""
+    snapshot = campaign.player.snapshot()
+    depths = {item["id"]: item["depth"] for item in snapshot["organs"]}
+    assert depths["imperial_staff"] == 0
+    assert depths["wehrmacht"] == 1
+    assert depths["panzerwaffe"] == 2
+    assert campaign.audit() == []
+
+
+def test_action_budget_allows_several_actions_then_requires_end_turn():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    assert campaign.actions_per_turn == 3
+    assert campaign.actions_left == 0
+    available = campaign.available_actions(campaign.player_side)
+    performed = []
+    for action_id in available[:3]:
+        result = campaign.perform(campaign.player_side, action_id)
+        assert result["ok"], result.get("reason")
+        performed.append(action_id)
+    assert campaign.turn == 1
+    assert campaign.actions_left == 0
+    assert len(performed) == 3
+    blocked = campaign.perform(
+        campaign.player_side, available[3]
+    )
+    assert blocked["ok"] is False
+    assert "бюджет" in blocked["reason"].lower()
+    campaign.end_turn()
+    assert campaign.turn == 1
+    assert campaign.actions_left == 0
+    campaign.begin_turn()
+    assert campaign.turn == 2
+    assert campaign.actions_left == 3
+
+
+def test_character_interaction_changes_selected_character_and_spends_budget():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    character = campaign.character_options(campaign.player_side)[1]
+    before = campaign.character(campaign.player_side, character["id"])
+    morale_before = before.morale
+    status_before = before.needs["status"]
+    result = campaign.perform_character_interaction(
+        campaign.player_side, character["id"], "promote"
+    )
+    assert result["ok"] is True
+    assert result["character_id"] == character["id"]
+    assert before.morale > morale_before
+    assert before.needs["status"] < status_before
+    assert campaign.actions_left == campaign.actions_per_turn - 1
+    options = {
+        item["id"]: item
+        for item in campaign.character_interaction_options(
+            campaign.player_side, character["id"]
+        )
+    }
+    assert options["promote"]["enabled"] is False
+    assert "перезарядка" in options["promote"]["reason"]
+    assert any(
+        event.get("kind") == "character"
+        and event.get("character_id") == character["id"]
+        for event in campaign.events
+    )
+
+
+def test_advance_without_explicit_action_autoplays_player_budget():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    campaign.advance()
+    assert campaign.turn == 1
+    player_actions = [
+        item
+        for item in campaign.log
+        if item.get("turn") == 1
+        and item.get("actor_side") == campaign.player_side
+    ]
+    assert player_actions, "advance() без работы должен играть за игрока"
+    assert campaign.actions_left == 0

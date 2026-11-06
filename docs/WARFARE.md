@@ -77,16 +77,50 @@
 кампанийном слое — в `needs.player.dead` и условие поражения `player_dead`
 (см. [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md)).
 
-### 2.2. Зачин личностных черт
+### 2.2. Черты характера из данных
 
-`Personality.from_seed(seed, archetype)` детерминированно (локальный
-`random.Random`) порождает 12 черт `TRAITS`:
-`courage`, `discipline`, `aggression`, `empathy`, `curiosity`, `creativity`,
-`ambition`, `spirituality`, `sociability`, `loyalty`, `fanaticism`, `endurance`.
-Архетипы (`rifleman`, `veteran`, `conscript`, `commissar`, `chaplain`, `medic`,
-`scout`, `machinegunner`) сдвигают базу; seed добавляет индивидуальный разброс.
-Черты не являются «скрытой конституцией»: они входят в `snapshot()`, а их
-влияние проверяемо по наблюдаемой динамике морали/потребностей.
+Определения черт характера лежат в
+[`configs/characters/traits.json`](../configs/characters/traits.json), а
+разбирает их `character_traits.load_traits()`. В Python остаются только
+формула `base + scale · (value − center)` и порядок применения эффектов:
+сами черты, их базы, разброс, модификаторы архетипов и сила влияния — данные.
+
+`TRAITS` и `TRAITS_RU` строятся из `TRAIT_MODEL`, поэтому список из 12 черт
+(`courage`, `discipline`, `aggression`, `empathy`, `curiosity`, `creativity`,
+`ambition`, `spirituality`, `sociability`, `loyalty`, `fanaticism`,
+`endurance`) остаётся стабильным публичным контрактом, но его источник —
+JSON. Для каждой черты заданы:
+
+* `label`/`summary`/`base` — подпись, описание и среднее значение;
+* `need_urgency`/`need_growth` — множители приоритета и скорости роста
+  потребностей;
+* `morale_baseline`/`panic_score`/`fanatic_score` — вклады в мораль, панику
+  и фанатизм;
+* `intent_bias` — поправки к оценкам намерений (`assault`, `fire`, `hold`,
+  `rest`, `retreat`).
+
+`Personality.from_seed(seed, archetype)` вызывает
+`TRAIT_MODEL.roll()`: база черты + детерминированный разброс `variance` +
+модификатор архетипа. Архетипы (`rifleman`, `veteran`, `conscript`,
+`commissar`, `chaplain`, `medic`, `scout`, `machinegunner`, `citizen`) и их
+сдвиги тоже описаны в JSON. Черты входят в `snapshot()`, а их влияние
+проверяемо по наблюдаемой динамике морали/потребностей и по выбору
+намерения.
+
+Выбор действия в `deliberate()` больше не является цепочкой `if` по
+потребностям. Модель суммирует оценки всех намерений:
+
+```
+score[intent] = Σ need_urgency[need] · need_intents[need][intent]
+              + Σ intent_bias[trait]
+              + force-правила (агрессия, приказ)
+```
+
+Карта `need_intents` покрывает все 16 потребностей, поэтому каждая
+потребность ведёт хотя бы к одному действию. Черты добавляют устойчивую
+поправку: при одинаковых потребностях смелый персонаж чаще выбирает
+`assault`, осторожный — `hold`/`rest`. Паника и банзай остаются
+приоритетными состояниями и переопределяют обычный выбор.
 
 Отдельно от `Personality` существует **сюжетная черта командира** (`trait`):
 «Рыцарь», «Генерал-учёный», «Халявщик», «Наёмник», «Красивые глазки»,
@@ -99,15 +133,20 @@
 
 ### 2.3. Мораль, паника и банзай
 
-Мораль — производная величина (не метрика `state`):
+Мораль — производная величина (не метрика `state`). Коэффициенты
+`model.morale` лежат в JSON; при текущих данных формула эквивалентна:
 
 ```
 stress = 0.30·fear + 0.22·anxiety + 0.20·fatigue + 0.18·health + 0.10·loneliness
-baseline = 50 + 18·discipline + 10·courage + trait_morale_bonus
-morale += scale · (0.03·(baseline − morale) − 4·stress − 3·under_fire
-                   + 0.15·order.morale + 0.20·support + 0.10·order.discipline)
+baseline = 50 + morale_baseline(черты) + trait_morale_bonus
+morale += scale · (drift·(baseline − morale) − stress_scale·stress
+                   − under_fire_penalty·under_fire
+                   + order_morale·order.morale + support_bonus·support
+                   + order_discipline·order.discipline)
 ```
 
+`morale_baseline(черты)` — сумма вкладов `morale_baseline` из
+`configs/characters/traits.json`; сейчас это `18·discipline + 10·courage`.
 `scale` — доля получасового интервала, поэтому мораль меняется во времени, а
 не скачком. Положительные слагаемые намеренно слабее стресса: под огнём и
 при запущенных потребностях мораль падает даже при формально «покрытых»
@@ -115,7 +154,9 @@ morale += scale · (0.03·(baseline − morale) − 4·stress − 3·under_fire
 прибавку морали за приказ: этот метод вызывается несколько раз за такт, и
 такая прибавка «прибивала» мораль к 100.
 
-`_update_mind` конкурируют два порога:
+`_update_mind` конкурируют два порога. Веса потребностей, вклады черт,
+пороги и кулдауны тоже лежат в `model.mind` и
+`panic_score`/`fanatic_score` определений черт:
 
 * **паника** — высокие `fear/anxiety/fatigue`, низкая мораль, низкие
   `courage/discipline`; запрет отхода (`retreat_allowed=False`) подавляет панику;
@@ -134,6 +175,9 @@ morale += scale · (0.03·(baseline − morale) − 4·stress − 3·under_fire
 они дают отделению:
 
 * агрегаты `morale/cohesion/aggression/discipline/fanaticism`;
+* trait-агрегаты `boldness` (агрессия, смелость, амбиции, фанатизм) и
+  `caution` (дисциплина, эмпатия, верность, выносливость), которые задают
+  вес атаки и отдыха;
 * BDI-голос о доминирующей потребности (банзай/отход/бой);
 * причины паники и фанатизма после боя.
 
@@ -261,6 +305,7 @@ print(sim.summary()["organizations"])
 python3 warfare.py                 # демонстрация и ключевые эпизоды
 python3 experiments/exp_warfare.py # проверка инвариантов, код 0/1
 pytest -q tests/test_warfare.py    # контракты слоя
+pytest -q tests/test_lore_characters.py  # 16 нужд и 12 черт у ключевых фигур
 ```
 
 ## 8. Границы

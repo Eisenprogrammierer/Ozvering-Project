@@ -2,9 +2,10 @@
 
 Скрипт запускает production-шаблоны (с их `score_bias` из JSON), собирает
 разницу прогресса игрока и соперника и печатает, как она превращается в
-победу/поражение/ничью при разных `score_margin`. Пороговые поражения,
-завершившие кампанию раньше срока, учитываются отдельно и не зависят от
-`score_margin`.
+победу/поражение/ничью при разных `score_margin`. Кампании, завершившиеся
+досрочно — по порогу поражения или по устойчивому преимуществу
+(`score_after` + `score_streak`), — учитываются своим исходом и не зависят
+от перебора `score_margin`.
 
 Запуск из корня репозитория::
 
@@ -30,6 +31,7 @@ from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
 
 TEMPLATES = ("empire", "republic", "cult", "corporation")
+HORIZON = 72
 
 
 def _seeds(value):
@@ -59,12 +61,16 @@ def _preset(template_id, seed):
 def _collect(template_id, seed):
     preset = _preset(template_id, seed)
     campaign = AutomataCampaign(preset, seed=seed)
-    while not campaign.finished:
+    # Кампания больше не ограничена ходами: горизонт задаёт эксперимент.
+    for _ in range(HORIZON):
+        if campaign.finished:
+            break
         campaign.advance()
     return {
         "seed": seed,
         "turn": campaign.turn,
-        "max_turns": campaign.max_turns,
+        "max_turns": HORIZON,
+        "finished": bool(campaign.finished),
         "outcome": campaign.outcome,
         "diff": campaign.player.progress() - campaign.rival.progress(),
         "bias": float(
@@ -76,7 +82,7 @@ def _collect(template_id, seed):
 def _outcomes(records, margin):
     counts = {"win": 0, "lose": 0, "stalemate": 0}
     for record in records:
-        if record["turn"] < record["max_turns"]:
+        if record.get("finished"):
             counts[record["outcome"] or "stalemate"] += 1
             continue
         difference = record["diff"] + record["bias"]
@@ -106,7 +112,7 @@ def main(argv=None):
     for template_id in TEMPLATES:
         records = [_collect(template_id, seed) for seed in seeds]
         diffs = [record["diff"] for record in records]
-        early = [record for record in records if record["turn"] < record["max_turns"]]
+        early = [record for record in records if record.get("finished")]
         print("\n=== %s ===" % template_id)
         print(
             "diff: mean=%+.3f median=%+.3f min=%+.3f max=%+.3f"
@@ -118,7 +124,7 @@ def main(argv=None):
             )
         )
         print(
-            "ранние пороговые исходы: %d / %d"
+            "исходы до горизонта: %d / %d"
             % (len(early), len(records))
         )
         bias = records[0]["bias"] if records else 0.0

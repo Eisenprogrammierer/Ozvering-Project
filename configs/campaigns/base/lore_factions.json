@@ -48,49 +48,57 @@
           "id": "leader",
           "title": "Император",
           "archetype": "veteran",
-          "force": 26.0
+          "force": 26.0,
+          "organ_id": "imperial_staff"
         },
         {
           "id": "chief_of_staff",
           "title": "Начальник Генерального штаба",
           "archetype": "veteran",
-          "force": 13.0
+          "force": 13.0,
+          "organ_id": "imperial_staff"
         },
         {
           "id": "justice",
           "title": "Министр юстиции",
           "archetype": "commissar",
-          "force": 8.0
+          "force": 8.0,
+          "organ_id": "justice"
         },
         {
           "id": "guard",
           "title": "Начальник Гвардейского корпуса",
           "archetype": "veteran",
-          "force": 7.0
+          "force": 7.0,
+          "organ_id": "guard"
         },
         {
           "id": "abwehr",
           "title": "Начальник Абвера",
           "archetype": "scout",
-          "force": 5.0
+          "force": 5.0,
+          "organ_id": "abwehr"
         },
         {
           "id": "propaganda",
           "title": "Начальник пропагандистской службы",
           "archetype": "commissar",
-          "force": 4.0
+          "force": 4.0,
+          "organ_id": "propaganda"
         },
         {
           "id": "intendant",
           "title": "Интендант",
           "archetype": "rifleman",
-          "force": 3.0
+          "force": 3.0,
+          "organ_id": "medical"
         },
         {
           "id": "cathedral",
           "title": "Глава Имперского собора",
           "archetype": "chaplain",
-          "force": 2.0
+          "force": 2.0,
+          "organ_id": "cathedral"
         }
       ],
       "line_posts": [
@@ -113,7 +121,9 @@
             "outside_jitter": 0.02
           },
           "allow_rejoin": true
-        }
+        },
+        "leader_title_base": "император",
+        "leader_title_female": "императрица"
       },
       "actions": [
         {
@@ -145,7 +155,8 @@
             },
             "text": "Эдикт звучит как признание слабости: законность приходится доказывать."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "justice"
         },
         {
           "id": "show_of_force",
@@ -187,7 +198,8 @@
             },
             "text": "Демонстрация выглядит дорогой и пустой; свои устают, чужие смелеют."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "guard"
         },
         {
           "id": "garrison_network",
@@ -214,7 +226,8 @@
               "supply": -0.02
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "wehrmacht"
         },
         {
           "id": "enemy_of_state",
@@ -253,7 +266,8 @@
               "cohesion": -0.02
             },
             "text": "Обвинение не убеждает: общество видит в нём борьбу аппаратов."
-          }
+          },
+          "organ_id": "justice"
         },
         {
           "id": "imperial_church",
@@ -286,7 +300,228 @@
               "influence": -0.02
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "cathedral"
+        },
+        {
+          "id": "panzer_breakthrough",
+          "label": "Прорвать фронт танковым клином",
+          "organ_id": "panzerwaffe",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.1,
+          "cost": {
+            "supply": 0.06,
+            "influence": 0.03
+          },
+          "ai_priority": 1.2,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "supply": -0.02,
+              "fear": 0.02
+            },
+            "target": {
+              "supply": -0.05,
+              "cohesion": -0.03
+            },
+            "text": "Клин проходит по тылам: противник теряет склады раньше, чем понимает, где удар."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.04,
+              "cohesion": -0.02
+            },
+            "text": "Танки вязнут в обороне; топливо сожжено, а фронт не сдвинулся."
+          }
+        },
+        {
+          "id": "terror_bombing",
+          "label": "Провести показательную бомбардировку",
+          "organ_id": "bomber",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "cohesion",
+          "base": -0.1,
+          "slope": 2.3,
+          "cost": {
+            "supply": 0.05,
+            "influence": 0.04
+          },
+          "ai_priority": 0.95,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "fear": 0.03
+            },
+            "target": {
+              "legitimacy": -0.03,
+              "fear": 0.05,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "fear": 0.03,
+                "anxiety": 0.02
+              }
+            },
+            "text": "Города видят, что Империя может достать их где угодно; это не победа, а урок."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.03
+            },
+            "text": "Бомбардировка выглядит жестокостью без результата; даже свои требуют объяснений."
+          }
+        },
+        {
+          "id": "abwehr_sabotage",
+          "label": "Провести диверсию Абвера",
+          "organ_id": "abwehr",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": -0.2,
+          "slope": 2.5,
+          "cost": {
+            "influence": 0.05,
+            "energy": 0.03
+          },
+          "ai_priority": 1.05,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.02
+            },
+            "target": {
+              "supply": -0.04,
+              "cohesion": -0.04
+            },
+            "text": "Диверсия не объявляет войну — она просто делает чужую логистику ненадёжной."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02,
+              "cohesion": -0.02
+            },
+            "text": "Сеть раскрыта; противник получил доказательство имперского вмешательства."
+          }
+        },
+        {
+          "id": "cyber_osint",
+          "label": "Вскрыть чужую сеть связи",
+          "organ_id": "cyber",
+          "form": "information",
+          "target": "strongest",
+          "attack_asset": "influence",
+          "defense_asset": "legitimacy",
+          "base": -0.05,
+          "slope": 2.0,
+          "cost": {
+            "energy": 0.04,
+            "influence": 0.02
+          },
+          "ai_priority": 0.9,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.03,
+              "legitimacy": 0.01
+            },
+            "target": {
+              "legitimacy": -0.03,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Чужие переговоры становятся имперской сводкой: теперь Империя знает, где надавить."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Сеть оказалась приманкой; утечка ударила по имперской разведке."
+          }
+        },
+        {
+          "id": "staff_plan",
+          "label": "Согласовать план Ставки",
+          "organ_id": "imperial_staff",
+          "form": "provision",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.35,
+          "slope": 1.1,
+          "cost": {
+            "influence": 0.04
+          },
+          "ai_priority": 0.8,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "cohesion": 0.04,
+              "supply": 0.02,
+              "legitimacy": 0.01
+            },
+            "needs": {
+              "self": {
+                "anxiety": -0.02,
+                "knowledge": 0.02
+              }
+            },
+            "text": "Единый план не делает армию сильнее, но перестаёт тратить её на споры."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.02
+            },
+            "text": "Ставка увязает в согласованиях; каждый род войск тянет план на себя."
+          }
+        },
+        {
+          "id": "field_medicine",
+          "label": "Развернуть полевые госпитали",
+          "organ_id": "medical",
+          "form": "care",
+          "target": "self",
+          "attack_asset": "morale",
+          "defense_asset": "morale",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.04
+          },
+          "ai_priority": 0.65,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "morale": 0.04,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "health": -0.03,
+                "fear": -0.02
+              }
+            },
+            "text": "Раненые возвращаются в строй: армия видит, что её не бросают."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02,
+              "morale": -0.01
+            },
+            "text": "Госпитали перегружены; помощь приходит позже, чем сводки обещали."
+          }
         }
       ],
       "income": {
@@ -299,7 +534,150 @@
         "cohesion": 0.3,
         "fear": 0.2,
         "morale": 0.1
-      }
+      },
+      "organs": [
+        {
+          "id": "imperial_staff",
+          "name": "Имперская ставка",
+          "kind": "command",
+          "description": "Штаб вертикали: планирует кампанию и держит связь между армиями.",
+          "parent_id": ""
+        },
+        {
+          "id": "panzerwaffe",
+          "name": "Панцерваффе",
+          "kind": "coercion",
+          "description": "Танковые соединения прорыва: масса, броня и давление на каналы снабжения.",
+          "parent_id": "wehrmacht"
+        },
+        {
+          "id": "wehrmacht",
+          "name": "Вермахт",
+          "kind": "coercion",
+          "description": "Полевая армия Империи: гарнизоны, призыв и удержание территории.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "artillery",
+          "name": "Артиллерийский корпус",
+          "kind": "coercion",
+          "description": "Огневая мощь, которая превращает спор о территории в спор о руинах.",
+          "parent_id": "wehrmacht"
+        },
+        {
+          "id": "bomber",
+          "name": "Бомбардировочный флот",
+          "kind": "coercion",
+          "description": "Дальняя авиация: удар по тылам и демонстрация неизбежности наказания.",
+          "parent_id": "wehrmacht"
+        },
+        {
+          "id": "abwehr",
+          "name": "Абвер",
+          "kind": "intelligence",
+          "description": "Разведывательно-диверсионная служба: чужие штабы и чужие тайны.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "propaganda",
+          "name": "Пропагандистская служба",
+          "kind": "information",
+          "description": "Сводки, плакаты и язык, на котором Империя объясняет свои потери.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "guard",
+          "name": "Гвардейский корпус",
+          "kind": "coercion",
+          "description": "Символ контроля: охрана трона, ритуал и последний резерв вертикали.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "justice",
+          "name": "Имперское министерство юстиции",
+          "kind": "maintenance",
+          "description": "Законность как инструмент: эдикты, суды и назначение врагов государства.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "cathedral",
+          "name": "Имперский собор",
+          "kind": "legitimacy",
+          "description": "Государственная церковь: присяга, коронация и освящение порядка.",
+          "parent_id": "imperial_staff"
+        },
+        {
+          "id": "medical",
+          "name": "Медицинская служба",
+          "kind": "maintenance",
+          "description": "Госпитали, эвакуация и возвращение раненых в строй.",
+          "parent_id": "wehrmacht"
+        },
+        {
+          "id": "cyber",
+          "name": "Киберотдел спецслужбы",
+          "kind": "intelligence",
+          "description": "OSINT и GEOINT: чужие сети, чужие карты и чужие ошибки.",
+          "parent_id": "abwehr"
+        }
+      ],
+      "role_title_female": "императрица",
+      "role_title_base": "император",
+      "organ_interactions": [
+        {
+          "id": "reinforce",
+          "label": "Усилить орган",
+          "description": "Перебросить людей и ресурсы: целостность органа растёт, а фракция получает небольшую поддержку сплочённости.",
+          "cost": {
+            "supply": 0.04
+          },
+          "integrity": 0.12,
+          "faction": {
+            "cohesion": 0.015
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "reform",
+          "label": "Реформировать",
+          "description": "Изменить порядок работы органа: умеренный рост целостности и влияния ценой энергии.",
+          "cost": {
+            "energy": 0.035
+          },
+          "integrity": 0.07,
+          "faction": {
+            "influence": 0.012
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "purge",
+          "label": "Провести чистку",
+          "description": "Подчинить орган центру: страх и законность растут, но целостность падает.",
+          "cost": {
+            "influence": 0.05
+          },
+          "integrity": -0.15,
+          "faction": {
+            "fear": 0.02,
+            "legitimacy": 0.01
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "resupply",
+          "label": "Наладить снабжение",
+          "description": "Влить запас в орган: восстанавливает целостность и слегка поднимает мораль.",
+          "cost": {
+            "supply": 0.06
+          },
+          "integrity": 0.18,
+          "faction": {
+            "morale": 0.01
+          },
+          "cooldown": 4
+        }
+      ]
     },
     "blue": {
       "id": "faction_republic",
@@ -348,49 +726,57 @@
           "id": "leader",
           "title": "Председатель парламента",
           "archetype": "veteran",
-          "force": 26.0
+          "force": 26.0,
+          "organ_id": "parliament"
         },
         {
           "id": "chief_of_staff",
           "title": "Начальник федерального генштаба",
           "archetype": "veteran",
-          "force": 13.0
+          "force": 13.0,
+          "organ_id": "general_staff"
         },
         {
           "id": "information",
           "title": "Министр информации",
           "archetype": "scout",
-          "force": 8.0
+          "force": 8.0,
+          "organ_id": "propaganda"
         },
         {
           "id": "diplomacy",
           "title": "Глава дипломатического ведомства",
           "archetype": "rifleman",
-          "force": 7.0
+          "force": 7.0,
+          "organ_id": "diplomacy"
         },
         {
           "id": "precision",
           "title": "Командир корпуса высокоточных вооружений",
           "archetype": "veteran",
-          "force": 5.0
+          "force": 5.0,
+          "organ_id": "precision"
         },
         {
           "id": "rights",
           "title": "Правозащитник",
           "archetype": "medic",
-          "force": 4.0
+          "force": 4.0,
+          "organ_id": "rights"
         },
         {
           "id": "intendant",
           "title": "Интендант",
           "archetype": "rifleman",
-          "force": 3.0
+          "force": 3.0,
+          "organ_id": "field_corps"
         },
         {
           "id": "channel",
           "title": "Связной Торговой планеты",
           "archetype": "scout",
-          "force": 2.0
+          "force": 2.0,
+          "organ_id": "diplomacy"
         }
       ],
       "line_posts": [
@@ -413,7 +799,9 @@
             "outside_jitter": 0.02
           },
           "allow_rejoin": true
-        }
+        },
+        "leader_title_base": "председатель парламента",
+        "leader_title_female": "председательница парламента"
       },
       "actions": [
         {
@@ -451,7 +839,8 @@
             },
             "text": "Кампания выглядит как пропаганда; доверие к процедуре падает."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "propaganda"
         },
         {
           "id": "parliament_debate",
@@ -483,7 +872,8 @@
               "cohesion": -0.01
             }
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "parliament"
         },
         {
           "id": "precision_strike",
@@ -516,7 +906,8 @@
             },
             "text": "Операция провалилась; противник получил повод говорить о терроре."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "precision"
         },
         {
           "id": "human_rights_court",
@@ -548,7 +939,8 @@
               "legitimacy": -0.01
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "rights"
         },
         {
           "id": "channel_deal",
@@ -578,7 +970,200 @@
               "supply": -0.02
             }
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "diplomacy"
+        },
+        {
+          "id": "cyber_leak",
+          "label": "Опубликовать утечку документов",
+          "organ_id": "cyber",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "legitimacy",
+          "base": 0.0,
+          "slope": 2.2,
+          "cost": {
+            "energy": 0.04,
+            "influence": 0.03
+          },
+          "ai_priority": 1.2,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "influence": 0.02
+            },
+            "target": {
+              "legitimacy": -0.05,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.03
+              }
+            },
+            "text": "Документы не спорят — они показывают, как имперская вертикаль решает вопросы."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Утечка оказалась подделкой; доверие к республиканским источникам упало."
+          }
+        },
+        {
+          "id": "underground_radio",
+          "label": "Запустить подпольное радио",
+          "organ_id": "radio",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": 0.1,
+          "slope": 1.9,
+          "cost": {
+            "energy": 0.03,
+            "influence": 0.02
+          },
+          "ai_priority": 0.95,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.02
+            },
+            "target": {
+              "cohesion": -0.04,
+              "legitimacy": -0.02
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02,
+                "knowledge": 0.02
+              }
+            },
+            "text": "Голос в эфире напоминает имперскому тылу, что война идёт не только на фронте."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Передатчик найден; имперская служба связи получила удобный трофей."
+          }
+        },
+        {
+          "id": "agent_network",
+          "label": "Активировать сеть агентов",
+          "organ_id": "agents",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": -0.15,
+          "slope": 2.4,
+          "cost": {
+            "influence": 0.05,
+            "supply": 0.02
+          },
+          "ai_priority": 1.05,
+          "cooldown": 2,
+          "effects": {
+            "target": {
+              "cohesion": -0.05,
+              "supply": -0.02
+            },
+            "self": {
+              "influence": 0.02
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.03
+              }
+            },
+            "text": "Агенты не взрывают мосты — они делают так, что мосты чинят не там и не вовремя."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.03,
+              "legitimacy": -0.01
+            },
+            "text": "Сеть раскрыта; Республика теряет людей и оправдывается за методы."
+          }
+        },
+        {
+          "id": "general_mobilization",
+          "label": "Провести всеобщую мобилизацию",
+          "organ_id": "general_staff",
+          "form": "provision",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.05,
+            "influence": 0.04
+          },
+          "ai_priority": 0.8,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "supply": 0.03,
+              "cohesion": 0.04,
+              "legitimacy": -0.01
+            },
+            "needs": {
+              "self": {
+                "fatigue": 0.02,
+                "status": 0.02
+              }
+            },
+            "text": "Мобилизация даёт людей, но каждая семья теперь считает цену войны по-своему."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.03,
+              "legitimacy": -0.02
+            },
+            "text": "Призыв проходит со скандалом; процедура показала свою медлительность."
+          }
+        },
+        {
+          "id": "republic_medicine",
+          "label": "Обеспечить эвакуацию раненых",
+          "organ_id": "medical",
+          "form": "care",
+          "target": "self",
+          "attack_asset": "morale",
+          "defense_asset": "morale",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.04
+          },
+          "ai_priority": 0.65,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "morale": 0.04,
+              "cohesion": 0.03,
+              "legitimacy": 0.01
+            },
+            "needs": {
+              "self": {
+                "health": -0.03,
+                "fear": -0.02
+              }
+            },
+            "text": "Эвакуация работает: граждане видят, что Республика считает их не расходом, а людьми."
+          },
+          "failure": {
+            "self": {
+              "morale": -0.02,
+              "supply": -0.02
+            },
+            "text": "Раненые ждут эвакуации слишком долго; обещание процедуры столкнулось с логистикой."
+          }
         }
       ],
       "income": {
@@ -591,7 +1176,143 @@
         "cohesion": 0.3,
         "morale": 0.15,
         "fear": -0.1
-      }
+      },
+      "organs": [
+        {
+          "id": "general_staff",
+          "name": "Федеральный генштаб",
+          "kind": "command",
+          "description": "Координация фронтов и парламентских мандатов; медленно, зато обратимо.",
+          "parent_id": ""
+        },
+        {
+          "id": "parliament",
+          "name": "Парламентская канцелярия",
+          "kind": "legitimacy",
+          "description": "Процедура, слушания и искусство превращать спор в законное решение.",
+          "parent_id": "general_staff"
+        },
+        {
+          "id": "field_corps",
+          "name": "Полевой корпус",
+          "kind": "coercion",
+          "description": "Контрактная армия Республики: манёвр, инициатива и малые группы.",
+          "parent_id": "general_staff"
+        },
+        {
+          "id": "precision",
+          "name": "Корпус высокоточных вооружений",
+          "kind": "coercion",
+          "description": "Точечные удары по складам и штабам вместо ковровых бомбардировок.",
+          "parent_id": "field_corps"
+        },
+        {
+          "id": "cyber",
+          "name": "Киберкорпус",
+          "kind": "intelligence",
+          "description": "Взлом, утечки и сбор компромата на чужую вертикаль.",
+          "parent_id": "general_staff"
+        },
+        {
+          "id": "radio",
+          "name": "Подпольное радиовещание",
+          "kind": "information",
+          "description": "Голос, который звучит в имперском тылу без разрешения.",
+          "parent_id": "propaganda"
+        },
+        {
+          "id": "propaganda",
+          "name": "Пропагандистский корпус",
+          "kind": "information",
+          "description": "Нарратив Республики: свобода, процедура и чужая непобедимость.",
+          "parent_id": "general_staff"
+        },
+        {
+          "id": "rights",
+          "name": "Правозащитное ведомство",
+          "kind": "legitimacy",
+          "description": "Документирование нарушений и суд, который сам является оружием.",
+          "parent_id": "parliament"
+        },
+        {
+          "id": "diplomacy",
+          "name": "Дипломатическое ведомство",
+          "kind": "maintenance",
+          "description": "Внешний канал, торговые соглашения и посредники без репутации.",
+          "parent_id": "general_staff"
+        },
+        {
+          "id": "agents",
+          "name": "Сеть агентов влияния",
+          "kind": "intelligence",
+          "description": "Люди внутри чужих институтов, которые делают энтропию управляемой.",
+          "parent_id": "cyber"
+        },
+        {
+          "id": "medical",
+          "name": "Медицинская служба",
+          "kind": "maintenance",
+          "description": "Полевые врачи и эвакуация: Республика дорожит своими гражданами.",
+          "parent_id": "field_corps"
+        }
+      ],
+      "role_title_female": "председательница парламента",
+      "role_title_base": "председатель парламента",
+      "organ_interactions": [
+        {
+          "id": "reinforce",
+          "label": "Усилить орган",
+          "description": "Перебросить людей и ресурсы: целостность органа растёт, а фракция получает небольшую поддержку сплочённости.",
+          "cost": {
+            "supply": 0.04
+          },
+          "integrity": 0.12,
+          "faction": {
+            "cohesion": 0.015
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "reform",
+          "label": "Реформировать",
+          "description": "Изменить порядок работы органа: умеренный рост целостности и влияния ценой энергии.",
+          "cost": {
+            "energy": 0.035
+          },
+          "integrity": 0.07,
+          "faction": {
+            "influence": 0.012
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "purge",
+          "label": "Провести чистку",
+          "description": "Подчинить орган центру: страх и законность растут, но целостность падает.",
+          "cost": {
+            "influence": 0.05
+          },
+          "integrity": -0.15,
+          "faction": {
+            "fear": 0.02,
+            "legitimacy": 0.01
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "resupply",
+          "label": "Наладить снабжение",
+          "description": "Влить запас в орган: восстанавливает целостность и слегка поднимает мораль.",
+          "cost": {
+            "supply": 0.06
+          },
+          "integrity": 0.18,
+          "faction": {
+            "morale": 0.01
+          },
+          "cooldown": 4
+        }
+      ]
     },
     "green": {
       "id": "faction_cult",
@@ -610,7 +1331,7 @@
       "goals": [
         "размывать лояльность государств, не вступая с ними в открытый бой",
         "превратить обиду и страх в общины и ритуал",
-        "сохранить нарратив и фигуру верховного жреца"
+        "сохранить нарратив и фигуру главы культа"
       ],
       "assets": {
         "legitimacy": 0.22,
@@ -640,37 +1361,43 @@
           "id": "leader",
           "title": "Верховный жрец",
           "archetype": "chaplain",
-          "force": 26.0
+          "force": 26.0,
+          "organ_id": "preaching"
         },
         {
           "id": "voice",
           "title": "Голос Земли",
           "archetype": "chaplain",
-          "force": 13.0
+          "force": 13.0,
+          "organ_id": "preaching"
         },
         {
           "id": "network",
           "title": "Хранитель сети общин",
           "archetype": "scout",
-          "force": 8.0
+          "force": 8.0,
+          "organ_id": "communities"
         },
         {
           "id": "rite",
           "title": "Мастер обряда",
           "archetype": "chaplain",
-          "force": 7.0
+          "force": 7.0,
+          "organ_id": "rites"
         },
         {
           "id": "care",
           "title": "Служитель милосердия",
           "archetype": "medic",
-          "force": 5.0
+          "force": 5.0,
+          "organ_id": "charity"
         },
         {
           "id": "memory",
           "title": "Хранитель памяти",
           "archetype": "scout",
-          "force": 4.0
+          "force": 4.0,
+          "organ_id": "scriptorium"
         }
       ],
       "line_posts": [
@@ -693,7 +1420,9 @@
             "outside_jitter": 0.02
           },
           "allow_rejoin": true
-        }
+        },
+        "leader_title_base": "верховный жрец",
+        "leader_title_female": "верховная жрица"
       },
       "actions": [
         {
@@ -732,7 +1461,8 @@
             },
             "text": "Слова падают в пустоту: община ждала чуда, а получила текст."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "preaching"
         },
         {
           "id": "community_network",
@@ -765,7 +1495,8 @@
               "supply": -0.02
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "communities"
         },
         {
           "id": "martyr_narrative",
@@ -803,7 +1534,8 @@
               "legitimacy": -0.02
             },
             "text": "История не убеждает: её слишком легко проверить."
-          }
+          },
+          "organ_id": "printing"
         },
         {
           "id": "infiltration",
@@ -835,7 +1567,8 @@
             },
             "text": "Внедрение раскрыто; чужой аппарат получил удобную мишень."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "agents"
         },
         {
           "id": "earth_ritual",
@@ -869,7 +1602,160 @@
               "morale": -0.01
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "rites"
+        },
+        {
+          "id": "scriptorium_schools",
+          "label": "Открыть школы Скрипториума",
+          "organ_id": "scriptorium",
+          "form": "meaning",
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.25,
+          "slope": 1.2,
+          "cost": {
+            "supply": 0.03,
+            "influence": 0.02
+          },
+          "ai_priority": 0.8,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "legitimacy": 0.03,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "knowledge": 0.03,
+                "spirituality": 0.02
+              }
+            },
+            "text": "Дети учат историю Земли раньше, чем историю государств; через поколение это станет политикой."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02,
+              "legitimacy": -0.01
+            },
+            "text": "Школы закрывают как незаконные; культ снова подтверждает, что его место — в тени."
+          }
+        },
+        {
+          "id": "parallel_court",
+          "label": "Созвать Синедрион",
+          "organ_id": "synedrion",
+          "form": "meaning",
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.0,
+          "slope": 2.0,
+          "cost": {
+            "energy": 0.04,
+            "influence": 0.03
+          },
+          "ai_priority": 0.9,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "legitimacy": 0.03,
+              "cohesion": 0.02
+            },
+            "target": {
+              "legitimacy": -0.03
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Синедрион судит там, где государство не решилось: приговор звучит как альтернатива закону."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02,
+              "cohesion": -0.01
+            },
+            "text": "Суд общины выглядит самозванством; даже сочувствующие отходят в сторону."
+          }
+        },
+        {
+          "id": "charity_hospitals",
+          "label": "Открыть больницы при общинах",
+          "organ_id": "charity",
+          "form": "care",
+          "target": "self",
+          "attack_asset": "morale",
+          "defense_asset": "morale",
+          "base": 0.35,
+          "slope": 0.9,
+          "cost": {
+            "supply": 0.04
+          },
+          "ai_priority": 0.7,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "morale": 0.04,
+              "cohesion": 0.03,
+              "supply": 0.01
+            },
+            "needs": {
+              "self": {
+                "health": -0.03,
+                "loneliness": -0.02
+              }
+            },
+            "text": "Больница не спрашивает о вере, но запоминает, кто помог первым."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03
+            },
+            "text": "Лекарства кончились; община снова убедилась, что обещания требуют ресурсов."
+          }
+        },
+        {
+          "id": "knights_patrol",
+          "label": "Вывести Рыцарей Земли",
+          "organ_id": "knights",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "cohesion",
+          "base": -0.2,
+          "slope": 2.2,
+          "cost": {
+            "supply": 0.04,
+            "energy": 0.04
+          },
+          "ai_priority": 0.8,
+          "cooldown": 3,
+          "effects": {
+            "self": {
+              "fear": 0.03,
+              "cohesion": 0.02
+            },
+            "target": {
+              "cohesion": -0.04,
+              "fear": 0.03
+            },
+            "needs": {
+              "target": {
+                "fear": 0.03
+              }
+            },
+            "text": "Рыцари не берут городов — они напоминают, что у веры есть люди, готовые умереть."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.04,
+              "cohesion": -0.02
+            },
+            "text": "Патруль превращается в резню; государства получают идеальный повод для запрета культа."
+          }
         }
       ],
       "income": {
@@ -882,7 +1768,129 @@
         "cohesion": 0.35,
         "morale": 0.2,
         "fear": 0.15
-      }
+      },
+      "organs": [
+        {
+          "id": "preaching",
+          "name": "Проповедническое управление",
+          "kind": "information",
+          "description": "Слово, которое меняет веру и не требует энергии армии.",
+          "parent_id": ""
+        },
+        {
+          "id": "communities",
+          "name": "Общинное управление",
+          "kind": "maintenance",
+          "description": "Ячейки, школы и общие трапезы: база культа и источник энтропии.",
+          "parent_id": "preaching"
+        },
+        {
+          "id": "charity",
+          "name": "Благотворительное управление",
+          "kind": "care",
+          "description": "Помощь, которую государство не успевает оказать, и благодарность, которую оно не получает.",
+          "parent_id": "communities"
+        },
+        {
+          "id": "scriptorium",
+          "name": "Скрипториум",
+          "kind": "legitimacy",
+          "description": "Образование культистов взамен светского: своя история и свои учителя.",
+          "parent_id": "communities"
+        },
+        {
+          "id": "synedrion",
+          "name": "Синедрион",
+          "kind": "legitimacy",
+          "description": "Суд культистов взамен светского: община судит по вере, а не по закону.",
+          "parent_id": "scriptorium"
+        },
+        {
+          "id": "knights",
+          "name": "Рыцари Земли и Солнца",
+          "kind": "coercion",
+          "description": "Иррегулярные соединения культа: немногочисленные, но готовые к жертве.",
+          "parent_id": "preaching"
+        },
+        {
+          "id": "agents",
+          "name": "Агентурно-разведывательная служба",
+          "kind": "intelligence",
+          "description": "Люди культа внутри чужих структур: не шпионы, а носители сомнения.",
+          "parent_id": "preaching"
+        },
+        {
+          "id": "printing",
+          "name": "Подпольное типографское управление",
+          "kind": "information",
+          "description": "Листовки, мученики и истории, которые нельзя опровергнуть приказом.",
+          "parent_id": "preaching"
+        },
+        {
+          "id": "rites",
+          "name": "Хранители обряда",
+          "kind": "meaning",
+          "description": "Ритуал, который связывает обиду, надежду и общину в одно действие.",
+          "parent_id": "preaching"
+        }
+      ],
+      "role_title_female": "верховная жрица",
+      "role_title_base": "верховный жрец",
+      "organ_interactions": [
+        {
+          "id": "reinforce",
+          "label": "Усилить орган",
+          "description": "Перебросить людей и ресурсы: целостность органа растёт, а фракция получает небольшую поддержку сплочённости.",
+          "cost": {
+            "supply": 0.04
+          },
+          "integrity": 0.12,
+          "faction": {
+            "cohesion": 0.015
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "reform",
+          "label": "Реформировать",
+          "description": "Изменить порядок работы органа: умеренный рост целостности и влияния ценой энергии.",
+          "cost": {
+            "energy": 0.035
+          },
+          "integrity": 0.07,
+          "faction": {
+            "influence": 0.012
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "purge",
+          "label": "Провести чистку",
+          "description": "Подчинить орган центру: страх и законность растут, но целостность падает.",
+          "cost": {
+            "influence": 0.05
+          },
+          "integrity": -0.15,
+          "faction": {
+            "fear": 0.02,
+            "legitimacy": 0.01
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "resupply",
+          "label": "Наладить снабжение",
+          "description": "Влить запас в орган: восстанавливает целостность и слегка поднимает мораль.",
+          "cost": {
+            "supply": 0.06
+          },
+          "integrity": 0.18,
+          "faction": {
+            "morale": 0.01
+          },
+          "cooldown": 4
+        }
+      ]
     },
     "amber": {
       "id": "faction_corporation",
@@ -931,37 +1939,43 @@
           "id": "leader",
           "title": "Генеральный директор",
           "archetype": "scout",
-          "force": 26.0
+          "force": 26.0,
+          "organ_id": "trade"
         },
         {
           "id": "logistics",
           "title": "Директор по логистике",
           "archetype": "rifleman",
-          "force": 13.0
+          "force": 13.0,
+          "organ_id": "port"
         },
         {
           "id": "intelligence",
           "title": "Начальник отдела информации",
           "archetype": "scout",
-          "force": 8.0
+          "force": 8.0,
+          "organ_id": "intelligence"
         },
         {
           "id": "trade",
           "title": "Главный переговорщик",
           "archetype": "scout",
-          "force": 7.0
+          "force": 7.0,
+          "organ_id": "trade"
         },
         {
           "id": "security",
           "title": "Начальник безопасности",
           "archetype": "veteran",
-          "force": 5.0
+          "force": 5.0,
+          "organ_id": "security"
         },
         {
           "id": "medicine",
           "title": "Директор медицинской службы",
           "archetype": "medic",
-          "force": 4.0
+          "force": 4.0,
+          "organ_id": "engineering"
         }
       ],
       "line_posts": [
@@ -984,7 +1998,9 @@
             "outside_jitter": 0.02
           },
           "allow_rejoin": true
-        }
+        },
+        "leader_title_base": "генеральный директор",
+        "leader_title_female": "генеральная директриса"
       },
       "actions": [
         {
@@ -1018,7 +2034,8 @@
               "supply": -0.015
             }
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "trade"
         },
         {
           "id": "credit_offer",
@@ -1049,7 +2066,8 @@
             },
             "text": "Кредит сочли взяткой; репутация канала пострадала."
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "finance"
         },
         {
           "id": "embargo",
@@ -1087,7 +2105,8 @@
               "influence": -0.02
             },
             "text": "Эмбарго обошли через третьи руки; канал потерял лицо."
-          }
+          },
+          "organ_id": "trade"
         },
         {
           "id": "information_broker",
@@ -1117,7 +2136,8 @@
               "influence": -0.02
             }
           },
-          "cooldown": 1
+          "cooldown": 1,
+          "organ_id": "intelligence"
         },
         {
           "id": "neutral_hub",
@@ -1144,7 +2164,234 @@
               "legitimacy": -0.01
             }
           },
-          "cooldown": 2
+          "cooldown": 2,
+          "organ_id": "diplomacy"
+        },
+        {
+          "id": "port_control",
+          "label": "Закрыть порт для одной стороны",
+          "organ_id": "port",
+          "form": "coercion",
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": -0.05,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.04,
+            "supply": 0.03
+          },
+          "ai_priority": 1.05,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.03
+            },
+            "target": {
+              "supply": -0.05,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "hunger": 0.02,
+                "fatigue": 0.01
+              }
+            },
+            "text": "Порт закрывается не приказом, а расписанием: корабли просто перестают приходить."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03,
+              "influence": -0.02
+            },
+            "text": "Сторона нашла обходной маршрут; планета потеряла часть канала и немного лица."
+          }
+        },
+        {
+          "id": "price_dumping",
+          "label": "Обрушить цены на рынке",
+          "organ_id": "finance",
+          "form": "exchange",
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "legitimacy",
+          "base": 0.0,
+          "slope": 1.8,
+          "cost": {
+            "supply": 0.06,
+            "influence": 0.02
+          },
+          "ai_priority": 0.9,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.03,
+              "supply": -0.02
+            },
+            "target": {
+              "legitimacy": -0.03,
+              "cohesion": -0.03
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Цены падают, а вместе с ними — вера в то, что власть контролирует экономику."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.05,
+              "influence": -0.02
+            },
+            "text": "Демпинг съел собственные запасы; планета заплатила за чужой страх."
+          }
+        },
+        {
+          "id": "bribe_official",
+          "label": "Купить нужного чиновника",
+          "organ_id": "agents",
+          "form": "coercion",
+          "target": "weakest",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": 0.1,
+          "slope": 1.9,
+          "cost": {
+            "supply": 0.05,
+            "influence": 0.03
+          },
+          "ai_priority": 1.0,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "influence": 0.03,
+              "supply": 0.01
+            },
+            "target": {
+              "cohesion": -0.03,
+              "legitimacy": -0.02
+            },
+            "text": "Чиновник не предаёт — он просто начинает слышать доводы, которые раньше не доходили."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02,
+              "influence": -0.02
+            },
+            "text": "Чиновник оказался честнее ожиданий; скандал ударил по репутации канала."
+          }
+        },
+        {
+          "id": "media_narrative",
+          "label": "Запустить медийную кампанию",
+          "organ_id": "media",
+          "form": "information",
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "legitimacy",
+          "base": 0.05,
+          "slope": 1.8,
+          "cost": {
+            "influence": 0.04,
+            "energy": 0.03
+          },
+          "ai_priority": 0.9,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "influence": 0.02
+            },
+            "target": {
+              "legitimacy": -0.04
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Планета напоминает: война идёт за канал, а канал — это доверие к посреднику."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Кампания выглядит рекламой; обе стороны одинаково не верят заказным новостям."
+          }
+        },
+        {
+          "id": "security_sweep",
+          "label": "Провести зачистку порта",
+          "organ_id": "security",
+          "form": "coercion",
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.3,
+          "slope": 1.1,
+          "cost": {
+            "supply": 0.03,
+            "influence": 0.02
+          },
+          "ai_priority": 0.65,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "cohesion": 0.04,
+              "legitimacy": 0.01,
+              "fear": 0.01
+            },
+            "needs": {
+              "self": {
+                "fear": -0.01,
+                "anxiety": -0.02
+              }
+            },
+            "text": "Зачистка возвращает контроль над доками, но каждый обыск напоминает о цене нейтралитета."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.02,
+              "legitimacy": -0.02
+            },
+            "text": "Служба защиты перестаралась; портовые артели отвечают саботажем."
+          }
+        },
+        {
+          "id": "repair_hub",
+          "label": "Восстановить инфраструктуру",
+          "organ_id": "engineering",
+          "form": "provision",
+          "target": "self",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": 0.35,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.02,
+            "influence": 0.02
+          },
+          "ai_priority": 0.7,
+          "cooldown": 2,
+          "effects": {
+            "self": {
+              "supply": 0.04,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "fatigue": -0.02
+              }
+            },
+            "text": "Ремонт причалов не выглядит победой, но без него канал перестаёт быть каналом."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            },
+            "text": "Поставки стройматериалов сорваны; ремонт снова отложен."
+          }
         }
       ],
       "income": {
@@ -1157,7 +2404,208 @@
         "cohesion": 0.35,
         "morale": 0.15,
         "fear": -0.1
-      }
+      },
+      "organs": [
+        {
+          "id": "trade",
+          "name": "Торговое ведомство",
+          "kind": "exchange",
+          "description": "Канал, по которому идут ресурсы, деньги и информация.",
+          "parent_id": ""
+        },
+        {
+          "id": "port",
+          "name": "Портовое управление",
+          "kind": "maintenance",
+          "description": "Порт, склады и связь: без инфраструктуры планета — просто скала.",
+          "parent_id": "trade"
+        },
+        {
+          "id": "finance",
+          "name": "Финансовое ведомство",
+          "kind": "exchange",
+          "description": "Кредит, демпинг и цена, которую каждая сторона готова заплатить.",
+          "parent_id": "trade"
+        },
+        {
+          "id": "diplomacy",
+          "name": "Дипломатическое ведомство",
+          "kind": "legitimacy",
+          "description": "Нейтралитет как услуга и баланс как способ выжить.",
+          "parent_id": "trade"
+        },
+        {
+          "id": "intelligence",
+          "name": "Разведывательное управление",
+          "kind": "intelligence",
+          "description": "Знание о том, кто что покупает, стоит дороже любого товара.",
+          "parent_id": "trade"
+        },
+        {
+          "id": "warehouses",
+          "name": "Складское управление",
+          "kind": "maintenance",
+          "description": "Запасы, которые позволяют пережить эмбарго и не потерять канал.",
+          "parent_id": "port"
+        },
+        {
+          "id": "media",
+          "name": "Медийное управление",
+          "kind": "information",
+          "description": "Нарратив планеты: посредник нужен всем, пока он говорит о мире.",
+          "parent_id": "diplomacy"
+        },
+        {
+          "id": "agents",
+          "name": "Агентурное управление",
+          "kind": "intelligence",
+          "description": "Внедрение в чужие канцелярии: покупка не человека, а доступа.",
+          "parent_id": "intelligence"
+        },
+        {
+          "id": "security",
+          "name": "Служба защиты",
+          "kind": "coercion",
+          "description": "Охрана порта, складов и переговорщиков; сила здесь считается расходом.",
+          "parent_id": "trade"
+        },
+        {
+          "id": "engineering",
+          "name": "Инженерное управление",
+          "kind": "maintenance",
+          "description": "Ремонт инфраструктуры и восстановление того, что война считает расходником.",
+          "parent_id": "port"
+        }
+      ],
+      "role_title_female": "генеральная директриса",
+      "role_title_base": "генеральный директор",
+      "organ_interactions": [
+        {
+          "id": "reinforce",
+          "label": "Усилить орган",
+          "description": "Перебросить людей и ресурсы: целостность органа растёт, а фракция получает небольшую поддержку сплочённости.",
+          "cost": {
+            "supply": 0.04
+          },
+          "integrity": 0.12,
+          "faction": {
+            "cohesion": 0.015
+          },
+          "cooldown": 2
+        },
+        {
+          "id": "reform",
+          "label": "Реформировать",
+          "description": "Изменить порядок работы органа: умеренный рост целостности и влияния ценой энергии.",
+          "cost": {
+            "energy": 0.035
+          },
+          "integrity": 0.07,
+          "faction": {
+            "influence": 0.012
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "purge",
+          "label": "Провести чистку",
+          "description": "Подчинить орган центру: страх и законность растут, но целостность падает.",
+          "cost": {
+            "influence": 0.05
+          },
+          "integrity": -0.15,
+          "faction": {
+            "fear": 0.02,
+            "legitimacy": 0.01
+          },
+          "cooldown": 3
+        },
+        {
+          "id": "resupply",
+          "label": "Наладить снабжение",
+          "description": "Влить запас в орган: восстанавливает целостность и слегка поднимает мораль.",
+          "cost": {
+            "supply": 0.06
+          },
+          "integrity": 0.18,
+          "faction": {
+            "morale": 0.01
+          },
+          "cooldown": 4
+        }
+      ]
     }
-  }
+  },
+  "character_interactions": [
+    {
+      "id": "promote",
+      "label": "Повысить",
+      "description": "Повышение закрывает потребность в статусе и повышает лояльность, но требует влияния.",
+      "cost": {
+        "influence": 0.04
+      },
+      "needs": {
+        "status": -0.15,
+        "anxiety": -0.03
+      },
+      "personality": {
+        "loyalty": 0.04
+      },
+      "morale": 6.0,
+      "organ_integrity": 0.02,
+      "cooldown": 3
+    },
+    {
+      "id": "reward",
+      "label": "Наградить",
+      "description": "Награда поднимает мораль и снижает усталость; ресурс расходуется из запаса фракции.",
+      "cost": {
+        "supply": 0.03,
+        "influence": 0.02
+      },
+      "needs": {
+        "status": -0.1,
+        "fatigue": -0.05
+      },
+      "personality": {
+        "loyalty": 0.02
+      },
+      "morale": 10.0,
+      "cooldown": 2
+    },
+    {
+      "id": "reassure",
+      "label": "Поддержать",
+      "description": "Личная поддержка снижает страх, тревогу и одиночество, возвращая человеку устойчивость.",
+      "cost": {
+        "energy": 0.02
+      },
+      "needs": {
+        "fear": -0.12,
+        "anxiety": -0.15,
+        "loneliness": -0.05
+      },
+      "morale": 8.0,
+      "cooldown": 2
+    },
+    {
+      "id": "interrogate",
+      "label": "Допросить",
+      "description": "Жёсткая проверка повышает страх и тревогу, снижает лояльность, но даёт знание о настроениях.",
+      "cost": {
+        "influence": 0.03,
+        "energy": 0.02
+      },
+      "needs": {
+        "fear": 0.12,
+        "anxiety": 0.1,
+        "knowledge": -0.08
+      },
+      "personality": {
+        "loyalty": -0.05
+      },
+      "morale": -8.0,
+      "cooldown": 3
+    }
+  ]
 }

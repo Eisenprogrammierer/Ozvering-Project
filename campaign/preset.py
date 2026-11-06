@@ -117,6 +117,10 @@ def _as_float(value, default=0.0):
         return float(default)
 
 
+def _as_mapping(value):
+    return value if isinstance(value, Mapping) else {}
+
+
 def _stable_offset(token, modulo=100000):
     digest = hashlib.sha256(str(token).encode("utf-8")).hexdigest()
     return int(digest[:12], 16) % max(1, int(modulo))
@@ -214,7 +218,18 @@ def load_template(path=None):
                 "factions_path должен указывать на объект"
             )
         merged = dict(base.get("factions") or {})
+        shared_interactions = [
+            dict(item)
+            for item in (base.get("character_interactions") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ]
         merged.update(dict(data.get("factions") or {}))
+        if shared_interactions:
+            for cfg in merged.values():
+                if isinstance(cfg, dict):
+                    cfg.setdefault(
+                        "character_interactions", shared_interactions
+                    )
         data["factions"] = merged
         data.setdefault("factions_source", str(base_path))
     return data
@@ -421,6 +436,7 @@ def _make_character(
         "archetype": archetype,
         "post_id": post.get("id") or "",
         "post": post.get("title") or "Боец",
+        "organ_id": post.get("organ_id") or "",
         "role": post.get("id") or archetype,
         "force": round(_as_float(force, 1.0), 3),
         "needs": _round_mapping(character.needs),
@@ -475,6 +491,146 @@ def _build_faction_automaton(faction_name, leader_name, priority_need, seed):
     return automaton
 
 
+def _organ_records(cfg):
+    organs = [dict(item) for item in (cfg.get("organs") or ())]
+    if not organs:
+        return []
+    labels = {
+        _text(item.get("id")): _text(item.get("name"))
+        for item in organs
+    }
+    action_ids = {}
+    for action in cfg.get("actions") or ():
+        organ_id = _text(action.get("organ_id"))
+        if organ_id:
+            action_ids.setdefault(organ_id, []).append(
+                _text(action.get("id"))
+            )
+    result = []
+    for item in organs:
+        organ_id = _text(item.get("id"))
+        if not organ_id:
+            continue
+        record = dict(item)
+        record["id"] = organ_id
+        record["name"] = labels.get(organ_id, organ_id)
+        record["action_ids"] = action_ids.get(organ_id, [])
+        result.append(record)
+    return result
+
+
+def _action_records(cfg):
+    """Работы фракции с подписью автомата-исполнителя.
+
+    Каждая работа обязана иметь человекочитаемое ``description``:
+    интерфейс показывает его при выборе. Если данные не задали описание
+    явно, берём текст успеха/провала из эффектов, а в крайнем случае
+    собираем нейтральную подпись из названия работы и органа.
+    """
+    organs = [dict(item) for item in (cfg.get("organs") or ())]
+    labels = {
+        _text(item.get("id")): _text(item.get("name"))
+        for item in organs
+    }
+    default_id = _text(organs[0].get("id")) if organs else ""
+    result = []
+    for item in cfg.get("actions") or ():
+        action = dict(item)
+        organ_id = _text(action.get("organ_id")) or default_id
+        if organ_id:
+            action["organ_id"] = organ_id
+            action.setdefault("organ", labels.get(organ_id, organ_id))
+        description = _text(action.get("description"))
+        if not description:
+            effects = action.get("effects")
+            failure = action.get("failure")
+            if isinstance(effects, Mapping):
+                description = _text(effects.get("text"))
+            if not description and isinstance(failure, Mapping):
+                description = _text(failure.get("text"))
+        if not description:
+            label = _text(action.get("label"), _text(action.get("id")))
+            organ = _text(action.get("organ"), organ_id or "фракция")
+            description = "%s — работа органа «%s»." % (label, organ)
+        action["description"] = description
+        result.append(action)
+    return result
+
+
+def _build_organ_automaton(organ, faction_name, leader_name, seed):
+    """Жизненный цикл органа-автомата внутри фракции."""
+    name = _text(organ.get("name"), _text(organ.get("id"), "орган"))
+    description = _text(
+        organ.get("description"),
+        "Орган фракции «%s»; подчинён %s." % (faction_name, leader_name),
+    )
+    automaton = Automaton("Автомат: %s" % name, description)
+    forming = automaton.add_state(
+        "Формирование", x=80, y=100, initial=True
+    )
+    active = automaton.add_state("В строю", x=300, y=100)
+    strained = automaton.add_state("Напряжение", x=530, y=100)
+    restored = automaton.add_state("Восстановление", x=530, y=300)
+    disbanded = automaton.add_state(
+        "Расформирование", x=300, y=300, final=True
+    )
+    automaton.add_transition(
+        forming.id, active.id, "приказ получен", "орган укомплектован"
+    )
+    automaton.add_transition(
+        active.id, strained.id, "потери и перегрузка", "ресурс ниже нормы"
+    )
+    automaton.add_transition(
+        strained.id, active.id, "пополнение", "тыл восстановил запас"
+    )
+    automaton.add_transition(
+        strained.id, restored.id, "выведен в резерв", "нужна передышка"
+    )
+    automaton.add_transition(
+        restored.id, active.id, "возвращён в строй", "готовность подтверждена"
+    )
+    automaton.add_transition(
+        strained.id, disbanded.id, "расформирован", "фракция распалась"
+    )
+    del seed
+    return automaton
+
+
+def _append_organ_automata(
+    automata, faction_record, cfg, side, leader_name, seed
+):
+    """Добавить в пресет органы фракции как отдельные автоматы.
+
+    Идентификатор органа включает сторону: названия вроде ``medical``
+    повторяются у разных фракций, а id автомата обязан быть уникальным.
+    """
+    organ_records = _organ_records(cfg)
+    faction_record["organs"] = organ_records
+    for organ in organ_records:
+        organ["automaton_id"] = "automaton_organ_%s_%s" % (
+            side,
+            organ["id"],
+        )
+        organ_automaton = _build_organ_automaton(
+            organ,
+            cfg["name"],
+            leader_name,
+            seed + _stable_offset("organ:%s:%s" % (side, organ["id"])),
+        )
+        automata.append(
+            {
+                "id": organ["automaton_id"],
+                "kind": "organ",
+                "side": side,
+                "owner_id": cfg["id"],
+                "organ_id": organ["id"],
+                "name": organ_automaton.name,
+                "automaton": organ_automaton.to_dict(),
+            }
+        )
+    return organ_records
+
+
 def _build_organization(cfg, side, characters, seed):
     org_cfg = cfg.get("organization") or {}
     org_id = _text(org_cfg.get("id"), "org_%s" % side)
@@ -521,6 +677,12 @@ def _build_organization(cfg, side, characters, seed):
         ),
         characters[0],
     )
+    leader_title = _text(
+        org_cfg.get("leader_title"), "номинальный председатель"
+    )
+    leader_title_female = _text(
+        org_cfg.get("leader_title_female"), leader_title
+    )
     record = {
         "id": org_id,
         "name": _text(org_cfg.get("name"), "Организация"),
@@ -528,9 +690,11 @@ def _build_organization(cfg, side, characters, seed):
         "side": side,
         "leader_id": leader["id"],
         "leader_name": leader["name"],
-        "leader_title": _text(
-            org_cfg.get("leader_title"), "номинальный председатель"
+        "leader_title": leader_title,
+        "leader_title_base": _text(
+            org_cfg.get("leader_title_base"), leader_title
         ),
+        "leader_title_female": leader_title_female,
         "member_ids": [character["id"] for character in characters],
         "automaton_id": "automaton_%s" % org_id,
         "archetype": analysis.archetype,
@@ -543,9 +707,11 @@ def _build_organization(cfg, side, characters, seed):
         "runtime": {
             "complete_weight": weight,
             "leader_id": leader["name"],
-            "leader_title": _text(
-                org_cfg.get("leader_title"), "номинальный председатель"
+            "leader_title": leader_title,
+            "leader_title_base": _text(
+                org_cfg.get("leader_title_base"), leader_title
             ),
+            "leader_title_female": leader_title_female,
             "satisfaction_per_tick": _as_float(
                 runtime_cfg.get("satisfaction_per_tick"), 0.03
             ),
@@ -576,13 +742,20 @@ def _build_faction_record(
         ),
         characters[0],
     )
+    role_title = _text(cfg.get("role_title"), "номинальный лидер")
     return {
         "id": cfg["id"],
         "side": side,
         "name": cfg["name"],
         "kind": _text(cfg.get("kind"), "automaton"),
         "culture": cfg.get("culture"),
-        "role_title": _text(cfg.get("role_title"), "номинальный лидер"),
+        "role_title": role_title,
+        "role_title_base": _text(
+            cfg.get("role_title_base"), role_title
+        ),
+        "role_title_female": _text(
+            cfg.get("role_title_female"), role_title
+        ),
         "leader_id": leader["id"],
         "leader_name": leader["name"],
         "organization_id": organization["id"],
@@ -593,7 +766,18 @@ def _build_faction_record(
         "score_assets": dict(cfg.get("score_assets") or {}),
         "rival_side": _text(cfg.get("rival_side")),
         "population": _as_int(cfg.get("population"), 0),
-        "actions": [dict(item) for item in (cfg.get("actions") or ())],
+        "actions": _action_records(cfg),
+        "organs": _organ_records(cfg),
+        "organ_interactions": [
+            dict(item)
+            for item in (cfg.get("organ_interactions") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ],
+        "character_interactions": [
+            dict(item)
+            for item in (cfg.get("character_interactions") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ],
         "character_ids": [character["id"] for character in characters],
         "is_player": side == player_side,
     }
@@ -616,6 +800,7 @@ class CampaignPreset:
     events: Dict = field(default_factory=dict)
     playwright: Dict = field(default_factory=dict)
     scenario: Dict = field(default_factory=dict)
+    player_identity: Dict = field(default_factory=dict)
     template_id: str = ""
     description: str = ""
     schema: int = SCHEMA
@@ -645,6 +830,7 @@ class CampaignPreset:
         self.events = dict(self.events or {})
         self.playwright = dict(self.playwright or {})
         self.scenario = dict(self.scenario or {})
+        self.player_identity = dict(self.player_identity or {})
         self._character_index = {
             item.get("id"): item for item in self.characters if item.get("id")
         }
@@ -713,6 +899,16 @@ class CampaignPreset:
         faction = self.player_faction or {}
         return self.organization(faction.get("organization_id"))
 
+    @property
+    def player_role_title(self):
+        """Титул героя с учётом выбранного пола.
+
+        До редактора личности возвращается форма из данных роли; после
+        ``apply_player_identity`` — женская или мужская форма фракции.
+        """
+        faction = self.player_faction or {}
+        return _text(faction.get("role_title"), self.role.label)
+
     def characters_for_side(self, side):
         return [item for item in self.characters if item.get("side") == side]
 
@@ -726,6 +922,128 @@ class CampaignPreset:
             result.setdefault(side, []).append(roster)
         return result
 
+    def apply_player_identity(self, identity):
+        """Перенести личность героя на персонажа и его фракцию.
+
+        Личность задаётся до запуска кампании и меняет только игрового
+        персонажа: имя, биографию, потребности и черты. Посты, активы и
+        баланс фракций при этом не трогаются, поэтому один и тот же seed
+        остаётся детерминированным.
+        """
+        identity = dict(identity or {})
+        if not identity:
+            return self
+        player = self.player_character
+        if not player:
+            return self
+        name = _text(identity.get("name")).strip()
+        if not name:
+            name = _text(player.get("name"), "Лидер фракции")
+        player["name"] = name
+        name_data = player.get("name_data")
+        if isinstance(name_data, Mapping):
+            name_data = dict(name_data)
+            name_data["full"] = name
+            player["name_data"] = name_data
+
+        for key in (
+            "gender",
+            "gender_label",
+            "origin",
+            "origin_label",
+            "vocation",
+            "vocation_label",
+            "value",
+            "value_label",
+            "flaw",
+            "flaw_label",
+            "trait",
+            "trait_label",
+            "summary",
+        ):
+            if key in identity:
+                player[key] = identity.get(key)
+        biography = _text(identity.get("biography"))
+        if biography:
+            player["biography"] = biography
+
+        needs = {
+            str(key): _as_float(value, 0.0)
+            for key, value in _as_mapping(player.get("needs")).items()
+        }
+        for key, delta in _as_mapping(identity.get("needs")).items():
+            key = str(key)
+            if key not in needs:
+                continue
+            needs[key] = max(0.0, min(1.0, needs[key] + _as_float(delta)))
+        player["needs"] = _round_mapping(needs)
+
+        personality = {
+            str(key): _as_float(value, 0.0)
+            for key, value in _as_mapping(
+                player.get("personality")
+            ).items()
+        }
+        for key, delta in _as_mapping(identity.get("traits")).items():
+            key = str(key)
+            if key not in personality:
+                continue
+            personality[key] = max(
+                0.0,
+                min(1.0, personality[key] + _as_float(delta)),
+            )
+        player["personality"] = _round_mapping(personality)
+
+        is_female = str(identity.get("gender") or "").strip().lower() in (
+            "female",
+            "f",
+            "woman",
+            "женщина",
+        )
+
+        def _gendered_title(record, base_key, female_key, current_key):
+            """Выбрать титул по полу, не теряя исходную мужскую форму."""
+            base = _text(record.get(base_key))
+            if not base:
+                base = _text(record.get(current_key))
+                record[base_key] = base
+            female = _text(record.get(female_key), base)
+            return female if is_female else base
+
+        faction = self.faction(player.get("faction_id"))
+        if faction is not None:
+            role_title = _gendered_title(
+                faction,
+                "role_title_base",
+                "role_title_female",
+                "role_title",
+            )
+            if role_title:
+                faction["role_title"] = role_title
+                player["role_title"] = role_title
+        if faction is not None and player.get("is_faction_leader"):
+            faction["leader_name"] = name
+            organization = self.organization(
+                faction.get("organization_id")
+            )
+            if organization is not None:
+                organization["leader_name"] = name
+                leader_title = _gendered_title(
+                    organization,
+                    "leader_title_base",
+                    "leader_title_female",
+                    "leader_title",
+                )
+                if leader_title:
+                    organization["leader_title"] = leader_title
+                runtime = dict(organization.get("runtime") or {})
+                runtime["leader_id"] = name
+                if leader_title:
+                    runtime["leader_title"] = leader_title
+                organization["runtime"] = runtime
+        self.player_identity = identity
+        return self
+
     def summary(self):
         events = self.events.get("hooks") or []
         return {
@@ -735,6 +1053,7 @@ class CampaignPreset:
             "role_id": self.role.id,
             "player_faction_id": self.player_faction_id,
             "player_character_id": self.player_character_id,
+            "player_identity": dict(self.player_identity),
             "factions": len(self.factions),
             "characters": len(self.characters),
             "organizations": len(self.organizations),
@@ -774,6 +1093,7 @@ class CampaignPreset:
             },
             "player_faction_id": self.player_faction_id,
             "player_character_id": self.player_character_id,
+            "player_identity": dict(self.player_identity),
             "factions": list(self.factions),
             "characters": list(self.characters),
             "organizations": list(self.organizations),
@@ -826,6 +1146,7 @@ class CampaignPreset:
             events=data.get("events") or {},
             playwright=data.get("playwright") or {},
             scenario=data.get("scenario") or {},
+            player_identity=data.get("player_identity") or {},
         )
 
     @classmethod
@@ -1145,6 +1466,14 @@ class CampaignPresetGenerator:
                     "automaton": faction_automaton.to_dict(),
                 }
             )
+            _append_organ_automata(
+                automata,
+                factions[-1],
+                cfg,
+                side,
+                leader["name"],
+                seed,
+            )
 
         player_faction = next(
             item for item in factions if item["side"] == player_side
@@ -1380,6 +1709,14 @@ class CampaignPresetGenerator:
                     "automaton": faction_automaton.to_dict(),
                 }
             )
+            _append_organ_automata(
+                automata,
+                factions[-1],
+                cfg,
+                side,
+                leader["name"],
+                seed,
+            )
 
         player_faction = next(
             item for item in factions if item["side"] == player_side
@@ -1405,7 +1742,14 @@ class CampaignPresetGenerator:
                 template.get("template_id"), "automata_campaign"
             ),
             "seed": seed,
-            "turns": _as_int(scenario_cfg.get("turns"), 72),
+            "turns": (
+                _as_int(scenario_cfg.get("turns"), 0)
+                if scenario_cfg.get("turns") is not None
+                else None
+            ),
+            "actions_per_turn": max(
+                1, _as_int(scenario_cfg.get("actions_per_turn"), 3)
+            ),
             "player_side": player_side,
             "enemy_side": enemy_side,
             "characters_per_faction": default_population,
@@ -1764,9 +2108,9 @@ class CampaignPresetGenerator:
             "rival_organization": (enemy_org or {}).get("name")
             or enemy_faction.get("name")
             or "противник",
-            "place": "«Двойная переправа»",
+            "place": "«Узел связи»",
             "object": "полевая печать",
-            "cause": "первый залп на переправе",
+            "cause": "первый залп по позициям",
             "consequence": "линия фронта дрогнула",
             "amount": "триста человек",
         }
