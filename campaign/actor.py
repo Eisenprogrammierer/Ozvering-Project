@@ -46,12 +46,15 @@ def campaign_success_chance(
     amount=0.0,
     is_open=False,
     weight=CAMPAIGN_CORE_CHANCE_WEIGHT,
+    coefficients=None,
 ):
     """Смешать авторский шанс действия с ядровой `success_probability`.
 
     `attacker`/`defender` — `Automaton` (или `CampaignActor` с `.unit`).
     Так `F` (standing/authority), навык, болезнь и сопротивление цели
     входят в кампанийный бросок, а не остаются декоративными шкалами.
+    `coefficients` — необязательные переопределения логистики конкретного
+    действия; по умолчанию действует калибровка ядра.
     """
     attacker_unit = getattr(attacker, "unit", attacker)
     defender_unit = getattr(defender, "unit", defender)
@@ -60,6 +63,7 @@ def campaign_success_chance(
         defender_unit,
         Work(amount=float(amount), form=form or "force"),
         bool(is_open),
+        coefficients=coefficients,
     )
     blended = float(base) + float(weight) * (core - 0.5)
     return _clamp(blended, 0.05, 0.95)

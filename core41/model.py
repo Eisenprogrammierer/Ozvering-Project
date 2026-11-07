@@ -29,6 +29,22 @@ HEALTH_ATTACK_FLOOR = 0.50
 INTEL_ATTACK_BONUS = 0.80
 INTEL_DAMAGE_BONUS = 0.25
 
+# Коэффициенты логистики успеха. Имена фиксируют предикторы, чтобы контент
+# мог переопределять их по действию, не меняя формулу и не добавляя второй
+# расчёт. `resistance` и `amount` хранятся положительными, а в формуле
+# вычитаются: так проще читать «сила сопротивления» и «цена объёма».
+DEFAULT_SUCCESS_COEFFICIENTS = {
+    "intercept": -0.4,
+    "skill": 2.2,
+    "authority": 1.3,
+    "resistance": 1.8,
+    "open": 0.9,
+    "env": 1.0,
+    "intel": INTEL_ATTACK_BONUS,
+    "amount": 0.5,
+}
+SUCCESS_COEFFICIENT_KEYS = tuple(DEFAULT_SUCCESS_COEFFICIENTS)
+
 SICKNESS_MAX = 1.0
 SICKNESS_CRITICAL = 0.75
 SICKNESS_HEALTH_DECAY = 1.5
@@ -159,6 +175,7 @@ def success_probability(
     is_open,
     env_bonus=0.0,
     weak_point=0.0,
+    coefficients=None,
 ):
     """Вероятность успеха работы (канон ядра 4-2-1).
 
@@ -170,22 +187,37 @@ def success_probability(
     `weak_point` — свежая уязвимость, найденная разведкой (A9). Бонус
     применяется только к силовой форме: информационная работа сама
     вскрывает точку, но не пользуется ею.
+
+    `coefficients` — необязательные переопределения
+    `DEFAULT_SUCCESS_COEFFICIENTS` для конкретного действия. Неизвестные
+    ключи и нечисловые значения игнорируются; отсутствующие берутся по
+    умолчанию, поэтому старый контент сохраняет калибровку.
     """
+    coef = dict(DEFAULT_SUCCESS_COEFFICIENTS)
+    for key, value in (coefficients or {}).items():
+        if key not in coef:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        coef[key] = max(-10.0, min(10.0, number))
     intel_bonus = 0.0
     if work.form == "force" and weak_point > 0.0:
-        intel_bonus = INTEL_ATTACK_BONUS * min(1.0, float(weak_point))
+        intel_bonus = coef["intel"] * min(1.0, float(weak_point))
     return sigmoid(
-        -0.4
-        + 2.2
+        coef["intercept"]
+        + coef["skill"]
         * attacker.skill(work.form)
         * attacker.work_effectiveness()
         * attacker.attack_effectiveness()
-        + 1.3 * attacker.authority
-        - 1.8 * defender.resistance(work.form)
-        + (0.9 if is_open else 0.0)
-        + float(env_bonus or 0.0)
+        + coef["authority"] * attacker.authority
+        - coef["resistance"] * defender.resistance(work.form)
+        + (coef["open"] if is_open else 0.0)
+        + coef["env"] * float(env_bonus or 0.0)
         + intel_bonus
-        - 0.5 * min(1.0, work.amount / max(1.0, defender.max_force))
+        - coef["amount"]
+        * min(1.0, work.amount / max(1.0, defender.max_force))
     )
 
 

@@ -441,6 +441,15 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 Карточка структуры показывает оба направления отношений через
 `asymmetry_rows()` (`вы → цель` / `цель → вы`).
 
+Успех действия использует именованные коэффициенты
+`DEFAULT_SUCCESS_COEFFICIENTS` (`core41/model.py`): `intercept`, `skill`,
+`authority`, `resistance`, `open`, `env`, `intel`, `amount`. Действие
+переопределяет их в `success.coefficients`/`success_coefficients`
+(`campaign/success.py`, `resolve_success_coefficients()`); неизвестные
+ключи игнорируются, значения ограничены `[-10, 10]`. Исход остаётся
+бинарным (`roll < chance`), но результаты и события несут `chance`, `roll`
+и `margin = chance − roll` для калибровки.
+
 Обучение по умолчанию идёт в self-play: обе стороны получают собственный
 `Transition` и обновляют свои политики. Отключить обучение противника можно
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.

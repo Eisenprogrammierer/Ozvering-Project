@@ -36,6 +36,7 @@ from .relations import (
     asymmetry_rows,
     relation_effect,
 )
+from .success import resolve_success_coefficients, success_margin
 from .projections import (
     SCHEMA_VERSION,
     ensure_supported_snapshot,
@@ -2968,6 +2969,9 @@ class WorldEngine:
             "target": character["id"],
             "target_label": character["name"],
             "outcome": outcome,
+            "chance": chance,
+            "roll": roll,
+            "margin": success_margin(chance, roll),
             "text": text,
             "changes": changed,
             "day": self.day,
@@ -3844,6 +3848,7 @@ class WorldEngine:
             defender,
             form=form,
             amount=0.0,
+            coefficients=resolve_success_coefficients(action),
         )
 
     def _pay_cost(self, action, context):
@@ -4047,6 +4052,9 @@ class WorldEngine:
             "target": target["id"] if target else "",
             "target_label": target["name"] if target else "своя должность",
             "outcome": outcome,
+            "chance": chance,
+            "roll": roll,
+            "margin": success_margin(chance, roll),
             "text": text,
             "changes": changed,
             "day": self.day,
@@ -4309,6 +4317,10 @@ class WorldEngine:
             "kind": "world",
             "source": context["node"]["id"],
             "target": target["id"] if target else "",
+            "outcome": outcome,
+            "chance": chance,
+            "roll": roll,
+            "margin": success_margin(chance, roll),
             "text": "%s: %s %s"
             % (
                 context["node"]["name"],
@@ -4871,6 +4883,9 @@ class WorldEngine:
                 "actor": "player",
                 "action": result["action"],
                 "outcome": result["outcome"],
+                "chance": result.get("chance"),
+                "roll": result.get("roll"),
+                "margin": result.get("margin"),
                 "text": "%s → %s: %s"
                 % (
                     result["action_label"],
@@ -4973,6 +4988,9 @@ class WorldEngine:
                 "target": character["id"],
                 "actor": character["id"],
                 "outcome": outcome,
+                "chance": chance,
+                "roll": roll,
+                "margin": success_margin(chance, roll),
                 "text": text,
                 "changes": changed,
             }

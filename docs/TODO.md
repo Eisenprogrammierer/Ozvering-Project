@@ -109,6 +109,15 @@
   (`вы → цель` / `цель → вы`). Закрывает §7.6 №36–38
   (`WORLD_CORE_MODEL.md` §2.10). Тесты —
   `tests/test_campaign_relations.py`, `tests/test_view_world.py`.
+- [x] **Предикторы, коэффициенты и маржа успеха.** `core41.model` получил
+  именованные `DEFAULT_SUCCESS_COEFFICIENTS`, а `campaign/success.py` —
+  `SUCCESS_PREDICTORS`, `resolve_success_coefficients()` и
+  `success_margin()`. Действие может переопределить коэффициенты в
+  `success.coefficients`/`success_coefficients`; неизвестные ключи
+  игнорируются. Результаты действий и события ИИ/автономии несут
+  `chance`, `roll`, `margin`, но исход остаётся бинарным. Закрывает §7.6
+  №33–35 (`WORLD_CORE_MODEL.md` §2.11). Тесты —
+  `tests/test_campaign_success.py`.
 - [ ] **Осталось открытым:** типизированные `payload` (§7.1 №4),
   жёсткие ценностные ограничения и распад коалиций (§7.3 №18–19),
   character→character шкала для исполнения обязательств между NPC.
