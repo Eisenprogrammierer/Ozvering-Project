@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import time
 from pathlib import Path
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
@@ -14,6 +15,8 @@ from .actor import (
     campaign_success_chance,
 )
 from .character import CampaignCharacter
+from . import logbook as _logbook
+from .lod import CampaignLod
 from .economy import (
     CREDIT_DAYS,
     MAINTENANCE_STARVE_FORCE,
@@ -997,6 +1000,25 @@ class WorldEngine:
         self.cooldowns = {}
         self.used_actions = []
         self.log = []
+        # §7.7 №41: сколько старых записей свернуто при сжатии журнала.
+        # Счётчик — диагностика, а не событие: он не попадает в журнал,
+        # чтобы не мешать UI и сравнениям снимков.
+        self.log_trimmed = 0
+        # §7.7 №39–40: LOD-профиль строится лениво и сбрасывается при
+        # смене узла героя. Пока LOD выключен, все узлы ходят как раньше.
+        self._lod = None
+        self._lod_root = None
+        # Стоимость тика — наблюдаемая, но не сохраняемая: wall-clock не
+        # влияет на детерминизм мира и не должен попадать в снимок.
+        self.tick_stats = {
+            "ticks": 0,
+            "intents": 0,
+            "nodes_considered": 0,
+            "nodes_skipped": 0,
+            "nodes_acted": 0,
+            "last_cost": 0.0,
+            "last_slot": 0,
+        }
         self.last_result = None
         self.outcome = None
         self.finished = False
@@ -4045,6 +4067,110 @@ class WorldEngine:
             ),
         }
 
+    # ------------------------------------------------------------------
+    # §7.5 №32 и §7.7 №39–42: журнал, авто-пауза, LOD и стоимость тика
+    # ------------------------------------------------------------------
+
+    def log_rules(self):
+        """Правила важности/паузы из блока `logging` (кэш на инстанс)."""
+        cached = getattr(self, "_log_rules_cache", None)
+        if cached is None:
+            cached = _logbook.rules_from_config(
+                self.config.get("logging") or {}
+            )
+            self._log_rules_cache = cached
+        return cached
+
+    def log_view(self, **kwargs):
+        """Размеченный журнал для UI без изменения исходных записей."""
+        return _logbook.log_view(
+            self.log, rules=self.log_rules(), **kwargs
+        )
+
+    def log_digest(self, day=None):
+        """Сводка журнала: счётчики и последнее критическое событие."""
+        return _logbook.digest(
+            self.log,
+            day=self.day if day is None else day,
+            rules=self.log_rules(),
+        )
+
+    def log_summary(self):
+        """Короткая строка сводки журнала для HUD."""
+        return _logbook.summary_text(
+            self.log, day=self.day, rules=self.log_rules()
+        )
+
+    def log_stats(self):
+        """Диагностика журнала: размер, сжатие и полная сводка."""
+        report = self.log_digest()
+        return {
+            "total": len(self.log),
+            "trimmed": int(self.log_trimmed),
+            "digest": report,
+        }
+
+    def critical_pause_reason(self):
+        """Причина остановить фон по критическим событиям дня.
+
+        Состояние героя проверяется напрямую, а журнал добавляет события,
+        которых нет в состоянии: например, объявленный контент `collapse`
+        или пользовательский критический вид из блока `logging.pause`.
+        """
+        reason = _logbook.pause_reason(
+            self.log, day=self.day, rules=self.log_rules()
+        )
+        if reason:
+            return reason
+        if self.finished:
+            return "finished"
+        if not self.attached:
+            return "unattached"
+        if not self.player_alive:
+            return "dead"
+        return ""
+
+    def _trim_log(self):
+        """Сжать журнал на границе дня, если это включено контентом."""
+        rules = self.log_rules()
+        if not rules.get("compact"):
+            return 0
+        kept, removed = _logbook.compact(
+            self.log,
+            max_entries=rules.get("max_entries"),
+            recent_days=rules.get("recent_days"),
+            critical_keep=rules.get("critical_keep"),
+            day=self.day,
+            rules=rules,
+        )
+        if removed:
+            self.log = kept
+            self.log_trimmed += removed
+        return removed
+
+    def lod(self):
+        """LOD-профиль узлов, пересобираемый при смене узла героя."""
+        if self._lod is None or self._lod_root != self.player_node_id:
+            self._lod = CampaignLod(
+                self.nodes,
+                self.player_node_id,
+                self.config.get("lod") or {},
+            )
+            self._lod_root = self.player_node_id
+        return self._lod
+
+    def lod_view(self, day=None):
+        """Сколько узлов на каждом LOD и сколько ходит в указанный день."""
+        return self.lod().report(self.day if day is None else day)
+
+    def scale_view(self):
+        """Один срез масштаба: LOD, стоимость тика и размер журнала."""
+        return {
+            "lod": self.lod_view(),
+            "tick": dict(self.tick_stats),
+            "log": self.log_stats(),
+        }
+
     def _skill_domains(self, action, target):
         """Домены, в которых действие тренирует навыки героя.
 
@@ -5667,12 +5793,19 @@ class WorldEngine:
         из очереди, поэтому `end_day()` повторно их не исполнит.
 
         Возвращает список событий (пустой, если очередью делать нечего).
+        Стоимость и число пропущенных LOD-узлов пишутся в `tick_stats`:
+        это наблюдаемость §7.7 №40, а не часть состояния мира.
         """
         if self.finished:
             return []
+        started = time.perf_counter()
         events = self._run_overdue()
         events.extend(self._run_intents(max_slot=max_slot))
         events.extend(self._run_node_actions(max_slot=max_slot))
+        self.tick_stats["ticks"] += 1
+        self.tick_stats["intents"] += len(events)
+        self.tick_stats["last_cost"] = time.perf_counter() - started
+        self.tick_stats["last_slot"] = _as_slot(max_slot)
         return events
 
     def _node_slot(self, node_id):
@@ -5702,6 +5835,7 @@ class WorldEngine:
         """
         limit = SLOTS_MAX if max_slot is None else _as_slot(max_slot)
         events = []
+        lod = self.lod()
         for node_id in self.node_order:
             if self.node_action_day.get(node_id) == self.day:
                 continue
@@ -5710,9 +5844,18 @@ class WorldEngine:
                 and self._node_slot(node_id) > limit
             ):
                 continue
+            # §7.7 №39–40: дальняя периферия ходит реже. Пропуск не
+            # помечает день как отработанный, поэтому узел не теряет свой
+            # следующий плановый ход. Пока LOD выключен, `due()` всегда
+            # истинно и поведение прежнее.
+            if not lod.due(node_id, self.day):
+                self.tick_stats["nodes_skipped"] += 1
+                continue
+            self.tick_stats["nodes_considered"] += 1
             self.node_action_day[node_id] = self.day
             entry = self._ai_action(node_id)
             if entry is not None:
+                self.tick_stats["nodes_acted"] += 1
                 events.append(entry)
         return events
 
@@ -5812,6 +5955,10 @@ class WorldEngine:
             "day": self.day,
         }
         self.log.append({"day": self.day, "kind": "day", "text": summary})
+        # §7.7 №41: бесконечный мир не должен копить журнал линейно.
+        # Сжатие включается блоком `logging.compact`; критические записи
+        # сохраняются, а счётчик свернутых виден в `log_stats()`.
+        self._trim_log()
         return result
 
     def advance_days(self, days, max_days=None):
@@ -5936,6 +6083,7 @@ class WorldEngine:
             },
             "used_actions": list(self.used_actions),
             "log": list(self.log),
+            "log_trimmed": int(self.log_trimmed),
             "last_result": self.last_result,
             "outcome": self.outcome,
             "finished": self.finished,
@@ -6127,6 +6275,21 @@ class WorldEngine:
             }
         self.used_actions = list(snapshot.get("used_actions") or [])
         self.log = list(snapshot.get("log") or [])
+        self.log_trimmed = _as_int(snapshot.get("log_trimmed"), 0)
+        # LOD и стоимость тика — производные от конфига/времени, а не
+        # состояние мира: после загрузки профиль пересобирается, а
+        # wall-clock счётчики начинаются заново.
+        self._lod = None
+        self._lod_root = None
+        self.tick_stats = {
+            "ticks": 0,
+            "intents": 0,
+            "nodes_considered": 0,
+            "nodes_skipped": 0,
+            "nodes_acted": 0,
+            "last_cost": 0.0,
+            "last_slot": 0,
+        }
         self.last_result = snapshot.get("last_result")
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))

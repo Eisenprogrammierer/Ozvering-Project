@@ -465,6 +465,19 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 обмена с `E` у них нет. `nature_yield()` считает сезонную работу природы
 и возвращает часть в казну узла.
 
+Журнал и масштаб (§2.13). `campaign/logbook.py` размечает события
+(`debug/info/notice/critical`), отдаёт `log_view()` без мутации исходного
+списка, `digest()`/`summary_text()` для сводки и `compact()`, который
+сохраняет критические записи и недавнюю историю. `WorldEngine.log_view()`,
+`log_digest()`, `log_stats()` и `critical_pause_reason()` — публичное API;
+`background_pause_reason()` в `campaign/clock.py` учитывает причины из
+блока `logging.pause`. `campaign/lod.py` задаёт три уровня детальности по
+иерархии `parent`/`children`/`links`; `WorldEngine.lod_view()`/
+`scale_view()` показывают профиль и стоимость тика. LOD, сжатие журнала и
+авто-пауза по пользовательским событиям включаются конфигом (`lod`,
+`logging`), по умолчанию старые миры ведут себя как раньше. Снимок хранит
+`log`/`log_trimmed`; LOD-профиль и `tick_stats` — производные.
+
 Обучение по умолчанию идёт в self-play: обе стороны получают собственный
 `Transition` и обновляют свои политики. Отключить обучение противника можно
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.

@@ -2156,14 +2156,20 @@ class WorldScreen(BaseScreen):
             (RIGHT_RECT.x + 14, y),
         )
         y += 17
-        entries = self.engine.log[-5:]
+        entries = self.engine.log_view(limit=5)
         for item in entries:
-            text = "Д%d: %s" % (item.get("day", 0), item.get("text", ""))
+            prefix = "! " if item.get("critical") else ""
+            text = "Д%d: %s%s" % (
+                item.get("day", 0),
+                prefix,
+                item.get("text", ""),
+            )
             line = self._clip_text(
                 self.app.font_tiny, text, RIGHT_RECT.width - 28
             )
+            color = BAD if item.get("critical") else DIM
             screen.blit(
-                self.app.font_tiny.render(line, True, DIM),
+                self.app.font_tiny.render(line, True, color),
                 (RIGHT_RECT.x + 14, y),
             )
             y += 13
