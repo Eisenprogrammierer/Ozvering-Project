@@ -147,6 +147,27 @@ class CampaignActor:
         )
         return True
 
+    def spend_energy(self, amount):
+        """Списать произвольную энергию; `False`, если её не хватает.
+
+        Это не второй бюджет и не обход дневного лимита: дополнительная
+        цена действия (поддержание, ремонт) списывается из той же `E`.
+        """
+        amount = max(0.0, float(amount))
+        if self.unit.energy + 1e-9 < amount:
+            return False
+        self.unit.energy = max(0.0, self.unit.energy - amount)
+        return True
+
+    def grant_energy(self, amount):
+        """Вернуть энергию с насыщением на `max_energy`."""
+        before = self.unit.energy
+        self.unit.energy = min(
+            self.unit.max_energy,
+            max(0.0, before + max(0.0, float(amount))),
+        )
+        return self.unit.energy - before
+
     def restore_day(self):
         """Новый день: энергия действий восстанавливается полностью."""
         self.unit.energy = self.unit.max_energy
