@@ -94,11 +94,24 @@
   `clear_directive()`/`directive_view()`/`character_control()` — публичный
   API; директивы входят в снимок. Закрывает §7.3 №14–17, №20
   (`WORLD_CORE_MODEL.md` §2.9); №18–19 остаются частично открытыми
-  (`obligation`, жёсткие ценности, распад коалиций). Тесты —
+  (жёсткие ценности, распад коалиций). Тесты —
   `tests/test_campaign_control.py`.
-- [ ] **Осталось открытым:** типизированные `payload`, `obligation` и
-  влияние осей отношений на вход/обработчик/выход (§7.6 №36–38),
-  визуализация асимметрии узлов в UI.
+- [x] **Оси отношений в работе, обязательства и асимметрия узлов.**
+  `campaign/relations.py` задаёт `relation_effect()`: `force` положительно
+  реагирует на `fear/respect`, `info` — на `trust/affinity`, вклад
+  ограничен `RELATION_EFFECT_LIMIT = 0.20` и направлен `R_target→actor`;
+  `WorldEngine._action_chance()` добавляет его к авторскому шансу до
+  ядрового смешивания. `campaign/obligations.py` вводит
+  `ObligationLedger` (`creditor/debtor/kind/amount/due_day/status`),
+  `WorldEngine.add_obligation()`/`fulfill_obligation()`/`obligation_view()`
+  и персистентность в снимке; исполнение повышает доверие кредитора.
+  `asymmetry_rows()` и карточка структуры показывают оба направления
+  (`вы → цель` / `цель → вы`). Закрывает §7.6 №36–38
+  (`WORLD_CORE_MODEL.md` §2.10). Тесты —
+  `tests/test_campaign_relations.py`, `tests/test_view_world.py`.
+- [ ] **Осталось открытым:** типизированные `payload` (§7.1 №4),
+  жёсткие ценностные ограничения и распад коалиций (§7.3 №18–19),
+  character→character шкала для исполнения обязательств между NPC.
 
 ## Три ограничения среды обучения — закрыто (2026-10-29)
 

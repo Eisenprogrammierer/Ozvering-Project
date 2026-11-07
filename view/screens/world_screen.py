@@ -1,6 +1,7 @@
 import pygame
 
 from campaign.clock import CampaignClock, background_pause_reason
+from campaign.relations import asymmetry_rows
 from campaign.world import CHARACTER_CIRCLES, ORGANIZATION_CATEGORIES
 from ..support import world_text
 from ..ui.screen_manager import BaseScreen
@@ -1122,20 +1123,54 @@ class WorldScreen(BaseScreen):
             ),
             (x, MID_RECT.y + 67),
         )
-        relation = self.engine.relation(self.engine.player_node_id, node["id"])
+        outgoing = self.engine.relation_axes(
+            self.engine.player_node_id, node["id"]
+        )
+        incoming = self.engine.relation_axes(
+            node["id"], self.engine.player_node_id
+        )
         screen.blit(
             self.app.font_tiny.render(
-                "к вам: %s" % world_text.relation_label(relation),
+                "вы → цель: %s · цель → вы: %s"
+                % (
+                    world_text.relation_label(outgoing["affinity"]),
+                    world_text.relation_label(incoming["affinity"]),
+                ),
                 True,
-                self._relation_color(relation),
+                self._relation_color(incoming["affinity"]),
             ),
-            (x, MID_RECT.y + 84),
+            (x, MID_RECT.y + 82),
         )
+        axes_parts = []
+        for axis, forward, backward in asymmetry_rows(outgoing, incoming):
+            if abs(forward) < 0.02 and abs(backward) < 0.02:
+                continue
+            axes_parts.append(
+                "%s %+.2f/%+.2f"
+                % (
+                    world_text.relation_axis_label(axis),
+                    forward,
+                    backward,
+                )
+            )
+        if axes_parts:
+            screen.blit(
+                self.app.font_tiny.render(
+                    self._clip_text(
+                        self.app.font_tiny,
+                        "оси вы/цель: " + " · ".join(axes_parts),
+                        346,
+                    ),
+                    True,
+                    DIM,
+                ),
+                (x, MID_RECT.y + 96),
+            )
         desc = wrap_text(self.app.font_tiny, node.get("description", ""), 330)
         for index, line in enumerate(desc[:2]):
             screen.blit(
                 self.app.font_tiny.render(line, True, MUTED),
-                (x, MID_RECT.y + 100 + index * 13),
+                (x, MID_RECT.y + 110 + index * 13),
             )
         stats = node.get("stats") or {}
         stat_keys = (

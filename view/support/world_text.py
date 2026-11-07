@@ -17,6 +17,13 @@ CHARACTER_STAT_LABELS = {
     "trust": "доверие",
 }
 
+RELATION_AXIS_SHORT_LABELS = {
+    "affinity": "расп.",
+    "trust": "дов.",
+    "fear": "страх",
+    "respect": "уваж.",
+}
+
 OUTCOME_LABELS = {
     "success": "Успех",
     "failure": "Провал",
@@ -57,6 +64,10 @@ def relation_label(value):
     if value > -0.60:
         return "враждебные"
     return "непримиримые"
+
+
+def relation_axis_label(axis):
+    return RELATION_AXIS_SHORT_LABELS.get(str(axis), str(axis or ""))
 
 
 def scale_label(value):

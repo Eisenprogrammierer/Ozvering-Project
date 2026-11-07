@@ -25,6 +25,17 @@ from .planner import (
 )
 from .node_strategy import StrategyBook
 from .control import DirectiveBook
+from .obligations import (
+    DEFAULT_OBLIGATION_KIND,
+    OBLIGATION_FULFILL_AFFINITY,
+    OBLIGATION_FULFILL_TRUST,
+    ObligationLedger,
+)
+from .relations import (
+    DEFAULT_RELATION_FORM,
+    asymmetry_rows,
+    relation_effect,
+)
 from .projections import (
     SCHEMA_VERSION,
     ensure_supported_snapshot,
@@ -997,6 +1008,10 @@ class WorldEngine:
         # Граница управления BDI (§7.3): явные директивы игрока с сроком.
         # Автономия персонажа не «залипает» — истёкшая директива исчезает.
         self.directives = DirectiveBook()
+        # Обязательства (§7.3 №19, §7.6 №36): долг/услуга/служба/свидетельство
+        # с кредитором, должником, суммой и сроком. Это не второй бюджет и
+        # не энергия — отдельная запись отношения, которую можно исполнить.
+        self.obligations = ObligationLedger()
         self.horizon_passed = False
         self.ending = None
         self.attached = False
@@ -2007,6 +2022,210 @@ class WorldEngine:
             "sickness": float(character["sickness"]),
             "wound": float(character.get("wound", 0.0)),
             "alive": bool(character["alive"]),
+        }
+
+    # ------------------------------------------------------------------
+    # Обязательства (§7.3 №19, §7.6 №36)
+    # ------------------------------------------------------------------
+    def add_obligation(
+        self,
+        creditor,
+        debtor,
+        kind=DEFAULT_OBLIGATION_KIND,
+        amount=1.0,
+        *,
+        due_day=None,
+        note="",
+    ):
+        """Создать обязательство: `debtor` должен `creditor`."""
+        obligation = self.obligations.add(
+            creditor,
+            debtor,
+            kind,
+            amount,
+            created_day=self.day,
+            due_day=due_day,
+            note=note,
+        )
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "obligation",
+                "text": "обязательство %s: %s → %s"
+                % (obligation.id, obligation.debtor, obligation.creditor),
+            }
+        )
+        return obligation.to_dict()
+
+    def _shift_character_relation(self, character, trust=0.0, affinity=0.0):
+        changed = []
+        for axis, delta in (("trust", trust), ("affinity", affinity)):
+            if abs(float(delta)) <= 1e-12:
+                continue
+            before = _as_float(character.get(axis), 0.0)
+            character[axis] = _clamp(before + float(delta), -1.0, 1.0)
+            actual = character[axis] - before
+            if abs(actual) > 1e-12:
+                changed.append(
+                    (
+                        "%s · %s"
+                        % (
+                            character.get("name", character["id"]),
+                            CHARACTER_STAT_LABELS.get(axis, axis),
+                        ),
+                        actual,
+                    )
+                )
+        if hasattr(character, "sync"):
+            character.sync()
+        return changed
+
+    def _shift_relation_between(self, source_id, target_id, trust, affinity):
+        source_id = _text(source_id)
+        target_id = _text(target_id)
+        if not source_id or not target_id or source_id == target_id:
+            return []
+        source = self.node(source_id)
+        target = self.node(target_id)
+        if source is None or target is None:
+            return []
+        current = self.relation_axes(source_id, target_id)
+        after = self.set_relation_axes(
+            source_id,
+            target_id,
+            {
+                "trust": current["trust"] + float(trust),
+                "affinity": current["affinity"] + float(affinity),
+            },
+        )
+        changed = []
+        for axis, delta in (
+            ("trust", after["trust"] - current["trust"]),
+            ("affinity", after["affinity"] - current["affinity"]),
+        ):
+            if abs(delta) <= 1e-12:
+                continue
+            changed.append(
+                (
+                    "%s → %s · %s"
+                    % (
+                        source.get("name", source_id),
+                        target.get("name", target_id),
+                        CHARACTER_STAT_LABELS.get(axis, axis),
+                    ),
+                    delta,
+                )
+            )
+        return changed
+
+    def _apply_obligation_fulfillment(self, obligation):
+        """Исполнение повышает доверие кредитора к должнику.
+
+        Характер связи зависит от сторон: персонаж ↔ игрок меняет
+        легаси-поля персонажа и `player_relations`; узел ↔ узел — оси
+        `relation_axes`; персонаж ↔ персонаж остаётся записью журнала без
+        выдуманной двусторонней шкалы (её ещё нет в модели).
+        """
+        scale = min(1.0, max(0.0, float(obligation.amount)))
+        trust = OBLIGATION_FULFILL_TRUST * scale
+        affinity = OBLIGATION_FULFILL_AFFINITY * scale
+        creditor = obligation.creditor
+        debtor = obligation.debtor
+        creditor_char = self.character(creditor)
+        debtor_char = self.character(debtor)
+        changed = []
+        if creditor == "player" and debtor_char is not None:
+            changed.extend(
+                self._shift_character_relation(debtor_char, trust, affinity)
+            )
+            view = self.player_relations.setdefault(debtor_char["id"], {})
+            for axis, delta in (("trust", trust), ("affinity", affinity)):
+                before = _as_float(view.get(axis), 0.0)
+                view[axis] = _clamp(before + delta, -1.0, 1.0)
+                actual = view[axis] - before
+                if abs(actual) > 1e-12:
+                    changed.append(
+                        (
+                            "вы · %s"
+                            % CHARACTER_STAT_LABELS.get(axis, axis),
+                            actual,
+                        )
+                    )
+            return changed
+        if debtor == "player" and creditor_char is not None:
+            changed.extend(
+                self._shift_character_relation(
+                    creditor_char, trust, affinity
+                )
+            )
+            view = self.player_relations.setdefault(creditor_char["id"], {})
+            for axis, delta in (("trust", trust), ("affinity", affinity)):
+                before = _as_float(view.get(axis), 0.0)
+                view[axis] = _clamp(before + delta, -1.0, 1.0)
+                actual = view[axis] - before
+                if abs(actual) > 1e-12:
+                    changed.append(
+                        (
+                            "вы · %s"
+                            % CHARACTER_STAT_LABELS.get(axis, axis),
+                            actual,
+                        )
+                    )
+            return changed
+        source_id = (
+            self.player_node_id if creditor == "player" else creditor
+        )
+        target_id = self.player_node_id if debtor == "player" else debtor
+        changed.extend(
+            self._shift_relation_between(
+                source_id, target_id, trust, affinity
+            )
+        )
+        return changed
+
+    def fulfill_obligation(self, obligation_id, day=None):
+        """Отметить обязательство исполненным и сместить отношения."""
+        obligation = self.obligations.fulfill(
+            obligation_id, self.day if day is None else day
+        )
+        if obligation is None:
+            return None
+        changed = self._apply_obligation_fulfillment(obligation)
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "obligation",
+                "text": "обязательство %s исполнено: %s → %s"
+                % (obligation.id, obligation.debtor, obligation.creditor),
+            }
+        )
+        result = obligation.to_dict()
+        result["changes"] = changed
+        return result
+
+    def cancel_obligation(self, obligation_id, day=None):
+        obligation = self.obligations.cancel(
+            obligation_id, self.day if day is None else day
+        )
+        return None if obligation is None else obligation.to_dict()
+
+    def obligation_view(self, party=None, day=None):
+        """Срез журнала для UI и отладки."""
+        day = self.day if day is None else _as_int(day, self.day)
+        entries = (
+            self.obligations.for_party(party)
+            if party is not None
+            else list(self.obligations)
+        )
+        return {
+            "summary": self.obligations.summary(day),
+            "entries": [item.to_dict() for item in entries],
+            "due": [
+                item.to_dict() for item in self.obligations.due(day)
+            ],
+            "overdue": [
+                item.to_dict() for item in self.obligations.overdue(day)
+            ],
         }
 
     # ------------------------------------------------------------------
@@ -3570,6 +3789,26 @@ class WorldEngine:
             authority=_clamp(authority),
         )
 
+    def _relation_axes_to_actor(self, target, actor_id):
+        """Оси отношения цели к действующему автомату (R_target→actor).
+
+        Для персонажа это легаси-поля `affinity/trust/fear/respect`
+        (они хранят чувства персонажа к игроку), для узла — полные оси
+        `relation_axes(target, actor)`. Направление важно: принуждение
+        повышает страх цели, а не её доверие к себе.
+        """
+        if target is None:
+            return {}
+        target_id = _text(target.get("id"))
+        if not target_id or target_id == _text(actor_id):
+            return {}
+        if hasattr(target, "sync"):
+            return {
+                axis: _as_float(target.get(axis), 0.0)
+                for axis in RELATION_AXES
+            }
+        return self.relation_axes(target_id, actor_id)
+
     def _action_chance(
         self, action, target, context, success, is_player
     ):
@@ -3591,11 +3830,19 @@ class WorldEngine:
             defender = target.sync()
         else:
             defender = self._unit_from_node(target)
+        form = _text(action.get("form"), DEFAULT_RELATION_FORM)
+        # §7.6 №37: оси отношения цели к действующему смещают приём работы
+        # на небольшой ограниченный вклад. Они не заменяют F/E, навык и
+        # сопротивление цели.
+        relation_shift = relation_effect(
+            self._relation_axes_to_actor(target, context["node"]["id"]),
+            form,
+        )
         return campaign_success_chance(
-            base,
+            base + relation_shift,
             attacker,
             defender,
-            form=_text(action.get("form"), "force"),
+            form=form,
             amount=0.0,
         )
 
@@ -5085,6 +5332,7 @@ class WorldEngine:
             "storyline_days": int(self.storyline_days),
             "intents": self.intents.to_list(),
             "directives": self.directives.to_list(),
+            "obligations": self.obligations.to_list(),
             "node_action_day": dict(self.node_action_day),
             "node_strategy_state": {
                 node_id: {
@@ -5288,6 +5536,8 @@ class WorldEngine:
         self.intents.load(snapshot.get("intents") or ())
         # Директивы игрока переживают сохранение; старые снимки — без них.
         self.directives.load(snapshot.get("directives") or ())
+        # Обязательства: старые снимки получают пустой журнал.
+        self.obligations.load(snapshot.get("obligations") or ())
         self.node_action_day = {
             str(node_id): _as_int(day)
             for node_id, day in (

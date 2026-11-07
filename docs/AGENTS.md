@@ -428,6 +428,19 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
 директива возвращает персонажа к своей политике. Директивы входят в снимок
 мира.
 
+Отношения влияют на работу (`campaign/relations.py`): `relation_effect()`
+складывает оси `affinity/trust/fear/respect` с весами по форме (`force`:
+`fear/respect` положительны, `trust` отрицателен; `info`: `trust/affinity`
+положительны, `fear` отрицателен), ограничивает вклад `0.20` и берёт
+направление `R_target→actor`. `WorldEngine._action_chance()` добавляет
+сдвиг к авторскому шансу до ядрового смешивания, поэтому отношения не
+заменяют `F/E` и сопротивление. Обязательства — `campaign/obligations.py`
+(`ObligationLedger`): `creditor/debtor/kind/amount/due_day/status`,
+`WorldEngine.add_obligation()`/`fulfill_obligation()`/`obligation_view()`;
+исполнение повышает доверие кредитора к должнику и входит в снимок мира.
+Карточка структуры показывает оба направления отношений через
+`asymmetry_rows()` (`вы → цель` / `цель → вы`).
+
 Обучение по умолчанию идёт в self-play: обе стороны получают собственный
 `Transition` и обновляют свои политики. Отключить обучение противника можно
 флагом `--no-self-play`; тогда он остаётся фиксированным спарринг-партнёром.
