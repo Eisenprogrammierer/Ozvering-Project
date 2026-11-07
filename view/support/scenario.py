@@ -17,6 +17,19 @@ STUB_COLS = 256
 CAMPAIGN_TURNS = 7 * 24 * 12
 
 
+def _as_int(value, default):
+    """Привести число из контента к int, не падая на ``None``.
+
+    Шаблоны кампаний-автоматов намеренно хранят ``turns: null``: у них нет
+    военного горизонта. Такое значение должно означать «взять значение по
+    умолчанию», а не ронять запуск игры.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 def _side_lane(side, order):
     """Полоса развёртывания: чётные стороны слева, нечётные справа."""
     try:
@@ -260,10 +273,10 @@ def build_scenario(
 
         preset = CampaignPresetGenerator().generate(seed=seed)
     scenario = dict(getattr(preset, "scenario", {}) or {})
-    seed = int(scenario.get("seed", seed))
+    seed = _as_int(scenario.get("seed"), seed)
     if turns is None:
-        turns = int(scenario.get("turns", CAMPAIGN_TURNS))
-    sim = W.WarfareSimulation(seed=seed, turns=int(turns))
+        turns = _as_int(scenario.get("turns"), CAMPAIGN_TURNS)
+    sim = W.WarfareSimulation(seed=seed, turns=_as_int(turns, CAMPAIGN_TURNS))
     sim.engage_range = int(scenario.get("engage_range") or 3)
     rosters = rosters or {}
     factions = _factions_by_side(preset)
@@ -429,18 +442,21 @@ def build_world(
         role = preset.role.as_dict()
 
     scenario = preset.scenario if preset is not None else {}
-    preset_seed = int(scenario.get("seed", seed))
-    seed = int((campaign_snapshot or {}).get("seed", preset_seed))
-    turns = int(scenario.get("turns", CAMPAIGN_TURNS))
-    rosters = preset.roster_by_side() if preset is not None else None
-    player_side = preset.player_side if preset is not None else "red"
-    map_name = scenario.get("map_name", "valley_01")
     mode = str(scenario.get("mode") or "")
+    # Кампания автоматов не строит военный мир. Проверяем режим до разбора
+    # числовых полей: её шаблон хранит `turns: null`, и раньше `int(None)`
+    # падал с TypeError раньше осмысленного ValueError.
     if mode == "automata":
         raise ValueError(
             "кампания автоматов не использует военный мир; "
             "создайте view.support.automata_campaign"
         )
+    preset_seed = _as_int(scenario.get("seed"), seed)
+    seed = _as_int((campaign_snapshot or {}).get("seed"), preset_seed)
+    turns = _as_int(scenario.get("turns"), CAMPAIGN_TURNS)
+    rosters = preset.roster_by_side() if preset is not None else None
+    player_side = preset.player_side if preset is not None else "red"
+    map_name = scenario.get("map_name", "valley_01")
     strategy_mode = mode == "strategy"
     if strategy_mode:
         sim = W.WarfareSimulation(seed=seed, turns=turns)

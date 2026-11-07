@@ -313,6 +313,32 @@ def test_preset_roundtrip_and_storage(tmp_path, preset):
     assert data["player"]["faction_id"] == "faction_red"
 
 
+def test_build_scenario_treats_null_turns_as_default():
+    from types import SimpleNamespace
+
+    from view.support.scenario import CAMPAIGN_TURNS, build_scenario
+
+    preset = SimpleNamespace(
+        scenario={"seed": 3, "turns": None}, factions=[]
+    )
+    sim = build_scenario(preset=preset)
+    assert sim.max_turns == CAMPAIGN_TURNS
+
+
+def test_build_world_rejects_automata_before_parsing_null_turns():
+    from view.support.scenario import build_world
+
+    # Так выглядит шаблон кампании-автомата: режим automata и turns=null.
+    # Ошибка должна быть осмысленной ValueError, а не TypeError из int(None).
+    preset = {
+        "preset_id": "automata_probe",
+        "role_id": "faction_leader",
+        "scenario": {"mode": "automata", "turns": None, "seed": 3},
+    }
+    with pytest.raises(ValueError, match="кампания автоматов"):
+        build_world(campaign_preset=preset)
+
+
 def test_world_uses_preset_roster_and_keeps_default_balance(preset):
     pytest.importorskip("numpy")
     from view.support.scenario import build_world
