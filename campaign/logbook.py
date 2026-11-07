@@ -41,6 +41,8 @@ DEFAULT_KIND_SEVERITY = {
     "wound": "notice",
     "infection": "notice",
     "obligation": "notice",
+    "coalition": "notice",
+    "constraint": "notice",
     "negotiation": "notice",
     "horizon": "notice",
     "storyline": "notice",

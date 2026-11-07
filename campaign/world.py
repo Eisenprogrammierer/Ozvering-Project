@@ -17,6 +17,12 @@ from .actor import (
 from .character import CampaignCharacter
 from . import logbook as _logbook
 from .lod import CampaignLod
+from .coalitions import (
+    CoalitionBook,
+    coalition_config,
+    pair_score,
+)
+from . import values as _values
 from .economy import (
     CREDIT_DAYS,
     MAINTENANCE_STARVE_FORCE,
@@ -712,6 +718,7 @@ def build_player_profile(variables, biography=None, seed=0):
         "formative": "",
         "vocation": "",
         "values": [],
+        "value_ids": [],
         "flaw": "",
         "patron": "",
         "reputation": "",
@@ -730,6 +737,9 @@ def build_player_profile(variables, biography=None, seed=0):
         if variable in ("value", "value2"):
             if label not in profile["values"]:
                 profile["values"].append(label)
+            value_id = _values.value_id(selected or label)
+            if value_id and value_id not in profile["value_ids"]:
+                profile["value_ids"].append(value_id)
         else:
             profile[variable] = label
         _add_skills(profile["skills"], entry.get("skills"))
@@ -746,6 +756,10 @@ def build_player_profile(variables, biography=None, seed=0):
             profile["biography"].append(text)
     if not profile["values"]:
         profile["values"].append("достоинство")
+    if not profile["value_ids"]:
+        profile["value_ids"] = [
+            _values.value_id(item) for item in profile["values"]
+        ]
     if not profile["traits"]:
         profile["traits"].append("незаметный")
     profile["aptitudes"] = {
@@ -767,7 +781,14 @@ def normalize_profile(profile):
     profile.setdefault("connections", [])
     profile.setdefault("biography", [])
     profile.setdefault("values", [])
+    profile.setdefault("value_ids", [])
     profile.setdefault("aptitudes", {})
+    if not profile["value_ids"]:
+        profile["value_ids"] = [
+            _values.value_id(item)
+            for item in profile.get("values") or ()
+            if _values.value_id(item)
+        ]
     for key in SKILL_ORDER:
         profile["skills"].setdefault(key, 0.08)
     for domain, keys in DOMAIN_SKILLS.items():
@@ -1056,6 +1077,9 @@ class WorldEngine:
         # с кредитором, должником, суммой и сроком. Это не второй бюджет и
         # не энергия — отдельная запись отношения, которую можно исполнить.
         self.obligations = ObligationLedger()
+        # Коалиции узлов (§7.3 №19): постоянные связки из взаимных осей и
+        # обязательств. Пустой блок `coalitions` их не создаёт.
+        self.coalitions = CoalitionBook()
         self.horizon_passed = False
         self.ending = None
         self.attached = False
@@ -1145,6 +1169,15 @@ class WorldEngine:
                 "tags": list(raw.get("tags") or ()),
                 "description": _text(raw.get("description")),
                 "interests": dict(raw.get("interests") or {}),
+                # Ценностные ограничения узла (§7.3 №18): необязательная
+                # карта `value_id -> сила` или список id. Пустое значение
+                # означает прежнее поведение — ограничены только действия
+                # с явным `values`.
+                "values": (
+                    dict(raw.get("values"))
+                    if isinstance(raw.get("values"), dict)
+                    else list(raw.get("values") or ())
+                ),
                 "stats": {
                     key: _clamp((raw.get("stats") or {}).get(key, 0.5))
                     for key in NODE_STATS
@@ -2273,6 +2306,166 @@ class WorldEngine:
         }
 
     # ------------------------------------------------------------------
+    # §7.3 №18: жёсткие ценностные ограничения
+    # ------------------------------------------------------------------
+
+    def value_rules(self):
+        """Правила ценностей из блока `values` (кэш на инстанс)."""
+        cached = getattr(self, "_value_rules_cache", None)
+        if cached is None:
+            cached = _values.value_rules(self.config.get("values") or {})
+            self._value_rules_cache = cached
+        return cached
+
+    def _value_profile(self, context=None):
+        """Профиль ценностей для игрока или узла/персонажа."""
+        context = context or {}
+        raw = context.get("values")
+        if isinstance(raw, dict) and raw:
+            return {"values": dict(raw)}
+        if isinstance(raw, (list, tuple)) and raw:
+            return {"value_ids": list(raw)}
+        if context.get("is_player") or not context.get("node"):
+            return self.profile
+        node_values = context["node"].get("values")
+        if isinstance(node_values, dict) and node_values:
+            return {"values": dict(node_values)}
+        if isinstance(node_values, (list, tuple)) and node_values:
+            return {"value_ids": list(node_values)}
+        # У узла нет собственных ценностей: он не наследует профиль героя.
+        return {}
+
+    def value_check(self, action, context=None):
+        """Проверить действие против жёстких ценностей.
+
+        Пустое ограничение всегда разрешает действие: предательство по
+        умолчанию возможно и оплачивается отношениями, репутацией и
+        обязательствами. Запрет срабатывает только при явном `values` на
+        действии (или при `values.defaults.betrayal` в конфиге мира).
+        """
+        if isinstance(action, str):
+            action = self.actions.get(action) or {"id": action}
+        return _values.check_action(
+            action, self._value_profile(context), self.value_rules()
+        )
+
+    def _value_reason(self, action, context=None):
+        result = self.value_check(action, context)
+        return "" if result["allowed"] else result["reason"]
+
+    def value_view(self):
+        """Срез ценностей героя и объявленных ограничений для UI."""
+        return _values.value_view(
+            self.profile,
+            self.value_rules(),
+            list(self.actions.values()),
+        )
+
+    # ------------------------------------------------------------------
+    # §7.3 №19: формирование и распад коалиций
+    # ------------------------------------------------------------------
+
+    def coalition_rules(self):
+        """Правила коалиций из блока `coalitions` (или `coalition`)."""
+        cached = getattr(self, "_coalition_rules_cache", None)
+        if cached is None:
+            raw = self.config.get("coalitions")
+            if raw is None:
+                raw = self.config.get("coalition")
+            cached = coalition_config(raw or {})
+            self._coalition_rules_cache = cached
+        return cached
+
+    def _coalition_obligations(self, left, right):
+        parties = {str(left), str(right)}
+        return sum(
+            1
+            for item in self.obligations.open()
+            if {item.creditor, item.debtor} == parties
+        )
+
+    def _coalition_pair_scores(self):
+        """Сила всех рассматриваемых пар узлов на текущий день."""
+        rules = self.coalition_rules()
+        nodes = [
+            node_id
+            for node_id in self.node_order
+            if node_id in self.nodes
+        ]
+        if not rules.get("include_player"):
+            nodes = [
+                node_id
+                for node_id in nodes
+                if node_id != self.player_node_id
+            ]
+        scores = {}
+        for index, left in enumerate(nodes):
+            for right in nodes[index + 1 :]:
+                scores[(left, right)] = pair_score(
+                    self.relation_axes(left, right),
+                    self.relation_axes(right, left),
+                    self._coalition_obligations(left, right),
+                    axes=rules["axes"],
+                    obligation_bonus=rules["obligation_bonus"],
+                )
+        return scores
+
+    def _advance_coalitions(self):
+        """Суточный шаг коалиций: распад, затем формирование.
+
+        Пока блок `coalitions.enabled` выключен, метод ничего не делает и
+        не пишет в журнал. Формирование идёт по детерминированному порядку
+        пар, поэтому повторный запуск мира даёт тот же результат.
+        """
+        rules = self.coalition_rules()
+        if not rules["enabled"]:
+            return []
+        eligible = {node_id: True for node_id in self.nodes}
+        if not rules.get("include_player"):
+            eligible.pop(self.player_node_id, None)
+        names = {
+            node_id: node.get("name", node_id)
+            for node_id, node in self.nodes.items()
+        }
+        events = self.coalitions.update(
+            self.day,
+            self._coalition_pair_scores(),
+            eligible=eligible,
+            config=rules,
+            names=names,
+        )
+        for event in events:
+            self.log.append(event)
+        return events
+
+    def coalition_view(self, day=None):
+        """Срез коалиций для UI/отладки."""
+        view = self.coalitions.view(
+            self.day if day is None else _as_int(day, self.day)
+        )
+        view["enabled"] = bool(self.coalition_rules()["enabled"])
+        view["rules"] = dict(self.coalition_rules())
+        return view
+
+    def coalition_partners(self, node_id):
+        """Активные союзники узла (пусто, если коалиции выключены)."""
+        if not self.coalition_rules()["enabled"]:
+            return []
+        return self.coalitions.partners(node_id)
+
+    def _coalition_bonus(self, context, target):
+        """Небольшой бонус сотрудничеству внутри активной коалиции."""
+        if target is None or not self.coalition_rules()["enabled"]:
+            return 0.0
+        node = context.get("node") or {}
+        strength = self.coalitions.strength(
+            node.get("id"), target.get("id")
+        )
+        if strength <= 0.0:
+            return 0.0
+        return self.coalition_rules()["cooperation_bonus"] * strength
+
+    # ------------------------------------------------------------------
     # Управление BDI-персонажами (§7.3)
     # ------------------------------------------------------------------
     def set_directive(
@@ -3201,6 +3394,12 @@ class WorldEngine:
         if reason:
             return False, reason
         reason = self._reason_requirements(action, context, target)
+        if reason:
+            return False, reason
+        # §7.3 №18: ценность может быть жёстким запретом, но только если
+        # действие объявило ограничение. Иначе предательство разрешено и
+        # оплачивается отношениями/репутацией/обязательствами.
+        reason = self._value_reason(action, context)
         if reason:
             return False, reason
         reason = self._reason_cost(action, context)
@@ -4976,6 +5175,9 @@ class WorldEngine:
         # цели. Он убывает по мере прогресса и не отменяет сиюминутные
         # интересы узла — только смещает выбор в их рамках.
         score += self._strategy_bonus(action, context, target)
+        # §7.3 №19: союзники чаще работают друг с другом. Бонус мал и
+        # действует только внутри активной коалиции.
+        score += self._coalition_bonus(context, target)
         return score
 
     def _ai_action(self, node_id):
@@ -5002,6 +5204,8 @@ class WorldEngine:
                 # `_ai_targets` уже отфильтровал target-причину; остаются
                 # требования, зависящие от цели.
                 if self._reason_requirements(action, context, target):
+                    continue
+                if self._value_reason(action, context):
                     continue
                 score = self._ai_score(action, context, target, base)
                 if best is None or score > best[0]:
@@ -5901,6 +6105,9 @@ class WorldEngine:
         # бюджета, а природа возвращает часть работы в казну узла. Пустой
         # блок `economy` оставляет прежний баланс.
         changed.extend(self._apply_economy_day())
+        # §7.3 №19: коалиции пересобираются на границе дня. Пока блок
+        # `coalitions` выключен, это пустой список.
+        events.extend(self._advance_coalitions())
         # Истёкшие директивы игрока больше не влияют на автономию.
         self.directives.prune(self.day)
         # Долги, появившиеся в ходе хода ИИ (сюжет/мир запланировали их на
@@ -6100,6 +6307,7 @@ class WorldEngine:
             "intents": self.intents.to_list(),
             "directives": self.directives.to_list(),
             "obligations": self.obligations.to_list(),
+            "coalitions": self.coalitions.to_dict(),
             "node_action_day": dict(self.node_action_day),
             "node_strategy_state": {
                 node_id: {
@@ -6320,6 +6528,8 @@ class WorldEngine:
         self.directives.load(snapshot.get("directives") or ())
         # Обязательства: старые снимки получают пустой журнал.
         self.obligations.load(snapshot.get("obligations") or ())
+        # Коалиции: старые снимки без ветки получают пустой журнал.
+        self.coalitions.load(snapshot.get("coalitions") or {})
         self.node_action_day = {
             str(node_id): _as_int(day)
             for node_id, day in (
