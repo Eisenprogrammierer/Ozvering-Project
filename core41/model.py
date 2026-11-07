@@ -3,6 +3,12 @@ import math
 from dataclasses import dataclass, field
 
 from .types import Work
+from .payload import (
+    PayloadError,
+    apply_payload,
+    normalize_payload,
+    payload_map,
+)
 
 OPEN_PRESSURE = 8.0
 PRESSURE_DECAY = 0.82
@@ -593,4 +599,16 @@ class Automaton:
                 "pressure": work.amount * PRESSURE_PER_WORK,
             }
         )
+        # §7.1 №4: типизированная нагрузка применяется после приёма работы.
+        # Она не меняет `E/F/H` и не создаёт второй бюджет: предметы,
+        # свидетельства и приказы — состояние получателя. Ошибка схемы не
+        # отменяет уже принятую работу, а попадает в отчёт.
+        payload = getattr(work, "payload", ())
+        if payload:
+            try:
+                normalized = normalize_payload(payload)
+                report["payload"] = payload_map(normalized)
+                report["payload_applied"] = apply_payload(self, normalized)
+            except PayloadError as exc:
+                report["payload_error"] = str(exc)
         return report
