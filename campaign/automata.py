@@ -61,6 +61,65 @@ MODEL_DEFAULTS.update(ORGAN_MODEL_DEFAULTS)
 
 DEFAULT_ACTIONS_PER_TURN = 3
 
+DEFAULT_AUTOMATON_INTERACTIONS = [
+    {
+        "id": "coordinate",
+        "label": "Согласовать работу",
+        "description": (
+            "Автомат-источник согласует работу с другим автоматом: "
+            "цель получает поддержку, фракция — небольшую сплочённость."
+        ),
+        "relation": "any",
+        "cost": {"influence": 0.02},
+        "source_integrity": 0.01,
+        "target_integrity": 0.08,
+        "faction": {"cohesion": 0.008},
+        "cooldown": 2,
+    },
+    {
+        "id": "transfer",
+        "label": "Передать резерв",
+        "description": (
+            "Источник отдаёт часть своих людей и запасов целевому автомату. "
+            "Цель укрепляется, источник расходует целостность и снабжение."
+        ),
+        "relation": "any",
+        "cost": {"supply": 0.03},
+        "source_integrity": -0.04,
+        "target_integrity": 0.12,
+        "faction": {"morale": 0.004},
+        "cooldown": 2,
+    },
+    {
+        "id": "directive",
+        "label": "Отдать директиву",
+        "description": (
+            "Приказ подчинённому автомату: вертикаль работает, цель "
+            "укрепляется, законность фракции растёт."
+        ),
+        "relation": "subordinate",
+        "cost": {"influence": 0.03},
+        "source_integrity": 0.008,
+        "target_integrity": 0.10,
+        "faction": {"legitimacy": 0.006},
+        "cooldown": 3,
+    },
+    {
+        "id": "escalate",
+        "label": "Запросить поддержку",
+        "description": (
+            "Автомат обращается к вышестоящему органу за поддержкой: "
+            "источник укрепляется, центр расходует часть целостности."
+        ),
+        "relation": "superior",
+        "cost": {"influence": 0.02},
+        "source_integrity": 0.10,
+        "target_integrity": -0.02,
+        "faction": {"legitimacy": 0.006},
+        "cooldown": 3,
+    },
+]
+
 DEFAULT_CHARACTER_INTERACTIONS = [
     {
         "id": "promote",
@@ -220,6 +279,7 @@ class FactionRuntime:
     score_assets: Dict[str, float] = field(default_factory=dict)
     actions: List[dict] = field(default_factory=list)
     organs: List[OrganRuntime] = field(default_factory=list)
+    automaton_interactions: List[dict] = field(default_factory=list)
     character_interactions: List[dict] = field(default_factory=list)
     character_cooldowns: Dict[str, Dict[str, int]] = field(default_factory=dict)
     cooldowns: Dict[str, int] = field(default_factory=dict)
@@ -478,6 +538,7 @@ class AutomataCampaign:
         self.events = []
         self.history = []
         self.last_organ_result = None
+        self.last_automaton_result = None
         self.last_character_result = None
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
@@ -578,6 +639,15 @@ class AutomataCampaign:
                 character_interactions = [
                     dict(item) for item in DEFAULT_CHARACTER_INTERACTIONS
                 ]
+            automaton_interactions = [
+                dict(item)
+                for item in (faction.get("automaton_interactions") or ())
+                if isinstance(item, Mapping) and item.get("id")
+            ]
+            if not automaton_interactions:
+                automaton_interactions = [
+                    dict(item) for item in DEFAULT_AUTOMATON_INTERACTIONS
+                ]
             organs = []
             for organ_record in faction.get("organs") or ():
                 if not isinstance(organ_record, Mapping):
@@ -620,6 +690,7 @@ class AutomataCampaign:
                     if isinstance(item, Mapping) and item.get("id")
                 ],
                 organs=organs,
+                automaton_interactions=automaton_interactions,
                 character_interactions=character_interactions,
             )
             self.factions[side] = runtime
@@ -929,6 +1000,232 @@ class AutomataCampaign:
         return result
 
     interact_organ = perform_organ_interaction
+
+    # ------------------------------------------------------------------
+    # Действия автоматов друг на друга
+    # ------------------------------------------------------------------
+    def _automaton_targets(self, faction, source, relation):
+        """Кандидаты в цели для команды автомата.
+
+        ``relation`` задаётся данными: ``any`` — любой другой орган,
+        ``subordinate`` — прямые подчинённые, ``superior`` — родитель,
+        ``peer`` — соседи по уровню.
+        """
+        relation = str(relation or "any").lower()
+        organs = list(faction.organs)
+        if relation == "subordinate":
+            return [
+                organ
+                for organ in organs
+                if str(organ.parent_id) == str(source.id)
+            ]
+        if relation == "superior":
+            parent = faction.organ(source.parent_id) if source.parent_id else None
+            return [parent] if parent is not None else []
+        if relation == "peer":
+            return [
+                organ
+                for organ in organs
+                if organ.id != source.id
+                and str(organ.parent_id) == str(source.parent_id)
+            ]
+        return [organ for organ in organs if organ.id != source.id]
+
+    def automaton_interaction_options(self, side, organ_id):
+        """Команды выбранного автомата другим автоматам своей фракции."""
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return []
+        source = faction.organ(organ_id)
+        if source is None:
+            return []
+        options = []
+        for interaction in faction.automaton_interactions:
+            cost = _as_mapping(interaction.get("cost"))
+            affordable = all(
+                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                for key, value in cost.items()
+            )
+            relation = str(interaction.get("relation") or "any").lower()
+            targets = self._automaton_targets(faction, source, relation)
+            left = source.cooldown_left(interaction, self.turn)
+            if not targets:
+                if relation == "subordinate":
+                    reason = "нет подчинённых автоматов"
+                elif relation == "superior":
+                    reason = "нет вышестоящего автомата"
+                else:
+                    reason = "нет других автоматов"
+            elif not affordable:
+                reason = "не хватает состояния"
+            elif left > 0:
+                reason = "перезарядка ещё %d" % left
+            else:
+                reason = ""
+            options.append(
+                {
+                    "interaction": interaction,
+                    "id": str(interaction.get("id")),
+                    "label": str(
+                        interaction.get("label")
+                        or interaction.get("id")
+                    ),
+                    "description": str(
+                        interaction.get("description") or ""
+                    ),
+                    "relation": relation,
+                    "cost": {
+                        str(key): round(_number(value), 6)
+                        for key, value in cost.items()
+                    },
+                    "source_integrity": round(
+                        _number(interaction.get("source_integrity")), 6
+                    ),
+                    "target_integrity": round(
+                        _number(interaction.get("target_integrity")), 6
+                    ),
+                    "targets": [
+                        {
+                            "id": target.id,
+                            "name": target.name,
+                            "integrity": round(target.integrity, 6),
+                            "status": target.status(),
+                        }
+                        for target in targets
+                    ],
+                    "enabled": bool(targets and affordable and left <= 0),
+                    "reason": reason,
+                }
+            )
+        return options
+
+    def perform_automaton_interaction(
+        self, side, source_organ_id, target_organ_id, interaction_id
+    ):
+        """Провести команду одного автомата другому внутри своей сети."""
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        gate = self._player_action_gate(side)
+        if gate:
+            return {"ok": False, "reason": gate}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        source = faction.organ(source_organ_id)
+        if source is None:
+            return {"ok": False, "reason": "автомат-источник не найден"}
+        target = faction.organ(target_organ_id)
+        if target is None:
+            return {"ok": False, "reason": "автомат-цель не найден"}
+        option = next(
+            (
+                item
+                for item in self.automaton_interaction_options(
+                    side, source_organ_id
+                )
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return {"ok": False, "reason": "команда не найдена"}
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason") or "команда недоступна",
+            }
+        if target.id not in {
+            item["id"] for item in option.get("targets", ())
+        }:
+            return {
+                "ok": False,
+                "reason": "цель не подходит для этой команды",
+            }
+        interaction = option["interaction"]
+        cost = _as_mapping(interaction.get("cost"))
+        for key, value in cost.items():
+            faction.add_asset(key, -_number(value))
+        source_before = source.integrity
+        target_before = target.integrity
+        source_delta = strengthen_organ(
+            source, _number(interaction.get("source_integrity"))
+        )
+        target_delta = strengthen_organ(
+            target, _number(interaction.get("target_integrity"))
+        )
+        explicit = _as_mapping(interaction.get("faction"))
+        for key, value in explicit.items():
+            faction.add_asset(key, _number(value))
+        source_spread = spread_organ_effect(
+            faction, source, source_delta, self.model
+        )
+        target_spread = spread_organ_effect(
+            faction, target, target_delta, self.model
+        )
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if cooldown > 0:
+            source.interaction_cooldowns[
+                str(interaction.get("id"))
+            ] = self.turn
+        source.used_turn = self.turn
+        target.used_turn = self.turn
+        self._spend_player_action(side)
+        result = {
+            "ok": True,
+            "turn": self.turn,
+            "actions_left": self.actions_left,
+            "side": faction.side,
+            "source_organ_id": source.id,
+            "source_organ_name": source.name,
+            "target_organ_id": target.id,
+            "target_organ_name": target.name,
+            "interaction_id": str(interaction.get("id")),
+            "label": option["label"],
+            "description": option["description"],
+            "relation": option.get("relation", "any"),
+            "source_integrity_before": round(source_before, 6),
+            "source_integrity_after": round(source.integrity, 6),
+            "source_integrity_delta": round(source_delta, 6),
+            "target_integrity_before": round(target_before, 6),
+            "target_integrity_after": round(target.integrity, 6),
+            "target_integrity_delta": round(target_delta, 6),
+            "faction_spread": round(source_spread + target_spread, 6),
+            "cost": {
+                str(key): round(_number(value), 6)
+                for key, value in cost.items()
+            },
+            "text": str(interaction.get("text") or option["description"]),
+            "status": target.status(),
+        }
+        detail = (
+            "ход %d: %s → %s → %s: %s; цель %.2f → %.2f"
+            % (
+                self.turn,
+                faction.name,
+                source.name,
+                target.name,
+                result["label"],
+                target_before,
+                target.integrity,
+            )
+        )
+        self.events.append(
+            {
+                "turn": self.turn,
+                "kind": "automaton",
+                "text": detail,
+                "side": faction.side,
+                "organ_id": source.id,
+                "target_organ_id": target.id,
+                "actor": source.name,
+            }
+        )
+        if len(self.events) > 400:
+            self.events = self.events[-400:]
+        self.last_automaton_result = result
+        return result
+
+    interact_automaton = perform_automaton_interaction
 
     # ------------------------------------------------------------------
     # Персонажи и влияние на них

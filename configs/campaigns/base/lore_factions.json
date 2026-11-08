@@ -2536,6 +2536,68 @@
       ]
     }
   },
+  "automaton_interactions": [
+    {
+      "id": "coordinate",
+      "label": "Согласовать работу",
+      "description": "Автомат-источник согласует работу с другим автоматом: цель получает поддержку, фракция — небольшую сплочённость.",
+      "relation": "any",
+      "cost": {
+        "influence": 0.02
+      },
+      "source_integrity": 0.01,
+      "target_integrity": 0.08,
+      "faction": {
+        "cohesion": 0.008
+      },
+      "cooldown": 2
+    },
+    {
+      "id": "transfer",
+      "label": "Передать резерв",
+      "description": "Источник отдаёт часть своих людей и запасов целевому автомату. Цель укрепляется, источник расходует целостность и снабжение.",
+      "relation": "any",
+      "cost": {
+        "supply": 0.03
+      },
+      "source_integrity": -0.04,
+      "target_integrity": 0.12,
+      "faction": {
+        "morale": 0.004
+      },
+      "cooldown": 2
+    },
+    {
+      "id": "directive",
+      "label": "Отдать директиву",
+      "description": "Приказ подчинённому автомату: вертикаль работает, цель укрепляется, законность фракции растёт.",
+      "relation": "subordinate",
+      "cost": {
+        "influence": 0.03
+      },
+      "source_integrity": 0.008,
+      "target_integrity": 0.1,
+      "faction": {
+        "legitimacy": 0.006
+      },
+      "cooldown": 3
+    },
+    {
+      "id": "escalate",
+      "label": "Запросить поддержку",
+      "description": "Автомат обращается к вышестоящему органу за поддержкой: источник укрепляется, центр расходует часть целостности.",
+      "relation": "superior",
+      "cost": {
+        "influence": 0.02
+      },
+      "source_integrity": 0.1,
+      "target_integrity": -0.02,
+      "faction": {
+        "legitimacy": 0.006
+      },
+      "cooldown": 3
+    }
+  ],
   "character_interactions": [
     {
       "id": "promote",

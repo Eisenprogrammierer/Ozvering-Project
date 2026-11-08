@@ -45,6 +45,44 @@ MIGRATIONS = {
     1: _migrate_v1_to_v2,
 }
 
+COMPATIBLE_MODES = ("automata", "strategy", "world")
+
+
+def save_is_compatible(data):
+    """Подходит ли сохранение текущим кампаниям, а не легаси-RTS.
+
+    «Продолжить» должно возвращать в автоматы, стратегию или мир. Старые
+    военные снимки без этих веток не открываются: иначе игрок попадает
+    на устаревшую карту «Долина-1».
+    """
+    if not isinstance(data, dict):
+        return False
+    campaign = data.get("campaign")
+    if isinstance(campaign, dict) and campaign.get("automata") is not None:
+        return True
+    storyline = data.get("storyline")
+    state = (
+        storyline.get("state")
+        if isinstance(storyline, dict)
+        else None
+    )
+    if isinstance(state, dict) and (
+        state.get("strategy") is not None
+        or state.get("world") is not None
+    ):
+        return True
+    preset = data.get("campaign_preset")
+    scenario = (
+        preset.get("scenario")
+        if isinstance(preset, dict)
+        else None
+    )
+    if isinstance(scenario, dict):
+        mode = str(scenario.get("mode") or "")
+        if mode in COMPATIBLE_MODES:
+            return True
+    return False
+
 
 def migrate_save(data):
     """Привести сохранение к текущей версии, не теряя старые поля.
@@ -182,10 +220,16 @@ def list_saves():
                 "name": path.stem,
                 "timestamp": timestamp,
                 "path": str(path),
+                "compatible": save_is_compatible(data),
             }
         )
     out.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
     return out
+
+
+def list_compatible_saves():
+    """Сохранения, которые открываются в текущих кампаниях."""
+    return [item for item in list_saves() if item.get("compatible")]
 
 
 def delete_save(slot_name):

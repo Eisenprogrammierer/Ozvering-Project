@@ -1165,6 +1165,7 @@ class App:
 
     def load_game(self, slot_name):
         from view.support.save_system import load_game as do_load
+        from view.support.save_system import save_is_compatible
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine
         from view.support.time_system import CampaignTimeSystem
@@ -1172,6 +1173,13 @@ class App:
         snapshot = do_load(slot_name)
         if snapshot is None:
             logger.warning("Загрузка не выполнена: слот=%s", slot_name)
+            return False
+        if not save_is_compatible(snapshot):
+            logger.warning(
+                "Сохранение несовместимо с кампаниями автоматов, "
+                "стратегии и мира: слот=%s (легаси-RTS не открывается)",
+                slot_name,
+            )
             return False
         scenario_path = snapshot.get("scenario_path", "scenarios/mvp.json")
         self.scenario_path = scenario_path
@@ -1305,18 +1313,23 @@ class App:
         elif self._is_strategy_campaign() or strategy_snapshot is not None:
             self._open_strategy(snapshot=strategy_snapshot)
         else:
-            from .screens.rts_screen import RTSScreen
-
-            self.manager.replace_all(RTSScreen(self))
-            self.music.request_category("ambient")
+            logger.warning(
+                "Сохранение не содержит автоматов, стратегии или мира: "
+                "слот=%s",
+                slot_name,
+            )
+            return False
         logger.info("Загрузка выполнена: слот=%s", slot_name)
         return True
 
     def continue_game(self):
-        from view.support.save_system import list_saves
+        from view.support.save_system import list_compatible_saves
 
-        saves = list_saves()
+        saves = list_compatible_saves()
         if not saves:
+            logger.info(
+                "Продолжить: нет совместимых сохранений (легаси-RTS пропущен)"
+            )
             return
         saves.sort(key=lambda s: s.get("timestamp", ""), reverse=True)
         self.load_game(saves[0]["name"])

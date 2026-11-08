@@ -21,18 +21,26 @@ class Button:
         self.callback = callback
         self.alpha = alpha
         self.hovered = False
+        self.enabled = True
 
     def draw(self, screen):
-        if self.alpha >= 255:
+        if not self.enabled:
+            color = (32, 38, 50)
+        elif self.alpha >= 255:
             color = COLOR_BTN_HOVER if self.hovered else COLOR_BTN
-            pygame.draw.rect(screen, color, self.rect, border_radius=6)
         else:
+            color = None
+        if self.enabled and self.alpha < 255:
             surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
             fill = (70, 120, 200, 160) if self.hovered else (20, 20, 30, 110)
             surf.fill(fill)
             screen.blit(surf, self.rect.topleft)
+        else:
+            pygame.draw.rect(screen, color, self.rect, border_radius=6)
         pygame.draw.rect(screen, COLOR_BORDER, self.rect, 2, border_radius=6)
-        surf = self.font.render(self.text, True, COLOR_TEXT)
+        surf = self.font.render(
+            self.text, True, COLOR_TEXT if self.enabled else (110, 116, 130)
+        )
 
         max_w = max(1, self.rect.width - 12)
         max_h = max(1, self.rect.height - 6)
@@ -53,9 +61,13 @@ class Button:
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
-            self.hovered = self.rect.collidepoint(event.pos)
+            self.hovered = self.enabled and self.rect.collidepoint(event.pos)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos) and self.callback:
+            if (
+                self.enabled
+                and self.rect.collidepoint(event.pos)
+                and self.callback
+            ):
                 logger.info("Клик по кнопке: %s", self.text)
                 self.callback()
                 return True

@@ -1,13 +1,20 @@
-"""Сеть автоматов: иерархия органов и работа с персонажами.
+"""Сеть автоматов: иерархия органов и действия внутри неё.
 
 Экран показывает только сеть игрока: корень — фракция, ниже — уровни
 органов, связанные через ``parent_id``. Поэтому видна вертикаль
 подчинения (например, ``Панцерваффе → Вермахт → Имперская ставка``), а
 чужие фракции нельзя выбрать или усилить.
 
-Действия больше не завершают ход автоматически: работы, влияния на органы
-и персонажей тратят ограниченный бюджет действий, а ход завершается
-отдельной кнопкой.
+В сети три режима действий:
+
+* ``АВТОМАТЫ`` — выбранный орган отдаёт команду другому автомату
+  (согласование, передача резерва, директива подчинённому, запрос
+  поддержки у вышестоящего);
+* ``ВЛИЯНИЕ`` — игрок усиливает, реформирует, чистит или снабжает орган;
+* ``ПЕРСОНАЛ`` — влияние на людей своей фракции.
+
+Работы, влияния и команды автоматов тратят ограниченный бюджет действий,
+а ход завершается отдельной кнопкой.
 """
 
 from __future__ import annotations
@@ -137,12 +144,14 @@ class AutomataNetworkScreen(BaseScreen):
     def __init__(self, app, campaign):
         super().__init__(app)
         self.campaign = campaign
-        self.mode = "organs"
+        self.mode = "automata"
         self.selected_faction_side = campaign.player_side
         self.campaign.begin_turn()
         faction = self._faction()
         self.selected_organ_id = self._default_organ_id(faction)
         self.selected_interaction_id = None
+        self.selected_automaton_interaction_id = None
+        self.selected_automaton_target_id = None
         characters = self._characters()
         self.selected_character_id = (
             characters[0]["id"] if characters else None
@@ -167,11 +176,14 @@ class AutomataNetworkScreen(BaseScreen):
         self._end_turn_rect = pygame.Rect(
             self._back_rect.x - 170, BOTTOM_RECT.y + 4, 160, 36
         )
+        self._automata_tab_rect = pygame.Rect(
+            SIDE_RECT.x + 14, SIDE_RECT.y + 48, 118, 28
+        )
         self._organs_tab_rect = pygame.Rect(
-            SIDE_RECT.x + 14, SIDE_RECT.y + 48, 180, 28
+            SIDE_RECT.x + 140, SIDE_RECT.y + 48, 118, 28
         )
         self._characters_tab_rect = pygame.Rect(
-            SIDE_RECT.x + 204, SIDE_RECT.y + 48, 186, 28
+            SIDE_RECT.x + 266, SIDE_RECT.y + 48, 124, 28
         )
         self._sync_storyline()
         logger.info(
@@ -249,6 +261,47 @@ class AutomataNetworkScreen(BaseScreen):
             None,
         )
 
+    def _automaton_interaction_options(self):
+        organ = self._organ()
+        if organ is None:
+            return []
+        return self.campaign.automaton_interaction_options(
+            self.campaign.player_side, organ.id
+        )
+
+    def _selected_automaton_interaction(self):
+        if self.selected_automaton_interaction_id is None:
+            return None
+        return next(
+            (
+                item
+                for item in self._automaton_interaction_options()
+                if item["id"] == self.selected_automaton_interaction_id
+            ),
+            None,
+        )
+
+    def _selected_automaton_target(self):
+        if self.selected_automaton_target_id is None:
+            return None
+        option = self._selected_automaton_interaction()
+        if option is None:
+            return None
+        return next(
+            (
+                target
+                for target in option.get("targets", ())
+                if target["id"] == self.selected_automaton_target_id
+            ),
+            None,
+        )
+
+    def _automaton_target_ids(self):
+        option = self._selected_automaton_interaction()
+        if option is None or self.mode != "automata":
+            return set()
+        return {target["id"] for target in option.get("targets", ())}
+
     def _selected_character_interaction(self):
         if self.selected_character_interaction_id is None:
             return None
@@ -293,18 +346,25 @@ class AutomataNetworkScreen(BaseScreen):
         self.selected_faction_side = faction.side
         self.selected_organ_id = self._default_organ_id(faction)
         self.selected_interaction_id = None
+        self.selected_automaton_interaction_id = None
+        self.selected_automaton_target_id = None
         self.message = ""
         self.last_result = None
         return True
 
-    def select_organ(self, organ_id):
+    def select_organ(self, organ_id, mode=None):
         faction = self._faction()
         if faction is None or faction.organ(organ_id) is None:
             self.message = "Этот орган не принадлежит вашей фракции."
             return False
-        self.mode = "organs"
+        if mode in ("automata", "organs", "characters"):
+            self.mode = mode
+        elif self.mode not in ("automata", "organs"):
+            self.mode = "organs"
         self.selected_organ_id = str(organ_id)
         self.selected_interaction_id = None
+        self.selected_automaton_interaction_id = None
+        self.selected_automaton_target_id = None
         self.message = ""
         return True
 
@@ -321,6 +381,55 @@ class AutomataNetworkScreen(BaseScreen):
             return False
         self.selected_interaction_id = option["id"]
         self.message = ""
+        return True
+
+    def select_automaton_interaction(self, interaction_id):
+        option = next(
+            (
+                item
+                for item in self._automaton_interaction_options()
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return False
+        if self.selected_automaton_interaction_id == option["id"]:
+            self.selected_automaton_interaction_id = None
+            self.selected_automaton_target_id = None
+            self.message = ""
+            return True
+        self.selected_automaton_interaction_id = option["id"]
+        self.selected_automaton_target_id = None
+        if option.get("targets"):
+            self.message = (
+                "Выберите автомат-цель в графе: %s."
+                % ", ".join(
+                    target["name"] for target in option["targets"][:3]
+                )
+            )
+        else:
+            self.message = option.get("reason") or "Нет доступных целей."
+        return True
+
+    def select_automaton_target(self, target_id):
+        option = self._selected_automaton_interaction()
+        if option is None:
+            self.message = "Сначала выберите команду автомата."
+            return False
+        target = next(
+            (
+                item
+                for item in option.get("targets", ())
+                if item["id"] == str(target_id)
+            ),
+            None,
+        )
+        if target is None:
+            self.message = "Эта цель не подходит для выбранной команды."
+            return False
+        self.selected_automaton_target_id = target["id"]
+        self.message = "Цель: %s. Нажмите «Применить»." % target["name"]
         return True
 
     def select_character(self, character_id):
@@ -366,7 +475,21 @@ class AutomataNetworkScreen(BaseScreen):
             return result
         self.message = ""
         self.last_result = result
-        if result.get("kind") == "character" or "character_name" in result:
+        if result.get("kind") == "automaton" or "source_organ_id" in result:
+            self.message = (
+                "%s → %s: %s; цель %.0f%% → %.0f%%; действий осталось %d"
+                % (
+                    result.get("source_organ_name", "автомат"),
+                    result.get("target_organ_name", "цель"),
+                    result.get("label", "команда"),
+                    float(result.get("target_integrity_before", 0.0))
+                    * 100.0,
+                    float(result.get("target_integrity_after", 0.0))
+                    * 100.0,
+                    self.campaign.actions_left,
+                )
+            )
+        elif result.get("kind") == "character" or "character_name" in result:
             self.message = (
                 "%s: %s; мораль %.0f → %.0f; действий осталось %d"
                 % (
@@ -435,6 +558,56 @@ class AutomataNetworkScreen(BaseScreen):
         )
         return self._apply_result(result)
 
+    def apply_automaton_interaction(self):
+        organ = self._organ()
+        if organ is None:
+            self.message = "Сначала выберите автомат-источник."
+            return None
+        if self.selected_automaton_interaction_id is None:
+            self.message = "Сначала выберите команду автомата."
+            return None
+        if self.selected_automaton_target_id is None:
+            self.message = "Выберите автомат-цель в графе."
+            return None
+        option = self._selected_automaton_interaction()
+        if option is None or not option.get("enabled"):
+            self.message = (
+                option.get("reason")
+                if option
+                else "Команда недоступна."
+            )
+            return None
+        if self.campaign.finished:
+            self.message = "Кампания уже завершена."
+            return None
+        if self.campaign.actions_left <= 0 and self.campaign.action_budget()[
+            "active"
+        ]:
+            self.message = self._budget_message()
+            return None
+        self.campaign.begin_turn()
+        result = self.campaign.perform_automaton_interaction(
+            self.campaign.player_side,
+            organ.id,
+            self.selected_automaton_target_id,
+            self.selected_automaton_interaction_id,
+        )
+        result = dict(result)
+        result["kind"] = "automaton"
+        self.selected_automaton_interaction_id = None
+        self.selected_automaton_target_id = None
+        logger.info(
+            "Сеть: автомат %s → %s (%s); цель %s → %s; ход %d; действий %d",
+            result.get("source_organ_name", "?"),
+            result.get("target_organ_name", "?"),
+            result.get("interaction_id", "?"),
+            result.get("target_integrity_before"),
+            result.get("target_integrity_after"),
+            self.campaign.turn,
+            self.campaign.actions_left,
+        )
+        return self._apply_result(result)
+
     def apply_character_interaction(self):
         character = self._character()
         if character is None:
@@ -482,6 +655,8 @@ class AutomataNetworkScreen(BaseScreen):
     def apply_current(self):
         if self.mode == "characters":
             return self.apply_character_interaction()
+        if self.mode == "automata":
+            return self.apply_automaton_interaction()
         return self.apply_interaction()
 
     def end_turn(self):
@@ -496,6 +671,8 @@ class AutomataNetworkScreen(BaseScreen):
         self.campaign.begin_turn()
         self.last_result = None
         self.selected_interaction_id = None
+        self.selected_automaton_interaction_id = None
+        self.selected_automaton_target_id = None
         self.selected_character_interaction_id = None
         self.message = (
             "Ход завершён. Начат ход %d; действий: %d."
@@ -587,6 +764,9 @@ class AutomataNetworkScreen(BaseScreen):
         if self.mode == "characters":
             interaction_top = SIDE_RECT.y + 244
             options = self._character_interaction_options()[:4]
+        elif self.mode == "automata":
+            interaction_top = SIDE_RECT.y + 104
+            options = self._automaton_interaction_options()[:4]
         else:
             interaction_top = SIDE_RECT.y + 104
             options = self._interaction_options()[:4]
@@ -650,17 +830,33 @@ class AutomataNetworkScreen(BaseScreen):
         if self._end_turn_rect.collidepoint(pos):
             self.end_turn()
             return
+        if self._automata_tab_rect.collidepoint(pos):
+            self.mode = "automata"
+            self.selected_automaton_interaction_id = None
+            self.selected_automaton_target_id = None
+            self.message = ""
+            return
         if self._organs_tab_rect.collidepoint(pos):
             self.mode = "organs"
+            self.selected_automaton_interaction_id = None
+            self.selected_automaton_target_id = None
             self.message = ""
             return
         if self._characters_tab_rect.collidepoint(pos):
             self.mode = "characters"
+            self.selected_automaton_interaction_id = None
+            self.selected_automaton_target_id = None
             self.message = ""
             return
         for organ_id, rect in self._organ_rects.items():
             if rect.collidepoint(pos):
-                self.select_organ(organ_id)
+                if (
+                    self.mode == "automata"
+                    and self.selected_automaton_interaction_id is not None
+                ):
+                    self.select_automaton_target(organ_id)
+                else:
+                    self.select_organ(organ_id)
                 return
         for rect, character in self._character_rows():
             if rect.collidepoint(pos):
@@ -671,6 +867,8 @@ class AutomataNetworkScreen(BaseScreen):
                 if option.get("enabled"):
                     if self.mode == "characters":
                         self.select_character_interaction(option["id"])
+                    elif self.mode == "automata":
+                        self.select_automaton_interaction(option["id"])
                     else:
                         self.select_interaction(option["id"])
                 else:
@@ -702,6 +900,10 @@ class AutomataNetworkScreen(BaseScreen):
             ),
             (GRAPH_RECT.x + 14, GRAPH_RECT.y + 12),
         )
+        if self.mode == "automata" and self._selected_automaton_interaction():
+            hint = "ВЫБЕРИТЕ АВТОМАТ-ЦЕЛЬ В ГРАФЕ"
+            surf = self.app.font_tiny.render(hint, True, WARN)
+            screen.blit(surf, (GRAPH_RECT.right - surf.get_width() - 14, GRAPH_RECT.y + 14))
         faction = self._faction()
         if faction is None or self._faction_rect is None:
             return
@@ -723,6 +925,7 @@ class AutomataNetworkScreen(BaseScreen):
             )
 
         path = self._path_ids()
+        target_ids = self._automaton_target_ids()
         organs = {item.id: item for item in faction.organs}
         for organ in faction.organs:
             source = self._faction_rect
@@ -779,17 +982,28 @@ class AutomataNetworkScreen(BaseScreen):
                 continue
             selected = organ.id == self.selected_organ_id
             on_path = organ.id in path
+            is_target = organ.id == self.selected_automaton_target_id
+            is_candidate = organ.id in target_ids
             fill = (34, 48, 68) if selected else (
                 (27, 38, 54) if on_path else (22, 28, 40)
             )
             pygame.draw.rect(screen, fill, rect, border_radius=6)
+            if is_target:
+                border_color = GOOD
+                border_width = 3
+            elif is_candidate:
+                border_color = WARN
+                border_width = 2
+            else:
+                border_color = ACCENT if selected else (
+                    (84, 118, 158) if on_path else PANEL_BORDER
+                )
+                border_width = 2
             pygame.draw.rect(
                 screen,
-                ACCENT if selected else (
-                    (84, 118, 158) if on_path else PANEL_BORDER
-                ),
+                border_color,
                 rect,
-                2,
+                border_width,
                 border_radius=6,
             )
             for line_number, line in enumerate(
@@ -1002,7 +1216,8 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _draw_tabs(self, screen):
         for rect, mode, label in (
-            (self._organs_tab_rect, "organs", "ОРГАНЫ"),
+            (self._automata_tab_rect, "automata", "АВТОМАТЫ"),
+            (self._organs_tab_rect, "organs", "ВЛИЯНИЕ"),
             (self._characters_tab_rect, "characters", "ПЕРСОНАЛ"),
         ):
             selected = self.mode == mode
@@ -1093,7 +1308,7 @@ class AutomataNetworkScreen(BaseScreen):
         _panel(screen, SIDE_RECT)
         screen.blit(
             self.app.font_small.render(
-                "ВЛИЯНИЕ НА СВОЮ СЕТЬ", True, MUTED
+                "УПРАВЛЕНИЕ СВОЕЙ СЕТЬЮ", True, MUTED
             ),
             (SIDE_RECT.x + 14, SIDE_RECT.y + 12),
         )
@@ -1136,14 +1351,13 @@ class AutomataNetworkScreen(BaseScreen):
                 ),
             )
         for rect, option in rows:
-            selected = (
-                option["id"]
-                == (
-                    self.selected_character_interaction_id
-                    if self.mode == "characters"
-                    else self.selected_interaction_id
-                )
-            )
+            if self.mode == "characters":
+                selected_id = self.selected_character_interaction_id
+            elif self.mode == "automata":
+                selected_id = self.selected_automaton_interaction_id
+            else:
+                selected_id = self.selected_interaction_id
+            selected = option["id"] == selected_id
             enabled = bool(option.get("enabled"))
             pygame.draw.rect(
                 screen,
@@ -1171,6 +1385,8 @@ class AutomataNetworkScreen(BaseScreen):
                 detail += " · мораль %s" % _signed(
                     option.get("morale", 0.0), 0
                 )
+            if self.mode == "automata":
+                detail += " · целей: %d" % len(option.get("targets", ()))
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
             screen.blit(
@@ -1183,6 +1399,30 @@ class AutomataNetworkScreen(BaseScreen):
             if rows
             else SIDE_RECT.y + (244 if self.mode == "characters" else 104)
         )
+        if self.mode == "automata":
+            target = self._selected_automaton_target()
+            option = self._selected_automaton_interaction()
+            if target is not None:
+                target_text = "Цель: %s · %.0f%%" % (
+                    target["name"],
+                    float(target.get("integrity", 0.0)) * 100.0,
+                )
+                color = GOOD
+            elif option is not None:
+                target_text = (
+                    "Цель не выбрана: нажмите автомат в графе."
+                )
+                color = WARN
+            else:
+                target_text = (
+                    "Выберите команду, затем автомат-цель в графе."
+                )
+                color = DIM
+            screen.blit(
+                self.app.font_tiny.render(target_text, True, color),
+                (SIDE_RECT.x + 14, y),
+            )
+            y += 15
         if self.message:
             for line in wrap_text(
                 self.app.font_tiny, self.message, SIDE_RECT.width - 28
@@ -1194,7 +1434,14 @@ class AutomataNetworkScreen(BaseScreen):
                 y += 14
         if self.last_result:
             result = self.last_result
-            if "character_name" in result:
+            if "source_organ_id" in result:
+                text = "%s → %s: %.0f%%" % (
+                    result.get("source_organ_name", "автомат"),
+                    result.get("target_organ_name", "цель"),
+                    float(result.get("target_integrity_after", 0.0))
+                    * 100.0,
+                )
+            elif "character_name" in result:
                 text = "%s → мораль %.0f" % (
                     result.get("character_name", "персонаж"),
                     float(result.get("morale_after", 0.0)),
@@ -1209,11 +1456,12 @@ class AutomataNetworkScreen(BaseScreen):
                 (SIDE_RECT.x + 14, y),
             )
 
-        selected = (
-            self._selected_character_interaction()
-            if self.mode == "characters"
-            else self._selected_interaction()
-        )
+        if self.mode == "characters":
+            selected = self._selected_character_interaction()
+        elif self.mode == "automata":
+            selected = self._selected_automaton_interaction()
+        else:
+            selected = self._selected_interaction()
         if selected is not None:
             y = SIDE_RECT.bottom - 88
             for line in wrap_text(
@@ -1264,14 +1512,21 @@ class AutomataNetworkScreen(BaseScreen):
         pygame.draw.rect(
             screen, PANEL_BORDER, self._apply_rect, 2, border_radius=7
         )
-        enabled = (
-            self.selected_character_interaction_id is not None
-            if self.mode == "characters"
-            else self.selected_interaction_id is not None
-        )
+        if self.mode == "characters":
+            enabled = self.selected_character_interaction_id is not None
+        elif self.mode == "automata":
+            enabled = (
+                self.selected_automaton_interaction_id is not None
+                and self.selected_automaton_target_id is not None
+            )
+        else:
+            enabled = self.selected_interaction_id is not None
         if not self.campaign.finished and enabled:
             label = "Применить · 1 действие"
             color = TEXT
+        elif self.mode == "automata" and self.selected_automaton_interaction_id:
+            label = "Выберите цель в графе"
+            color = DIM
         else:
             label = "Выберите действие"
             color = DIM

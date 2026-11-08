@@ -1,8 +1,10 @@
 """Кодекс кампании: персонажи и автоматы пресета.
 
-Экран не управляет кампанией. Он показывает то, что уже собрано в
-``CampaignPreset``: людей, фракции и органы-автоматы. Это делает лор
-видимым, не раздувая основной экран работ.
+Экран показывает то, что уже собрано в ``CampaignPreset``: людей, фракции
+и органы-автоматы. Если кампания запущена, выбранную запись своей фракции
+можно сразу усилить: для персонажа доступны повышение, награда, поддержка
+и допрос, для органа — усиление, реформа, чистка и снабжение. Действия
+тратят общий бюджет хода и не требуют перехода в сеть.
 """
 
 from __future__ import annotations
@@ -23,12 +25,16 @@ PANEL_RECT = pygame.Rect(30, 30, 1220, 660)
 LIST_RECT = pygame.Rect(56, 170, 390, 450)
 DETAIL_RECT = pygame.Rect(466, 170, 758, 450)
 ROW_H = 26
+ACTION_AREA_H = 94
+ACTION_COL_GAP = 10
+ACTION_ROW_H = 25
 TEXT = (226, 231, 239)
 MUTED = (150, 162, 180)
 DIM = (108, 120, 138)
 ACCENT = (80, 150, 220)
 GOOD = (110, 200, 150)
 WARN = (230, 184, 96)
+PANEL_BORDER = (58, 70, 92)
 
 TABS = (("characters", "Персонажи"), ("automata", "Автоматы"))
 KIND_LABELS = {
@@ -44,9 +50,12 @@ class CampaignCodexScreen(BaseScreen):
         super().__init__(app)
         self.panel = Panel(PANEL_RECT)
         self.preset = getattr(app, "campaign_preset", None)
+        self.campaign = getattr(app, "automata_campaign", None)
         self.tab = "characters"
         self.scroll = {"characters": 0, "automata": 0}
         self.selected = {"characters": 0, "automata": 0}
+        self.action_message = ""
+        self.last_action_result = None
         self.characters = list(
             getattr(self.preset, "characters", ()) or ()
         )
@@ -96,6 +105,7 @@ class CampaignCodexScreen(BaseScreen):
         if tab not in ("characters", "automata"):
             return
         self.tab = tab
+        self.action_message = ""
         logger.debug("Кодекс: вкладка %s", tab)
 
     def _visible_rows(self):
@@ -104,6 +114,8 @@ class CampaignCodexScreen(BaseScreen):
     def select(self, index):
         if index < 0 or index >= len(self.rows):
             return
+        if index != self.selected[self.tab]:
+            self.action_message = ""
         self.selected[self.tab] = index
 
     def scroll_by(self, amount):
@@ -142,6 +154,171 @@ class CampaignCodexScreen(BaseScreen):
         return text
 
     # ------------------------------------------------------------------
+    # Действия из кодекса
+    # ------------------------------------------------------------------
+    def _player_side(self):
+        return getattr(self.campaign, "player_side", None)
+
+    def _selected_item(self):
+        index = self.selected[self.tab]
+        if index < 0 or index >= len(self.rows):
+            return None
+        return self.rows[index]
+
+    def _player_owned(self, item):
+        if item is None or self.campaign is None:
+            return False
+        side = str(item.get("side") or "")
+        return bool(side) and side == self._player_side()
+
+    def _live_character(self, item):
+        if not self._player_owned(item):
+            return None
+        character = self.campaign.character(
+            self._player_side(), item.get("id")
+        )
+        if character is None:
+            return None
+        faction = self.campaign.faction(self._player_side())
+        return faction.character_snapshot(character) if faction else None
+
+    def _organ_id(self, item):
+        if self.campaign is None or self.tab != "automata":
+            return None
+        if item is None or item.get("kind") != "organ":
+            return None
+        if not self._player_owned(item):
+            return None
+        organ_id = str(item.get("organ_id") or "")
+        if not organ_id:
+            return None
+        organ = self.campaign.organ(self._player_side(), organ_id)
+        return organ.id if organ is not None else None
+
+    def _live_organ(self, item):
+        organ_id = self._organ_id(item)
+        if organ_id is None:
+            return None
+        return self.campaign.organ(self._player_side(), organ_id)
+
+    def _action_options(self):
+        item = self._selected_item()
+        if item is None or self.campaign is None:
+            return []
+        if not self._player_owned(item):
+            return []
+        if self.tab == "characters":
+            return self.campaign.character_interaction_options(
+                self._player_side(), item.get("id")
+            )
+        organ_id = self._organ_id(item)
+        if organ_id is None:
+            return []
+        return self.campaign.organ_interaction_options(
+            self._player_side(), organ_id
+        )
+
+    def _action_layout(self):
+        options = self._action_options()[:4]
+        if not options:
+            return []
+        item = self._selected_item()
+        if self.tab == "characters":
+            kind, owner_id = "character", item.get("id")
+        else:
+            kind, owner_id = "organ", self._organ_id(item)
+        width = (
+            DETAIL_RECT.width - 36 - ACTION_COL_GAP
+        ) // 2
+        top = DETAIL_RECT.bottom - ACTION_AREA_H + 22
+        layout = []
+        for index, option in enumerate(options):
+            column = index % 2
+            row = index // 2
+            rect = pygame.Rect(
+                DETAIL_RECT.x + 18 + column * (width + ACTION_COL_GAP),
+                top + row * (ACTION_ROW_H + 2),
+                width,
+                ACTION_ROW_H,
+            )
+            layout.append((rect, kind, owner_id, option))
+        return layout
+
+    def _sync_storyline(self):
+        interp = getattr(self.app, "storyline_interpreter", None)
+        if interp is None or self.campaign is None:
+            return
+        interp.state["automata"] = self.campaign.snapshot()
+
+    def apply_action(self, kind, owner_id, interaction_id):
+        """Применить действие из кодекса, не покидая экран."""
+        if self.campaign is None:
+            self.action_message = "Кампания не запущена."
+            return None
+        option = next(
+            (
+                item
+                for item in self._action_options()
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            self.action_message = "Действие недоступно."
+            return None
+        if not option.get("enabled"):
+            self.action_message = (
+                option.get("reason") or "Действие недоступно."
+            )
+            return None
+        self.campaign.begin_turn()
+        if kind == "character":
+            result = self.campaign.perform_character_interaction(
+                self._player_side(), owner_id, interaction_id
+            )
+        else:
+            result = self.campaign.perform_organ_interaction(
+                self._player_side(), owner_id, interaction_id
+            )
+        result = dict(result)
+        self.last_action_result = result
+        if not result.get("ok"):
+            self.action_message = (
+                result.get("reason") or "Действие не выполнено."
+            )
+            return result
+        if kind == "character":
+            self.action_message = (
+                "%s: %s; мораль %.0f → %.0f; действий осталось %d"
+                % (
+                    result.get("character_name", "персонаж"),
+                    result.get("label", "действие"),
+                    float(result.get("morale_before", 0.0)),
+                    float(result.get("morale_after", 0.0)),
+                    self.campaign.actions_left,
+                )
+            )
+        else:
+            self.action_message = (
+                "%s: %s; целостность %.0f%% → %.0f%%; действий осталось %d"
+                % (
+                    result.get("organ_name", "орган"),
+                    result.get("label", "действие"),
+                    float(result.get("integrity_before", 0.0)) * 100.0,
+                    float(result.get("integrity_after", 0.0)) * 100.0,
+                    self.campaign.actions_left,
+                )
+            )
+        self._sync_storyline()
+        logger.info(
+            "Кодекс: %s → %s; действий %d",
+            result.get("character_name") or result.get("organ_name", "?"),
+            result.get("interaction_id", "?"),
+            self.campaign.actions_left,
+        )
+        return result
+
+    # ------------------------------------------------------------------
     # Ввод
     # ------------------------------------------------------------------
     def handle_event(self, event):
@@ -171,6 +348,10 @@ class CampaignCodexScreen(BaseScreen):
                 index = self.scroll[self.tab] + row
                 self.select(index)
                 return
+            for rect, kind, owner_id, option in self._action_layout():
+                if rect.collidepoint(pos):
+                    self.apply_action(kind, owner_id, option["id"])
+                    return
         for button in self.buttons:
             if button.handle_event(event):
                 return
@@ -287,6 +468,24 @@ class CampaignCodexScreen(BaseScreen):
             self.app.font_tiny.render(meta, True, ACCENT), (x, y)
         )
         y += 22
+        live = self._live_character(character) or {}
+        if live:
+            morale = float(live.get("morale", 0.0))
+            screen.blit(
+                self.app.font_tiny.render(
+                    "мораль %.0f · действий кампании %d"
+                    % (
+                        morale,
+                        self.campaign.actions_left
+                        if self.campaign is not None
+                        else 0,
+                    ),
+                    True,
+                    GOOD if morale >= 50.0 else WARN,
+                ),
+                (x, y),
+            )
+            y += 18
         biography = str(character.get("biography") or "")
         draw_fitted(
             screen,
@@ -301,7 +500,9 @@ class CampaignCodexScreen(BaseScreen):
             (x, y),
         )
         y += 22
-        personality = dict(character.get("personality") or {})
+        personality = dict(
+            live.get("personality") or character.get("personality") or {}
+        )
         top_traits = sorted(
             personality.items(), key=lambda item: float(item[1]), reverse=True
         )[:6]
@@ -320,7 +521,9 @@ class CampaignCodexScreen(BaseScreen):
             (x, y),
         )
         y += 22
-        urgency = dict(character.get("urgency") or {})
+        urgency = dict(
+            live.get("needs") or character.get("urgency") or {}
+        )
         top_needs = sorted(
             urgency.items(), key=lambda item: float(item[1]), reverse=True
         )[:5]
@@ -363,6 +566,22 @@ class CampaignCodexScreen(BaseScreen):
             screen.blit(
                 self.app.font_tiny.render(
                     "Владелец: %s" % owner, True, ACCENT
+                ),
+                (x, y),
+            )
+            y += 20
+        organ = self._live_organ(item)
+        if organ is not None:
+            screen.blit(
+                self.app.font_tiny.render(
+                    "Состояние: %s · целостность %.0f%% · действий %d"
+                    % (
+                        organ.status(),
+                        organ.integrity * 100.0,
+                        self.campaign.actions_left,
+                    ),
+                    True,
+                    GOOD if organ.integrity >= 0.65 else WARN,
                 ),
                 (x, y),
             )
@@ -458,6 +677,84 @@ class CampaignCodexScreen(BaseScreen):
             self._draw_automaton(screen, item)
         screen.set_clip(old_clip)
 
+    def _draw_actions(self, screen):
+        area = pygame.Rect(
+            DETAIL_RECT.x,
+            DETAIL_RECT.bottom - ACTION_AREA_H,
+            DETAIL_RECT.width,
+            ACTION_AREA_H,
+        )
+        pygame.draw.rect(screen, (16, 21, 31), area)
+        pygame.draw.line(
+            screen,
+            (58, 70, 92),
+            (area.x + 14, area.y),
+            (area.right - 14, area.y),
+            1,
+        )
+        item = self._selected_item()
+        if self.campaign is None:
+            heading = "ДЕЙСТВИЯ · кампания не запущена"
+        else:
+            heading = "ДЕЙСТВИЯ · %d/%d" % (
+                self.campaign.actions_left,
+                self.campaign.actions_per_turn,
+            )
+        screen.blit(
+            self.app.font_tiny.render(heading, True, MUTED),
+            (area.x + 18, area.y + 5),
+        )
+        layout = self._action_layout()
+        if not layout:
+            if self.campaign is None:
+                note = "Доступен только просмотр пресета."
+            elif item is not None and not self._player_owned(item):
+                note = "Это чужая фракция: действия недоступны."
+            else:
+                note = "Нет доступных действий для выбранной записи."
+            screen.blit(
+                self.app.font_tiny.render(note, True, DIM),
+                (area.x + 18, area.y + 28),
+            )
+        for rect, kind, owner_id, option in layout:
+            enabled = bool(option.get("enabled"))
+            pygame.draw.rect(
+                screen,
+                (46, 86, 138) if enabled else (26, 32, 44),
+                rect,
+                border_radius=5,
+            )
+            pygame.draw.rect(
+                screen,
+                ACCENT if enabled else PANEL_BORDER,
+                rect,
+                1,
+                border_radius=5,
+            )
+            label = str(option.get("label") or option.get("id"))
+            if not enabled:
+                label += " · %s" % (
+                    option.get("reason") or "недоступно"
+                )
+            old_clip = screen.get_clip()
+            screen.set_clip(rect.inflate(-8, 0))
+            surf = self.app.font_tiny.render(
+                label, True, TEXT if enabled else DIM
+            )
+            screen.blit(
+                surf,
+                (rect.x + 7, rect.centery - surf.get_height() // 2),
+            )
+            screen.set_clip(old_clip)
+        if self.action_message:
+            old_clip = screen.get_clip()
+            screen.set_clip(area.inflate(-28, 0))
+            surf = self.app.font_tiny.render(
+                self.action_message, True, WARN
+            )
+            screen.blit(surf, (area.x + 18, area.bottom - 18))
+            screen.set_clip(old_clip)
+
     def draw(self, screen):
         dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         dim.fill((0, 0, 0, 170))
@@ -479,6 +776,7 @@ class CampaignCodexScreen(BaseScreen):
         self._draw_tabs(screen)
         self._draw_list(screen)
         self._draw_detail(screen)
+        self._draw_actions(screen)
         counts = "персонажей: %d · автоматов: %d" % (
             len(self.characters),
             len(self.automata),

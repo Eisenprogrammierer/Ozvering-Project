@@ -29,14 +29,16 @@ class SavesMenuScreen(BaseScreen):
             label = entry["name"]
             if entry["timestamp"]:
                 label = f"{entry['name']}  ({entry['timestamp'][:16]})"
-            self.buttons.append(
-                Button(
-                    (380, y, 440, 40),
-                    label,
-                    app.font_small,
-                    lambda n=entry["name"]: self.load(n),
-                )
+            if not entry.get("compatible", True):
+                label += "  · несовместимо"
+            load_button = Button(
+                (380, y, 440, 40),
+                label,
+                app.font_small,
+                lambda n=entry["name"]: self.load(n),
             )
+            load_button.enabled = bool(entry.get("compatible", True))
+            self.buttons.append(load_button)
             self.buttons.append(
                 Button(
                     (830, y, 70, 40),

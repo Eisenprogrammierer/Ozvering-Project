@@ -223,12 +223,24 @@ def load_template(path=None):
             for item in (base.get("character_interactions") or ())
             if isinstance(item, Mapping) and item.get("id")
         ]
+        shared_automaton_interactions = [
+            dict(item)
+            for item in (base.get("automaton_interactions") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ]
         merged.update(dict(data.get("factions") or {}))
         if shared_interactions:
             for cfg in merged.values():
                 if isinstance(cfg, dict):
                     cfg.setdefault(
                         "character_interactions", shared_interactions
+                    )
+        if shared_automaton_interactions:
+            for cfg in merged.values():
+                if isinstance(cfg, dict):
+                    cfg.setdefault(
+                        "automaton_interactions",
+                        shared_automaton_interactions,
                     )
         data["factions"] = merged
         data.setdefault("factions_source", str(base_path))
@@ -771,6 +783,11 @@ def _build_faction_record(
         "organ_interactions": [
             dict(item)
             for item in (cfg.get("organ_interactions") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ],
+        "automaton_interactions": [
+            dict(item)
+            for item in (cfg.get("automaton_interactions") or ())
             if isinstance(item, Mapping) and item.get("id")
         ],
         "character_interactions": [

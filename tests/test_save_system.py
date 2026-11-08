@@ -59,3 +59,52 @@ def test_old_save_file_is_migrated_on_load(tmp_path, monkeypatch):
     assert loaded["version"] == save_system.SAVE_VERSION
     assert loaded["campaign"]["day"] == 9
     assert "node_strategy_state" in loaded["campaign"]
+
+
+def test_save_compatibility_rejects_legacy_rts_payload():
+    legacy = {
+        "scenario_path": "scenarios/mvp.json",
+        "campaign": {"turn": 30},
+        "campaign_preset": {"scenario": {"mode": None}},
+    }
+    assert save_system.save_is_compatible(legacy) is False
+
+
+def test_save_compatibility_accepts_automata_strategy_and_world():
+    assert save_system.save_is_compatible(
+        {"campaign": {"automata": {"turn": 1}}}
+    )
+    assert save_system.save_is_compatible(
+        {"storyline": {"state": {"strategy": {"day": 2}}}}
+    )
+    assert save_system.save_is_compatible(
+        {"storyline": {"state": {"world": {"day": 2}}}}
+    )
+    assert save_system.save_is_compatible(
+        {"campaign_preset": {"scenario": {"mode": "strategy"}}}
+    )
+
+
+def test_list_compatible_saves_filters_legacy_entries(tmp_path, monkeypatch):
+    monkeypatch.setattr(save_system, "SAVES_DIR", tmp_path)
+    legacy = {
+        "updated": "2026-11-08 12:00:00",
+        "campaign": {"turn": 1},
+    }
+    automata = {
+        "updated": "2026-11-08 11:00:00",
+        "campaign": {"automata": {"turn": 4}},
+    }
+    (tmp_path / "legacy.json").write_text(
+        json.dumps(legacy), encoding="utf-8"
+    )
+    (tmp_path / "automata.json").write_text(
+        json.dumps(automata), encoding="utf-8"
+    )
+
+    all_saves = {item["name"]: item for item in save_system.list_saves()}
+    assert all_saves["legacy"]["compatible"] is False
+    assert all_saves["automata"]["compatible"] is True
+    assert [
+        item["name"] for item in save_system.list_compatible_saves()
+    ] == ["automata"]

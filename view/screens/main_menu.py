@@ -3,7 +3,7 @@ import pygame
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
-from view.support.save_system import list_saves
+from view.support.save_system import list_compatible_saves
 from view.support.log_journal import get_logger
 
 logger = get_logger("view.main_menu")
@@ -16,7 +16,7 @@ class MainMenuScreen(BaseScreen):
     def __init__(self, app):
         super().__init__(app)
         self.bg = AssetLoader.load("menus/main_menu_bg", (1280, 720))
-        has_saves = bool(list_saves())
+        has_saves = bool(list_compatible_saves())
         self.btn_continue = Button(
             (500, 345, 280, 50), "Продолжить", app.font_body, app.continue_game
         )
