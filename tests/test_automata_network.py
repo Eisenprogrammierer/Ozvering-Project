@@ -139,7 +139,8 @@ def test_automata_screen_selects_description_and_opens_network():
 
     buttons = [
         screen._execute_rect(),
-        screen._end_turn_rect(),
+        screen._speed_up_rect(),
+        screen._slow_down_rect(),
         screen._network_rect(),
         screen._codex_rect(),
         screen._finish_rect(),
@@ -160,4 +161,48 @@ def test_automata_screen_selects_description_and_opens_network():
     )
     assert isinstance(app.manager.current, AutomataNetworkScreen)
     app.manager.current.draw(surface)
+    app.quit()
+
+
+def test_speed_buttons_cancel_acceleration_without_going_below_one():
+    from campaign.automata import AutomataCampaign
+    from view.app import App
+    from view.screens.automata_network import AutomataNetworkScreen
+
+    campaign = AutomataCampaign(_preset(), seed=11)
+    app = App()
+    app.storyline_interpreter = None
+    screen = AutomataNetworkScreen(app, campaign)
+    surface = pygame.Surface((1280, 720))
+
+    campaign.speed_up()
+    campaign.speed_up()
+    assert campaign.speed == 4
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._slow_down_rect.center,
+            button=1,
+        )
+    )
+    assert campaign.speed == 2
+    assert "Ускорение отменено" in screen.message
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._slow_down_rect.center,
+            button=1,
+        )
+    )
+    assert campaign.speed == 1
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._slow_down_rect.center,
+            button=1,
+        )
+    )
+    assert campaign.speed == 1
+    assert "Минимальная скорость" in screen.message
+    screen.draw(surface)
     app.quit()

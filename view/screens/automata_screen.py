@@ -263,6 +263,27 @@ class AutomataScreen(BaseScreen):
             self.campaign.time_label(),
         )
 
+    def _decrease_speed(self):
+        """Отменить одно ускорение, но не опускаться ниже ``1×``."""
+        if self.campaign.finished:
+            return
+        before = self.campaign.speed
+        self.campaign.slow_down()
+        if self.campaign.speed != before:
+            self.message = (
+                "Ускорение отменено: скорость %s."
+                % self.campaign.speed_label()
+            )
+        else:
+            self.message = (
+                "Минимальная скорость: %s." % self.campaign.speed_label()
+            )
+        logger.info(
+            "Скорость кампании: %s (время %s)",
+            self.campaign.speed_label(),
+            self.campaign.time_label(),
+        )
+
     def _end_turn(self):
         """Совместимый помощник для старых вызовов вне интерфейса."""
         if self.campaign.finished:
@@ -334,8 +355,11 @@ class AutomataScreen(BaseScreen):
         if self._execute_rect().collidepoint(pos):
             self._execute_selected()
             return
-        if self._end_turn_rect().collidepoint(pos):
+        if self._speed_up_rect().collidepoint(pos):
             self._increase_speed()
+            return
+        if self._slow_down_rect().collidepoint(pos):
+            self._decrease_speed()
             return
         if self._network_rect().collidepoint(pos):
             self._open_network()
@@ -365,31 +389,43 @@ class AutomataScreen(BaseScreen):
         return pygame.Rect(
             MID_RECT.x + 10,
             BOTTOM_RECT.y + 7,
-            240,
+            200,
+            40,
+        )
+
+    def _speed_up_rect(self):
+        return pygame.Rect(
+            MID_RECT.x + 220,
+            BOTTOM_RECT.y + 7,
+            130,
+            40,
+        )
+
+    def _slow_down_rect(self):
+        return pygame.Rect(
+            MID_RECT.x + 360,
+            BOTTOM_RECT.y + 7,
+            130,
             40,
         )
 
     def _end_turn_rect(self):
-        return pygame.Rect(
-            MID_RECT.x + 260,
-            BOTTOM_RECT.y + 7,
-            170,
-            40,
-        )
+        """Совместимый псевдоним кнопки ускорения для старых вызовов."""
+        return self._speed_up_rect()
 
     def _network_rect(self):
         return pygame.Rect(
-            BOTTOM_RECT.x + 804,
+            BOTTOM_RECT.x + 864,
             BOTTOM_RECT.y + 7,
-            90,
+            80,
             40,
         )
 
     def _codex_rect(self):
         return pygame.Rect(
-            BOTTOM_RECT.x + 904,
+            BOTTOM_RECT.x + 954,
             BOTTOM_RECT.y + 7,
-            90,
+            80,
             40,
         )
 
@@ -407,9 +443,9 @@ class AutomataScreen(BaseScreen):
 
     def _finish_rect(self):
         return pygame.Rect(
-            BOTTOM_RECT.right - 228,
+            BOTTOM_RECT.right - 188,
             BOTTOM_RECT.y + 7,
-            228,
+            180,
             40,
         )
 
@@ -727,15 +763,26 @@ class AutomataScreen(BaseScreen):
         )
         self._draw_button(
             screen,
-            self._end_turn_rect(),
+            self._speed_up_rect(),
             (
-                "Скорость максимальна"
+                "Максимум"
                 if not self.campaign.can_speed_up()
                 else "Ускорить · %s" % self.campaign.speed_label()
             ),
             enabled=not self.campaign.finished
             and self.campaign.can_speed_up(),
             accent=self.campaign.can_speed_up(),
+        )
+        self._draw_button(
+            screen,
+            self._slow_down_rect(),
+            (
+                "Медленнее · %s" % self.campaign.speed_label()
+                if self.campaign.can_slow_down()
+                else "Минимум · %s" % self.campaign.speed_label()
+            ),
+            enabled=not self.campaign.finished
+            and self.campaign.can_slow_down(),
         )
         self._draw_button(
             screen,
@@ -769,5 +816,5 @@ class AutomataScreen(BaseScreen):
                 )
             screen.blit(
                 self.app.font_tiny.render(hint, True, DIM),
-                (self._finish_rect().x, BOTTOM_RECT.y + 20),
+                (BOTTOM_RECT.x + 10, BOTTOM_RECT.y + 20),
             )

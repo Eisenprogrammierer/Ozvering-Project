@@ -3,11 +3,20 @@
   "run_turns_default": 72,
   "event_log_limit": 400,
   "snapshot_tail": 80,
+  "asset_labels": {
+    "legitimacy": "законность",
+    "influence": "влияние",
+    "cohesion": "сплочённость",
+    "supply": "снабжение",
+    "fear": "страх",
+    "morale": "мораль",
+    "energy": "энергия"
+  },
   "realtime": {
-    "turn_seconds": 24.0,
-    "action_interval_seconds": 8.0,
-    "ai_interval_seconds": 8.0,
-    "organization_interval_seconds": 24.0,
+    "turn_seconds": 120.0,
+    "action_interval_seconds": 40.0,
+    "ai_interval_seconds": 40.0,
+    "organization_interval_seconds": 120.0,
     "speeds": [1, 2, 4, 8, 16, 32]
   },
   "automata_model": {
@@ -15,7 +24,7 @@
     "success_slope": 1.6,
     "cooldown_turns": 0,
     "asset_relax": 0.03,
-    "effect_scale": 1.0,
+    "effect_scale": 0.15,
     "organization_cohesion": 0.06,
     "organization_legitimacy": 0.04,
     "organization_supply_drain": 0.006,

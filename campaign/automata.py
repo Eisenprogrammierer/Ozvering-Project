@@ -54,6 +54,7 @@ DEFAULT_RUN_TURNS = int(default_section("run_turns_default"))
 EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
 SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
 REALTIME_DEFAULTS = default_dict("realtime")
+ASSET_LABELS = default_dict("asset_labels")
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
     PRESET_DEFAULTS["organization_runtime"]
@@ -164,6 +165,7 @@ class FactionRuntime:
     baseline_assets: Dict[str, float] = field(default_factory=dict)
     income: Dict[str, float] = field(default_factory=dict)
     score_assets: Dict[str, float] = field(default_factory=dict)
+    action_uses: Dict[str, int] = field(default_factory=dict)
     actions: List[dict] = field(default_factory=list)
     organs: List[OrganRuntime] = field(default_factory=list)
     automaton_interactions: List[dict] = field(default_factory=list)
@@ -345,6 +347,9 @@ class FactionRuntime:
             },
             "actions": [str(item.get("id")) for item in self.actions],
             "cooldowns": {key: int(value) for key, value in self.cooldowns.items()},
+            "action_uses": {
+                key: int(value) for key, value in self.action_uses.items()
+            },
             "dissolved": bool(self.dissolved),
             "organs": organ_snapshots,
             "characters": self.character_options(),
@@ -721,11 +726,16 @@ class AutomataCampaign:
     def can_speed_up(self):
         return int(self.speed) < self.speed_cap()
 
+    def can_slow_down(self):
+        """Можно ли отменить ускорение и вернуться к более медленному темпу."""
+        return int(self.speed) > int(self.speed_levels[0])
+
     def speed_up(self):
         """Ускорить время до следующего разрешённого значения.
 
-        Замедление, пауза и откат не предусмотрены: метод только повышает
-        множитель и никогда не уменьшает его.
+        Замедление ниже физической секунды, пауза и откат не
+        предусмотрены: минимальная скорость — ``speed_levels[0]`` (обычно
+        ``1×``). Ускорение можно отменить методом ``slow_down()``.
         """
         if self.finished:
             return self.speed
@@ -735,13 +745,33 @@ class AutomataCampaign:
                 break
         return self.speed
 
+    def slow_down(self):
+        """Отменить одно ускорение, но не ниже минимальной скорости."""
+        if self.finished:
+            return self.speed
+        for value in reversed(self.speed_levels):
+            if value < int(self.speed):
+                self.speed = int(value)
+                break
+        return self.speed
+
+    def reset_speed(self):
+        """Вернуть физический темп ``1×`` (если он есть в конфиге)."""
+        self.speed = int(self.speed_levels[0])
+        return self.speed
+
     def set_speed(self, value):
-        """Задать скорость не ниже текущей; иначе вернуть ``False``."""
+        """Задать любую разрешённую скорость не ниже минимальной.
+
+        ``False`` возвращается для неизвестного значения или попытки
+        опуститься ниже физического темпа; пауза и откат не допускаются.
+        """
         try:
             requested = int(value)
         except (TypeError, ValueError):
             return False
-        if requested < int(self.speed):
+        minimum = int(self.speed_levels[0])
+        if requested < minimum:
             return False
         allowed = [level for level in self.speed_levels if level >= requested]
         if not allowed:
@@ -856,6 +886,115 @@ class AutomataCampaign:
         current = self.turn if turn is None else int(turn)
         return max(0, cooldown + 1 - (current - int(last)))
 
+    def _action_use_limit(self, action):
+        """Сколько раз работу вообще можно выполнить (0 — без лимита)."""
+        if action.get("once") is True or action.get("repeatable") is False:
+            return 1
+        try:
+            value = int(_number(action.get("max_uses"), 0))
+        except (TypeError, ValueError):
+            value = 0
+        return max(0, value)
+
+    def _action_use_reason(self, faction, action):
+        limit = self._action_use_limit(action)
+        used = int(faction.action_uses.get(str(action.get("id")), 0))
+        if limit <= 0 or used < limit:
+            return ""
+        if limit == 1:
+            return "уже выполнено"
+        return "исчерпано (%d из %d)" % (used, limit)
+
+    @staticmethod
+    def _asset_requirement_reason(prefix, assets, conditions):
+        """Проверить условия на активы и вернуть первую причину отказа."""
+        for key, spec in _as_mapping(conditions).items():
+            current = _number(assets.get(str(key)), 0.0)
+            label = str(ASSET_LABELS.get(str(key), key))
+            minimum = None
+            maximum = None
+            strict_min = False
+            strict_max = False
+            if isinstance(spec, Mapping):
+                minimum = spec.get("min", spec.get("gte", spec.get("at_least")))
+                maximum = spec.get("max", spec.get("lte", spec.get("at_most")))
+                if "gt" in spec:
+                    minimum = spec.get("gt")
+                    strict_min = True
+                if "lt" in spec:
+                    maximum = spec.get("lt")
+                    strict_max = True
+            elif spec is not None:
+                minimum = spec
+            if minimum is not None:
+                threshold = _number(minimum, 0.0)
+                if current < threshold or (strict_min and current <= threshold):
+                    sign = ">" if strict_min else "≥"
+                    return "%s: %s %s %.2f" % (
+                        prefix,
+                        label,
+                        sign,
+                        threshold,
+                    )
+            if maximum is not None:
+                threshold = _number(maximum, 0.0)
+                if current > threshold or (strict_max and current >= threshold):
+                    sign = "<" if strict_max else "≤"
+                    return "%s: %s %s %.2f" % (
+                        prefix,
+                        label,
+                        sign,
+                        threshold,
+                    )
+        return ""
+
+    def _action_requirement_reason(self, faction, action, target=None):
+        """Проверить предпосылки работы: состояния, историю и цели.
+
+        Данные работы могут задавать блок ``requires``:
+
+        * ``self``/``target`` — минимальные/максимальные значения активов;
+        * ``used_actions``/``not_used_actions`` — зависимость от истории;
+        * ``min_turn`` — самый ранний цикл, когда работа допустима.
+        """
+        requires = _as_mapping(action.get("requires"))
+        if not requires:
+            return ""
+        minimum_turn = requires.get("min_turn")
+        if minimum_turn is not None and self.turn < int(
+            _number(minimum_turn, 0)
+        ):
+            return "доступно с цикла %d" % int(_number(minimum_turn, 0))
+        used = {
+            str(key)
+            for key, value in faction.action_uses.items()
+            if int(value) > 0
+        }
+        required_used = requires.get("used_actions") or ()
+        if isinstance(required_used, str):
+            required_used = (required_used,)
+        for action_id in required_used:
+            if str(action_id) not in used:
+                return "сначала нужно: %s" % str(action_id)
+        forbidden_used = requires.get("not_used_actions") or ()
+        if isinstance(forbidden_used, str):
+            forbidden_used = (forbidden_used,)
+        for action_id in forbidden_used:
+            if str(action_id) in used:
+                return "несовместимо с: %s" % str(action_id)
+        reason = self._asset_requirement_reason(
+            "нужно", faction.assets, requires.get("self")
+        )
+        if reason:
+            return reason
+        if target is not None:
+            reason = self._asset_requirement_reason(
+                "цель", target.assets, requires.get("target")
+            )
+            if reason:
+                return reason
+        return ""
+
     def action_options(self, side, turn=None):
         faction = self.faction(side)
         if faction is None or faction.dissolved:
@@ -868,17 +1007,32 @@ class AutomataCampaign:
                 for key, value in cost.items()
             )
             left = self._cooldown_left(faction, action, turn=turn)
+            target = self.faction(self._target_side(side, action))
+            used_reason = self._action_use_reason(faction, action)
+            requirement_reason = self._action_requirement_reason(
+                faction, action, target
+            )
+            if used_reason:
+                reason = used_reason
+            elif requirement_reason:
+                reason = requirement_reason
+            elif not affordable:
+                reason = "не хватает состояния"
+            elif left > 0:
+                reason = "перезарядка ещё %d" % left
+            else:
+                reason = ""
             options.append(
                 {
                     "action": action,
                     "id": str(action.get("id")),
                     "label": str(action.get("label") or action.get("id")),
-                    "enabled": bool(affordable and left <= 0),
-                    "reason": (
-                        "не хватает состояния"
-                        if not affordable
-                        else ("перезарядка ещё %d" % left if left > 0 else "")
+                    "enabled": bool(not reason),
+                    "reason": reason,
+                    "uses": int(
+                        faction.action_uses.get(str(action.get("id")), 0)
                     ),
+                    "max_uses": self._action_use_limit(action),
                 }
             )
         return options
@@ -1650,13 +1804,24 @@ class AutomataCampaign:
         organ_id = str(action.get("organ_id") or "")
         organ = actor.organ(organ_id) if organ_id else None
         readiness = readiness_scale(organ, self.model)
+        used_before = int(actor.action_uses.get(str(action_id), 0))
+        decay = _number(
+            action.get(
+                "repeat_effect_decay",
+                self.model.get("repeat_effect_decay", 1.0),
+            ),
+            1.0,
+        )
+        decay = max(0.0, min(1.0, decay))
+        repeat_scale = decay ** used_before if used_before > 0 else 1.0
         # Самоподобие: ослабленный орган проводит работу слабее, а его
-        # успех или провал меняет целостность самого органа.
+        # успех или провал меняет целостность самого органа. Повторные
+        # работы с ``repeat_effect_decay`` дают всё меньший эффект.
         self._apply_branch(
             actor,
             target_faction,
             branch,
-            scale=self.model["effect_scale"] * readiness,
+            scale=self.model["effect_scale"] * readiness * repeat_scale,
         )
         if organ is not None:
             if success:
@@ -1680,6 +1845,7 @@ class AutomataCampaign:
         )
         if cooldown > 0:
             actor.cooldowns[str(action_id)] = self.turn
+        actor.action_uses[str(action_id)] = used_before + 1
         self._spend_player_action(side)
         result = {
             "ok": True,
@@ -1693,6 +1859,8 @@ class AutomataCampaign:
             "target_name": target_faction.name,
             "action_id": str(action_id),
             "label": str(action.get("label") or action_id),
+            "uses": used_before + 1,
+            "repeat_scale": round(repeat_scale, 6),
             "organ_id": str(action.get("organ_id") or ""),
             "organ": str(action.get("organ") or ""),
             "organ_integrity": round(
@@ -2206,6 +2374,12 @@ class AutomataCampaign:
             faction.cooldowns = {
                 str(key): int(_number(value))
                 for key, value in _as_mapping(state.get("cooldowns")).items()
+            }
+            faction.action_uses = {
+                str(key): max(0, int(_number(value)))
+                for key, value in _as_mapping(
+                    state.get("action_uses")
+                ).items()
             }
             faction.dissolved = bool(state.get("dissolved", False))
             faction.low_streaks = {

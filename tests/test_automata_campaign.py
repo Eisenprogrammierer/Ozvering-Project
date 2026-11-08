@@ -250,21 +250,87 @@ def test_lore_actions_have_cooldowns_and_engine_enforces_them():
     options = {
         item["id"]: item for item in campaign.action_options("red")
     }
+    # Эдикт — стратегическое одноразовое действие: после первого издания
+    # он недоступен даже когда перезарядка формально истекла.
     assert options["imperial_edict"]["enabled"] is False
-    assert "перезарядка" in options["imperial_edict"]["reason"]
+    assert options["imperial_edict"]["reason"] == "уже выполнено"
+    assert options["imperial_edict"]["uses"] == 1
+    assert options["imperial_edict"]["max_uses"] == 1
     assert "imperial_edict" not in campaign.available_actions("red")
     campaign.end_turn()
     campaign.begin_turn()
     assert "imperial_edict" not in campaign.available_actions("red")
     campaign.end_turn()
     campaign.begin_turn()
-    assert "imperial_edict" in campaign.available_actions("red")
-    assert campaign.perform("red", "imperial_edict")["ok"]
+    assert "imperial_edict" not in campaign.available_actions("red")
+    blocked = campaign.perform("red", "imperial_edict")
+    assert blocked["ok"] is False
+    assert blocked["reason"] == "уже выполнено"
     assert any(
-        item["action_id"] == "imperial_edict" and item["turn"] == campaign.turn
+        item["action_id"] == "imperial_edict" and item["turn"] == 1
         for item in campaign.log
         if item["actor_side"] == "red"
     )
+
+
+def test_action_use_limits_mark_repeatable_work_as_exhausted():
+    campaign = AutomataCampaign(_preset("empire_campaign", seed=3), seed=3)
+    faction = campaign.faction("red")
+    faction.action_uses["enemy_of_state"] = 2
+    options = {
+        item["id"]: item for item in campaign.action_options("red")
+    }
+    assert options["enemy_of_state"]["enabled"] is False
+    assert options["enemy_of_state"]["reason"] == "исчерпано (2 из 2)"
+    assert options["enemy_of_state"]["max_uses"] == 2
+    assert "enemy_of_state" not in campaign.available_actions("red")
+
+
+def test_repeated_action_effects_decay():
+    campaign = AutomataCampaign(_preset("empire_campaign", seed=3), seed=3)
+    first = campaign.perform("red", "show_of_force")
+    assert first["ok"] is True
+    assert first["repeat_scale"] == pytest.approx(1.0)
+    # Перезарядка не мешает проверить именно затухание эффекта.
+    campaign.faction("red").cooldowns.clear()
+    second = campaign.perform("red", "show_of_force")
+    assert second["ok"] is True
+    assert second["repeat_scale"] == pytest.approx(0.7)
+    assert second["uses"] == 2
+
+
+def test_action_requirements_block_unavailable_work():
+    campaign = AutomataCampaign(_preset("empire_campaign", seed=3), seed=3)
+    options = {
+        item["id"]: item for item in campaign.action_options("red")
+    }
+    assert options["terror_bombing"]["enabled"] is False
+    assert "сначала нужно: enemy_of_state" in (
+        options["terror_bombing"]["reason"]
+    )
+    assert options["panzer_breakthrough"]["enabled"] is False
+    assert "доступно с цикла 2" in options["panzer_breakthrough"]["reason"]
+    campaign.begin_turn()
+    assert campaign.perform("red", "enemy_of_state")["ok"]
+    options = {
+        item["id"]: item for item in campaign.action_options("red")
+    }
+    assert options["terror_bombing"]["enabled"] is True
+    assert options["terror_bombing"]["reason"] == ""
+
+
+def test_action_requirements_check_target_assets():
+    campaign = AutomataCampaign(_preset("empire_campaign", seed=3), seed=3)
+    # У «Торговой планеты» соперник — Империя. Эмбарго требует, чтобы у
+    # цели было что перекрывать: обесточенный соперник не делает блокаду
+    # осмысленной.
+    rival = campaign.faction("red")
+    rival.assets["supply"] = 0.1
+    options = {
+        item["id"]: item for item in campaign.action_options("amber")
+    }
+    assert options["embargo"]["enabled"] is False
+    assert "цель: снабжение ≥ 0.20" in options["embargo"]["reason"]
 
 
 def test_cooldowns_prevent_automata_from_repeating_a_work_next_turn():
@@ -278,12 +344,14 @@ def test_cooldowns_prevent_automata_from_repeating_a_work_next_turn():
             if item.get("turn") != campaign.turn:
                 continue
             side = item["actor_side"]
-            if last.get(side) == item["action_id"]:
+            key = (side, item["action_id"])
+            previous = last.get(key)
+            if previous is not None and campaign.turn - previous == 1:
                 raise AssertionError(
                     "работа %s повторилась два хода подряд у %s"
                     % (item["action_id"], side)
                 )
-            last[side] = item["action_id"]
+            last[key] = campaign.turn
 
 
 def test_score_bias_shifts_progress_outcome_boundary():
@@ -602,35 +670,51 @@ def test_realtime_advances_clock_and_regenerates_actions():
     assert campaign.elapsed == 0.0
     campaign.advance_time(-5)
     assert campaign.elapsed == 0.0
-    campaign.advance_time(8.0)
-    assert campaign.elapsed == pytest.approx(8.0)
+    campaign.advance_time(campaign.action_interval_seconds)
+    assert campaign.elapsed == pytest.approx(
+        campaign.action_interval_seconds
+    )
     assert campaign.actions_left == 1
-    campaign.advance_time(16.0)
-    assert campaign.elapsed == pytest.approx(24.0)
+    campaign.advance_time(
+        campaign.turn_seconds - campaign.action_interval_seconds
+    )
+    assert campaign.elapsed == pytest.approx(campaign.turn_seconds)
     assert campaign.actions_left == campaign.actions_per_turn
     assert campaign.turn >= 1
 
 
-def test_speed_only_increases_and_multiplies_time():
+def test_speed_can_be_increased_and_cancelled_but_not_slowed_below_one():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
     )
     assert campaign.speed_cap() == 32
     assert campaign.can_speed_up() is True
+    assert campaign.can_slow_down() is False
     assert campaign.set_speed(0) is False
     assert campaign.set_speed(1) is True
     assert campaign.speed == 1
     campaign.speed_up()
     assert campaign.speed == 2
-    assert campaign.set_speed(1) is False
-    assert campaign.speed == 2
     campaign.speed_up()
+    assert campaign.speed == 4
     campaign.advance_time(4.0)
     assert campaign.elapsed == pytest.approx(16.0)
+    # Отмена ускорения возвращает к предыдущему множителю, но не ниже 1×.
+    assert campaign.can_slow_down() is True
+    assert campaign.slow_down() == 2
+    assert campaign.slow_down() == 1
+    assert campaign.slow_down() == 1
+    assert campaign.can_slow_down() is False
+    assert campaign.reset_speed() == 1
+    assert campaign.set_speed(0) is False
+    assert campaign.speed == 1
     while campaign.can_speed_up():
         campaign.speed_up()
     assert campaign.speed == 32
     assert campaign.speed_up() == 32
+    assert campaign.slow_down() == 16
+    assert campaign.set_speed(8) is True
+    assert campaign.speed == 8
 
 
 def test_realtime_state_survives_snapshot_roundtrip():

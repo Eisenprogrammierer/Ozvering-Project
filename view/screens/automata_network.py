@@ -13,8 +13,9 @@
 * ``ВЛИЯНИЕ`` — игрок усиливает, реформирует, чистит или снабжает орган;
 * ``ПЕРСОНАЛ`` — влияние на людей своей фракции.
 
-Работы, влияния и команды автоматов тратят ограниченный бюджет действий,
-а ход завершается отдельной кнопкой.
+Работы, влияния и команды автоматов тратят ограниченный бюджет действий.
+Кампания идёт в реальном времени; ускорение можно включить и отменить,
+но нельзя опуститься ниже ``1×`` или поставить паузу.
 """
 
 from __future__ import annotations
@@ -175,6 +176,9 @@ class AutomataNetworkScreen(BaseScreen):
         )
         self._end_turn_rect = pygame.Rect(
             self._back_rect.x - 170, BOTTOM_RECT.y + 4, 160, 36
+        )
+        self._slow_down_rect = pygame.Rect(
+            self._end_turn_rect.x - 150, BOTTOM_RECT.y + 4, 140, 36
         )
         self._automata_tab_rect = pygame.Rect(
             SIDE_RECT.x + 14, SIDE_RECT.y + 48, 118, 28
@@ -357,6 +361,22 @@ class AutomataNetworkScreen(BaseScreen):
             self.message = (
                 "Достигнута максимальная скорость: %s."
                 % self.campaign.speed_label()
+            )
+
+    def _decrease_speed(self):
+        """Отменить одно ускорение, но не опускаться ниже ``1×``."""
+        if self.campaign.finished:
+            return
+        before = self.campaign.speed
+        self.campaign.slow_down()
+        if self.campaign.speed != before:
+            self.message = (
+                "Ускорение отменено: скорость %s."
+                % self.campaign.speed_label()
+            )
+        else:
+            self.message = (
+                "Минимальная скорость: %s." % self.campaign.speed_label()
             )
 
     def select_faction(self, side):
@@ -856,6 +876,9 @@ class AutomataNetworkScreen(BaseScreen):
             return
         if self._end_turn_rect.collidepoint(pos):
             self._increase_speed()
+            return
+        if self._slow_down_rect.collidepoint(pos):
+            self._decrease_speed()
             return
         if self._automata_tab_rect.collidepoint(pos):
             self.mode = "automata"
@@ -1530,10 +1553,35 @@ class AutomataNetworkScreen(BaseScreen):
         speed_text = (
             "Ускорить · %s" % self.campaign.speed_label()
             if self.campaign.can_speed_up()
-            else "Скорость максимальна"
+            else "Максимум"
         )
         text = self.app.font_small.render(speed_text, True, TEXT)
         screen.blit(text, text.get_rect(center=self._end_turn_rect.center))
+        can_slow = self.campaign.can_slow_down()
+        pygame.draw.rect(
+            screen,
+            (46, 86, 138) if can_slow else (40, 44, 56),
+            self._slow_down_rect,
+            border_radius=7,
+        )
+        pygame.draw.rect(
+            screen,
+            PANEL_BORDER,
+            self._slow_down_rect,
+            2,
+            border_radius=7,
+        )
+        slow_text = (
+            "Медленнее · %s" % self.campaign.speed_label()
+            if can_slow
+            else "Минимум · %s" % self.campaign.speed_label()
+        )
+        text = self.app.font_small.render(
+            slow_text, True, TEXT if can_slow else DIM
+        )
+        screen.blit(
+            text, text.get_rect(center=self._slow_down_rect.center)
+        )
         pygame.draw.rect(
             screen, (46, 86, 138), self._back_rect, border_radius=7
         )

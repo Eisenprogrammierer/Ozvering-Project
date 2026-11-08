@@ -156,7 +156,15 @@
             "text": "Эдикт звучит как признание слабости: законность приходится доказывать."
           },
           "cooldown": 1,
-          "organ_id": "justice"
+          "organ_id": "justice",
+          "once": true,
+          "requires": {
+            "self": {
+              "legitimacy": {
+                "min": 0.3
+              }
+            }
+          }
         },
         {
           "id": "show_of_force",
@@ -199,7 +207,8 @@
             "text": "Демонстрация выглядит дорогой и пустой; свои устают, чужие смелеют."
           },
           "cooldown": 1,
-          "organ_id": "guard"
+          "organ_id": "guard",
+          "repeat_effect_decay": 0.7
         },
         {
           "id": "garrison_network",
@@ -227,7 +236,8 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "wehrmacht"
+          "organ_id": "wehrmacht",
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "enemy_of_state",
@@ -267,7 +277,8 @@
             },
             "text": "Обвинение не убеждает: общество видит в нём борьбу аппаратов."
           },
-          "organ_id": "justice"
+          "organ_id": "justice",
+          "max_uses": 2
         },
         {
           "id": "imperial_church",
@@ -301,7 +312,8 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "cathedral"
+          "organ_id": "cathedral",
+          "max_uses": 2
         },
         {
           "id": "panzer_breakthrough",
@@ -336,6 +348,15 @@
               "cohesion": -0.02
             },
             "text": "Танки вязнут в обороне; топливо сожжено, а фронт не сдвинулся."
+          },
+          "repeat_effect_decay": 0.7,
+          "requires": {
+            "min_turn": 2,
+            "self": {
+              "supply": {
+                "min": 0.25
+              }
+            }
           }
         },
         {
@@ -376,6 +397,13 @@
               "legitimacy": -0.03
             },
             "text": "Бомбардировка выглядит жестокостью без результата; даже свои требуют объяснений."
+          },
+          "max_uses": 3,
+          "repeat_effect_decay": 0.65,
+          "requires": {
+            "used_actions": [
+              "enemy_of_state"
+            ]
           }
         },
         {
@@ -410,7 +438,8 @@
               "cohesion": -0.02
             },
             "text": "Сеть раскрыта; противник получил доказательство имперского вмешательства."
-          }
+          },
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "cyber_osint",
@@ -449,7 +478,8 @@
               "influence": -0.02
             },
             "text": "Сеть оказалась приманкой; утечка ударила по имперской разведке."
-          }
+          },
+          "repeat_effect_decay": 0.8
         },
         {
           "id": "staff_plan",
@@ -485,7 +515,8 @@
               "cohesion": -0.02
             },
             "text": "Ставка увязает в согласованиях; каждый род войск тянет план на себя."
-          }
+          },
+          "repeat_effect_decay": 0.8
         },
         {
           "id": "field_medicine",
@@ -521,7 +552,8 @@
               "morale": -0.01
             },
             "text": "Госпитали перегружены; помощь приходит позже, чем сводки обещали."
-          }
+          },
+          "repeat_effect_decay": 0.8
         }
       ],
       "income": {
@@ -840,7 +872,8 @@
             "text": "Кампания выглядит как пропаганда; доверие к процедуре падает."
           },
           "cooldown": 1,
-          "organ_id": "propaganda"
+          "organ_id": "propaganda",
+          "repeat_effect_decay": 0.7
         },
         {
           "id": "parliament_debate",
@@ -873,7 +906,8 @@
             }
           },
           "cooldown": 1,
-          "organ_id": "parliament"
+          "organ_id": "parliament",
+          "repeat_effect_decay": 0.8
         },
         {
           "id": "precision_strike",
@@ -907,7 +941,8 @@
             "text": "Операция провалилась; противник получил повод говорить о терроре."
           },
           "cooldown": 1,
-          "organ_id": "precision"
+          "organ_id": "precision",
+          "repeat_effect_decay": 0.7
         },
         {
           "id": "human_rights_court",
@@ -940,7 +975,15 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "rights"
+          "organ_id": "rights",
+          "once": true,
+          "requires": {
+            "self": {
+              "legitimacy": {
+                "min": 0.4
+              }
+            }
+          }
         },
         {
           "id": "channel_deal",
@@ -971,7 +1014,8 @@
             }
           },
           "cooldown": 1,
-          "organ_id": "diplomacy"
+          "organ_id": "diplomacy",
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "cyber_leak",
@@ -1010,7 +1054,8 @@
               "legitimacy": -0.02
             },
             "text": "Утечка оказалась подделкой; доверие к республиканским источникам упало."
-          }
+          },
+          "max_uses": 2
         },
         {
           "id": "underground_radio",
@@ -1049,6 +1094,14 @@
               "influence": -0.02
             },
             "text": "Передатчик найден; имперская служба связи получила удобный трофей."
+          },
+          "once": true,
+          "requires": {
+            "self": {
+              "influence": {
+                "min": 0.3
+              }
+            }
           }
         },
         {
@@ -1088,7 +1141,8 @@
               "legitimacy": -0.01
             },
             "text": "Сеть раскрыта; Республика теряет людей и оправдывается за методы."
-          }
+          },
+          "max_uses": 2
         },
         {
           "id": "general_mobilization",
@@ -1126,6 +1180,14 @@
               "legitimacy": -0.02
             },
             "text": "Призыв проходит со скандалом; процедура показала свою медлительность."
+          },
+          "once": true,
+          "requires": {
+            "self": {
+              "supply": {
+                "min": 0.3
+              }
+            }
           }
         },
         {
@@ -1163,7 +1225,8 @@
               "supply": -0.02
             },
             "text": "Раненые ждут эвакуации слишком долго; обещание процедуры столкнулось с логистикой."
-          }
+          },
+          "repeat_effect_decay": 0.8
         }
       ],
       "income": {
@@ -1462,7 +1525,8 @@
             "text": "Слова падают в пустоту: община ждала чуда, а получила текст."
           },
           "cooldown": 1,
-          "organ_id": "preaching"
+          "organ_id": "preaching",
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "community_network",
@@ -1496,7 +1560,8 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "communities"
+          "organ_id": "communities",
+          "max_uses": 2
         },
         {
           "id": "martyr_narrative",
@@ -1535,7 +1600,8 @@
             },
             "text": "История не убеждает: её слишком легко проверить."
           },
-          "organ_id": "printing"
+          "organ_id": "printing",
+          "repeat_effect_decay": 0.7
         },
         {
           "id": "infiltration",
@@ -1568,7 +1634,8 @@
             "text": "Внедрение раскрыто; чужой аппарат получил удобную мишень."
           },
           "cooldown": 1,
-          "organ_id": "agents"
+          "organ_id": "agents",
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "earth_ritual",
@@ -1603,7 +1670,8 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "rites"
+          "organ_id": "rites",
+          "repeat_effect_decay": 0.8
         },
         {
           "id": "scriptorium_schools",
@@ -1640,7 +1708,8 @@
               "legitimacy": -0.01
             },
             "text": "Школы закрывают как незаконные; культ снова подтверждает, что его место — в тени."
-          }
+          },
+          "once": true
         },
         {
           "id": "parallel_court",
@@ -1679,6 +1748,12 @@
               "cohesion": -0.01
             },
             "text": "Суд общины выглядит самозванством; даже сочувствующие отходят в сторону."
+          },
+          "once": true,
+          "requires": {
+            "used_actions": [
+              "scriptorium_schools"
+            ]
           }
         },
         {
@@ -1715,7 +1790,8 @@
               "supply": -0.03
             },
             "text": "Лекарства кончились; община снова убедилась, что обещания требуют ресурсов."
-          }
+          },
+          "max_uses": 2
         },
         {
           "id": "knights_patrol",
@@ -1755,6 +1831,12 @@
               "cohesion": -0.02
             },
             "text": "Патруль превращается в резню; государства получают идеальный повод для запрета культа."
+          },
+          "repeat_effect_decay": 0.7,
+          "requires": {
+            "used_actions": [
+              "sermon"
+            ]
           }
         }
       ],
@@ -2035,7 +2117,8 @@
             }
           },
           "cooldown": 1,
-          "organ_id": "trade"
+          "organ_id": "trade",
+          "max_uses": 2
         },
         {
           "id": "credit_offer",
@@ -2067,7 +2150,8 @@
             "text": "Кредит сочли взяткой; репутация канала пострадала."
           },
           "cooldown": 1,
-          "organ_id": "finance"
+          "organ_id": "finance",
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "embargo",
@@ -2106,7 +2190,15 @@
             },
             "text": "Эмбарго обошли через третьи руки; канал потерял лицо."
           },
-          "organ_id": "trade"
+          "organ_id": "trade",
+          "repeat_effect_decay": 0.7,
+          "requires": {
+            "target": {
+              "supply": {
+                "min": 0.2
+              }
+            }
+          }
         },
         {
           "id": "information_broker",
@@ -2137,7 +2229,15 @@
             }
           },
           "cooldown": 1,
-          "organ_id": "intelligence"
+          "organ_id": "intelligence",
+          "repeat_effect_decay": 0.8,
+          "requires": {
+            "self": {
+              "influence": {
+                "min": 0.3
+              }
+            }
+          }
         },
         {
           "id": "neutral_hub",
@@ -2165,7 +2265,8 @@
             }
           },
           "cooldown": 2,
-          "organ_id": "diplomacy"
+          "organ_id": "diplomacy",
+          "once": true
         },
         {
           "id": "port_control",
@@ -2205,6 +2306,10 @@
               "influence": -0.02
             },
             "text": "Сторона нашла обходной маршрут; планета потеряла часть канала и немного лица."
+          },
+          "repeat_effect_decay": 0.7,
+          "requires": {
+            "min_turn": 2
           }
         },
         {
@@ -2245,7 +2350,8 @@
               "influence": -0.02
             },
             "text": "Демпинг съел собственные запасы; планета заплатила за чужой страх."
-          }
+          },
+          "max_uses": 2
         },
         {
           "id": "bribe_official",
@@ -2280,7 +2386,8 @@
               "influence": -0.02
             },
             "text": "Чиновник оказался честнее ожиданий; скандал ударил по репутации канала."
-          }
+          },
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "media_narrative",
@@ -2318,7 +2425,8 @@
               "legitimacy": -0.02
             },
             "text": "Кампания выглядит рекламой; обе стороны одинаково не верят заказным новостям."
-          }
+          },
+          "repeat_effect_decay": 0.75
         },
         {
           "id": "security_sweep",
@@ -2356,7 +2464,8 @@
               "legitimacy": -0.02
             },
             "text": "Служба защиты перестаралась; портовые артели отвечают саботажем."
-          }
+          },
+          "repeat_effect_decay": 0.8
         },
         {
           "id": "repair_hub",
@@ -2391,7 +2500,8 @@
               "supply": -0.02
             },
             "text": "Поставки стройматериалов сорваны; ремонт снова отложен."
-          }
+          },
+          "repeat_effect_decay": 0.8
         }
       ],
       "income": {
