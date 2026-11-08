@@ -59,19 +59,37 @@ class CampaignCodexScreen(BaseScreen):
         self.characters = list(
             getattr(self.preset, "characters", ()) or ()
         )
-        self.automata = list(getattr(self.preset, "automata", ()) or ())
+        self.all_automata = list(
+            getattr(self.preset, "automata", ()) or ()
+        )
+        # Автомат организации — контейнер, который дублирует одноимённый
+        # орган (например, «Имперская ставка»). В кодексе показываем
+        # фракции и органы: организация уже видна через свои органы.
+        self.automata = [
+            item
+            for item in self.all_automata
+            if item.get("kind") != "organization"
+        ]
         self._faction_names = {}
         self._organization_names = {}
+        self._owner_sides = {}
         if self.preset is not None:
             for faction in getattr(self.preset, "factions", ()) or ():
                 self._faction_names[faction.get("id")] = faction.get("name")
                 self._faction_names[faction.get("side")] = faction.get("name")
+                for key in (faction.get("id"), faction.get("side")):
+                    if key:
+                        self._owner_sides[key] = faction.get("side")
             for organization in (
                 getattr(self.preset, "organizations", ()) or ()
             ):
                 self._organization_names[organization.get("id")] = (
                     organization.get("name")
                 )
+                if organization.get("id"):
+                    self._owner_sides[organization.get("id")] = (
+                        organization.get("side")
+                    )
         self.tab_buttons = [
             Button(
                 (56 + index * 210, 108, 200, 40),
@@ -159,6 +177,22 @@ class CampaignCodexScreen(BaseScreen):
     def _player_side(self):
         return getattr(self.campaign, "player_side", None)
 
+    def _item_side(self, item):
+        """Сторона записи: явное поле или владелец из пресета."""
+        if item is None:
+            return ""
+        side = str(item.get("side") or "")
+        if side:
+            return side
+        for key in (
+            item.get("owner_id"),
+            item.get("faction_id"),
+            item.get("organization_id"),
+        ):
+            if key and key in self._owner_sides:
+                return str(self._owner_sides.get(key) or "")
+        return ""
+
     def _selected_item(self):
         index = self.selected[self.tab]
         if index < 0 or index >= len(self.rows):
@@ -168,8 +202,20 @@ class CampaignCodexScreen(BaseScreen):
     def _player_owned(self, item):
         if item is None or self.campaign is None:
             return False
-        side = str(item.get("side") or "")
+        side = self._item_side(item)
         return bool(side) and side == self._player_side()
+
+    def _is_player_character(self, item):
+        return bool(item and item.get("is_player"))
+
+    def update(self, dt):
+        """Кампания идёт в реальном времени и в кодексе."""
+        if self.campaign is None:
+            return
+        before = self.campaign.turn
+        self.campaign.advance_time(dt)
+        if self.campaign.turn != before:
+            self._sync_storyline()
 
     def _live_character(self, item):
         if not self._player_owned(item):
@@ -781,6 +827,11 @@ class CampaignCodexScreen(BaseScreen):
             len(self.characters),
             len(self.automata),
         )
+        if self.campaign is not None:
+            counts += " · время %s · %s" % (
+                self.campaign.time_label(),
+                self.campaign.speed_label(),
+            )
         screen.blit(
             self.app.font_tiny.render(counts, True, DIM),
             (56, 660),

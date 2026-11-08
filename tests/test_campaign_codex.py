@@ -61,6 +61,7 @@ def test_codex_actions_target_own_character_and_organ():
         index
         for index, item in enumerate(screen.characters)
         if item.get("side") == campaign.player_side
+        and not item.get("is_player")
     )
     screen.select(character_index)
     layout = screen._action_layout()
@@ -93,6 +94,36 @@ def test_codex_actions_target_own_character_and_organ():
     assert result and result["ok"] is True
     assert result["organ_id"] == owner_id
     assert "целостность" in screen.action_message
+    screen.draw(surface)
+    app.quit()
+
+
+def test_codex_rejects_actions_against_player_character():
+    from view.screens.campaign_codex import CampaignCodexScreen
+
+    app, campaign = _app_with_campaign()
+    screen = CampaignCodexScreen(app)
+    surface = pygame.Surface((1280, 720))
+
+    player_index = next(
+        index
+        for index, item in enumerate(screen.characters)
+        if item.get("side") == campaign.player_side
+        and item.get("is_player")
+    )
+    screen.select(player_index)
+    layout = screen._action_layout()
+    assert layout
+    for _rect, kind, _owner_id, option in layout:
+        assert kind == "character"
+        assert option["enabled"] is False
+        assert option["reason"] == "нельзя применять к самому себе"
+
+    campaign.begin_turn()
+    blocked = screen.apply_action(
+        layout[0][1], layout[0][2], layout[0][3]["id"]
+    )
+    assert blocked is None or blocked.get("ok") is False
     screen.draw(surface)
     app.quit()
 

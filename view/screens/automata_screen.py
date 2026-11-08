@@ -117,6 +117,8 @@ class AutomataScreen(BaseScreen):
             "automata_actions_per_turn", snapshot["actions_per_turn"]
         )
         interp.set_variable("automata_outcome", snapshot["outcome"])
+        interp.set_variable("automata_elapsed", snapshot["elapsed"])
+        interp.set_variable("automata_speed", snapshot["speed"])
         for side, faction in snapshot["factions"].items():
             interp.set_variable(
                 "automata_%s_legitimacy" % side,
@@ -126,6 +128,17 @@ class AutomataScreen(BaseScreen):
                 "automata_%s_cohesion" % side,
                 faction["assets"].get("cohesion", 0.0),
             )
+
+    def update(self, dt):
+        """Реальное время: кампания идёт, пока открыт её экран."""
+        if self.campaign.finished:
+            return
+        before = self.campaign.turn
+        self.campaign.advance_time(dt)
+        if self.campaign.turn != before or self.campaign.finished:
+            self._sync_storyline()
+        if self.campaign.finished:
+            self._check_storyline_outcome()
 
     def _player(self):
         return self.campaign.faction(self.campaign.player_side)
@@ -232,7 +245,26 @@ class AutomataScreen(BaseScreen):
         if self.campaign.finished:
             self._check_storyline_outcome()
 
+    def _increase_speed(self):
+        if self.campaign.finished:
+            return
+        before = self.campaign.speed
+        self.campaign.speed_up()
+        if self.campaign.speed != before:
+            self.message = "Скорость времени: %s." % self.campaign.speed_label()
+        else:
+            self.message = (
+                "Достигнута максимальная скорость: %s."
+                % self.campaign.speed_label()
+            )
+        logger.info(
+            "Скорость кампании: %s (время %s)",
+            self.campaign.speed_label(),
+            self.campaign.time_label(),
+        )
+
     def _end_turn(self):
+        """Совместимый помощник для старых вызовов вне интерфейса."""
         if self.campaign.finished:
             return
         self.campaign.end_turn()
@@ -303,7 +335,7 @@ class AutomataScreen(BaseScreen):
             self._execute_selected()
             return
         if self._end_turn_rect().collidepoint(pos):
-            self._end_turn()
+            self._increase_speed()
             return
         if self._network_rect().collidepoint(pos):
             self._open_network()
@@ -402,7 +434,9 @@ class AutomataScreen(BaseScreen):
         screen.blit(
             self.app.font_title.render(title, True, TEXT), (24, 12)
         )
-        status = "ход %d · действия %d/%d" % (
+        status = "время %s · скорость %s · цикл %d · действия %d/%d" % (
+            self.campaign.time_label(),
+            self.campaign.speed_label(),
             self.campaign.turn,
             self.campaign.actions_left,
             self.campaign.actions_per_turn,
@@ -694,9 +728,14 @@ class AutomataScreen(BaseScreen):
         self._draw_button(
             screen,
             self._end_turn_rect(),
-            "Завершить ход",
-            enabled=not self.campaign.finished,
-            accent=True,
+            (
+                "Скорость максимальна"
+                if not self.campaign.can_speed_up()
+                else "Ускорить · %s" % self.campaign.speed_label()
+            ),
+            enabled=not self.campaign.finished
+            and self.campaign.can_speed_up(),
+            accent=self.campaign.can_speed_up(),
         )
         self._draw_button(
             screen,
@@ -720,7 +759,8 @@ class AutomataScreen(BaseScreen):
         else:
             if self.campaign.actions_left <= 0:
                 hint = (
-                    "Действия исчерпаны — завершите ход, чтобы начать новый."
+                    "Действия восстанавливаются со временем · %s."
+                    % self.campaign.speed_label()
                 )
             else:
                 hint = "Выбрано: %s · осталось действий: %d" % (

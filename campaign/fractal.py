@@ -26,82 +26,28 @@ from dataclasses import dataclass, field
 import math
 from typing import Dict, List, Mapping
 
+from .defaults import default_dict, default_list, default_section
 
+
+_ORGAN_KINDS = default_dict("organ_kinds")
 ORGAN_KIND_ASSETS = {
-    "command": "cohesion",
-    "coercion": "morale",
-    "intelligence": "influence",
-    "information": "influence",
-    "maintenance": "supply",
-    "legitimacy": "legitimacy",
-    "care": "morale",
-    "meaning": "morale",
-    "exchange": "supply",
+    str(kind): str(config.get("asset") or "cohesion")
+    for kind, config in _ORGAN_KINDS.items()
 }
 """Какой актив фракции является «проекцией» органа данного типа."""
 
 ORGAN_KIND_WEIGHTS = {
-    "command": 1.2,
-    "legitimacy": 1.1,
-    "coercion": 1.05,
-    "intelligence": 1.0,
-    "information": 1.0,
-    "maintenance": 0.95,
-    "care": 0.9,
-    "meaning": 0.9,
-    "exchange": 0.95,
+    str(kind): float(config.get("weight", 1.0))
+    for kind, config in _ORGAN_KINDS.items()
 }
+ORGAN_WEIGHT_DEFAULT = ORGAN_KIND_WEIGHTS["support"]
 
-ORGAN_MODEL_DEFAULTS = {
-    "organ_downscale": 0.6,
-    "organ_recovery": 0.12,
-    "organ_upscale": 0.012,
-    "organ_action_gain": 0.08,
-    "organ_action_loss": 0.06,
-    "organ_damage": 0.05,
-    "organ_spread": 0.18,
-    "organ_dissolve_rate": 0.05,
-    "organ_effect_floor": 0.55,
-}
-
-DEFAULT_ORGAN_INTERACTIONS = [
-    {
-        "id": "reinforce",
-        "label": "Усилить орган",
-        "description": "Перебросить людей и ресурсы: целостность органа растёт.",
-        "cost": {"supply": 0.04},
-        "integrity": 0.12,
-        "faction": {"cohesion": 0.015},
-        "cooldown": 2,
-    },
-    {
-        "id": "reform",
-        "label": "Реформировать",
-        "description": "Изменить порядок работы органа ценой энергии.",
-        "cost": {"energy": 0.035},
-        "integrity": 0.07,
-        "faction": {"influence": 0.012},
-        "cooldown": 3,
-    },
-    {
-        "id": "purge",
-        "label": "Провести чистку",
-        "description": "Подчинить орган центру: страх растёт, целостность падает.",
-        "cost": {"influence": 0.05},
-        "integrity": -0.15,
-        "faction": {"fear": 0.02, "legitimacy": 0.01},
-        "cooldown": 3,
-    },
-    {
-        "id": "resupply",
-        "label": "Наладить снабжение",
-        "description": "Влить запас в орган: целостность и мораль растут.",
-        "cost": {"supply": 0.06},
-        "integrity": 0.18,
-        "faction": {"morale": 0.01},
-        "cooldown": 4,
-    },
-]
+ORGAN_MODEL_DEFAULTS = default_dict("organ_model")
+DEFAULT_ORGAN_INTERACTIONS = default_list("organ_interactions")
+ORGAN_STATUS_THRESHOLDS = default_dict("organ_status_thresholds")
+ORGAN_TARGET_DEFAULTS = default_dict("organ_target")
+ORGAN_DEFAULT_INTEGRITY = float(default_section("organ_default_integrity"))
+ORGAN_MIN_WEIGHT = float(default_section("organ_min_weight"))
 
 STATUS_ACTIVE = "в строю"
 STATUS_STRAINED = "напряжение"
@@ -130,24 +76,24 @@ def _as_mapping(value):
 def organ_status(integrity):
     """Состояние органа по его целостности."""
     value = _clamp(integrity)
-    if value >= 0.65:
+    if value >= float(ORGAN_STATUS_THRESHOLDS["active"]):
         return STATUS_ACTIVE
-    if value >= 0.35:
+    if value >= float(ORGAN_STATUS_THRESHOLDS["strained"]):
         return STATUS_STRAINED
-    if value > 0.15:
+    if value > float(ORGAN_STATUS_THRESHOLDS["restoring"]):
         return STATUS_RESTORING
     return STATUS_DISBANDED
 
 
 def organ_asset_key(kind):
     """Актив фракции, на который проецируется орган."""
-    return ORGAN_KIND_ASSETS.get(str(kind or ""), "cohesion")
+    return ORGAN_KIND_ASSETS.get(str(kind or ""), ORGAN_KIND_ASSETS["support"])
 
 
 def organ_weight(kind, explicit=None):
     return max(
-        0.1,
-        _number(explicit, ORGAN_KIND_WEIGHTS.get(str(kind or ""), 1.0)),
+        ORGAN_MIN_WEIGHT,
+        _number(explicit, ORGAN_KIND_WEIGHTS.get(str(kind or ""), ORGAN_WEIGHT_DEFAULT)),
     )
 
 
@@ -335,7 +281,7 @@ class OrganRuntime:
     automaton_id: str = ""
     parent_id: str = ""
     action_ids: List[str] = field(default_factory=list)
-    integrity: float = 0.72
+    integrity: float = ORGAN_DEFAULT_INTEGRITY
     weight: float = 1.0
     interactions: List[dict] = field(default_factory=list)
     interaction_cooldowns: Dict[str, int] = field(default_factory=dict)
@@ -364,7 +310,9 @@ class OrganRuntime:
             action_ids=[
                 str(item) for item in (record.get("action_ids") or ())
             ],
-            integrity=_clamp(_number(record.get("integrity"), 0.72)),
+            integrity=_clamp(
+                _number(record.get("integrity"), ORGAN_DEFAULT_INTEGRITY)
+            ),
             weight=organ_weight(
                 record.get("kind"), record.get("weight")
             ),
@@ -426,13 +374,7 @@ class OrganRuntime:
 
 def faction_pressure(faction, keys=None):
     """Среднее состояние фракции по опорным активам."""
-    keys = keys or (
-        "legitimacy",
-        "cohesion",
-        "morale",
-        "supply",
-        "influence",
-    )
+    keys = keys or ORGAN_TARGET_DEFAULTS["pressure_assets"]
     values = [_clamp(faction.asset(key, 0.5)) for key in keys]
     if not values:
         return 0.5
@@ -446,9 +388,15 @@ def organ_target(faction, kind, downscale=None):
     )
     specific = _clamp(faction.asset(organ_asset_key(kind), 0.5))
     pressure = faction_pressure(faction)
-    # 60% — профильный актив органа, 40% — общее давление фракции.
+    profile_weight = _number(
+        ORGAN_TARGET_DEFAULTS.get("profile_weight"), 0.0
+    )
+    pressure_weight = _number(
+        ORGAN_TARGET_DEFAULTS.get("pressure_weight"), 0.0
+    )
     target = 0.5 + downscale * (
-        0.6 * (specific - 0.5) + 0.4 * (pressure - 0.5)
+        profile_weight * (specific - 0.5)
+        + pressure_weight * (pressure - 0.5)
     )
     return _clamp(target)
 
@@ -524,7 +472,7 @@ def spread_organ_effect(faction, organ, delta, model=None):
         _as_mapping(model).get("organ_spread"),
         ORGAN_MODEL_DEFAULTS["organ_spread"],
     )
-    applied = delta * spread * max(0.1, organ.weight)
+    applied = delta * spread * max(ORGAN_MIN_WEIGHT, organ.weight)
     faction.add_asset(organ.asset_key(), applied)
     return applied
 
@@ -561,9 +509,13 @@ def damage_organs(faction, asset_key, amount, model=None):
 
 __all__ = [
     "DEFAULT_ORGAN_INTERACTIONS",
+    "ORGAN_DEFAULT_INTEGRITY",
     "ORGAN_KIND_ASSETS",
     "ORGAN_KIND_WEIGHTS",
+    "ORGAN_MIN_WEIGHT",
     "ORGAN_MODEL_DEFAULTS",
+    "ORGAN_STATUS_THRESHOLDS",
+    "ORGAN_TARGET_DEFAULTS",
     "OrganRuntime",
     "damage_organs",
     "faction_pressure",

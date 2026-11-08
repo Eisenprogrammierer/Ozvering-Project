@@ -27,10 +27,18 @@ from systems.playwright import (
     PlaywrightConfig,
 )
 
+from .defaults import default_dict
 from .errors import CampaignError
 from .roles import RoleSpec, default_catalog as default_role_catalog
 
 SCHEMA = 1
+
+PRESET_DEFAULTS = default_dict("preset_defaults")
+NEEDS_BASE = dict(PRESET_DEFAULTS["needs_base"])
+NEEDS_PRIORITY = dict(PRESET_DEFAULTS["needs_priority"])
+ORGANIZATION_RUNTIME_DEFAULTS = dict(
+    PRESET_DEFAULTS["organization_runtime"]
+)
 
 
 class CampaignPresetError(CampaignError):
@@ -375,31 +383,20 @@ def _normalize_sector(value):
 
 
 def _make_needs(randomizer, priority_needs):
-    base = {
-        "hunger": 0.18,
-        "thirst": 0.15,
-        "fatigue": 0.12,
-        "health": 0.05,
-        "fear": 0.10,
-        "anxiety": 0.12,
-        "loneliness": 0.18,
-        "reproduction": 0.10,
-        "knowledge": 0.25,
-        "creativity": 0.22,
-        "boredom": 0.25,
-        "status": 0.35,
-        "spirituality": 0.25,
-        "skill": 0.35,
-        "love": 0.18,
-        "friendship": 0.18,
-    }
-    needs = dict(base)
+    needs = dict(NEEDS_BASE)
     priorities = [str(item) for item in (priority_needs or ()) if str(item)]
-    for index, need in enumerate(priorities[:4]):
+    limit = max(0, int(NEEDS_PRIORITY["limit"]))
+    for index, need in enumerate(priorities[:limit]):
         if need in needs:
-
-            floor = max(0.42, 0.80 - 0.10 * index)
-            needs[need] = max(needs[need], floor + 0.16 * randomizer.random())
+            floor = max(
+                float(NEEDS_PRIORITY["floor_min"]),
+                float(NEEDS_PRIORITY["floor_base"])
+                - float(NEEDS_PRIORITY["floor_step"]) * index,
+            )
+            needs[need] = max(
+                needs[need],
+                floor + float(NEEDS_PRIORITY["jitter"]) * randomizer.random(),
+            )
     return {key: max(0.0, min(1.0, value)) for key, value in needs.items()}
 
 
@@ -433,10 +430,10 @@ def _make_character(
     character.deliberate()
     morale = character.morale
     if is_leader:
-        morale += 4.0
+        morale += float(PRESET_DEFAULTS["morale_leader_bonus"])
     if is_player:
-        morale += 2.0
-    morale = max(0.0, min(100.0, morale))
+        morale += float(PRESET_DEFAULTS["morale_player_bonus"])
+    morale = max(0.0, min(float(PRESET_DEFAULTS["morale_max"]), morale))
     return {
         "id": char_id,
         "name": name.full,
@@ -665,7 +662,10 @@ def _build_organization(cfg, side, characters, seed):
             1.0,
             _as_float(
                 runtime_cfg.get("complete_weight"),
-                _as_float(org_cfg.get("complete_weight"), 0.84),
+                _as_float(
+                    org_cfg.get("complete_weight"),
+                    float(PRESET_DEFAULTS["organization_complete_weight"]),
+                ),
             ),
         ),
     )
@@ -678,7 +678,10 @@ def _build_organization(cfg, side, characters, seed):
     ).analyze(population)
     automaton = build_organization_automaton(
         analysis,
-        name=_text(org_cfg.get("name"), "Организация"),
+        name=_text(
+            org_cfg.get("name"),
+            str(PRESET_DEFAULTS["organization_name"]),
+        ),
         seed=seed,
     )
     leader = next(
@@ -690,14 +693,18 @@ def _build_organization(cfg, side, characters, seed):
         characters[0],
     )
     leader_title = _text(
-        org_cfg.get("leader_title"), "номинальный председатель"
+        org_cfg.get("leader_title"),
+        str(PRESET_DEFAULTS["organization_leader_title"]),
     )
     leader_title_female = _text(
         org_cfg.get("leader_title_female"), leader_title
     )
     record = {
         "id": org_id,
-        "name": _text(org_cfg.get("name"), "Организация"),
+        "name": _text(
+            org_cfg.get("name"),
+            str(PRESET_DEFAULTS["organization_name"]),
+        ),
         "faction_id": cfg["id"],
         "side": side,
         "leader_id": leader["id"],
@@ -725,18 +732,27 @@ def _build_organization(cfg, side, characters, seed):
             ),
             "leader_title_female": leader_title_female,
             "satisfaction_per_tick": _as_float(
-                runtime_cfg.get("satisfaction_per_tick"), 0.03
+                runtime_cfg.get("satisfaction_per_tick"),
+                float(ORGANIZATION_RUNTIME_DEFAULTS["satisfaction_per_tick"]),
             ),
             "contribution_cost": _as_float(
-                runtime_cfg.get("contribution_cost"), 0.08
+                runtime_cfg.get("contribution_cost"),
+                float(ORGANIZATION_RUNTIME_DEFAULTS["contribution_cost"]),
             ),
             "coercion_factor": _as_float(
-                runtime_cfg.get("coercion_factor"), 0.5
+                runtime_cfg.get("coercion_factor"),
+                float(ORGANIZATION_RUNTIME_DEFAULTS["coercion_factor"]),
             ),
             "leader_morale_bonus": _as_float(
-                runtime_cfg.get("leader_morale_bonus"), 10.0
+                runtime_cfg.get("leader_morale_bonus"),
+                float(ORGANIZATION_RUNTIME_DEFAULTS["leader_morale_bonus"]),
             ),
-            "allow_rejoin": bool(runtime_cfg.get("allow_rejoin", False)),
+            "allow_rejoin": bool(
+                runtime_cfg.get(
+                    "allow_rejoin",
+                    ORGANIZATION_RUNTIME_DEFAULTS["allow_rejoin"],
+                )
+            ),
             "parameters": parameters.__dict__,
         },
     }
@@ -754,7 +770,10 @@ def _build_faction_record(
         ),
         characters[0],
     )
-    role_title = _text(cfg.get("role_title"), "номинальный лидер")
+    role_title = _text(
+        cfg.get("role_title"),
+        str(PRESET_DEFAULTS["faction_leader_title"]),
+    )
     return {
         "id": cfg["id"],
         "side": side,
@@ -1448,6 +1467,7 @@ class CampaignPresetGenerator:
                 {
                     "id": organization["automaton_id"],
                     "kind": "organization",
+                    "side": side,
                     "owner_id": organization["id"],
                     "name": org_automaton.name,
                     "automaton": org_automaton.to_dict(),
@@ -1478,6 +1498,7 @@ class CampaignPresetGenerator:
                 {
                     "id": "automaton_%s" % cfg["id"],
                     "kind": "faction",
+                    "side": side,
                     "owner_id": cfg["id"],
                     "name": faction_automaton.name,
                     "automaton": faction_automaton.to_dict(),
@@ -1598,7 +1619,11 @@ class CampaignPresetGenerator:
             raise CampaignPresetError("не удалось выбрать фракцию противника")
         sides = _ordered_sides(template)
         default_population = max(
-            1, _as_int(scenario_cfg.get("characters_per_faction"), 8)
+            1,
+            _as_int(
+                scenario_cfg.get("characters_per_faction"),
+                int(PRESET_DEFAULTS["characters_per_faction"]),
+            ),
         )
         name_generator = PersonNameGenerator(seed=seed)
         characters = []
@@ -1639,7 +1664,7 @@ class CampaignPresetGenerator:
                     title = (
                         line_posts[index % len(line_posts)]
                         if line_posts
-                        else "Участник"
+                        else str(PRESET_DEFAULTS["participant_title"])
                     )
                     post = {
                         "id": "participant_%d" % (index + 1),
@@ -1691,6 +1716,7 @@ class CampaignPresetGenerator:
                 {
                     "id": organization["automaton_id"],
                     "kind": "organization",
+                    "side": side,
                     "owner_id": organization["id"],
                     "name": org_automaton.name,
                     "automaton": org_automaton.to_dict(),
@@ -1721,6 +1747,7 @@ class CampaignPresetGenerator:
                 {
                     "id": "automaton_%s" % cfg["id"],
                     "kind": "faction",
+                    "side": side,
                     "owner_id": cfg["id"],
                     "name": faction_automaton.name,
                     "automaton": faction_automaton.to_dict(),
@@ -1937,6 +1964,7 @@ class CampaignPresetGenerator:
                 {
                     "id": organization["automaton_id"],
                     "kind": "organization",
+                    "side": side,
                     "owner_id": organization["id"],
                     "name": org_automaton.name,
                     "automaton": org_automaton.to_dict(),
@@ -1967,6 +1995,7 @@ class CampaignPresetGenerator:
                 {
                     "id": "automaton_%s" % cfg["id"],
                     "kind": "faction",
+                    "side": side,
                     "owner_id": cfg["id"],
                     "name": faction_automaton.name,
                     "automaton": faction_automaton.to_dict(),

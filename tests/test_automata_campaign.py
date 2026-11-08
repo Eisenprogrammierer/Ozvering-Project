@@ -588,3 +588,113 @@ def test_advance_without_explicit_action_autoplays_player_budget():
     ]
     assert player_actions, "advance() без работы должен играть за игрока"
     assert campaign.actions_left == 0
+
+
+def test_realtime_advances_clock_and_regenerates_actions():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    assert campaign.elapsed == 0.0
+    assert campaign.speed == 1
+    campaign.begin_turn()
+    campaign.actions_left = 0
+    campaign.advance_time(0)
+    assert campaign.elapsed == 0.0
+    campaign.advance_time(-5)
+    assert campaign.elapsed == 0.0
+    campaign.advance_time(8.0)
+    assert campaign.elapsed == pytest.approx(8.0)
+    assert campaign.actions_left == 1
+    campaign.advance_time(16.0)
+    assert campaign.elapsed == pytest.approx(24.0)
+    assert campaign.actions_left == campaign.actions_per_turn
+    assert campaign.turn >= 1
+
+
+def test_speed_only_increases_and_multiplies_time():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    assert campaign.speed_cap() == 32
+    assert campaign.can_speed_up() is True
+    assert campaign.set_speed(0) is False
+    assert campaign.set_speed(1) is True
+    assert campaign.speed == 1
+    campaign.speed_up()
+    assert campaign.speed == 2
+    assert campaign.set_speed(1) is False
+    assert campaign.speed == 2
+    campaign.speed_up()
+    campaign.advance_time(4.0)
+    assert campaign.elapsed == pytest.approx(16.0)
+    while campaign.can_speed_up():
+        campaign.speed_up()
+    assert campaign.speed == 32
+    assert campaign.speed_up() == 32
+
+
+def test_realtime_state_survives_snapshot_roundtrip():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    campaign.advance_time(10.0)
+    campaign.speed_up()
+    campaign.speed_up()
+    campaign.advance_time(5.0)
+    snapshot = campaign.snapshot()
+    assert snapshot["elapsed"] > 0.0
+    assert snapshot["speed"] == 4
+    clone = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    clone.load_snapshot(json.loads(json.dumps(snapshot)))
+    assert clone.elapsed == pytest.approx(campaign.elapsed)
+    assert clone.speed == campaign.speed
+    assert clone.turn == campaign.turn
+
+
+def test_realtime_and_interactions_come_from_config():
+    from campaign.defaults import default_dict, default_list
+
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    defaults = default_dict("realtime")
+    assert campaign.turn_seconds == float(defaults["turn_seconds"])
+    assert campaign.action_interval_seconds == float(
+        defaults["action_interval_seconds"]
+    )
+    assert campaign.ai_interval_seconds == float(
+        defaults["ai_interval_seconds"]
+    )
+    assert campaign.speed_levels == sorted(defaults["speeds"])
+    configured = {item["id"] for item in default_list("automaton_interactions")}
+    faction = campaign.faction(campaign.player_side)
+    assert configured
+    assert configured.issubset(
+        {str(item.get("id")) for item in faction.automaton_interactions}
+    )
+
+
+def test_core_rejects_self_character_interactions():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    player = next(
+        item
+        for item in campaign.character_options(campaign.player_side)
+        if item["is_player"]
+    )
+    options = campaign.character_interaction_options(
+        campaign.player_side, player["id"]
+    )
+    assert options
+    assert all(option["enabled"] is False for option in options)
+    assert all(
+        option["reason"] == "нельзя применять к самому себе"
+        for option in options
+    )
+    result = campaign.perform_character_interaction(
+        campaign.player_side, player["id"], options[0]["id"]
+    )
+    assert result["ok"] is False

@@ -166,7 +166,12 @@ def test_campaign_codex_shows_characters_and_organs():
     app.campaign_preset = _preset()
     screen = CampaignCodexScreen(app)
     assert len(screen.characters) == len(app.campaign_preset.characters)
-    assert len(screen.automata) == len(app.campaign_preset.automata)
+    expected_automata = [
+        item
+        for item in app.campaign_preset.automata
+        if item.get("kind") != "organization"
+    ]
+    assert len(screen.automata) == len(expected_automata)
     assert any(
         item["kind"] == "organ" for item in screen.automata
     )

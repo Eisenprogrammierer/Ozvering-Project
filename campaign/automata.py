@@ -18,8 +18,10 @@ import warfare as W
 from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
 
+from .defaults import default_dict, default_list, default_section
 from .errors import CampaignError
 from .fractal import (
+    ORGAN_MIN_WEIGHT,
     ORGAN_MODEL_DEFAULTS,
     OrganRuntime,
     damage_organs,
@@ -44,136 +46,21 @@ class AutomataCampaignError(CampaignError):
     pass
 
 
-MODEL_DEFAULTS = {
-    "success_base": 0.0,
-    "success_slope": 1.6,
-    "cooldown_turns": 0,
-    "asset_relax": 0.03,
-    "effect_scale": 1.0,
-    "organization_cohesion": 0.06,
-    "organization_legitimacy": 0.04,
-    "organization_supply_drain": 0.006,
-    "organization_fear": 0.03,
-    "organization_morale": 0.002,
-    "collapse_streak": 3,
-}
+MODEL_DEFAULTS = default_dict("automata_model")
 MODEL_DEFAULTS.update(ORGAN_MODEL_DEFAULTS)
 
-DEFAULT_ACTIONS_PER_TURN = 3
+DEFAULT_ACTIONS_PER_TURN = int(default_section("actions_per_turn"))
+DEFAULT_RUN_TURNS = int(default_section("run_turns_default"))
+EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
+SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
+REALTIME_DEFAULTS = default_dict("realtime")
+PRESET_DEFAULTS = default_dict("preset_defaults")
+ORGANIZATION_RUNTIME_DEFAULTS = dict(
+    PRESET_DEFAULTS["organization_runtime"]
+)
 
-DEFAULT_AUTOMATON_INTERACTIONS = [
-    {
-        "id": "coordinate",
-        "label": "Согласовать работу",
-        "description": (
-            "Автомат-источник согласует работу с другим автоматом: "
-            "цель получает поддержку, фракция — небольшую сплочённость."
-        ),
-        "relation": "any",
-        "cost": {"influence": 0.02},
-        "source_integrity": 0.01,
-        "target_integrity": 0.08,
-        "faction": {"cohesion": 0.008},
-        "cooldown": 2,
-    },
-    {
-        "id": "transfer",
-        "label": "Передать резерв",
-        "description": (
-            "Источник отдаёт часть своих людей и запасов целевому автомату. "
-            "Цель укрепляется, источник расходует целостность и снабжение."
-        ),
-        "relation": "any",
-        "cost": {"supply": 0.03},
-        "source_integrity": -0.04,
-        "target_integrity": 0.12,
-        "faction": {"morale": 0.004},
-        "cooldown": 2,
-    },
-    {
-        "id": "directive",
-        "label": "Отдать директиву",
-        "description": (
-            "Приказ подчинённому автомату: вертикаль работает, цель "
-            "укрепляется, законность фракции растёт."
-        ),
-        "relation": "subordinate",
-        "cost": {"influence": 0.03},
-        "source_integrity": 0.008,
-        "target_integrity": 0.10,
-        "faction": {"legitimacy": 0.006},
-        "cooldown": 3,
-    },
-    {
-        "id": "escalate",
-        "label": "Запросить поддержку",
-        "description": (
-            "Автомат обращается к вышестоящему органу за поддержкой: "
-            "источник укрепляется, центр расходует часть целостности."
-        ),
-        "relation": "superior",
-        "cost": {"influence": 0.02},
-        "source_integrity": 0.10,
-        "target_integrity": -0.02,
-        "faction": {"legitimacy": 0.006},
-        "cooldown": 3,
-    },
-]
-
-DEFAULT_CHARACTER_INTERACTIONS = [
-    {
-        "id": "promote",
-        "label": "Повысить",
-        "description": (
-            "Повышение закрывает потребность в статусе и повышает "
-            "лояльность, но требует влияния."
-        ),
-        "cost": {"influence": 0.04},
-        "needs": {"status": -0.15, "anxiety": -0.03},
-        "personality": {"loyalty": 0.04},
-        "morale": 6.0,
-        "organ_integrity": 0.02,
-        "cooldown": 3,
-    },
-    {
-        "id": "reward",
-        "label": "Наградить",
-        "description": (
-            "Награда поднимает мораль и снижает усталость; ресурс "
-            "расходуется из запаса фракции."
-        ),
-        "cost": {"supply": 0.03, "influence": 0.02},
-        "needs": {"status": -0.10, "fatigue": -0.05},
-        "personality": {"loyalty": 0.02},
-        "morale": 10.0,
-        "cooldown": 2,
-    },
-    {
-        "id": "reassure",
-        "label": "Поддержать",
-        "description": (
-            "Личная поддержка снижает страх, тревогу и одиночество, "
-            "возвращая человеку устойчивость."
-        ),
-        "cost": {"energy": 0.02},
-        "needs": {"fear": -0.12, "anxiety": -0.15, "loneliness": -0.05},
-        "morale": 8.0,
-        "cooldown": 2,
-    },
-    {
-        "id": "interrogate",
-        "label": "Допросить",
-        "description": (
-            "Жёсткая проверка повышает страх и тревогу, снижает "
-            "лояльность, но даёт знание о настроениях."
-        ),
-        "cost": {"influence": 0.03, "energy": 0.02},
-        "needs": {"fear": 0.12, "anxiety": 0.10, "knowledge": -0.08},
-        "personality": {"loyalty": -0.05},
-        "morale": -8.0,
-        "cooldown": 3,
-    },
-]
+DEFAULT_AUTOMATON_INTERACTIONS = default_list("automaton_interactions")
+DEFAULT_CHARACTER_INTERACTIONS = default_list("character_interactions")
 
 
 def _number(value, default=0.0):
@@ -364,9 +251,11 @@ class FactionRuntime:
         """Средняя целостность органов — самоподобный показатель фракции."""
         if not self.organs:
             return 0.5
-        total_weight = sum(max(0.1, organ.weight) for organ in self.organs)
+        total_weight = sum(
+            max(ORGAN_MIN_WEIGHT, organ.weight) for organ in self.organs
+        )
         return sum(
-            organ.integrity * max(0.1, organ.weight)
+            organ.integrity * max(ORGAN_MIN_WEIGHT, organ.weight)
             for organ in self.organs
         ) / total_weight
 
@@ -511,6 +400,25 @@ class AutomataCampaign:
         )
         self.actions_left = 0
         self._turn_active = False
+        self.realtime = dict(REALTIME_DEFAULTS)
+        self.realtime.update(
+            {
+                str(key): value
+                for key, value in _as_mapping(
+                    scenario.get("realtime")
+                ).items()
+            }
+        )
+        speeds = [
+            max(1, int(_number(value, 1)))
+            for value in (self.realtime.get("speeds") or (1,))
+        ]
+        self.speed_levels = sorted(set(speeds)) or [1]
+        self.speed = 1
+        self.elapsed = 0.0
+        self._action_progress = 0.0
+        self._ai_progress = 0.0
+        self._round_progress = 0.0
         self.score_streak = 0
         self.score_streak_side = None
         self.player_side = str(scenario.get("player_side") or "red")
@@ -596,7 +504,10 @@ class AutomataCampaign:
                     characters=specs,
                     parameters=parameters,
                     complete_weight=_clamp(
-                        runtime_cfg.get("complete_weight", 0.84)
+                        runtime_cfg.get(
+                            "complete_weight",
+                            PRESET_DEFAULTS["organization_complete_weight"],
+                        )
                     ),
                     leader_id=str(
                         runtime_cfg.get("leader_id")
@@ -605,19 +516,26 @@ class AutomataCampaign:
                     )
                     or None,
                     satisfaction_per_tick=_number(
-                        runtime_cfg.get("satisfaction_per_tick"), 0.03
+                        runtime_cfg.get("satisfaction_per_tick"),
+                        ORGANIZATION_RUNTIME_DEFAULTS["satisfaction_per_tick"],
                     ),
                     contribution_cost=_number(
-                        runtime_cfg.get("contribution_cost"), 0.08
+                        runtime_cfg.get("contribution_cost"),
+                        ORGANIZATION_RUNTIME_DEFAULTS["contribution_cost"],
                     ),
                     coercion_factor=_number(
-                        runtime_cfg.get("coercion_factor"), 0.5
+                        runtime_cfg.get("coercion_factor"),
+                        ORGANIZATION_RUNTIME_DEFAULTS["coercion_factor"],
                     ),
                     leader_morale_bonus=_number(
-                        runtime_cfg.get("leader_morale_bonus"), 10.0
+                        runtime_cfg.get("leader_morale_bonus"),
+                        ORGANIZATION_RUNTIME_DEFAULTS["leader_morale_bonus"],
                     ),
                     allow_rejoin=bool(
-                        runtime_cfg.get("allow_rejoin", False)
+                        runtime_cfg.get(
+                            "allow_rejoin",
+                            ORGANIZATION_RUNTIME_DEFAULTS["allow_rejoin"],
+                        )
                     ),
                     jitter_salt=organization_id or faction_id,
                 )
@@ -763,6 +681,144 @@ class AutomataCampaign:
             "active": bool(self._turn_active),
             "finished": bool(self.finished),
         }
+
+    # ------------------------------------------------------------------
+    # Реальное время
+    # ------------------------------------------------------------------
+    def _interval(self, name):
+        """Положительный интервал реального времени из конфига."""
+        return max(1e-6, _number(self.realtime.get(name), 1e-6))
+
+    @property
+    def turn_seconds(self):
+        return self._interval("turn_seconds")
+
+    @property
+    def action_interval_seconds(self):
+        return self._interval("action_interval_seconds")
+
+    @property
+    def ai_interval_seconds(self):
+        return self._interval("ai_interval_seconds")
+
+    @property
+    def organization_interval_seconds(self):
+        return self._interval("organization_interval_seconds")
+
+    def time_label(self):
+        """Игровое время в формате ЧЧ:ММ:СС."""
+        total = max(0, int(self.elapsed))
+        hours, remainder = divmod(total, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return "%02d:%02d:%02d" % (hours, minutes, seconds)
+
+    def speed_label(self):
+        return "×%d" % int(self.speed)
+
+    def speed_cap(self):
+        return int(self.speed_levels[-1])
+
+    def can_speed_up(self):
+        return int(self.speed) < self.speed_cap()
+
+    def speed_up(self):
+        """Ускорить время до следующего разрешённого значения.
+
+        Замедление, пауза и откат не предусмотрены: метод только повышает
+        множитель и никогда не уменьшает его.
+        """
+        if self.finished:
+            return self.speed
+        for value in self.speed_levels:
+            if value > int(self.speed):
+                self.speed = int(value)
+                break
+        return self.speed
+
+    def set_speed(self, value):
+        """Задать скорость не ниже текущей; иначе вернуть ``False``."""
+        try:
+            requested = int(value)
+        except (TypeError, ValueError):
+            return False
+        if requested < int(self.speed):
+            return False
+        allowed = [level for level in self.speed_levels if level >= requested]
+        if not allowed:
+            return False
+        self.speed = int(allowed[0])
+        return True
+
+    def advance_time(self, dt):
+        """Продвинуть кампанию на ``dt`` реальных секунд.
+
+        Игровое время идёт со скоростью ``speed`` (не меньше 1). Работа,
+        ИИ и организации обновляются непрерывно, без кнопки «завершить
+        ход»; пауза, замедление и откат отсутствуют.
+        """
+        if self.finished or dt is None:
+            return self.snapshot()
+        try:
+            seconds = float(dt)
+        except (TypeError, ValueError):
+            return self.snapshot()
+        if seconds <= 0.0:
+            return self.snapshot()
+        if not self._turn_active:
+            self._turn_active = True
+            if self.turn <= 0:
+                self.turn = 1
+            self.actions_left = max(self.actions_left, self.actions_per_turn)
+        scaled = seconds * float(self.speed)
+        self.elapsed += scaled
+        self._regenerate_actions(scaled)
+        self._advance_ai(scaled)
+        self._advance_rounds(scaled)
+        return self.snapshot()
+
+    def _regenerate_actions(self, seconds):
+        if self.finished:
+            return
+        if self.actions_left >= self.actions_per_turn:
+            self._action_progress = 0.0
+            return
+        self._action_progress += seconds
+        interval = self.action_interval_seconds
+        while (
+            self._action_progress >= interval
+            and self.actions_left < self.actions_per_turn
+        ):
+            self.actions_left += 1
+            self._action_progress -= interval
+        if self.actions_left >= self.actions_per_turn:
+            self._action_progress = 0.0
+
+    def _advance_ai(self, seconds):
+        if self.finished:
+            return
+        self._ai_progress += seconds
+        interval = self.ai_interval_seconds
+        while self._ai_progress >= interval and not self.finished:
+            self._ai_progress -= interval
+            for side in list(self.factions):
+                if side == self.player_side or self.finished:
+                    continue
+                faction = self.faction(side)
+                if faction is None or faction.dissolved:
+                    continue
+                self._auto_play_side(side, 1)
+
+    def _advance_rounds(self, seconds):
+        if self.finished:
+            return
+        self._round_progress += seconds
+        interval = self.organization_interval_seconds
+        while self._round_progress >= interval and not self.finished:
+            self._round_progress -= interval
+            self.turn += 1
+            self._tick_organizations()
+            self._check_outcome()
+            self.history.append(self.snapshot())
 
     def _player_action_gate(self, side):
         """Проверить бюджет перед действием игрока."""
@@ -994,8 +1050,8 @@ class AutomataCampaign:
                 "actor": faction.name,
             }
         )
-        if len(self.events) > 400:
-            self.events = self.events[-400:]
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
         self.last_organ_result = result
         return result
 
@@ -1220,8 +1276,8 @@ class AutomataCampaign:
                 "actor": source.name,
             }
         )
-        if len(self.events) > 400:
-            self.events = self.events[-400:]
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
         self.last_automaton_result = result
         return result
 
@@ -1264,6 +1320,7 @@ class AutomataCampaign:
         character = faction.character(character_id)
         if character is None:
             return []
+        is_self = bool(getattr(character, "campaign_is_player", False))
         options = []
         for interaction in faction.character_interactions:
             cost = _as_mapping(interaction.get("cost"))
@@ -1272,6 +1329,17 @@ class AutomataCampaign:
                 for key, value in cost.items()
             )
             left = self._character_cooldown_left(character, interaction)
+            self_blocked = bool(
+                is_self and not interaction.get("allow_self", False)
+            )
+            if self_blocked:
+                reason = "нельзя применять к самому себе"
+            elif not affordable:
+                reason = "не хватает состояния"
+            elif left > 0:
+                reason = "перезарядка ещё %d" % left
+            else:
+                reason = ""
             options.append(
                 {
                     "interaction": interaction,
@@ -1300,12 +1368,14 @@ class AutomataCampaign:
                             interaction.get("personality")
                         ).items()
                     },
-                    "enabled": bool(affordable and left <= 0),
-                    "reason": (
-                        "не хватает состояния"
-                        if not affordable
-                        else ("перезарядка ещё %d" % left if left > 0 else "")
+                    "target_is_self": is_self,
+                    "allow_self": bool(
+                        interaction.get("allow_self", False)
                     ),
+                    "enabled": bool(
+                        affordable and left <= 0 and not self_blocked
+                    ),
+                    "reason": reason,
                 }
             )
         return options
@@ -1442,8 +1512,8 @@ class AutomataCampaign:
                 "actor": faction.name,
             }
         )
-        if len(self.events) > 400:
-            self.events = self.events[-400:]
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
         self.last_character_result = result
         return result
 
@@ -1527,8 +1597,8 @@ class AutomataCampaign:
                 "actor": result["actor_name"],
             }
         )
-        if len(self.events) > 400:
-            self.events = self.events[-400:]
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
 
     # ------------------------------------------------------------------
     # Работа
@@ -1794,7 +1864,7 @@ class AutomataCampaign:
 
     def run(self, turns=None, player_action=None, target=None):
         if turns is None:
-            limit = self.max_turns or 72
+            limit = self.max_turns or DEFAULT_RUN_TURNS
         else:
             limit = max(0, int(turns))
         for _ in range(limit):
@@ -1967,6 +2037,12 @@ class AutomataCampaign:
             "actions_per_turn": self.actions_per_turn,
             "actions_left": self.actions_left,
             "turn_active": bool(self._turn_active),
+            "elapsed": round(float(self.elapsed), 6),
+            "speed": int(self.speed),
+            "realtime": dict(self.realtime),
+            "action_progress": round(float(self._action_progress), 6),
+            "ai_progress": round(float(self._ai_progress), 6),
+            "round_progress": round(float(self._round_progress), 6),
             "score_streak": self.score_streak,
             "score_streak_side": self.score_streak_side,
             "player_side": self.player_side,
@@ -1976,8 +2052,8 @@ class AutomataCampaign:
             "factions": {
                 side: faction.snapshot() for side, faction in self.factions.items()
             },
-            "events": list(self.events[-80:]),
-            "log": list(self.log[-80:]),
+            "events": list(self.events[-SNAPSHOT_TAIL:]),
+            "log": list(self.log[-SNAPSHOT_TAIL:]),
         }
 
     to_dict = snapshot
@@ -2084,6 +2160,23 @@ class AutomataCampaign:
         self._turn_active = bool(
             snapshot.get("turn_active", self._turn_active)
         )
+        self.elapsed = max(
+            0.0, _number(snapshot.get("elapsed"), self.elapsed)
+        )
+        self._action_progress = max(
+            0.0,
+            _number(snapshot.get("action_progress"), self._action_progress),
+        )
+        self._ai_progress = max(
+            0.0, _number(snapshot.get("ai_progress"), self._ai_progress)
+        )
+        self._round_progress = max(
+            0.0,
+            _number(snapshot.get("round_progress"), self._round_progress),
+        )
+        saved_speed = max(1, int(_number(snapshot.get("speed"), self.speed)))
+        allowed_speeds = [level for level in self.speed_levels if level >= saved_speed]
+        self.speed = allowed_speeds[0] if allowed_speeds else self.speed_levels[-1]
         self.score_streak = max(
             0, int(_number(snapshot.get("score_streak"), self.score_streak))
         )
@@ -2250,6 +2343,9 @@ __all__ = [
     "AutomataCampaignError",
     "DEFAULT_ACTIONS_PER_TURN",
     "DEFAULT_CHARACTER_INTERACTIONS",
+    "DEFAULT_RUN_TURNS",
+    "EVENT_LOG_LIMIT",
     "FactionRuntime",
     "MODEL_DEFAULTS",
+    "REALTIME_DEFAULTS",
 ]

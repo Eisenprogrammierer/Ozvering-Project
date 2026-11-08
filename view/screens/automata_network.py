@@ -330,7 +330,34 @@ class AutomataNetworkScreen(BaseScreen):
         interp = getattr(self.app, "storyline_interpreter", None)
         if interp is None:
             return
-        interp.state["automata"] = self.campaign.snapshot()
+        snapshot = self.campaign.snapshot()
+        interp.state["automata"] = snapshot
+        interp.set_variable("automata_elapsed", snapshot["elapsed"])
+        interp.set_variable("automata_speed", snapshot["speed"])
+
+    def update(self, dt):
+        """Реальное время не останавливается при открытой сети."""
+        if self.campaign.finished:
+            return
+        before = self.campaign.turn
+        self.campaign.advance_time(dt)
+        if self.campaign.turn != before or self.campaign.finished:
+            self._sync_storyline()
+        if self.campaign.finished:
+            self._check_storyline_outcome()
+
+    def _increase_speed(self):
+        if self.campaign.finished:
+            return
+        before = self.campaign.speed
+        self.campaign.speed_up()
+        if self.campaign.speed != before:
+            self.message = "Скорость времени: %s." % self.campaign.speed_label()
+        else:
+            self.message = (
+                "Достигнута максимальная скорость: %s."
+                % self.campaign.speed_label()
+            )
 
     def select_faction(self, side):
         """Выбрать можно только свою фракцию."""
@@ -462,7 +489,7 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _budget_message(self):
         return (
-            "Действия исчерпаны (%d за ход). Завершите ход."
+            "Действия восстанавливаются со временем (%d за цикл)."
             % self.campaign.actions_per_turn
         )
 
@@ -828,7 +855,7 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.manager.pop()
             return
         if self._end_turn_rect.collidepoint(pos):
-            self.end_turn()
+            self._increase_speed()
             return
         if self._automata_tab_rect.collidepoint(pos):
             self.mode = "automata"
@@ -1314,10 +1341,11 @@ class AutomataNetworkScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "%s · ход %d · действия %d/%d"
+                "%s · время %s · %s · действия %d/%d"
                 % (
                     self._faction().name if self._faction() else "—",
-                    self.campaign.turn,
+                    self.campaign.time_label(),
+                    self.campaign.speed_label(),
                     self.campaign.actions_left,
                     self.campaign.actions_per_turn,
                 ),
@@ -1477,7 +1505,9 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _draw_bottom(self, screen):
         _panel(screen, BOTTOM_RECT)
-        budget = "ход %d · действия %d/%d" % (
+        budget = "время %s · %s · цикл %d · действия %d/%d" % (
+            self.campaign.time_label(),
+            self.campaign.speed_label(),
             self.campaign.turn,
             self.campaign.actions_left,
             self.campaign.actions_per_turn,
@@ -1489,12 +1519,20 @@ class AutomataNetworkScreen(BaseScreen):
             (BOTTOM_RECT.x + 10, BOTTOM_RECT.y + 15),
         )
         pygame.draw.rect(
-            screen, (46, 86, 138), self._end_turn_rect, border_radius=7
+            screen,
+            (46, 86, 138) if self.campaign.can_speed_up() else (40, 44, 56),
+            self._end_turn_rect,
+            border_radius=7,
         )
         pygame.draw.rect(
             screen, PANEL_BORDER, self._end_turn_rect, 2, border_radius=7
         )
-        text = self.app.font_small.render("Завершить ход", True, TEXT)
+        speed_text = (
+            "Ускорить · %s" % self.campaign.speed_label()
+            if self.campaign.can_speed_up()
+            else "Скорость максимальна"
+        )
+        text = self.app.font_small.render(speed_text, True, TEXT)
         screen.blit(text, text.get_rect(center=self._end_turn_rect.center))
         pygame.draw.rect(
             screen, (46, 86, 138), self._back_rect, border_radius=7
@@ -1541,7 +1579,9 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.font_title.render("Сеть автоматов", True, TEXT),
             (24, 24),
         )
-        status = "ход %d · действия %d/%d" % (
+        status = "время %s · скорость %s · цикл %d · действия %d/%d" % (
+            self.campaign.time_label(),
+            self.campaign.speed_label(),
             self.campaign.turn,
             self.campaign.actions_left,
             self.campaign.actions_per_turn,

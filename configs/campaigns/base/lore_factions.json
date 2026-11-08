@@ -2615,7 +2615,8 @@
       },
       "morale": 6.0,
       "organ_integrity": 0.02,
-      "cooldown": 3
+      "cooldown": 3,
+      "allow_self": false
     },
     {
       "id": "reward",
@@ -2633,7 +2634,8 @@
         "loyalty": 0.02
       },
       "morale": 10.0,
-      "cooldown": 2
+      "cooldown": 2,
+      "allow_self": false
     },
     {
       "id": "reassure",
@@ -2648,7 +2650,8 @@
         "loneliness": -0.05
       },
       "morale": 8.0,
-      "cooldown": 2
+      "cooldown": 2,
+      "allow_self": false
     },
     {
       "id": "interrogate",
@@ -2667,7 +2670,8 @@
         "loyalty": -0.05
       },
       "morale": -8.0,
-      "cooldown": 3
+      "cooldown": 3,
+      "allow_self": false
     }
   ]
 }

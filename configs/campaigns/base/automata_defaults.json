@@ -1,0 +1,240 @@
+{
+  "actions_per_turn": 3,
+  "run_turns_default": 72,
+  "event_log_limit": 400,
+  "snapshot_tail": 80,
+  "realtime": {
+    "turn_seconds": 24.0,
+    "action_interval_seconds": 8.0,
+    "ai_interval_seconds": 8.0,
+    "organization_interval_seconds": 24.0,
+    "speeds": [1, 2, 4, 8, 16, 32]
+  },
+  "automata_model": {
+    "success_base": 0.0,
+    "success_slope": 1.6,
+    "cooldown_turns": 0,
+    "asset_relax": 0.03,
+    "effect_scale": 1.0,
+    "organization_cohesion": 0.06,
+    "organization_legitimacy": 0.04,
+    "organization_supply_drain": 0.006,
+    "organization_fear": 0.03,
+    "organization_morale": 0.002,
+    "collapse_streak": 3
+  },
+  "organ_model": {
+    "organ_downscale": 0.6,
+    "organ_recovery": 0.12,
+    "organ_upscale": 0.012,
+    "organ_action_gain": 0.08,
+    "organ_action_loss": 0.06,
+    "organ_damage": 0.05,
+    "organ_spread": 0.18,
+    "organ_dissolve_rate": 0.05,
+    "organ_effect_floor": 0.55
+  },
+  "organ_kinds": {
+    "command": {"asset": "cohesion", "weight": 1.2},
+    "coercion": {"asset": "morale", "weight": 1.05},
+    "intelligence": {"asset": "influence", "weight": 1.0},
+    "information": {"asset": "influence", "weight": 1.0},
+    "maintenance": {"asset": "supply", "weight": 0.95},
+    "legitimacy": {"asset": "legitimacy", "weight": 1.1},
+    "care": {"asset": "morale", "weight": 0.9},
+    "meaning": {"asset": "morale", "weight": 0.9},
+    "exchange": {"asset": "supply", "weight": 0.95},
+    "support": {"asset": "cohesion", "weight": 1.0}
+  },
+  "organ_status_thresholds": {
+    "active": 0.65,
+    "strained": 0.35,
+    "restoring": 0.15
+  },
+  "organ_target": {
+    "profile_weight": 0.6,
+    "pressure_weight": 0.4,
+    "pressure_assets": [
+      "legitimacy",
+      "cohesion",
+      "morale",
+      "supply",
+      "influence"
+    ]
+  },
+  "organ_default_integrity": 0.72,
+  "organ_min_weight": 0.1,
+  "preset_defaults": {
+    "characters_per_faction": 8,
+    "participant_title": "Участник",
+    "faction_leader_title": "номинальный лидер",
+    "organization_name": "Организация",
+    "organization_leader_title": "номинальный председатель",
+    "organization_complete_weight": 0.84,
+    "morale_leader_bonus": 4.0,
+    "morale_player_bonus": 2.0,
+    "morale_max": 100.0,
+    "needs_base": {
+      "hunger": 0.18,
+      "thirst": 0.15,
+      "fatigue": 0.12,
+      "health": 0.05,
+      "fear": 0.1,
+      "anxiety": 0.12,
+      "loneliness": 0.18,
+      "reproduction": 0.1,
+      "knowledge": 0.25,
+      "creativity": 0.22,
+      "boredom": 0.25,
+      "status": 0.35,
+      "spirituality": 0.25,
+      "skill": 0.35,
+      "love": 0.18,
+      "friendship": 0.18
+    },
+    "needs_priority": {
+      "limit": 4,
+      "floor_min": 0.42,
+      "floor_base": 0.8,
+      "floor_step": 0.1,
+      "jitter": 0.16
+    },
+    "organization_runtime": {
+      "satisfaction_per_tick": 0.03,
+      "contribution_cost": 0.08,
+      "coercion_factor": 0.5,
+      "leader_morale_bonus": 10.0,
+      "allow_rejoin": false
+    }
+  },
+  "organ_interactions": [
+    {
+      "id": "reinforce",
+      "label": "Усилить орган",
+      "description": "Перебросить людей и ресурсы: целостность органа растёт.",
+      "cost": {"supply": 0.04},
+      "integrity": 0.12,
+      "faction": {"cohesion": 0.015},
+      "cooldown": 2
+    },
+    {
+      "id": "reform",
+      "label": "Реформировать",
+      "description": "Изменить порядок работы органа ценой энергии.",
+      "cost": {"energy": 0.035},
+      "integrity": 0.07,
+      "faction": {"influence": 0.012},
+      "cooldown": 3
+    },
+    {
+      "id": "purge",
+      "label": "Провести чистку",
+      "description": "Подчинить орган центру: страх растёт, целостность падает.",
+      "cost": {"influence": 0.05},
+      "integrity": -0.15,
+      "faction": {"fear": 0.02, "legitimacy": 0.01},
+      "cooldown": 3
+    },
+    {
+      "id": "resupply",
+      "label": "Наладить снабжение",
+      "description": "Влить запас в орган: целостность и мораль растут.",
+      "cost": {"supply": 0.06},
+      "integrity": 0.18,
+      "faction": {"morale": 0.01},
+      "cooldown": 4
+    }
+  ],
+  "automaton_interactions": [
+    {
+      "id": "coordinate",
+      "label": "Согласовать работу",
+      "description": "Автомат-источник согласует работу с другим автоматом: цель получает поддержку, фракция — небольшую сплочённость.",
+      "relation": "any",
+      "cost": {"influence": 0.02},
+      "source_integrity": 0.01,
+      "target_integrity": 0.08,
+      "faction": {"cohesion": 0.008},
+      "cooldown": 2
+    },
+    {
+      "id": "transfer",
+      "label": "Передать резерв",
+      "description": "Источник отдаёт часть своих людей и запасов целевому автомату. Цель укрепляется, источник расходует целостность и снабжение.",
+      "relation": "any",
+      "cost": {"supply": 0.03},
+      "source_integrity": -0.04,
+      "target_integrity": 0.12,
+      "faction": {"morale": 0.004},
+      "cooldown": 2
+    },
+    {
+      "id": "directive",
+      "label": "Отдать директиву",
+      "description": "Приказ подчинённому автомату: вертикаль работает, цель укрепляется, законность фракции растёт.",
+      "relation": "subordinate",
+      "cost": {"influence": 0.03},
+      "source_integrity": 0.008,
+      "target_integrity": 0.1,
+      "faction": {"legitimacy": 0.006},
+      "cooldown": 3
+    },
+    {
+      "id": "escalate",
+      "label": "Запросить поддержку",
+      "description": "Автомат обращается к вышестоящему органу за поддержкой: источник укрепляется, центр расходует часть целостности.",
+      "relation": "superior",
+      "cost": {"influence": 0.02},
+      "source_integrity": 0.1,
+      "target_integrity": -0.02,
+      "faction": {"legitimacy": 0.006},
+      "cooldown": 3
+    }
+  ],
+  "character_interactions": [
+    {
+      "id": "promote",
+      "label": "Повысить",
+      "description": "Повышение закрывает потребность в статусе и повышает лояльность, но требует влияния.",
+      "cost": {"influence": 0.04},
+      "needs": {"status": -0.15, "anxiety": -0.03},
+      "personality": {"loyalty": 0.04},
+      "morale": 6.0,
+      "organ_integrity": 0.02,
+      "cooldown": 3,
+      "allow_self": false
+    },
+    {
+      "id": "reward",
+      "label": "Наградить",
+      "description": "Награда поднимает мораль и снижает усталость; ресурс расходуется из запаса фракции.",
+      "cost": {"supply": 0.03, "influence": 0.02},
+      "needs": {"status": -0.1, "fatigue": -0.05},
+      "personality": {"loyalty": 0.02},
+      "morale": 10.0,
+      "cooldown": 2,
+      "allow_self": false
+    },
+    {
+      "id": "reassure",
+      "label": "Поддержать",
+      "description": "Личная поддержка снижает страх, тревогу и одиночество, возвращая человеку устойчивость.",
+      "cost": {"energy": 0.02},
+      "needs": {"fear": -0.12, "anxiety": -0.15, "loneliness": -0.05},
+      "morale": 8.0,
+      "cooldown": 2,
+      "allow_self": false
+    },
+    {
+      "id": "interrogate",
+      "label": "Допросить",
+      "description": "Жёсткая проверка повышает страх и тревогу, снижает лояльность, но даёт знание о настроениях.",
+      "cost": {"influence": 0.03, "energy": 0.02},
+      "needs": {"fear": 0.12, "anxiety": 0.1, "knowledge": -0.08},
+      "personality": {"loyalty": -0.05},
+      "morale": -8.0,
+      "cooldown": 3,
+      "allow_self": false
+    }
+  ]
+}
