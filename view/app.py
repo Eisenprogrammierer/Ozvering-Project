@@ -35,7 +35,7 @@ class _ArenaHostScreen(BaseScreen):
     def handle_event(self, event):
         try:
             self.arena.handle_events([event])
-        except Exception as exc:  # защитный путь UI: арена не роняет цикл
+        except Exception as exc:
             logger.warning("Арена: ошибка события %s: %s", event.type, exc)
 
     def update(self, dt):
@@ -121,9 +121,6 @@ class App:
         pygame.init()
         pygame.display.set_caption("Operation Ozverin — MVP")
         self.fullscreen = False
-        # Production-чекпойнт автопилота кампании (P2). Пустая строка —
-        # `WorldScreen` создаст свежую BDI; явный путь загружается лениво,
-        # чтобы стартовое меню не падало из-за битого файла.
         self.checkpoint = str(checkpoint or "")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
@@ -132,8 +129,6 @@ class App:
         self.font_small = load_font(15)
         self.font_tiny = load_font(11)
         self.running = True
-        # Активность окна (§7 №31): при потере фокуса/сворачивании экран мира
-        # переводит реальные секунды в фоновый догон дней.
         self.active = True
         self.scenario_path = "scenarios/mvp.json"
         self.storyline_interpreter = None
@@ -150,9 +145,6 @@ class App:
         try:
             self.role_catalog = RoleCatalog.load()
         except RoleError as exc:
-            # Контент пуст по умолчанию: роли добавляются JSON-файлами.
-            # Меню должно открыться даже без них, иначе игрок не увидит,
-            # что именно нужно добавить.
             logger.warning("Роли не загружены: %s", exc)
             self.role_catalog = None
         self.selected_role = None
@@ -1145,8 +1137,6 @@ class App:
             if storyline_snapshot is None:
                 storyline_snapshot = {"state": {}}
             world_payload = self.world.to_dict()
-            # §7 №31: момент сохранения нужен для ограниченного
-            # оффлайн-догона при следующей загрузке.
             world_payload["saved_at"] = time.time()
             storyline_snapshot.setdefault("state", {})[
                 "world"

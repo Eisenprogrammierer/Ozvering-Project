@@ -28,8 +28,6 @@ from __future__ import annotations
 
 from .errors import CampaignError
 
-# Текущая версия снимка кампании. Старые снимки без поля читаются как 0;
-# снимок с большей версией отвергается, чтобы не потерять незнакомые поля.
 SCHEMA_VERSION = 1
 
 

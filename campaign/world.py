@@ -76,16 +76,10 @@ from .projections import (
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
 
-# Политика автономных персонажей (A4): базовый шанс социального контакта
-# и величины эффектов. Исход бросается `campaign_success_chance` — той же
-# формулой, что действует игрок; провал даёт слабый негативный дрейф
-# вместо позитивного. Пороги выбора вида — по легаси-шкале [-1, 1].
 AUTONOMY_BASE_CHANCE = 0.6
 AUTONOMY_AFFINITY_THRESHOLD = -0.2
 AUTONOMY_TRUST_THRESHOLD = 0.35
 
-# Ветки политики автономных контактов: `effects` применяются при успехе,
-# при провале эффект зеркалится и halвится (см. `_apply_autonomy_contact`).
 _AUTONOMY_POLICIES = {
     "reconcile": {
         "effects": {"affinity": 0.02},
@@ -108,33 +102,17 @@ DEFAULT_BIOGRAPHY_PATH = ROOT / "configs" / "worlds" / "biography.json"
 CAMPAIGN_HEALTH_REGEN = 1.0
 CAMPAIGN_SICKNESS_PROGRESS = 0.01
 CAMPAIGN_SICKNESS_HEALTH_DECAY = 6.0
-# Устойчивые раны кампании (открытый пункт «устойчивые раны с отдельным
-# состоянием/лечением»). Рана отличается от болезни: она даёт прямой
-# суточный урон `H` и замедляет восстановление, но не прогрессирует сама
-# по себе и лечится отдельным действием (`treat_wound_player`), а не
-# `treat_player`. Константы — кампанийные аналоги аренных `WOUND_*`
-# (день крупнее такта, поэтому темп лечения выше аренного).
 CAMPAIGN_WOUND_MAX = WOUND_MAX
 CAMPAIGN_WOUND_HEALTH_DECAY = 4.0
 CAMPAIGN_WOUND_REGEN_PENALTY = 0.5
 CAMPAIGN_WOUND_TREAT_AMOUNT = 0.25
-# Средовые источники ран: редкие события дня (аналог `ENV_WOUND_INTERVAL`
-# арены) и риск получения раны при силовых действиях. Зерно детерминизма —
-# `_roll`, как у заражения.
 CAMPAIGN_ENV_WOUND_CHANCE = 0.05
 CAMPAIGN_ENV_WOUND_DAMAGE = 8.0
 CAMPAIGN_ENV_WOUND_SEVERITY = 0.30
 CAMPAIGN_ACTION_WOUND_CHANCE = 0.15
 CAMPAIGN_ACTION_WOUND_SEVERITY = 0.20
 CAMPAIGN_ACTION_WOUND_DAMAGE = 6.0
-# Навык, снижающий тяжесть раны при неудаче рискованного действия
-# (аналог аренной силы, уменьшающей шанс попадания).
 CAMPAIGN_WOUND_DODGE_SKILL = "command"
-# Рискованные действия: действие может задать `"wound_risk": true` в конфиге
-# мира (например, `duel`, `sabotage`, `enforce_order`). Только они дают рану
-# при провале — остальные ходы остаются политическими, а не физическими.
-# Раны намеренно редки: эпизод длится десятки действий, и постоянный урон
-# по хитрости превратил бы любую политику в «всегда END_DAY».
 WOUND_RISKY_ACTIONS = (
     "duel",
     "sabotage",
@@ -152,77 +130,32 @@ def _is_wound_risky(action):
     return _text(action.get("id")) in WOUND_RISKY_ACTIONS
 
 
-# Кампанийная передача болезни — контакт в одном узле. День крупнее
-# аренного такта, поэтому шанс ниже `CONTAGION_CHANCE`, а тяжесть — доля
-# болезни источника.
 CAMPAIGN_CONTAGION_CHANCE = 0.30
 CAMPAIGN_CONTAGION_SEVERITY = 0.35
-# Дневной доход должности. `E` — бюджет действий, а влияние и связи —
-# его политическая проекция: без дохода стоимость действий съедала ресурс
-# за 2–3 действия, и политика большую часть месяца просто завершала день.
-# Доход растёт с полномочиями должности и репутацией, поэтому высокая роль
-# позволяет действовать чаще, но не отменяет дневной бюджет `E`.
 CAMPAIGN_INFLUENCE_INCOME = 0.04
 CAMPAIGN_INFLUENCE_PER_AUTHORITY = 0.21
 CAMPAIGN_FAVOR_INCOME = 0.03
 CAMPAIGN_FAVOR_PER_STANDING = 0.20
-# Навыки кампании растут от практики, а не только задаются биографией.
-# Насыщение к `CAMPAIGN_SKILL_CAP` не даёт одному действию быстро упереться
-# в максимум; провал тоже учит, но заметно слабее.
 CAMPAIGN_SKILL_GAIN = 0.03
 CAMPAIGN_SKILL_FAILURE_GAIN = 0.01
 CAMPAIGN_SKILL_CAP = 0.90
 COLLAPSE_POWER = 0.05
 COLLAPSE_COHESION = 0.05
-# Распад — не мгновенный срез одной шкалы (вопрос §7 №28): организация
-# должна продержаться ниже порога `COLLAPSE_GRACE_DAYS` дней подряд.
-# Полный ноль силы и связности распадается сразу, чтобы «мёртвая»
-# организация не висела в мире лишний день.
 COLLAPSE_GRACE_DAYS = 2
-# Более глубокий критерий первого среза: легитимность ниже этого порога
-# делает структуру нежизнеспособной, но пока не завершает игру сама по
-# себе — она лишь усиливает давление распада (см. organization_status()).
 COLLAPSE_LEGITIMACY = 0.02
-# Увольнение — смена роли, а не поражение (вопрос §7 №29). Пороги те же,
-# что были у старого терминального «потерял должность», но теперь они
-# переводят игрока в другую роль.
 DISMISSAL_STANDING = 0.05
 DISMISSAL_LEGITIMACY = 0.08
-# §7 №28–29: смена роли — не ежедневный автомат. После перевода герой
-# получает срок, чтобы стабилизировать структуру; иначе низкая
-# легитимность снова увольняет его на следующий день и калибровка видит
-# десятки смен роли за эпизод. Значение переопределяется конфигом мира.
 ROLE_CHANGE_COOLDOWN_DAYS = 5
-# Рынок труда: у вакансии есть очередь кандидатов. Соревнование считается
-# детерминированно от дня/seed, поэтому один и тот же вызов `execute()`
-# видит ту же очередь, что и UI. Игрок конкурирует навыком и репутацией;
-# связи/влияние влияют на саму попытку через стоимость действия.
 LABOR_MARKET_RIVALS = 2
 LABOR_MARKET_RIVAL_BASE = 0.22
 LABOR_MARKET_RIVAL_SPREAD = 0.20
 LABOR_MARKET_RANK_BONUS = 0.05
 LABOR_MARKET_SKILL_WEIGHT = 0.40
 LABOR_MARKET_STANDING_WEIGHT = 0.60
-# Срез A11: очередь обновляется блоками дней, а не каждый день. Внутри
-# блока UI и `execute()` видят одних и тех же кандидатов, между блоками
-# состав меняется — это даёт «приход/уход» без хранения отдельного списка.
 LABOR_MARKET_REFRESH_DAYS = 1
-# Межструктурная квота: сколько кандидатов из одной структуры может
-# одновременно претендовать на должность. 0 — без ограничения.
 LABOR_MARKET_STRUCTURE_QUOTA = 2
-# Связи профиля дают небольшой бонус: знакомство помогает попасть в
-# очередь, но не заменяет навык и репутацию.
 LABOR_MARKET_CONNECTION_WEIGHT = 0.10
-# Ежедневное восстановление легитимности: рутинное управление возвращает
-# доверие, если структура не ниже порога распада. Это противовес
-# дорогим действиям (`tax`, `martial_law` и т.п.), которые тратят
-# легитимность быстрее, чем она восстанавливается.
 LEGITIMACY_RECOVERY = 0.02
-# §7 №28: экономика распада. Легитимность — не только сигнал `deep_risk`,
-# но и опора связности: ниже `DISMISSAL_LEGITIMACY` структура теряет
-# связность, ниже `COLLAPSE_LEGITIMACY` — ещё и силу. Дефицит казны
-# ускоряет эрозию, а здоровая легитимность и казна постепенно возвращают
-# обе шкалы. Так распад становится процессом, а не одним срезом.
 DECAY_STRAIN_COHESION = 0.010
 DECAY_STRAIN_POWER = 0.005
 DECAY_CRISIS_COHESION = 0.020
@@ -266,19 +199,9 @@ CHARACTER_STAT_LABELS = {
     "fear": "страх",
     "respect": "уважение",
 }
-# Оси отношений (§2.2, §7.6 №36–37). Легаси-шкала `relations` остаётся
-# проекцией `affinity`, поэтому старые сейвы, UI и `_ai_score` не ломаются.
-# Каждое направление R_ij хранится отдельно: помощь может повысить
-# расположение получателя и одновременно вызвать у отправителя подозрение,
-# принуждение — усилить страх у одного и обиду у другого.
 RELATION_AXES = ("affinity", "trust", "fear", "respect")
-# Доля обратного эффекта по умолчанию. Действие может задать
-# `relation_back`/`relation_axes_back` явно, если асимметрия сильнее.
 RELATION_BACK_SHARE = 0.5
 
-# Рынок труда: переговоры с конкретным соперником (§7.5 №29). Игрок
-# тратит действие и политические ресурсы; успех снимает кандидатуру
-# соперника до следующего поколения очереди, провал ухудшает отношение.
 LABOR_NEGOTIATION_INFLUENCE = 0.03
 LABOR_NEGOTIATION_FAVOR = 0.05
 LABOR_NEGOTIATION_SUCCESS_AFFINITY = 0.04
@@ -647,9 +570,6 @@ def validate_world(data):
                 days = _as_int(goal.get("days"), 1)
                 if days < 1:
                     raise WorldError("storyline.lose.days должен быть >= 1")
-    # A10: стратегии узлов — часть контента мира. Проверяем ссылки на
-    # действия и узлы до первого хода, чтобы ошибка JSON не всплывала в
-    # середине кампании.
     try:
         strategies = StrategyBook.from_config(data)
         strategies.validate(
@@ -847,10 +767,6 @@ class WorldEngine:
             _as_int(snapshot.get("seed"), 7) if snapshot else 7,
         )
         self.days = max(1, _as_int(self.config.get("days"), 30))
-        # Бесконечная рамка (вопрос §7 №30): `days` остаётся сюжетным
-        # горизонтом для старых сюжетов и UI, но по умолчанию больше не
-        # завершает игру «победой на 31-й день». Явный `infinite: false`
-        # возвращает легаси-конец для старых кампаний.
         self.infinite = bool(self.config.get("infinite", True))
         self.collapse_grace_days = max(
             1,
@@ -873,8 +789,6 @@ class WorldEngine:
                 LEGITIMACY_RECOVERY,
             ),
         )
-        # Пороги карьеры и распада — часть контента мира, а не жёстко
-        # зашитые числа. Калибровка может менять их без правки кода.
         self.dismissal_standing = _clamp(
             _as_float(
                 self.config.get("dismissal_standing"),
@@ -913,16 +827,12 @@ class WorldEngine:
         self.organizational_drift = bool(
             self.config.get("organizational_drift", True)
         )
-        # Темп дрейфа — отдельный множитель, чтобы калибровка могла
-        # сравнивать сценарии без правки констант. 1.0 — канонический темп.
         self.organizational_drift_scale = max(
             0.0,
             _as_float(
                 self.config.get("organizational_drift_scale"), 1.0
             ),
         )
-        # Оффлайн-догон (вопрос §7 №31): значения можно переопределить
-        # конфигом мира, но по умолчанию фон ограничен.
         self.offline_progress = bool(
             self.config.get("offline_progress", True)
         )
@@ -954,10 +864,6 @@ class WorldEngine:
             item["id"]: self._build_character(item)
             for item in self.config["characters"]
         }
-        # Направление «игрок → персонаж» (§2.2): R_ij ≠ R_ji. Легаси-поля
-        # `affinity/trust/fear/respect` персонажа хранят R_character→player;
-        # здесь — отношение игрока к собеседнику. Оно не переписывает
-        # характер персонажа и не влияет на его автономию.
         self.player_relations = {}
         self.character_actions = {
             item["id"]: item for item in self.config["character_actions"]
@@ -968,16 +874,11 @@ class WorldEngine:
         }
         self.nodes = self._build_nodes()
         self.node_order = [item["id"] for item in self.config["nodes"]]
-        # Долгосрочные стратегии узлов (A10): контент из JSON мира или
-        # внешнего `strategies_path`. Состояние прогресса живёт отдельно и
-        # попадает в снимок; сам список стратегий не сериализуется.
         self.strategies = StrategyBook.from_config(self.config)
         self.strategy_state = {}
         self.labor_market = _normalize_labor_market(
             self.config.get("labor_market") or {}
         )
-        # Переговоры с соперниками: office_id → rival_id → состояние
-        # (поколение очереди, попытки, снята ли кандидатура).
         self.labor_negotiations = {}
         self.profile = normalize_profile(
             profile or self.config.get("default_profile") or {}
@@ -1001,9 +902,6 @@ class WorldEngine:
             0.0,
             CAMPAIGN_WOUND_MAX,
         )
-        # Персонаж кампании — тот же 4-2-1-автомат, что и на арене:
-        # E — дневной бюджет действий, F — standing, H/sickness/wound —
-        # здоровье, болезнь и устойчивая рана.
         self.player = CampaignActor(
             actions_per_day=self.actions_per_day,
             health=initial_health,
@@ -1021,16 +919,9 @@ class WorldEngine:
         self.cooldowns = {}
         self.used_actions = []
         self.log = []
-        # §7.7 №41: сколько старых записей свернуто при сжатии журнала.
-        # Счётчик — диагностика, а не событие: он не попадает в журнал,
-        # чтобы не мешать UI и сравнениям снимков.
         self.log_trimmed = 0
-        # §7.7 №39–40: LOD-профиль строится лениво и сбрасывается при
-        # смене узла героя. Пока LOD выключен, все узлы ходят как раньше.
         self._lod = None
         self._lod_root = None
-        # Стоимость тика — наблюдаемая, но не сохраняемая: wall-clock не
-        # влияет на детерминизм мира и не должен попадать в снимок.
         self.tick_stats = {
             "ticks": 0,
             "intents": 0,
@@ -1044,41 +935,18 @@ class WorldEngine:
         self.outcome = None
         self.finished = False
         self.career_history = []
-        # A5: узлы тоже действуют внутри суток. Словарь хранит день
-        # последнего хода узла, чтобы `tick()` и `end_day()` не задвоили
-        # автономное действие.
         self.node_action_day = {}
-        # Состояние вопросов §7 №28–30. `dismissed` — событие смены роли,
-        # `collapse_days` — счётчик подряд идущих дней ниже порога силы/
-        # связности, `ending` — нарративный финал без объективной победы.
         self.dismissed = False
         self.dismissal_count = 0
         self.collapsed = False
         self.collapse_days = 0
-        # Сюжетный финал (§7 №30): сколько дней подряд репутация держится
-        # ниже порога поражения. Счётчик сбрасывается, как только герой
-        # выбирается выше порога, и живёт в снимке мира.
         self.storyline_days = 0
-        # Идемпотентность дневных проверок (§7 №28–29): `execute()` и
-        # `end_day()` могут вызвать `_check_dismissal()` несколько раз за
-        # один день. Счётчик распада и смена роли должны срабатывать не
-        # чаще одного раза в день, иначе два вызова дают «распад за день».
         self._collapse_day = 0
         self._dismissal_day = 0
         self.last_role_change_day = -self.role_change_cooldown_days
-        # Очередь намерений (первый срез real-time-планировщика, §7 №31):
-        # события, назначенные на будущие дни, и автономные контакты
-        # персонажей. Живёт в снимке мира.
         self.intents = IntentQueue()
-        # Граница управления BDI (§7.3): явные директивы игрока с сроком.
-        # Автономия персонажа не «залипает» — истёкшая директива исчезает.
         self.directives = DirectiveBook()
-        # Обязательства (§7.3 №19, §7.6 №36): долг/услуга/служба/свидетельство
-        # с кредитором, должником, суммой и сроком. Это не второй бюджет и
-        # не энергия — отдельная запись отношения, которую можно исполнить.
         self.obligations = ObligationLedger()
-        # Коалиции узлов (§7.3 №19): постоянные связки из взаимных осей и
-        # обязательств. Пустой блок `coalitions` их не создаёт.
         self.coalitions = CoalitionBook()
         self.horizon_passed = False
         self.ending = None
@@ -1089,10 +957,6 @@ class WorldEngine:
             if self.player_node_id and self.player_office_id:
                 self.attach(self.player_node_id, self.player_office_id)
             self._opening()
-
-    # ------------------------------------------------------------------
-    # Персонаж на ядре 4-2-1: E/F/H и совместимые проекции
-    # ------------------------------------------------------------------
 
     @property
     def actions_left(self):
@@ -1169,10 +1033,6 @@ class WorldEngine:
                 "tags": list(raw.get("tags") or ()),
                 "description": _text(raw.get("description")),
                 "interests": dict(raw.get("interests") or {}),
-                # Ценностные ограничения узла (§7.3 №18): необязательная
-                # карта `value_id -> сила` или список id. Пустое значение
-                # означает прежнее поведение — ограничены только действия
-                # с явным `values`.
                 "values": (
                     dict(raw.get("values"))
                     if isinstance(raw.get("values"), dict)
@@ -1226,8 +1086,6 @@ class WorldEngine:
                 0.0,
                 SICKNESS_MAX,
             ),
-            # Устойчивая рана персонажа — общее состояние с ареной;
-            # старые миры без поля получают 0.0.
             "wound": _clamp(
                 _as_float(raw.get("wound"), 0.0),
                 0.0,
@@ -1237,9 +1095,6 @@ class WorldEngine:
             "node_id": _text(raw.get("node_id")),
             "tags": list(raw.get("tags") or ()),
             "description": _text(raw.get("description")),
-            # Автономия (первый срез планировщика): персонаж сам назначает
-            # контакты. По умолчанию выключена, поэтому старые миры не
-            # меняют поведение.
             "autonomous": bool(raw.get("autonomous", False)),
             "autonomy_period": max(
                 1, _as_int(raw.get("autonomy_period"), AUTONOMY_PERIOD)
@@ -1499,8 +1354,6 @@ class WorldEngine:
                     ),
                 }
             )
-        # Порядок по блоку дней задаёт ротацию состава, а не силу
-        # кандидата: очередь на вакансию может возглавить слабейший.
         pool.sort(key=lambda item: (-item["roll"], item["id"]))
         structure_quota = max(
             0, _as_int(settings.get("structure_quota"), 0)
@@ -1610,7 +1463,9 @@ class WorldEngine:
         return self._labor_round(office_id).get(_text(rival_id))
 
     @staticmethod
-    def _negotiation_chance(player_score, rival_score, relation=0.0, attempts=0):
+    def _negotiation_chance(
+        player_score, rival_score, relation=0.0, attempts=0
+    ):
         """Шанс переговоров: сила позиции, отношение и накопленный опыт.
 
         Каждая предыдущая неудачная попытка в том же поколении даёт
@@ -2101,9 +1956,6 @@ class WorldEngine:
             "alive": bool(character["alive"]),
         }
 
-    # ------------------------------------------------------------------
-    # Обязательства (§7.3 №19, §7.6 №36)
-    # ------------------------------------------------------------------
     def add_obligation(
         self,
         creditor,
@@ -2305,10 +2157,6 @@ class WorldEngine:
             ],
         }
 
-    # ------------------------------------------------------------------
-    # §7.3 №18: жёсткие ценностные ограничения
-    # ------------------------------------------------------------------
-
     def value_rules(self):
         """Правила ценностей из блока `values` (кэш на инстанс)."""
         cached = getattr(self, "_value_rules_cache", None)
@@ -2332,7 +2180,6 @@ class WorldEngine:
             return {"values": dict(node_values)}
         if isinstance(node_values, (list, tuple)) and node_values:
             return {"value_ids": list(node_values)}
-        # У узла нет собственных ценностей: он не наследует профиль героя.
         return {}
 
     def value_check(self, action, context=None):
@@ -2360,10 +2207,6 @@ class WorldEngine:
             self.value_rules(),
             list(self.actions.values()),
         )
-
-    # ------------------------------------------------------------------
-    # §7.3 №19: формирование и распад коалиций
-    # ------------------------------------------------------------------
 
     def coalition_rules(self):
         """Правила коалиций из блока `coalitions` (или `coalition`)."""
@@ -2465,9 +2308,6 @@ class WorldEngine:
             return 0.0
         return self.coalition_rules()["cooperation_bonus"] * strength
 
-    # ------------------------------------------------------------------
-    # Управление BDI-персонажами (§7.3)
-    # ------------------------------------------------------------------
     def set_directive(
         self,
         character_id,
@@ -2550,10 +2390,6 @@ class WorldEngine:
         )
         return self.player_sickness
 
-    # -- Устойчивые раны ---------------------------------------------------
-    # Рана — отдельное состояние, а не разновидность болезни: `injure`
-    # не трогает `sickness`, `treat_wound` не трогает болезнь, и наоборот.
-
     def injure_player(self, severity):
         """Получить рану; повторная рана не лечит старую (берётся максимум)."""
         if not self.player_alive:
@@ -2622,7 +2458,6 @@ class WorldEngine:
         wound = _clamp(wound, 0.0, CAMPAIGN_WOUND_MAX)
         regen = CAMPAIGN_HEALTH_REGEN
         if wound > 0.0:
-            # Рана мешает восстановлению (аналог аренного WOUND_REGEN_PENALTY).
             regen *= max(0.25, 1.0 - CAMPAIGN_WOUND_REGEN_PENALTY * wound)
             health = max(
                 0.0,
@@ -2738,9 +2573,6 @@ class WorldEngine:
     def _advance_conditions(self):
         changed = []
         if not self.player_alive:
-            # Здоровье могли обнулить напрямую (сейв, тест, эффект мира):
-            # отсутствие `alive` не должно оставлять кампанию в
-            # незавершённом состоянии.
             if not self.finished:
                 self.outcome = "lose"
                 self.finished = True
@@ -2810,9 +2642,6 @@ class WorldEngine:
                         % character["name"],
                     }
                 )
-            # Автономная динамика персонажа (P1.6): даже без действия
-            # игрока отношение/доверие медленно меняются, а `Automaton`
-            # синхронизируется с легаси-полями для бросков успеха.
             affinity_delta, trust_delta = character.tick()
             if abs(affinity_delta) > 1e-12:
                 changed.append(
@@ -2828,8 +2657,6 @@ class WorldEngine:
                         trust_delta,
                     )
                 )
-        # Передача болезни идёт после дневного прогресса: заразившийся
-        # персонаж начнёт болеть со следующего дня, а не «сразу дважды».
         changed.extend(self._spread_contagion())
         changed.extend(self._apply_environment_wounds())
         return self._merge_changes(changed)
@@ -3396,9 +3223,6 @@ class WorldEngine:
         reason = self._reason_requirements(action, context, target)
         if reason:
             return False, reason
-        # §7.3 №18: ценность может быть жёстким запретом, но только если
-        # действие объявило ограничение. Иначе предательство разрешено и
-        # оплачивается отношениями/репутацией/обязательствами.
         reason = self._value_reason(action, context)
         if reason:
             return False, reason
@@ -3690,10 +3514,6 @@ class WorldEngine:
                 changed.append((self.stat_label(key), delta))
         return changed
 
-    # ------------------------------------------------------------------
-    # Экономика §7.4: источники, стоки, поддержание, бедность, природа
-    # ------------------------------------------------------------------
-
     def economy_config(self):
         """Блок `economy` конфига мира (пустой, если экономика выключена)."""
         raw = self.config.get("economy")
@@ -3941,7 +3761,10 @@ class WorldEngine:
                     )
                     if self.player_health != health_before:
                         changed.append(
-                            ("герой · здоровье", self.player_health - health_before)
+                            (
+                                "герой · здоровье",
+                                self.player_health - health_before,
+                            )
                         )
                     standing_before = self.player_resources["standing"]
                     self.player_resources["standing"] = _clamp(
@@ -3981,8 +3804,6 @@ class WorldEngine:
                 if abs(delta) > 1e-9:
                     changed.append((self.stat_label(key), delta))
         return self._merge_changes(changed)
-
-    # -- Клапаны бедности: отдых, помощь, кредит, ремонт -----------------
 
     def _economy_source(self, source_id):
         """Разрешить источник помощи/кредита: персонаж или структура."""
@@ -4035,7 +3856,12 @@ class WorldEngine:
         self.player_wound = max(0.0, wound_before - quote["wound"])
         changes = []
         if self.player_health != health_before:
-            changes.append(("герой · здоровье", self.player_health - health_before))
+            changes.append(
+                (
+                    "герой · здоровье",
+                    self.player_health - health_before,
+                )
+            )
         if self.player_resources["standing"] != standing_before:
             changes.append(
                 (
@@ -4113,7 +3939,10 @@ class WorldEngine:
             "obligation": obligation,
             "changes": [
                 ("герой · энергия", granted),
-                ("%s · казна" % node["name"], node["stats"]["wealth"] - before),
+                (
+                    "%s · казна" % node["name"],
+                    node["stats"]["wealth"] - before,
+                ),
             ],
         }
 
@@ -4171,7 +4000,10 @@ class WorldEngine:
             "obligation": obligation,
             "changes": [
                 ("герой · энергия", granted),
-                ("%s · казна" % node["name"], node["stats"]["wealth"] - before),
+                (
+                    "%s · казна" % node["name"],
+                    node["stats"]["wealth"] - before,
+                ),
             ],
         }
 
@@ -4198,7 +4030,12 @@ class WorldEngine:
         )
         changes = [("герой · энергия", -quote["energy"])]
         if self.player_health != health_before:
-            changes.append(("герой · здоровье", self.player_health - health_before))
+            changes.append(
+                (
+                    "герой · здоровье",
+                    self.player_health - health_before,
+                )
+            )
         if self.player_wound != wound_before:
             changes.append(("герой · рана", self.player_wound - wound_before))
         self.log.append(
@@ -4265,10 +4102,6 @@ class WorldEngine:
                 config=scaling.get("effect") or {},
             ),
         }
-
-    # ------------------------------------------------------------------
-    # §7.5 №32 и §7.7 №39–42: журнал, авто-пауза, LOD и стоимость тика
-    # ------------------------------------------------------------------
 
     def log_rules(self):
         """Правила важности/паузы из блока `logging` (кэш на инстанс)."""
@@ -4398,7 +4231,6 @@ class WorldEngine:
         навыков и обновляется здесь же.
         """
         if action.get("career"):
-            # Карьера — решение игрока/UI, а не тренировка навыка.
             return []
         domains = self._skill_domains(action, target)
         skills = []
@@ -4508,8 +4340,6 @@ class WorldEngine:
         lose = goals.get("lose") or {}
         win_threshold = win.get("standing_at_least")
         lose_threshold = lose.get("standing_at_most")
-        # Ранний провал: несколько дней подряд ниже порога доверия. Это
-        # работает и до дедлайна, и без него.
         if lose_threshold is not None:
             if (
                 self.attached
@@ -4752,14 +4582,10 @@ class WorldEngine:
                 context["node"], context.get("authority", 0.0)
             )
         elif hasattr(target, "sync"):
-            # Персонаж: его `Automaton` уже содержит F/E/H/sickness.
             defender = target.sync()
         else:
             defender = self._unit_from_node(target)
         form = _text(action.get("form"), DEFAULT_RELATION_FORM)
-        # §7.6 №37: оси отношения цели к действующему смещают приём работы
-        # на небольшой ограниченный вклад. Они не заменяют F/E, навык и
-        # сопротивление цели.
         relation_shift = relation_effect(
             self._relation_axes_to_actor(target, context["node"]["id"]),
             form,
@@ -4840,9 +4666,6 @@ class WorldEngine:
     def _career_transition(self, action, target):
         kind = action.get("career")
         if kind == "resign":
-            # Добровольная отставка — тоже смена роли, а не поражение
-            # (вопрос §7 №29). Автоперевода здесь нет: игрок сам выбирает
-            # новую должность через экран выбора роли.
             return self._dismiss(
                 "добровольная отставка",
                 kind="resign",
@@ -5160,10 +4983,6 @@ class WorldEngine:
             score += 0.15 * _as_float(relations.get(target["id"]), 0.0)
             if target.get("polity") == context["node"].get("polity"):
                 score += 0.05
-        # Выбор и разрешение действия используют разные соли. Иначе высокий
-        # случайный ролл одновременно повышает шанс выбора и шанс провала
-        # («проклятие победителя», WORLD_MODEL_REVIEW §4.1): номинальные
-        # 60–70% превращались в ~10% успеха.
         token = "ai-choice:%s:%s:%s:%s" % (
             self.day,
             context["node"]["id"],
@@ -5171,12 +4990,7 @@ class WorldEngine:
             target["id"] if target else "-",
         )
         score += 0.20 * self._roll(token)
-        # A10: стратегия с горизонтом добавляет бонус к действиям своей
-        # цели. Он убывает по мере прогресса и не отменяет сиюминутные
-        # интересы узла — только смещает выбор в их рамках.
         score += self._strategy_bonus(action, context, target)
-        # §7.3 №19: союзники чаще работают друг с другом. Бонус мал и
-        # действует только внутри активной коалиции.
         score += self._coalition_bonus(context, target)
         return score
 
@@ -5188,9 +5002,6 @@ class WorldEngine:
         for action in self.actions.values():
             if not action.get("ai", True):
                 continue
-            # Проверки, не зависящие от цели, считаем один раз на действие:
-            # `validate()` для каждого кандидата повторял actor/cost-причины
-            # и был главным горячим местом дневного шага.
             if self._reason_actor(action, context):
                 continue
             if self._reason_cost(action, context):
@@ -5201,8 +5012,6 @@ class WorldEngine:
             else:
                 candidates = self._ai_targets(action, context)
             for target in candidates:
-                # `_ai_targets` уже отфильтровал target-причину; остаются
-                # требования, зависящие от цели.
                 if self._reason_requirements(action, context, target):
                     continue
                 if self._value_reason(action, context):
@@ -5457,9 +5266,6 @@ class WorldEngine:
                 }
             )
             return
-        # Дневной счётчик распада обновляется не более одного раза в день:
-        # повторный вызов из `execute()`/`end_day()` не должен превращать
-        # один день в два.
         if self._collapse_day != self.day:
             self._collapse_day = self.day
             if strain:
@@ -5488,13 +5294,8 @@ class WorldEngine:
                 }
             )
             return
-        # Смена роли — не чаще одного раза в день, даже если `execute()`
-        # и `end_day()` оба увидели низкую репутацию/легитимность.
         if self._dismissal_day == self.day:
             return
-        # §7 №28–29: после перевода нужен срок стабилизации. Без cooldown
-        # низкая легитимность увольняет героя каждый день (до 12–13 смен
-        # роли за 30-дневный эпизод).
         if (
             self.day - int(self.last_role_change_day)
             < self.role_change_cooldown_days
@@ -5506,10 +5307,6 @@ class WorldEngine:
         elif node["stats"]["legitimacy"] <= self.dismissal_legitimacy:
             self._dismissal_day = self.day
             self._dismiss("структура потеряла легитимность")
-
-    # ------------------------------------------------------------------
-    # Очередь намерений (первый срез real-time-планировщика, §7 №31)
-    # ------------------------------------------------------------------
 
     def schedule_intent(
         self,
@@ -5566,14 +5363,8 @@ class WorldEngine:
             return None
         day = self.day + 1 if due_day is None else max(1, _as_int(due_day, 1))
         if day < self.day:
-            # Срок уже в прошлом — очередь и так исполняет долги первыми,
-            # планировать «вчера» бессмысленно.
             return None
         if day == self.day and _as_slot(due_slot) == SLOT_DAY_EDGE:
-            # Край текущего дня (слот 0) мог быть пропущен, если игрок
-            # начал играть не с рассвета; разрешаем срочное намерение —
-            # его заберёт ближайший `tick()`. Внутридневные слоты того же
-            # дня доступны всегда: они ещё не наступили.
             pass
         return self.schedule_intent(
             day,
@@ -5650,16 +5441,6 @@ class WorldEngine:
         """
         events = []
         target_day = self.day if day is None else day
-        # Семантика A5: намерение со сроком «день N» исполняется в начале
-        # дня N; дальние дни ждут своего перехода. Долги (`due_day <
-        # target_day`) закрываются по порядку слотов: узкое окно берёт
-        # только краевой долг (слот 0), остальные ждут расширения max_slot
-        # или полного перехода суток. Намерения наступивших суток честно
-        # ждут своего слота — иначе внутридневные ушли бы «не в свой час».
-        # Полный переход (`end_day`, max_slot=SLOTS_MAX) забирает весь день:
-        # и край, и внутридневные слоты — иначе они стали бы долгами.
-        # Выборка долгов живёт здесь, а не в отдельном проходе, чтобы
-        # `tick(max_slot=0)` не схлопывал всю просрочку разом.
         window = _as_slot(max_slot)
         overdue = [
             item for item in self.intents.items if item.due_day < target_day
@@ -5711,8 +5492,6 @@ class WorldEngine:
             ]
         if intent.kind == "contact":
             if intent.source == "autonomy":
-                # Автономный контакт (A4) исполняется своей политикой:
-                # вид ветки и бросок шанса через `campaign_success_chance`.
                 return self._apply_autonomy_contact(intent)
             character = self.character(intent.actor)
             if character is None or not character.get("alive", True):
@@ -5742,13 +5521,6 @@ class WorldEngine:
                 }
             ]
         if intent.kind == "action":
-            # Отложенное действие игрока (A5): полный путь `execute()` —
-            # те же проверки доступности, та же цена и детерминированный
-            # бросок. Если к сроку действие недоступно (увольнение, смерть,
-            # конец кампании), намерение снимается без последствий.
-            # Долг из прошлого дня исполняется в «виртуальных» сутках его
-            # срока: сам счётчик дней уже мог уйти вперёд, но событие в
-            # журнале должно стоять там, где оно было запланировано.
             day_saved = self.day
             if intent.due_day < day_saved:
                 self.day = intent.due_day
@@ -5885,10 +5657,6 @@ class WorldEngine:
             chance = campaign_success_chance(
                 base, attacker_unit, None, form="info"
             )
-        # Токен броска — день исполнения намерения (`intent.due_day`), а не
-        # текущий день: иначе при отложенном исполнении одно и то же
-        # намерение бросалось бы дважды под разными токенами (назначая его,
-        # мир уже кидает `autonomy:<день_назначения>:<id>`).
         roll = self._roll(
             "autonomy:%s:%s" % (intent.due_day, character["id"])
         )
@@ -5952,13 +5720,6 @@ class WorldEngine:
             )
             if self.day % period:
                 continue
-            # Намерение исполняется в начале следующего хода этого дня:
-            # `_schedule_autonomy` вызывается уже после `self.day += 1`,
-            # а `_run_intents` — в начале `end_day`.
-            # Долг не создаётся: если очередь текущего дня ещё не закрыта
-            # (игрок не сделал тики, `end_day()` добирает её после autonomy),
-            # планируем следующий контакт на сутки вперёд — иначе намерение
-            # исполнится в том же переходе, где родилось.
             pending_today = any(
                 item.due_day == self.day for item in self.intents.items
             )
@@ -6048,10 +5809,6 @@ class WorldEngine:
                 and self._node_slot(node_id) > limit
             ):
                 continue
-            # §7.7 №39–40: дальняя периферия ходит реже. Пропуск не
-            # помечает день как отработанный, поэтому узел не теряет свой
-            # следующий плановый ход. Пока LOD выключен, `due()` всегда
-            # истинно и поведение прежнее.
             if not lod.due(node_id, self.day):
                 self.tick_stats["nodes_skipped"] += 1
                 continue
@@ -6067,14 +5824,8 @@ class WorldEngine:
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         events = []
-        # Контракт времени (A5): намерение со сроком «день N» исполняется
-        # в начале дня N. До хода ИИ закрывается только долг
-        # (`due_day < self.day`) и очередь наступающих суток (`due_day ==
-        # self.day`, т.к. переход ещё не выполнен) — событие попадает в
-        # журнал под своим днём; игрок не ходит по устаревшему миру.
         events.extend(self._run_overdue())
         events.extend(self._run_intents(max_slot=SLOTS_MAX, day=self.day))
-        # Узлы, уже сходившие внутридневным тиком, не ходят повторно.
         events.extend(self._run_node_actions())
         daily = self.config.get("daily") or {}
         changed = []
@@ -6101,25 +5852,11 @@ class WorldEngine:
         changed.extend(self._advance_conditions())
         self.day += 1
         self.actions_left = self.actions_per_day
-        # Экономика §7.4: поддержание списывается уже из нового суточного
-        # бюджета, а природа возвращает часть работы в казну узла. Пустой
-        # блок `economy` оставляет прежний баланс.
         changed.extend(self._apply_economy_day())
-        # §7.3 №19: коалиции пересобираются на границе дня. Пока блок
-        # `coalitions` выключен, это пустой список.
         events.extend(self._advance_coalitions())
-        # Истёкшие директивы игрока больше не влияют на автономию.
         self.directives.prune(self.day)
-        # Долги, появившиеся в ходе хода ИИ (сюжет/мир запланировали их на
-        # наступившие сутки): полная выборка после инкремента закрывает и
-        # их, чтобы мир не вошёл в новый день с просроченной очередью.
-        # Извлечённые ранее намерения повторно не исполняются — задвоения
-        # с `tick()` нет.
         events.extend(self._run_intents(max_slot=SLOTS_MAX))
         if self.infinite:
-            # Бесконечная рамка (вопрос §7 №30): прохождение сюжетного
-            # горизонта больше не даёт win/lose. Сценарий продолжается,
-            # пока герой жив и организация не распалась.
             if self.day > self.days and not self.horizon_passed:
                 self.horizon_passed = True
                 self.log.append(
@@ -6131,16 +5868,12 @@ class WorldEngine:
                     }
                 )
         elif self.day > self.days and self.outcome is None:
-            # Легаси-режим для старых конечных сюжетов: явный
-            # `infinite: false` в конфиге сохраняет прежний финал.
             self.outcome = (
                 "win" if self.player_resources["standing"] >= 0.35 else "lose"
             )
             self.finished = True
         self._check_storyline()
         self._check_dismissal()
-        # Новый день уже наступил: автономные персонажи планируют контакты
-        # на будущее. Ошибка/переполнение очереди не ломает ход мира.
         self._schedule_autonomy()
         summary = "Мир сделал ход: %d событий." % len(events)
         result = {
@@ -6162,9 +5895,6 @@ class WorldEngine:
             "day": self.day,
         }
         self.log.append({"day": self.day, "kind": "day", "text": summary})
-        # §7.7 №41: бесконечный мир не должен копить журнал линейно.
-        # Сжатие включается блоком `logging.compact`; критические записи
-        # сохраняются, а счётчик свернутых виден в `log_stats()`.
         self._trim_log()
         return result
 
@@ -6347,8 +6077,6 @@ class WorldEngine:
                 0.0,
                 SICKNESS_MAX,
             )
-        # Старые сейвы без `wound` получают 0.0 — рана введена позже болезни,
-        # и отсутствие поля не должно считаться ошибкой загрузки.
         if "wound" in player:
             self.player_wound = _clamp(
                 _as_float(player.get("wound"), 0.0),
@@ -6442,7 +6170,6 @@ class WorldEngine:
                     )
                     for axis in RELATION_AXES
                 }
-                # Легаси-проекция должна совпадать с загруженной осью.
                 node["relations"][other_id] = stored[other_id]["affinity"]
         self.player_relations = {}
         for character_id, view in (
@@ -6484,9 +6211,6 @@ class WorldEngine:
         self.used_actions = list(snapshot.get("used_actions") or [])
         self.log = list(snapshot.get("log") or [])
         self.log_trimmed = _as_int(snapshot.get("log_trimmed"), 0)
-        # LOD и стоимость тика — производные от конфига/времени, а не
-        # состояние мира: после загрузки профиль пересобирается, а
-        # wall-clock счётчики начинаются заново.
         self._lod = None
         self._lod_root = None
         self.tick_stats = {
@@ -6521,14 +6245,9 @@ class WorldEngine:
         self.storyline_days = max(
             0, _as_int(snapshot.get("storyline_days"), self.storyline_days)
         )
-        # Очередь намерений: старые снимки без поля получают пустую очередь,
-        # а не падают и не теряют текущий день.
         self.intents.load(snapshot.get("intents") or ())
-        # Директивы игрока переживают сохранение; старые снимки — без них.
         self.directives.load(snapshot.get("directives") or ())
-        # Обязательства: старые снимки получают пустой журнал.
         self.obligations.load(snapshot.get("obligations") or ())
-        # Коалиции: старые снимки без ветки получают пустой журнал.
         self.coalitions.load(snapshot.get("coalitions") or {})
         self.node_action_day = {
             str(node_id): _as_int(day)
@@ -6536,8 +6255,6 @@ class WorldEngine:
                 snapshot.get("node_action_day") or {}
             ).items()
         }
-        # A10: прогресс стратегий узлов. Старые снимки без ветки получают
-        # пустое состояние — стратегии просто начнутся с текущего дня.
         self.strategy_state = {}
         for node_id, per_node in (
             snapshot.get("node_strategy_state") or {}

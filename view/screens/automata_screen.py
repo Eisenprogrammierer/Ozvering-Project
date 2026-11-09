@@ -99,9 +99,6 @@ class AutomataScreen(BaseScreen):
             campaign.player_side,
         )
 
-    # ------------------------------------------------------------------
-    # Состояние и сюжет
-    # ------------------------------------------------------------------
     def _sync_storyline(self):
         interp = getattr(self.app, "storyline_interpreter", None)
         if interp is None:
@@ -200,9 +197,6 @@ class AutomataScreen(BaseScreen):
             rows.append((rect, faction))
         return rows
 
-    # ------------------------------------------------------------------
-    # Действия
-    # ------------------------------------------------------------------
     def _execute_selected(self):
         if self.selected_action_id is None:
             self.message = "Сначала выберите работу."
@@ -251,7 +245,10 @@ class AutomataScreen(BaseScreen):
         before = self.campaign.speed
         self.campaign.speed_up()
         if self.campaign.speed != before:
-            self.message = "Скорость времени: %s." % self.campaign.speed_label()
+            self.message = (
+                "Скорость времени: %s."
+                % self.campaign.speed_label()
+            )
         else:
             self.message = (
                 "Достигнута максимальная скорость: %s."
@@ -331,9 +328,6 @@ class AutomataScreen(BaseScreen):
         self.app.finish_storyline_outcome(outcome)
         logger.info("Принят исход кампании автоматов: %s", outcome)
 
-    # ------------------------------------------------------------------
-    # Ввод
-    # ------------------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.MOUSEWHEEL:
             pos = pygame.mouse.get_pos()
@@ -382,9 +376,6 @@ class AutomataScreen(BaseScreen):
                     )
                 return
 
-    # ------------------------------------------------------------------
-    # Геометрия кнопок
-    # ------------------------------------------------------------------
     def _execute_rect(self):
         return pygame.Rect(
             MID_RECT.x + 10,
@@ -461,9 +452,6 @@ class AutomataScreen(BaseScreen):
         text = self.app.font_small.render(label, True, TEXT)
         surface.blit(text, text.get_rect(center=rect.center))
 
-    # ------------------------------------------------------------------
-    # Отрисовка
-    # ------------------------------------------------------------------
     def draw(self, screen):
         player = self._player()
         title = self.campaign.title
@@ -483,7 +471,10 @@ class AutomataScreen(BaseScreen):
             self.app.font_small.render(status, True, MUTED), (24, 52)
         )
         if player is not None:
-            subtitle = "%s · %s" % (player.name, player.record.get("role_title", "лидер"))
+            subtitle = "%s · %s" % (
+                player.name,
+                player.record.get("role_title", "лидер"),
+            )
             screen.blit(
                 self.app.font_small.render(subtitle, True, ACCENT), (24, 74)
             )

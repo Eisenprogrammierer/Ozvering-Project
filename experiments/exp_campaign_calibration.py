@@ -133,8 +133,6 @@ def _run_policy(
     opponent = sum(1 for row in rows if row["winner"] == "opponent")
     draws = len(rows) - agent - opponent
     truncated = sum(1 for row in rows if row["truncated"])
-    # «Нейтральный финал»: эпизод закончился не по горизонту, но и не
-    # победой/поражением — сейчас это потеря должности без замены.
     neutral_done = sum(
         1
         for row in rows

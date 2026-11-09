@@ -55,7 +55,12 @@ def _sector_plan(count):
     left = max(0, remaining // 3)
     right = max(0, remaining // 3)
     front = remaining - left - right
-    return ["front"] * front + ["left"] * left + ["right"] * right + ["rear"] * rear
+    return (
+        ["front"] * front
+        + ["left"] * left
+        + ["right"] * right
+        + ["rear"] * rear
+    )
 
 
 def _positions_for(side, count, order):
@@ -443,9 +448,6 @@ def build_world(
 
     scenario = preset.scenario if preset is not None else {}
     mode = str(scenario.get("mode") or "")
-    # Кампания автоматов не строит военный мир. Проверяем режим до разбора
-    # числовых полей: её шаблон хранит `turns: null`, и раньше `int(None)`
-    # падал с TypeError раньше осмысленного ValueError.
     if mode == "automata":
         raise ValueError(
             "кампания автоматов не использует военный мир; "

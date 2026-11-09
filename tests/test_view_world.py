@@ -160,8 +160,6 @@ def test_world_screen_executes_action_and_advances_day():
     assert screen.last_result["outcome"] == "day"
     screen.draw(surface)
 
-    # §7 №31: при неактивном окне экран делает ограниченный фоновый догон,
-    # а при возврате фокуса секунды не «выстреливают» днями.
     day_before = engine.day
     app.active = False
     screen.clock.seconds_per_day = 1.0
@@ -222,8 +220,6 @@ def test_world_screen_autopilot_advances_live_engine():
         screen.update(0.05)
         if engine.day > day_before or engine.finished:
             break
-    # Политика действует на том же движке, что и UI: либо прошёл день,
-    # либо кампания завершилась штатно.
     assert engine.day > day_before or engine.finished
     assert screen.campaign_env.engine is engine
     screen.draw(surface)
@@ -367,7 +363,6 @@ def test_automaton_select_can_reemploy_existing_world():
     option = next(item for item in screen.office_rows if item["enabled"])
     screen._select_office(option["id"])
     screen._start()
-    # §7 №29: тот же мир, тот же день, новая должность — не новый движок.
     assert app.world is engine
     assert engine.day == day_before
     assert engine.attached is True
@@ -416,13 +411,11 @@ def test_app_offline_progress_is_bounded_by_saved_at_and_limit():
     engine.seconds_per_day = 10.0
     engine.max_offline_days = 2
     stub = SimpleNamespace(world=engine)
-    # 100 секунд при 10 с/день — 10 дней, но лимит среза — 2.
     days = App._apply_offline_progress(
         stub, {"saved_at": time.time() - 100.0}
     )
     assert days == 2
     assert engine.day == 3
-    # Старый сейв без saved_at не двигает мир.
     day_after = engine.day
     assert App._apply_offline_progress(stub, {}) == 0
     assert engine.day == day_after
@@ -563,7 +556,6 @@ def test_world_screen_autopilot_falls_back_on_broken_checkpoint(tmp_path):
 
     _app, screen = _world_screen_with_checkpoint(str(path))
     policy = screen._autopilot_policy_instance()
-    # Битая политика не должна ронять игру: используется свежая BDI.
     assert isinstance(policy, BDIPolicy)
     pygame.quit()
 

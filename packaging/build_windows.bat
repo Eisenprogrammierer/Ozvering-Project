@@ -1,6 +1,4 @@
 @echo off
-rem Сборка onedir-дистрибутива для Windows.
-rem Требуется PyInstaller: python -m pip install -e ".[build]"
 setlocal
 
 set ROOT=%~dp0..

@@ -51,7 +51,6 @@ class CampaignQuickScreen(BaseScreen):
             self.env = CampaignEnv(seed=int(seed) if seed is not None else 7)
             self.observation = self.env.reset()
         except Exception as exc:
-            # Пустой контент — штатное состояние: мир добавляется JSON-файлом.
             self.error = "Добавьте мир в configs/worlds/*.json: %s" % exc
             logger.warning(self.error)
         self._rebuild_buttons()
@@ -61,10 +60,6 @@ class CampaignQuickScreen(BaseScreen):
                 self.env.engine.seed,
                 len(self.env.legal_actions()),
             )
-
-    # ------------------------------------------------------------------
-    # Действия
-    # ------------------------------------------------------------------
 
     def _action_label(self, action):
         engine = self.env.engine
@@ -117,7 +112,7 @@ class CampaignQuickScreen(BaseScreen):
             or self.env.engine.finished
             or self.env._terminal
         ):
-            return  # защита от «мёртвых» кнопок после финала
+            return
         obs, reward, done, truncated, info = self.env.step(action)
         self.observation = obs
         result = info.get("result") or {}
@@ -135,15 +130,10 @@ class CampaignQuickScreen(BaseScreen):
             logger.info("Быстрая кампания завершена: %s", final)
         self._rebuild_buttons()
 
-    # ------------------------------------------------------------------
-    # Ввод / отрисовка
-    # ------------------------------------------------------------------
-
     def handle_event(self, event):
         if self.env is not None and self.env.engine is not None and (
             self.env.engine.finished or self.env._terminal
         ):
-            # После финала остаётся только выход в меню.
             self.buttons = self.buttons[-1:]
         for button in self.buttons:
             if button.handle_event(event):
@@ -154,8 +144,6 @@ class CampaignQuickScreen(BaseScreen):
             return []
         obs = self.observation
         engine = self.env.engine
-        # `energy`/`max_energy` в наблюдении — абсолютные (шкала мира ~100),
-        # как и в дуэльных признаках; проценты считаем от максимума.
         max_energy = obs.max_energy or 100.0
         lines = [
             "День %d/%d · действий осталось: %d · энергия %.0f%%"

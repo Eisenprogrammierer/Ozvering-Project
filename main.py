@@ -73,8 +73,6 @@ def main(argv=None):
     arena = ("--arena" in argv) or ("--engine" in argv)
     classic = ("--classic" in argv) or ("--ui" in argv)
     interaction = "--interaction" in argv
-    # `--scene` понимает только легаси `ui/`: без этого старые команды
-    # (`main.py --scene battlefield`) молча открывали бы меню view.
     scene = "--scene" in argv
     argv = [
         a
@@ -107,7 +105,6 @@ def main(argv=None):
         from ui.app import main as ui_main
 
         return ui_main(argv)
-    # Современный клиент — путь по умолчанию (единая точка входа B2).
     from view.app import main as view_main
 
     return view_main(argv)

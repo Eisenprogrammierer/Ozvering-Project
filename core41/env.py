@@ -29,10 +29,6 @@ from .arena import (
 from .duel import DuelWorld
 from .model import DEFAULT_HEALTH_FACTORS, HEALTH_FACTOR_MAX, SICKNESS_MAX
 
-# Диапазоны доменной рандомизации по умолчанию (проблема №7). Широкие, но
-# физически осмысленные: sickness ∈ [0, 0.6] оставляет TREAT нетривиальным
-# выбором, health-факторы ±25% вокруг канона, aging/illness/stress/care
-# ограничены сверху HEALTH_FACTOR_MAX внутри Automaton.health_factor().
 DRIFT_SICKNESS_MIN = 0.0
 DRIFT_SICKNESS_MAX = 0.6
 DRIFT_HEALTH_MIN = 0.75
@@ -175,16 +171,8 @@ class ArenaEnv:
         sickness_ai=0.0,
         wound_rl=0.0,
         wound_ai=0.0,
-        # Обучение по умолчанию идёт в той же конфигурации, что активная
-        # игра (`MatchEngine`/`BattlefieldModel`): среда включена. Для
-        # контрольного плеча без среды передайте `with_env=False`.
         with_env=True,
-        # A9: туман наблюдаемости. В активной игре включён; `False` —
-        # калибровочное плечо с точным знанием скрытых полей.
         fog=True,
-        # Профиль награды (`core41.arena.REWARD_PROFILES`); `legacy` —
-        # исходная семантика, `advantage`/`advantage_cost` — без награды
-        # за регенерацию.
         reward_profile=REWARD_PROFILE_DEFAULT,
     ):
         self.seed = int(seed)
@@ -310,9 +298,6 @@ class ArenaEnv:
         observation = match.rl.observe(match.ai)
         reward = float(match.last_rewards["rl"])
         done = bool(match.finished)
-        # Исход среды («goal»/«collapse») — событие фона, а не терминал
-        # партии: матч продолжается до смерти, захвата или лимита шагов.
-        # Поэтому усечение определяется только лимитом шагов.
         env_outcome = getattr(match, "env_outcome", None)
         env_event = getattr(match, "env_event", None)
         truncated = bool(

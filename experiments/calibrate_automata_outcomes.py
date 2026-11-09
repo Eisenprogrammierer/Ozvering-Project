@@ -11,7 +11,8 @@
 
     venv/bin/python experiments/calibrate_automata_outcomes.py
     venv/bin/python experiments/calibrate_automata_outcomes.py --seeds 1-50
-    venv/bin/python experiments/calibrate_automata_outcomes.py --out /tmp/calibration.json
+    venv/bin/python experiments/calibrate_automata_outcomes.py \
+        --out /tmp/calibration.json
 """
 
 from __future__ import annotations
@@ -61,7 +62,6 @@ def _preset(template_id, seed):
 def _collect(template_id, seed):
     preset = _preset(template_id, seed)
     campaign = AutomataCampaign(preset, seed=seed)
-    # Кампания больше не ограничена ходами: горизонт задаёт эксперимент.
     for _ in range(HORIZON):
         if campaign.finished:
             break
@@ -97,7 +97,11 @@ def _outcomes(records, margin):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seeds", default="1-50", help="например, 1-50 или 1,3,7")
+    parser.add_argument(
+        "--seeds",
+        default="1-50",
+        help="например, 1-50 или 1,3,7",
+    )
     parser.add_argument(
         "--margins",
         default="0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08",

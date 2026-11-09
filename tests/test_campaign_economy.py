@@ -69,11 +69,6 @@ def _engine(seed=7, economy=None):
     )
 
 
-# ---------------------------------------------------------------------------
-# №21: конверсия, цена, потери
-# ---------------------------------------------------------------------------
-
-
 def test_conversion_quote_is_additive_and_prices_effect():
     report = conversion_quote(10.0, "info")
     assert report["arrived"] == pytest.approx(
@@ -85,7 +80,6 @@ def test_conversion_quote_is_additive_and_prices_effect():
     assert report["waste"] == pytest.approx(
         report["loss"] + report["entropy"]
     )
-    # Цена обратна КПД: чтобы доставить 7.5, нужно заплатить 10.
     assert price_for_effect(7.5, "info") == pytest.approx(10.0)
     assert price_for_effect(0.0, "info") == 0.0
 
@@ -109,11 +103,6 @@ def test_waste_quote_keeps_useful_part_separate():
     assert quote["waste"] + quote["stored"] == pytest.approx(10.0)
 
 
-# ---------------------------------------------------------------------------
-# №22: поддержание, отходы, ремонт
-# ---------------------------------------------------------------------------
-
-
 def test_maintenance_and_repair_are_explicit_costs():
     assert maintenance_cost() == 0.0
     cost = maintenance_cost(
@@ -132,11 +121,6 @@ def test_maintenance_and_repair_are_explicit_costs():
     assert repair["energy"] == pytest.approx(0.25 * 20.0 + 10.0 * 0.5)
     assert repair["wound_repaired"] == pytest.approx(0.25)
     assert DEFAULT_MAINTENANCE["base"] == 0.0
-
-
-# ---------------------------------------------------------------------------
-# №23: масштаб цены и эффекта
-# ---------------------------------------------------------------------------
 
 
 def test_scaled_cost_and_effect_follow_level_and_resistance():
@@ -165,11 +149,6 @@ def test_scaled_cost_and_effect_follow_level_and_resistance():
         config={"resistance": 0.8, "max_suppression": 0.9},
     )
     assert suppressed == pytest.approx(0.5 * 0.2)
-
-
-# ---------------------------------------------------------------------------
-# №24: бедность и клапаны
-# ---------------------------------------------------------------------------
 
 
 def test_poverty_status_is_a_signal_not_a_lock():
@@ -222,11 +201,6 @@ def test_credit_adds_interest_and_due_date_is_explicit():
     assert empty["allowed"] is False
 
 
-# ---------------------------------------------------------------------------
-# №25: деньги, информация, политический капитал
-# ---------------------------------------------------------------------------
-
-
 def test_resource_projection_does_not_create_second_energy():
     assert resource_kind("energy") == "energy"
     assert resource_kind("wealth") == "money"
@@ -250,11 +224,6 @@ def test_market_exchange_is_lossy_and_political_is_not_convertible():
     assert "нет обработчика" in refused["reason"]
 
 
-# ---------------------------------------------------------------------------
-# №26: природа
-# ---------------------------------------------------------------------------
-
-
 def test_nature_work_is_seasonal_lossy_and_reduces_with_damage():
     calm = nature_yield(season=0.6, fertility=0.5)
     harsh = nature_yield(season=1.3, fertility=0.5)
@@ -269,11 +238,6 @@ def test_nature_work_is_seasonal_lossy_and_reduces_with_damage():
     assert season_multiplier(90) == pytest.approx(1.00)
     assert season_name(0) == "calm"
     assert season_name(90) == "lean"
-
-
-# ---------------------------------------------------------------------------
-# Кампанийный API: отдых, помощь, кредит, ремонт
-# ---------------------------------------------------------------------------
 
 
 def test_campaign_rest_reduces_actions_and_restores_condition():
@@ -361,11 +325,6 @@ def test_campaign_repair_spends_energy_for_condition():
     assert engine.player_energy == pytest.approx(50.0 - quote["energy"])
 
 
-# ---------------------------------------------------------------------------
-# Сводка и суточное применение
-# ---------------------------------------------------------------------------
-
-
 def test_economy_view_reports_sources_sinks_and_poverty():
     engine = _engine(
         economy={
@@ -414,7 +373,6 @@ def test_economy_day_applies_maintenance_nature_and_shortfall():
     changed = engine._apply_economy_day()
     assert changed
     assert engine.player_energy == pytest.approx(0.0)
-    # Дефицит поддержания превращается в износ, а не в минус.
     assert engine.player_health < before_health
     assert engine.player_resources["standing"] < before_standing
     assert node["stats"]["wealth"] > before_wealth

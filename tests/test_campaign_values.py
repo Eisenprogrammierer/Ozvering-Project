@@ -57,11 +57,6 @@ def _action(engine, action_id, **fields):
     return action
 
 
-# ---------------------------------------------------------------------------
-# Чистая модель ценностей
-# ---------------------------------------------------------------------------
-
-
 def test_profile_value_ids_are_stable_and_keep_labels_compatible():
     profile = _profile("order", "honor")
     assert profile["value_ids"] == ["order", "honor"]
@@ -69,7 +64,6 @@ def test_profile_value_ids_are_stable_and_keep_labels_compatible():
     strengths = values.value_strengths(profile)
     assert strengths["order"] == pytest.approx(1.0)
     assert strengths["honor"] == pytest.approx(0.7)
-    # Старый профиль без value_ids восстанавливается по меткам.
     legacy = {"values": ["Порядок", "Честь"]}
     assert values.profile_value_ids(legacy) == ["order", "honor"]
     assert values.value_id("Честь") == "honor"
@@ -82,7 +76,6 @@ def test_no_constraint_means_betrayal_remains_possible():
         {"id": "sabotage", "betrayal": True}, profile
     )
     assert result["allowed"] is True
-    # Явный запрет срабатывает только по объявленной ценности.
     result = values.check_action(
         {"id": "sabotage", "values": {"forbid": ["honor"]}}, profile
     )
@@ -95,7 +88,6 @@ def test_hard_constraint_uses_threshold_and_require_any():
     primary = _profile("honor", "order")
     secondary_only = _profile("order", "honor")
     action = {"values": {"forbid": ["honor"], "threshold": 0.9}}
-    # Главная ценность сильнее порога; поддерживающая — нет.
     assert values.check_action(action, primary)["allowed"] is False
     assert values.check_action(action, secondary_only)["allowed"] is True
 
@@ -123,11 +115,6 @@ def test_world_defaults_make_betrayal_absolute_for_selected_value():
     ] is True
 
 
-# ---------------------------------------------------------------------------
-# Интеграция с проверкой и исполнением действия
-# ---------------------------------------------------------------------------
-
-
 def test_validate_blocks_only_the_declared_value_and_execute_is_unchanged():
     engine = _engine("order", "honor")
     engine.actions["audience"] = _action(
@@ -141,7 +128,6 @@ def test_validate_blocks_only_the_declared_value_and_execute_is_unchanged():
     assert result["ok"] is False
     assert engine.actions_left == before
 
-    # Без ограничения то же действие проходит.
     engine.actions["audience"] = _action(engine, "audience")
     engine.actions["audience"].pop("values", None)
     assert engine.validate("audience", "agora_government")[0] is True
@@ -170,7 +156,6 @@ def test_node_values_are_used_for_autonomous_agents():
         {"values": {"forbid": ["honor"]}}, context
     )
     assert result["allowed"] is False
-    # Игрок с другой ценностью не затронут ограничением узла.
     assert engine.value_check(
         {"values": {"forbid": ["honor"]}}, engine.player_context()
     )["allowed"] is True

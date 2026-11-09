@@ -27,8 +27,6 @@ SEVERITY_RANK = {
     "critical": 3,
 }
 
-# Виды событий, которые уже существуют в журнале кампании. Неизвестный вид
-# получает `info`: журнал не должен падать из-за нового контента.
 DEFAULT_KIND_SEVERITY = {
     "death": "critical",
     "player_death": "critical",
@@ -62,9 +60,6 @@ DEFAULT_KIND_SEVERITY = {
     "world": "info",
 }
 
-# Какие события ставят фон на паузу. Состояние героя (смерть, H/sickness,
-# завершённый сюжет, отсутствие должности) проверяется ещё и напрямую в
-# `campaign.clock`: журнал — дополнительный, а не единственный источник.
 DEFAULT_PAUSE_REASONS = {
     "death": "dead",
     "player_death": "dead",
@@ -75,9 +70,6 @@ DEFAULT_PAUSE_REASONS = {
     "sickness_critical": "sickness",
 }
 
-# Сжатие журнала. Критические события сохраняются всегда; давние
-# информационные записи сворачиваются, иначе бесконечная симуляция
-# растёт в сейве линейно.
 LOG_MAX_ENTRIES = 5000
 LOG_RECENT_DAYS = 30
 LOG_CRITICAL_KEEP = 200
@@ -312,7 +304,6 @@ def compact(
         else _as_int(day)
     )
     keep = set()
-    # 1. Все критические записи, но не больше лимита.
     critical_indexes = [
         index
         for index, item in enumerate(items)
@@ -320,18 +311,15 @@ def compact(
     ]
     for index in critical_indexes[-critical_keep:] if critical_keep else ():
         keep.add(index)
-    # 2. Недавняя история целиком.
     if recent_days:
         for index, item in enumerate(items):
             if _entry_day(item) >= current_day - recent_days:
                 keep.add(index)
-    # 3. Добить до лимита самыми новыми записями.
     if len(keep) < max_entries:
         for index in range(len(items) - 1, -1, -1):
             if len(keep) >= max_entries:
                 break
             keep.add(index)
-    # 4. Если критические сами превысили лимит, оставить последние.
     if len(keep) > max_entries:
         ordered = sorted(keep)
         keep = set(ordered[-max_entries:])

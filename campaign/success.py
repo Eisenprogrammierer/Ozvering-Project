@@ -23,8 +23,6 @@ from core41.model import (
     SUCCESS_COEFFICIENT_KEYS,
 )
 
-# Предикторы логита в порядке формулы. `direction` — знак вклада в логит
-# при положительном значении предиктора.
 SUCCESS_PREDICTORS = (
     {
         "key": "intercept",

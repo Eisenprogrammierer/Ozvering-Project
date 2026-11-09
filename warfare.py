@@ -91,9 +91,6 @@ HEALTH_MULTIPLIER_MAX = 3.00
 
 TRAIT_MODEL = CT.load_traits()
 
-# Черты и их русские подписи берутся из ``configs/characters/traits.json``.
-# Константы оставлены для совместимости: код и тесты обращаются к ним как к
-# стабильному публичному контракту слоя.
 TRAITS = TRAIT_MODEL.trait_names
 TRAITS_RU = {
     key: definition.label.lower()

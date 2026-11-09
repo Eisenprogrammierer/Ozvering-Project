@@ -38,9 +38,6 @@ class AutomatonSelectScreen(BaseScreen):
         interp = getattr(app, "storyline_interpreter", None)
         if interp is not None:
             storyline = interp.storyline or {}
-        # Повторное трудоустройство (§7 №29): экран может работать поверх
-        # уже существующего мира. Тогда он не создаёт новый `WorldEngine`,
-        # а только выбирает новую должность для того же героя.
         self.reemployment = engine is not None and not engine.finished
         if self.reemployment:
             self.engine = engine
@@ -179,8 +176,6 @@ class AutomatonSelectScreen(BaseScreen):
             self.message = "Выберите доступную должность."
             return
         if self.reemployment:
-            # Смена роли внутри существующего мира: состояние героя,
-            # организации, дня и болезни сохраняется (§7 №29).
             result = self.engine.attach(
                 self.selected_node_id, self.selected_office_id
             )

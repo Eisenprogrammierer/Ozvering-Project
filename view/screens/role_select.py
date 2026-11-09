@@ -104,7 +104,11 @@ class RoleSelectScreen(BaseScreen):
             logger.error("Роль %s недоступна: %s", role_id, exc)
             return
         self.selected_id = role.id
-        logger.info("Выбрана роль (предпросмотр): %s (%s)", role.id, role.label)
+        logger.info(
+            "Выбрана роль (предпросмотр): %s (%s)",
+            role.id,
+            role.label,
+        )
 
     def continue_to_storyline(self):
         role = self.current_role
@@ -151,7 +155,12 @@ class RoleSelectScreen(BaseScreen):
 
     def _draw_preview(self, screen):
         x, y, width, height = PREVIEW_RECT
-        pygame.draw.rect(screen, (16, 21, 31), (x, y, width, height), border_radius=8)
+        pygame.draw.rect(
+            screen,
+            (16, 21, 31),
+            (x, y, width, height),
+            border_radius=8,
+        )
         pygame.draw.rect(
             screen, (58, 70, 92), (x, y, width, height), 2, border_radius=8
         )
@@ -169,8 +178,6 @@ class RoleSelectScreen(BaseScreen):
             self.app.font_tiny.render(_mode_text(role), True, ACCENT),
             (x + 20, y + 70),
         )
-        # Полное описание без обрезки: шрифт уменьшается, пока текст не
-        # поместится в отведённую область.
         draw_fitted(
             screen,
             [

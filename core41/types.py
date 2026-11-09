@@ -15,8 +15,6 @@ class Action:
     form: str = "force"
     fraction: float = 0.0
     target: str = "opponent"
-    # Длительность работы в тактах. Единица — мгновенное действие; больше
-    # единицы — подготовка, которую противник успевает увидеть.
     duration: float = 1.0
 
 
@@ -41,22 +39,11 @@ class Observation:
     opponent_health: float = 100.0
     opponent_max_health: float = 100.0
     opponent_sickness: float = 0.0
-    # Устойчивые раны — отдельное состояние, видимое политике.
     self_wound: float = 0.0
     opponent_wound: float = 0.0
-    # Наблюдаемое расписание среды (P1.8): близость следующего события
-    # (0 сразу после, →1 перед) и множитель сезона. При `with_env=False`
-    # остаются нейтральными, поэтому старые сценарии не меняются.
     env_pressure: float = 0.0
     env_season: float = 1.0
-    # A1: наблюдаемое окно среды (0/1). При `with_env=False` или
-    # отключённой экономике остаётся 0.0 — прежняя калибровка не меняется,
-    # длина вектора признаков (22) тоже.
     env_window: float = 0.0
-    # A9: частичная наблюдаемость. `opponent_confidence` — уверенность в
-    # оценках скрытых полей (1.0 = точное знание), `opponent_weak_point` —
-    # свежая уязвимость, найденная разведкой. Занятость и подготовка
-    # противника видимы: это внешняя стойка, а не скрытое состояние.
     opponent_confidence: float = 1.0
     opponent_weak_point: float = 0.0
     self_busy: float = 0.0
@@ -113,26 +100,22 @@ class CampaignObservation:
     total_days: int = 1
     actions_left: int = 0
     actions_per_day: int = 1
-    # Состояние персонажа (health/sickness — то же ядро, что и на арене).
     health: float = 100.0
     max_health: float = 100.0
     sickness: float = 0.0
     wound: float = 0.0
     alive: bool = True
-    # Ресурсы позиции (легаси-шкалы как проекции ядра: F-канал позиции).
     influence: float = 0.0
     favor: float = 0.0
     evidence: float = 0.0
     standing: float = 0.0
     authority: float = 0.0
-    # Статистика собственной организации (узел должности).
     power: float = 0.0
     wealth: float = 0.0
     legitimacy: float = 0.0
     cohesion: float = 0.0
     reach: float = 0.0
     capacity: float = 0.0
-    # Признаки завершения сюжета.
     attached: bool = False
     finished: bool = False
     outcome: str = ""
@@ -140,10 +123,6 @@ class CampaignObservation:
     dismissed: bool = False
     time: float = 0.0
     extra: dict = field(default_factory=dict)
-    # Ядро 4-2-1: E/F — те же шкалы, что у арены. Поля добавлены в конец,
-    # чтобы старые позиционные конструкторы не сдвигались. Отрицательный
-    # сентинел означает «поле не заполнено»; признаки тогда падают обратно
-    # на actions_left/standing для старых конструкторов.
     energy: float = -1.0
     max_energy: float = 0.0
     force: float = -1.0

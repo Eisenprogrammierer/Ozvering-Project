@@ -116,9 +116,8 @@ def test_automaton_energy_is_capped_and_reports_conversion_loss():
     result = unit.receive(Work(amount=100.0, form="info"))
     assert unit.energy == pytest.approx(unit.max_energy)
     assert result["stored"] == pytest.approx(1.0)
-    assert result["loss"] + result["entropy"] + result["stored"] == pytest.approx(
-        100.0
-    )
+    total = result["loss"] + result["entropy"] + result["stored"]
+    assert total == pytest.approx(100.0)
     assert result["entropy"] > 0.0
 
 
@@ -329,9 +328,6 @@ def test_mlp_policy_lowers_loss_on_fixed_task():
         for item in fixed:
             policy.observe(item)
     after = loss()
-    # Online TD(0) без target-сети: при `done=True` цель — сама награда,
-    # поэтому фиксированная задача обязана сходиться, а не просто менять
-    # веса. Это и есть проверка «MLP учится», а не только «MLP жив».
     assert after < before * 0.1
     assert policy.score(observation, good) > policy.score(observation, bad)
     assert policy.updates == 400
@@ -351,11 +347,9 @@ def test_mlp_target_network_freezes_then_syncs():
     )
     initial_target = [row[:] for row in policy.target_weights1]
     policy.observe(transition)
-    # После одного обновления online-веса ушли, target ещё заморожен.
     assert policy.updates == 1
     assert policy.target_weights1 == initial_target
     policy.observe(transition)
-    # На втором обновлении target синхронизируется с online.
     assert policy.updates == 2
     assert policy.target_weights1 == policy.weights1
     assert policy.target_bias1 == policy.bias1
@@ -401,8 +395,6 @@ def test_mlp_target_network_round_trips_and_legacy_checkpoint_copies_online():
         legacy.pop(key, None)
     migrated = MLPPolicy(seed=2, target_sync=7)
     migrated.load_state_dict(legacy)
-    # Старый чекпойнт без target-сети: target копирует online-веса,
-    # а не остаётся случайной инициализацией.
     assert migrated.target_weights1 == migrated.weights1
     assert migrated.target_weights2 == migrated.weights2
 
@@ -415,8 +407,6 @@ def test_feature_count_includes_environment_features():
     vector = features(observation, action)
     assert FEATURE_COUNT == 22
     assert len(vector) == FEATURE_COUNT
-    # Предпоследние два слота — наблюдаемое расписание среды; последний
-    # (A1) — окно уязвимости.
     assert vector[-3] == pytest.approx(0.0)
     assert vector[-2] == pytest.approx(1.0)
     assert vector[-1] == pytest.approx(0.0)
@@ -436,9 +426,6 @@ def test_feature_count_includes_environment_features():
 
 def test_make_policy_exposes_mlp():
     assert isinstance(make_policy("mlp", seed=1), MLPPolicy)
-
-
-# --- A7: аренный function approximation (DuelMLPPolicy) -----------------
 
 
 def test_duel_mlp_uses_arena_features_and_round_trips():
@@ -473,9 +460,6 @@ def test_duel_mlp_uses_arena_features_and_round_trips():
 
 
 def test_duel_mlp_pads_short_feature_rows_on_load():
-    # Совместимость с чекпойнтами более короткого вектора признаков:
-    # строки weights1 дополняются нулями до DUEL_FEATURE_COUNT (A8: базовый
-    # вектор 22 + 4 слота статистики оппонента = 26).
     policy = DuelMLPPolicy(seed=1)
     state = policy.state_dict()
     short = [[0.01] * (DUEL_FEATURE_COUNT - 3) for _ in range(policy.hidden)]
@@ -490,8 +474,6 @@ def test_duel_mlp_pads_short_feature_rows_on_load():
 
 
 def test_duel_mlp_lowers_loss_on_fixed_task():
-    # Обучение снижает ошибку на фиксированной задаче (тот же критерий,
-    # что у кампанейного MLPPolicy): поощряемое действие получает больший Q.
     policy = DuelMLPPolicy(seed=3, epsilon=0.0, learning_rate=0.05)
     observation = _observation()
     good = Action("WORK", form="force", fraction=0.9)
@@ -541,9 +523,9 @@ def test_duel_mlp_target_network_freezes_then_syncs():
         next_actions=(action,),
     )
     policy.observe(transition)
-    assert policy.target_weights1 == frozen  # цель заморожена до синка
+    assert policy.target_weights1 == frozen
     policy.observe(transition)
-    assert policy.target_weights1 != frozen  # sync на чётном update
+    assert policy.target_weights1 != frozen
     assert policy.target_weights1 == policy.weights1
 
 
@@ -583,7 +565,6 @@ def test_checkpoints_carry_version_and_round_trip(tmp_path):
 
 
 def test_qtable_migrates_legacy_10_field_keys(tmp_path):
-    # легаси-v0: без поля version, ключи 10 полей (болезнь отсутствует)
     legacy_key = (1, 2, 3, 4, 5, 6, 0, "WORK", "force", 0.5)
     path = _write_json(
         tmp_path,
@@ -598,7 +579,6 @@ def test_qtable_migrates_legacy_10_field_keys(tmp_path):
     assert len(policy.table) == 1
     migrated_key, value = next(iter(policy.table.items()))
     assert len(migrated_key) == 12
-    # sickness-разряды (6-7) заполнены нулём, остальное сохранено
     assert migrated_key[:6] == legacy_key[:6]
     assert migrated_key[6:8] == (0, 0)
     assert migrated_key[8:] == legacy_key[6:]
@@ -606,8 +586,6 @@ def test_qtable_migrates_legacy_10_field_keys(tmp_path):
 
 
 def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
-    # 8-полевые ключи различаются open-разрядом — после миграции остаются
-    # разными (вставка нулей идёт до open, а не вместо него)
     key_a = (1, 2, 3, 4, 0, "REST", "rest", 0.0)
     key_b = (1, 2, 3, 4, 1, "REST", "rest", 0.0)
     policy = QTablePolicy(seed=0)
@@ -619,11 +597,6 @@ def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
         assert len(migrated_key) == 12
         assert migrated_key[4:8] == (0, 0, 0, 0)
 
-    # коллизия: два 8-полевых v0-ключа, различавшихся только health-разрядом
-    # (в легаси-QTable он квантовался round(health/50), т.е. 100 и 149 -> 3),
-    # при миграции сливаются в один 12-полевой ключ — усреднение значений
-    # проверяется напрямую на уровне load_state_dict через dict с одинаковым
-    # repr (JSON-формат теряет дубликаты ключей ещё до загрузки).
     policy2 = QTablePolicy(seed=0)
     policy2.load_state_dict(
         {
@@ -636,8 +609,6 @@ def test_qtable_migrates_legacy_8_field_keys_and_averages_collisions():
     assert len(policy2.table) == 1
     assert next(iter(policy2.table.values())) == pytest.approx(2.0)
 
-    # ключи, отличающиеся сохранёнными разрядами (open 5 vs 9), остаются
-    # различными записями таблицы
     policy3 = QTablePolicy(seed=0)
     policy3.load_state_dict(
         {
@@ -700,7 +671,6 @@ def test_train_resume_continues_from_checkpoint(tmp_path):
         resume=path,
     )
     assert stats["resumed_from"] == path
-    # обучение продолжилось с весов чекпойнта, а не со случайных
     assert stats["policy_updates"] >= 1
 
 
@@ -894,7 +864,6 @@ def test_reward_delta_values_treatment_and_sickness():
     reward = reward_delta(
         me, before, other, other_before, profile="legacy"
     )
-    # -0.6 * 10/100 за TREAT + 1.0 * 0.08 за снятую болезнь.
     assert reward == pytest.approx(-0.06 + 0.08)
 
     other.sickness = 0.25
@@ -908,13 +877,11 @@ def test_reward_delta_wound_tuple_extends_legacy_contract():
     me = Automaton(id="me", force=100.0, energy=100.0, health=100.0)
     other = Automaton(id="other", force=100.0, energy=100.0, health=100.0)
     legacy_before = (100.0, 100.0, 100.0, 0.0)
-    # Легаси-кортеж без wound — прежняя калибровка сохраняется.
     assert reward_delta(me, legacy_before, other, legacy_before) == 0.0
 
     me.wound = 0.25
     extended_before = (100.0, 100.0, 100.0, 0.0, 0.0)
     reward = reward_delta(me, extended_before, other, extended_before)
-    # REWARD_WOUND_SELF * (before - now) / WOUND_MAX = 0.8 * (-0.25).
     assert reward == pytest.approx(REWARD_WOUND_SELF * -0.25 / WOUND_MAX)
 
     other.wound = 0.5
@@ -931,7 +898,6 @@ def test_advantage_reward_ignores_regeneration_and_pays_for_damage():
     me = Automaton(id="me", force=90.0, energy=100.0, health=95.0)
     other = Automaton(id="other")
     full = (100.0, 100.0, 100.0, 0.0)
-    # Восстановление (80, 90, 90) -> (90, 100, 95) больше не оплачивается.
     assert reward_delta(
         me,
         (80.0, 90.0, 90.0, 0.0),
@@ -992,7 +958,6 @@ def test_default_reward_profile_is_advantage_cost():
         other,
         (100.0, 100.0, 100.0, 0.0),
     )
-    # Регенерация F/H не оплачивается, потраченные 20 E — оплачиваются.
     assert reward == pytest.approx(-REWARD_ADVANTAGE_ENERGY_COST * 0.2)
 
 
@@ -1112,11 +1077,6 @@ def test_active_arena_match_engine_uses_core41_runtime():
     assert ge.ACTIONS == CORE_ACTIONS
 
 
-# ---------------------------------------------------------------------------
-# Доменная рандомизация (проблема готовности №7)
-# ---------------------------------------------------------------------------
-
-
 def test_randomize_draw_is_deterministic_and_in_range():
     import random
 
@@ -1144,13 +1104,11 @@ def test_randomize_draw_is_deterministic_and_in_range():
     assert first["profile_rl"] in ("CANON", "ZEALOT")
     assert 0.1 <= first["sickness_rl"] <= 0.4
     assert 0.8 <= first["health_factors_rl"]["aging"] <= 1.2
-    # Неизвестный профиль — явная ошибка, а не молчаливый CANON.
     try:
         randomize_draw(profiles=("NOPE",))
         raise AssertionError("unknown profile accepted")
     except ValueError:
         pass
-    # Неизвестный health-фактор тоже не должен молча игнорироваться.
     try:
         randomize_draw(health_factors=("bogus",))
         raise AssertionError("unknown health factor accepted")
@@ -1206,7 +1164,6 @@ def test_train_domain_randomize_is_reproducible_and_skips_duel():
         results.append(stats)
     assert results[0]["domain_randomize"] is True
     assert results[0] == results[1]
-    # duel — легаси-срез без доменов: фича честно не применяется.
     _policy, duel_stats = train(
         episodes=2,
         seed=1,
@@ -1243,9 +1200,6 @@ def test_train_campaign_career_flag_opens_career_space():
     """Готовность A3: флаг `--campaign-career` проброшен в обучение."""
     from agents.train import main as train_main
 
-    # Прямая проверка проброса: career_actions=True расширяет legal_actions()
-    # карьерными действиями (seek_promotion/request_transfer/resign),
-    # по умолчанию они закрыты (opt-in).
     from campaign.env import CampaignEnv as _CE
 
     with_career = _CE(seed=3, max_days=4, career_actions=True)
@@ -1261,7 +1215,6 @@ def test_train_campaign_career_flag_opens_career_space():
         without_career.legal_actions()
     )
 
-    # CLI-флаг `--campaign-career` доходит до цикла обучения и не ломает его.
     career_ckpt = "/tmp/a3_career_ckpt.json"
     nocareer_ckpt = "/tmp/a3_nocareer_ckpt.json"
     rc = train_main([
@@ -1276,7 +1229,6 @@ def test_train_campaign_career_flag_opens_career_space():
 
     state = read_checkpoint(career_ckpt)
     assert isinstance(state, dict) and state
-    # Тот же запуск без флага — прежнее замкнутое пространство.
     rc2 = train_main([
         "--env", "campaign", "--episodes", "2", "--max-steps", "6",
         "--policy", "bdi", "--seed", "3", "--eval-episodes", "0",
@@ -1285,7 +1237,6 @@ def test_train_campaign_career_flag_opens_career_space():
     assert rc2 == 0
     state2 = read_checkpoint(nocareer_ckpt)
     assert isinstance(state2, dict) and state2
-    # Стартовый config среды не мутируется: второй движок без домена чист.
     fresh = _CE(seed=3, max_days=4)
     assert fresh.engine.player_condition()["sickness"] == 0.0
 
@@ -1303,15 +1254,9 @@ def test_duel_eval_domain_flag_is_not_reported_as_applied():
         eval_episodes=1,
         eval_domain_randomize=True,
     )
-    # `duel` — легаси-срез без доменов: флаг не должен лгать в матрице.
     assert stats["domain_randomize"] is False
     assert stats["eval"]
     assert all("domain_randomized" not in row for row in stats["eval"])
-
-
-# ---------------------------------------------------------------------------
-# A9: одновременный бой, F-лимит, подготовка, туман и разведка
-# ---------------------------------------------------------------------------
 
 
 class _AlwaysHit:
@@ -1331,8 +1276,6 @@ def test_simultaneous_tick_uses_start_snapshot_for_both_attacks():
         Action("WORK", form="force", fraction=0.3),
         rng=_AlwaysHit(),
     )
-    # Оба удара оплачены и разрешены по снимку до такта. Последовательное
-    # разрешение урезало бы удар правого после урона левого.
     assert left_result["spent"] == pytest.approx(30.0)
     assert right_result["spent"] == pytest.approx(30.0)
     assert left_result["success"] is True

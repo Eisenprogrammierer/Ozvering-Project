@@ -28,11 +28,7 @@ from .policies import (
 
 CHECKPOINT_DIR_ENV = "OZVERING_CHECKPOINT_DIR"
 DEFAULT_CHECKPOINT_DIR = "checkpoints"
-# Имена, которые `--save-best`/`--out` пишут чаще всего. Порядок важен:
-# `best.json` — осознанный выбор по held-out, `latest.json` — последний.
 PREFERRED_NAMES = ("best.json", "latest.json")
-# A9: `duel-mlp` (A7/A8) живёт в каталоге чекпойнтов наравне с остальными —
-# без него автопоиск игры (`find_checkpoint`) отвергал production-файл.
 KNOWN_KINDS = ("bdi", "qtable", "mlp", "duel-mlp")
 
 
@@ -78,9 +74,6 @@ def is_loadable(path, kind=None):
         return False
     if kind and state_kind != kind:
         return False
-    # A8/A9: duel-MLP имеет собственный формат чекпойнтов (v5); для него
-    # предельная версия — DUEL_CHECKPOINT_VERSION, остальные политики
-    # используют базовый CHECKPOINT_VERSION.
     limit = (
         DUEL_CHECKPOINT_VERSION
         if state_kind == "duel-mlp"

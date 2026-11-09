@@ -33,8 +33,6 @@ OBLIGATION_KINDS = ("debt", "favor", "duty", "evidence")
 DEFAULT_OBLIGATION_KIND = "favor"
 OBLIGATION_STATUSES = ("open", "fulfilled", "cancelled")
 
-# Насколько исполнение обязательства меняет отношение кредитора к должнику.
-# Величины небольшие: долг — повод для доверия, а не замена дружбы.
 OBLIGATION_FULFILL_TRUST = 0.06
 OBLIGATION_FULFILL_AFFINITY = 0.03
 
@@ -151,7 +149,9 @@ class ObligationLedger:
         self.items = []
         for raw in items or ():
             obligation = (
-                raw if isinstance(raw, Obligation) else Obligation.from_dict(raw)
+                raw
+                if isinstance(raw, Obligation)
+                else Obligation.from_dict(raw)
             )
             if obligation is not None:
                 self.items.append(obligation)
@@ -217,7 +217,7 @@ class ObligationLedger:
         return None
 
     def open(self, day=None):
-        """Все открытые обязательства (просроченные тоже остаются открытыми)."""
+        """Все открытые обязательства, включая просроченные."""
         return [item for item in self.items if item.active()]
 
     def due(self, day):

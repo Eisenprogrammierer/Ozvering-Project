@@ -77,7 +77,6 @@ def test_world_folder_add_edit_remove(tmp_path):
     world = load_world()
     path = tmp_path / "alpha.json"
     _write(path, world)
-    # Биография не является миром и не должна попадать в выдачу.
     _write(tmp_path / "biography.json", {"origins": []})
 
     entries = list_worlds(tmp_path)
@@ -335,10 +334,8 @@ def test_runtime_lore_content_is_complete_and_loadable():
         assert template_path.is_file(), role.id
         assert template_path.stem == role.storyline_id
 
-    # Автоматы по-прежнему добавляются только JSON-файлами.
     assert AutomataStore(configs / "automata").list_entries() == []
     assert not list((ROOT / "campaigns").glob("*.json"))
-    # Инфраструктурные каталоги, нужные генератору пресетов, поставляются.
     assert NamingCatalog.load(configs / "naming").class_ids()
     assert Content(configs / "content").names()
     assert list_storylines()

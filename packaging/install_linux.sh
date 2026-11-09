@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Установка уже собранного dist/ozvering в пользовательский каталог + ярлык.
-# Сначала выполните packaging/build_linux.sh.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

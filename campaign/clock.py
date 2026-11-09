@@ -30,7 +30,6 @@ from .planner import SLOTS_MAX
 
 SECONDS_PER_DAY = 120.0
 MAX_CATCHUP_DAYS = 7
-# Слоты 0..SLOTS_MAX покрывают сутки; слот 0 — граница дня.
 SLOTS_PER_DAY = SLOTS_MAX + 1
 
 
@@ -155,9 +154,6 @@ def background_pause_reason(engine):
         return "health"
     if float(condition.get("sickness", 0.0)) >= float(SICKNESS_CRITICAL):
         return "sickness"
-    # Контент может объявить собственные критические события (блок
-    # `logging.pause`): журнал — второй, а не единственный источник
-    # причины. Ошибка хука не должна ломать фон.
     hook = getattr(engine, "critical_pause_reason", None)
     if callable(hook):
         try:

@@ -31,9 +31,6 @@ PAYLOAD_SCHEMA_VERSION = 1
 PAYLOAD_HISTORY_LIMIT = 32
 PAYLOAD_STRING_LIMIT = 240
 
-# Поля, которые обязательны, и значения по умолчанию. Числовые поля
-# приводятся к float, строковые — к str, чтобы контент не зависел от того,
-# пришло ли число строкой.
 PAYLOAD_KINDS = {
     "item": {
         "required": ("item_id",),
@@ -109,7 +106,9 @@ def _pairs(payload):
     try:
         items = list(payload)
     except TypeError as exc:
-        raise PayloadError("payload должен быть отображением или парами") from exc
+        raise PayloadError(
+            "payload должен быть отображением или парами"
+        ) from exc
     result = []
     for item in items:
         if not isinstance(item, (list, tuple)) or len(item) != 2:

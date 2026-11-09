@@ -57,17 +57,10 @@ ENV_ENERGY_DRAIN = 2.0
 ENV_HEALTH_DRAIN = 0.2
 ENV_ENERGY_RELIEF = 3.0
 ENV_HEALTH_RELIEF = 0.1
-# Источник болезни намеренно редкий и слабый: за 2000 тактов он даёт
-# несколько событий и не заменяет явную `sickness`/контактную передачу.
 ENV_SICKNESS = 0.04
-# Рана среды — сначала удар, затем устойчивое состояние: событие наносит
-# прямой урон и оставляет `wound`, который сам капает здоровьем и лечится
-# отдыхом/TREAT. Частота ниже истощения, чтобы среда оставалась фоном, а не
-# вторым бойцом.
 ENV_WOUND_DAMAGE = 3.0
 ENV_WOUND_SEVERITY = 0.30
 ENV_SEASON_LENGTH = 240
-# (имя, множитель силы событий)
 SEASONS = (
     ("calm", 0.60),
     ("lean", 1.00),
@@ -76,40 +69,24 @@ SEASONS = (
 )
 ENV_SECONDARY_SHARE = 0.5
 
-# --- A1: экономика и собственная цель среды (канон simulation) ---------
-# Значения перенесены из таблицы `simulation.PARAMETERS` (ON_FRAC 0.25,
-# ON_MIN 6, OFF_FRAC 0.4, OPEN_TTL 8, DECAY_ADOPT 0.95, ENV_INCOME 2,
-# UPKEEP 1, ENV_BONUS 0.25, receive_pressure w*0.01 с потолком
-# ENV_REST_CAP 10); здесь они закреплены константами, чтобы `core41` не
-# импортировал легаси-модуль.
-ENV_PRESSURE_GAIN = 0.01        # receive_pressure: rest_units += w * 0.01
-ENV_REST_CAP = 10.0             # потолок накопленного давления
-ENV_ON_FRAC = 0.25              # schmitt_on = max(ON_MIN, ON_FRAC * F)
+ENV_PRESSURE_GAIN = 0.01
+ENV_REST_CAP = 10.0
+ENV_ON_FRAC = 0.25
 ENV_ON_MIN = 6.0
-ENV_DECAY_ADOPT = 0.95          # спад w_adopt за такт
-ENV_OPEN_TTL = 8                # тактов окно держится после пика
-ENV_OFF_FRAC = 0.4              # закрытие: w_adopt < OFF_FRAC * порог
-ENV_INCOME = 2.0                # собственный доход силы за такт
-ENV_UPKEEP = 1.0                # обслуживание силы за такт
-# Логистическая экономика: обслуживание растёт с силой, поэтому фон
-# выходит на равновесие, а не копится линейно. При высоком давлении
-# равновесие ≈ 100, цель 96 достигается примерно за 310 тактов; без
-# давления равновесие ≈ 50, и к дедлайну 900 наступает коллапс.
-ENV_INCOME_FLOOR = 0.75         # доля дохода при нулевом давлении
-ENV_UPKEEP_RATE = 0.01          # доля силы, уходящая на обслуживание
-ENV_GOAL_BONUS_MULT = 1.5       # усиление бонуса работы после цели
-ENV_BONUS = 0.25                # успех работы при открытом окне среды
-# Срез среды: среда защищается каналом, соответствующим текущему сезону. Работа
-# тем же каналом несёт меньше давления (`ENV_DEFENSE_MATCH`), поэтому
-# игроку выгодно чередовать `force`/`info`, а не спамить один канал.
+ENV_DECAY_ADOPT = 0.95
+ENV_OPEN_TTL = 8
+ENV_OFF_FRAC = 0.4
+ENV_INCOME = 2.0
+ENV_UPKEEP = 1.0
+ENV_INCOME_FLOOR = 0.75
+ENV_UPKEEP_RATE = 0.01
+ENV_GOAL_BONUS_MULT = 1.5
+ENV_BONUS = 0.25
 ENV_DEFENSE_MATCH = 0.70
-ENV_FORCE_BASE = 10.0           # стартовая сила среды
-ENV_GOAL_RATIO = 0.60           # цель: 60% потолка к deadline
-ENV_GOAL_HORIZON = 900          # тактов на достижение цели
-ENV_STARVING_E = 2.0            # E стороны ниже — среда даёт передышку
-# A6: легаси-константа. Исход среды больше не завершает партию и не даёт
-# терминального смещения; состояние фона влияет на механику через
-# `work_bonus()`. Оставлена для совместимости импортов.
+ENV_FORCE_BASE = 10.0
+ENV_GOAL_RATIO = 0.60
+ENV_GOAL_HORIZON = 900
+ENV_STARVING_E = 2.0
 ENV_OUTCOME_GOAL_REWARD = 0.3
 
 
@@ -245,19 +222,16 @@ class ArenaEnvironment:
         self.ticks = 0
         self.events = []
         self.last_target = "both"
-        # --- A1: экономика и цель --------------------------------------
         self.with_economy = bool(with_economy)
         self.with_defense = bool(with_defense)
         self.force = max(0.0, float(force))
         self.goal_ratio = max(0.0, min(1.0, float(goal_ratio)))
         self.goal_horizon = max(1, int(goal_horizon))
-        self.pressure = 0.0          # w_adopt канона: сырое давление
+        self.pressure = 0.0
         self.open_timer = 0
         self.in_window = False
         self.collapsed = False
         self.goal_reached = False
-        # A12: многофазная цель среды. Пустой план — прежняя однофазная
-        # модель; непустой задаёт последовательность сезонов/этапов.
         if plan_path is not None:
             plan = load_environment_plan(plan_path)
         self.plan = _normalize_plan(plan)
@@ -530,7 +504,6 @@ class ArenaEnvironment:
             "ticks": self.ticks,
             "season": season_name,
             "season_multiplier": float(season_multiplier),
-            # 0 сразу после события, →1 перед следующим.
             "strain": 1.0 - next_event / float(self.event_interval),
             "relief": 1.0 - next_relief / float(self.relief_interval),
             "illness": 1.0 - next_illness / float(self.illness_interval),
@@ -541,7 +514,6 @@ class ArenaEnvironment:
             "next_wound": next_wound,
             "last_target": self.last_target,
             "asymmetric": self.asymmetric,
-            # --- A1: наблюдаемая экономика и цель ----------------------
             "window": self.window_open(),
             "in_open": self.in_open,
             "defense": self.defense,
@@ -579,7 +551,6 @@ class ArenaEnvironment:
         if not self.asymmetric:
             self.last_target = "both"
             return (("rl", 1.0), ("ai", 1.0))
-        # Детерминированное чередование: воспроизводимо без хранения rng.
         interval = {
             "strain": self.event_interval,
             "relief": self.relief_interval,
@@ -598,7 +569,6 @@ class ArenaEnvironment:
         events = []
         actors = {"rl": left, "ai": right}
         season_name, season_multiplier = self.season()
-        # A1: экономика — сначала спад/закрытие окна, затем свой цикл.
         close_event = self._tick_window()
         if close_event is not None:
             events.append(close_event)
@@ -711,7 +681,6 @@ class ArenaEnvironment:
                     % (self.last_target, season_name),
                 }
             )
-        # A1: реакция на истощение сторон (забота о живом контрагенте).
         events.extend(self.react_to_exhaustion(left, right))
         self.events = events
         return tuple(events)
@@ -727,8 +696,6 @@ class ArenaEnvironment:
             "asymmetric": self.asymmetric,
             "ticks": self.ticks,
             "last_target": self.last_target,
-            # A1: экономика/цель. Старые снимки без этих ключей грузятся
-            # в значения по умолчанию — совместимость сохранена.
             "with_economy": self.with_economy,
             "with_defense": self.with_defense,
             "force": float(self.force),
@@ -770,7 +737,6 @@ class ArenaEnvironment:
         self.last_target = str(
             state.get("last_target", self.last_target)
         )
-        # A1: экономика/цель (старые снимки — значения по умолчанию).
         self.with_economy = bool(
             state.get("with_economy", self.with_economy)
         )
@@ -784,8 +750,6 @@ class ArenaEnvironment:
         self.goal_horizon = max(
             1, int(state.get("goal_horizon", self.goal_horizon))
         )
-        # A12: план и текущая фаза. Старые снимки без плана сохраняют
-        # однофазное поведение.
         if "plan" in state:
             self.plan = _normalize_plan(state.get("plan") or ())
         self.phase_index = max(

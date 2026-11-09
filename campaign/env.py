@@ -37,31 +37,19 @@ from .world import (
     load_world,
 )
 
-# Действие-служебный ход: завершение дня (ход мира + дневной срез).
 END_DAY = "END_DAY"
-# Лечение себя — адаптер среды, а не действие конфига мира: в кампании
-# `treat_player()` существовал только как API. Без него болезнь была
-# отложенной смертью без контрмеры, и политика не могла ей научиться.
 TREAT_SELF = "TREAT_SELF"
 CAMPAIGN_TREAT_AMOUNT = 0.20
-# Лечение ран — отдельное действие среды (аналог аренного TREAT по ране):
-# рана не является болезнью, и `TREAT_SELF` её не снимает. Политика должна
-# уметь различать контрмеры, иначе устойчивая рана не обучается.
 TREAT_WOUND = "TREAT_WOUND"
 CAMPAIGN_TREAT_WOUND_AMOUNT = 0.25
 
-# Награды кампании. Единицы — доли максимумов шкал, шаг сравним с ареной.
-CAMPAIGN_REWARD_STANDING = 0.5   # положение героя (F-проекция позиции)
-CAMPAIGN_REWARD_ORGANIZATION = 0.5  # сила+связность своей организации
-CAMPAIGN_REWARD_HEALTH = 1.0     # здоровье персонажа (S)
-CAMPAIGN_REWARD_SICKNESS = 1.0   # снятие/наращивание болезни
-# Штраф за устойчивую рану: зеркалит аренную `REWARD_WOUND_SELF` —
-# наращивание раны оплачивается отрицательной наградой, лечение — нулём
-# (положительный shaping за рану не вводится: снять рану — это просто
-# прекращение штрафа, как на арене).
+CAMPAIGN_REWARD_STANDING = 0.5
+CAMPAIGN_REWARD_ORGANIZATION = 0.5
+CAMPAIGN_REWARD_HEALTH = 1.0
+CAMPAIGN_REWARD_SICKNESS = 1.0
 CAMPAIGN_REWARD_WOUND = 0.8
-CAMPAIGN_REWARD_SUCCESS = 0.10   # малый shaping за успешное действие
-CAMPAIGN_REWARD_ILLEGAL = 0.05   # штраф за нелегальный ход (ok=False в мире)
+CAMPAIGN_REWARD_SUCCESS = 0.10
+CAMPAIGN_REWARD_ILLEGAL = 0.05
 CAMPAIGN_TERMINAL_WIN = 1.0
 CAMPAIGN_TERMINAL_LOSS = -1.0
 CAMPAIGN_TERMINAL_NEUTRAL = 0.0
@@ -144,9 +132,6 @@ class CampaignEnv:
         if target_mode not in ("first", "all"):
             raise ValueError("target_mode должен быть 'first' или 'all'")
         self.target_mode = target_mode
-        # Карьера меняет идентичность героя, поэтому по умолчанию
-        # исключена из пространства действий. Флаг нужен для калибровки
-        # политики, которая сама выбирает повышение/перевод.
         self.career_actions = bool(career_actions)
         self.config = dict(config or load_world())
         self.seed = int(seed)
@@ -159,26 +144,13 @@ class CampaignEnv:
         self._start_node = node_id
         self._start_office = office_id
         self._start_snapshot = snapshot
-        # Кэш стартовой позиции: `_default_start()` перебирает узлы и
-        # пробные движки, поэтому его нельзя повторять на каждом reset().
-        # Домен кампании меняет профиль/болезнь, но не узел/должность.
         self._resolved_start = None
-        # Стартовая болезнь героя для доменной рандомизации (проблема №7);
-        # применяется в _build_engine как переопределение конфига `condition`.
         self._start_sickness = max(0.0, min(1.0, float(sickness)))
         self.engine = None
         self.last_transition = None
-        # Терминальность среды: `WorldEngine.finished` не покрывает случай
-        # «должность потеряна, замены нет» — для обучения это тоже конец
-        # эпизода (нейтральный исход), иначе остаётся зомби-состояние.
         self._terminal = False
-        # Одиночный агент (проблема №6): оппонента нет, цикл обучения
-        # (`agents.train`) использует для этой среды кампанейный эпизод.
         self.single_agent = True
         if engine is not None:
-            # Живая кампания (P0.4): среда оборачивает уже существующий
-            # `WorldEngine` экрана, а не строит второй мир. Действия политики
-            # меняют тот же движок, который рисует UI и сохраняется в сейв.
             self.attach(engine)
         else:
             self.reset(seed=self.seed)
@@ -273,10 +245,6 @@ class CampaignEnv:
             self._start_sickness = max(0.0, min(1.0, float(sickness)))
         return self.reset()
 
-    # ------------------------------------------------------------------
-    # Построение движка и стартовой позиции
-    # ------------------------------------------------------------------
-
     def _default_start(self):
         """Старт без явного узла: первый корневой узел + его head-должность.
 
@@ -317,8 +285,6 @@ class CampaignEnv:
         if not (node_id and office_id) and not self._start_snapshot:
             node_id, office_id = self._default_start()
         config = dict(self.config)
-        # Стартовая болезнь героя для доменной рандомизации (проблема №7):
-        # переопределяем `condition` конфига, не мутируя исходный словарь.
         if self._start_sickness > 0.0:
             condition = dict(config.get("condition") or {})
             condition["sickness"] = self._start_sickness
@@ -331,10 +297,6 @@ class CampaignEnv:
             seed=seed,
             snapshot=self._start_snapshot,
         )
-
-    # ------------------------------------------------------------------
-    # Наблюдения и метрики
-    # ------------------------------------------------------------------
 
     def _node_stats(self):
         node = self.engine.node(self.engine.player_node_id)
@@ -434,9 +396,6 @@ class CampaignEnv:
             time=float(metrics["day"]),
             extra={
                 "seed": engine.seed,
-                # §7 №28–31: распад и увольнение больше не сворачиваются в
-                # один флаг `outcome`. Наблюдение отдаёт счётчики и вид
-                # финала, чтобы политика/логгер могли их различать.
                 "ending": metrics["ending"],
                 "infinite": metrics["infinite"],
                 "horizon_passed": metrics["horizon_passed"],
@@ -446,10 +405,6 @@ class CampaignEnv:
                 "terminal": bool(self._terminal),
             },
         )
-
-    # ------------------------------------------------------------------
-    # Пространство действий
-    # ------------------------------------------------------------------
 
     def legal_actions(self):
         """Легальные `CampaignAction` + служебные `END_DAY`/`TREAT_SELF`.
@@ -522,10 +477,6 @@ class CampaignEnv:
     @property
     def action_space(self):
         return self.legal_actions()
-
-    # ------------------------------------------------------------------
-    # Core контракт
-    # ------------------------------------------------------------------
 
     def reset(self, seed=None):
         if seed is not None:
@@ -642,15 +593,8 @@ class CampaignEnv:
                 bool(result.get("ok"))
                 and result.get("outcome") == "success"
             )
-        # Действие вне правил (например, политика выбрала нелегальный ход):
-        # WorldEngine вернул ok=False — это не исключение, а нулевой шаг со
-        # штрафом за потерянную инициативу; цикл обучения получает корректный
-        # Transition и учится не повторять недопустимые действия.
         illegal = not bool(result.get("ok"))
         after = self._metrics()
-        # Потеря должности без замены: `WorldEngine` не завершает кампанию
-        # (UI может выбрать новую роль), но для обучения это терминальный
-        # нейтральный исход. Иначе остаётся зомби-эпизод с одним END_DAY.
         dismissed_terminal = bool(not engine.attached and not engine.finished)
         done = bool(engine.finished or dismissed_terminal)
         horizon = bool(after["day"] > self.max_days)
@@ -660,10 +604,6 @@ class CampaignEnv:
         outcome_delta = terminal_campaign_reward(outcome) if done else 0.0
         reward = campaign_reward(before, after, outcome_delta, success)
         if illegal:
-            # Малый штраф за нелегальный ход: переход не изменил мир, но
-            # политика должна отличать такие шаги (symmetric с REWARD-логикой
-            # арены, где недопустимое действие не встречается — там легальность
-            # гарантирует среда).
             reward -= CAMPAIGN_REWARD_ILLEGAL
         observation = self.observe()
         info = {
@@ -694,14 +634,8 @@ class CampaignEnv:
             "terminal": transition_ready,
         }
         if transition_ready:
-            # Горизонт без терминального исхода: помечаем сюжет оконченным
-            # для цикла обучения, не трогая состояние движка (вопрос №30).
             pass
         return observation, reward, done, truncated, info
-
-    # ------------------------------------------------------------------
-    # Персистентность (для resume и Сейва арены-кампании)
-    # ------------------------------------------------------------------
 
     def state_dict(self):
         return {

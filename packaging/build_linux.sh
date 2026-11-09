@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Сборка onedir-дистрибутива для Linux/macOS.
-# Требуется PyInstaller: python -m pip install -e ".[build]"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

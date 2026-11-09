@@ -44,24 +44,15 @@ from .policies import load_policy, make_policy
 
 WINNERS_RL = ("RL", "agent")
 WINNERS_AI = ("AI", "opponent")
-# Сдвиг зерна доменного rng от игрового seed: разные потоки случайности,
-# воспроизводимые одним и тем же --seed.
 DOMAIN_SEED_SALT = 7919
-# Политики без ручных весов, которым нужен прогрев перед held-out оценкой.
-# Иначе «qtable/mlp» в матрице силы — это случайная таблица/сеть, и строка
-# измеряет не baseline, а шум инициализации.
 LEARNABLE_EVAL_BASELINES = frozenset(
     {"qtable", "mlp", "qtable-campaign", "duel-mlp"}
 )
 DEFAULT_EVAL_BASELINE_EPISODES = 50
-# Единые defaults Python API и CLI. Раньше CLI подставлял arena=2000/20,
-# а `train()` — 160/0, поэтому одинаковый вызов давал разные эксперименты.
 DEFAULT_MAX_STEPS = {"arena": 2000, "duel": 160, "campaign": 30}
 DEFAULT_EPISODES = {"arena": 500, "duel": 500, "campaign": 50}
 DEFAULT_EVAL_EPISODES = 20
-# Отдельный сдвиг зерна прогрева: он не должен совпадать с eval seed'ами.
 BASELINE_SEED_SALT = 500003
-# Held-out поток для выбора лучшего чекпойнта во время обучения.
 BEST_CHECKPOINT_SEED_SALT = 700001
 
 
@@ -147,7 +138,6 @@ def _make_env(
     if env_name == "campaign":
         from campaign.env import CampaignEnv
 
-        # max_days берётся из max_steps (число дней горизонта обучения).
         return CampaignEnv(seed=seed, max_days=max_steps, **kwargs)
     return ArenaEnv(
         seed=seed,
@@ -217,8 +207,6 @@ def _play_episode(
             explore=explore,
         )
     if not hasattr(env, "match"):
-        # B4: `DuelEnv` — легальные действия это объекты `Action`, а не
-        # индексы; отдельный цикл `_play_duel_episode`.
         return _play_duel_episode(
             env, policy, opponent, seed, learn=learn, explore=explore
         )
@@ -244,10 +232,6 @@ def _play_episode(
             info,
         ) = env.step(action, opponent_action=opponent_action)
         next_opponent_observation = env.observe("ai")
-        # Таймаут — усечение, а не терминал: `ArenaEnv` уже помечает его
-        # `truncated=True`, но `ArenaMatch` завершает партию (`done=True`).
-        # Для TD-обновления это не терминальное состояние, иначе политика
-        # учится на выдуманном ±1.0 за «кто лучше стоял в REST».
         terminal = bool(done and not truncated)
 
         if learn:
@@ -590,8 +574,6 @@ def train(
     best_every=0,
     best_eval_episodes=5,
 ):
-    # --resume (проблема готовности №5): чекпойнт загружается явно,
-    # автопоиска нет. Формат v0 мигрируется внутри load_policy/load_state_dict.
     if episodes is None:
         episodes = DEFAULT_EPISODES.get(env_name, 500)
     episodes = int(episodes)
@@ -615,9 +597,6 @@ def train(
         env_kwargs,
     )
     single_agent = bool(getattr(env, "single_agent", False))
-    # Доменная рандомизация (проблема №7): rng с солью от seed — одна и та
-    # же команда воспроизводит ту же последовательность доменов. `duel` —
-    # легаси-срез без доменов: честно сообщаем в stats, что фича не сработала.
     domain_opts = dict(domain_opts or {})
     use_domain = bool(domain_randomize) and env_name != "duel"
     domain_rng = random.Random(seed + DOMAIN_SEED_SALT) if use_domain else None
@@ -681,8 +660,6 @@ def train(
         "domain_randomize": use_domain,
     }
     if best_out:
-        # Если периодическая оценка выключена или не успела сработать,
-        # сохраняем финальное состояние: путь всегда существует.
         if best_episode == 0:
             _save_policy(policy, best_out)
             best_episode = int(episodes)
@@ -701,14 +678,6 @@ def train(
             else None
         )
         if single_agent:
-            # Кампания — один агент против детерминированного мира:
-            # матрица «политика × оппонент» выродилась бы в одинаковые
-            # строки. Оцениваем одну политику против мира (`opponent:
-            # "world"`), сохраняя тот же контракт held-out оценки.
-            # `eval_campaign_baselines=True` добавляет warmed baseline-строки
-            # (`qtable-campaign`/`mlp`), чтобы кампанийная матрица не
-            # измеряла случайную инициализацию. По умолчанию выключено:
-            # прогрев кампании дорогой (дни × эпизоды).
             names = [policy_name]
             if eval_campaign_baselines:
                 names.extend(
@@ -846,8 +815,6 @@ def train_seeds(
     payloads = []
     for seed in seed_list:
         local = dict(base_kwargs)
-        # `--save-best` в параллельном режиме не должен гоняться за один
-        # путь: каждый seed пишет свой чекпойнт.
         if local.get("best_out"):
             local["best_out"] = _seed_out_path(local["best_out"], seed)
         payloads.append((seed, local))
@@ -1044,7 +1011,6 @@ def main(argv=None):
         default="",
         help="явный чекпойнт стартовых весов политики противника",
     )
-    # Доменная рандомизация (проблема готовности №7).
     parser.add_argument(
         "--domain-randomize",
         action="store_true",
@@ -1161,7 +1127,6 @@ def main(argv=None):
     if args.env == "arena":
         env_kwargs["reward_profile"] = args.reward_profile
     if args.env == "campaign" and args.campaign_career:
-        # Готовность A3: политика сама выбирает повышение/перевод/отставку.
         env_kwargs["career_actions"] = True
     train_kwargs = dict(
         episodes=args.episodes,

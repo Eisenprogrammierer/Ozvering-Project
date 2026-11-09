@@ -77,8 +77,6 @@ def _payload(scope, value):
             for key, number in value.items()
         }
     if scope == "work_queue":
-        # Очередь работы живёт в IntentQueue; здесь хранится только
-        # намерение игрока, чтобы UI мог показать источник директивы.
         if isinstance(value, dict):
             return dict(value)
         return {"mode": str(value or "manual")}
@@ -163,7 +161,9 @@ class DirectiveBook:
             payload=_payload(scope, payload),
             day=max(0, _as_int(day, 0)),
             expires_day=(
-                None if expires_day is None else max(0, _as_int(expires_day, 0))
+                None
+                if expires_day is None
+                else max(0, _as_int(expires_day, 0))
             ),
             source=str(source or DEFAULT_SOURCE),
         )

@@ -321,8 +321,6 @@ class CoalitionBook:
         }
         events = []
 
-        # 1. Распад: участник выбыл, связка ослабла или опустилась ниже
-        # порога несколько дней подряд.
         for coalition in list(self.active()):
             present = [
                 member
@@ -353,10 +351,10 @@ class CoalitionBook:
                 )
                 events.append(self._event(coalition, "dissolved", day))
 
-        # 2. Формирование: давление растёт только у пар, где оба узла
-        # свободны и ещё не входят в активную коалицию.
         busy = {
-            member for coalition in self.active() for member in coalition.members
+            member
+            for coalition in self.active()
+            for member in coalition.members
         }
         candidates = []
         for key, score in pair_scores.items():
@@ -375,7 +373,6 @@ class CoalitionBook:
             if streak >= config["form_days"]:
                 candidates.append((score, left, right))
 
-        # Высокая связь и стабильный id — детерминированный порядок.
         candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
         for score, left, right in candidates:
             if len(self.active()) >= config["max_coalitions"]:
@@ -388,8 +385,6 @@ class CoalitionBook:
             if left in busy or right in busy:
                 continue
             members = [left, right]
-            # Расширение группы: кандидат должен быть связан со всеми
-            # текущими участниками не ниже порога.
             while len(members) < config["max_members"]:
                 best = None
                 for candidate in sorted(
@@ -429,7 +424,6 @@ class CoalitionBook:
             events.append(self._event(coalition, "formed", day))
             busy.update(members)
 
-        # 3. Не держим в памяти пары, которых больше нет в мире.
         for key in list(self.pressure):
             if key not in pair_scores:
                 self.pressure.pop(key, None)

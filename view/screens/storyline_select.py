@@ -117,7 +117,12 @@ class StorylineSelectScreen(BaseScreen):
 
     def _draw_preview(self, screen):
         x, y, width, height = PREVIEW_RECT
-        pygame.draw.rect(screen, (16, 21, 31), (x, y, width, height), border_radius=8)
+        pygame.draw.rect(
+            screen,
+            (16, 21, 31),
+            (x, y, width, height),
+            border_radius=8,
+        )
         pygame.draw.rect(
             screen, (58, 70, 92), (x, y, width, height), 2, border_radius=8
         )

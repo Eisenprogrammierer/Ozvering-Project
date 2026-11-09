@@ -328,8 +328,6 @@ def test_build_scenario_treats_null_turns_as_default():
 def test_build_world_rejects_automata_before_parsing_null_turns():
     from view.support.scenario import build_world
 
-    # Так выглядит шаблон кампании-автомата: режим automata и turns=null.
-    # Ошибка должна быть осмысленной ValueError, а не TypeError из int(None).
     preset = {
         "preset_id": "automata_probe",
         "role_id": "faction_leader",
@@ -527,7 +525,6 @@ def test_role_select_screen_constructs_and_draws():
     assert [role.id for role in screen.roles] == ["world_actor"]
     screen.select("world_actor")
     assert screen.selected_id == "world_actor"
-    # Выбор показывает описание, но не запускает сюжет до «Продолжить».
     assert app.selected_role is None
     screen.continue_to_storyline()
     assert app.selected_role.id == "world_actor"
@@ -631,10 +628,8 @@ def test_campaign_success_chance_uses_standing_skill_and_sickness():
     strong = CampaignActor(standing=1.0)
     weak_chance = campaign_success_chance(0.6, weak, target)
     strong_chance = campaign_success_chance(0.6, strong, target)
-    # F/authority входит в бросок: сильная позиция повышает шанс.
     assert strong_chance > weak_chance
     sick = CampaignActor(standing=1.0, sickness=1.0)
-    # Болезнь снижает работоспособность, не превращая шанс в ноль.
     assert campaign_success_chance(0.6, sick, target) < strong_chance
     assert 0.05 <= weak_chance <= 0.95
     assert 0.05 <= strong_chance <= 0.95
@@ -664,7 +659,6 @@ def test_campaign_character_tick_drifts_and_syncs_automaton():
     assert character.unit.energy == pytest.approx(
         (character["trust"] + 1.0) / 2.0
     )
-    # sync() подхватывает изменения легаси-полей после эффектов мира.
     character["affinity"] = -0.4
     character.sync()
     assert character.unit.force == pytest.approx(0.3)

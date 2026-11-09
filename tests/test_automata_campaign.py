@@ -107,21 +107,19 @@ def test_lore_scores_and_runtime_are_data_driven():
         )
         assert faction.score_assets == record["score_assets"]
         assert faction.organization is not None
-    # Значение из runtime-конфига организации должно доехать до движка.
     organization = preset.organizations[0]
     organization["runtime"]["parameters"]["outside_base"] = 0.44
     campaign = AutomataCampaign(preset, seed=7)
-    assert (
-        campaign.factions[organization["side"]].organization.parameters.outside_base
-        == 0.44
-    )
+    faction = campaign.factions[organization["side"]]
+    assert faction.organization.parameters.outside_base == 0.44
 
 
 def test_automata_save_snapshot_roundtrip_keeps_state_and_rng():
     preset = _preset("empire_campaign", seed=11)
     campaign = AutomataCampaign(preset, seed=11)
     for _ in range(6):
-        campaign.advance(player_action=campaign.auto_action(campaign.player_side))
+        action = campaign.auto_action(campaign.player_side)
+        campaign.advance(player_action=action)
     snapshot = campaign.save_snapshot()
     restored = AutomataCampaign(preset, snapshot=snapshot)
     assert restored.turn == campaign.turn
@@ -151,7 +149,6 @@ def test_automata_save_snapshot_keeps_defeat_streaks():
     assert restored.factions["red"].low_streaks == {
         "red:legitimacy": 2
     }
-    # Следующий ход продолжает серию, а не начинает её заново.
     campaign.factions["red"].set_asset("legitimacy", 0.0)
     restored.factions["red"].set_asset("legitimacy", 0.0)
     campaign.advance()
@@ -166,8 +163,6 @@ def test_automata_save_snapshot_keeps_defeat_streaks():
 def test_lore_progress_outcome_is_reachable_after_full_run():
     preset = _preset("empire_campaign", seed=11)
     campaign = AutomataCampaign(preset, seed=11)
-    # Жёсткого лимита ходов больше нет: run(turns=...) — это горизонт
-    # симуляции, а не условие завершения кампании.
     assert campaign.max_turns is None
     campaign.run(turns=72)
     assert campaign.turn == 72 or campaign.finished
@@ -205,7 +200,8 @@ def test_lore_participation_uses_original_faction_size():
     original = len(campaign.factions["red"].characters)
     assert original > 0
     for _ in range(12):
-        campaign.advance(player_action=campaign.auto_action(campaign.player_side))
+        action = campaign.auto_action(campaign.player_side)
+        campaign.advance(player_action=action)
         snapshot = campaign.factions["red"].snapshot()
         assert snapshot["initial_count"] == original
         assert snapshot["willing_count"] <= snapshot["active_count"]
@@ -250,8 +246,6 @@ def test_lore_actions_have_cooldowns_and_engine_enforces_them():
     options = {
         item["id"]: item for item in campaign.action_options("red")
     }
-    # Эдикт — стратегическое одноразовое действие: после первого издания
-    # он недоступен даже когда перезарядка формально истекла.
     assert options["imperial_edict"]["enabled"] is False
     assert options["imperial_edict"]["reason"] == "уже выполнено"
     assert options["imperial_edict"]["uses"] == 1
@@ -291,7 +285,6 @@ def test_repeated_action_effects_decay():
     first = campaign.perform("red", "show_of_force")
     assert first["ok"] is True
     assert first["repeat_scale"] == pytest.approx(1.0)
-    # Перезарядка не мешает проверить именно затухание эффекта.
     campaign.faction("red").cooldowns.clear()
     second = campaign.perform("red", "show_of_force")
     assert second["ok"] is True
@@ -321,9 +314,6 @@ def test_action_requirements_block_unavailable_work():
 
 def test_action_requirements_check_target_assets():
     campaign = AutomataCampaign(_preset("empire_campaign", seed=3), seed=3)
-    # У «Торговой планеты» соперник — Империя. Эмбарго требует, чтобы у
-    # цели было что перекрывать: обесточенный соперник не делает блокаду
-    # осмысленной.
     rival = campaign.faction("red")
     rival.assets["supply"] = 0.1
     options = {
@@ -425,8 +415,6 @@ def test_fractal_organs_are_runtime_nodes_and_snapshot_roundtrip():
     assert campaign.player.organs
     organ = campaign.player.organs[0]
     assert 0.0 <= organ.integrity <= 1.0
-    # Орган — уменьшенная копия фракции: при общем падении активов его
-    # целостность тоже снижается.
     for key in ("legitimacy", "cohesion", "morale", "supply", "influence"):
         campaign.player.set_asset(key, 0.05)
     organ.integrity = 0.95
@@ -508,7 +496,6 @@ def test_composite_view_aggregates_organ_hierarchy():
     composite = campaign.composite()
     assert composite is not None
     assert composite.id == "%s:faction" % campaign.player_side
-    # Иерархия сохраняется: ставка → вермахт → панцерваффе.
     assert composite.part("imperial_staff").path_depth() == 1
     assert composite.part("wehrmacht").path_depth() == 2
     assert composite.part("panzerwaffe").path_depth() == 3
@@ -530,7 +517,6 @@ def test_composite_view_aggregates_organ_hierarchy():
     assert state["health_ratio"] == pytest.approx(expected_health)
     assert state["parts"] == len(organs) + 1
     assert state["alive"] is True
-    # Стороны различаются: чужой составной автомат тоже доступен.
     rival = campaign.composite(campaign.rival_side)
     assert rival is not None
     assert rival.id == "%s:faction" % campaign.rival_side
@@ -552,8 +538,6 @@ def test_weakening_one_organ_lowers_composite_integrity():
     assert after["force"] < before["force"]
     assert after["health_ratio"] < before["health_ratio"]
     assert after["alive"] is True
-    # Ослаблен именно лист: агрегат считается по массе органа, а не
-    # перезаписывается целиком.
     assert after["health_ratio"] == pytest.approx(
         before["health_ratio"]
         - (1.0 - 0.2)
@@ -574,7 +558,6 @@ def test_composite_distribution_reaches_the_weakened_organ():
     report = composite.distribute(Work(amount=10.0, form="info"),
                                   strategy="even")
     assert report["accepted"] is True
-    # Работа не дублируется: доли складываются в исходный объём.
     assert sum(
         item["amount"] for item in report["shares"].values()
     ) == pytest.approx(10.0)
@@ -715,7 +698,6 @@ def test_speed_can_be_increased_and_cancelled_but_not_slowed_below_one():
     assert campaign.speed == 4
     campaign.advance_time(4.0)
     assert campaign.elapsed == pytest.approx(16.0)
-    # Отмена ускорения возвращает к предыдущему множителю, но не ниже 1×.
     assert campaign.can_slow_down() is True
     assert campaign.slow_down() == 2
     assert campaign.slow_down() == 1
@@ -768,7 +750,9 @@ def test_realtime_and_interactions_come_from_config():
         defaults["ai_interval_seconds"]
     )
     assert campaign.speed_levels == sorted(defaults["speeds"])
-    configured = {item["id"] for item in default_list("automaton_interactions")}
+    configured = {
+        item["id"] for item in default_list("automaton_interactions")
+    }
     faction = campaign.faction(campaign.player_side)
     assert configured
     assert configured.issubset(

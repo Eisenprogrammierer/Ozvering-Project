@@ -23,23 +23,18 @@
 from __future__ import annotations
 
 from core41.environment import SEASONS
-from core41.model import ENERGY_STORAGE_SHARE, conversion_efficiency, conversion_report
+from core41.model import (
+    ENERGY_STORAGE_SHARE,
+    conversion_efficiency,
+    conversion_report,
+)
 
-# ---------------------------------------------------------------------------
-# Общие единицы
-# ---------------------------------------------------------------------------
 
 ENERGY_SCALE = 100.0
 
-# Рыночный обмен «деньги ↔ E». Это не второй бюджет, а обработчик: купить
-# энергию можно только через него и только с потерей. Спрэд между покупкой
-# и продажей не позволяет крутить обмен без потерь.
 MARKET_BUY_EFFICIENCY = 0.60
 MARKET_SELL_EFFICIENCY = 0.75
 
-# Поддержание: доли `E`/денег за сутки. По умолчанию нули — экономика
-# включается блоком `economy` в конфиге мира, чтобы старые миры и сейвы
-# сохраняли прежний баланс.
 DEFAULT_MAINTENANCE = {
     "base": 0.0,
     "per_level": 0.0,
@@ -47,14 +42,9 @@ DEFAULT_MAINTENANCE = {
     "per_wound": 0.0,
 }
 
-# Дефицит поддержания не оставляет героя в отрицательной энергии: он
-# превращается в износ силы и здоровья. Так экономика давит, но не
-# блокирует игру навсегда.
 MAINTENANCE_STARVE_HEALTH = 0.50
 MAINTENANCE_STARVE_FORCE = 0.004
 
-# Масштабирование цены и эффекта. Веса тоже нулевые по умолчанию: контент
-# включает их явно, а формула остаётся одной на все действия.
 DEFAULT_COST_SCALING = {
     "level": 0.0,
     "force": 0.0,
@@ -66,21 +56,15 @@ DEFAULT_EFFECT_SCALING = {
     "max_suppression": 0.90,
 }
 
-# Ремонт: `wound` измеряется в долях шкалы, здоровье — в пунктах `H`.
 REPAIR_WOUND_ENERGY = 20.0
 REPAIR_HEALTH_ENERGY = 0.50
 
-# Бедность. Порог мягкий: он лишь сигнализирует о риске, а не отнимает
-# действие. `END_DAY` всегда доступен, поэтому игрок не запирается.
 POVERTY_ENERGY_RATIO = 0.25
 
-# Отдых тратит оставшиеся действия, а не создаёт новые.
 REST_HEALTH_PER_ACTION = 6.0
 REST_FORCE_PER_ACTION = 0.04
 REST_WOUND_PER_ACTION = 0.02
 
-# Помощь и кредит — социальные клапаны. Они дают `E` сейчас, но создают
-# обязательство и расходуют запас/доверие источника.
 HELP_MIN_TRUST = 0.20
 HELP_SOURCE_SHARE = 0.50
 HELP_OBLIGATION_SHARE = 0.75
@@ -88,8 +72,6 @@ CREDIT_DAYS = 7
 CREDIT_INTEREST = 0.10
 CREDIT_SOURCE_SHARE = 0.75
 
-# Природа. Работа природы — не бесплатная энергия игрока: она идёт в
-# экономику узла через свой КПД и сезонный множитель.
 NATURE_BASE_WORK = 6.0
 NATURE_EFFICIENCY = 0.65
 NATURE_FERTILITY_WEIGHT = 0.50
@@ -97,8 +79,6 @@ NATURE_LABOR_WEIGHT = 0.50
 NATURE_WEALTH_SHARE = 1.0
 NATURE_SEASON_LENGTH = 90
 
-# Проекции ресурсов. `energy` — единственная универсальная шкала;
-# остальные — деньги/права/сигналы, а не второй запас действий.
 RESOURCE_PROJECTIONS = {
     "energy": {
         "kind": "energy",
@@ -158,12 +138,9 @@ def _config(raw, defaults):
     return result
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №21: конверсия, цена, потери и энтропия
-# ---------------------------------------------------------------------------
-
-
-def conversion_quote(amount, form="info", *, efficiency=None, storage_share=None):
+def conversion_quote(
+    amount, form="info", *, efficiency=None, storage_share=None
+):
     """Разложить оплаченную работу на доставку, потери и энтропию.
 
     `amount` — сколько `E` заплачено. `arrived` — работа, дошедшая до цели;
@@ -225,11 +202,6 @@ def conversion_chain(amount, forms):
     }
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №22: поддержание, отходы, ремонт
-# ---------------------------------------------------------------------------
-
-
 def maintenance_cost(level=0.0, force=0.0, wound=0.0, *, config=None):
     """Суточная цена поддержания в `E`.
 
@@ -283,11 +255,6 @@ def repair_quote(wound=0.0, health_missing=0.0, *, config=None):
     }
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №23: масштаб цены и эффекта
-# ---------------------------------------------------------------------------
-
-
 def scaled_cost(
     base,
     *,
@@ -339,11 +306,6 @@ def scaled_effect(
     return _as_float(base_effect) * ratio * (1.0 - suppression)
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №24: бедность и клапаны
-# ---------------------------------------------------------------------------
-
-
 def poverty_status(
     energy,
     max_energy,
@@ -371,7 +333,11 @@ def poverty_status(
         "strained": strained,
         "exhausted": exhausted,
         "needs_relief": strained or exhausted,
-        "relief": ["rest", "help", "credit"] if (strained or exhausted) else [],
+        "relief": (
+            ["rest", "help", "credit"]
+            if (strained or exhausted)
+            else []
+        ),
     }
 
 
@@ -457,7 +423,7 @@ def credit_quote(
     source_share=CREDIT_SOURCE_SHARE,
     interest=CREDIT_INTEREST,
 ):
-    """Кредит: источник даёт `E` сейчас, долг возвращается позже с процентом."""
+    """Кредит: источник даёт `E` сейчас, долг — позже с процентом."""
     wealth = max(0.0, _as_float(source_wealth))
     capacity = money_to_energy(
         wealth * _clamp(source_share),
@@ -490,11 +456,6 @@ def credit_quote(
     }
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №25: деньги, информация и политический капитал
-# ---------------------------------------------------------------------------
-
-
 def resource_kind(name):
     """Вид ресурса: `energy`, `money`, `political`, `information`."""
     return (RESOURCE_PROJECTIONS.get(str(name)) or {}).get("kind", "unknown")
@@ -510,7 +471,11 @@ def money_to_energy(wealth, *, max_energy=ENERGY_SCALE, efficiency=None):
     efficiency = (
         MARKET_BUY_EFFICIENCY if efficiency is None else _clamp(efficiency)
     )
-    return max(0.0, _as_float(wealth)) * max(0.0, _as_float(max_energy)) * efficiency
+    return (
+        max(0.0, _as_float(wealth))
+        * max(0.0, _as_float(max_energy))
+        * efficiency
+    )
 
 
 def energy_price_in_money(energy, *, max_energy=ENERGY_SCALE, efficiency=None):
@@ -585,11 +550,6 @@ def exchange_quote(source, target, amount, *, max_energy=ENERGY_SCALE):
     }
 
 
-# ---------------------------------------------------------------------------
-# §7.4 №26: работа природы
-# ---------------------------------------------------------------------------
-
-
 def season_multiplier(day, *, length=NATURE_SEASON_LENGTH):
     """Сезонный множитель по дню кампании (та же схема, что у арены)."""
     length = max(1, int(length))
@@ -636,11 +596,6 @@ def nature_yield(
         report["arrived"] / max(1e-9, base) * NATURE_WEALTH_SHARE
     )
     return report
-
-
-# ---------------------------------------------------------------------------
-# Сводка источников/стоков
-# ---------------------------------------------------------------------------
 
 
 def balance(sources, sinks):

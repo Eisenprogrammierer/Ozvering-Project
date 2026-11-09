@@ -50,10 +50,6 @@ def _engine(seed=7):
         office_id="head_of_government",
         seed=seed,
     )
-    # Контракт A5: отложенное действие исполняется полным `execute()` в
-    # свой день. Должность должна быть занята до первого перехода суток,
-    # иначе первое же scheduled-действие освобождает пост и все
-    # последующие намерения дня снимаются с «сначала выберите должность».
     engine.attach("agora_government", "head_of_government")
     return engine
 
@@ -69,7 +65,6 @@ def test_intent_queue_orders_by_day_and_trims_farthest():
     queue.schedule(3, "contact", actor="a")
     assert [item.due_day for item in queue] == [2, 3, 5]
 
-    # Переполнение отбрасывает самые далёкие намерения, близкие остаются.
     assert queue.schedule(9, "message", payload={"text": "далеко"}) is None
     assert [item.due_day for item in queue] == [2, 3, 5]
 
@@ -101,8 +96,6 @@ def test_intent_queue_rejects_unknown_kind():
 def test_world_runs_due_message_intent_before_ai_turn():
     engine = _engine()
     text = "Гонец приносит весть."
-    # Край суток (слот 0): намерение исполняется до хода ИИ — полным
-    # циклом `end_day()` в начале дня срока (контракт A5).
     engine.schedule_intent(
         engine.day + 1,
         "message",
@@ -110,7 +103,6 @@ def test_world_runs_due_message_intent_before_ai_turn():
         due_slot=0,
     )
 
-    # Переход в день 2: очередь края исполняется до `_ai_action`.
     engine.end_day()
 
     assert engine.day == 2
@@ -132,7 +124,6 @@ def test_world_contact_intent_moves_affinity():
         },
     )
 
-    # Слот 0: срок «день 2» исполняется в начале суток.
     result = engine.end_day()
 
     assert float(character["affinity"]) > before + 0.05
@@ -157,7 +148,7 @@ def test_world_intents_persist_and_fire_after_restore():
     restored = WorldEngine(load_world(), snapshot=snapshot)
     before = float(restored.characters[character["id"]]["affinity"])
     restored.end_day()
-    restored.tick()  # очередь наступающих суток исполняется в их начале
+    restored.tick()
 
     assert len(restored.intents) == 0
     assert float(restored.characters[character["id"]]["affinity"]) > before
@@ -186,13 +177,10 @@ def test_autonomous_character_schedules_contact_and_fires_next_day():
     before = float(character["affinity"])
 
     engine.end_day()
-    # После первого дня появилось намерение на следующий.
     assert len(engine.intents) == 1
     pending = engine.intents.due(engine.day)[0]
     assert pending.source == "autonomy"
     assert pending.actor == character["id"]
-    # Персонаж лоялен (affinity 0.84, trust 0.78) — политика
-    # выбирает сближение.
     assert pending.payload["policy"] == "rapprochement"
     assert pending.cancel_when == {
         "field": "affinity",
@@ -203,8 +191,6 @@ def test_autonomous_character_schedules_contact_and_fires_next_day():
     engine.end_day()
     result = engine.end_day()
 
-    # Старое намерение снято по условию (affinity выше порога), а автономия
-    # уже назначила следующее; дрейф отношения идёт только из `tick`.
     cancelled = [
         entry
         for entry in result["events"]
@@ -247,7 +233,6 @@ def test_hostile_autonomous_character_reconciles_with_priority():
     ]
     assert len(fired) == 1
     assert fired[0]["outcome"] in ("success", "failure")
-    # Исход детерминирован seed'ом: повторный мир даёт тот же результат.
     assert abs(float(character["affinity"]) - before) >= 0.0
 
 
@@ -275,8 +260,6 @@ def test_autonomy_contact_success_path_applies_positive_effects():
         assert delta > 0.0
     else:
         assert delta < 0.0
-    # Тот же токен броска -> та же монетка: повторного вызова в тот же день
-    # для того же персонажа детерминированно достаточно для стабильности.
     again = engine._apply_autonomy_contact(intent)
     assert again[0]["outcome"] == outcome
 
@@ -303,7 +286,6 @@ def test_intent_queue_orders_by_priority_within_day():
     queue.schedule(2, "message", actor="b", source="s2", priority=5)
     queue.schedule(1, "message", actor="c", source="s3", priority=9)
     order = [(item.actor, item.priority) for item in queue]
-    # Сначала более ранний день, внутри дня — больший приоритет раньше.
     assert order == [("c", 9), ("b", 5), ("a", 0)]
 
 
@@ -354,7 +336,6 @@ def test_condition_holds_semantics():
     assert condition_holds(
         dict(trust, op="ne", value=0.0), character
     )
-    # Неизвестное поле/операция — условие НЕ истинно (безопаснее исполнить).
     assert not condition_holds(
         {"field": "mystery", "op": "gt", "value": 0}, character
     )
@@ -379,11 +360,10 @@ def test_world_cancels_intent_when_condition_holds():
         cancel_when={"field": "affinity", "op": "gt", "value": 0.0},
         due_slot=0,
     )
-    result = engine.end_day()  # край дня 2: отмена исполняется до хода ИИ
+    result = engine.end_day()
     kinds = [entry["kind"] for entry in result["events"]]
     assert "intent_cancelled" in kinds
     assert "intent" not in kinds
-    # Отмена не должна двигать отношение (кроме обычного дневного дрейфа).
     assert float(character["affinity"]) < before + 0.01
     assert any(entry.get("kind") == "intent_cancelled" for entry in engine.log)
 
@@ -400,7 +380,7 @@ def test_world_executes_intent_when_condition_false():
         cancel_when={"field": "affinity", "op": "gt", "value": 5.0},
         due_slot=0,
     )
-    result = engine.end_day()  # край дня 2: исполнение до хода ИИ
+    result = engine.end_day()
     fired = [
         entry
         for entry in result["events"]
@@ -444,11 +424,6 @@ def test_intent_queue_limit_is_documented():
     assert queue.items[-1].due_day == MAX_INTENTS
 
 
-# ---------------------------------------------------------------------------
-# Срез A5: непрерывность планирования — отложенные действия и слоты внутри дня
-# ---------------------------------------------------------------------------
-
-
 def test_intent_sorts_by_day_then_slot_then_priority():
     queue = IntentQueue()
     queue.schedule(3, "message", payload={"text": "поздний слот"}, due_slot=2)
@@ -456,7 +431,6 @@ def test_intent_sorts_by_day_then_slot_then_priority():
         3, "message", payload={"text": "срочный у края"}, priority=5
     )
     queue.schedule(3, "message", payload={"text": "обычный у края"})
-    # Внутри одного дня: сначала край (слот 0, приоритет выше), потом слот 2.
     assert [item.due_slot for item in queue] == [0, 0, 2]
     assert queue.items[0].payload["text"] == "срочный у края"
 
@@ -466,11 +440,9 @@ def test_intent_due_slot_defaults_to_day_edge_and_round_trips():
     assert intent.due_slot == 0
     raw = intent.to_dict()
     assert raw["due_slot"] == 0
-    # Старый снимок без поля читается как граница дня.
     legacy = dict(raw)
     del legacy["due_slot"]
     assert Intent.from_dict(legacy).due_slot == 0
-    # Некорректные значения зажимаются в диапазон слотов.
     assert Intent.from_dict({**raw, "due_slot": 99}).due_slot == 3
     assert Intent.from_dict({**raw, "due_slot": -1}).due_slot == 0
 
@@ -482,7 +454,6 @@ def test_schedule_action_defers_player_action_to_future_day():
     assert intent is not None
     assert intent.kind == "action"
     assert intent.payload["action"] == action_id
-    # Планирование не тратит энергию и не увеличивает счётчик действий.
     assert engine.action_count == 0
     assert float(engine.player_energy) > 0
 
@@ -498,10 +469,7 @@ def test_scheduled_action_executes_full_path_on_due_day():
     action_id = engine.available_actions()[0]
     engine.schedule_action(action_id, due_day=engine.day + 1, due_slot=1)
 
-    # Контракт A5: `end_day()` — полный цикл суток, забирает ВСЮ очередь
-    # наступающего дня (и краевой слот, и внутридневные). Отложенное
-    # действие проходит полный путь execute() уже на переходе.
-    result = engine.end_day()  # переход в день 2: намерение слота 1 исполнено
+    result = engine.end_day()
     assert len(engine.intents) == 0
 
     fired = [
@@ -512,7 +480,6 @@ def test_scheduled_action_executes_full_path_on_due_day():
     assert len(fired) == 1
     assert fired[0]["action"] == action_id
     assert fired[0]["outcome"] in ("success", "failure")
-    # Полный путь execute(): действие списало энергию и счётчик.
     assert engine.action_count == 1
 
 
@@ -520,12 +487,8 @@ def test_scheduled_action_skips_gracefully_when_no_longer_valid():
     engine = _engine(seed=11)
     action_id = engine.available_actions()[0]
     engine.schedule_action(action_id, due_day=engine.day + 1)
-    # Герой погиб до срока — отложенное дело не должно ломать ход мира.
     engine.player_alive = False
 
-    # Семантика A5: слот 0 (край) исполняется полным циклом `end_day()`
-    # в начале дня срока — долг закрывается до хода ИИ и получает
-    # вежливый отказ без последствий для мира.
     result = engine.end_day()
     events = result["events"]
     assert len(engine.intents) == 0
@@ -547,7 +510,7 @@ def test_scheduled_action_survives_save_and_load():
     pending = list(restored.intents)[0]
     assert pending.kind == "action" and pending.payload["action"] == action_id
 
-    result = restored.end_day()  # день 1 -> 2: край суток исполняет намерение
+    result = restored.end_day()
     fired = [
         entry
         for entry in result["events"]
@@ -557,7 +520,6 @@ def test_scheduled_action_survives_save_and_load():
 
 
 def test_pop_due_respects_max_slot_boundary():
-    # Граница дня (слот 0) исполняется отдельно от «внутридневных» слотов.
     queue = IntentQueue()
     queue.schedule(5, "message", payload={"text": "край"})
     queue.schedule(5, "message", payload={"text": "внутри"}, due_slot=2)
@@ -568,8 +530,6 @@ def test_pop_due_respects_max_slot_boundary():
 
 
 def test_pop_due_runs_overdue_intents_regardless_of_slot():
-    # Просроченное намерение из прошлого дня не застревает в очереди:
-    # оно считается стоящим на границе дня и уходит даже при max_slot=0.
     queue = IntentQueue()
     queue.schedule(4, "message", payload={"text": "долг"}, due_slot=3)
     ready = queue.pop_due(5, max_slot=0)
@@ -578,27 +538,24 @@ def test_pop_due_runs_overdue_intents_regardless_of_slot():
 
 
 def test_tick_runs_intraday_slots_without_advancing_day():
-    # A5: внутридневный тик исполняет слоты 1..max_slot текущего дня
-    # и НЕ двигает сутки.
     engine = _engine(seed=13)
     engine.attach("agora_government", "head_of_government")
     action_id = engine.available_actions()[0]
-    engine.end_day()  # день 1 -> 2, очередь пуста
+    engine.end_day()
     day_before = engine.day
     engine.schedule_action(action_id, due_day=engine.day, due_slot=2)
 
     events = engine.tick(max_slot=1)
-    # Слот 2 ещё не созрел; автономные узлы могут дать свои события.
     assert [
         entry for entry in events
         if entry.get("source") == "player_action"
     ] == []
-    assert engine.day == day_before  # сутки не сдвинулись
+    assert engine.day == day_before
 
     fired = engine.tick(max_slot=2)
     player_events = [e for e in fired if e.get("source") == "player_action"]
     assert len(player_events) == 1
-    assert engine.day == day_before  # тик не переводит сутки
+    assert engine.day == day_before
     assert len(engine.intents) == 0
 
 
@@ -619,17 +576,14 @@ def test_tick_spreads_node_actions_across_day_and_end_day_finishes():
     engine.tick(max_slot=0)
     assert {node_id for _day, node_id in called} == set(slot_zero)
 
-    # Остаток дня доигрывается тиком, каждый узел — ровно один раз.
     engine.tick(max_slot=SLOTS_MAX)
     assert len(called) == len(engine.node_order)
     assert len({node_id for _day, node_id in called}) == len(called)
 
-    # Граница суток не повторяет уже сходившие узлы.
     day = engine.day
     engine.end_day()
     assert len(called) == len(engine.node_order)
 
-    # В новый день узлы снова получают ход.
     engine.tick(max_slot=SLOTS_MAX)
     new_day = [node_id for when, node_id in called if when != day]
     assert len(new_day) == len(engine.node_order)
@@ -648,11 +602,10 @@ def test_node_action_day_persists_in_snapshot():
 
 
 def test_tick_and_end_day_do_not_double_execute():
-    # Намерение, исполненное тиком, не должно повториться в end_day().
     engine = _engine(seed=17)
     engine.attach("agora_government", "head_of_government")
     action_id = engine.available_actions()[0]
-    engine.end_day()  # вход в день 2
+    engine.end_day()
     engine.schedule_action(action_id, due_day=engine.day, due_slot=1)
 
     fired_by_tick = engine.tick(max_slot=SLOTS_MAX)
@@ -666,20 +619,16 @@ def test_tick_and_end_day_do_not_double_execute():
     repeated = [
         e for e in result["events"] if e.get("source") == "player_action"
     ]
-    assert repeated == []  # задвоения нет
+    assert repeated == []
     assert engine.action_count == actions_after_tick
 
 
 def test_run_intents_max_slot_defers_intraday_until_day_end():
-    # Долги (due_day < self.day) закрываются тиком по порядку слотов:
-    # узкое окно берёт только краевой долг, внутридневной ждёт расширения.
     engine = _engine(seed=11)
     action_id = engine.available_actions()[0]
-    engine.end_day()  # день 1 -> 2: чистый старт очереди
+    engine.end_day()
     assert engine.action_count == 0
 
-    # Эмуляция просрочки: два намерения «дня 2» остаются в очереди, когда
-    # мир уже в дне 3 (например, их запланировал ход ИИ после выборки).
     from campaign.planner import Intent
 
     engine.intents.items = [
@@ -695,26 +644,21 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
         ),
     ]
 
-    events = engine.tick(max_slot=SLOT_DAY_EDGE)  # узкое окно: только край
+    events = engine.tick(max_slot=SLOT_DAY_EDGE)
     fired_now = [e for e in events if e.get("source") == "player_action"]
     assert len(fired_now) == 1
     assert engine.action_count == 1
     assert [(i.due_day, i.due_slot) for i in engine.intents.items] == [(2, 2)]
 
-    # Второй раз то же действие в том же мире невозможно: первое исполненное
-    # намерение освободило должность («сначала выберите должность»), и
-    # расширенный тик корректно снимает остаток с записью в журнал — без
-    # штрафа и без задвоения. Проверяются оба контракта разом: фильтр слота
-    # в узком окне и graceful-skip недоступного отложенного действия.
-    events = engine.tick(max_slot=2)  # окно расширено — долг добит
+    events = engine.tick(max_slot=2)
     fired_wide = [e for e in events if e.get("source") == "player_action"]
     skipped = [e for e in events if e.get("kind") == "intent_skipped"]
     assert fired_wide == []
     assert len(skipped) == 1
-    assert engine.action_count == 1  # skip не тратит действие
-    assert len(engine.intents) == 0  # очередь очищена
+    assert engine.action_count == 1
+    assert len(engine.intents) == 0
 
-    result = engine.end_day()  # очередь пуста — задвоений нет
+    result = engine.end_day()
     fired_later = [
         e for e in result["events"] if e.get("source") == "player_action"
     ]
@@ -723,35 +667,27 @@ def test_run_intents_max_slot_defers_intraday_until_day_end():
 
 
 def test_tick_max_slot_defers_intraday_until_wider_tick():
-    # Семантика `tick(max_slot=k)`: слоты 0..k исполняются, k+1.. — ждут.
     action_id = _engine(seed=11).available_actions()[0]
 
-    # Полный переход суток (`end_day`) забирает весь день: и край, и
-    # внутридневные слоты — иначе они стали бы долгами дня 2. Второе
-    # намерение снимается graceful-skip (первое освободило должность),
-    # но из очереди оно уходит в любом случае — задвоений не остаётся.
     engine = _engine(seed=11)
     engine.schedule_action(action_id, due_day=2, due_slot=0, priority=5)
     engine.schedule_action(action_id, due_day=2, due_slot=2)
-    engine.end_day()  # переход в день 2 забирает весь день (слоты 0 и 2)
+    engine.end_day()
     assert len(engine.intents) == 0
-    assert engine.action_count == 1  # исполнено 1, второе корректно снято
+    assert engine.action_count == 1
 
-    # Тот же сценарий, но очередь открывается узкими тиками: сначала
-    # краевой слот, затем внутридневной — по мере расширения max_slot.
     engine2 = _engine(seed=11)
     engine2.schedule_action(action_id, due_day=1, due_slot=0, priority=5)
     engine2.schedule_action(action_id, due_day=1, due_slot=2)
     events = engine2.tick(max_slot=SLOT_DAY_EDGE)
     fired = [e for e in events if e.get("source") == "player_action"]
-    assert len(fired) == 1  # только краевое; слот 2 ещё не наступил
+    assert len(fired) == 1
     assert len(engine2.intents) == 1
     events = engine2.tick(max_slot=1)
     assert [e for e in events if e.get("source") == "player_action"] == []
     events = engine2.tick(max_slot=2)
     fired = [e for e in events if e.get("source") == "player_action"]
     skipped = [e for e in events if e.get("kind") == "intent_skipped"]
-    # Долг/остаток снят с очереди: либо исполнен, либо graceful-skip.
     assert len(fired) + len(skipped) == 1
     assert len(engine2.intents) == 0
     assert engine2.action_count >= 1

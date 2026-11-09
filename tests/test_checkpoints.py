@@ -120,11 +120,6 @@ def test_battlefield_loads_bdi_checkpoint(tmp_path):
     assert model.enemy.agent.policy.weights == source.weights
 
 
-# ---------------------------------------------------------------------------
-# Production-автопоиск чекпойнта (P2)
-# ---------------------------------------------------------------------------
-
-
 def _write_policy(path, kind="bdi", version=None, mtime=None):
     import os
 
@@ -288,7 +283,6 @@ def test_entry_point_lists_checkpoints_regardless_of_client(
     import main as entry
 
     _write_policy(tmp_path / "best.json", "qtable")
-    # Если main всё же попытается запустить view-клиент, импорт упадёт.
     monkeypatch.setitem(sys.modules, "view.app", None)
 
     assert entry.main(
@@ -297,9 +291,6 @@ def test_entry_point_lists_checkpoints_regardless_of_client(
     out = capsys.readouterr().out
     assert "qtable" in out
     assert str(tmp_path / "best.json") in out
-
-
-# --- A9: production-чекпойнт duel-mlp ------------------------------------
 
 
 def test_duel_mlp_checkpoint_is_autodiscoverable(tmp_path):
@@ -332,8 +323,6 @@ def test_shipped_production_checkpoint_loads():
     assert path.endswith("duel_mlp_production.json"), path
     policy = load_policy(path)
     assert isinstance(policy, DuelMLPPolicy)
-    # Поставляемый файл хранится в текущем формате A9 (v5/30); старые
-    # v4/26 остаются загружаемыми за счёт дополнения нулями.
     from agents.policies import (
         DUEL_CHECKPOINT_VERSION,
         DUEL_FEATURE_COUNT,

@@ -1,6 +1,8 @@
 # `naming`
 
-Справочник собран из docstrings и примечаний к переменным. Номера строк относятся к версии до очистки кода.
+Справочник собран из docstrings и примечаний к переменным. Номера строк
+раздела `naming/people.py` относятся к текущей версии, остальных разделов —
+к версии до очистки кода.
 
 ## `naming/__init__.py`
 
@@ -16,6 +18,8 @@
 * ``NameGenerator.automaton_name(mode, need, level)``;
 * ``NameGenerator.interaction_name(type_id)``;
 * ``PersonNameGenerator.real/fantasy/generate_many``;
+* ``PersonNameGenerator.generate(..., policy=...)`` и
+  ``generate_policy``/``generate_many_policy`` для правил фракций;
 * доступ к онтологии класса и пятёрке типа взаимодействия через
   ``NamingCatalog``.
 
@@ -44,10 +48,11 @@ def interaction_name(type_id, seed=0)
 Строка 63.
 
 ```python
-def person_name(culture=None, theme=None, gender=None, seed=0)
+def person_name(culture=None, theme=None, gender=None, seed=0, policy=None)
 ```
 
-Короткий функциональный вход для имени персонажа.
+Короткий функциональный вход для имени персонажа. ``policy`` задаёт
+правило фракции и взаимоисключающ с ``culture``/``theme``.
 
 ## `naming/__main__.py`
 
@@ -277,11 +282,13 @@ def generate_many(self, mode, need=None, level=1, theme=None, count=10, seed=Non
 
 Генератор имён персонажей: реальные культуры и фэнтезийные темы.
 
-Конфиг лежит в ``configs/naming/people.json``. В отличие от генератора
-названий автоматов, этот слой не пытается строить морфологию: имена — это
+Конфиг лежит в ``configs/naming/people.json``, правила фракций — в
+``configs/naming/policies.json``. В отличие от генератора названий
+автоматов, этот слой не пытается строить морфологию: имена — это
 собственные имена, а не русские нарицательные конструкции. Шаблоны текста
 используют имя в именительном падеже, поэтому генератору достаточно вернуть
-готовую строку.
+готовую строку. Строгий пол берёт имена только из ``given.m``/``given.f``;
+режим ``epithets`` собирает имя из религиозных прозвищ без личных имён.
 
 Слой чистый: он не импортирует pygame, ``simulation`` или ``warfare``.
 
@@ -300,6 +307,21 @@ def _pool(value, label)
 ```
 
 Пул имён: либо список для обоих полов, либо объект ``m``/``f``.
+
+### class `NamingPolicy`
+
+Строка 111.
+
+Правило имён фракции или кампании: режим ``cultures``/``epithets``, веса
+культур и тем, разрешение эпитетов и шаблоны.
+
+### class `PersonPolicyCatalog`
+
+Строка 191.
+
+Загруженный набор политик и алиасов из ``configs/naming/policies.json``.
+``resolve`` разворачивает цепочку алиасов, ``get`` требует известную
+политику.
 
 ### class `PersonCulture`
 
@@ -333,7 +355,19 @@ def _render_pattern(pattern, values)
 
 Строка 324.
 
-Детерминированный по seed генератор имён персонажей.
+Детерминированный по seed генератор имён персонажей. Принимает каталоги
+имён и политик, поэтому политики можно подменить в тестах.
+
+### method `PersonNameGenerator.policy`
+
+Строка 538.
+
+```python
+def policy(self, key)
+```
+
+Развернуть ключ или алиас в ``NamingPolicy``; неизвестный ключ даёт
+``None``.
 
 ### method `PersonNameGenerator.real`
 
@@ -360,20 +394,58 @@ def fantasy(self, theme=None, gender=None, seed=None)
 Строка 355.
 
 ```python
-def generate(self, culture=None, theme=None, gender=None, seed=None)
+def generate(self, culture=None, theme=None, gender=None, seed=None, policy=None)
 ```
 
 Имя в реальном или фэнтезийном стиле.
 
-        ``culture`` и ``theme`` взаимоисключающи. Без них стиль выбирается
-        случайно с небольшим перевесом в сторону реальных культур.
+        ``culture`` и ``theme`` взаимоисключающи. ``policy`` взаимоисключающ
+        с ними и делегирует в ``generate_policy``. Без явного стиля он
+        выбирается случайно с небольшим перевесом в сторону реальных культур.
 
 ### method `PersonNameGenerator.generate_many`
 
 Строка 379.
 
 ```python
-def generate_many(self, count=10, culture=None, theme=None, gender=None, seed=None)
+def generate_many(
+    self,
+    count=10,
+    culture=None,
+    theme=None,
+    gender=None,
+    seed=None,
+    policy=None,
+)
 ```
 
-Несколько разных имён, детерминированно по seed.
+Несколько разных имён, детерминированно по seed. ``policy`` делегирует в
+``generate_many_policy``.
+
+### method `PersonNameGenerator.generate_policy`
+
+Строка 656.
+
+```python
+def generate_policy(self, policy, gender=None, seed=None)
+```
+
+Одно имя по правилу фракции: культурный пул или эпитетный режим.
+
+### method `PersonNameGenerator.generate_many_policy`
+
+Строка 672.
+
+```python
+def generate_many_policy(
+    self, count=10, policy=None, gender=None, seed=None
+)
+```
+
+Несколько разных имён по правилу фракции.
+
+### function `default_policies`
+
+Строка 847.
+
+Загрузить ``configs/naming/policies.json`` один раз и кэшировать результат.

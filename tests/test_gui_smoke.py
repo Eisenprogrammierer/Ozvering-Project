@@ -72,7 +72,7 @@ def _drain_cycle(app, max_frames=600):
         app.process_pending_storyline_outcome()
         app.process_pending_mandatory_scene()
         app.screen.fill((10, 12, 16))
-        app.manager.draw(app.screen)  # каждый кадр рисуем реально
+        app.manager.draw(app.screen)
         if app.manager.has_time_hud_screen() and not getattr(
             app.manager.current, "hide_time_hud", False
         ):
@@ -137,16 +137,12 @@ def test_world_screen_runs_in_live_cycle(app):
     if end_day_btn is not None and getattr(end_day_btn, "enabled", True):
         _click(end_day_btn.rect)
     else:
-        # fallback: прямой вызов того же пути, что делает кнопка
         screen._end_day()
-    # Сначала крутим цикл без QUIT: он завершится страховкой max_frames,
-    # и мы зафиксируем, что экран мира реально рисовался живыми кадрами.
     frames_pre = _drain_cycle(app, max_frames=30)
     assert frames_pre >= 5, (
         "живой цикл должен отрисовать кадры экрана мира (получено %d)"
         % frames_pre
     )
-    # Затем ещё один короткий цикл с QUIT в конце — штатное завершение.
     _post_quit()
     frames = _drain_cycle(app, max_frames=90)
     assert frames >= 1
@@ -164,13 +160,10 @@ def test_quick_campaign_screen_lifecycle(app):
     assert len(screen.buttons) > 1, "должны быть легальные действия + выход"
     frames = _drain_cycle(app, max_frames=20)
     assert frames >= 5, "экран быстрой кампании должен рисоваться кадрами"
-    # Шаг: первое не-сервисное действие (или любое легальное).
     actions = list(app.manager.current.env.legal_actions())
     before_day = app.manager.current.observation.day
     app.manager.current._do(actions[0])
     assert app.manager.current.observation is not None
-    # Финал/шаг не роняют экран; статусные строки считаются корректно
-    # (энергия — проценты от максимума, а не сырое значение ×100).
     lines = app.manager.current._status_lines()
     assert any("День" in line for line in lines)
     for line in lines:
@@ -179,7 +172,6 @@ def test_quick_campaign_screen_lifecycle(app):
             assert pct <= 100.0, (
                 "энергия в UI обязана быть в процентах: %s" % line
             )
-    # Возврат в меню кнопкой.
     menu_btn = next(
         b for b in app.manager.current.buttons if b.text == "В меню"
     )
@@ -223,7 +215,6 @@ def test_automata_screen_spends_one_action_per_work(app):
     screen.selected_action_id = available[0]
     screen._execute_selected()
 
-    # Работа не завершает ход: она только тратит одно действие.
     assert campaign.turn == before
     assert campaign.actions_left == budget - 1
     assert screen.selected_action_id is None
@@ -236,7 +227,6 @@ def test_automata_screen_spends_one_action_per_work(app):
     assert len(player_actions) == 1
     assert player_actions[0]["action_id"] == available[0]
 
-    # Отдельная кнопка «Завершить ход» начинает следующий ход.
     screen._end_turn()
     assert campaign.turn == before + 1
     assert campaign.actions_left == campaign.actions_per_turn

@@ -525,8 +525,6 @@ class BattlefieldModel:
                 "enemy", "Тень", "enemy", 7, 3, "vanguard", self.enemy
             ),
         }
-        # A9: стартовые знания о скрытом состоянии противника. Туман
-        # включён в активной игре; без снимка `Intel` не скрывал бы поля.
         self.player.agent.intel.reset(self.enemy.agent.unit)
         self.enemy.agent.intel.reset(self.player.agent.unit)
         self.selected = "player"

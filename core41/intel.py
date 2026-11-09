@@ -15,14 +15,9 @@
 
 from dataclasses import dataclass, field
 
-# Стартовая уверенность: в начале дуэли стороны видят друг друга, но не
-# знают внутреннего состояния. 0.5 — «знаю примерный класс», не «знаю факт».
 FOG_START_CONFIDENCE = 0.5
-# Затухание уверенности за такт без разведки.
 FOG_CONFIDENCE_DECAY = 0.92
-# Небольшой прирост за неудачную попытку разведки.
 FOG_FAILURE_GAIN = 0.08
-# Сколько тактов живёт найденная слабая точка.
 INTEL_WEAK_POINT_TICKS = 3
 
 HIDDEN_FIELDS = ("energy", "health", "sickness", "wound")

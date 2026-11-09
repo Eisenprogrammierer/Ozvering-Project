@@ -64,15 +64,12 @@ def test_relation_effect_is_bounded_and_direction_aware():
     for form in RELATION_EFFECT_WEIGHTS:
         value = relation_effect(axes, form)
         assert -RELATION_EFFECT_LIMIT <= value <= RELATION_EFFECT_LIMIT
-    # Доверие помогает информации и мешает принуждению.
     trust = {"trust": 1.0}
     assert relation_effect(trust, "info") > 0.0
     assert relation_effect(trust, "force") < 0.0
-    # Страх помогает силе и не помогает информации.
     fear = {"fear": 1.0}
     assert relation_effect(fear, "force") > 0.0
     assert relation_effect(fear, "info") < 0.0
-    # Неизвестная форма и пустые оси не дают вклада.
     assert relation_effect(axes, "unknown") == 0.0
     assert relation_effect({}, "info") == 0.0
     view = relation_effect_view({"affinity": 0.4}, "info")
@@ -103,8 +100,6 @@ def test_action_chance_uses_target_to_actor_axes():
     action = engine.character_actions["heart_to_heart"]
     context = engine.player_context()
     success = action.get("success") or {}
-    # `fear/respect` не входят в `Automaton` персонажа, поэтому меняют
-    # только отношение цели к игроку, а не защитника.
     character["fear"] = 0.0
     character["respect"] = 0.0
     low = engine._action_chance(action, character, context, success, True)
@@ -113,7 +108,6 @@ def test_action_chance_uses_target_to_actor_axes():
     high = engine._action_chance(action, character, context, success, True)
     assert high > low
     assert high - low <= RELATION_EFFECT_LIMIT + 1e-9
-    # Для силового канала вклад считается от цели к игроку, а не наоборот.
     axes = engine._relation_axes_to_actor(
         character, context["node"]["id"]
     )
@@ -253,5 +247,4 @@ def test_relation_effect_preserves_core_chance_calibration():
         form="force",
     )
     assert chance == pytest.approx(core)
-    # Итог всегда остаётся в рабочих границах.
     assert 0.05 <= chance <= 0.95

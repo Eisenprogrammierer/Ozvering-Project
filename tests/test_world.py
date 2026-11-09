@@ -6,8 +6,6 @@ from pathlib import Path
 
 import pytest
 
-# Сценный/графический слой view требует numpy; в окружении без него тест
-# честно скипается через importorskip, а не роняет коллекцию всего прогона.
 pytest.importorskip("numpy")
 
 
@@ -237,7 +235,6 @@ def test_career_promotion_transfer_and_dismissal():
     dismissed = _engine()
     dismissed.player_resources["standing"] = 0.0
     dismissed.end_day()
-    # §7 №29: потеря должности — смена роли, а не поражение.
     assert dismissed.finished is False
     assert dismissed.outcome is None
     assert dismissed.dismissed is True
@@ -265,8 +262,6 @@ def test_campaign_transfer_preserves_personal_resources():
     assert result["ok"] is True
     assert result["outcome"] == "success"
     assert engine.player_node_id == "agora_ministry_finance"
-    # Перевод списывает стоимость действия, но не сбрасывает накопленное
-    # влияние/связи/репутацию к baseline новой должности.
     assert engine.player_resources["influence"] == pytest.approx(0.71)
     assert engine.player_resources["favor"] == pytest.approx(0.62)
     assert engine.player_resources["standing"] == pytest.approx(0.91)
@@ -295,7 +290,6 @@ def test_campaign_labor_market_blocks_weak_candidate_without_cost():
 
     assert result["ok"] is False
     assert "очередь кандидатов сильнее" in result["reason"]
-    # Проигрыш вакансии не списывает ресурсы и не меняет должность.
     assert engine.player_node_id == "agora_ministry_interior"
     assert engine.player_resources == before
 
@@ -786,7 +780,9 @@ def test_negotiate_rival_spends_action_and_withdraws_on_success(monkeypatch):
     ]
 
 
-def test_negotiate_rival_failure_keeps_candidate_and_worsens_relation(monkeypatch):
+def test_negotiate_rival_failure_keeps_candidate_and_worsens_relation(
+    monkeypatch,
+):
     engine = _engine(office_id="state_advisor")
     option = next(
         item
@@ -949,7 +945,6 @@ def test_campaign_action_grows_target_domain_skills():
     assert result["ok"] is True
     assert engine.profile["skills"]["administration"] > 0.12
     assert engine.profile["skills"]["command"] > 0.12
-    # Цель в домене order тренирует именно order-навыки, а не все девять.
     assert engine.profile["skills"]["faith"] == before["faith"]
     assert any("навык" in label for label, _ in result["changes"])
 
@@ -979,7 +974,6 @@ def test_campaign_skill_growth_unlocks_promotion_requirement():
     for skill in ("administration", "command"):
         engine.profile["skills"][skill] = 0.175
 
-    # До практики навык ниже требования seek_promotion (0.18).
     blocked = engine.execute("seek_promotion", "agora_government")
     assert blocked["ok"] is False
     assert "навык" in blocked["reason"]
@@ -1073,8 +1067,6 @@ def test_campaign_collapse_requires_grace_days_and_reports_status():
         COLLAPSE_GRACE_DAYS - 1
     )
 
-    # Дневные действия мира могут поднять силу выше порога; для проверки
-    # grace-дней удерживаем её ниже порога и на втором дне.
     node["stats"]["power"] = 0.0
     engine.end_day()
     assert engine.finished is True
@@ -1131,14 +1123,12 @@ def test_campaign_role_change_cooldown_limits_churn():
     engine._check_dismissal()
     assert engine.dismissal_count == 1
 
-    # В пределах cooldown повторная низкая легитимность не меняет роль.
     for offset in range(1, engine.role_change_cooldown_days):
         engine.day = first_day + offset
         node["stats"]["legitimacy"] = 0.0
         engine._check_dismissal()
         assert engine.dismissal_count == 1
 
-    # После передышки смена роли снова возможна.
     engine.day = first_day + engine.role_change_cooldown_days
     node["stats"]["legitimacy"] = 0.0
     engine._check_dismissal()
@@ -1160,7 +1150,6 @@ def test_campaign_legitimacy_recovers_daily_when_stable():
     )
     assert changed
 
-    # Ниже порога распада структура не «самолечится».
     node["stats"]["power"] = 0.0
     before = node["stats"]["legitimacy"]
     assert engine._apply_legitimacy_recovery() == []
@@ -1177,12 +1166,10 @@ def test_campaign_legitimacy_erodes_cohesion_and_power():
 
     changed = engine._apply_organizational_drift()
 
-    # Ниже порога смены роли связность падает, сила — слабее.
     assert node["stats"]["cohesion"] < 0.50
     assert node["stats"]["power"] < 0.50
     assert changed
 
-    # Глубокий кризис и пустая казна ускоряют эрозию.
     node["stats"]["power"] = 0.50
     node["stats"]["cohesion"] = 0.50
     node["stats"]["wealth"] = 0.05
@@ -1206,7 +1193,6 @@ def test_campaign_healthy_legitimacy_restores_organization():
     assert node["stats"]["power"] > 0.40
     assert changed
 
-    # Отключение дрейфа оставляет шкалы на месте (конфиг мира).
     engine.organizational_drift = False
     before = (node["stats"]["power"], node["stats"]["cohesion"])
     assert engine._apply_organizational_drift() == []
@@ -1237,7 +1223,6 @@ def test_campaign_resign_is_role_change_not_defeat():
     engine = _engine()
     result = engine.execute("resign", "")
     assert result["ok"] is True
-    # §7 №29: добровольная отставка не завершает кампанию и не даёт lose.
     assert engine.finished is False
     assert engine.outcome is None
     assert engine.attached is False
@@ -1255,7 +1240,6 @@ def test_campaign_can_be_reemployed_after_role_change():
     engine.player_resources["standing"] = 0.0
     engine.end_day()
     previous_day = engine.day
-    # Возвращаемся к прежней должности через тот же публичный API, что UI.
     assert engine.attached is True
     engine.player_office_id = ""
     engine.attached = False
@@ -1373,20 +1357,13 @@ def test_campaign_contagion_is_inert_without_sickness():
     )
 
 
-# ---------------------------------------------------------------------------
-# Устойчивые раны кампании: отдельное состояние, лечение и персистентность
-# ---------------------------------------------------------------------------
-
-
 def test_campaign_wound_is_separate_from_sickness():
     engine = _engine()
     engine.infect_player(0.3)
     engine.injure_player(0.4)
     condition = engine.player_condition()
-    # Рана — не болезнь: обе шкалы живут одновременно и независимо.
     assert condition["sickness"] == pytest.approx(0.3)
     assert condition["wound"] == pytest.approx(0.4)
-    # Лечение раны не трогает болезнь, и наоборот.
     assert engine.treat_wound_player(0.25) == pytest.approx(0.15)
     assert engine.player_condition()["sickness"] == pytest.approx(0.3)
     assert engine.treat_player(0.1) == pytest.approx(0.2)
@@ -1400,7 +1377,6 @@ def test_campaign_wound_decays_health_and_blocks_regen():
     health_before = engine.player_health
     engine.end_day()
     condition = engine.player_condition()
-    # Тяжёлая рана даёт прямой урон здоровью каждый день и режет регенерацию.
     assert condition["health"] < health_before
     assert condition["wound"] > 0.0
 
@@ -1422,7 +1398,6 @@ def test_campaign_wound_survives_snapshot_roundtrip():
 def test_campaign_legacy_snapshot_without_wound_defaults_to_zero():
     engine = _engine()
     snapshot = json.loads(json.dumps(engine.to_dict()))
-    # Старый сейв: поля `wound` нет нигде — загрузка не падает, рана = 0.
     snapshot["player"].pop("wound", None)
     for character in (snapshot.get("characters") or {}).values():
         if isinstance(character, dict):
@@ -1439,8 +1414,6 @@ def test_campaign_action_wound_is_deterministic_per_seed():
             engine._apply_action_wound(action, "failure")
         return engine.player_condition()["wound"]
 
-    # Бросок `_roll` завязан на seed — одинаковый seed даёт одну и ту же
-    # накопленную рану, разные seeds могут различаться.
     assert run(11) == run(11)
     assert run(11) >= 0.0
 
@@ -1454,8 +1427,6 @@ def test_campaign_failed_risky_action_can_wound_deterministically():
             break
     if action_id is None:
         pytest.skip("в конфиге мира нет рискованных действий")
-    # Провал рискованного хода может ранить; бросок детерминирован seed'ом,
-    # поэтому повтор при том же seed даёт тот же исход.
     first = WorldEngine(
         load_world(),
         profile=_profile(),

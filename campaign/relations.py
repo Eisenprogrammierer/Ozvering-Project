@@ -33,8 +33,6 @@ RELATION_EFFECT_WEIGHTS = {
     },
 }
 RELATION_EFFECT_LIMIT = 0.20
-# Если форма не задана, используется силовой канал — историческое
-# поведение кампанийных действий.
 DEFAULT_RELATION_FORM = "force"
 
 

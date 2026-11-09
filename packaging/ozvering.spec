@@ -18,7 +18,6 @@ from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 
-# Каталоги данных читаются относительно корня проекта.
 DATA_DIRS = (
     "assets",
     "configs",
@@ -34,7 +33,6 @@ datas = [
     if os.path.isdir(os.path.join(ROOT, name))
 ]
 
-# Ленивые импорты (клиенты, экраны, политики) надёжнее собрать явно.
 PACKAGES = (
     "agents",
     "automata",
@@ -60,8 +58,6 @@ analysis = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # Эксперименты и тесты в дистрибутив не входят; matplotlib нужен только
-    # экспериментам (ленивый импорт в simulation.py).
     excludes=[
         "tests",
         "experiments",

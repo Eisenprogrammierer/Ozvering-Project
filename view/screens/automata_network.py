@@ -198,9 +198,6 @@ class AutomataNetworkScreen(BaseScreen):
             campaign.actions_per_turn,
         )
 
-    # ------------------------------------------------------------------
-    # Состояние
-    # ------------------------------------------------------------------
     def _faction(self):
         return self.campaign.faction(self.campaign.player_side)
 
@@ -356,7 +353,10 @@ class AutomataNetworkScreen(BaseScreen):
         before = self.campaign.speed
         self.campaign.speed_up()
         if self.campaign.speed != before:
-            self.message = "Скорость времени: %s." % self.campaign.speed_label()
+            self.message = (
+                "Скорость времени: %s."
+                % self.campaign.speed_label()
+            )
         else:
             self.message = (
                 "Достигнута максимальная скорость: %s."
@@ -742,9 +742,6 @@ class AutomataNetworkScreen(BaseScreen):
         elif interp.check_win_conditions():
             self.app.finish_storyline_outcome("win")
 
-    # ------------------------------------------------------------------
-    # Раскладка
-    # ------------------------------------------------------------------
     def _layout(self):
         self._organ_rects = {}
         self._faction_rect = None
@@ -845,9 +842,6 @@ class AutomataNetworkScreen(BaseScreen):
             rows.append((rect, character))
         return rows
 
-    # ------------------------------------------------------------------
-    # Ввод
-    # ------------------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.MOUSEWHEEL and self.mode == "characters":
             pos = pygame.mouse.get_pos()
@@ -929,9 +923,6 @@ class AutomataNetworkScreen(BaseScreen):
         if self._apply_rect.collidepoint(pos):
             self.apply_current()
 
-    # ------------------------------------------------------------------
-    # Отрисовка графа
-    # ------------------------------------------------------------------
     def _draw_edge(self, screen, start, end, color, width):
         middle_x = (start[0] + end[0]) // 2
         pygame.draw.lines(
@@ -953,7 +944,13 @@ class AutomataNetworkScreen(BaseScreen):
         if self.mode == "automata" and self._selected_automaton_interaction():
             hint = "ВЫБЕРИТЕ АВТОМАТ-ЦЕЛЬ В ГРАФЕ"
             surf = self.app.font_tiny.render(hint, True, WARN)
-            screen.blit(surf, (GRAPH_RECT.right - surf.get_width() - 14, GRAPH_RECT.y + 14))
+            screen.blit(
+                surf,
+                (
+                    GRAPH_RECT.right - surf.get_width() - 14,
+                    GRAPH_RECT.y + 14,
+                ),
+            )
         faction = self._faction()
         if faction is None or self._faction_rect is None:
             return
@@ -995,7 +992,6 @@ class AutomataNetworkScreen(BaseScreen):
                 3 if highlighted else 1,
             )
 
-        # Корень — сама фракция.
         pygame.draw.rect(
             screen, (34, 48, 68), self._faction_rect, border_radius=8
         )
@@ -1085,9 +1081,6 @@ class AutomataNetworkScreen(BaseScreen):
                 (rect.right - 29, rect.bottom - 17),
             )
 
-    # ------------------------------------------------------------------
-    # Отрисовка деталей и боковой панели
-    # ------------------------------------------------------------------
     def _draw_detail(self, screen):
         _panel(screen, DETAIL_RECT)
         if self.mode == "characters":
@@ -1610,7 +1603,10 @@ class AutomataNetworkScreen(BaseScreen):
         if not self.campaign.finished and enabled:
             label = "Применить · 1 действие"
             color = TEXT
-        elif self.mode == "automata" and self.selected_automaton_interaction_id:
+        elif (
+            self.mode == "automata"
+            and self.selected_automaton_interaction_id
+        ):
             label = "Выберите цель в графе"
             color = DIM
         else:

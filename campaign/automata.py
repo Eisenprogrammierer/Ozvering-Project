@@ -95,7 +95,7 @@ def _nested_tuple(value):
 
 
 def _organization_parameters(data):
-    """Собрать параметры организации из данных, не теряя значения по умолчанию."""
+    """Собрать параметры организации, сохраняя значения по умолчанию."""
     overrides = _as_mapping(data)
     defaults = OrganizationParameters()
     values = {}
@@ -140,7 +140,13 @@ def _character_from_record(record, seed):
             character.personality.values[trait] = _clamp(value)
     character.desires = character.weighted_urgency()
     if record.get("morale") is not None:
-        character.morale = max(0.0, min(100.0, _number(record.get("morale"), character.morale)))
+        character.morale = max(
+            0.0,
+            min(
+                100.0,
+                _number(record.get("morale"), character.morale),
+            ),
+        )
     character.campaign_id = record.get("id")
     character.campaign_faction_id = record.get("faction_id")
     character.campaign_post = record.get("post")
@@ -170,7 +176,9 @@ class FactionRuntime:
     organs: List[OrganRuntime] = field(default_factory=list)
     automaton_interactions: List[dict] = field(default_factory=list)
     character_interactions: List[dict] = field(default_factory=list)
-    character_cooldowns: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    character_cooldowns: Dict[str, Dict[str, int]] = field(
+        default_factory=dict
+    )
     cooldowns: Dict[str, int] = field(default_factory=dict)
     low_streaks: Dict[str, int] = field(default_factory=dict)
     organization_snapshot: dict = field(default_factory=dict)
@@ -215,7 +223,10 @@ class FactionRuntime:
             "organ_id": str(
                 getattr(character, "campaign_organ_id", "") or ""
             ),
-            "morale": round(_clamp(_number(character.morale) / 100.0) * 100.0, 3),
+            "morale": round(
+                _clamp(_number(character.morale) / 100.0) * 100.0,
+                3,
+            ),
             "needs": {
                 str(key): round(_clamp(value), 6)
                 for key, value in character.needs.items()
@@ -338,7 +349,10 @@ class FactionRuntime:
             "id": self.id,
             "name": self.name,
             "role_title": str(self.record.get("role_title") or ""),
-            "assets": {key: round(_clamp(value), 6) for key, value in self.assets.items()},
+            "assets": {
+                key: round(_clamp(value), 6)
+                for key, value in self.assets.items()
+            },
             "score": round(self.score(), 6),
             "progress": round(self.progress(), 6),
             "score_assets": {
@@ -346,7 +360,9 @@ class FactionRuntime:
                 for key, value in self.score_assets.items()
             },
             "actions": [str(item.get("id")) for item in self.actions],
-            "cooldowns": {key: int(value) for key, value in self.cooldowns.items()},
+            "cooldowns": {
+                key: int(value) for key, value in self.cooldowns.items()
+            },
             "action_uses": {
                 key: int(value) for key, value in self.action_uses.items()
             },
@@ -365,7 +381,9 @@ class FactionRuntime:
                 else stored.get("priority_need")
             ),
             "archetype": (
-                analysis.archetype if analysis else stored.get("archetype", "—")
+                analysis.archetype
+                if analysis
+                else stored.get("archetype", "—")
             ),
             "level": (
                 int(analysis.level)
@@ -383,16 +401,21 @@ class AutomataCampaign:
         scenario = _as_mapping(data.get("scenario"))
         self.mode = str(scenario.get("mode") or "automata")
         self.title = str(data.get("title") or "Кампания автоматов")
-        self.preset_id = str(data.get("preset_id") or data.get("template_id") or "")
-        self.seed = int(_number(seed if seed is not None else data.get("seed"), 7))
+        self.preset_id = str(
+            data.get("preset_id") or data.get("template_id") or ""
+        )
+        self.seed = int(
+            _number(
+                seed if seed is not None else data.get("seed"),
+                7,
+            )
+        )
         self.rng = random.Random(self.seed)
         turns = scenario.get("turns")
         try:
             turns_value = int(turns) if turns is not None else 0
         except (TypeError, ValueError):
             turns_value = 0
-        # Лимит ходов больше не завершает кампанию. Значение остаётся
-        # необязательным горизонтом для экспериментов и старых снимков.
         self.max_turns = turns_value if turns_value > 0 else None
         self.actions_per_turn = max(
             1,
@@ -459,9 +482,6 @@ class AutomataCampaign:
         if snapshot:
             self.load_snapshot(snapshot)
 
-    # ------------------------------------------------------------------
-    # Построение
-    # ------------------------------------------------------------------
     def _build_factions(self, data):
         characters = list(data.get("characters") or ())
         organizations = {
@@ -491,7 +511,11 @@ class AutomataCampaign:
             organization_record = organizations.get(organization_id, {})
             runtime_cfg = _as_mapping(organization_record.get("runtime"))
             leader = next(
-                (item for item in own_records if item.get("is_faction_leader")),
+                (
+                    item
+                    for item in own_records
+                    if item.get("is_faction_leader")
+                ),
                 own_records[0] if own_records else {},
             )
             parameters = _organization_parameters(
@@ -618,9 +642,6 @@ class AutomataCampaign:
             )
             self.factions[side] = runtime
 
-    # ------------------------------------------------------------------
-    # Доступ и проверки
-    # ------------------------------------------------------------------
     def faction(self, side):
         return self.factions.get(str(side or ""))
 
@@ -666,9 +687,6 @@ class AutomataCampaign:
             root_id="%s:faction" % side,
         )
 
-    # ------------------------------------------------------------------
-    # Бюджет действий и ход
-    # ------------------------------------------------------------------
     def begin_turn(self):
         """Начать ход, если он ещё не начат."""
         if self.finished or self._turn_active:
@@ -687,9 +705,6 @@ class AutomataCampaign:
             "finished": bool(self.finished),
         }
 
-    # ------------------------------------------------------------------
-    # Реальное время
-    # ------------------------------------------------------------------
     def _interval(self, name):
         """Положительный интервал реального времени из конфига."""
         return max(1e-6, _number(self.realtime.get(name), 1e-6))
@@ -878,7 +893,12 @@ class AutomataCampaign:
         игрока и для автоматического выбора.
         """
         cooldown = int(
-            _number(action.get("cooldown", self.model.get("cooldown_turns")), 0)
+            _number(
+                action.get(
+                    "cooldown", self.model.get("cooldown_turns")
+                ),
+                0,
+            )
         )
         last = faction.cooldowns.get(str(action.get("id")))
         if cooldown <= 0 or last is None:
@@ -916,7 +936,9 @@ class AutomataCampaign:
             strict_min = False
             strict_max = False
             if isinstance(spec, Mapping):
-                minimum = spec.get("min", spec.get("gte", spec.get("at_least")))
+                minimum = spec.get(
+                    "min", spec.get("gte", spec.get("at_least"))
+                )
                 maximum = spec.get("max", spec.get("lte", spec.get("at_most")))
                 if "gt" in spec:
                     minimum = spec.get("gt")
@@ -928,7 +950,9 @@ class AutomataCampaign:
                 minimum = spec
             if minimum is not None:
                 threshold = _number(minimum, 0.0)
-                if current < threshold or (strict_min and current <= threshold):
+                if current < threshold or (
+                    strict_min and current <= threshold
+                ):
                     sign = ">" if strict_min else "≥"
                     return "%s: %s %s %.2f" % (
                         prefix,
@@ -938,7 +962,9 @@ class AutomataCampaign:
                     )
             if maximum is not None:
                 threshold = _number(maximum, 0.0)
-                if current > threshold or (strict_max and current >= threshold):
+                if current > threshold or (
+                    strict_max and current >= threshold
+                ):
                     sign = "<" if strict_max else "≤"
                     return "%s: %s %s %.2f" % (
                         prefix,
@@ -1044,9 +1070,6 @@ class AutomataCampaign:
             if item.get("enabled")
         ]
 
-    # ------------------------------------------------------------------
-    # Органы и взаимодействие с ними
-    # ------------------------------------------------------------------
     def organ(self, side, organ_id):
         faction = self.faction(side)
         if faction is None:
@@ -1211,9 +1234,6 @@ class AutomataCampaign:
 
     interact_organ = perform_organ_interaction
 
-    # ------------------------------------------------------------------
-    # Действия автоматов друг на друга
-    # ------------------------------------------------------------------
     def _automaton_targets(self, faction, source, relation):
         """Кандидаты в цели для команды автомата.
 
@@ -1230,7 +1250,11 @@ class AutomataCampaign:
                 if str(organ.parent_id) == str(source.id)
             ]
         if relation == "superior":
-            parent = faction.organ(source.parent_id) if source.parent_id else None
+            parent = (
+                faction.organ(source.parent_id)
+                if source.parent_id
+                else None
+            )
             return [parent] if parent is not None else []
         if relation == "peer":
             return [
@@ -1437,9 +1461,6 @@ class AutomataCampaign:
 
     interact_automaton = perform_automaton_interaction
 
-    # ------------------------------------------------------------------
-    # Персонажи и влияние на них
-    # ------------------------------------------------------------------
     def character(self, side, character_id):
         faction = self.faction(side)
         if faction is None:
@@ -1688,11 +1709,19 @@ class AutomataCampaign:
         if requested == "strongest":
             others = [self.faction(item) for item in self.other_sides(side)]
             others = [item for item in others if item is not None]
-            return max(others, key=lambda item: (item.score(), item.side)).side if others else None
+            if not others:
+                return None
+            return max(
+                others, key=lambda item: (item.score(), item.side)
+            ).side
         if requested == "weakest":
             others = [self.faction(item) for item in self.other_sides(side)]
             others = [item for item in others if item is not None]
-            return min(others, key=lambda item: (item.score(), item.side)).side if others else None
+            if not others:
+                return None
+            return min(
+                others, key=lambda item: (item.score(), item.side)
+            ).side
         if requested in self.factions:
             return requested
         for item in self.factions.values():
@@ -1754,9 +1783,6 @@ class AutomataCampaign:
         if len(self.events) > EVENT_LOG_LIMIT:
             self.events = self.events[-EVENT_LOG_LIMIT:]
 
-    # ------------------------------------------------------------------
-    # Работа
-    # ------------------------------------------------------------------
     def perform(self, side, action_id, target=None):
         actor = self.faction(side)
         if actor is None or actor.dissolved:
@@ -1814,9 +1840,6 @@ class AutomataCampaign:
         )
         decay = max(0.0, min(1.0, decay))
         repeat_scale = decay ** used_before if used_before > 0 else 1.0
-        # Самоподобие: ослабленный орган проводит работу слабее, а его
-        # успех или провал меняет целостность самого органа. Повторные
-        # работы с ``repeat_effect_decay`` дают всё меньший эффект.
         self._apply_branch(
             actor,
             target_faction,
@@ -1841,7 +1864,12 @@ class AutomataCampaign:
                 self.model,
             )
         cooldown = int(
-            _number(action.get("cooldown", self.model.get("cooldown_turns")), 0)
+            _number(
+                action.get(
+                    "cooldown", self.model.get("cooldown_turns")
+                ),
+                0,
+            )
         )
         if cooldown > 0:
             actor.cooldowns[str(action_id)] = self.turn
@@ -1878,9 +1906,13 @@ class AutomataCampaign:
             "chance": round(chance, 6),
             "roll": round(roll, 6),
             "success": bool(success),
-            "cost": {key: round(_number(value), 6) for key, value in cost.items()},
+            "cost": {
+                key: round(_number(value), 6)
+                for key, value in cost.items()
+            },
             "self_after": {
-                key: round(_clamp(value), 6) for key, value in actor.assets.items()
+                key: round(_clamp(value), 6)
+                for key, value in actor.assets.items()
             },
             "target_after": {
                 key: round(_clamp(value), 6)
@@ -1894,14 +1926,8 @@ class AutomataCampaign:
             ),
         }
         self._log_work(result)
-        # Исход проверяется в конце полного хода: после работ всех
-        # автоматов и тика организаций. Иначе счёт по прогрессу мог
-        # сработать посреди хода и не совпасть с итоговым состоянием.
         return result
 
-    # ------------------------------------------------------------------
-    # Автоматический выбор
-    # ------------------------------------------------------------------
     def auto_action(self, side, turn=None):
         options = [
             item
@@ -1934,9 +1960,6 @@ class AutomataCampaign:
                 return option["id"]
         return options[-1]["id"]
 
-    # ------------------------------------------------------------------
-    # Ход
-    # ------------------------------------------------------------------
     def advance(
         self,
         player_action=None,
@@ -1989,9 +2012,6 @@ class AutomataCampaign:
         if player_action:
             self.perform(self.player_side, player_action, target=target)
         else:
-            # Без явной работы игрок действует автоматически, как и ИИ:
-            # иначе эксперименты и старые вызовы ``advance()`` оставляли бы
-            # его без хода и исход смещался бы в пользу соперников.
             self._auto_play_side(self.player_side, self.actions_left)
         return self.end_turn()
 
@@ -2021,7 +2041,6 @@ class AutomataCampaign:
             faction = self.faction(side)
             if faction is None or faction.dissolved:
                 continue
-            # У ИИ тот же бюджет действий за ход, что и у игрока.
             self._auto_play_side(side, self.actions_per_turn)
         self._tick_organizations()
         self._check_outcome()
@@ -2038,9 +2057,6 @@ class AutomataCampaign:
         for _ in range(limit):
             if self.finished:
                 break
-            # Если игрок не задал работу явно, ход выбирается внутри
-            # ``advance`` уже на новом ходе — так кулдауны игрока и ИИ
-            # отсчитываются одинаково.
             self.advance(player_action=player_action, target=target)
         return self.snapshot()
 
@@ -2050,10 +2066,6 @@ class AutomataCampaign:
                 tick_organs(faction, faction.organs, self.model)
                 continue
             snapshot = faction.organization.tick(turn=self.turn)
-            # Доля участия считается от исходного состава фракции, а не от
-            # текущего пула: иначе после выхода половины участников
-            # willing_share снова становится 1.0 и организация продолжает
-            # поддерживать легитимность так, будто ничего не произошло.
             initial = max(
                 1,
                 len(faction.characters)
@@ -2105,8 +2117,6 @@ class AutomataCampaign:
                 faction.add_asset(key, value)
             for key, value in self.upkeep.items():
                 faction.add_asset(key, -value)
-            # Органы — уменьшенные копии фракции: их тик идёт после
-            # обновления общих активов и возвращает часть состояния вверх.
             tick_organs(faction, faction.organs, self.model)
 
     def _check_outcome(self):
@@ -2170,9 +2180,6 @@ class AutomataCampaign:
                 required = max(
                     1, int(_number(rules.get("score_streak"), 2))
                 )
-                # Серия считается только после разминочного периода:
-                # иначе score_after превращался бы в дату завершения, а
-                # score_streak — в счётчик ходов с самого старта.
                 if self.turn < after:
                     self.score_streak = 0
                     self.score_streak_side = None
@@ -2193,9 +2200,6 @@ class AutomataCampaign:
                     self.finished = True
                     return
 
-    # ------------------------------------------------------------------
-    # Снимки
-    # ------------------------------------------------------------------
     def snapshot(self):
         return {
             "preset_id": self.preset_id,
@@ -2218,7 +2222,8 @@ class AutomataCampaign:
             "outcome": self.outcome,
             "finished": self.finished,
             "factions": {
-                side: faction.snapshot() for side, faction in self.factions.items()
+                side: faction.snapshot()
+                for side, faction in self.factions.items()
             },
             "events": list(self.events[-SNAPSHOT_TAIL:]),
             "log": list(self.log[-SNAPSHOT_TAIL:]),
@@ -2227,14 +2232,12 @@ class AutomataCampaign:
     to_dict = snapshot
 
     def save_snapshot(self):
-        """Полный снимок для сохранения игры, включая журнал и состояние ГСЧ."""
+        """Полный снимок: журнал, организации и состояние ГСЧ."""
         data = stamp_snapshot(self.snapshot(), SCHEMA_VERSION)
         data["log"] = list(self.log)
         data["events"] = list(self.events)
         data["rng_state"] = _nested_tuple(self.rng.getstate())
         data["seed"] = self.seed
-        # ``snapshot()`` округляет активы для интерфейса и журнала. Для
-        # точного восстановления сохраняем исходные значения отдельно.
         for side, faction in self.factions.items():
             state = data.get("factions", {}).get(side)
             if isinstance(state, dict):
@@ -2343,8 +2346,14 @@ class AutomataCampaign:
             _number(snapshot.get("round_progress"), self._round_progress),
         )
         saved_speed = max(1, int(_number(snapshot.get("speed"), self.speed)))
-        allowed_speeds = [level for level in self.speed_levels if level >= saved_speed]
-        self.speed = allowed_speeds[0] if allowed_speeds else self.speed_levels[-1]
+        allowed_speeds = [
+            level for level in self.speed_levels if level >= saved_speed
+        ]
+        self.speed = (
+            allowed_speeds[0]
+            if allowed_speeds
+            else self.speed_levels[-1]
+        )
         self.score_streak = max(
             0, int(_number(snapshot.get("score_streak"), self.score_streak))
         )
@@ -2456,9 +2465,6 @@ class AutomataCampaign:
         if self.outcome:
             self.finished = True
 
-    # ------------------------------------------------------------------
-    # Диагностика математической модели
-    # ------------------------------------------------------------------
     def audit(self):
         anomalies = []
         seen = set()
@@ -2469,7 +2475,8 @@ class AutomataCampaign:
                     anomalies.append("%s/%s: не конечное значение" % token)
                 if not 0.0 <= _number(value) <= 1.0:
                     anomalies.append(
-                        "%s/%s: %.6f вне диапазона [0,1]" % (side, key, _number(value))
+                        "%s/%s: %.6f вне диапазона [0,1]"
+                        % (side, key, _number(value))
                     )
                 seen.add(token)
             organ_ids = set()
@@ -2494,7 +2501,8 @@ class AutomataCampaign:
                 initial = int(_number(snapshot.get("initial_count"), 0))
                 if active > initial:
                     anomalies.append(
-                        "%s: активных %d больше исходных %d" % (side, active, initial)
+                        "%s: активных %d больше исходных %d"
+                        % (side, active, initial)
                     )
                 willing = _number(snapshot.get("willing_share"), 0.0)
                 if not 0.0 <= willing <= 1.0:
@@ -2504,7 +2512,9 @@ class AutomataCampaign:
             if faction.dissolved and not snapshot.get("active", True):
                 continue
         for item in self.log:
-            if item.get("ok") and not 0.0 <= _number(item.get("chance"), 0.0) <= 1.0:
+            if item.get("ok") and not (
+                0.0 <= _number(item.get("chance"), 0.0) <= 1.0
+            ):
                 anomalies.append(
                     "работа %s: шанс %.6f вне [0,1]"
                     % (item.get("action_id"), _number(item.get("chance")))

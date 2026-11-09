@@ -74,8 +74,6 @@ def _options(data, where):
         label = _text(value.get("label"))
         if not label:
             raise IdentityError("%s.%s: нужен label" % (where, key))
-        # Короткие справочники (например, пол) могут не иметь текста:
-        # тогда описание совпадает с названием варианта.
         summary = _text(value.get("summary"), label)
         text = _text(value.get("text"), summary)
         needs = {
@@ -177,7 +175,6 @@ class IdentityCatalog:
                 traits[key] = traits.get(key, 0.0) + amount
             for key, amount in option.needs.items():
                 needs[key] = needs.get(key, 0.0) + amount
-        # Выбранная черта — главная в характере, а не просто украшение.
         traits[trait] = traits.get(trait, 0.0) + 0.22
         biography = " ".join(
             item.text for item in (origin, vocation, value, flaw)

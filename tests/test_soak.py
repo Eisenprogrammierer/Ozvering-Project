@@ -25,8 +25,6 @@ def test_long_arena_env_soak_keeps_qtable_bounded_and_learning():
     )
     assert stats["with_env"] is True
     assert policy.updates > 0
-    # Таблица не должна расти быстрее числа тактов и не должна содержать
-    # NaN/inf после длинного прогона.
     assert len(policy.table) <= 600
     assert all(math.isfinite(value) for value in policy.table.values())
 
@@ -65,12 +63,9 @@ def test_campaign_snapshot_without_energy_or_force_loads():
 
     restored = CampaignEnv(seed=9, max_days=8)
     observation = restored.load_state_dict(state)
-    # Старый снимок без E: `actions_left` остаётся источником истины,
-    # а E восстанавливается из него, а не падает в ноль.
     assert observation.actions_left == 2
     assert restored.engine.actions_left == 2
     assert restored.engine.player_energy > 0.0
-    # Среда остаётся рабочей: один шаг не должен требовать полей E/F.
     observation, _reward, _done, _truncated, info = restored.step(
         restored.legal_actions()[0]
     )

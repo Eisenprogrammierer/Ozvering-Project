@@ -93,7 +93,12 @@ def organ_asset_key(kind):
 def organ_weight(kind, explicit=None):
     return max(
         ORGAN_MIN_WEIGHT,
-        _number(explicit, ORGAN_KIND_WEIGHTS.get(str(kind or ""), ORGAN_WEIGHT_DEFAULT)),
+        _number(
+            explicit,
+            ORGAN_KIND_WEIGHTS.get(
+                str(kind or ""), ORGAN_WEIGHT_DEFAULT
+            ),
+        ),
     )
 
 
@@ -259,8 +264,6 @@ def organ_composite(
         try:
             target.add_child(node)
         except ValueError:
-            # Повреждённая ссылка/глубина: орган остаётся в дереве, но
-            # без спорного родителя.
             if getattr(node, "_composite_parent", None) is not None:
                 node._composite_parent.remove_child(node.id)
             try:
@@ -330,9 +333,6 @@ class OrganRuntime:
             used_turn=int(_number(record.get("used_turn"), -1)),
         )
 
-    # ------------------------------------------------------------------
-    # Производные значения
-    # ------------------------------------------------------------------
     def asset_key(self):
         return organ_asset_key(self.kind)
 
@@ -454,8 +454,6 @@ def tick_organs(faction, organs, model=None):
         organ.integrity = _clamp(before + (target - before) * rate)
         deltas.append((organ, organ.integrity - before))
     if not getattr(faction, "dissolved", False):
-        # Обратный поток: органы — уменьшенные копии, но и фракция
-        # складывается из них. Коэффициент мал, чтобы не ломать баланс.
         for organ in organs:
             feedback = upscale * organ.weight * (organ.integrity - 0.5)
             if feedback:

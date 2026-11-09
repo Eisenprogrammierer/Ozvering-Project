@@ -118,7 +118,6 @@ def test_traits_are_loaded_from_data_not_hardcoded():
         assert definition.summary
         assert 0.0 <= definition.base <= 1.0
 
-    # Архетипы и коэффициенты — данные, а не дублирующиеся словари в коде.
     veteran = W.Personality.from_seed(seed=42, archetype="veteran")
     rifleman = W.Personality.from_seed(seed=42, archetype="rifleman")
     assert veteran.as_dict() == model.roll(seed=42, archetype="veteran")
@@ -132,7 +131,9 @@ def test_all_sixteen_needs_have_data_driven_intent_mapping():
     assert set(mapping) == set(W.NEEDS)
     neutral = {name: 0.5 for name in W.TRAITS}
     for need, expected in INTENT_FOR_NEED.items():
-        assert mapping[need], "потребность %s не ведёт ни к одному действию" % need
+        assert mapping[need], (
+            "потребность %s не ведёт ни к одному действию" % need
+        )
         kind, scores = model.choose_intent({need: 1.0}, neutral)
         assert kind == expected, "%s -> %s" % (need, kind)
         assert scores[expected] > 0.0
@@ -162,7 +163,6 @@ def test_trait_values_change_intent_scores_and_need_growth():
     assert high_scores["assault"] > low_scores["assault"]
     assert high_scores["retreat"] < low_scores["retreat"]
 
-    # Выносливость замедляет рост усталости, смелость — рост страха.
     high["endurance"] = 1.0
     low["endurance"] = 0.0
     assert model.growth_factor("fatigue", high) < model.growth_factor(
@@ -264,7 +264,6 @@ def test_detachment_trait_aggregates_drive_boldness_and_caution():
     assert bold.boldness > cautious.boldness
     assert cautious.caution > bold.caution
     assert cautious._rest_score() > bold._rest_score()
-
 
 
 def test_order_is_passive_and_modulates_targets_for_duration():

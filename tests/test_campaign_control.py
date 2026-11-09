@@ -86,9 +86,9 @@ def test_autonomy_directive_suspends_and_then_restores_contacts():
     engine.end_day()
     assert engine.intents.due(engine.day) == []
 
-    # Директива истекла — персонаж снова действует сам.
     engine.end_day()
-    assert engine.character_control(character["id"])["autonomy_enabled"] is True
+    control = engine.character_control(character["id"])
+    assert control["autonomy_enabled"] is True
     assert engine.intents.due(engine.day)
 
 
@@ -97,8 +97,6 @@ def test_intention_directive_overrides_autonomy_policy():
     character = engine.characters[engine.character_order[1]]
     character["autonomous"] = True
     character["autonomy_period"] = 1
-    # Лояльный персонаж по умолчанию выбрал бы rapprochement, но игрок
-    # явно просит примирение.
     character["affinity"] = 0.5
     character["trust"] = 0.9
     engine.set_directive(character["id"], "intentions", "reconcile", days=2)
@@ -139,7 +137,6 @@ def test_unknown_character_and_snapshot_roundtrip():
     assert view[character["id"]]["beliefs"] == {"trust": 0.25}
     assert view[character["id"]]["desires"] == {"survive": 0.9}
 
-    # Старый снимок без директив загружается с пустой книгой.
     legacy = dict(snapshot)
     legacy.pop("directives")
     assert WorldEngine(load_world(), snapshot=legacy).directives.items == []

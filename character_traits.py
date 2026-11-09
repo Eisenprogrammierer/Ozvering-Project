@@ -105,7 +105,9 @@ class TraitModel:
         self.path = Path(path) if path is not None else None
         self.schema = int(_number(data.get("schema"), 1))
         if self.schema != 1:
-            raise TraitDataError("неподдерживаемая версия схемы: %s" % self.schema)
+            raise TraitDataError(
+                "неподдерживаемая версия схемы: %s" % self.schema
+            )
         self.label = _text(data.get("label"), "Черты характера")
         self.variance = max(0.0, _number(data.get("variance"), 0.0))
 
@@ -177,7 +179,9 @@ class TraitModel:
         for key, value in data.items():
             key = str(key)
             if not isinstance(value, Mapping):
-                raise TraitDataError("archetypes.%s должен быть объектом" % key)
+                raise TraitDataError(
+                    "archetypes.%s должен быть объектом" % key
+                )
             modifiers = value.get("modifiers") or {}
             if not isinstance(modifiers, Mapping):
                 raise TraitDataError(
@@ -204,7 +208,9 @@ class TraitModel:
         self.intents = tuple(str(item) for item in intents)
         need_intents = self.intent.get("need_intents")
         if not isinstance(need_intents, Mapping):
-            raise TraitDataError("model.intent.need_intents должен быть объектом")
+            raise TraitDataError(
+                "model.intent.need_intents должен быть объектом"
+            )
         for need, mapping in need_intents.items():
             if not isinstance(mapping, Mapping):
                 raise TraitDataError(
@@ -213,13 +219,13 @@ class TraitModel:
             for intent, weight in mapping.items():
                 if str(intent) not in self.intents:
                     raise TraitDataError(
-                        "model.intent.need_intents.%s: неизвестное намерение %s"
-                        % (need, intent)
+                        "model.intent.need_intents.%s: "
+                        "неизвестное намерение %s" % (need, intent)
                     )
                 if _number(weight, 0.0) < 0.0:
                     raise TraitDataError(
-                        "model.intent.need_intents.%s.%s: вес не может быть < 0"
-                        % (need, intent)
+                        "model.intent.need_intents.%s.%s: "
+                        "вес не может быть < 0" % (need, intent)
                     )
         force = self.intent.get("force", [])
         if not isinstance(force, (list, tuple)):
@@ -233,9 +239,6 @@ class TraitModel:
                     % rule.get("intent")
                 )
 
-    # ------------------------------------------------------------------
-    # Личность
-    # ------------------------------------------------------------------
     @property
     def trait_names(self):
         return tuple(self.traits)
@@ -266,9 +269,6 @@ class TraitModel:
             values[key] = _clamp(value, 0.0, 1.0)
         return values
 
-    # ------------------------------------------------------------------
-    # Динамика потребностей
-    # ------------------------------------------------------------------
     def urgency_factor(self, need, values):
         need = str(need)
         result = 1.0
@@ -311,9 +311,6 @@ class TraitModel:
             )
         return total
 
-    # ------------------------------------------------------------------
-    # Логика действий
-    # ------------------------------------------------------------------
     def intent_bias(self, values):
         result = {}
         for key, definition in self.traits.items():
@@ -386,9 +383,6 @@ class TraitModel:
     def fanaticism_override(self):
         return _number(self.intent.get("fanaticism_override"), 0.35)
 
-    # ------------------------------------------------------------------
-    # Отделение: агрегаты черт
-    # ------------------------------------------------------------------
     def aggregate(self, profile, values):
         weights = self.detachment.get(profile) or {}
         if not isinstance(weights, Mapping) or not weights:

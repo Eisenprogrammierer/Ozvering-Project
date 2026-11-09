@@ -37,7 +37,6 @@ def test_typed_payload_is_canonical_immutable_and_roundtrips_json():
         "quality": 0.8,
         "label": "",
     }
-    # Нормализация и JSON-круговорот не теряют схему.
     assert normalize_payload(payload) == payload
     assert normalize_payload(dict(payload)) == payload
     assert normalize_payload(json.loads(json.dumps(dict(payload)))) == payload

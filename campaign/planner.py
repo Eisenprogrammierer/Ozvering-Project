@@ -40,14 +40,9 @@ MAX_INTENTS = 64
 AUTONOMY_PERIOD = 3
 KNOWN_KINDS = ("message", "contact", "action")
 
-# Диапазон приоритета: 0 — обычный фон, выше — срочные события.
 PRIORITY_MIN = 0
 PRIORITY_MAX = 9
 
-# Слот исполнения внутри дня: 0 — граница дня (историческое поведение,
-# исполнение в начале `end_day()`), 1..SLOTS_MAX — «внутридневной» порядок
-# в очереди того же дня. Виртуальных часов у мира нет; слот задаёт только
-# детерминированный порядок относительно других намерений.
 SLOT_DAY_EDGE = 0
 SLOTS_MAX = 3
 
@@ -170,8 +165,6 @@ class Intent:
             cancel_when=(
                 dict(cancel_when) if isinstance(cancel_when, dict) else {}
             ),
-            # Старые снимки без поля = граница дня: детерминизм сохранения
-            # не зависит от того, когда был записан сейв.
             due_slot=_as_slot(raw.get("due_slot"), SLOT_DAY_EDGE),
         )
 
@@ -192,9 +185,6 @@ class IntentQueue:
         self._trim()
 
     def _sort(self):
-        # Стабильный порядок: день, затем слот внутри дня, затем приоритет
-        # (срочные раньше), затем вид/источник/актор. Иначе одинаковые
-        # снимки могли бы исполнять намерения в разном порядке.
         self.items.sort(
             key=lambda item: (
                 item.due_day,
@@ -207,8 +197,6 @@ class IntentQueue:
         )
 
     def _trim(self):
-        # При переполнении отбрасываем самые далёкие намерения: близкие
-        # события важнее для игрока, а «хвост» всё равно не виден.
         if len(self.items) > self.limit:
             del self.items[self.limit :]
 

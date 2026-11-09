@@ -33,7 +33,6 @@ from .model import (
 )
 from .types import Work
 
-# Максимальная глубина вложенности (число рёбер от корня до листа).
 MAX_COMPOSITE_DEPTH = 8
 DISTRIBUTION_STRATEGIES = (
     "proportional",
@@ -81,9 +80,16 @@ def load_automaton_state(unit, payload):
     if not isinstance(payload, dict):
         return unit
     unit.force = max(
-        0.0, min(float(unit.max_force), _as_float(payload.get("force"), unit.force))
+        0.0,
+        min(
+            float(unit.max_force),
+            _as_float(payload.get("force"), unit.force),
+        ),
     )
-    unit.max_force = max(1e-9, _as_float(payload.get("max_force"), unit.max_force))
+    unit.max_force = max(
+        1e-9,
+        _as_float(payload.get("max_force"), unit.max_force),
+    )
     unit.force = min(unit.force, unit.max_force)
     unit.energy = max(
         0.0,
@@ -129,9 +135,6 @@ class CompositeAutomaton(Automaton):
         self.children = dict(self.children or {})
         self._composite_parent = None
 
-    # ------------------------------------------------------------------
-    # Структура
-    # ------------------------------------------------------------------
     def iter_tree(self):
         """Обойти узел и всех потомков в детерминированном порядке."""
         yield self
@@ -231,9 +234,6 @@ class CompositeAutomaton(Automaton):
             child._composite_parent = None
         self.children.clear()
 
-    # ------------------------------------------------------------------
-    # Агрегация F/E/S
-    # ------------------------------------------------------------------
     def _parts(self):
         """Все узлы дерева, включая оболочки вложенных составных."""
         yield self
@@ -397,9 +397,6 @@ class CompositeAutomaton(Automaton):
             "height": self.height(),
         }
 
-    # ------------------------------------------------------------------
-    # Распределение работы
-    # ------------------------------------------------------------------
     def distribution_strategy(self):
         value = self.state.get(
             "distribution_strategy", DEFAULT_DISTRIBUTION_STRATEGY
@@ -426,7 +423,6 @@ class CompositeAutomaton(Automaton):
             if include_self or not pool:
                 pool.insert(0, self)
         targets = [node for node in pool if node.can_receive(form)]
-        # Один и тот же узел не должен получить две доли.
         unique = []
         seen = set()
         for node in targets:
@@ -640,9 +636,6 @@ class CompositeAutomaton(Automaton):
             health_damage += part_health
         return absorbed, overflow, health_damage
 
-    # ------------------------------------------------------------------
-    # Персистентность
-    # ------------------------------------------------------------------
     def composite_state(self):
         return {
             "id": self.id,

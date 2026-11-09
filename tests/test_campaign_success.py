@@ -131,7 +131,6 @@ def test_action_coefficients_change_chance_but_keep_bounds():
     assert high > low
     for chance in (low, high):
         assert 0.05 <= chance <= 0.95
-    # Прямая проверка ядра: те же коэффициенты дают тот же сдвиг логита.
     assert success_probability(
         engine.player.unit,
         character.sync(),

@@ -121,7 +121,6 @@ def test_environment_asymmetric_event_hits_primary_fully_and_secondary_half():
 def test_environment_relief_cycle_restores_both_sides():
     left, right = _agents()
     env = ArenaEnvironment(seed=7, asymmetric=False)
-    # Сначала доводим до истощения, затем до передышки.
     for _ in range(ENV_EVENT_INTERVAL):
         env.tick(left, right)
     low = left.energy_pool
@@ -173,11 +172,6 @@ def test_arena_env_matches_active_game_by_default_and_can_disable_env():
     control = ArenaEnv(seed=5, steps=4, with_env=False)
     assert control.with_env is False
     assert control.match.env is None
-
-
-# ---------------------------------------------------------------------------
-# Средовые источники болезни и острые раны
-# ---------------------------------------------------------------------------
 
 
 def test_environment_illness_reservoir_raises_sickness():
@@ -275,9 +269,6 @@ def test_environment_state_round_trips_reservoir_intervals():
     assert restored.wound_interval == 19
 
 
-# --- A6: исход среды (цель/коллапс) — событие фона, а не конец дуэли ---
-
-
 def _env_match(steps=5000, seed=11):
     return ArenaMatch(seed=seed, steps=steps, with_env=True)
 
@@ -296,7 +287,6 @@ def test_env_goal_is_event_not_match_end():
     m = _env_match()
     env = m.env
     env.goal_horizon = 5000
-    # Ставим фон у самой цели и открываем окно: следующий такт даст goal.
     env.force = env.goal_force - 1e-3
     env.receive_pressure(500.0)
     assert env.status == "active"
@@ -305,7 +295,7 @@ def test_env_goal_is_event_not_match_end():
     assert _advance_until(m, lambda: m.env.goal_reached, limit=5)
     assert m.env_event == "goal"
     assert m.env_outcome == "goal"
-    assert not m.finished  # партия продолжается
+    assert not m.finished
     assert m.winner is None
     assert env.status == "strengthened"
     assert env.work_bonus() == pytest.approx(ENV_BONUS * 1.5)
@@ -324,8 +314,6 @@ def test_env_goal_does_not_stop_economy_state():
         forced_rl_action=Action("REST", form="rest"),
         forced_ai_action=Action("REST", form="rest"),
     )
-    # `env_event` — только событие текущего такта; последний исход
-    # сохраняется в `env_outcome`, а дуэль продолжается.
     assert m.env_event is None
     assert m.env_outcome == "goal"
     assert not m.finished
@@ -336,7 +324,6 @@ def test_env_goal_does_not_stop_economy_state():
 def test_env_collapse_is_event_not_match_end():
     m = _env_match()
     env = m.env
-    # Цель недостижима за горизонт: потолок силы ниже целевой силы.
     env.force = 0.0
     env.goal_ratio = 1.0
     env.goal_horizon = 5
@@ -426,9 +413,6 @@ def test_arena_env_exposes_fog_switch():
         Action("REST", form="rest")
     )
     assert info["fog"] is False
-
-
-# --- A12: многофазная цель среды (Data-Driven план) --------------------
 
 
 def test_environment_plan_loads_and_exposes_phases():

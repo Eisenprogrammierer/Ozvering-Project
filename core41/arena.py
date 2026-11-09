@@ -40,28 +40,16 @@ CORE_ACTIONS = (
     ("info", FRACTIONS[1]),
 )
 
-# A9: `F` — пропускная способность, а не только запас прочности. Работа за
-# такт не может превысить `F * duration`; при полной силе это не связывает
-# действие 0.7, а после потери силы — ограничивает удар.
 FORCE_WORK_RATIO = 1.0
-# A9: разведка дешевле силовой работы при том же объёме.
 INFO_COST_FACTOR = 0.60
-# A9: сильный удар — двухтактная подготовка. Противник видит её и успевает
-# ответить; компенсация — чуть больший урон при завершении.
 CHARGE_DAMAGE_BONUS = 0.20
-# Разведка давит на цель сильнее обычной работы: она вскрывает стойку.
 INFO_PRESSURE_PER_WORK = 0.50
 PRESSURE_MAX = 30.0
 
 WAIT_ACTION = Action("WAIT", form="wait", duration=1.0)
 
 CAPTURE_RATIO = 1.5
-# A2: доля тяжести раны за каждый процент максимального здоровья,
-# выжженного переполнением силы при успешном ударе (максимум WOUND_MAX).
 WOUND_HIT_SEVERITY = 0.30
-# 36 тактов удержания — калибровка 2026-11-03 (N=200, env on/off):
-# дешёвая разведка A9 позволяла слишком быстро накопить энергетическое
-# доминирование, поэтому серия удлинена и захват снова вторичен.
 CAPTURE_STREAK = 36
 CAPTURE_FRAC = 0.10
 L_STEP = 10.0
@@ -72,8 +60,6 @@ PROFILE_SKILLS = {
     "ORTHODOX": (0.55, 0.10),
 }
 
-# Награда арены. Единицы — доли максимумов соответствующей шкалы, поэтому
-# шаг награды сравним между `F`, `E`, `H` и `sickness`.
 REWARD_ENERGY_COST = 0.6
 REWARD_SICKNESS_SELF = 1.0
 REWARD_SICKNESS_OPPONENT = 0.5
@@ -82,11 +68,6 @@ REWARD_WOUND_OPPONENT = 0.4
 REWARD_TERMINAL_WIN = 1.0
 REWARD_TERMINAL_LOSS = -1.0
 
-# Профили награды. `legacy` — исходная смесь: оплачивает потраченную
-# энергию и начисляет за восстановление E/F/H, из-за чего отдых может
-# «фармить» награду. `advantage` — только реальный урон/потери сторон,
-# без награды за регенерацию. `advantage_cost` дополнительно списывает
-# потраченную (не восстановленную) энергию; это профиль по умолчанию.
 REWARD_PROFILES = ("legacy", "advantage", "advantage_cost")
 REWARD_PROFILE_DEFAULT = "advantage_cost"
 REWARD_ADVANTAGE_ENERGY_COST = 0.10
@@ -402,8 +383,6 @@ def resolve_work(
         charge = 1.0 + CHARGE_DAMAGE_BONUS * max(
             0.0, float(work.duration) - 1.0
         )
-        # A9: удар по свежей слабой точке, найденной разведкой, наносит
-        # больше урона. Бонус действует только на `force`.
         exploit = 1.0 + INTEL_DAMAGE_BONUS * min(
             1.0, max(0.0, float(weak_point))
         )
@@ -742,9 +721,6 @@ def resolve_pair(left, right, left_action, right_action, rng, env=None):
             if right.intel.weak_point > 0.0:
                 right.intel.consume_weak_point()
 
-    # A9: без новой разведки знания стареют. Успешная или проваленная
-    # разведка уже обновила `age`/`confidence`, поэтому шаг старения к ней
-    # не применяется.
     for agent, plan in ((left, left_plan), (right, right_plan)):
         was_info = (
             plan.get("kind") == "work"
@@ -822,10 +798,7 @@ class ArenaAgent:
         self.seed = int(seed)
         self.rng = random.Random(seed)
         self.policy = policy if policy is not None else _RestPolicy()
-        # A9: туман наблюдаемости. `False` — точное знание (легаси-срез и
-        # калибровочное плечо без тумана).
         self.fog = bool(fog)
-        # A9: знания о скрытом состоянии противника и подготовка.
         self.intel = Intel()
         self.pending = None
         skill, authority = PROFILE_SKILLS.get(
@@ -1055,14 +1028,8 @@ class ArenaAgent:
         return self.condition_state()
 
     def actions(self):
-        # A9: пока идёт подготовка, единственное легальное действие —
-        # `WAIT`. Это не отдых: подготовка уже оплачена и должна завершиться.
         if self.pending is not None:
             return (WAIT_ACTION,)
-        # `REST` — не no-op: он восстанавливает E/F/здоровье и снимает
-        # болезнь. Если восстанавливать нечего, действие не предлагается:
-        # иначе две полностью отдохнувшие стороны могут бесконечно
-        # выбирать REST, и self-play сходится к 100% таймаутов.
         actions = []
         if self.needs_recovery():
             actions.append(action_from_index(0))
@@ -1100,8 +1067,6 @@ class ArenaAgent:
         )
         if not forms:
             forms = ("force",)
-        # A9: туман скрывает внутреннее состояние (`E/H/sickness/wound`),
-        # но не внешнюю стойку: силу, давление, открытость, подготовку.
         if self.fog:
             opponent_energy = self.intel.estimate(
                 "energy", other.energy
@@ -1203,9 +1168,6 @@ class ArenaAgent:
             )
         info = {}
         if opponent_action is not None:
-            # A9: модель противника обновляется по действию, которое он
-            # реально выбрал в этом такте. Передаётся через `info`, чтобы
-            # `Transition` остался неизменным контрактом.
             info["opponent_action"] = opponent_action
         transition = Transition(
             observation=self._last_observation,
@@ -1243,9 +1205,6 @@ class ArenaAgent:
             )
             return report
         was_open = target.is_open()
-        # A1: открытое окно среды аддитивно усиливает успех работы обеих
-        # сторон (канонный ENV_BONUS). Вне арены с активным env-актором
-        # бонус равен 0 — прежняя калибровка дуэлей не меняется.
         env = getattr(world, "env", None)
         env_bonus = 0.0
         if env is not None:
@@ -1259,9 +1218,6 @@ class ArenaAgent:
         target.state["pressure"] = min(
             30.0, target.pressure() + pressure
         )
-        # A1: работа сторон доходит до среды (канонный receive_pressure):
-        # накопленное давление может открыть окно уязвимости на следующем
-        # такте тика среды.
         if env is not None:
             env.ingest(work.amount, getattr(work, "form", "force"))
         success = rng.random() < chance
@@ -1283,11 +1239,6 @@ class ArenaAgent:
                 damage * FORCE_FEEDBACK_SHARE,
             )
             source.force += max(0.0, gain)
-        # A2: устойчивая рана в дуэли. Сильный успешный удар с
-        # силовым/информационным уроном по здоровью открывает рану —
-        # отдельное персистентное состояние (`wound`), а не только
-        # разовый урон `H`. Порог грубый и симметричный для обеих форм:
-        # точная калибровка вероятности ранения — часть A7 (потолок RL).
         wound_severity = 0.0
         if health_damage > 0.0:
             wound_severity = min(
@@ -1347,8 +1298,6 @@ class ArenaMatch:
                 "неизвестный профиль награды: %r" % (reward_profile,)
             )
         self.reward_profile = str(reward_profile)
-        # A9: туман наблюдаемости включён всегда в активной арене. Явный
-        # `fog=False` оставлен для калибровочного плеча «точное знание».
         self.fog = bool(fog)
         self.time = 0
         self.step = 0
@@ -1364,8 +1313,6 @@ class ArenaMatch:
         self.ai_rest_ticks = 0
         self.last_rl_action = ("REST", 0.0)
         self.last_ai_action = ("REST", 0.0)
-        # A6: последний исход среды (goal/collapse) и событие текущего
-        # такта. Это состояния фона, а не терминал партии.
         self.env_outcome = None
         self.env_event = None
         self.rl = ArenaAgent(
@@ -1388,15 +1335,8 @@ class ArenaMatch:
             wound=wound_ai,
             fog=self.fog,
         )
-        # A9: стартовые знания о скрытом состоянии. Без снимка `Intel`
-        # подставлял бы точные значения как «оценку», поэтому снимок
-        # создаётся сразу после появления бойцов.
         self.rl.intel.reset(self.ai.unit)
         self.ai.intel.reset(self.rl.unit)
-        # Актор среды (проблема с мёртвым `with_env`): не воюет, а по
-        # фиксированному расписанию добавляет обоим одинаковое внешнее
-        # давление/передышку. При `with_env=False` его нет — прежняя
-        # калибровка сохраняется.
         self.env = (
             ArenaEnvironment(seed=self.seed ^ 0xE7E7, plan=env_plan)
             if self.with_env
@@ -1422,8 +1362,6 @@ class ArenaMatch:
             for actor in (rl, ai):
                 actor._env_pressure = env_state["strain"]
                 actor._env_season = env_state["season_multiplier"]
-                # A1: наблюдаемое окно уязвимости (0/1) — сигнал для
-                # 22-го признака политик.
                 actor._env_window = 1.0 if env_state["window"] else 0.0
         else:
             for actor in (rl, ai):
@@ -1472,8 +1410,6 @@ class ArenaMatch:
             ai.wound,
         )
 
-        # A9: одновременный такт. Оба действия считаются от снимка до
-        # разрешения, эффекты применяются атомарно.
         rl_plan, ai_plan, rl_result, ai_result = resolve_pair(
             rl,
             ai,
@@ -1575,11 +1511,6 @@ class ArenaMatch:
             self.finished = True
             return True
         if self.step >= self.steps_total:
-            # Лимит шагов — усечение, а не победа по остатку силы/здоровья.
-            # Раньше здесь присуждался winner по `(force, health)`, из-за
-            # чего таймаут попадал в win/loss и давал терминальный ±1.0.
-            # Теперь таймаут — ничья; среда отдельно возвращает
-            # `truncated=True`, и цикл обучения не считает его терминалом.
             self.finished = True
             self.winner = None
             return True

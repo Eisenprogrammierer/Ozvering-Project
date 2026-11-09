@@ -12,21 +12,8 @@ from core41.types import (
     Transition,
 )
 
-# Служебное действие кампанейного среза (проблема готовности №6).
-# Импортируется локально, чтобы не создавать цикл campaign.env -> agents.
 from campaign.env import END_DAY
 
-# Версия формата чекпойнтов (проблема готовности №5). Файлы без поля
-# ``version`` считаются v0 — легаси-форматом до введения болезни в ключ
-# QTable и до появления MLPPolicy. Текущий формат — v3:
-#   - QTable: 12-полевой ключ; при загрузке v0 мигрируют ключи 8 и 10
-#     полей (недостающие sickness-поля заполняются нулём);
-#   - BDI: 22 признака (18 прежних + код действия + 2 признака среды +
-#     окно среды A1); при загрузке v0/v1/v2 короткий вектор веса
-#     дополняется нулями;
-#   - MLP: 22 входа; при загрузке v1/v2 строки 18/19/21→22 дополняются
-#     нулями, поэтому старые сети не теряют выученные веса.
-# QTable-ключи не меняются: код действия уже входит в ключ отдельным полем.
 CHECKPOINT_VERSION = 3
 LEGACY_CHECKPOINT_VERSION = 0
 
@@ -43,11 +30,9 @@ def _migrate_qtable_key(key):
     if len(key) == 12:
         return key
     if len(key) == 10:
-        # v0 (10 полей): force/energy x2, health x2, open, kind, form, fraction
         head, tail = key[:6], key[6:]
         return head + (0, 0) + tail
     if len(key) == 8:
-        # самый ранний v0: без здоровья и болезни
         head, tail = key[:4], key[4:]
         return head + (0, 0, 0, 0) + tail
     raise ValueError("unsupported qtable key length: %d" % len(key))
@@ -62,12 +47,9 @@ COUNTERS = {
 
 def default_actions(observation):
     if isinstance(observation, CampaignObservation):
-        # Кампанейный fallback (проблема №6): если next_actions пуст,
-        # служебный END_DAY всегда легален до завершения сюжета.
         if observation.finished:
             return tuple()
         return (CampaignAction(END_DAY),)
-    # A9: пока идёт подготовка, единственное легальное действие — WAIT.
     if getattr(observation, "self_busy", 0.0) > 0.0:
         return (Action("WAIT", form="wait"),)
     actions = [Action("REST", form="rest")]
@@ -87,11 +69,6 @@ def default_actions(observation):
     return tuple(actions)
 
 
-# Стабильные коды действий для 19-го признака. Это не семантическая
-# величина, а только способ отличить действия друг от друга в линейной/MLP
-# политике: у кампании `fraction` всегда 0, поэтому без кода `inspect` и
-# `build_network` давали бы одинаковый вектор. Код фиксирован, чтобы
-# чекпойнт не зависел от порядка действий в конфиге мира.
 ACTION_FEATURE_CODES = {
     ("REST", "rest"): 0.00,
     ("REST", ""): 0.00,
@@ -177,17 +154,8 @@ def campaign_features(observation, action):
         1.0 if not observation.alive else 0.0,
         is_heal,
         action_feature_code(action),
-        # Кампания не имеет собственного актора среды; 20-й слот —
-        # устойчивая рана героя (общее состояние `wound` с ареной). На
-        # арене этот слот занят `env_pressure`, но кампанейный вектор
-        # строится отдельно (`campaign_features`). Слой A1 добавил в
-        # аренный вектор 22-й признак (окно среды); кампанейный дополнен
-        # фиксированным 0.0 (у кампании нет env-актора), поэтому длины
-        # векторов совпадают и общие веса политик грузятся без миграции.
         _clamp01(float(getattr(observation, "wound", 0.0))),
         1.0,
-        # 22-й слот (A1): окно среды. У кампании env-актора нет — всегда
-        # 0.0, чтобы длина вектора равнялась FEATURE_COUNT.
         0.0,
     )
 
@@ -208,8 +176,6 @@ _OPP_TREAT = "TREAT"
 _OPP_WORK = "WORK"
 _OPP_WAIT = "WAIT"
 OPPONENT_STAT_SLOTS = 4
-# A9: дополнительные наблюдаемые слоты дуэльного вектора — уверенность
-# разведки, слабая точка, форма и доля подготовки противника.
 DUEL_OBS_SLOTS = 4
 
 
@@ -265,8 +231,6 @@ def duel_features(observation, action):
         action_feature_code(action),
         _clamp01(float(getattr(observation, "env_pressure", 0.0))),
         _clamp01(float(getattr(observation, "env_season", 1.0))),
-        # A1: открытое окно уязвимости среды (0/1). Вне env-актора всегда
-        # 0.0 — старые векторы дополняются нулём при миграции чекпойнтов.
         _clamp01(float(getattr(observation, "env_window", 0.0))),
     )
 
@@ -283,10 +247,6 @@ class OpponentModel:
 
     def __init__(self, alpha=0.2):
         self.alpha = float(alpha)
-        # A8:Prior «нулевой активности» (0.25 на каждый класс вместо 0)
-        # снимает стартовый градиент «все действия одинаково неактивны»,
-        # из-за которого первые десятки тысяч обновлений тратились на
-        # вычитание константы; доля атак — комплемент до 1.
         self.rest = 0.25
         self.treat = 0.25
         self.attack = 0.25
@@ -309,10 +269,6 @@ class OpponentModel:
         else:
             kind = getattr(action, "kind", "") or ""
             form = getattr(action, "form", "") or ""
-            # `ArenaEnv` и `ArenaMatch.learn` передают сам `Action`, а не
-            # аренный тег: работа формы force/info — это атака, хотя её
-            # `kind` равен WORK. Без этого статистика оппонента видела только
-            # REST и моделировала «пассивного» противника.
             if kind == _OPP_WORK and form in ("force", "info"):
                 kind = "ATTACK"
         is_rest = kind == _OPP_REST
@@ -387,10 +343,6 @@ def feature_count_for(opponent_stats=None):
 
 
 FEATURE_COUNT = 22
-# A8: DuelMLPPolicy строит вектор из FEATURE_COUNT + OPPONENT_STAT_SLOTS
-# признаков, A9 добавляет 4 наблюдаемых слота. Общая CHECKPOINT_VERSION (3)
-# относится к политикам на базовом векторе, duel-чекпойнты используют
-# DUEL_CHECKPOINT_VERSION (5).
 DUEL_FEATURE_COUNT = (
     FEATURE_COUNT + OPPONENT_STAT_SLOTS + DUEL_OBS_SLOTS
 )
@@ -497,13 +449,8 @@ class BDIPolicy:
             0.0,
             0.0,
             0.0,
-            # A1: базовая реакция на открытое окно среды (22-й слот).
             0.3,
         ]
-        # Кампанейный срез — отдельная задача: общие аренные веса
-        # предпочитают отдых, поэтому baseline завершал день вместо
-        # действий. Приор задаёт рабочее поведение, а `observe()` обновляет
-        # именно тот набор весов, который использовался.
         self.campaign_weights = campaign_weights_from(self.weights)
 
     def _active_weights(self, observation):
@@ -571,11 +518,6 @@ class BDIPolicy:
             chosen = self.rng.choice(actions)
         else:
             candidates = actions
-            # Кампания: `END_DAY` — служебный ход, а не отдых. Пока у героя
-            # остались действия и есть хотя бы одно доступное неслужебное
-            # действие, baseline не должен «завершать день» из-за смещения
-            # весов. Это не отменяет ресурсное ограничение: если доступен
-            # только `END_DAY`, он и будет выбран.
             if isinstance(observation, CampaignObservation):
                 non_service = tuple(
                     action for action in actions if action.kind != "END_DAY"
@@ -665,8 +607,6 @@ class BDIPolicy:
                 )
             self.campaign_weights = values[: len(self.campaign_weights)]
         else:
-            # Старый чекпойнт: сохраняем выученные аренные веса и
-            # накладываем на них кампанейный приор.
             self.campaign_weights = campaign_weights_from(self.weights)
         beliefs = state.get("beliefs")
         if beliefs:
@@ -719,29 +659,23 @@ class QTablePolicy:
         self.learning_rate = float(learning_rate)
         self.discount = float(discount)
         self.epsilon = 0.22
-        # campaign=True — таблица обучается на дневном срезе (проблема №6):
-        # ключ строится из нормированных кампанейных разрядов и не
-        # смешивается с аренной таблицей.
         self.campaign = bool(campaign)
         self.table = table if table is not None else {}
         self.updates = 0
 
     def key(self, observation, action):
         if isinstance(observation, CampaignObservation) or self.campaign:
-            # Кампанейный ключ (проблема №6): тот же 12-полевой формат,
-            # но разряды взяты из нормированных признаков кампании —
-            # так таблица не смешивается с аренной и не требует миграции.
             vector = campaign_features(observation, action)
             return (
-                round(vector[3] * 4.0),   # standing
-                round(vector[4] * 4.0),   # power организации
-                round(vector[13] * 4.0),  # health/HEALTH_MAX
-                round(vector[15] * 4.0),  # sickness
-                round(vector[1] * 4.0),   # actions_left/actions_per_day
-                round(vector[2] * 4.0),   # прогресс дня (day/total_days)
+                round(vector[3] * 4.0),
+                round(vector[4] * 4.0),
+                round(vector[13] * 4.0),
+                round(vector[15] * 4.0),
+                round(vector[1] * 4.0),
+                round(vector[2] * 4.0),
                 0,
                 0,
-                int(bool(vector[5])),     # attached
+                int(bool(vector[5])),
                 action.kind,
                 action.target,
                 round(action.fraction, 2),
@@ -810,18 +744,12 @@ class QTablePolicy:
     def load_state_dict(self, state):
         if not state:
             return
-        # Версия не указана — легаси-v0; ключи мигрируются по длине
-        # (8/10 -> 12), чтобы старые таблицы не терялись молча.
-        # Флаг среза сохраняется в чекпойнте (проблема №6): аренная и
-        # кампанейная таблицы не должны молча подменять формат ключа.
         self.campaign = bool(state.get("campaign", self.campaign))
         table = state.get("table", {})
         migrated = {}
         for key, value in table.items():
             parsed = _migrate_qtable_key(ast.literal_eval(key))
             merged = float(value)
-            # Коллизия при слиянии v0-разрядов болезни (несколько старых
-            # ключей могут дать один новый) — берём среднее, а не перезапись.
             if parsed in migrated:
                 old_value, count = migrated[parsed]
                 merged_mean = (
@@ -879,9 +807,6 @@ class MLPPolicy:
             self.rng.uniform(-0.05, 0.05) for _ in range(self.hidden)
         ]
         self.bias2 = 0.0
-        # Target-сеть стабилизирует bootstrap: цель TD считается по
-        # «замороженным» весам и синхронизируется каждые `target_sync`
-        # обновлений. Это снижает расходимость длинного online TD(0).
         self.target_weights1 = [list(row) for row in self.weights1]
         self.target_bias1 = list(self.bias1)
         self.target_weights2 = list(self.weights2)
@@ -1008,9 +933,6 @@ class MLPPolicy:
         rows = []
         if weights1:
             rows = [[float(value) for value in row] for row in weights1]
-            # v1 MLP имел 18 входов, v2 — 19, v2(среда) — 21, текущий
-            # (A1: окно среды) — 22. Дополняем строки нулями, чтобы
-            # старые веса не терялись.
             if all(len(row) <= FEATURE_COUNT for row in rows):
                 rows = [
                     row + [0.0] * (FEATURE_COUNT - len(row)) for row in rows
@@ -1073,8 +995,6 @@ class MLPPolicy:
             else:
                 self._sync_target()
         else:
-            # Старый чекпойнт без target-сети: копируем online-веса, чтобы
-            # первый bootstrap не был случайным.
             self._sync_target()
         self.epsilon = float(state.get("epsilon", self.epsilon))
         self.updates = int(state.get("updates", self.updates))
@@ -1114,9 +1034,6 @@ class DuelMLPPolicy:
     признакам вместо 12-полевой квантованной сетки ключей QTable.
     """
 
-    # Аренный вектор читает только `Observation` из core41: у
-    # `CampaignObservation` нет `self_max_energy` и других дуэльных полей.
-    # Живой автопилот кампании обязан проверить этот флаг до `act()`.
     supports_campaign = False
 
     def __init__(
@@ -1138,8 +1055,6 @@ class DuelMLPPolicy:
         self.hidden = int(hidden)
         self.target_sync = max(1, int(target_sync))
         self.updates = 0
-        # A8: EMA-статистика действий противника (обновляется из
-        # `info["ai_action"]` / `opponent_action` в `observe()`).
         self.opponent_model = OpponentModel(alpha=opponent_alpha)
         self.weights1 = [
             [self.rng.uniform(-0.1, 0.1) for _ in range(DUEL_FEATURE_COUNT)]
@@ -1204,9 +1119,6 @@ class DuelMLPPolicy:
         return max(actions, key=lambda item: self.score(observation, item))
 
     def observe(self, transition):
-        # A9: вектор текущего такта строится по статистике ДО текущего
-        # действия противника; модель обновляется в конце. Иначе политика
-        # «подсматривала» бы действие, которое ещё не совершено.
         opponent_action = getattr(transition, "opponent_action", None)
         if opponent_action is None:
             info = getattr(transition, "info", None) or {}
@@ -1272,14 +1184,12 @@ class DuelMLPPolicy:
             "updates": self.updates,
             "learning_rate": self.learning_rate,
             "discount": self.discount,
-            # A8: EMA-статистика оппонента (переносится между прогонами).
             "opponent_model": self.opponent_model.state_dict(),
         }
 
     def load_state_dict(self, state):
         if not state:
             return
-        # A8: восстанавливаем модель оппонента, если она есть в чекпойнте.
         opponent_state = state.get("opponent_model")
         if opponent_state:
             self.opponent_model.load_state_dict(opponent_state)
@@ -1288,8 +1198,6 @@ class DuelMLPPolicy:
         rows = []
         if weights1:
             rows = [[float(value) for value in row] for row in weights1]
-            # Совместимость с более коротким вектором признаков: строки
-            # дополняются нулями до текущего FEATURE_COUNT.
             rows = [
                 row + [0.0] * max(0, DUEL_FEATURE_COUNT - len(row))
                 for row in rows
@@ -1364,11 +1272,9 @@ class UtilityPolicy:
             1.0, observation.self_max_health
         )
         opponent_open = bool(observation.opponent_open)
-        # 1. Лечение, когда здоровье критично и есть чем лечить.
         treat = by_kind.get("TREAT")
         if treat and health_ratio < 0.5 and observation.self_energy > 20.0:
             return treat[0]
-        # 2. Атака силой: противник открыт или продавлен.
         work = by_kind.get("WORK") or []
         force_hits = [a for a in work if a.form == "force"]
         if (
@@ -1381,7 +1287,6 @@ class UtilityPolicy:
             if best.fraction > self.aggression:
                 return best
             return force_hits[len(force_hits) // 2]
-        # 3. Накопление: отстаём по силе или энергии.
         energy_short = (
             observation.self_energy
             < 0.6 * max(1.0, observation.self_max_energy)
@@ -1392,7 +1297,6 @@ class UtilityPolicy:
         )
         if work and (energy_short or force_short or not opponent_open):
             return min(work, key=lambda a: a.fraction)
-        # 4. Прочие формы атаки по доступности.
         other_hits = [a for a in work if a.form != "force"]
         if other_hits and opponent_open:
             return other_hits[0]
@@ -1402,7 +1306,6 @@ class UtilityPolicy:
         return actions[0]
 
     def observe(self, transition):
-        # Не обучается: чистая эвристика (baseline из пина RL 1/UAI 9).
         return None
 
 
@@ -1417,18 +1320,14 @@ def make_policy(name, seed=0):
     if name in ("bdi", "adaptive"):
         return BDIPolicy(seed=seed)
     if name in ("utility", "uai"):
-        # B4: не-обучаемый сильный оппонент для игры и калибровки.
         return UtilityPolicy()
     if name in ("qtable", "q"):
         return QTablePolicy(seed=seed)
     if name == "qtable-campaign":
-        # Кампанейная таблица (проблема №6): тот же QTable, но ключ
-        # строится из дневных признаков CampaignObservation.
         return QTablePolicy(seed=seed, campaign=True)
     if name in ("mlp", "neural", "nn"):
         return MLPPolicy(seed=seed)
     if name in ("duel-mlp", "duel_mlp", "dmlp"):
-        # A7: аренный function approximation.
         return DuelMLPPolicy(seed=seed)
     if name in ("random", "none"):
         return RandomPolicy(seed=seed)
@@ -1459,8 +1358,6 @@ def load_policy(path, seed=0, kind=None):
         state = json.load(handle)
     policy_kind = kind or state.get("kind")
     version = checkpoint_version(state)
-    # A8/A9: duel-MLP живёт на собственном формате (v5, вектор 30);
-    # остальные политики — на базовом CHECKPOINT_VERSION (v3, вектор 22).
     supported = (
         DUEL_CHECKPOINT_VERSION
         if policy_kind == "duel-mlp"
@@ -1478,7 +1375,6 @@ def load_policy(path, seed=0, kind=None):
     elif policy_kind == "mlp":
         policy = MLPPolicy(seed=seed)
     elif policy_kind == "duel-mlp":
-        # A7: аренный function approximation.
         policy = DuelMLPPolicy(seed=seed)
     else:
         raise ValueError(

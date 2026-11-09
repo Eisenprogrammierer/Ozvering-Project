@@ -108,9 +108,7 @@ def test_illness_is_not_counted_twice_in_sickness_damage():
 
     frail = make(1.0, 2.0)
     frail.tick_health(resting=False)
-    # `illness` ускоряет прогресс болезни ровно один раз ...
     assert frail.sickness == pytest.approx(0.2 + SICKNESS_PROGRESS * 2.0)
-    # ... и не умножает урон от уже накопленной тяжести повторно.
     assert frail.health == pytest.approx(100.0 - SICKNESS_HEALTH_DECAY * 0.2)
 
     aged = make(2.0, 1.0)
@@ -175,7 +173,6 @@ def test_sickness_reduces_work_effectiveness_without_side_effects():
     assert unit.work_effectiveness() == pytest.approx(
         1.0 - SICKNESS_WORK_PENALTY * 0.5
     )
-    # Болезнь не переписывает сохранённый навык и не сжигает энергию.
     assert unit.skill("force") == pytest.approx(0.6)
     assert unit.energy == pytest.approx(100.0)
 
@@ -196,7 +193,6 @@ def test_sickness_lowers_success_but_illness_only_acts_through_it():
     p_frail = success_probability(frail, defender, work, False)
 
     assert p_sick < p_healthy
-    # `illness` сам по себе не дублирует штраф: он действует через `sickness`.
     assert p_frail == pytest.approx(p_healthy)
 
 
@@ -273,8 +269,6 @@ def test_policies_see_sickness_and_can_treat():
 
 def test_arena_agent_actions_include_treat_only_when_sick():
     healthy = ArenaAgent("healthy")
-    # Полностью отдохнувшему REST не предлагается: это no-op, из-за
-    # которого self-play застревал в бесконечных ничьих.
     assert len(healthy.actions()) == 4
     assert all(action.kind != "TREAT" for action in healthy.actions())
 
@@ -388,28 +382,23 @@ def test_condition_state_roundtrip_and_hard_reset():
     assert restored.sickness == 0.0
 
 
-# --- Устойчивые раны (wound): общее состояние с кампанией (§2.3.4) ---
-
-
 def test_wound_is_separate_state_from_sickness():
     unit = Automaton(id="unit")
     unit.injure(0.4)
     assert unit.wound == pytest.approx(0.4)
     assert unit.is_wounded
-    # Рана не создаёт болезни и наоборот: лечение одного не трогает другое.
     unit.sickness = 0.3
     unit.treat_wound(WOUND_TREAT_RATE)
     assert unit.wound < 0.4
     assert unit.sickness == pytest.approx(0.3)
     unit.treat(SICKNESS_TREAT_RATE)
     assert unit.sickness < 0.3
-    assert unit.wound == pytest.approx(unit.wound)  # не изменилась
+    assert unit.wound == pytest.approx(unit.wound)
 
 
 def test_injure_takes_max_severity_and_clamps():
     unit = Automaton(id="unit")
     unit.injure(0.6)
-    # Повторная более лёгкая рана не «лечит» старую.
     assert unit.injure(0.2) == pytest.approx(0.6)
     assert unit.injure(2.0) == pytest.approx(WOUND_MAX)
 
@@ -421,8 +410,6 @@ def test_wound_reduces_rest_regen_and_adds_bleed_damage():
     for _ in range(3):
         hurt.tick_health(resting=True)
         healthy.tick_health(resting=True)
-    # Раненый отдыхает хуже (WOUND_REGEN_PENALTY) и теряет здоровье на
-    # кровотечении (WOUND_HEALTH_DECAY), поэтому отстаёт от здорового.
     assert hurt.health < healthy.health
 
 
@@ -432,7 +419,6 @@ def test_wound_amplifies_overflow_damage():
     hurt.wound = WOUND_MAX
     _, _, hurt_damage = hurt.apply_force_damage(5.0)
     _, _, healthy_damage = healthy.apply_force_damage(5.0)
-    # WOUND_DAMAGE_BONUS усиливает урон переполнения при ране.
     assert hurt_damage > healthy_damage
 
 
@@ -445,7 +431,6 @@ def test_treat_wound_respects_care_factor():
     cared.treat_wound(WOUND_TREAT_RATE)
     plain.treat_wound(WOUND_TREAT_RATE)
     assert cared.wound < plain.wound
-    # Нулевая или отрицательная доза ничего не меняет.
     before = plain.wound
     assert plain.treat_wound(0.0) == pytest.approx(before)
 
@@ -462,6 +447,5 @@ def test_arena_agent_wound_api_and_condition_roundtrip():
     restored = ArenaAgent("unit")
     restored.load_condition(state)
     assert restored.wound == pytest.approx(agent.wound)
-    # Жёсткий сброс партии обнуляет и болезнь, и рану.
     restored.reset_state()
     assert restored.wound == 0.0

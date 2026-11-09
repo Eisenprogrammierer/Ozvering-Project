@@ -88,20 +88,12 @@ class WorldScreen(BaseScreen):
         self.action_scroll = 0
         self.message = ""
         self.last_result = engine.last_result
-        # Live-режим обучаемого агента (P0.4): среда оборачивает тот же
-        # `WorldEngine`, что и ручное управление. Автопилот делает один
-        # шаг политики за интервал, поэтому UI остаётся отзывчивым, а
-        # журнал/сейв видят те же действия, что и игрок.
         self.autopilot = False
         self.autopilot_policy = None
-        # Пояснение к выбранной политике: чекпойнт может быть валиден, но
-        # аренным (duel-mlp), и автопилот обязан честно сказать, что взял BDI.
         self.autopilot_note = ""
         self.campaign_env = None
         self.autopilot_timer = 0.0
         self.autopilot_interval = 0.45
-        # Фоновые/оффлайн-часы (§7 №31). Экран только переводит реальные
-        # секунды в дни и вызывает `advance_days`; правила мира не меняются.
         self.clock = CampaignClock(
             seconds_per_day=engine.seconds_per_day,
             max_catchup_days=engine.max_offline_days,
@@ -331,10 +323,6 @@ class WorldScreen(BaseScreen):
         self._sync_storyline()
         logger.info("Мир завершил день: %d", self.engine.day)
 
-    # ------------------------------------------------------------------
-    # Live-режим обучаемого агента (P0.4)
-    # ------------------------------------------------------------------
-
     def _autopilot_env(self):
         """Лениво подключить `CampaignEnv` к живому движку экрана."""
         from campaign.env import CampaignEnv
@@ -364,9 +352,6 @@ class WorldScreen(BaseScreen):
                         error,
                     )
                 else:
-                    # Валидный аренный чекпойнт (duel-mlp) не читает
-                    # CampaignObservation. Проверяем контракт заранее:
-                    # иначе первый `act()` бросил бы AttributeError.
                     if supports_campaign(policy):
                         self.autopilot_policy = policy
                         logger.info(
@@ -427,8 +412,6 @@ class WorldScreen(BaseScreen):
                 self._autopilot_policy_instance(), explore=False
             )
         except Exception as error:  # noqa: BLE001 — живой UI не падает
-            # Политика может быть чужой/битой/несовместимой с наблюдением:
-            # автопилот — необязательный режим, кампания должна продолжиться.
             self.autopilot = False
             self.message = "Автопилот остановлен: %s" % error
             logger.warning(
@@ -467,9 +450,6 @@ class WorldScreen(BaseScreen):
             )
             return
         if self.autopilot:
-            # Автопилот работает и в активном окне: интервал — реальные
-            # секунды, а не игровые дни, поэтому смена скорости часов его
-            # не ускоряет.
             self.autopilot_timer += max(0.0, float(dt))
             if self.autopilot_timer >= self.autopilot_interval:
                 self.autopilot_timer = 0.0
@@ -490,8 +470,6 @@ class WorldScreen(BaseScreen):
         self.clock.resume()
         self.clock.pause_reason = ""
         days = self.clock.advance(dt)
-        # A5: пока копятся сутки, открываем внутридневные слоты. Намерения
-        # исполняются по мере наступления слота, а не только на границе дня.
         slot_events = engine.tick(max_slot=self.clock.slot)
         if days <= 0:
             if slot_events:
@@ -527,8 +505,6 @@ class WorldScreen(BaseScreen):
             logger.info("Принят исход мира: %s", self.engine.outcome)
             return
         if self.engine.ending == "neutral":
-            # Нарративный финал без победы/поражения (§7 №30): сюжет не
-            # получает win/lose, глава просто остаётся завершённой.
             self.message = "Глава завершена: история продолжается в мире."
             logger.info("Принят нейтральный финал мира")
 
@@ -837,8 +813,6 @@ class WorldScreen(BaseScreen):
             day += " · фон"
         pending = len(getattr(self.engine, "intents", ()) or ())
         if pending:
-            # Очередь намерений видна игроку: отложенные события — часть
-            # мира, а не скрытый таймер.
             day += " · планов %d" % pending
         day_surf = self.app.font_small.render(day, True, WARN)
         screen.blit(day_surf, (WIDTH - 18 - day_surf.get_width(), 12))

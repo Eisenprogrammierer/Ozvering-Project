@@ -53,7 +53,6 @@ def test_network_screen_draws_tree_and_applies_interaction():
     assert screen.selected_organ_id
     assert screen.organ_rect(screen.selected_organ_id) is not None
 
-    # Чужая фракция не выбирается: сеть показывает только свою вертикаль.
     assert screen.select_faction("blue") is False
     assert screen.selected_faction_side == campaign.player_side
     assert screen._organ() is not None
@@ -71,7 +70,6 @@ def test_network_screen_draws_tree_and_applies_interaction():
     screen.select_interaction(option["id"])
     screen.apply_interaction()
 
-    # Взаимодействие тратит действие, но не завершает ход.
     assert campaign.turn == before_turn
     assert campaign.actions_left == before_budget - 1
     assert screen.last_result

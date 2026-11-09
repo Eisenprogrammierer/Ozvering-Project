@@ -7,7 +7,12 @@ import pytest
 from campaign import logbook
 from campaign.clock import background_pause_reason
 from campaign.lod import CampaignLod, due_on_day, node_distances
-from campaign.world import WorldEngine, build_player_profile, load_biography, load_world
+from campaign.world import (
+    WorldEngine,
+    build_player_profile,
+    load_biography,
+    load_world,
+)
 
 
 def _variables():
@@ -52,11 +57,6 @@ def _entries():
         {"day": 3, "kind": "death", "text": "смерть"},
         {"day": 3, "kind": "day", "text": "итог дня"},
     ]
-
-
-# ---------------------------------------------------------------------------
-# §7.5 №32 и §7.7 №41: важность, фильтры, сводка, сжатие, пауза
-# ---------------------------------------------------------------------------
 
 
 def test_severity_and_config_rules_are_data_driven():
@@ -123,9 +123,7 @@ def test_compact_bounds_log_but_keeps_critical_and_recent():
     assert len(kept) <= 6
     assert removed == len(entries) - len(kept)
     assert any(item["kind"] == "death" for item in kept)
-    # Недавние дни сохраняются целиком.
     assert any(item["day"] == 40 for item in kept)
-    # Порядок остаётся хронологическим.
     days = [item["day"] for item in kept]
     assert days == sorted(days)
 
@@ -133,10 +131,8 @@ def test_compact_bounds_log_but_keeps_critical_and_recent():
 def test_pause_reason_uses_only_current_day_and_can_be_extended():
     entries = _entries()
     assert logbook.pause_reason(entries, day=3) == "dead"
-    # Более позднее событие дня имеет приоритет.
     entries.append({"day": 3, "kind": "ending", "text": "финал"})
     assert logbook.pause_reason(entries, day=3) == "finished"
-    # Старая смерть не держит паузу вечно.
     assert logbook.pause_reason(entries, day=4) == ""
     rules = logbook.rules_from_config(
         {"pause": {"obligation": "obligation_due"}}
@@ -144,11 +140,6 @@ def test_pause_reason_uses_only_current_day_and_can_be_extended():
     assert logbook.pause_reason(entries, day=2, rules=rules) == (
         "obligation_due"
     )
-
-
-# ---------------------------------------------------------------------------
-# Интеграция журнала с миром и часами
-# ---------------------------------------------------------------------------
 
 
 def test_world_log_view_is_derived_and_raw_log_stays_plain():
@@ -216,11 +207,6 @@ def test_log_compaction_runs_on_day_edge_and_survives_snapshot():
     assert restored.tick_stats["ticks"] == 0
 
 
-# ---------------------------------------------------------------------------
-# §7.7 №39–40: LOD, расписание и стоимость тика
-# ---------------------------------------------------------------------------
-
-
 def test_lod_distances_and_tiers_follow_hierarchy():
     nodes = {
         "root": {"parent": "", "children": ["child"]},
@@ -254,7 +240,6 @@ def test_lod_due_schedule_is_deterministic_and_off_by_default():
     assert due_on_day("node", 1, 1) is True
     first = due_on_day("node", 5, 3)
     assert due_on_day("node", 5, 3) is first
-    # Выключенный LOD не меняет поведение: все узлы ходят каждый день.
     lod = CampaignLod({"root": {}}, "root", {})
     assert lod.config["enabled"] is False
     assert lod.due("root", 1) is True

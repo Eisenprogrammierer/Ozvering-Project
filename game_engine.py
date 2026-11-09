@@ -2341,8 +2341,6 @@ def main():
             checkpoints_dir = sys.argv[index + 1]
         LOG.info("main(): checkpoints_dir=%r" % checkpoints_dir)
     if "--list-checkpoints" in sys.argv:
-        # Список печатается до инициализации pygame: команда должна работать
-        # в headless-окружении и не открывать окно.
         rows = list_checkpoints(directory=checkpoints_dir or None)
         if not rows:
             print("Чекпойнтов не найдено.")
@@ -2350,8 +2348,6 @@ def main():
             print("%-8s %s" % (row["kind"], row["path"]))
         return 0
     if not checkpoint and "--no-auto-checkpoint" not in sys.argv:
-        # Автопоиск production-чекпойнта (P2): явный `--checkpoint` важнее,
-        # `--no-auto-checkpoint` возвращает прежнее поведение «всегда BDI».
         checkpoint = find_checkpoint(directory=checkpoints_dir or None)
         if checkpoint:
             LOG.info("main(): автопоиск чекпойнта → %s" % checkpoint)

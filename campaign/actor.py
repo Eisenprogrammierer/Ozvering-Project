@@ -20,17 +20,8 @@ from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
 from core41.model import WOUND_MAX, success_probability
 from core41.types import Work
 
-# Ёмкость дневной энергии. Значение не обязано совпадать с `max_energy`
-# арены: важен единый тип шкалы `E`, а не абсолютные единицы.
 CAMPAIGN_ENERGY_MAX = 100.0
-# Устойчивая рана кампании — то же состояние `wound`, что на арене
-# (открытый пункт «устойчивые раны с отдельным состоянием/лечением»):
-# болезнь медленно прогрессирует и бьёт по работе, рана же получает
-# прямой урон `H`, мешает восстановлению и лечится отдельным действием.
 CAMPAIGN_WOUND_MAX = WOUND_MAX
-# Вес ядровой вероятности в итоговом шансе кампанийного действия. База
-# остаётся авторской (конфиг мира), но `F`/навык/болезнь/сопротивление
-# цели дают сдвиг через ту же `success_probability`, что и на арене.
 CAMPAIGN_CORE_CHANCE_WEIGHT = 0.30
 
 
@@ -84,7 +75,6 @@ class CampaignActor:
         self.actions_per_day = max(1, int(actions_per_day))
         self.unit = Automaton(
             id="player",
-            # `standing` — политическая сила позиции в [0, 1].
             force=_clamp(standing),
             max_force=1.0,
             energy=_clamp(energy, 0.0, CAMPAIGN_ENERGY_MAX),
@@ -96,13 +86,8 @@ class CampaignActor:
             inputs=("force", "info", "care"),
             outputs=("force", "info"),
             skills={"force": 0.6, "info": 0.4},
-            # `standing` — и политическая сила позиции, и полномочия:
-            # `success_probability` использует authority, поэтому F
-            # участвует в шансе действия, а не только в отображении.
             authority=_clamp(standing),
         )
-
-    # -- E -----------------------------------------------------------------
 
     @property
     def energy(self):
@@ -172,8 +157,6 @@ class CampaignActor:
         """Новый день: энергия действий восстанавливается полностью."""
         self.unit.energy = self.unit.max_energy
 
-    # -- F / H -------------------------------------------------------------
-
     @property
     def force(self):
         return float(self.unit.force)
@@ -242,8 +225,6 @@ class CampaignActor:
     def work_effectiveness(self):
         return self.unit.work_effectiveness()
 
-    # -- Персистентность ---------------------------------------------------
-
     def state_dict(self):
         return {
             "actions_per_day": self.actions_per_day,
@@ -268,8 +249,6 @@ class CampaignActor:
             self.health = state["health"]
         if "sickness" in state:
             self.sickness = state["sickness"]
-        # Старые сейвы без `wound` получают 0.0 — рана введена позже,
-        # и её отсутствие в снимке не должно ломать загрузку.
         if "wound" in state:
             self.wound = state["wound"]
         if "force" in state:

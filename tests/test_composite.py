@@ -37,13 +37,11 @@ def test_child_validation_rejects_duplicates_self_cycles_and_depth():
     with pytest.raises(ValueError):
         root.add_child(Automaton(id=""))
 
-    # A cannot contain root: root already contains A, so this is a cycle.
     with pytest.raises(ValueError):
         child_comp = CompositeAutomaton(id="child_comp")
         root.add_child(child_comp)
         child_comp.add_child(root)
 
-    # Re-parenting detaches from the old parent instead of duplicating.
     other = CompositeAutomaton(id="other")
     other.add_child(child)
     assert "child" not in root.children
@@ -106,7 +104,6 @@ def test_aggregate_capacity_is_additive_and_ratios_are_weighted():
     assert state["energy"] == pytest.approx(150.0)
     assert state["max_energy"] == pytest.approx(300.0)
     assert state["energy_ratio"] == pytest.approx(0.5)
-    # Health — качество: взвешенное среднее по структурной массе, не сумма.
     assert state["health_ratio"] == pytest.approx(2.0 / 3.0)
     assert state["health"] == pytest.approx(200.0 / 3.0)
     assert state["parts"] == 4
@@ -245,7 +242,6 @@ def test_receive_prefers_shell_handler_then_children_then_shell():
     assert root.receive(Work(amount=1.0, form="info"))["custom"] == "shell"
     assert calls[-1] == ("shell", 1.0)
 
-    # Без обработчиков оболочка сама принимает работу, если детей нет.
     empty = CompositeAutomaton(id="empty")
     assert empty.receive(Work(amount=1.0, form="info"))["accepted"] is True
 
@@ -286,7 +282,6 @@ def test_composite_state_roundtrip_restores_children_and_keeps_handlers():
     assert a.sickness == pytest.approx(0.2)
     assert a.wound == pytest.approx(0.3)
     assert b.energy == pytest.approx(2.0)
-    # Обработчик — runtime-функция, а не состояние: он остаётся на месте.
     assert a.receive(Work(amount=1.0, form="info"))["accepted"] is True
     assert calls == [1.0]
 

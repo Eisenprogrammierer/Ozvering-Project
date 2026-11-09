@@ -41,9 +41,6 @@ VALUE_IDS = (
     "mercy",
 )
 
-# Метки по умолчанию. Контент может переопределить их через
-# `identity.json`/`biography.json`, но старые снимки и тестовые миры
-# должны работать без дополнительной загрузки.
 VALUE_LABELS = {
     "order": "Порядок",
     "freedom": "Свобода",
@@ -58,9 +55,6 @@ LABEL_TO_ID = {
     label.lower(): value_id for value_id, label in VALUE_LABELS.items()
 }
 
-# Первая выбранная ценность — главная; вторая и последующие — поддерживающие.
-# Сила, а не просто факт выбора: контент задаёт порог, ниже которого
-# «жёсткий» запрет не срабатывает.
 VALUE_PRIMARY_STRENGTH = 1.0
 VALUE_SECONDARY_STRENGTH = 0.7
 DEFAULT_FORBID_THRESHOLD = 0.7
@@ -156,7 +150,7 @@ def profile_value_ids(profile):
 
 
 def value_strengths(profile, rules=None):
-    """Сила каждой ценности профиля: главная, поддерживающие или явная карта."""
+    """Сила ценностей: главная, поддерживающие или явная карта."""
     profile = profile if isinstance(profile, dict) else {}
     rules = rules or value_rules()
     explicit = profile.get("value_strength")

@@ -8,8 +8,6 @@ from .log_journal import get_logger
 logger = get_logger("view.save")
 ROOT = Path(__file__).resolve().parents[2]
 SAVES_DIR = ROOT / "saves" / "campaign"
-# Версия формата сохранения. Миграции аддитивны: старый снимок получает
-# недостающие ветки состояния, а неизвестные поля сохраняются как есть.
 SAVE_VERSION = 2
 
 

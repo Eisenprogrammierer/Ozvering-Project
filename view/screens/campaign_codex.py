@@ -62,9 +62,6 @@ class CampaignCodexScreen(BaseScreen):
         self.all_automata = list(
             getattr(self.preset, "automata", ()) or ()
         )
-        # Автомат организации — контейнер, который дублирует одноимённый
-        # орган (например, «Имперская ставка»). В кодексе показываем
-        # фракции и органы: организация уже видна через свои органы.
         self.automata = [
             item
             for item in self.all_automata
@@ -112,9 +109,6 @@ class CampaignCodexScreen(BaseScreen):
             len(self.automata),
         )
 
-    # ------------------------------------------------------------------
-    # Данные и навигация
-    # ------------------------------------------------------------------
     @property
     def rows(self):
         return self.characters if self.tab == "characters" else self.automata
@@ -171,9 +165,6 @@ class CampaignCodexScreen(BaseScreen):
             text += " · %s" % owner
         return text
 
-    # ------------------------------------------------------------------
-    # Действия из кодекса
-    # ------------------------------------------------------------------
     def _player_side(self):
         return getattr(self.campaign, "player_side", None)
 
@@ -364,9 +355,6 @@ class CampaignCodexScreen(BaseScreen):
         )
         return result
 
-    # ------------------------------------------------------------------
-    # Ввод
-    # ------------------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.MOUSEWHEEL:
             pos = pygame.mouse.get_pos()
@@ -411,9 +399,6 @@ class CampaignCodexScreen(BaseScreen):
         elif index >= start + visible:
             self.scroll[self.tab] = index - visible + 1
 
-    # ------------------------------------------------------------------
-    # Отрисовка
-    # ------------------------------------------------------------------
     def _draw_tabs(self, screen):
         for button in self.tab_buttons:
             active = (

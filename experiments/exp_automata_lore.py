@@ -47,7 +47,9 @@ STARVATION = 0.05
 def _preset(template_id, seed, horizon):
     generator = CampaignPresetGenerator(
         catalog=RoleCatalog.load(ROOT / "configs" / "roles"),
-        template_path=ROOT / "configs" / "campaigns" / ("%s.json" % template_id),
+        template_path=(
+            ROOT / "configs" / "campaigns" / ("%s.json" % template_id)
+        ),
     )
     preset = generator.generate(seed=seed)
     if horizon != preset.scenario.get("turns"):
@@ -142,12 +144,16 @@ def _anomalies(campaign, rows, works, repeats):
         saturated = sum(
             1
             for row in warm
-            if row["value"] >= SATURATION_HIGH or row["value"] <= SATURATION_LOW
+            if (
+                row["value"] >= SATURATION_HIGH
+                or row["value"] <= SATURATION_LOW
+            )
         )
         share = saturated / float(len(warm))
         if share > 0.55:
             found.append(
-                "насыщение активов: %.1f%% измерений у границ [0,1] после хода %d"
+                "насыщение активов: %.1f%% измерений "
+                "у границ [0,1] после хода %d"
                 % (100.0 * share, WARMUP)
             )
     final = campaign.snapshot()["factions"]
@@ -167,7 +173,11 @@ def _anomalies(campaign, rows, works, repeats):
         )
     for side, assets in by_side.items():
         for asset in ("legitimacy", "cohesion"):
-            values = [value for turn, value in assets.get(asset, ()) if turn >= WARMUP]
+            values = [
+                value
+                for turn, value in assets.get(asset, ())
+                if turn >= WARMUP
+            ]
             if values and min(values) > 0.55:
                 found.append(
                     "%s.%s не опускается ниже %.3f после хода %d: "
@@ -181,7 +191,8 @@ def _anomalies(campaign, rows, works, repeats):
         )
     elif campaign.outcome == "stalemate":
         found.append(
-            "исход=stalemate на ходе %d: модель не доводит конфликт до победы/поражения"
+            "исход=stalemate на ходе %d: модель не доводит "
+            "конфликт до победы/поражения"
             % campaign.turn
         )
 
@@ -202,7 +213,8 @@ def _anomalies(campaign, rows, works, repeats):
     for (side, action_id), count in repeats.items():
         if count >= 4:
             found.append(
-                "%s: «%s» повторяется %d раз подряд — контур без обратной связи"
+                "%s: «%s» повторяется %d раз подряд — "
+                "контур без обратной связи"
                 % (side, action_id, count + 1)
             )
 
@@ -230,7 +242,8 @@ def _anomalies(campaign, rows, works, repeats):
         if len(values) > 1 and max(values) - min(values) < 1e-6:
             if values[0] >= 0.999:
                 found.append(
-                    "%s: willing_share постоянно %.3f — организация не реагирует"
+                    "%s: willing_share постоянно %.3f — "
+                    "организация не реагирует"
                     % (side, values[0])
                 )
         if len(active[side]) > 1 and len(set(active[side])) == 1:

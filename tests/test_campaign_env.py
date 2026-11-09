@@ -48,11 +48,6 @@ def _run_random(env, rng, limit=80):
     return steps, info
 
 
-# ---------------------------------------------------------------------------
-# Контракт среды
-# ---------------------------------------------------------------------------
-
-
 def test_campaign_env_reset_returns_flat_normalized_observation():
     env = CampaignEnv(seed=1, max_days=6)
     observation = env.reset(seed=1)
@@ -63,7 +58,6 @@ def test_campaign_env_reset_returns_flat_normalized_observation():
     assert observation.alive is True
     assert 0.0 <= observation.sickness <= 1.0
     assert observation.health == pytest.approx(100.0)
-    # Нормированные поля в [0, 1].
     for name in (
         "influence",
         "favor",
@@ -84,7 +78,6 @@ def test_campaign_env_legal_actions_always_include_end_day():
     kinds = {action.kind for action in actions}
     assert END_DAY in kinds
     assert env.action_space == actions
-    # Career-действия исключены из MVP (вопрос №29).
     career_ids = {
         action_id
         for action_id, action in env.engine.actions.items()
@@ -102,7 +95,6 @@ def test_campaign_env_career_actions_are_opt_in():
 
     env = CampaignEnv(seed=2, max_days=5, career_actions=True)
     kinds = {action.kind for action in env.legal_actions()}
-    # request_transfer доступен с первого дня (standing >= 0.25).
     assert "request_transfer" in kinds
     assert END_DAY in kinds
 
@@ -199,8 +191,6 @@ def test_campaign_env_truncates_at_horizon_without_outcome():
 def test_campaign_env_step_after_finish_raises():
     env = CampaignEnv(seed=2, max_days=3)
     env.reset(seed=2)
-    # Детерминированная смерть героя: терминальный шаг не зависит от
-    # перебора сидов и новых правил распада/увольнения (§7 №28–29).
     env.engine.player_health = 1.0
     env.engine.infect_player(1.0)
     _obs, _reward, done, _truncated, _info = env.step(CampaignAction(END_DAY))
@@ -233,11 +223,6 @@ def test_campaign_env_illegal_action_penalizes_without_exception():
     assert not done or env.engine.finished
 
 
-# ---------------------------------------------------------------------------
-# Награда
-# ---------------------------------------------------------------------------
-
-
 def test_campaign_reward_composition_matches_formula():
     before = {
         "standing": 0.20,
@@ -255,21 +240,17 @@ def test_campaign_reward_composition_matches_formula():
         "sickness": 0.20,
         "wound": 0.0,
     }
-    # 0.5*0.2 + 0.25*0.1 - 0.1 - 0.2 = -0.175
     assert campaign_reward(before, after) == pytest.approx(-0.175)
-    # успех даёт малый shaping, терминал — исход сюжета
     assert campaign_reward(before, after, success=True) == pytest.approx(
         -0.175 + 0.10
     )
     assert campaign_reward(
         before, after, outcome_delta=terminal_campaign_reward("win")
     ) == pytest.approx(-0.175 + 1.0)
-    # Устойчивая рана: прирост на 0.25 стоит CAMPAIGN_REWARD_WOUND*0.25.
     wounded = dict(after, wound=0.25)
     assert campaign_reward(before, wounded) == pytest.approx(
         -0.175 - 0.8 * 0.25
     )
-    # Лечение раны (уменьшение) возвращает штраф — знак симметричный болезни.
     assert campaign_reward(dict(before, wound=0.25), after) == pytest.approx(
         -0.175 + 0.8 * 0.25
     )
@@ -283,10 +264,6 @@ def test_terminal_campaign_reward_maps_outcomes():
 
 
 def test_campaign_env_terminal_step_carries_outcome_bonus():
-    # Терминальный шаг (смерть героя) должен нести outcome_bonus. Раньше
-    # тест перебирал сиды в поисках естественного финала; после §7 №29–30
-    # увольнение и горизонт больше не терминальны, поэтому сценарий смерти
-    # задаётся детерминированно.
     env = CampaignEnv(seed=7, max_days=30)
     env.reset(seed=7)
     env.engine.player_health = 1.0
@@ -300,8 +277,6 @@ def test_campaign_env_terminal_step_carries_outcome_bonus():
 
 
 def test_campaign_env_horizon_truncates_without_outcome_bonus():
-    # Горизонт max_days без естественного финала — усечение (truncated),
-    # а не поражение; терминальный бонус на таком шаге отсутствует (№30).
     env = CampaignEnv(seed=7, max_days=2)
     env.reset(seed=7)
     last = None
@@ -317,11 +292,6 @@ def test_campaign_env_horizon_truncates_without_outcome_bonus():
     assert info["outcome_delta"] == 0.0
 
 
-# ---------------------------------------------------------------------------
-# Персистентность
-# ---------------------------------------------------------------------------
-
-
 def test_campaign_env_state_dict_round_trip_restores_progress():
     env = CampaignEnv(seed=3, max_days=8)
     env.reset(seed=3)
@@ -330,18 +300,13 @@ def test_campaign_env_state_dict_round_trip_restores_progress():
     state = env.state_dict()
     assert state["kind"] == "campaign_env"
     assert state["version"] == 1
-    assert json.dumps(state)  # сериализуется в JSON без правок
+    assert json.dumps(state)
 
     restored = CampaignEnv(seed=99, max_days=99)
     observation = restored.load_state_dict(state)
     assert restored.engine.day == day_before == observation.day
     assert restored.seed == 3
     assert restored.max_days == 8
-
-
-# ---------------------------------------------------------------------------
-# Политики на кампанейном срезе
-# ---------------------------------------------------------------------------
 
 
 def test_campaign_features_vector_shape_and_flags():
@@ -362,23 +327,15 @@ def test_campaign_features_vector_shape_and_flags():
         observation, CampaignAction("inspect", target="n")
     )
     heal = campaign_features(observation, CampaignAction("build_network"))
-    # A1: длина кампанейного вектора выровнена с FEATURE_COUNT (22;
-    # 22-й слот — окно среды, у кампании всегда 0.0).
     assert len(end_day) == len(work) == len(heal) == 22
-    # Флаги действия: slot7 END_DAY, slot8 работа (с целью), slot17 self-ход.
     assert (end_day[7], end_day[8], end_day[17]) == (1.0, 0.0, 0.0)
     assert (work[7], work[8], work[17]) == (0.0, 1.0, 0.0)
     assert (heal[7], heal[8], heal[17]) == (0.0, 0.0, 1.0)
-    # 19-й слот различает действия с одинаковыми флагами: без него
-    # `inspect` и `build_network` давали бы один и тот же вектор.
     assert work[18] != heal[18]
-    # 20-й слот — устойчивая рана героя (общее состояние с ареной);
-    # без ран он нулевой, 21-й остаётся нейтральной константой среды.
     assert (work[19], work[20]) == (0.0, 1.0)
     wounded_observation = replace(observation, wound=0.4)
     wounded = campaign_features(wounded_observation, CampaignAction(END_DAY))
     assert wounded[19] == pytest.approx(0.4)
-    # Все признаки нормированы к [0, 1].
     assert all(-1e-9 <= value <= 1.0 + 1e-9 for value in work)
 
 
@@ -422,7 +379,6 @@ def test_bdi_campaign_prefers_work_while_actions_remain():
     chosen = policy.act(observation, actions, explore=False)
 
     assert chosen.kind == "inspect"
-    # Аренные веса не переписаны кампанейским приором.
     assert policy.campaign_weights != policy.weights
 
 
@@ -459,8 +415,6 @@ def test_bdi_campaign_weights_round_trip_and_legacy_checkpoint():
         policy.campaign_weights
     )
 
-    # Старый чекпойнт без кампанейских весов получает приор поверх
-    # сохранённых аренных.
     legacy = dict(state)
     legacy.pop("campaign_weights")
     restored = BDIPolicy(seed=4)
@@ -479,10 +433,6 @@ def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
     key = campaign_table.key(observation, action)
     assert len(key) == 12
     assert key[9] == END_DAY
-    # Кампанейная таблица не смешивается с ареной: аренный ключ строится
-    # из энергетических разрядов дуэли (self_force/self_energy/...), а
-    # кампанейный — из нормированных дневных признаков; поля action.kind
-    # при этом различаются ("END_DAY" против "build_network").
     arena_obs = Observation(
         self_force=50.0,
         self_energy=40.0,
@@ -499,14 +449,11 @@ def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
         opponent_health=60.0,
     )
     arena_key = arena_table.key(arena_obs, Action("WORK", form="force"))
-    # campaign-объект с тем же действием даёт другой ключ: таблицы не
-    # смешиваются даже при совпадении action.kind.
     campaign_same_action = campaign_table.key(
         observation, Action("WORK", form="force")
     )
     assert campaign_same_action != arena_key
     assert key[9] == END_DAY and arena_key[9] == "WORK"
-    # Флаг среза сохраняется в чекпойнте и возвращается при загрузке.
     path = tmp_path / "qtable-campaign.json"
     state = campaign_table.state_dict()
     assert state["campaign"] is True
@@ -516,11 +463,6 @@ def test_qtable_campaign_flag_keeps_tables_separate(tmp_path):
     with open(path, encoding="utf-8") as handle:
         loaded.load_state_dict(json.load(handle))
     assert loaded.campaign is True
-
-
-# ---------------------------------------------------------------------------
-# Цикл обучения (single-agent episode)
-# ---------------------------------------------------------------------------
 
 
 def test_train_campaign_single_agent_no_self_play():
@@ -549,8 +491,6 @@ def test_evaluate_campaign_ignores_opponent_and_counts_outcomes():
     )
     assert result["env"] == "campaign"
     assert result["episodes"] == 2
-    # draw в кампании = усечение горизонта (§7 №30), не поражение:
-    # исходы всегда разбивают эпизоды на wins/losses/draws.
     assert result["wins"] + result["losses"] + result["draws"] == 2
     assert result["draws"] >= 0
 
@@ -576,7 +516,6 @@ def test_campaign_observation_separates_dismissal_from_defeat():
     env.reset(seed=7)
     env.engine._dismiss("тестовая смена роли", auto_reassign=False)
     observation = env.observe()
-    # §7 №29: вне службы — не поражение; наблюдение различает флаги.
     assert observation.attached is False
     assert observation.dismissed is True
     assert observation.finished is False
@@ -604,8 +543,6 @@ def test_train_campaign_has_held_out_world_eval():
         env_name="campaign",
         eval_episodes=2,
     )
-    # Кампания — один агент: матрица вырождается в одну строку «политика
-    # против мира», но контракт held-out оценки сохраняется.
     assert len(stats["eval"]) == 1
     row = stats["eval"][0]
     assert row["policy"] == "bdi"
@@ -634,7 +571,6 @@ def test_campaign_env_attaches_to_live_engine_without_rebuilding():
     env = CampaignEnv(engine=engine, max_days=5)
     assert env.engine is engine
     assert env.observe().day == day_before
-    # Среда не создаёт второй мир: шаг меняет тот же движок.
     observation, _reward, _done, _truncated, info = env.advance(
         BDIPolicy(seed=3), explore=False
     )
@@ -655,11 +591,6 @@ def test_campaign_env_attach_reuses_engine_after_reset():
     )
 
 
-# ---------------------------------------------------------------------------
-# Устойчивые раны в кампании (§7: рана — отдельное состояние, не болезнь)
-# ---------------------------------------------------------------------------
-
-
 def test_campaign_env_treat_wound_is_legal_only_when_wounded():
     env = CampaignEnv(seed=5, max_days=5)
     env.reset(seed=5)
@@ -668,8 +599,6 @@ def test_campaign_env_treat_wound_is_legal_only_when_wounded():
     env.engine.player_wound = 0.3
     kinds = [action.kind for action in env.legal_actions()]
     assert TREAT_WOUND in kinds
-    # Здоровье без ран: TREAT_SELF не обязан быть доступен —
-    # действия разделены.
     assert TREAT_SELF not in kinds
 
 
@@ -685,10 +614,8 @@ def test_campaign_env_treat_wound_step_reduces_wound_not_sickness():
     result = info["result"]
     assert result["ok"] and result["action"] == TREAT_WOUND
     assert env.engine.player_wound == pytest.approx(0.15)
-    # Рана лечится отдельно: болезнь не тронута одним и тем же шагом.
     assert env.engine.player_sickness == pytest.approx(0.2)
     assert env.engine.actions_left == actions_left - 1
-    # Снижение раны возвращает штраф прошлых шагов: награда положительна.
     assert reward > 0.0
 
 
@@ -701,7 +628,6 @@ def test_campaign_env_observe_exposes_wound_and_reward_penalises_injury():
     after = env._metrics()
     assert after["wound"] == pytest.approx(0.3)
     penalty = campaign_reward(before, after)
-    # Только рана (без других дельт) стоит CAMPAIGN_REWARD_WOUND * 0.3.
     assert penalty < 0.0
     observation = env.observe()
     assert observation.wound == pytest.approx(0.3)

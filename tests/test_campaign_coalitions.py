@@ -73,11 +73,6 @@ def _join(engine, left, right, value=0.9):
     engine.set_relation_axes(right, left, axes)
 
 
-# ---------------------------------------------------------------------------
-# Чистая модель: пара, формирование, распад, персистентность
-# ---------------------------------------------------------------------------
-
-
 def test_pair_score_is_symmetric_bounded_and_obligation_aware():
     left = {"affinity": 0.8, "trust": 0.6}
     right = {"affinity": 0.6, "trust": 0.8}
@@ -106,7 +101,6 @@ def test_coalition_forms_after_pressure_and_dissolves_after_decay():
     assert book.active()[0].members == ("a", "b")
     assert book.active()[0].strength == pytest.approx(0.8)
 
-    # Первый слабый день — только давление распада.
     assert book.update(3, {("a", "b"): 0.0}, eligible, rules) == []
     events = book.update(4, {("a", "b"): 0.0}, eligible, rules)
     assert len(events) == 1
@@ -155,11 +149,6 @@ def test_coalition_roundtrip_and_deterministic_order():
 
     restored = CoalitionBook().load(first.to_dict())
     assert restored.to_dict() == first.to_dict()
-
-
-# ---------------------------------------------------------------------------
-# Интеграция с миром: opt-in, журнал, распад и снимок
-# ---------------------------------------------------------------------------
 
 
 def test_coalitions_are_off_by_default_and_do_not_touch_log():

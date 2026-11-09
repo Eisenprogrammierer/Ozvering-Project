@@ -128,9 +128,6 @@ def test_every_scene_draws(app, name):
     _frame(app)
 
 
-# --- B2: onboarding («Как играть») и единая точка входа -------------------
-
-
 def _click_widget(scene, index=0):
     """Клик ЛКМ по виджету сцены (Button) — DOWN+UP в центр rect."""
     import pygame
@@ -155,9 +152,9 @@ def test_help_scene_registered_and_navigable(app):
     app.go("help")
     cur = app.manager.current
     assert cur.name == "help"
-    assert len(cur.lines) >= 8  # режимы + управление описаны
+    assert len(cur.lines) >= 8
     _frame(app)
-    _click_widget(cur, 0)  # кнопка «Назад»
+    _click_widget(cur, 0)
     assert app.manager.current.name == "menu"
 
 

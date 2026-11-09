@@ -55,8 +55,6 @@ def test_projection_registry_explains_every_legacy_scale():
         assert entry["note"] in describe_projection(name)
     assert projection("unknown") is None
     assert describe_projection("unknown") == "unknown"
-    # Старые имена не образуют второй бюджет: influence/favor/evidence
-    # описаны как состояния/права/обязательства, а не как E.
     for name in ("influence", "favor", "evidence"):
         assert PROJECTIONS[name]["core"] != "E"
 
@@ -101,7 +99,6 @@ def test_player_projection_view_keeps_core_and_legacy_in_sync():
     for key in ("standing", "actions_left", "health"):
         assert key in view["notes"]
         assert "→" in view["notes"][key]
-    # Вид стабилен по ключам: UI может кэшировать порядок.
     assert list(view) == ["core", "legacy", "notes"]
 
 

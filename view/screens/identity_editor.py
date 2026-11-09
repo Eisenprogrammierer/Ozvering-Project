@@ -73,8 +73,6 @@ class IdentityEditorScreen(BaseScreen):
         try:
             self.catalog = load_identity_catalog()
         except IdentityError as exc:
-            # Без файла личности экран остаётся читаемым и не роняет
-            # кампанию: показываем причину и позволяем вернуться назад.
             logger.error("Личность недоступна: %s", exc)
             self.catalog = None
             self.message = str(exc)
@@ -140,9 +138,6 @@ class IdentityEditorScreen(BaseScreen):
             len(self.catalog.origins) if self.catalog else 0,
         )
 
-    # ------------------------------------------------------------------
-    # Варианты
-    # ------------------------------------------------------------------
     def _ids(self, section):
         if self.catalog is None:
             return ()
@@ -229,9 +224,6 @@ class IdentityEditorScreen(BaseScreen):
         self.random_name()
         self.message = ""
 
-    # ------------------------------------------------------------------
-    # Сборка и запуск
-    # ------------------------------------------------------------------
     def build_identity(self):
         if self.catalog is None:
             return {}
@@ -267,9 +259,6 @@ class IdentityEditorScreen(BaseScreen):
             player_identity=identity,
         )
 
-    # ------------------------------------------------------------------
-    # Ввод
-    # ------------------------------------------------------------------
     def _category_rect(self, index):
         return pygame.Rect(
             CATEGORY_RECT.x,
@@ -308,9 +297,6 @@ class IdentityEditorScreen(BaseScreen):
             if button.handle_event(event):
                 return
 
-    # ------------------------------------------------------------------
-    # Отрисовка
-    # ------------------------------------------------------------------
     def _draw_name(self, screen):
         label = self.app.font_small.render("Имя героя", True, MUTED)
         screen.blit(label, (70, NAME_RECT.y + 12))
@@ -343,7 +329,10 @@ class IdentityEditorScreen(BaseScreen):
                 ),
             )
         if self.name_focus and (pygame.time.get_ticks() // 500) % 2 == 0:
-            width = min(self.app.font_body.size(self.name)[0], NAME_RECT.width - 28)
+            width = min(
+                self.app.font_body.size(self.name)[0],
+                NAME_RECT.width - 28,
+            )
             x = NAME_RECT.x + 12 + width + 2
             pygame.draw.line(
                 screen,

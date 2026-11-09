@@ -49,14 +49,12 @@ def test_clock_reports_intraday_slot_within_day():
 
     clock = CampaignClock(seconds_per_day=40)
     assert clock.slot == 0
-    # Четверть суток — первый внутридневной слот, три четверти — последний.
     assert clock.advance(10) == 0
     assert clock.slot == 1
     assert clock.advance(10) == 0
     assert clock.slot == 2
     assert clock.advance(10) == 0
     assert clock.slot == SLOTS_MAX
-    # Полные сутки сбрасывают аккумулятор и возвращают границу дня.
     assert clock.advance(10) == 1
     assert clock.slot == 0
     clock.pause()
