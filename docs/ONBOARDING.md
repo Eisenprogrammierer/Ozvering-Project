@@ -113,6 +113,13 @@ venv/bin/python main.py
 `--checkpoints-dir` пробрасываются выбранному приложению.
 `--list-checkpoints` печатает список и не открывает окно.
 
+`-m` принимает имя модуля через точку, а не путь: `python3 -m campaign/world`
+и `python3 -m core41/arena` — синтаксически неверные команды. Модули
+`campaign.world` и `core41.arena` библиотечные, поэтому корректные
+`python3 -m campaign.world`/`-m core41.arena` только печатают подсказку.
+Игра запускается через `main.py --view`/`--arena`, а справка и демо ядра —
+через `python3 -m core41` и `python3 -m core41 --demo`.
+
 ---
 
 ## 2. Навигатор: потребность → маршрут

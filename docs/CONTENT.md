@@ -396,6 +396,14 @@ if storylines:
 запуске файлом Python не видит пакет `core41`. Из кода используйте
 `from campaign.world import WorldEngine, load_world`.
 
+Флаг `-m` принимает имя модуля через точку, а не путь. Поэтому
+`python3 -m campaign/world` — ошибка (`No module named campaign/world`), а
+`python3 -m campaign.world` — корректная форма, но она лишь печатает
+подсказку: это библиотека, а не игра. То же для `core41/arena.py`:
+`python3 -m core41/arena` ошибочно, `python3 -m core41.arena` печатает
+подсказку, запуск арены — `python3 main.py --arena`. Краткая справка и демо
+ядра: `python3 -m core41` и `python3 -m core41 --demo`.
+
 Если какого-то контента нет, загрузчики ведут себя предсказуемо:
 `list_worlds()`/`list_storylines()` возвращают пустой список, а
 `RoleCatalog` поднимает `RoleError`. UI это переживает: меню открывается,

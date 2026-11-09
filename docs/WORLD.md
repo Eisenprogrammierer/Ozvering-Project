@@ -29,6 +29,14 @@
   кладёт в `sys.path` каталог `campaign/`, и пакетные импорты `core41`/`campaign`
   не находятся. Для доступа из кода используйте `from campaign.world import
   WorldEngine, load_world`.
+* **Нотация `-m` — это имя модуля через точку, а не путь.** Команда
+  `python3 -m campaign/world` завершится ошибкой
+  `No module named campaign/world`: слэш разделяет каталоги, а `-m` ждёт
+  `campaign.world`. Правильная библиотечная форма
+  `python3 -m campaign.world` печатает подсказку о запуске игры, потому что
+  это модуль, а не CLI. Аналогично `python3 -m core41/arena` — ошибка, а
+  `python3 -m core41.arena` — подсказка; для самой арены используйте
+  `python3 main.py --arena`.
 * Экран мира — представление над `campaign/world.py`. Данные мира лежат в
   JSON, проверка действий и ход мира — в чистом Python.
 

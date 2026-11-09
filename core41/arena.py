@@ -1624,3 +1624,11 @@ __all__ = [
     "work_amount",
     "work_duration",
 ]
+
+
+if __name__ == "__main__":
+    print("core41.arena — библиотечный модуль арены, а не точка входа.")
+    print("Запуск арены: python3 main.py --arena")
+    print("Демо ядра:    python3 -m core41 --demo")
+    print("Импорт:       from core41.arena import ArenaMatch")
+    raise SystemExit(0)

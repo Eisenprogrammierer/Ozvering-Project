@@ -6331,3 +6331,11 @@ __all__ = [
     "office_profile_status",
     "validate_world",
 ]
+
+
+if __name__ == "__main__":
+    print("campaign.world — библиотечный модуль мира, а не точка входа.")
+    print("Запуск игры: python3 main.py --view")
+    print("Пресеты:     python3 -m campaign --list-presets")
+    print("Импорт:      from campaign.world import WorldEngine, load_world")
+    raise SystemExit(0)

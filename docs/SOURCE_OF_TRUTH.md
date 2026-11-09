@@ -57,6 +57,13 @@
 | Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/` (пуст) · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
 | Играть на арене | арена | `game_engine.py`, `core41/arena.py` · `configs/content/` · `test_health.py`, `test_core41.py` · [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) |
 
+`-m` принимает имя модуля через точку, а не путь. `python3 -m campaign`
+запускает CLI ролей/пресетов, `python3 -m core41` показывает справку и демо
+ядра. Записи `python3 -m campaign/world` и `python3 -m core41/arena`
+синтаксически неверны; `campaign/world.py` и `core41/arena.py` — библиотеки,
+поэтому `python3 -m campaign.world`/`-m core41.arena` только печатают
+подсказку. Игра — `python3 main.py --view` или `python3 main.py --arena`.
+
 ### 0.3. Изменить бой, здоровье и арену
 
 | Потребность | Слой | Код · конфиги · тесты · документ |

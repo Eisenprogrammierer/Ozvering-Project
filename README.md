@@ -325,6 +325,15 @@ pytest -q                        # весь тестовый набор (см. �
 автоматически уходит в легаси-клиент. Отдельные точки входа тоже сохранены:
 `python3 -m ui` (легаси-игра), `python3 -m view` (кампания),
 `python3 -m automata` (редактор) и `python3 game_engine.py` (арена).
+
+`-m` принимает имя модуля через точку, а не путь. Записи
+`python3 -m campaign/world` и `python3 -m core41/arena` синтаксически
+неверны (Python ищет модуль с именем `campaign/world`). `campaign/world.py`
+и `core41/arena.py` — библиотечные модули: `python3 -m campaign.world` и
+`python3 -m core41.arena` печатают подсказку, а не запускают игру.
+Играть: `python3 main.py --view` (дневный мир) и
+`python3 main.py --arena` (арена); краткая справка и демо ядра —
+`python3 -m core41` и `python3 -m core41 --demo`.
 Кампанийный UI использует `warfare.py` только в легаси-сценариях; если
 такой сценарий добавлен, подробности — [`docs/CAMPAIGN_UI.md`](docs/CAMPAIGN_UI.md).
 Новая игра

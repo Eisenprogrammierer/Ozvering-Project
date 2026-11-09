@@ -39,6 +39,14 @@ python3 main.py --fullscreen     # полноэкранный режим
 (начальная болезнь), `--health-factors aging=1.5,illness=2`
 (множители здоровья).
 
+`-m` принимает имя модуля через точку, а не путь. Команды
+`python3 -m campaign/world` и `python3 -m core41/arena` завершаются ошибкой
+`No module named ...`: слэш — разделитель каталогов, а не пакетов.
+`campaign/world.py` и `core41/arena.py` — библиотеки, поэтому корректные
+`python3 -m campaign.world` и `python3 -m core41.arena` печатают подсказку.
+Запуск: `python3 main.py --view` (мир) и `python3 main.py --arena` (арена);
+справка и демо ядра — `python3 -m core41` и `python3 -m core41 --demo`.
+
 ### 1.2. Первые шаги в кампании
 
 1. В меню создайте героя по биографии или выберите готового.
