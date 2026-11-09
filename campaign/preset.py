@@ -2294,6 +2294,11 @@ def generate_preset(
     catalog=None,
     player_faction_id=None,
 ):
+    """Сгенерировать пресет кампании.
+
+    Дефолт `role_id="faction_leader"` сохранён для легаси-кода и старых
+    тестов. CLI передаёт `None`, чтобы выбрать первую доступную роль.
+    """
     generator = CampaignPresetGenerator(
         catalog=catalog, template=template, template_path=template_path
     )

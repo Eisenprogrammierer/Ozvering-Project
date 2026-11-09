@@ -138,8 +138,8 @@ def build_parser():
     )
     parser.add_argument(
         "--role",
-        default="faction_leader",
-        help="id роли (по умолчанию faction_leader)",
+        default=None,
+        help="id роли (по умолчанию первая доступная роль)",
     )
     parser.add_argument(
         "--seed",

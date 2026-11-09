@@ -904,6 +904,14 @@ def main(argv=None):
         ),
     )
     parser.add_argument(
+        "--world",
+        default=None,
+        help=(
+            "путь к JSON-миру для --env campaign; по умолчанию "
+            "configs/worlds/*.json"
+        ),
+    )
+    parser.add_argument(
         "--no-self-play",
         action="store_true",
         help="не обучать политику противника",
@@ -1128,6 +1136,10 @@ def main(argv=None):
         env_kwargs["reward_profile"] = args.reward_profile
     if args.env == "campaign" and args.campaign_career:
         env_kwargs["career_actions"] = True
+    if args.env == "campaign" and args.world:
+        from campaign.world import load_world
+
+        env_kwargs["config"] = load_world(args.world)
     train_kwargs = dict(
         episodes=args.episodes,
         policy_name=args.policy,

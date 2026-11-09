@@ -46,6 +46,7 @@ def _campaign_config(
     dismissal_standing=None,
     dismissal_legitimacy=None,
     collapse_grace=None,
+    world=None,
 ):
     """Собрать конфиг мира для калибровочного плеча.
 
@@ -54,7 +55,7 @@ def _campaign_config(
     `--deadline` задаёт сюжетный дедлайн, не трогая `days` (горизонт
     усечения).
     """
-    config = load_world()
+    config = load_world(world)
     config["days"] = max(1, int(days))
     if drift_scale is not None:
         config["organizational_drift_scale"] = max(
@@ -316,6 +317,13 @@ def main(argv=None):
         default=None,
         help="сколько дней подряд ниже порога до распада",
     )
+    parser.add_argument(
+        "--world",
+        default=None,
+        help=(
+            "путь к JSON-миру; по умолчанию configs/worlds/*.json"
+        ),
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -332,6 +340,7 @@ def main(argv=None):
         dismissal_standing=args.dismissal_standing,
         dismissal_legitimacy=args.dismissal_legitimacy,
         collapse_grace=args.collapse_grace,
+        world=args.world,
     )
     seeds = [args.eval_seed + index for index in range(max(1, args.seeds))]
     report = [

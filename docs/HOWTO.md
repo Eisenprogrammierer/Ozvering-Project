@@ -117,8 +117,13 @@ venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 
 ```bash
 venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
-    --policy bdi
+    --policy bdi \
+    --world tests/fixtures/content/configs/worlds/agora_world.json
 ```
+
+Флаг `--world` указывает JSON-мир. В поставке `configs/worlds/` пуст,
+поэтому без флага среда поднимает `WorldError`; тестовый мир на 43 узла
+лежит в `tests/fixtures/content/`.
 
 Кампанейские действия — `CampaignAction` (`END_DAY`, `TREAT_SELF` и обычные
 ходы `WorldEngine` по всем доступным адресатам). Награда — `campaign_reward()`
@@ -172,19 +177,23 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 
 ```bash
 venv/bin/python experiments/exp_campaign_calibration.py \
-    --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp
+    --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp \
+    --world tests/fixtures/content/configs/worlds/agora_world.json
 ```
 
-Плечи для тонкой калибровки:
+`--world` обязателен при пустом `configs/worlds/`: без него скрипт не найдёт
+мир. Плечи для тонкой калибровки:
 
 ```bash
 # жёсткий/мягкий дрейф и другой дедлайн
 venv/bin/python experiments/exp_campaign_calibration.py \
     --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp \
+    --world tests/fixtures/content/configs/worlds/agora_world.json \
     --drift-scale 0.5 --deadline 20
 # смена порогов карьеры/распада
 venv/bin/python experiments/exp_campaign_calibration.py \
     --seeds 20 --days 30 --policies bdi,qtable-campaign,mlp \
+    --world tests/fixtures/content/configs/worlds/agora_world.json \
     --dismissal-standing 0.02 --dismissal-legitimacy 0.04 \
     --collapse-grace 3
 ```

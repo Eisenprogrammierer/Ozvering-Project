@@ -1145,6 +1145,7 @@ class GameApp:
         self.L = L
 
         self.clock = SimulationClock(speed=speed, auto_pause=auto_pause)
+        self.frame_clock = pygame.time.Clock()
         self._critical_low = set()
         self._critical_sick = set()
         self.paused = True
@@ -2272,7 +2273,7 @@ class GameApp:
         running = True
         frame = 0
         while running:
-            dt = self.clock.tick(FPS) / 1000.0
+            dt = self.frame_clock.tick(FPS) / 1000.0
             frame += 1
             if frame == 1 or frame % 300 == 0:
                 LOG.debug(
@@ -2281,7 +2282,7 @@ class GameApp:
                     % (
                         frame,
                         dt * 1000,
-                        self.clock.get_fps(),
+                        self.frame_clock.get_fps(),
                         self.match.step,
                         self.paused,
                         self.manual_mode,

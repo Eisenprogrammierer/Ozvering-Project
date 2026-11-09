@@ -391,6 +391,11 @@ if storylines:
     assert load_storyline(storylines[0]["storyline_id"]) is not None
 ```
 
+`campaign/world.py` — библиотечный модуль. Запускайте игру через
+`venv/bin/python main.py --view`, а не `python3 campaign/world.py`: при
+запуске файлом Python не видит пакет `core41`. Из кода используйте
+`from campaign.world import WorldEngine, load_world`.
+
 Если какого-то контента нет, загрузчики ведут себя предсказуемо:
 `list_worlds()`/`list_storylines()` возвращают пустой список, а
 `RoleCatalog` поднимает `RoleError`. UI это переживает: меню открывается,

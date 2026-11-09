@@ -298,7 +298,8 @@ GUI существует и играется, но это **рабочий пе�
   арена;
 * `warfare.py` — войсковые автоматы;
 * `simulation.py` — легаси-канон, не активный игровой поток;
-* `campaign/world.py` — дневной мир должностного лица;
+* `campaign/world.py` — дневной мир должностного лица (библиотечный модуль;
+  запуск игры — `main.py --view`, не `python3 campaign/world.py`);
 * `campaign/automata.py` — кампания фракций-автоматов.
 
 Тесты-опоры: `test_core41.py`, `test_canon.py`, `test_warfare.py`,
@@ -441,9 +442,10 @@ venv/bin/python -m agents.train --episodes 500 --seed 0
 # дуэльный срез
 venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 
-# дневная кампания
+# дневная кампания (в поставке configs/worlds/ пуст, поэтому --world)
 venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
-  --policy bdi
+  --policy bdi \
+  --world tests/fixtures/content/configs/worlds/agora_world.json
 
 # с сохранением и held-out матрицей
 venv/bin/python -m agents.train --episodes 2000 --seed 0 \

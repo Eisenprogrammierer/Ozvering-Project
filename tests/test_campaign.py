@@ -506,6 +506,7 @@ def test_cli_lists_roles_and_generates_preset(tmp_path, capsys):
     assert out.exists()
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["preset_id"] == "test_skirmish_seed7"
+    assert data["role_id"] == "world_actor"
     assert data["player_faction_id"] == "faction_red"
 
 
