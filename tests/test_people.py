@@ -9,7 +9,9 @@ import pytest
 from naming.people import (
     PeopleError,
     PersonCatalog,
+    PersonCulture,
     PersonNameGenerator,
+    PersonPolicyCatalog,
 )
 
 
@@ -79,6 +81,102 @@ def test_generate_many_is_unique_deterministic_and_mixed(catalog):
     assert any(item.style == "real" for item in first)
     assert any(item.style == "fantasy" for item in first)
     assert all(item.full and not item.full.startswith(" ") for item in first)
+
+
+def test_policy_catalog_resolves_faction_and_storyline_aliases():
+    policies = PersonPolicyCatalog.load()
+    assert set(policies.ids()) == {
+        "empire",
+        "republic",
+        "cult",
+        "corporation",
+    }
+    for key in ("faction_empire", "empire_campaign", "empire"):
+        assert policies.get(key).id == "empire"
+    assert policies.resolve("unknown") is None
+
+
+def test_empire_policy_is_european_and_prefers_germanic(catalog):
+    generator = PersonNameGenerator(catalog, seed=5)
+    items = generator.generate_many(
+        600, policy="faction_empire", seed=17
+    )
+    european = {
+        "russian",
+        "germanic",
+        "nordic",
+        "anglo",
+        "french",
+        "italian",
+        "iberian",
+        "celtic",
+        "greek",
+    }
+    assert all(item.style == "real" for item in items)
+    assert all(item.culture in european for item in items)
+    assert all(item.epithet == "" for item in items)
+    counts = {}
+    for item in items:
+        counts[item.culture] = counts.get(item.culture, 0) + 1
+    other = {
+        culture: amount
+        for culture, amount in counts.items()
+        if culture != "germanic"
+    }
+    assert counts.get("germanic", 0) > max(other.values())
+
+
+def test_republic_and_corporation_allow_any_name_without_epithets(catalog):
+    generator = PersonNameGenerator(catalog, seed=9)
+    for policy in ("faction_republic", "faction_corporation"):
+        items = generator.generate_many(200, policy=policy, seed=23)
+        assert all(item.epithet == "" for item in items)
+        assert all("{epithet}" not in item.full for item in items)
+        assert any(item.style == "real" for item in items)
+        assert any(item.style == "fantasy" for item in items)
+
+
+def test_cult_policy_generates_only_religious_epithets(catalog):
+    generator = PersonNameGenerator(catalog, seed=3)
+    policy = generator.policy("faction_cult")
+    items = generator.generate_many(30, policy=policy, seed=11)
+    assert len({item.full for item in items}) == 30
+    for item in items:
+        assert item.style == "epithet"
+        assert item.given == ""
+        assert item.family == ""
+        assert item.full == item.epithet
+        assert item.epithet in policy.epithets
+
+
+def test_gender_specific_pools_are_strict(catalog):
+    russian = catalog.culture("russian")
+    generator = PersonNameGenerator(catalog, seed=7)
+    for gender, key in (("m", "m"), ("f", "f")):
+        items = generator.generate_many(
+            40, culture="russian", gender=gender, seed=13
+        )
+        assert all(item.gender == gender for item in items)
+        assert all(item.given in russian.given[key] for item in items)
+        assert all(item.family in russian.family[key] for item in items)
+
+    only_male = PersonCulture.from_data(
+        "only_male",
+        {"given": {"m": ["Иван"]}, "family": {"m": ["Иванов"]}},
+        "real",
+    )
+    with pytest.raises(PeopleError):
+        only_male.given_for("f")
+    with pytest.raises(PeopleError):
+        only_male.family_for("f")
+
+
+def test_unknown_policy_is_rejected(catalog):
+    generator = PersonNameGenerator(catalog, seed=0)
+    with pytest.raises(PeopleError):
+        generator.generate(policy="missing")
+    with pytest.raises(PeopleError):
+        generator.generate_many(3, policy="missing")
 
 
 def test_bad_culture_or_theme_is_rejected(catalog):

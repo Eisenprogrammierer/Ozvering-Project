@@ -438,6 +438,7 @@ def _make_character(
         "id": char_id,
         "name": name.full,
         "name_data": name.as_dict(),
+        "gender": name.gender,
         "side": side,
         "faction_id": cfg["id"],
         "organization_id": (cfg.get("organization") or {}).get("id"),
@@ -1255,9 +1256,16 @@ class CampaignPresetGenerator:
         for side in _ordered_sides(template):
             cfg = template["factions"][side]
             organization = cfg.get("organization") or {}
-            leader = PersonNameGenerator(seed=base_seed).generate_many(
+            name_generator = PersonNameGenerator(seed=base_seed)
+            faction_policy = name_generator.policy(_text(cfg.get("id")))
+            leader = name_generator.generate_many(
                 1,
-                culture=_text(cfg.get("culture")),
+                culture=(
+                    None
+                    if faction_policy
+                    else _text(cfg.get("culture"))
+                ),
+                policy=faction_policy,
                 seed=base_seed + _stable_offset("names:%s" % side),
             )[0]
             assets = dict(cfg.get("assets") or {})
@@ -1358,9 +1366,15 @@ class CampaignPresetGenerator:
         for side in sides:
             cfg = template["factions"][side]
             count = max(1, _as_int(companies.get(side), 0))
+            faction_policy = name_generator.policy(_text(cfg.get("id")))
             names = name_generator.generate_many(
                 count * per_company,
-                culture=_text(cfg.get("culture")),
+                culture=(
+                    None
+                    if faction_policy
+                    else _text(cfg.get("culture"))
+                ),
+                policy=faction_policy,
                 seed=seed + _stable_offset("names:%s" % side),
             )
             posts = list(cfg.get("posts") or ())
@@ -1637,9 +1651,15 @@ class CampaignPresetGenerator:
                     default_population,
                 ),
             )
+            faction_policy = name_generator.policy(_text(cfg.get("id")))
             names = name_generator.generate_many(
                 count,
-                culture=_text(cfg.get("culture")),
+                culture=(
+                    None
+                    if faction_policy
+                    else _text(cfg.get("culture"))
+                ),
+                policy=faction_policy,
                 seed=seed + _stable_offset("names:%s" % side),
             )
             posts = list(cfg.get("posts") or ())
@@ -1891,9 +1911,15 @@ class CampaignPresetGenerator:
             cfg = template["factions"][side]
             group_count = max(1, _as_int(groups.get(side), 0))
             count = group_count * per_group
+            faction_policy = name_generator.policy(_text(cfg.get("id")))
             names = name_generator.generate_many(
                 count,
-                culture=_text(cfg.get("culture")),
+                culture=(
+                    None
+                    if faction_policy
+                    else _text(cfg.get("culture"))
+                ),
+                policy=faction_policy,
                 seed=seed + _stable_offset("names:%s" % side),
             )
             posts = list(cfg.get("posts") or ())

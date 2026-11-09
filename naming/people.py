@@ -21,6 +21,7 @@ _GENDER_ALIASES = {
     "жен": "f",
 }
 _SLOT = re.compile(r"\{([a-z][a-z0-9_]*)\}")
+_POLICY_MODES = ("cultures", "epithets")
 
 
 class PeopleError(ValueError):
@@ -82,6 +83,193 @@ def _as_text(value, label):
     return text
 
 
+def _weights(value, label):
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise PeopleError("%s должен быть объектом" % label)
+    result = {}
+    for key, amount in value.items():
+        key = str(key).strip()
+        if not key:
+            raise PeopleError("%s: пустой ключ" % label)
+        try:
+            weight = float(amount)
+        except (TypeError, ValueError):
+            raise PeopleError(
+                "%s.%s: вес должен быть числом" % (label, key)
+            )
+        if weight <= 0.0:
+            raise PeopleError(
+                "%s.%s: вес должен быть положительным" % (label, key)
+            )
+        result[key] = weight
+    return result
+
+
+@dataclass(frozen=True)
+class NamingPolicy:
+
+    id: str
+    label: str
+    mode: str = "cultures"
+    cultures: Mapping[str, float] = field(default_factory=dict)
+    themes: Mapping[str, float] = field(default_factory=dict)
+    allow_epithets: bool = False
+    epithets: Tuple[str, ...] = ()
+    patterns: Tuple[str, ...] = ("{epithet}",)
+
+    @classmethod
+    def from_data(cls, item_id, data, source="policies"):
+        if not isinstance(data, Mapping):
+            raise PeopleError("%s.%s должен быть объектом" % (source, item_id))
+        mode = str(data.get("mode") or "cultures").strip().lower()
+        if mode not in _POLICY_MODES:
+            raise PeopleError(
+                "%s.%s: неизвестный режим %r" % (source, item_id, mode)
+            )
+        cultures = _weights(
+            data.get("cultures"), "%s.%s.cultures" % (source, item_id)
+        )
+        themes = _weights(
+            data.get("themes"), "%s.%s.themes" % (source, item_id)
+        )
+        epithets = _as_list(
+            data.get("epithets"), "%s.%s.epithets" % (source, item_id)
+        )
+        patterns = _as_list(
+            data.get("patterns"), "%s.%s.patterns" % (source, item_id)
+        )
+        if mode == "epithets":
+            if not epithets:
+                raise PeopleError(
+                    "%s.%s: режиму epithets нужны эпитеты"
+                    % (source, item_id)
+                )
+            if not patterns:
+                patterns = ["{epithet}"]
+            for pattern in patterns:
+                if "{epithet}" not in pattern:
+                    raise PeopleError(
+                        "%s.%s: шаблон %r не содержит {epithet}"
+                        % (source, item_id, pattern)
+                    )
+                if "{given}" in pattern:
+                    raise PeopleError(
+                        "%s.%s: шаблон %r не может содержать {given}"
+                        % (source, item_id, pattern)
+                    )
+        elif not cultures and not themes:
+            raise PeopleError(
+                "%s.%s: нужен хотя бы один пул культур или тем"
+                % (source, item_id)
+            )
+        return cls(
+            id=_as_text(item_id, source),
+            label=str(data.get("label") or item_id),
+            mode=mode,
+            cultures=cultures,
+            themes=themes,
+            allow_epithets=bool(data.get("allow_epithets", False)),
+            epithets=tuple(epithets),
+            patterns=tuple(patterns or ("{epithet}",)),
+        )
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "label": self.label,
+            "mode": self.mode,
+            "cultures": dict(self.cultures),
+            "themes": dict(self.themes),
+            "allow_epithets": self.allow_epithets,
+            "epithets": list(self.epithets),
+            "patterns": list(self.patterns),
+        }
+
+
+class PersonPolicyCatalog:
+
+    def __init__(self, policies, aliases=None, root=None, schema=1):
+        self.policies = dict(policies)
+        self.aliases = {
+            str(key): str(value) for key, value in (aliases or {}).items()
+        }
+        self.root = Path(root) if root is not None else None
+        self.schema = int(schema or 1)
+        self.validate()
+
+    @classmethod
+    def load(cls, root=None):
+        root = Path(root) if root is not None else default_root()
+        data = _read_json(root / "policies.json")
+        return cls.from_data(data, root=root)
+
+    @classmethod
+    def from_data(cls, data, root=None):
+        if not isinstance(data, Mapping):
+            raise PeopleError("policies.json должен быть объектом")
+        raw = data.get("policies") or {}
+        if not isinstance(raw, Mapping):
+            raise PeopleError("policies должен быть объектом")
+        aliases = data.get("aliases") or {}
+        if not isinstance(aliases, Mapping):
+            raise PeopleError("aliases должен быть объектом")
+        policies = {
+            str(key): NamingPolicy.from_data(key, value)
+            for key, value in raw.items()
+        }
+        return cls(
+            policies,
+            aliases=aliases,
+            root=root,
+            schema=data.get("schema", 1),
+        )
+
+    def validate(self):
+        if not self.policies:
+            raise PeopleError("нет ни одной политики имён")
+        unknown = sorted(set(self.aliases.values()) - set(self.policies))
+        if unknown:
+            raise PeopleError(
+                "aliases ссылаются на неизвестные политики: %s"
+                % ", ".join(unknown)
+            )
+        return self
+
+    def ids(self):
+        return sorted(self.policies)
+
+    def resolve(self, key):
+        if key is None:
+            return None
+        if isinstance(key, NamingPolicy):
+            return key
+        name = str(key).strip()
+        seen = set()
+        while name and name not in seen:
+            seen.add(name)
+            if name in self.policies:
+                return self.policies[name]
+            name = self.aliases.get(name, "")
+        return None
+
+    def get(self, key):
+        policy = self.resolve(key)
+        if policy is None:
+            raise PeopleError("нет политики имён %r" % (key,))
+        return policy
+
+    def as_dict(self):
+        return {
+            "schema": self.schema,
+            "aliases": dict(self.aliases),
+            "policies": {
+                key: self.policies[key].as_dict() for key in self.ids()
+            },
+        }
+
+
 @dataclass(frozen=True)
 class PersonCulture:
 
@@ -133,18 +321,18 @@ class PersonCulture:
         return profile
 
     def given_for(self, gender):
-        if gender in self.given and self.given[gender]:
-            return self.given[gender]
-        merged = self.given.get("m", []) + self.given.get("f", [])
-        if not merged:
+        names = self.given.get(gender) or []
+        if not names:
             raise PeopleError("%s: нет имён для пола %s" % (self.id, gender))
-        return merged
+        return names
 
     def family_for(self, gender):
-        if gender in self.family and self.family[gender]:
-            return self.family[gender]
-        merged = self.family.get("m", []) + self.family.get("f", [])
-        return merged
+        names = self.family.get(gender) or []
+        if not names:
+            raise PeopleError(
+                "%s: нет фамилий для пола %s" % (self.id, gender)
+            )
+        return names
 
     def has_family(self):
         return bool(any(self.family.values()))
@@ -184,7 +372,7 @@ class PersonName:
 
     @property
     def short(self):
-        return self.given
+        return self.given or self.full
 
     def as_dict(self):
         return {
@@ -333,13 +521,22 @@ def _render_pattern(pattern, values):
 
 class PersonNameGenerator:
 
-    def __init__(self, catalog: Optional[PersonCatalog] = None, seed=0):
+    def __init__(
+        self,
+        catalog: Optional[PersonCatalog] = None,
+        seed=0,
+        policies: Optional[PersonPolicyCatalog] = None,
+    ):
         self.catalog = catalog or default_catalog()
+        self.policy_catalog = policies or default_policies()
         self.seed = int(seed)
         self.rng = random.Random(self.seed)
 
     def _rng(self, seed=None):
         return self.rng if seed is None else random.Random(int(seed))
+
+    def policy(self, key):
+        return self.policy_catalog.resolve(key)
 
     def real(self, culture=None, gender=None, seed=None):
         rng = self._rng(seed)
@@ -369,9 +566,17 @@ class PersonNameGenerator:
             seed if seed is not None else self.seed,
         )
 
-    def generate(self, culture=None, theme=None, gender=None, seed=None):
+    def generate(
+        self, culture=None, theme=None, gender=None, seed=None, policy=None
+    ):
         if culture and theme:
             raise PeopleError("нельзя одновременно указать culture и theme")
+        if policy is not None:
+            if culture or theme:
+                raise PeopleError(
+                    "нельзя одновременно указать policy и culture/theme"
+                )
+            return self.generate_policy(policy, gender=gender, seed=seed)
         if culture:
             return self.real(culture=culture, gender=gender, seed=seed)
         if theme:
@@ -394,10 +599,24 @@ class PersonNameGenerator:
         )
 
     def generate_many(
-        self, count=10, culture=None, theme=None, gender=None, seed=None
+        self,
+        count=10,
+        culture=None,
+        theme=None,
+        gender=None,
+        seed=None,
+        policy=None,
     ):
         if culture and theme:
             raise PeopleError("нельзя одновременно указать culture и theme")
+        if policy is not None:
+            if culture or theme:
+                raise PeopleError(
+                    "нельзя одновременно указать policy и culture/theme"
+                )
+            return self.generate_many_policy(
+                count, policy, gender=gender, seed=seed
+            )
         limit = max(1, int(count))
         rng = self._rng(seed)
         results = []
@@ -434,18 +653,152 @@ class PersonNameGenerator:
             results.append(item)
         return results
 
-    def _one(self, profile, style, gender, rng, seed):
+    def generate_policy(self, policy, gender=None, seed=None):
+        resolved = self._require_policy(policy)
+        rng = self._rng(seed)
+        item_seed = seed if seed is not None else self.seed
+        if resolved.mode == "epithets":
+            return self._one_epithet(resolved, gender, rng, item_seed)
+        pool = self._policy_pool(resolved)
+        if not pool:
+            raise PeopleError(
+                "политика %r не даёт ни одного профиля имён" % resolved.id
+            )
+        profile, style, patterns = self._choose_profile(rng, pool)
+        return self._one(
+            profile, style, gender, rng, item_seed, patterns=patterns
+        )
+
+    def generate_many_policy(
+        self, count=10, policy=None, gender=None, seed=None
+    ):
+        resolved = self._require_policy(policy)
+        limit = max(1, int(count))
+        rng = self._rng(seed)
+        item_seed = seed if seed is not None else self.seed
+        results = []
+        seen = set()
+        attempts = 0
+        pool = () if resolved.mode == "epithets" else self._policy_pool(
+            resolved
+        )
+        if resolved.mode != "epithets" and not pool:
+            raise PeopleError(
+                "политика %r не даёт ни одного профиля имён" % resolved.id
+            )
+        while len(results) < limit and attempts < limit * 80:
+            attempts += 1
+            if resolved.mode == "epithets":
+                item = self._one_epithet(
+                    resolved, gender, rng, item_seed
+                )
+            else:
+                profile, style, patterns = self._choose_profile(rng, pool)
+                item = self._one(
+                    profile,
+                    style,
+                    gender,
+                    rng,
+                    item_seed,
+                    patterns=patterns,
+                )
+            if item.full in seen:
+                continue
+            seen.add(item.full)
+            results.append(item)
+        return results
+
+    def _require_policy(self, policy):
+        if isinstance(policy, NamingPolicy):
+            return policy
+        resolved = self.policy_catalog.resolve(policy)
+        if resolved is None:
+            raise PeopleError("нет политики имён %r" % (policy,))
+        return resolved
+
+    def _policy_pool(self, policy):
+        pool = []
+        for culture_id, weight in policy.cultures.items():
+            ids = (
+                self.catalog.culture_ids()
+                if culture_id == "*"
+                else [culture_id]
+            )
+            for item_id in ids:
+                profile = self.catalog.culture(item_id)
+                patterns = self._policy_patterns(profile, policy)
+                if patterns:
+                    pool.append(
+                        (profile, "real", patterns, float(weight))
+                    )
+        for theme_id, weight in policy.themes.items():
+            ids = (
+                self.catalog.theme_ids() if theme_id == "*" else [theme_id]
+            )
+            for item_id in ids:
+                profile = self.catalog.theme(item_id)
+                patterns = self._policy_patterns(profile, policy)
+                if patterns:
+                    pool.append(
+                        (profile, "fantasy", patterns, float(weight))
+                    )
+        return pool
+
+    def _policy_patterns(self, profile, policy):
+        patterns = [
+            pattern
+            for pattern in profile.patterns
+            if policy.allow_epithets or "{epithet}" not in pattern
+        ]
+        result = []
+        for pattern in patterns:
+            if "{family}" in pattern and not profile.has_family():
+                continue
+            if "{epithet}" in pattern and not profile.has_epithets():
+                continue
+            result.append(pattern)
+        return result
+
+    def _choose_profile(self, rng, pool):
+        total = sum(item[3] for item in pool)
+        roll = rng.random() * total
+        for profile, style, patterns, weight in pool:
+            roll -= weight
+            if roll <= 0.0:
+                return profile, style, patterns
+        profile, style, patterns, _weight = pool[-1]
+        return profile, style, patterns
+
+    def _one_epithet(self, policy, gender, rng, seed):
         gender = _normalize_gender(gender) or rng.choice(list(_GENDER_KEYS))
+        epithet = rng.choice(list(policy.epithets))
+        pattern = rng.choice(list(policy.patterns or ("{epithet}",)))
+        full = _render_pattern(pattern, {"epithet": epithet})
+        return PersonName(
+            given="",
+            family="",
+            full=full or epithet,
+            style="epithet",
+            gender=gender,
+            epithet=epithet,
+            seed=int(seed),
+        )
+
+    def _one(self, profile, style, gender, rng, seed, patterns=None):
+        gender = _normalize_gender(gender) or rng.choice(list(_GENDER_KEYS))
+        pattern = rng.choice(tuple(patterns or profile.patterns))
         given = rng.choice(profile.given_for(gender))
-        family = (
-            rng.choice(profile.family_for(gender))
-            if profile.has_family()
-            else ""
-        )
-        epithet = (
-            rng.choice(profile.epithets) if profile.has_epithets() else ""
-        )
-        pattern = rng.choice(profile.patterns)
+        family = ""
+        if "{family}" in pattern:
+            family = rng.choice(profile.family_for(gender))
+        epithet = ""
+        if "{epithet}" in pattern:
+            if not profile.has_epithets():
+                raise PeopleError(
+                    "%s: шаблону %r нужен эпитет"
+                    % (profile.id, pattern)
+                )
+            epithet = rng.choice(profile.epithets)
         values = {
             "given": given,
             "family": family,
@@ -488,12 +841,25 @@ def default_catalog():
     return _DEFAULT
 
 
+_DEFAULT_POLICIES = None
+
+
+def default_policies():
+    global _DEFAULT_POLICIES
+    if _DEFAULT_POLICIES is None:
+        _DEFAULT_POLICIES = PersonPolicyCatalog.load()
+    return _DEFAULT_POLICIES
+
+
 __all__ = [
+    "NamingPolicy",
     "PeopleError",
     "PersonCatalog",
     "PersonCulture",
     "PersonName",
     "PersonNameGenerator",
+    "PersonPolicyCatalog",
     "default_catalog",
+    "default_policies",
     "default_root",
 ]

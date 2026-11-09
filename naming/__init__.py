@@ -28,12 +28,15 @@ from .morphology import (
     word_count,
 )
 from .people import (
+    NamingPolicy,
     PeopleError,
     PersonCatalog,
     PersonCulture,
     PersonName,
     PersonNameGenerator,
+    PersonPolicyCatalog,
     default_catalog as default_people_catalog,
+    default_policies as default_people_policies,
 )
 
 
@@ -47,9 +50,15 @@ def interaction_name(type_id, seed=0):
     return NameGenerator(seed=seed).interaction_name(type_id)
 
 
-def person_name(culture=None, theme=None, gender=None, seed=0):
+def person_name(
+    culture=None, theme=None, gender=None, seed=0, policy=None
+):
     return PersonNameGenerator(seed=seed).generate(
-        culture=culture, theme=theme, gender=gender, seed=seed
+        culture=culture,
+        theme=theme,
+        gender=gender,
+        seed=seed,
+        policy=policy,
     )
 
 
@@ -71,12 +80,15 @@ __all__ = [
     "NameResult",
     "automaton_name",
     "interaction_name",
+    "NamingPolicy",
     "PeopleError",
     "PersonCatalog",
     "PersonCulture",
     "PersonName",
     "PersonNameGenerator",
+    "PersonPolicyCatalog",
     "default_people_catalog",
+    "default_people_policies",
     "person_name",
     "default_catalog",
     "default_root",

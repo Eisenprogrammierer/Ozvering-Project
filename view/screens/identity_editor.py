@@ -196,13 +196,27 @@ class IdentityEditorScreen(BaseScreen):
         self.values[section] = ids[(index + int(step)) % len(ids)]
         self.message = ""
 
+    def _name_policy_key(self):
+        if self.faction_id:
+            return self.faction_id
+        return (self.storyline or {}).get("storyline_id")
+
+    def _name_gender(self):
+        return {
+            "male": "m",
+            "female": "f",
+        }.get(str(self.values.get("gender")))
+
     def random_name(self):
         try:
             generator = PersonNameGenerator(
                 seed=random.randrange(1, 10 ** 6)
             )
-            self.name = generator.generate().full
-        except Exception as exc:  # генератор — украшение, не условие старта
+            policy = generator.policy(self._name_policy_key())
+            self.name = generator.generate(
+                policy=policy, gender=self._name_gender()
+            ).full
+        except Exception as exc:
             logger.warning("Не удалось собрать случайное имя: %s", exc)
             self.name = "Новый правитель"
         self.name_focus = False

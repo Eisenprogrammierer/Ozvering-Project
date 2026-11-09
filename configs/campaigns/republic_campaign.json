@@ -28,7 +28,7 @@
       "organization_supply_drain": 0.006,
       "organization_fear": 0.02,
       "collapse_streak": 3,
-      "effect_scale": 0.15,
+      "effect_scale": 0.12,
       "asset_relax": 0.03
     },
     "outcome": {

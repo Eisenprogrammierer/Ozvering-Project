@@ -15,6 +15,7 @@ import pytest
 
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
+from naming.people import PersonNameGenerator, PersonPolicyCatalog
 
 import warfare as W
 
@@ -70,6 +71,39 @@ def test_faction_leaders_have_sixteen_needs_and_twelve_traits(template_id):
     for character in preset.characters:
         assert set(character["needs"]) == set(W.NEEDS)
         assert set(character["personality"]) == set(W.TRAITS)
+
+
+@pytest.mark.parametrize("template_id", TEMPLATES)
+def test_lore_character_names_follow_faction_policy(template_id):
+    preset = _preset(template_id)
+    policies = PersonPolicyCatalog.load()
+    generator = PersonNameGenerator(seed=0)
+    for character in preset.characters:
+        data = character["name_data"]
+        policy = policies.resolve(character["faction_id"])
+        assert policy is not None
+        assert character["gender"] == data["gender"]
+        if policy.mode == "epithets":
+            assert data["style"] == "epithet"
+            assert data["given"] == ""
+            assert data["family"] == ""
+            assert data["epithet"] in policy.epithets
+            assert data["full"] == data["epithet"]
+            continue
+        assert data["epithet"] == ""
+        assert data["gender"] in ("m", "f")
+        if data["culture"]:
+            profile = generator.catalog.culture(data["culture"])
+        else:
+            profile = generator.catalog.theme(data["theme"])
+        assert data["given"] in profile.given[data["gender"]]
+        if data["family"]:
+            assert data["family"] in profile.family[data["gender"]]
+        if policy.cultures and "*" not in policy.cultures:
+            assert (
+                data["culture"] in policy.cultures
+                or data["theme"] in policy.themes
+            )
 
 
 @pytest.mark.parametrize("template_id", TEMPLATES)

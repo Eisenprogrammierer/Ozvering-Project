@@ -91,6 +91,7 @@ def isolated_json_content():
         lambda: configs / "naming",
     )
     patch.setattr(naming_people, "_DEFAULT", None)
+    patch.setattr(naming_people, "_DEFAULT_POLICIES", None)
     naming_catalog.default_catalog.cache_clear()
     patch.setattr(view_config_loader, "ROOT", FIXTURE_ROOT)
     patch.setattr(view_content, "ROOT", FIXTURE_ROOT)

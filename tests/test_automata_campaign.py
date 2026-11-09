@@ -683,6 +683,22 @@ def test_realtime_advances_clock_and_regenerates_actions():
     assert campaign.turn >= 1
 
 
+def test_full_action_budget_takes_more_than_two_minutes():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    refill = (
+        campaign.action_interval_seconds * campaign.actions_per_turn
+    )
+    assert refill > 120.0
+    campaign.begin_turn()
+    campaign.actions_left = 0
+    campaign.advance_time(120.0)
+    assert campaign.actions_left < campaign.actions_per_turn
+    campaign.advance_time(refill - 120.0)
+    assert campaign.actions_left == campaign.actions_per_turn
+
+
 def test_speed_can_be_increased_and_cancelled_but_not_slowed_below_one():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
