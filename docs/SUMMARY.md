@@ -17,7 +17,7 @@
 > модели и кода, но не заменяет онбординг и канон.
 
 Python-код и документация ведутся вместе. Публичные модули, классы и функции
-сопровождаются docstrings; тематические описания собраны в [`docs/`](docs).
+сопровождаются docstrings; тематические описания собраны в [`docs/`](../docs/).
 Исторический справочник символов — [`code/README.md`](code/README.md).
 Форматирование — `black` и `pycodestyle` (длина строки 79, конфигурация в
 `pyproject.toml` и `setup.cfg`). Правило зафиксировано в
@@ -190,7 +190,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `view/` | кампанийный UI: мир должностного лица, биография, выбор автомата и должности, новелла, документы, сюжет, выбор роли; легаси-стратегия и RTS |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
 | `campaign/` | **роли, мир, пресеты и стратегия**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, генератор персонажей/фракций/организаций, легаси `strategy.py`, хранилище и CLI; без pygame |
-| `configs/roles/`, `configs/worlds/`, `configs/campaigns/`, `configs/strategy/`, `campaigns/` | каталоги игрового JSON-контента; в поставке пусты (`.gitkeep`), тестовый набор — в `tests/fixtures/content/` |
+| `configs/roles/`, `configs/worlds/`, `configs/campaigns/`, `configs/strategy/`, `campaigns/` | каталоги игрового JSON-контента. В поставке есть `configs/roles/roles.json`, `configs/campaigns/*.json` и `configs/campaigns/base/*.json`; `configs/worlds/` и `configs/strategy/` пока пусты (`.gitkeep`). Тестовый набор — в `tests/fixtures/content/` |
 | `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
 | `interaction/` | **доменно-нейтральный фреймворк взаимодействий**: объекты, действия, шумные/скрытые/неизвестные исходы (без pygame) |
 | `ui/scenes/interaction.py` | экран из трёх панелей: объекты → действия → прогноз/фактический исход |
@@ -199,7 +199,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `naming/` | **генератор естественных названий и имён**: морфология, распределение длины, классовые профили, типы взаимодействий, реальные и фэнтезийные имена персонажей; без pygame |
 | `configs/naming/` | лексикон, классы, взаимодействия, `people.json` и `policies.json`; тестовый набор — в `tests/fixtures/content/` |
 | `systems/` | **системные автоматы**: природная среда как 13 автоматов, драматург-соблазнитель и каталог событий; без pygame |
-| `configs/systems/` | пустой рантайм-каталог; `environment.json`, `playwright.json` и `events.json` добавляются JSON-файлами |
+| `configs/systems/` | рабочий рантайм-контент: `environment.json` (13 особенностей), `events.json` (88 событий, 176 шаблонов) и `playwright.json` |
 | `configs/automata/`, `docs/AUTOMATA.md` | JSON-контент и спецификация редактора |
 | `docs/ORGANIZATIONS.md` | формулы и границы аналитических организаций; примеры государство/церковь/банда/артель |
 | `docs/INTERACTION.md` | доменно-нейтральный фреймворк взаимодействий: объекты, действия, шумные/скрытые исходы |
@@ -210,7 +210,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/STRATEGY.md` | легаси-гражданская гранд-стратегия «Хартия Агоры»: три поля, сущности, действия, последствия, снимки |
 | `core41/` | **целевой 4-2-1-срез**: `Automaton` (одна универсальная энергия `E`, сила `F`, здоровье `H`), runtime арены (`ArenaAgent`/`ArenaMatch`), `DuelEnv`, секундный `SimulationClock`, актор среды `ArenaEnvironment`; без pygame |
 | `agents/` | **обучаемые политики**: `BDIPolicy`/`QTablePolicy`/`MLPPolicy` (22 признака) и аренный `DuelMLPPolicy` (30 признаков), `PolicyAgent` (легаси-мост), обучение `python -m agents.train`, автопоиск чекпойнтов `agents/checkpoints.py`; спецификация — [`AGENTS.md`](AGENTS.md), точные алгоритмы — [`ALGORITHMS.md`](ALGORITHMS.md) |
-| `configs/storylines/` | пустой рантайм-каталог; сюжеты кампанийного потока добавляются JSON-файлами |
+| `configs/storylines/` | сюжеты четырёх фракций и их сцены (`empire`, `republic`, `cult`, `corporation`); новые добавляются JSON-файлами |
 | `checkpoints/` | каталог production-чекпойнтов политик по умолчанию (`best.json` / `latest.json` / свежие `*.json`) |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
@@ -397,14 +397,17 @@ python3 -m naming --person --fantasy high_elf --count 3 --seed 7
 драматурга, имена):
 
 * **Роль игрока** — `configs/roles/*.json` (один объект роли или
-  `{"roles": [...]}`). Каталог в поставке пуст. Основная роль —
+  `{"roles": [...]}`). В поставке уже есть `configs/roles/roles.json`
+  с четырьмя ролями лорных кампаний. Основная роль —
   `world_actor`: должностное лицо внутри выбранного автомата. Легаси-роль
   `faction_leader` сохранена для старых сюжетов и тестов, помечена тегом
   `legacy` и скрыта из обычного списка. Роль задаёт мандат, слот и
   переменные, которые получает сюжет. Будущие роли добавляются в JSON;
   `available: false` скрывает роль из выбора.
 * **Мир должностного лица** — `campaign/world.py`, `configs/worlds/` и
-  сюжет в `configs/storylines/` (в поставке этих файлов нет). Игрок
+  сюжет в `configs/storylines/` (четыре лорных сюжета уже есть, а
+  `configs/worlds/` в поставке пуст; тестовый мир лежит в
+  `tests/fixtures/content/`). Игрок
   создаёт человека, выбирает автомат и семантический уровень, занимает
   должность. Тестовый набор описывает семь доменов, несколько государств
   и церквей, узлы, должности и действия; каждый узел ходит раз в день, а

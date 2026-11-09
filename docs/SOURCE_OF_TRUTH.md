@@ -1,11 +1,15 @@
 # Источник истины по проекту
 
-**Статус:** главный проектный документ. Решения ниже согласованы с автором
-проекта. Реализация целевой модели начата: есть вертикальный срез `core41`,
-runtime активной арены и слой обучаемых агентов `agents`; полная миграция мира
-ещё не завершена.
+**Статус:** главный проектный документ и навигационная карта. Решения ниже
+согласованы с автором проекта. Реализация целевой модели начата: есть
+вертикальный срез `core41`, runtime активной арены и слой обучаемых агентов
+`agents`; полная миграция мира ещё не завершена.
 
-**Дата:** 2026-10-29
+**Дата:** 2026-11-09.
+
+**Формулы:** точные формулы, единицы, примеры и ссылки на код собраны в
+[`FORMULAS.md`](FORMULAS.md). Этот документ даёт только сводку и маршрут к
+ним.
 
 **Роль документа.** Это верхний уровень истины для целей, онтологии и границ
 проекта. Если документы расходятся, действует следующий порядок:
@@ -24,6 +28,204 @@ runtime активной арены и слой обучаемых агенто�
 это отдельное изменение: сначала этот документ и/или
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md), затем код, тесты и остальные
 документы.
+
+---
+
+## 0. Навигатор: потребность → маршрут
+
+Этот раздел нужен, чтобы по одной потребности сразу понять, **какой слой
+читать, где менять код, где данные и чем проверить**. Формат строки:
+`потребность` → `слой` → `код` · `конфиги` · `тесты` · `документ`.
+
+### 0.1. Понять проект и его границы
+
+| Потребность | Куда идти |
+|---|---|
+| Понять, что за проект и какая у него онтология | §1–§3 этого документа; [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) |
+| Понять, где текущая реализация, где цель, а где легаси | §4 и таблица статусов в §6 |
+| Понять, как считаются формулы | [`FORMULAS.md`](FORMULAS.md); [`ALGORITHMS.md`](ALGORITHMS.md) |
+| Понять, что уже сделано и что открыто | §9; [`TODO.md`](TODO.md); [`RELEASE_READINESS.md`](RELEASE_READINESS.md) |
+| Увидеть историю решений, не канон | [`history/`](history/); [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md); [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md); [`docs/code/`](code/) |
+
+### 0.2. Запустить и увидеть игру
+
+| Потребность | Слой | Код · конфиги · тесты · документ |
+|---|---|---|
+| Поставить окружение и запустить | вход | `main.py`, `view/`, `ui/` · — · `test_gui_smoke.py` · [`ONBOARDING.md`](ONBOARDING.md), [`HOWTO.md`](HOWTO.md), `README.md` |
+| Запустить конкретный режим | вход | `main.py --arena/--scene/--view/--classic/--automata` · — · `test_ui.py`, `test_view.py` · [`ONBOARDING.md`](ONBOARDING.md) §1.4 |
+| Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/preset.py` · `configs/campaigns/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/` (пуст) · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
+| Играть на арене | арена | `game_engine.py`, `core41/arena.py` · `configs/content/` · `test_health.py`, `test_core41.py` · [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) |
+
+### 0.3. Изменить бой, здоровье и арену
+
+| Потребность | Слой | Код · конфиги · тесты · документ |
+|---|---|---|
+| Урон, здоровье, смерть | ядро | `core41/model.py` (`HEALTH_*`, `apply_force_damage`, `tick_health`) · — · `test_health.py` · [`FORMULAS.md`](FORMULAS.md) §3 |
+| Болезнь, рана, заражение | ядро | `core41/model.py` (`SICKNESS_*`, `WOUND_*`, `transmit_sickness`) · — · `test_sickness.py` · [`FORMULAS.md`](FORMULAS.md) §3 |
+| Вероятность успеха | ядро | `core41/model.py`, `success_probability()` · коэффициенты действия в контенте · `test_math_model.py` · [`FORMULAS.md`](FORMULAS.md) §2 |
+| Действия, подготовка, давление | арена | `core41/arena.py` (`CORE_ACTIONS`, `work_amount`, `resolve_pair`) · — · `test_core41.py` · [`ALGORITHMS.md`](ALGORITHMS.md) §4 |
+| Захват и исход партии | арена | `core41/arena.py`, `check_capture()` · — · `test_core41.py` · [`FORMULAS.md`](FORMULAS.md) §4 |
+| Награда арены и профили | обучение | `core41/arena.py`, `reward_delta()` · — · `test_core41.py` · [`FORMULAS.md`](FORMULAS.md) §5 |
+| Среда арены, сезоны, окна | арена | `core41/environment.py` · `configs/environments/` (пуст) · `test_environment.py` · [`ALGORITHMS.md`](ALGORITHMS.md) §2.4 |
+| Типизированная нагрузка работы | ядро | `core41/payload.py`, `core41/types.py` · — · `test_payload.py` · [`ALGORITHMS.md`](ALGORITHMS.md) |
+| Составной автомат | ядро | `core41/composite.py` · — · `test_composite.py` · [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) |
+
+### 0.4. Обучить, оценить и подключить политику
+
+| Потребность | Слой | Код · конфиги · тесты · документ |
+|---|---|---|
+| Обучить политику арены | обучение | `agents/train.py`, `agents/policies.py`, `core41/env.py` · — · `test_train_cli.py` · [`AGENTS.md`](AGENTS.md) §3 |
+| Обучить политику кампании | обучение | `agents/train.py --env campaign`, `campaign/env.py` · — · `test_campaign_env.py` · [`AGENTS.md`](AGENTS.md) §3 |
+| Добавить новый тип политики | обучение | `agents/policies.py`, `agents/__init__.py` · — · `test_core41.py`, `test_train_cli.py` · [`AGENTS.md`](AGENTS.md) §4 |
+| Загрузить/найти чекпойнт | обучение | `agents/checkpoints.py`, `agents/__init__.py` · `checkpoints/` · `test_checkpoints.py` · [`AGENTS.md`](AGENTS.md) §3 |
+| Понять признаки и версии чекпойнтов | обучение | `agents/policies.py`, `core41/env.py` · — · `test_core41.py` · [`ALGORITHMS.md`](ALGORITHMS.md) §5–6 |
+| Доменная рандомизация и held-out | обучение | `agents/train.py` · `configs/content/combat_defaults.json` · `test_train_cli.py` · [`AGENTS.md`](AGENTS.md) §3 |
+
+### 0.5. Изменить кампанию автоматов
+
+| Потребность | Слой | Код · конфиги · тесты · документ |
+|---|---|---|
+| Фракции, органы, работы | кампания | `campaign/automata.py`, `campaign/preset.py` · `configs/campaigns/*.json`, `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| Потребности и черты | кампания | `organizations/needs.py`, `character_traits.py` · `configs/characters/traits.json` · `test_organizations.py`, `test_people.py` · [`ORGANIZATIONS.md`](ORGANIZATIONS.md) |
+| Темп, действия, скорости | кампания | `campaign/defaults.py` · `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| Исходы, поражение, распад | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| ИИ кампании и приоритеты | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+
+### 0.6. Изменить дневной мир `world_actor`
+
+| Потребность | Слой | Код · конфиги · тесты · документ |
+|---|---|---|
+| Узлы, должности, действия мира | мир | `campaign/world.py` · `configs/worlds/*.json` (пуст), фикстуры · `test_world.py` · [`WORLD.md`](WORLD.md), [`CONTENT.md`](CONTENT.md) |
+| Персонаж `E/F/H` и бюджет действий | мир | `campaign/actor.py`, `campaign/projections.py` · — · `test_projections.py`, `test_campaign_energy.py` · [`WORLD.md`](WORLD.md) |
+| Отношения и обязательства | мир | `campaign/relations.py`, `campaign/obligations.py` · — · `test_campaign_relations.py` · [`FORMULAS.md`](FORMULAS.md) §2.3 |
+| Ценности и коалиции | мир | `campaign/values.py`, `campaign/coalitions.py` · блоки `values`/`coalitions` мира · `test_campaign_values.py`, `test_campaign_coalitions.py` · [`FORMULAS.md`](FORMULAS.md) §8 |
+| Экономика, бедность, кредит | мир | `campaign/economy.py` · блок `economy` мира · `test_campaign_economy.py` · [`FORMULAS.md`](FORMULAS.md) §7 |
+| Планировщик и автономия | мир | `campaign/planner.py`, `campaign/control.py` · — · `test_campaign_planner.py`, `test_campaign_control.py` · [`WORLD.md`](WORLD.md) |
+| Журнал и LOD | мир | `campaign/logbook.py`, `campaign/lod.py` · блоки `logging`/`lod` · `test_campaign_logbook.py` · [`WORLD.md`](WORLD.md) |
+| Дрейф, распад, смена роли | мир | `campaign/world.py` (`_apply_organizational_drift`, `_check_dismissal`) · пороги мира · `test_campaign.py`, `test_campaign_clock.py` · [`FORMULAS.md`](FORMULAS.md) §6 |
+| Фон и оффлайн-догон | мир | `campaign/clock.py` · — · `test_campaign_clock.py` · [`WORLD.md`](WORLD.md) |
+| Сюжетная глава и финал | мир | `campaign/world.py` (`_check_storyline`) · блок `storyline` · `test_story_arcs.py` · [`WORLD.md`](WORLD.md) |
+| Карьера и рынок труда | мир | `campaign/world.py` (`office_options`) · блок `labor_market` · `test_campaign.py` · [`WORLD.md`](WORLD.md) |
+| Стратегии узлов | мир | `campaign/node_strategy.py` · `configs/worlds/*_strategies.json` · `test_node_strategy.py` · [`CONTENT.md`](CONTENT.md) |
+
+### 0.7. Изменить контент без кода
+
+| Потребность | Куда идти |
+|---|---|
+| Общая карта JSON и загрузчиков | [`CONTENT.md`](CONTENT.md) |
+| Роли игрока | `configs/roles/roles.json`, `campaign/roles.py`; тест `test_campaign.py` |
+| Сюжеты и сцены | `configs/storylines/`; `view/support/storyline.py`; тест `test_view_world.py` |
+| Миры кампании | `configs/worlds/*.json` (каталог пуст в поставке); `campaign/world.py::load_world` |
+| Биография и личность героя | `configs/worlds/biography.json` (нет в поставке), `configs/characters/identity.json`; `campaign/identity.py`, `test_identity.py` |
+| Черты персонажей | `configs/characters/traits.json`; `character_traits.py`; `test_people.py` |
+| Среда, события, драматург | `configs/systems/`; `systems/`; `test_systems.py` |
+| Имена и политики имён | `configs/naming/`; `naming/`; `test_naming.py`, `test_people.py`; [`NAMING.md`](NAMING.md) |
+| Приказы, документы, диалоги, время | `configs/content/`; `view/support/content.py`; `test_content_pipeline.py` |
+| Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
+
+### 0.8. Изменить имена и политики имён
+
+Кратко: Империя — только европейские имена, германские вероятнее остальных
+европейских; Республика и Торговая планета — любые имена без прозвищ и
+эпитетов; Культ — только религиозные прозвища. Мужскому персонажу — только
+мужские имена, женскому — только женские. Полная спецификация и таблица
+алиасов — [`NAMING.md`](NAMING.md); код — `naming/people.py`,
+`configs/naming/policies.json`; тесты — `test_naming.py`, `test_people.py`,
+`test_lore_characters.py`.
+
+### 0.9. Изменить UI
+
+| Потребность | Куда идти |
+|---|---|
+| Кампанийный UI `view/` | `view/app.py`, `view/screens/`, `view/ui/`; [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md); тесты `test_view.py`, `test_view_world.py` |
+| Сценный UI `ui/` | `ui/app.py`, `ui/scenes/`, `ui/battlefield.py`; [`UI.md`](UI.md); тесты `test_ui.py`, `test_battlefield.py` |
+| Экран взаимодействий | `ui/scenes/interaction.py`, `interaction/`; [`INTERACTION.md`](INTERACTION.md); `test_interaction.py` |
+| Редактор автоматов | `automata/`; [`AUTOMATA.md`](AUTOMATA.md); `test_automata_ui.py` |
+| Ассеты и плейсхолдеры | `assets/`, `configs/view/presentation.json` (нет в поставке); `test_gui_smoke.py` |
+
+### 0.10. Сохранения, снимки, совместимость
+
+| Потребность | Куда идти |
+|---|---|
+| Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
+| Снимок мира и кампании автоматов | `SCHEMA_VERSION = 1`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py` |
+| Перенос `health/sickness/wound` | `core41/model.py` (`condition_state`, `load_condition`); `test_health.py`, `test_sickness.py` |
+| Версии чекпойнтов | `agents/policies.py`, `agents/checkpoints.py`; `test_checkpoints.py`; [`AGENTS.md`](AGENTS.md) §4 |
+
+### 0.11. Собрать, упаковать, проверить
+
+| Потребность | Куда идти |
+|---|---|
+| Упаковка | `packaging/`, `packaging/README.md` |
+| Все тесты | `venv/bin/python -m pytest -q`; карта ниже в §0.14 |
+| Стиль | `venv/bin/python -m pycodestyle`; `setup.cfg` (`max-line-length = 79`) |
+| Проверка компиляции | `venv/bin/python -m compileall core41 agents campaign automata naming systems organizations interaction view ui` |
+| Согласованность документации | `tests/test_docs_sync.py`, `tests/test_docs_core41.py` |
+
+### 0.12. Карта пакетов
+
+| Пакет/файл | Роль | Статус |
+|---|---|---|
+| `main.py` | единая точка входа | активный |
+| `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
+| `agents/` | политики, обучение, чекпойнты | активный |
+| `campaign/` | кампании автоматов и дневной мир `world_actor` | активный |
+| `automata/` | редактор автоматов | активный инструмент |
+| `naming/` | имена и названия | активный инструмент |
+| `systems/` | среда/события/драматург | активный инструмент |
+| `organizations/` | организации-суперсистемы, 16 потребностей | активный инструмент |
+| `interaction/` | доменно-нейтральные взаимодействия | активный инструмент |
+| `view/` | кампанийный UI | активный |
+| `ui/` | сценный UI и тактическое поле | активный + легаси-сцены |
+| `game_engine.py` | арена + HUD на `core41` | активный |
+| `simulation.py` | легаси-канон дуэлей | легаси/baseline |
+| `warfare.py` | войсковые автоматы | отдельный слой |
+| `observability.py`, `lod.py`, `information.py` | наблюдаемость, LOD, энтропия | текущий код |
+
+### 0.13. Карта конфигов
+
+| Каталог | Что лежит в поставке | Загрузчик |
+|---|---|---|
+| `configs/roles/` | `roles.json` — 4 роли | `campaign/roles.py` |
+| `configs/storylines/` | 4 сюжета + сцены | `view/support/storyline.py` |
+| `configs/campaigns/` | 4 шаблона + `base/` | `campaign/preset.py`, `campaign/defaults.py` |
+| `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
+| `configs/characters/` | `traits.json` (12 черт), `identity.json` | `character_traits.py`, `campaign/identity.py` |
+| `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
+| `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
+| `configs/worlds/` | **пуст** (только `.gitkeep`) | `campaign/world.py` |
+| `configs/strategy/` | **пуст** | `campaign/strategy.py` |
+| `configs/automata/` | **пуст** | `automata/storage.py` |
+| `configs/environments/` | **пуст** | `core41/environment.py` |
+| `configs/presets/`, `configs/classes/`, `configs/view/` | **пусты** | соответствующие слои |
+| `checkpoints/` | production-чекпойнты | `agents/checkpoints.py` |
+| `tests/fixtures/content/` | тестовый контент, включая мир | тесты |
+
+### 0.14. Карта тестов
+
+| Область | Тесты |
+|---|---|
+| Ядро и арена | `test_core41.py`, `test_health.py`, `test_sickness.py`, `test_payload.py`, `test_composite.py`, `test_environment.py`, `test_clock.py`, `test_math_model.py` |
+| Агенты | `test_train_cli.py`, `test_checkpoints.py`, `test_core41.py` |
+| Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py` |
+| Дневной мир | `test_campaign.py`, `test_world.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
+| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_story_arcs.py`, `test_lore_characters.py` |
+| Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
+| UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |
+| Легаси и прочее | `test_canon.py`, `test_strategy.py`, `test_warfare.py`, `test_advanced.py`, `test_breakthrough_balance.py`, `test_soak.py`, `test_checks.py`, `test_domain_audit.py` |
+
+### 0.15. Быстрые команды
+
+```bash
+venv/bin/python -m pytest -q                       # все тесты
+venv/bin/python -m pycodestyle                     # стиль
+venv/bin/python -m agents.train --episodes 500 --seed 0
+python3 main.py                                    # клиент view/
+python3 main.py --arena                            # арена
+python3 main.py --automata                         # редактор автоматов
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy venv/bin/python -m pytest -q tests/test_gui_smoke.py
+```
 
 ---
 
@@ -254,6 +456,35 @@ BDI — не третий тип и не отдельная онтология. 
 Нельзя держать две независимые модели. При миграции проекции можно временно
 вычислять для UI и старого контента, но источником остаётся ядро.
 
+### 3.6. Сводка формул
+
+Полный разбор с обозначениями, единицами, примерами и таблицами констант —
+в [`FORMULAS.md`](FORMULAS.md). Здесь только карта:
+
+| Блок | Главная формула | Где смотреть |
+|---|---|---|
+| Конверсия работы | `loss + entropy + stored = amount` | [`FORMULAS.md`](FORMULAS.md) §1 |
+| Успех ядра | `p = sigmoid(intercept + skill·S·… − resistance·R + …)` | §2 |
+| Кампанийный шанс | `clamp(base + 0.30·(core−0.5), 0.05, 0.95)` | §2.2 |
+| Отношения | `shift = Σ weight·axis`, предел `±0.20` | §2.3 |
+| Урон | `health_damage = overflow · 0.25 · множители` | §3.1 |
+| Болезнь | `sickness += 0.004·decay` без отдыха, `H −= 1.5·sickness` | §3.3 |
+| Рана | `H −= 0.60·wound`, заживает отдыхом и `TREAT` | §3.4 |
+| Захват | `dom ≥ 36` при `E ≥ 1.5·E_opp` и `F > F_opp` | §4.2 |
+| Награда арены | потери сторон + цена `E` + терминальный `±1` | §5 |
+| Дрейф организации | `d_cohesion/d_power` от легитимности и казны | §6.2 |
+| Распад | `power`/`cohesion ≤ 0.05` два дня подряд | §6.4 |
+| Экономика | `price = effect/efficiency`; обмен денег с потерей | §7 |
+| Коалиции | `0.5·(avg(R_a→b)+avg(R_b→a)) + 0.06·min(oblig, 3)` | §8.1 |
+| Награда кампании | нормированные дельты `standing/power/cohesion/H` + исход | §9 |
+| Время | арена `1 с/такт`, кампания `240 с/ход`, день `120 с` | §10 |
+| Легаси | `p = P_BASE/(1+e^(−K_MASS·ln(mass)+penalty))` | §11 |
+
+**Правило чтения.** Формулы ядра и их константы живут в коде ядра
+(`core41/model.py`, `core41/arena.py`); данные мира (темп, цены, пороги
+контента) — в `configs/`. Если число нужно и коду, и контенту, оно должно
+иметь явное переопределение, а не две независимые копии.
+
 ---
 
 ## 4. Текущее состояние и цель
@@ -264,11 +495,11 @@ BDI — не третий тип и не отдельная онтология. 
 | `core41/` | срез 4-2-1: `Work`, `Automaton`, `DuelWorld`, `DuelEnv`, `ArenaAgent`, `ArenaMatch`, `run_duel_tick`, `SimulationClock`; одна универсальная энергия, обработчики, логистический успех, здоровье/смерть, секундный тик и скорости | полный мир, кампанийный планировщик, конверсии с потерями |
 | `agents/` | `BDIPolicy`, `QTablePolicy`, `ArenaAgent`-политики, `PolicyAgent` как легаси-мост, `load_policy`, online-обновление и CLI обучения; у BDI отдельные `campaign_weights` | production-модель, оценка и кампанийная загрузка чекпойнтов |
 | Здоровье | `H=100`, отдых `+0.78/тик`, голод `-0.20/тик`, переполнение урона с коэффициентом `0.25` после `F=0`; факторы `aging/illness/stress/care`; болезнь `sickness ∈ [0,1]` с прогрессом, уроном, отдыхом, `treat()` и шестым действием `TREAT`; контактная передача `CONTAGION_*`; средовой резервуар болезни и острые раны `ArenaEnvironment`; кампанийная передача в одном узле; `condition_state()` и сейв текущих `health`/`sickness`; дневной срез болезни/смерти/распада в кампании; калибровка §2.3.2–2.3.5 | непрерывные действия кампании |
-| `campaign/world.py` | дневной ход, 43 узла, `power/wealth/...`; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day` | реальное время, 4-2-1, проекции старых шкал |
+| `campaign/world.py` | дневной ход; тестовый мир `tests/fixtures/content/configs/worlds/agora_world.json` содержит 43 узла (в поставке `configs/worlds/` пуст); `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day` | реальное время, 4-2-1, проекции старых шкал |
 | `campaign/clock.py` | `CampaignClock`, `offline_days`, `background_pause_reason`; 120 с/день, догон не больше 7 дней | real-time-планировщик и непрерывные действия |
 | `WorldScreen` | бесконечный день, смена должности, фоновый догон, win/lose/neutral | бесконечная RTS, только поражения |
 | ИИ арены | `core41.ArenaAgent`: QTable/BDI-политики, `UtilityAI` — только baseline и эксперименты | BDI/не-BDI, стоимость работы, энергия |
-| ИИ кампании | рейтинг действий, бесплатные действия | BDI/не-BDI, стоимость работы, энергия |
+| ИИ кампании | рейтинг действий, стоимость `E`/ресурсов, отношения, стратегии и коалиции в `_ai_score` | BDI/не-BDI, полная стоимость работы и энергии |
 | Энергия | активные сцены — одна универсальная через `core41.arena`; `simulation.py` — контекстные фазы типа | одна универсальная энергия во всём мире |
 | Предметы | в текущей кампании почти без механики | автоматы с `I/O/H/S/F/E/W` |
 | Персонажи | частично автономны | BDI-автоматы, действуют сами |
@@ -310,32 +541,67 @@ BDI — не третий тип и не отдельная онтология. 
 
 ---
 
-## 6. Карта документации
+## 6. Карта документации и статусы
+
+Статусы означают:
+
+- **канон** — проектное решение, ему подчиняются остальные документы;
+- **текущая реализация** — описывает код сегодня, может отставать от цели;
+- **легаси** — сохраняется для воспроизведения, не активный поток;
+- **руководство** — как что-то сделать, не источник онтологии;
+- **исторический** — заморожен, числа и выводы относятся к своей дате;
+- **трекер** — список работ, не описание модели.
+
+### 6.1. Активные документы
 
 | Документ | Роль | Статус |
 |---|---|---|
-| `SOURCE_OF_TRUTH.md` | главный источник истины по проекту | канон |
+| `SOURCE_OF_TRUTH.md` | главный источник истины и навигатор | канон |
 | [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) | целевая модель 4-2-1, примеры, открытые вопросы | канон целевой модели |
-| [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация + целевые пометки |
-| [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md) | критика текущего движка и эксперименты | обзор, не канон |
+| [`FORMULAS.md`](FORMULAS.md) | формулы ядра, арены, кампании и легаси: обозначения, единицы, примеры | справочник текущего кода + целевых констант |
+| [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация |
+| [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы | текущая реализация |
 | [`AGENTS.md`](AGENTS.md) | слой обучаемых агентов и RL-срез `core41` | текущая реализация |
-| [`ALGORITHMS.md`](ALGORITHMS.md) | точный справочник текущих алгоритмов: такт, формулы, признаки, Duel-MLP, обучение, ограничения | текущая реализация |
-| [`MODEL.md`](MODEL.md) | спецификация текущего `simulation.py` | канон текущего кода |
-| [`BASELINE.md`](BASELINE.md) | воспроизводимая база текущего `simulation.py` | база текущего кода |
+| [`ALGORITHMS.md`](ALGORITHMS.md) | точный справочник алгоритмов: такт, формулы, признаки, Duel-MLP, обучение | текущая реализация |
+| [`MODEL.md`](MODEL.md) | спецификация `simulation.py` | канон текущего легаси-кода |
+| [`BASELINE.md`](BASELINE.md) | воспроизводимая база `simulation.py` | база легаси |
+| [`CONTENT.md`](CONTENT.md) | JSON-контент, папки и загрузчики | руководство |
+| [`NAMING.md`](NAMING.md) | имена, культуры, фракционные политики | текущая реализация |
+| [`ORGANIZATIONS.md`](ORGANIZATIONS.md) | организации, 16 потребностей, runtime | текущая реализация |
+| [`SYSTEMS.md`](SYSTEMS.md) | среда, события, драматург | текущая реализация |
+| [`INTERACTION.md`](INTERACTION.md) | доменно-нейтральные взаимодействия | текущая реализация |
+| [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов | текущий инструмент |
+| [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
+| [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
+| [`UI.md`](UI.md) | сценный UI `ui/` | текущая реализация |
+| [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия | текущий код |
+| [`ONBOARDING.md`](ONBOARDING.md) | карта проекта по потребностям | руководство |
+| [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
-| [`TODO.md`](TODO.md) | задачи текущего кода | не целевая модель |
-| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза (срез 2026-10-31) | не источник истины, обновляемый трекер |
-| [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия текущего кода | текущий код |
-| [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md), [`UI.md`](UI.md) | UI-слои | текущий UI |
-| [`CONTENT.md`](CONTENT.md) | JSON-контент, папки и загрузчики | практическое руководство |
-| [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | инструменты и слои | текущий код |
-| [`AUTOMATA.md`](AUTOMATA.md), [`NAMING.md`](NAMING.md), [`WARFARE.md`](WARFARE.md) | инструментальные слои (редактор автоматов, генератор имён, психология отрядов) | текущий код |
-| [`STRATEGY.md`](STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
-| [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md) | проверка гипотезы H-A (масштабный порог Шмитта) | исторический, не канон |
+| [`TODO.md`](TODO.md) | открытые задачи | трекер |
+| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза | трекер, срез 2026-10-31 |
 | [`code/README.md`](code/README.md) | справочник по модулям | карта кода |
-| [`code/ANALYSIS.md`](code/ANALYSIS.md) | поэтапный разбор кода по модулям | анализ, не канон |
-| [`code/DOCS_ANALYSIS.md`](code/DOCS_ANALYSIS.md) | аудит документации и её согласование | анализ, не канон |
-| [`history/`](history/) | история решений | заморожено |
+| [`code/INLINE_NOTES.md`](code/INLINE_NOTES.md) | заметки, перенесённые из inline-комментариев | историческая карта кода |
+
+### 6.2. Легаси и исторические документы
+
+Эти документы **не переписываются** под текущий код. Их числа и выводы
+относятся к своей дате; при расхождении действует этот документ, код и
+тесты.
+
+| Документ | Роль | Статус |
+|---|---|---|
+| [`STRATEGY.md`](STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
+| [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md) | критика движка и эксперименты | обзор, не канон |
+| [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md) | проверка гипотезы H-A | исторический |
+| [`code/ANALYSIS.md`](code/ANALYSIS.md) | поэтапный разбор кода | исторический анализ |
+| [`code/DOCS_ANALYSIS.md`](code/DOCS_ANALYSIS.md) | аудит документации | исторический анализ |
+| [`code/*.md`](code/) (кроме `README.md` и `INLINE_NOTES.md`) | справочник по пакетам до очистки комментариев | исторический |
+| [`history/`](history/) | история решений и PR | заморожено |
+
+**Правило статусов.** Документ из §6.2 не является каноном и не обязан
+совпадать с кодом. Если его вывод нужен для решения, сначала проверьте
+актуальный код/тесты и §0–§5 этого документа.
 
 ---
 
@@ -361,16 +627,25 @@ BDI — не третий тип и не отдельная онтология. 
 
 1. Новое проектное решение сначала фиксируется здесь и/или в
    `WORLD_CORE_MODEL.md`.
-2. Затем обновляются затронутые документы; статусы «текущее» и «целевое» не
+2. Если меняется формула или константа, обновите [`FORMULAS.md`](FORMULAS.md)
+   и, если затронут контент, [`CONTENT.md`](CONTENT.md).
+3. Затем обновляются затронутые документы; статусы «текущее» и «целевое» не
    смешиваются.
-3. Затем — код и тесты. Поведение текущего кода не меняется без отдельного
+4. Затем — код и тесты. Поведение текущего кода не меняется без отдельного
    решения и обновления baseline.
-4. Если документ противоречит этому источнику, побеждает этот документ;
+5. Если документ противоречит этому источнику, побеждает этот документ;
    противоречие нужно исправить, а не игнорировать.
-5. Если код противоречит `MODEL.md`, для текущего поведения побеждают код и
+6. Если код противоречит `MODEL.md`, для текущего поведения побеждают код и
    тесты; `MODEL.md` нужно исправить.
-6. Если целевая модель противоречит текущему коду, для дизайна побеждает
+7. Если целевая модель противоречит текущему коду, для дизайна побеждает
    целевая модель; текущий код остаётся легаси до миграции.
+8. В коде не должно быть inline-комментариев. Значимое объяснение живёт в
+   документации (`docs/`, docstrings, `docs/code/INLINE_NOTES.md`), а не в
+   строке кода.
+9. Исторические документы (`docs/code/*`, `docs/history/`,
+   `FIX_HYPOTHESIS.md`, `WORLD_MODEL_REVIEW.md`, `GAME_ENGINE_CHANGES.md`) не
+   переписываются под текущий код. Их выводы относятся к своей дате.
+10. `yet_another_project/` не трогать; `*.pdf` остаются в `.gitignore`.
 
 ---
 
@@ -443,8 +718,8 @@ BDI — не третий тип и не отдельная онтология. 
 - Реализован слой `agents`: `BDIPolicy` с online-обновлением,
   `QTablePolicy`, `MLPPolicy` (tanh-hidden=16, без PyTorch, с target-сетью),
   `PolicyAgent` как легаси-мост и CLI `python -m agents.train`. Вектор
-  признаков — 22 (18 прежних, стабильный код действия, два признака среды
-  `env_pressure`/`env_season` и окно уязвимости `env_window` из среза A1),
+  признаков — 22 (18 прежних, стабильный код действия и три признака среды:
+  `env_pressure`, `env_season` и окно уязвимости `env_window` из среза A1),
   чекпойнты — `CHECKPOINT_VERSION = 3`; BDI
   v0/v1/v2 и MLP v1/v2 мигрируют дополнением нулями, старый MLP без target-сети
   копирует online-веса в target. `--max-steps` по умолчанию зависит от

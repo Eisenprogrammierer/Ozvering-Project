@@ -139,8 +139,9 @@ python3 -m systems --playwright --turns 20 --seed 7
 ```
 
 Всё это чистый Python без pygame; канон `simulation.py`/`warfare.py` не
-меняется. Конфиги добавляются в [`configs/systems/`](configs/systems), имена —
-в `configs/naming/people.json`; в поставке оба каталога пусты, схемы и API —
+меняется. Конфиги лежат в [`configs/systems/`](configs/systems)
+(`environment.json`, `events.json`, `playwright.json`), имена — в
+[`configs/naming/people.json`](configs/naming/people.json); схемы и API —
 [`docs/SYSTEMS.md`](docs/SYSTEMS.md).
 
 # Взаимодействия: доменно-нейтральный экран
@@ -339,12 +340,18 @@ pytest -q                        # весь тестовый набор (см. �
 полномочия, ресурсы и контекст. Карьера включает повышение, перевод и
 увольнение. Легаси-поток «Хартия Агоры» сохранён для старых тестов и
 сохранений; его роль помечена `legacy` и не показывается в обычном списке.
-**Игровой JSON-контент в поставку не входит.** `configs/` и `campaigns/`
-содержат только `.gitkeep`; роли, миры, сюжеты, автоматы и шаблоны
-добавляются файлами по [`docs/CONTENT.md`](docs/CONTENT.md). Старый набор
-данных оставлен только для тестов в `tests/fixtures/content/` и рабочей
-сборкой не читается. Изображения в кампанийном UI
-по умолчанию процедурные плейсхолдеры; старые JPG/PNG не используются.
+**Игровой JSON-контент частично входит в поставку.** Уже есть
+`configs/roles/roles.json` (четыре роли), `configs/storylines/` (сюжеты и
+сцены), `configs/campaigns/` (шаблоны и `base/`), `configs/systems/`
+(среда, события, драматург), `configs/naming/` (имена и политики),
+`configs/content/` (UI-контент) и `configs/characters/` (12 черт и личность
+героя). Пусты только `configs/worlds/`, `configs/strategy/`,
+`configs/automata/`, `configs/environments/`, `configs/presets/`,
+`configs/classes/`, `configs/view/` и корневой `campaigns/`; они
+заполняются файлами по [`docs/CONTENT.md`](docs/CONTENT.md). Тестовый набор
+лежит отдельно в `tests/fixtures/content/` и production-контентом не
+считается. Изображения в кампанийном UI по умолчанию процедурные
+плейсхолдеры; старые JPG/PNG не используются.
 Редактор использует собственные
 `automata/model.py`, `automata/storage.py` и `configs/automata/*.json`;
 подробности — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
@@ -558,11 +565,12 @@ Held-out кампании — одна строка «политика прот�
 Карта входа по потребностям — [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
 Практическое руководство по запуску, обучению и вкладу — [`docs/HOWTO.md`](docs/HOWTO.md).
 JSON-контент и папки: что можно добавить, изменить или удалить без кода, — [`docs/CONTENT.md`](docs/CONTENT.md).
-Data-Driven расширение покрывает сюжетные арки (`configs/storylines/`),
-долгосрочные стратегии узлов (`strategies` в мире или отдельный
-`*_strategies.json`), многофазные планы среды арены
-(`configs/environments/`) и рынок труда (`labor_market` в мире); сами
-данные добавляются JSON-файлами и в поставку не входят. Сохранения
+Data-Driven расширение покрывает сюжетные арки (`configs/storylines/` — они
+уже есть в поставке), долгосрочные стратегии узлов (`strategies` в мире или
+отдельный `*_strategies.json`), многофазные планы среды арены
+(`configs/environments/`) и рынок труда (`labor_market` в мире). Для
+стратегий, среды и рынка труда данные добавляются JSON-файлами: каталоги
+`configs/strategy/` и `configs/environments/` в поставке пусты. Сохранения
 версионированы (`SAVE_VERSION = 2`) и мигрируют аддитивно.
 Графический редактор автоматов — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
 

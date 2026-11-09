@@ -5,7 +5,7 @@
 > документы читать. Документ не заменяет канон и спецификации, а помогает
 > быстро найти нужный из них.
 >
-> **Дата сверки:** 2026-11-05. Проверялось по коду, тестам и фактическому
+> **Дата сверки:** 2026-11-09. Проверялось по коду, тестам и фактическому
 > headless-запуску, а не только по README. Если документ расходится с кодом,
 > доверяйте коду и тестам; расхождение лучше сразу исправлять.
 >
@@ -122,6 +122,7 @@ venv/bin/python main.py
 | «Хочу просто поиграть» | §1.3, [`HOWTO.md`](HOWTO.md) §1 | `main.py`, `view/app.py` | `tests/test_gui_smoke.py` |
 | «Хочу запустить конкретный режим» | §1.4, [`UI.md`](UI.md), [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `main.py` | `tests/test_ui.py` |
 | «Хочу понять модель мира» | §5.1, [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) | `core41/`, `campaign/`, `simulation.py`, `warfare.py` | `tests/test_core41.py`, `tests/test_canon.py` |
+| «Хочу понять формулы» | [`FORMULAS.md`](FORMULAS.md) | `core41/model.py`, `core41/arena.py`, `campaign/` | `tests/test_math_model.py`, профильные тесты |
 | «Хочу править контент без кода» | §5.2, [`CONTENT.md`](CONTENT.md) | `configs/` | `tests/test_content_pipeline.py` |
 | «Хочу править современный GUI» | §5.3, [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `view/` | `tests/test_gui_smoke.py`, `tests/test_view_*.py` |
 | «Хочу править легаси-GUI» | §5.3, [`UI.md`](UI.md) | `ui/` | `tests/test_ui.py` |
@@ -196,7 +197,7 @@ main.py
 | `configs/systems/*.json` | среда, события, драматург | `systems.*` |
 | `configs/naming/*.json` | лексикон и имена | `naming.*` |
 | `configs/worlds/` | миров пока нет (только `.gitkeep`) | `campaign.world.load_world()` |
-| `configs/strategy/`, `configs/automata/`, `configs/environments/` | пусто | соответствующие загрузчики |
+| `configs/strategy/`, `configs/automata/`, `configs/environments/`, `configs/presets/`, `configs/classes/`, `configs/view/` | пусто (`.gitkeep`) | соответствующие загрузчики |
 
 Тестовый набор контента лежит отдельно: `tests/fixtures/content/`.
 `tests/conftest.py` подменяет рабочие каталоги на фикстуры, поэтому тесты
@@ -262,11 +263,15 @@ GUI существует и играется, но это **рабочий пе�
 * **Баланс и полировка — первый срез.** Кампания автоматов проходится, но
   субъективный баланс, читаемость HUD и длинная прогрессия ещё не
   откалиброваны как «игра для игрока».
-* **Документация местами отстаёт от кода.** Например, старые разделы
-  README/SUMMARY/CAMPAIGN_UI описывают пустой `configs/` и поток
-  `world_actor`; фактически в поставке есть четыре лорные роли и кампании
-  автоматов. Для текущего состояния сверяйтесь с этим документом, кодом и
-  `configs/`.
+* **Статусы документов различаются.** README, SUMMARY, SYSTEMS, WORLD и
+  этот документ сверены с поставкой 2026-11-09: в `configs/` уже есть роли,
+  сюжеты, кампании, среда/события/драматург и имена; пусты только
+  `configs/worlds/`, `configs/strategy/`, `configs/automata/`,
+  `configs/environments/`, `configs/presets/`, `configs/classes/` и
+  `configs/view/`. `docs/code/*` — исторические снимки, а `CAMPAIGN_UI.md`
+  содержит и текущий поток, и легаси-разделы; их числа относятся к своим
+  датам. Для текущего состояния сверяйтесь с
+  [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md), кодом и `configs/`.
 
 ---
 

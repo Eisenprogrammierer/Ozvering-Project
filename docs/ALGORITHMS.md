@@ -6,7 +6,8 @@
 сегодня, включая известные расхождения и ограничения.
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
-[`AGENTS.md`](AGENTS.md), [`MODEL.md`](MODEL.md).
+[`AGENTS.md`](AGENTS.md), [`MODEL.md`](MODEL.md),
+[`FORMULAS.md`](FORMULAS.md) — простое объяснение тех же формул с примерами.
 
 ---
 

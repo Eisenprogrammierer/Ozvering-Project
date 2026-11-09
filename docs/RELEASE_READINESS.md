@@ -46,7 +46,7 @@
 | Единая точка входа | `python3 main.py` открывает современный клиент `view/`; `--classic`/`--ui` — легаси `ui/` | `main.py`, тесты `test_main_default_opens_view_client`, `test_main_dispatches_view_flag` |
 | `--list-checkpoints` | печатает список без окна и без импорта pygame, уважает `--checkpoints-dir` | `main.py::_list_checkpoints`, `test_entry_point_lists_checkpoints_regardless_of_client` |
 | Автопилот кампании + чекпойнт | аренный `duel-mlp` отвергается по контракту, берётся BDI; ошибка политики останавливает автопилот, а не игру | `WorldScreen._autopilot_policy_instance/_autopilot_step`, 2 регрессионных теста |
-| Версионирование чекпойнтов | базовые политики v3, duel-MLP v4; миграции v0→v3 и v3→v4 | `CHECKPOINT_VERSION = 3`, `DUEL_CHECKPOINT_VERSION = 4` |
+| Версионирование чекпойнтов | базовые политики v3, duel-MLP v5; миграции v0→v3 и v4→v5 | `CHECKPOINT_VERSION = 3`, `DUEL_CHECKPOINT_VERSION = 5` |
 | Production-автопоиск | `best.json → latest.json → mtime`, отказ на битых/будущих версиях | `agents/checkpoints.py`, `test_checkpoints.py` |
 | `agents.train --env arena` | self-play, held-out матрица, Wilson CI, warmup baseline, `--save-best` | реальные прогоны; JSON-статистика |
 | `agents.train --env campaign` | `CampaignEnv`: reset/step/observe/legal_actions/state_dict, карьера opt-in | прямой вызов из Python, тесты |
