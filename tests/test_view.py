@@ -547,11 +547,11 @@ def test_player_death_is_a_storyline_defeat_condition():
     assert not check_storyline_condition(
         {"type": "player_dead"}, state, None, {}
     )
-    state.needs.commander.needs["health"] = 1.0
+    state.needs.commander.force = 0.0
     assert state.needs.player_dead
     assert check_storyline_condition({"type": "player_dead"}, state, None, {})
     snapshot = state.to_snapshot()
-    state.needs.commander.needs["health"] = 0.0
+    state.needs.commander.force = 100.0
     state.needs.commander.dead = False
     state.apply_snapshot(snapshot)
     assert state.needs.player_dead

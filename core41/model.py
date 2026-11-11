@@ -189,7 +189,7 @@ def transmit_sickness(source, target, rng, form="force"):
         severity <= 0.0
         or form != "force"
         or target.sickness >= SICKNESS_MAX
-        or target.health <= 0.0
+        or target.is_dead
     ):
         return 0.0
     if rng.random() >= CONTAGION_CHANCE * severity:
@@ -231,7 +231,12 @@ class Automaton:
 
     @property
     def is_dead(self):
-        return self.health <= 0.0
+        """Смерть автомата наступает, когда кончается сила ``F``.
+
+        Здоровье, рана и болезнь — легаси-состояния (в BDI персонажа они
+        живут как ``conditions``), но смерть определяется только ``force``.
+        """
+        return self.force <= 0.0
 
     @property
     def is_sick(self):

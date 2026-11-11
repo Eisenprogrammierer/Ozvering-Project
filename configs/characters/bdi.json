@@ -1,0 +1,525 @@
+{
+  "schema": 1,
+  "label": "BDI персонажей",
+  "history": 8,
+  "strict_predicates": false,
+  "death": {
+    "metric": "force",
+    "at_or_below": 0.0,
+    "note": "Персонаж умирает, когда кончается сила. Здоровье, раны и болезнь — состояния BDI, а не отдельные метрики автомата."
+  },
+  "needs": {
+    "hunger": {
+      "label": "голод",
+      "good": "продовольствие",
+      "initial": 0.18,
+      "growth": 0.0038,
+      "threshold": 0.72,
+      "force_drain": 0.06,
+      "energy_drain": 0.03,
+      "spillover": {
+        "fatigue": 0.24,
+        "health": 0.16
+      },
+      "satisfaction": {
+        "force": 0.02,
+        "energy": 0.08
+      }
+    },
+    "thirst": {
+      "label": "жажда",
+      "good": "вода",
+      "initial": 0.15,
+      "growth": 0.0052,
+      "threshold": 0.7,
+      "force_drain": 0.08,
+      "energy_drain": 0.04,
+      "spillover": {
+        "fatigue": 0.28,
+        "health": 0.22
+      },
+      "satisfaction": {
+        "force": 0.018,
+        "energy": 0.09
+      }
+    },
+    "fatigue": {
+      "label": "усталость",
+      "good": "отдых",
+      "initial": 0.12,
+      "growth": 0.0042,
+      "threshold": 0.68,
+      "force_drain": 0.05,
+      "energy_drain": 0.07,
+      "spillover": {
+        "health": 0.14,
+        "boredom": 0.1
+      },
+      "satisfaction": {
+        "force": 0.025,
+        "energy": 0.12
+      }
+    },
+    "health": {
+      "label": "здоровье",
+      "good": "лечение",
+      "initial": 0.05,
+      "growth": 0.002,
+      "threshold": 0.65,
+      "force_drain": 0.12,
+      "energy_drain": 0.06,
+      "spillover": {
+        "fatigue": 0.2
+      },
+      "satisfaction": {
+        "force": 0.04,
+        "energy": 0.05
+      }
+    },
+    "fear": {
+      "label": "страх",
+      "good": "безопасность",
+      "initial": 0.1,
+      "growth": 0.0022,
+      "threshold": 0.66,
+      "force_drain": 0.04,
+      "energy_drain": 0.025,
+      "spillover": {
+        "loneliness": 0.08,
+        "health": 0.08
+      },
+      "satisfaction": {
+        "force": 0.03,
+        "energy": 0.04
+      }
+    },
+    "anxiety": {
+      "label": "тревога",
+      "good": "порядок и определённость",
+      "initial": 0.12,
+      "growth": 0.0024,
+      "threshold": 0.68,
+      "force_drain": 0.035,
+      "energy_drain": 0.045,
+      "spillover": {
+        "fatigue": 0.14,
+        "health": 0.1
+      },
+      "satisfaction": {
+        "force": 0.025,
+        "energy": 0.05
+      }
+    },
+    "loneliness": {
+      "label": "одиночество",
+      "good": "общение",
+      "initial": 0.18,
+      "growth": 0.0022,
+      "threshold": 0.7,
+      "force_drain": 0.02,
+      "energy_drain": 0.03,
+      "spillover": {
+        "boredom": 0.12,
+        "health": 0.06
+      },
+      "satisfaction": {
+        "force": 0.015,
+        "energy": 0.045
+      }
+    },
+    "reproduction": {
+      "label": "репродукция",
+      "good": "продолжение рода",
+      "initial": 0.1,
+      "growth": 0.001,
+      "threshold": 0.78,
+      "force_drain": 0.01,
+      "energy_drain": 0.015,
+      "spillover": {
+        "love": 0.2,
+        "loneliness": 0.16
+      },
+      "satisfaction": {
+        "force": 0.01,
+        "energy": 0.025
+      }
+    },
+    "knowledge": {
+      "label": "знания",
+      "good": "знание",
+      "initial": 0.25,
+      "growth": 0.0018,
+      "threshold": 0.76,
+      "force_drain": 0.01,
+      "energy_drain": 0.025,
+      "spillover": {
+        "boredom": 0.22,
+        "skill": 0.18
+      },
+      "satisfaction": {
+        "force": 0.008,
+        "energy": 0.035
+      }
+    },
+    "creativity": {
+      "label": "творчество",
+      "good": "творчество",
+      "initial": 0.22,
+      "growth": 0.0018,
+      "threshold": 0.76,
+      "force_drain": 0.01,
+      "energy_drain": 0.03,
+      "spillover": {
+        "boredom": 0.24,
+        "knowledge": 0.14,
+        "status": 0.06
+      },
+      "satisfaction": {
+        "force": 0.008,
+        "energy": 0.04
+      }
+    },
+    "boredom": {
+      "label": "скука",
+      "good": "развлечение",
+      "initial": 0.25,
+      "growth": 0.0025,
+      "threshold": 0.72,
+      "force_drain": 0.015,
+      "energy_drain": 0.035,
+      "spillover": {
+        "creativity": 0.14,
+        "status": 0.06
+      },
+      "satisfaction": {
+        "force": 0.01,
+        "energy": 0.045
+      }
+    },
+    "status": {
+      "label": "статус",
+      "good": "статус",
+      "initial": 0.35,
+      "growth": 0.0024,
+      "threshold": 0.74,
+      "force_drain": 0.025,
+      "energy_drain": 0.03,
+      "spillover": {
+        "loneliness": 0.06
+      },
+      "satisfaction": {
+        "force": 0.035,
+        "energy": 0.035
+      }
+    },
+    "spirituality": {
+      "label": "духовность",
+      "good": "смысл",
+      "initial": 0.25,
+      "growth": 0.0018,
+      "threshold": 0.78,
+      "force_drain": 0.01,
+      "energy_drain": 0.02,
+      "spillover": {
+        "loneliness": 0.08
+      },
+      "satisfaction": {
+        "force": 0.012,
+        "energy": 0.03
+      }
+    },
+    "skill": {
+      "label": "умение",
+      "good": "мастерство",
+      "initial": 0.35,
+      "growth": 0.0018,
+      "threshold": 0.76,
+      "force_drain": 0.015,
+      "energy_drain": 0.025,
+      "spillover": {
+        "knowledge": 0.18,
+        "status": 0.12,
+        "boredom": 0.08
+      },
+      "satisfaction": {
+        "force": 0.018,
+        "energy": 0.035
+      }
+    },
+    "love": {
+      "label": "любовь",
+      "good": "любовь",
+      "initial": 0.18,
+      "growth": 0.0018,
+      "threshold": 0.74,
+      "force_drain": 0.015,
+      "energy_drain": 0.025,
+      "spillover": {
+        "loneliness": 0.24,
+        "reproduction": 0.16
+      },
+      "satisfaction": {
+        "force": 0.02,
+        "energy": 0.04
+      }
+    },
+    "friendship": {
+      "label": "дружба",
+      "good": "дружба",
+      "initial": 0.18,
+      "growth": 0.0018,
+      "threshold": 0.74,
+      "force_drain": 0.015,
+      "energy_drain": 0.025,
+      "spillover": {
+        "loneliness": 0.22,
+        "love": 0.12
+      },
+      "satisfaction": {
+        "force": 0.018,
+        "energy": 0.04
+      }
+    }
+  },
+  "conditions": {
+    "sickness": {
+      "label": "болезнь",
+      "max": 1.0,
+      "progress": 0.004,
+      "rest_recovery": 0.01,
+      "treat_rate": 0.08,
+      "work_penalty": 0.6,
+      "work_floor": 0.4,
+      "force_drain": 0.15,
+      "energy_drain": 0.1,
+      "health_need_growth": 0.008,
+      "contagion_chance": 0.35,
+      "contagion_severity": 0.5
+    },
+    "wound": {
+      "label": "рана",
+      "max": 1.0,
+      "progress": 0.002,
+      "rest_recovery": 0.012,
+      "treat_rate": 0.1,
+      "work_penalty": 0.7,
+      "work_floor": 0.3,
+      "force_drain": 0.12,
+      "energy_drain": 0.06,
+      "health_need_growth": 0.006,
+      "hit_severity": 0.3
+    }
+  },
+  "belief_predicates": {
+    "knows": {
+      "label": "знает",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "trusts": {
+      "label": "доверяет",
+      "kind": "relation",
+      "symmetric": false,
+      "inverse": "trusted_by"
+    },
+    "trusted_by": {
+      "label": "пользуется доверием",
+      "kind": "relation",
+      "symmetric": false,
+      "inverse": "trusts"
+    },
+    "fears": {
+      "label": "боится",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "respects": {
+      "label": "уважает",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "loves": {
+      "label": "любит",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "friends_with": {
+      "label": "дружит",
+      "kind": "relation",
+      "symmetric": true
+    },
+    "rival_of": {
+      "label": "соперничает",
+      "kind": "relation",
+      "symmetric": true
+    },
+    "allied_with": {
+      "label": "состоит в союзе",
+      "kind": "relation",
+      "symmetric": true
+    },
+    "subordinate_of": {
+      "label": "подчинён",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "member_of": {
+      "label": "входит в",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "owns": {
+      "label": "владеет",
+      "kind": "relation",
+      "symmetric": false
+    },
+    "has_force": {
+      "label": "имеет силу",
+      "kind": "property"
+    },
+    "has_energy": {
+      "label": "имеет энергию",
+      "kind": "property"
+    },
+    "has_need": {
+      "label": "испытывает потребность",
+      "kind": "property"
+    },
+    "has_intention": {
+      "label": "намерен",
+      "kind": "property"
+    },
+    "is_alive": {
+      "label": "жив",
+      "kind": "property"
+    },
+    "is_dangerous": {
+      "label": "опасен",
+      "kind": "property"
+    },
+    "is_ally": {
+      "label": "союзник",
+      "kind": "property"
+    }
+  },
+  "intention_essences": {
+    "eat": {
+      "label": "утолить голод",
+      "need": "hunger"
+    },
+    "drink": {
+      "label": "утолить жажду",
+      "need": "thirst"
+    },
+    "rest": {
+      "label": "отдохнуть",
+      "need": "fatigue"
+    },
+    "heal": {
+      "label": "поправить здоровье",
+      "need": "health"
+    },
+    "seek_safety": {
+      "label": "искать безопасность",
+      "need": "fear"
+    },
+    "seek_order": {
+      "label": "искать порядок",
+      "need": "anxiety"
+    },
+    "socialize": {
+      "label": "найти общение",
+      "need": "loneliness"
+    },
+    "reproduce": {
+      "label": "продолжить род",
+      "need": "reproduction"
+    },
+    "learn": {
+      "label": "учиться",
+      "need": "knowledge"
+    },
+    "create": {
+      "label": "творить",
+      "need": "creativity"
+    },
+    "entertain": {
+      "label": "развлечься",
+      "need": "boredom"
+    },
+    "seek_status": {
+      "label": "добиваться статуса",
+      "need": "status"
+    },
+    "seek_meaning": {
+      "label": "искать смысл",
+      "need": "spirituality"
+    },
+    "practice": {
+      "label": "оттачивать умение",
+      "need": "skill"
+    },
+    "court": {
+      "label": "добиваться любви",
+      "need": "love"
+    },
+    "befriend": {
+      "label": "искать дружбу",
+      "need": "friendship"
+    },
+    "help": {
+      "label": "помочь",
+      "need": "friendship"
+    },
+    "attack": {
+      "label": "напасть",
+      "need": "fear"
+    },
+    "defend": {
+      "label": "защитить",
+      "need": "fear"
+    },
+    "trade": {
+      "label": "обменять",
+      "need": "hunger"
+    },
+    "inspect": {
+      "label": "разузнать",
+      "need": "knowledge"
+    },
+    "build_network": {
+      "label": "укрепить связи",
+      "need": "status"
+    },
+    "reconcile": {
+      "label": "примириться",
+      "need": "friendship"
+    },
+    "probe": {
+      "label": "прощупать",
+      "need": "anxiety"
+    },
+    "retreat": {
+      "label": "отступить",
+      "need": "fear"
+    }
+  },
+  "decision": {
+    "need_weight": 1.0,
+    "belief_weight": 0.18,
+    "intention_weight": 0.22,
+    "novelty": 0.04,
+    "trait_center": 0.5,
+    "predicate_weights": {
+      "trusts": 0.3,
+      "fears": 0.35,
+      "respects": 0.2,
+      "loves": 0.25,
+      "friends_with": 0.25,
+      "rival_of": 0.35,
+      "allied_with": 0.3,
+      "is_dangerous": 0.4,
+      "is_ally": 0.3
+    }
+  }
+}

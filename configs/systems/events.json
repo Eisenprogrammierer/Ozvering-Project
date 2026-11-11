@@ -1546,6 +1546,146 @@
         "{actor} тайно встречается с {target} от имени {organization}.",
         "Дипломатическая миссия {target} в {place} проваливается, и {organization} ищет виновного."
       ]
+    },
+    {
+      "id": "hunger_riot",
+      "category": "disaster",
+      "title": "Голодный бунт",
+      "tags": [
+        "food",
+        "unrest",
+        "need"
+      ],
+      "severity": 0.6,
+      "stakes": 0.9,
+      "weight": 1.2,
+      "probability": 0.75,
+      "conditions": [
+        {
+          "kind": "need",
+          "key": "hunger",
+          "op": ">=",
+          "value": 0.7
+        },
+        {
+          "kind": "division",
+          "key": "social",
+          "op": "in",
+          "value": [
+            "worker",
+            "peasant",
+            "outcast"
+          ]
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "divisions": [
+          "social:worker",
+          "social:peasant",
+          "social:outcast"
+        ],
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 2.0,
+      "duration": 6.0,
+      "cooldown": 12.0,
+      "effects": {
+        "needs": {
+          "hunger": -0.2,
+          "fear": 0.1
+        },
+        "force": -0.02,
+        "energy": -0.03
+      },
+      "templates": [
+        "Толпа у складов требует хлеба: {actor} пытается говорить о порядке, но {place} уже охвачен голодным бунтом.",
+        "В {place} вспыхивает голодный бунт; {organization} обещает пайки, а {actor} ищет виновных."
+      ]
+    },
+    {
+      "id": "field_rumor",
+      "category": "mystery",
+      "title": "Полевой слух",
+      "tags": [
+        "rumor",
+        "knowledge",
+        "belief"
+      ],
+      "severity": 0.3,
+      "stakes": 0.6,
+      "weight": 0.9,
+      "probability": 0.5,
+      "conditions": [
+        {
+          "kind": "need",
+          "key": "knowledge",
+          "op": ">=",
+          "value": 0.45
+        }
+      ],
+      "visibility": {
+        "scope": "global",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 4.0,
+      "cooldown": 8.0,
+      "effects": {
+        "needs": {
+          "knowledge": -0.15,
+          "anxiety": 0.05
+        }
+      },
+      "templates": [
+        "Через {place} проходит слух: {actor} будто бы видел то, о чём {organization} велит молчать.",
+        "{target} приносит весть из {place}; {actor} решает, верить ли ей и кому её пересказать."
+      ]
+    },
+    {
+      "id": "wound_fever",
+      "category": "life",
+      "title": "Раневая горячка",
+      "tags": [
+        "wound",
+        "sickness",
+        "condition"
+      ],
+      "severity": 0.5,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "probability": 0.6,
+      "conditions": [
+        {
+          "kind": "condition",
+          "key": "wound",
+          "op": ">=",
+          "value": 0.5
+        }
+      ],
+      "visibility": {
+        "scope": "character",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 5.0,
+      "cooldown": 10.0,
+      "effects": {
+        "conditions": {
+          "sickness": 0.15
+        },
+        "needs": {
+          "health": 0.2
+        },
+        "force": -0.03
+      },
+      "templates": [
+        "Старая рана {actor} открывается в {place}; жар не отступает, и {organization} ищет лекаря.",
+        "{actor} не может скрыть раневую горячку: {target} замечает кровь и требует объяснений."
+      ]
     }
   ]
 }

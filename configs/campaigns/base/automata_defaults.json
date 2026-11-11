@@ -12,6 +12,108 @@
     "morale": "мораль",
     "energy": "энергия"
   },
+  "faction_state": {
+    "context_neutral": 0.5,
+    "context_decay": 0.08,
+    "driver_gain": 0.8,
+    "morale_scale": 100.0,
+    "assets": {
+      "legitimacy": [
+        {"metric": "characters.mean:satisfaction.status", "weight": 0.30},
+        {"metric": "characters.mean:satisfaction.spirituality", "weight": 0.12},
+        {"metric": "characters.mean:trait.loyalty", "weight": 0.13},
+        {"metric": "organs.kind:legitimacy", "weight": 0.20},
+        {"metric": "organization.willing_share", "weight": 0.13},
+        {"metric": "context.legitimacy", "weight": 0.12}
+      ],
+      "cohesion": [
+        {"metric": "characters.mean:satisfaction.friendship", "weight": 0.25},
+        {"metric": "characters.mean:satisfaction.loneliness", "weight": 0.15},
+        {"metric": "characters.mean:satisfaction.love", "weight": 0.15},
+        {"metric": "organs.mean", "weight": 0.15},
+        {"metric": "organization.active_share", "weight": 0.15},
+        {"metric": "context.cohesion", "weight": 0.15}
+      ],
+      "supply": [
+        {"metric": "characters.mean:satisfaction.hunger", "weight": 0.35},
+        {"metric": "characters.mean:satisfaction.thirst", "weight": 0.25},
+        {"metric": "organs.kind:maintenance", "weight": 0.20},
+        {"metric": "organization.active_share", "weight": 0.10},
+        {"metric": "context.supply", "weight": 0.10}
+      ],
+      "fear": [
+        {"metric": "characters.mean:need.fear", "weight": 0.40},
+        {"metric": "characters.mean:need.anxiety", "weight": 0.20},
+        {"metric": "organs.kind:coercion", "weight": 0.15},
+        {"metric": "characters.mean:condition.wound", "weight": 0.10},
+        {"metric": "context.fear", "weight": 0.15}
+      ],
+      "morale": [
+        {"metric": "characters.mean:morale", "weight": 0.35},
+        {"metric": "characters.mean:satisfaction.health", "weight": 0.15},
+        {"metric": "characters.mean:satisfaction.fatigue", "weight": 0.15},
+        {"metric": "characters.mean:satisfaction.boredom", "weight": 0.10},
+        {"metric": "organs.mean", "weight": 0.15},
+        {"metric": "context.morale", "weight": 0.10}
+      ],
+      "influence": [
+        {"metric": "characters.mean:force", "weight": 0.22},
+        {"metric": "characters.mean:energy", "weight": 0.18},
+        {"metric": "organs.kind:intelligence", "weight": 0.18},
+        {"metric": "organs.kind:information", "weight": 0.12},
+        {"metric": "organization.willing_share", "weight": 0.15},
+        {"metric": "context.influence", "weight": 0.15}
+      ],
+      "energy": [
+        {"metric": "characters.mean:energy", "weight": 0.35},
+        {"metric": "characters.mean:satisfaction.fatigue", "weight": 0.20},
+        {"metric": "characters.mean:satisfaction.health", "weight": 0.15},
+        {"metric": "organs.mean", "weight": 0.20},
+        {"metric": "context.energy", "weight": 0.10}
+      ]
+    },
+    "drivers": {
+      "legitimacy": [
+        {"target": "characters", "need": "status", "weight": -0.55},
+        {"target": "characters", "trait": "loyalty", "weight": 0.35},
+        {"target": "organs", "kind": "legitimacy", "weight": 0.65}
+      ],
+      "cohesion": [
+        {"target": "characters", "need": "friendship", "weight": -0.50},
+        {"target": "characters", "need": "loneliness", "weight": -0.30},
+        {"target": "characters", "need": "love", "weight": -0.20},
+        {"target": "organs", "kind": "command", "weight": 0.30}
+      ],
+      "supply": [
+        {"target": "characters", "need": "hunger", "weight": -0.50},
+        {"target": "characters", "need": "thirst", "weight": -0.50},
+        {"target": "organs", "kind": "maintenance", "weight": 0.30}
+      ],
+      "fear": [
+        {"target": "characters", "need": "fear", "weight": 0.50},
+        {"target": "characters", "need": "anxiety", "weight": 0.30},
+        {"target": "characters", "condition": "wound", "weight": 0.20}
+      ],
+      "morale": [
+        {"target": "characters", "morale": 1.0},
+        {"target": "characters", "need": "fear", "weight": -0.20},
+        {"target": "characters", "need": "health", "weight": -0.10},
+        {"target": "organs", "kind": "coercion", "weight": 0.20}
+      ],
+      "influence": [
+        {"target": "characters", "force": 0.40},
+        {"target": "characters", "energy": 0.20},
+        {"target": "characters", "need": "status", "weight": -0.25},
+        {"target": "organs", "kind": "intelligence", "weight": 0.40},
+        {"target": "organs", "kind": "information", "weight": 0.30}
+      ],
+      "energy": [
+        {"target": "characters", "energy": 0.50},
+        {"target": "characters", "need": "fatigue", "weight": -0.30},
+        {"target": "organs", "kind": "maintenance", "weight": 0.20}
+      ]
+    }
+  },
   "realtime": {
     "turn_seconds": 240.0,
     "action_interval_seconds": 80.0,
@@ -180,8 +282,8 @@
     {
       "id": "directive",
       "label": "Отдать директиву",
-      "description": "Приказ подчинённому автомату: вертикаль работает, цель укрепляется, законность фракции растёт.",
-      "relation": "subordinate",
+      "description": "Директива связанному автомату сети: совместная работа укрепляет цель и законность фракции.",
+      "relation": "linked",
       "cost": {"influence": 0.03},
       "source_integrity": 0.008,
       "target_integrity": 0.1,
@@ -191,8 +293,8 @@
     {
       "id": "escalate",
       "label": "Запросить поддержку",
-      "description": "Автомат обращается к вышестоящему органу за поддержкой: источник укрепляется, центр расходует часть целостности.",
-      "relation": "superior",
+      "description": "Автомат обращается к связанному узлу сети за поддержкой: источник укрепляется, сосед расходует часть целостности.",
+      "relation": "linked",
       "cost": {"influence": 0.02},
       "source_integrity": 0.1,
       "target_integrity": -0.02,

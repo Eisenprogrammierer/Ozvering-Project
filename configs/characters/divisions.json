@@ -1,0 +1,448 @@
+{
+  "schema": 1,
+  "label": "Деления персонажей",
+  "description": "Пятнадцать измерений ролевой принадлежности. Это элемент ролевой игры, а не математическая метрика: деления задают, кем персонаж является для мира, событий и других персонажей.",
+  "strict": false,
+  "dimensions": {
+    "territorial": {
+      "label": "Территориальное",
+      "summary": "К какой земле, области или фронту персонаж привязан.",
+      "values": [
+        {
+          "id": "capital",
+          "label": "Столица"
+        },
+        {
+          "id": "province",
+          "label": "Провинция"
+        },
+        {
+          "id": "frontier",
+          "label": "Пограничье"
+        },
+        {
+          "id": "front",
+          "label": "Фронт"
+        },
+        {
+          "id": "diaspora",
+          "label": "Диаспора"
+        }
+      ]
+    },
+    "social": {
+      "label": "Социальное",
+      "summary": "Сословие и социальный круг персонажа.",
+      "values": [
+        {
+          "id": "elite",
+          "label": "Элита"
+        },
+        {
+          "id": "middle",
+          "label": "Средний слой"
+        },
+        {
+          "id": "worker",
+          "label": "Работный люд"
+        },
+        {
+          "id": "peasant",
+          "label": "Крестьянство"
+        },
+        {
+          "id": "outcast",
+          "label": "Изгои"
+        }
+      ]
+    },
+    "economic": {
+      "label": "Экономическое",
+      "summary": "Откуда персонаж берёт средства и какую роль играет в хозяйстве.",
+      "values": [
+        {
+          "id": "owner",
+          "label": "Собственник"
+        },
+        {
+          "id": "manager",
+          "label": "Управляющий"
+        },
+        {
+          "id": "wage",
+          "label": "Наёмный работник"
+        },
+        {
+          "id": "merchant",
+          "label": "Торговец"
+        },
+        {
+          "id": "dependent",
+          "label": "Иждивенец"
+        }
+      ]
+    },
+    "political": {
+      "label": "Политическое",
+      "summary": "Место персонажа в борьбе за власть.",
+      "values": [
+        {
+          "id": "ruler",
+          "label": "Правитель"
+        },
+        {
+          "id": "party",
+          "label": "Партийный"
+        },
+        {
+          "id": "opposition",
+          "label": "Оппозиция"
+        },
+        {
+          "id": "neutral",
+          "label": "Вне политики"
+        },
+        {
+          "id": "radical",
+          "label": "Радикал"
+        }
+      ]
+    },
+    "religious": {
+      "label": "Религиозное",
+      "summary": "Вера и церковная принадлежность персонажа.",
+      "values": [
+        {
+          "id": "official",
+          "label": "Официальный культ"
+        },
+        {
+          "id": "schism",
+          "label": "Раскол"
+        },
+        {
+          "id": "folk",
+          "label": "Народная вера"
+        },
+        {
+          "id": "secular",
+          "label": "Светский"
+        },
+        {
+          "id": "foreign",
+          "label": "Чужая вера"
+        }
+      ]
+    },
+    "ethnic": {
+      "label": "Этническое",
+      "summary": "Происхождение и этническая общность.",
+      "values": [
+        {
+          "id": "core",
+          "label": "Титульный народ"
+        },
+        {
+          "id": "minority",
+          "label": "Меньшинство"
+        },
+        {
+          "id": "border",
+          "label": "Пограничный народ"
+        },
+        {
+          "id": "mixed",
+          "label": "Смешанное"
+        },
+        {
+          "id": "foreign",
+          "label": "Чужак"
+        }
+      ]
+    },
+    "age": {
+      "label": "Возрастное",
+      "summary": "Возрастная когорта и связанные с ней ожидания.",
+      "values": [
+        {
+          "id": "child",
+          "label": "Дети"
+        },
+        {
+          "id": "youth",
+          "label": "Молодёжь"
+        },
+        {
+          "id": "adult",
+          "label": "Взрослые"
+        },
+        {
+          "id": "elder",
+          "label": "Старшие"
+        },
+        {
+          "id": "veteran",
+          "label": "Ветераны"
+        }
+      ]
+    },
+    "sex": {
+      "label": "Пол",
+      "summary": "Пол персонажа и связанные с ним ролевые ожидания.",
+      "values": [
+        {
+          "id": "male",
+          "label": "Мужской"
+        },
+        {
+          "id": "female",
+          "label": "Женский"
+        },
+        {
+          "id": "other",
+          "label": "Иной"
+        }
+      ]
+    },
+    "professional": {
+      "label": "Профессиональное",
+      "summary": "Ремесло, служба или занятие персонажа.",
+      "values": [
+        {
+          "id": "officer",
+          "label": "Офицер"
+        },
+        {
+          "id": "soldier",
+          "label": "Солдат"
+        },
+        {
+          "id": "priest",
+          "label": "Служитель"
+        },
+        {
+          "id": "clerk",
+          "label": "Чиновник"
+        },
+        {
+          "id": "artisan",
+          "label": "Мастер"
+        },
+        {
+          "id": "scholar",
+          "label": "Учёный"
+        }
+      ]
+    },
+    "institutional": {
+      "label": "Институциональное",
+      "summary": "К какому институту персонаж принадлежит.",
+      "values": [
+        {
+          "id": "army",
+          "label": "Армия"
+        },
+        {
+          "id": "church",
+          "label": "Церковь"
+        },
+        {
+          "id": "bureau",
+          "label": "Бюрократия"
+        },
+        {
+          "id": "guild",
+          "label": "Цех"
+        },
+        {
+          "id": "house",
+          "label": "Дом"
+        },
+        {
+          "id": "none",
+          "label": "Без института"
+        }
+      ]
+    },
+    "migratory": {
+      "label": "Миграционное",
+      "summary": "Оседлость или перемещение персонажа.",
+      "values": [
+        {
+          "id": "settled",
+          "label": "Оседлый"
+        },
+        {
+          "id": "migrant",
+          "label": "Переселенец"
+        },
+        {
+          "id": "refugee",
+          "label": "Беженец"
+        },
+        {
+          "id": "nomad",
+          "label": "Кочевник"
+        },
+        {
+          "id": "exile",
+          "label": "Изгнанник"
+        }
+      ]
+    },
+    "educational": {
+      "label": "Образовательное",
+      "summary": "Образование и доступ к знанию.",
+      "values": [
+        {
+          "id": "none",
+          "label": "Без грамоты"
+        },
+        {
+          "id": "basic",
+          "label": "Начальное"
+        },
+        {
+          "id": "guild",
+          "label": "Ремесленное"
+        },
+        {
+          "id": "academy",
+          "label": "Академическое"
+        },
+        {
+          "id": "secret",
+          "label": "Тайное знание"
+        }
+      ]
+    },
+    "property": {
+      "label": "Имущественное",
+      "summary": "Что персонаж считает своим по праву.",
+      "values": [
+        {
+          "id": "land",
+          "label": "Земля"
+        },
+        {
+          "id": "capital",
+          "label": "Капитал"
+        },
+        {
+          "id": "weapon",
+          "label": "Оружие"
+        },
+        {
+          "id": "none",
+          "label": "Ничего"
+        },
+        {
+          "id": "claim",
+          "label": "Спорное право"
+        }
+      ]
+    },
+    "legal": {
+      "label": "Правовое",
+      "summary": "Правовой статус персонажа.",
+      "values": [
+        {
+          "id": "citizen",
+          "label": "Полноправный"
+        },
+        {
+          "id": "subject",
+          "label": "Подданный"
+        },
+        {
+          "id": "servant",
+          "label": "Зависимый"
+        },
+        {
+          "id": "outlaw",
+          "label": "Вне закона"
+        },
+        {
+          "id": "foreigner",
+          "label": "Иностранец"
+        }
+      ]
+    },
+    "family": {
+      "label": "Семейное",
+      "summary": "Семейное положение и родственные обязательства.",
+      "values": [
+        {
+          "id": "single",
+          "label": "Одинокий"
+        },
+        {
+          "id": "married",
+          "label": "В браке"
+        },
+        {
+          "id": "parent",
+          "label": "Родитель"
+        },
+        {
+          "id": "widowed",
+          "label": "Вдовец/вдова"
+        },
+        {
+          "id": "clan",
+          "label": "Род"
+        }
+      ]
+    }
+  },
+  "presets": {
+    "germanic": {
+      "territorial": "capital",
+      "social": "elite",
+      "economic": "owner",
+      "political": "ruler",
+      "religious": "official",
+      "ethnic": "core",
+      "age": "adult",
+      "professional": "officer",
+      "institutional": "army",
+      "migratory": "settled",
+      "educational": "academy",
+      "property": "land",
+      "legal": "citizen",
+      "family": "clan"
+    },
+    "russian": {
+      "territorial": "province",
+      "social": "middle",
+      "economic": "wage",
+      "political": "party",
+      "religious": "official",
+      "ethnic": "core",
+      "age": "adult",
+      "professional": "soldier",
+      "institutional": "army",
+      "migratory": "settled",
+      "educational": "basic",
+      "property": "none",
+      "legal": "subject",
+      "family": "parent"
+    },
+    "anglo": {
+      "territorial": "frontier",
+      "social": "middle",
+      "economic": "manager",
+      "political": "neutral",
+      "religious": "secular",
+      "ethnic": "mixed",
+      "age": "adult",
+      "professional": "scholar",
+      "institutional": "guild",
+      "migratory": "migrant",
+      "educational": "academy",
+      "property": "capital",
+      "legal": "foreigner",
+      "family": "single"
+    }
+  }
+}

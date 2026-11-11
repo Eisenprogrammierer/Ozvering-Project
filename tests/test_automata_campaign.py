@@ -212,7 +212,7 @@ def test_lore_participation_uses_original_faction_size():
 
 
 def test_allow_rejoin_lets_exited_participants_return():
-    def active_series(rejoin):
+    def exited_series(rejoin):
         preset = _preset("empire_campaign", seed=11)
         for organization in preset.organizations:
             organization["runtime"]["allow_rejoin"] = rejoin
@@ -223,14 +223,20 @@ def test_allow_rejoin_lets_exited_participants_return():
                 player_action=campaign.auto_action(campaign.player_side)
             )
             series.append(
-                campaign.factions["red"].snapshot()["active_count"]
+                campaign.factions["red"]
+                .snapshot()["organization"]
+                .get("exited", 0)
             )
         return series
 
-    frozen = active_series(False)
-    returning = active_series(True)
+    frozen = exited_series(False)
+    returning = exited_series(True)
+    # Без повторного входа состав «замерзает»: вышедшие остаются в архиве.
+    assert max(frozen) > 0
     assert max(frozen) == min(frozen)
-    assert max(returning) > min(returning)
+    # С ``allow_rejoin`` архив выходов очищается каждый тик, поэтому
+    # участники снова доступны организации.
+    assert max(returning) == 0
 
 
 def test_lore_actions_have_cooldowns_and_engine_enforces_them():
@@ -346,20 +352,21 @@ def test_cooldowns_prevent_automata_from_repeating_a_work_next_turn():
 
 def test_score_bias_shifts_progress_outcome_boundary():
     preset = _preset("empire_campaign", seed=11)
-    preset.scenario["outcome"]["score_margin"] = 0.0
-    preset.scenario["outcome"]["score_bias"] = 0.0
-    baseline = AutomataCampaign(preset, seed=11)
-    baseline.run()
-    difference = baseline.player.progress() - baseline.rival.progress()
-    assert difference != 0.0
-    for bias, expected in (
-        (abs(difference) + 0.001, "win"),
-        (-abs(difference) - 0.001, "lose"),
-    ):
-        preset.scenario["outcome"]["score_bias"] = bias
-        probe = AutomataCampaign(preset, seed=11)
-        probe.run()
-        assert probe.outcome == expected
+    outcome = preset.scenario["outcome"]
+    outcome["score_margin"] = 0.0
+    outcome["score_after"] = 0
+    outcome["score_streak"] = 1
+    outcome["defeat"] = {}
+
+    for bias, expected in ((1.0, "win"), (-3.0, "lose")):
+        outcome["score_bias"] = bias
+        campaign = AutomataCampaign(preset, seed=11)
+        campaign.begin_turn()
+        for key in campaign.player.score_assets:
+            campaign.player.set_asset(key, 1.0)
+            campaign.rival.set_asset(key, 0.0)
+        campaign._check_outcome()
+        assert campaign.outcome == expected
 
 
 def test_lore_storylines_use_automata_outcomes_not_manpower():
@@ -429,6 +436,31 @@ def test_fractal_organs_are_runtime_nodes_and_snapshot_roundtrip():
     assert campaign.audit() == []
 
 
+def test_faction_assets_are_projections_not_an_independent_wallet():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    faction = campaign.player
+    before = faction.asset("legitimacy")
+    for character in faction.characters:
+        character.needs["status"] = 1.0
+    assert faction.asset("legitimacy") < before
+
+    # Запись в assets не создаёт отдельное хранилище: она раскладывается
+    # в контекст взаимодействий, откуда актив снова считается формулой.
+    faction.assets["legitimacy"] = 0.2
+    assert faction.asset("legitimacy") == pytest.approx(0.2, abs=1e-6)
+    assert "legitimacy" in faction.context
+
+    # Механическое изменение связей/целостности сети тоже видно в активе.
+    coercion = next(
+        organ for organ in faction.organs if organ.kind == "coercion"
+    )
+    fear_before = faction.asset("fear")
+    coercion.integrity = 0.0
+    assert faction.asset("fear") < fear_before
+
+
 def test_organ_interaction_changes_organ_faction_and_cooldown():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
@@ -473,32 +505,42 @@ def test_advance_accepts_organ_action_and_logs_it():
     )
 
 
-def test_organ_hierarchy_is_data_driven_and_has_no_cycles():
+def test_organ_network_is_data_driven_and_bidirectional():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
     )
     organs = {organ.id: organ for organ in campaign.player.organs}
-    assert organs["panzerwaffe"].parent_id == "wehrmacht"
-    assert organs["wehrmacht"].parent_id == "imperial_staff"
-    assert organs["imperial_staff"].parent_id == ""
+    assert "wehrmacht" in organs["panzerwaffe"].links
+    assert "panzerwaffe" in organs["wehrmacht"].links
+    assert "imperial_staff" in organs["wehrmacht"].links
+    assert "wehrmacht" in organs["imperial_staff"].links
     snapshot = campaign.player.snapshot()
-    depths = {item["id"]: item["depth"] for item in snapshot["organs"]}
-    assert depths["imperial_staff"] == 0
-    assert depths["wehrmacht"] == 1
-    assert depths["panzerwaffe"] == 2
+    by_id = {item["id"]: item for item in snapshot["organs"]}
+    assert by_id["panzerwaffe"]["links"] == sorted(
+        organs["panzerwaffe"].links
+    )
+    assert by_id["panzerwaffe"]["degree"] == len(
+        organs["panzerwaffe"].links
+    )
+    # Сеть допускает циклы и не требует единственного корня.
+    assert any(
+        item["degree"] > 2 for item in snapshot["organs"]
+    )
     assert campaign.audit() == []
 
 
-def test_composite_view_aggregates_organ_hierarchy():
+def test_composite_view_aggregates_organ_network():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
     )
     composite = campaign.composite()
     assert composite is not None
     assert composite.id == "%s:faction" % campaign.player_side
+    # Узлы сети висят под корнем плоско: связи остаются в данных органа,
+    # но не превращаются в вертикаль подчинения.
     assert composite.part("imperial_staff").path_depth() == 1
-    assert composite.part("wehrmacht").path_depth() == 2
-    assert composite.part("panzerwaffe").path_depth() == 3
+    assert composite.part("wehrmacht").path_depth() == 1
+    assert composite.part("panzerwaffe").path_depth() == 1
 
     organs = {organ.id: organ for organ in campaign.player.organs}
     expected_force = sum(

@@ -212,7 +212,7 @@ class CampaignActor:
 
     @property
     def alive(self):
-        return self.unit.health > 0.0
+        return float(self.unit.force) > 0.0
 
     @property
     def standing(self):

@@ -82,6 +82,9 @@ def test_core_state_normalizes_ratios_fatigue_and_defaults():
     assert empty["energy_ratio"] == 0.0
     assert empty["fatigue"] == 1.0
     assert empty["alive"] is False
+    # Смерть определяется силой, а не здоровьем.
+    assert core_state({"force": 1.0, "health": 0.0})["alive"] is True
+    assert core_state({"force": 0.0, "health": 100.0})["alive"] is False
 
 
 def test_player_projection_view_keeps_core_and_legacy_in_sync():

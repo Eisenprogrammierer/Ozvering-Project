@@ -53,7 +53,7 @@
 |---|---|---|
 | Поставить окружение и запустить | вход | `main.py`, `view/`, `ui/` · — · `test_gui_smoke.py` · [`ONBOARDING.md`](ONBOARDING.md), [`HOWTO.md`](HOWTO.md), `README.md` |
 | Запустить конкретный режим | вход | `main.py --arena/--scene/--view/--classic/--automata` · — · `test_ui.py`, `test_view.py` · [`ONBOARDING.md`](ONBOARDING.md) §1.4 |
-| Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/preset.py` · `configs/campaigns/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/faction_state.py`, `campaign/preset.py` · `configs/campaigns/`, `configs/characters/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/` (пуст) · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
 | Играть на арене | арена | `game_engine.py`, `core41/arena.py` · `configs/content/` · `test_health.py`, `test_core41.py` · [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) |
 
@@ -94,7 +94,11 @@
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
 | Фракции, органы, работы | кампания | `campaign/automata.py`, `campaign/preset.py` · `configs/campaigns/*.json`, `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
-| Потребности и черты | кампания | `organizations/needs.py`, `character_traits.py` · `configs/characters/traits.json` · `test_organizations.py`, `test_people.py` · [`ORGANIZATIONS.md`](ORGANIZATIONS.md) |
+| Сеть органов и взаимодействия | кампания | `campaign/fractal.py` · поле `links` в `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.2 |
+| Производные активы фракции | кампания | `campaign/faction_state.py` · `faction_state` в `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §3 |
+| BDI персонажей | кампания | `bdi.py`, `warfare.py` (`Character`) · `configs/characters/bdi.json` · `test_bdi.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
+| 16 потребностей и 15 делений | кампания | `organizations/needs.py`, `campaign/divisions.py`, `character_traits.py` · `configs/characters/bdi.json`, `configs/characters/divisions.json`, `configs/characters/traits.json` · `test_organizations.py`, `test_divisions.py`, `test_people.py` · [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1–§2 |
+| События и их условия | кампания | `systems/events.py` · `configs/systems/events.json` · `test_events_runtime.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §4 |
 | Темп, действия, скорости | кампания | `campaign/defaults.py` · `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | Исходы, поражение, распад | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | ИИ кампании и приоритеты | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
@@ -126,7 +130,10 @@
 | Миры кампании | `configs/worlds/*.json` (каталог пуст в поставке); `campaign/world.py::load_world` |
 | Биография и личность героя | `configs/worlds/biography.json` (нет в поставке), `configs/characters/identity.json`; `campaign/identity.py`, `test_identity.py` |
 | Черты персонажей | `configs/characters/traits.json`; `character_traits.py`; `test_people.py` |
-| Среда, события, драматург | `configs/systems/`; `systems/`; `test_systems.py` |
+| BDI персонажей | `configs/characters/bdi.json`; `bdi.py`, `warfare.py` (`Character`); `test_bdi.py`, `test_automata_campaign.py`; [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
+| 15 делений | `configs/characters/divisions.json`; `campaign/divisions.py`; `test_divisions.py`; [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §2 |
+| Формулы активов фракции | `configs/campaigns/base/automata_defaults.json` → `faction_state`; `campaign/faction_state.py`; `test_automata_campaign.py` |
+| Среда, события, драматург | `configs/systems/`; `systems/`; `test_systems.py`, `test_events_runtime.py` |
 | Имена и политики имён | `configs/naming/`; `naming/`; `test_naming.py`, `test_people.py`; [`NAMING.md`](NAMING.md) |
 | Приказы, документы, диалоги, время | `configs/content/`; `view/support/content.py`; `test_content_pipeline.py` |
 | Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
@@ -198,7 +205,7 @@
 | `configs/storylines/` | 4 сюжета + сцены | `view/support/storyline.py` |
 | `configs/campaigns/` | 4 шаблона + `base/` | `campaign/preset.py`, `campaign/defaults.py` |
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
-| `configs/characters/` | `traits.json` (12 черт), `identity.json` | `character_traits.py`, `campaign/identity.py` |
+| `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
 | `configs/worlds/` | **пуст** (только `.gitkeep`) | `campaign/world.py` |
@@ -215,7 +222,7 @@
 |---|---|
 | Ядро и арена | `test_core41.py`, `test_health.py`, `test_sickness.py`, `test_payload.py`, `test_composite.py`, `test_environment.py`, `test_clock.py`, `test_math_model.py` |
 | Агенты | `test_train_cli.py`, `test_checkpoints.py`, `test_core41.py` |
-| Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py` |
+| Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
 | Дневной мир | `test_campaign.py`, `test_world.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
 | Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_story_arcs.py`, `test_lore_characters.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
@@ -345,7 +352,7 @@ loss  = amount * (1 - efficiency(context))
 | Ускорение | автоматически прерывается на критических событиях |
 | Фон | первый срез: ограниченный фоновый догон при неактивном окне и оффлайн-догон после загрузки (`saved_at`, `MAX_CATCHUP_DAYS`) |
 | Победа | объективной победы нет; условие «дожил до 31 дня» убрано |
-| Поражение | смерть персонажа из-за здоровья или распад организации |
+| Поражение | смерть персонажа при `force <= 0` (здоровье/болезнь — состояния BDI); распад организации |
 | Распад организации | первый срез: `power`/`cohesion <= 0.05` в течение 2 дней подряд (полный ноль — сразу) |
 | Увольнение | смена роли: другая должность в той же структуре или выбор роли вне службы; не поражение |
 | Старые шкалы | проекции ядра, не независимые ресурсы |
@@ -418,7 +425,8 @@ BDI — не третий тип и не отдельная онтология. 
 
 Остаются только поражения:
 
-- смерть персонажа из-за пренебрежения здоровьем;
+- смерть персонажа при `force <= 0`; пренебрежение здоровьем и болезнь —
+  условия BDI, которые ведут к падению силы;
 - распад организации.
 
 Для старта распад организации считается потерей силы: `power` или
@@ -575,6 +583,7 @@ BDI — не третий тип и не отдельная онтология. 
 | [`MODEL.md`](MODEL.md) | спецификация `simulation.py` | канон текущего легаси-кода |
 | [`BASELINE.md`](BASELINE.md) | воспроизводимая база `simulation.py` | база легаси |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, папки и загрузчики | руководство |
+| [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции | руководство |
 | [`NAMING.md`](NAMING.md) | имена, культуры, фракционные политики | текущая реализация |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md) | организации, 16 потребностей, runtime | текущая реализация |
 | [`SYSTEMS.md`](SYSTEMS.md) | среда, события, драматург | текущая реализация |
@@ -588,7 +597,7 @@ BDI — не третий тип и не отдельная онтология. 
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
 | [`TODO.md`](TODO.md) | открытые задачи | трекер |
-| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза | трекер, срез 2026-10-31 |
+| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза | трекер, срез 2026-11-01 |
 | [`code/README.md`](code/README.md) | справочник по модулям | карта кода |
 | [`code/INLINE_NOTES.md`](code/INLINE_NOTES.md) | заметки, перенесённые из inline-комментариев | историческая карта кода |
 
@@ -680,10 +689,11 @@ BDI — не третий тип и не отдельная онтология. 
   работы, двухтактную подготовку сильного удара, туман наблюдения
   (`core41/intel.py`) и разведку `info` со слабой точкой; легаси-пара
   `DuelWorld`/`DuelEnv` сохраняет последовательное разрешение.
-- Реализовано здоровье как отдельное состояние: смерть при `health <= 0`,
-  переполнение урона после `F=0`, отдых/голод и множители
-  `aging/illness/stress/care`; дуэльный срез откалиброван экспериментом
-  `experiments/exp_health_calibration.py`.
+- Реализовано здоровье как отдельное состояние в дуэльном срезе `core41`:
+  смерть при `health <= 0`, переполнение урона после `F=0`, отдых/голод и
+  множители `aging/illness/stress/care`; дуэльный срез откалиброван
+  экспериментом `experiments/exp_health_calibration.py`. В BDI-слое
+  персонажей кампании смерть определяется `force <= 0`.
 - Реализована болезнь как процесс: `sickness ∈ [0,1]`, прогресс без отдыха,
   восстановление отдыхом, урон здоровью и добавка к переполнению урона,
   API `infect()`/`treat()`. Лечение встроено шестым действием `TREAT`

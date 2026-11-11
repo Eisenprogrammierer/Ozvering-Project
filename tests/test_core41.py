@@ -838,10 +838,10 @@ def test_reward_terminal_bonus_for_winner_and_loser():
         rl_policy=RandomPolicy(seed=2),
         ai_policy=RandomPolicy(seed=3),
     )
-    match.ai.health = 0.0
+    match.ai.force = 0.0
     match.step_tick(
         forced_rl_action=Action("REST", form="rest"),
-        forced_ai_action=Action("REST", form="rest"),
+        forced_ai_action=Action("TREAT", form="care", fraction=0.0),
     )
     assert match.winner == "RL"
     assert match.last_rewards["rl"] >= REWARD_TERMINAL_WIN

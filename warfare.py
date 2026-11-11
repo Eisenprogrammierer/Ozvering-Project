@@ -6,6 +6,7 @@ import math
 import random
 
 import character_traits as CT
+import bdi as BDI
 import simulation as S
 
 NEEDS = (
@@ -125,13 +126,20 @@ class Personality:
         return dict(self.values)
 
 
-@dataclass
-class Intention:
+# Намерение персонажа — дуплет BDI ``(объект, суть)``. Старое локальное
+# намерение хранило ``kind/need/urgency/reason``; теперь это производные
+# свойства ``bdi.Intention``, а каноническими остаются ``target``/``essence``.
+Intention = BDI.Intention
 
-    kind: str
-    need: str
-    urgency: float
-    reason: str = ""
+# Тактические виды намерений из ``traits.json`` переводятся в BDI-сути.
+ESSENCE_FOR_KIND = {
+    "assault": "attack",
+    "banzai": "attack",
+    "fire": "probe",
+    "hold": "defend",
+    "rest": "rest",
+    "retreat": "retreat",
+}
 
 
 @dataclass
@@ -248,9 +256,14 @@ class Character(S.UtilityAI):
             "love": 0.18,
             "friendship": 0.18,
         }
-        self.needs = {n: initial[n] for n in NEEDS}
-        self.desires = {}
-        self.intentions = []
+        self.bdi = BDI.BDIState(
+            character_id=str(name),
+            needs={n: initial[n] for n in NEEDS},
+            traits=self.personality.as_dict(),
+        )
+        self.desires = self.bdi.weighted_desires(TRAIT_MODEL)
+        self.beliefs = self.bdi.beliefs
+        self.intentions = self.bdi.intentions
         self.morale = TRAIT_MODEL.morale_value(
             "initial_base", 59.0
         ) + TRAIT_MODEL.morale_value(
@@ -271,12 +284,168 @@ class Character(S.UtilityAI):
 
         self.dead = False
 
+        # Ролевые деления: 15 измерений из
+        # ``configs/characters/divisions.json``.
+        try:
+            from campaign.divisions import Divisions
+
+            self.divisions = Divisions.from_data({})
+        except Exception:
+            self.divisions = None
+
+    def set_division(self, dimension, value_id):
+        """Задать одно из 15 ролевых делений персонажа."""
+        if self.divisions is None:
+            from campaign.divisions import Divisions
+
+            self.divisions = Divisions.from_data({})
+        return self.divisions.set(dimension, value_id)
+
+    def division(self, dimension, default=None):
+        if self.divisions is None:
+            return default
+        return self.divisions.get(dimension, default)
+
+    def division_tags(self):
+        if self.divisions is None:
+            return []
+        return self.divisions.tags()
+
+
+    # --- BDI: желания, убеждения, намерения -------------------------
+    @property
+    def needs(self):
+        """16 желаний BDI (0 — удовлетворено, 1 — предельная нужда)."""
+        return self.bdi.needs
+
+    @needs.setter
+    def needs(self, values):
+        values = dict(values or {})
+        for key, definition in self.bdi.config.needs.items():
+            if key in values:
+                try:
+                    self.bdi.needs[key] = max(
+                        0.0, min(1.0, float(values[key]))
+                    )
+                except (TypeError, ValueError):
+                    continue
+
+    @property
+    def beliefs(self):
+        """Убеждения-триплеты ``(субъект, предикат, объект)``."""
+        bdi = getattr(self, "bdi", None)
+        if bdi is None:
+            return getattr(self, "_legacy_beliefs", {})
+        return bdi.beliefs
+
+    @beliefs.setter
+    def beliefs(self, values):
+        bdi = getattr(self, "bdi", None)
+        if bdi is None:
+            # ``simulation.Agent.reset_state`` пишет сюда легаси-словарь до
+            # создания BDI. Не смешиваем его с триплетами.
+            self._legacy_beliefs = dict(values or {})
+            return
+        self.bdi.beliefs = [
+            self.bdi.config.validate_belief(item)
+            for item in (values or ())
+        ]
+
+    @property
+    def intentions(self):
+        """Намерения-дуплеты ``(объект, суть)``."""
+        return self.bdi.intentions
+
+    @intentions.setter
+    def intentions(self, values):
+        self.bdi.intentions = [
+            self.bdi.config.validate_intention(item)
+            for item in (values or ())
+        ][-self.bdi.config.history :]
+
+    def believe(self, subject, predicate, object):
+        """Записать триплет убеждения и вернуть его."""
+        belief = self.bdi.believe(subject, predicate, object)
+        self.beliefs = self.bdi.beliefs
+        return belief
+
+    def forget(self, subject, predicate=None, object=None):
+        removed = self.bdi.forget(subject, predicate, object)
+        self.beliefs = self.bdi.beliefs
+        return removed
+
+    def intend(self, target, essence):
+        """Записать дуплет намерения и вернуть его."""
+        intention = self.bdi.intend(target, essence)
+        self.intentions = self.bdi.intentions
+        return intention
+
+    @property
+    def conditions(self):
+        """Состояния BDI: болезнь и раны (не метрики автомата)."""
+        return self.bdi.conditions
+
+    @property
+    def sickness(self):
+        return float(self.bdi.condition("sickness"))
+
+    @sickness.setter
+    def sickness(self, value):
+        definition = self.bdi.config.conditions.get("sickness")
+        maximum = definition.maximum if definition else 1.0
+        self.bdi.conditions["sickness"] = max(
+            0.0, min(maximum, float(value))
+        )
+
+    @property
+    def wound(self):
+        return float(self.bdi.condition("wound"))
+
+    @wound.setter
+    def wound(self, value):
+        definition = self.bdi.config.conditions.get("wound")
+        maximum = definition.maximum if definition else 1.0
+        self.bdi.conditions["wound"] = max(0.0, min(maximum, float(value)))
+
+    @property
+    def health(self):
+        """Здоровье как BDI-желание, спроецированное в шкалу ``0..100``.
+
+        Это не отдельная метрика автомата: ``100`` — здоровая потребность
+        ``health == 0``, ``0`` — предельная нужда ``health == 1``.
+        """
+        return 100.0 * (1.0 - float(self.bdi.needs.get("health", 0.0)))
+
+    @health.setter
+    def health(self, value):
+        try:
+            need = 1.0 - max(0.0, min(100.0, float(value))) / 100.0
+        except (TypeError, ValueError):
+            return
+        self.bdi.needs["health"] = max(0.0, min(1.0, need))
+
     @property
     def is_dead(self):
-        return bool(
-            self.dead
-            or float(self.needs.get("health", 0.0)) >= HEALTH_DEATH_THRESHOLD
+        """Смерть персонажа наступает, когда кончается сила ``F``.
+
+        Здоровье, раны и болезнь — состояния BDI; они давят на силу и
+        энергию, но не являются отдельным порогом смерти.
+        """
+        return bool(self.dead or float(self.force) <= 0.0)
+
+    def add_force(self, amount):
+        before = float(self.force)
+        maximum = float(self.state.get("max_force", max(1.0, before)))
+        self.force = max(0.0, min(maximum, before + float(amount)))
+        return float(self.force) - before
+
+    def add_energy(self, amount):
+        before = float(self.energy_pool)
+        maximum = float(self.state.get("max_energy", max(1.0, before)))
+        self.energy_pool = max(
+            0.0, min(maximum, before + float(amount))
         )
+        return float(self.energy_pool) - before
 
     def health_degradation_multiplier(self):
         multiplier = 1.0
@@ -289,34 +458,40 @@ class Character(S.UtilityAI):
         )
 
     def weighted_urgency(self):
-        values = self.personality.as_dict()
-        return {
-            need: self.needs[need]
-            * TRAIT_MODEL.urgency_factor(need, values)
-            for need in NEEDS
-        }
+        self.bdi.traits = self.personality.as_dict()
+        return self.bdi.weighted_desires(TRAIT_MODEL)
 
     def deliberate(self):
-        self.desires = self.weighted_urgency()
+        self.bdi.traits = self.personality.as_dict()
+        self.desires = self.bdi.weighted_desires(TRAIT_MODEL)
         need = max(NEEDS, key=lambda n: self.desires[n])
-        urgency = self.desires[need]
         values = self.personality.as_dict()
         mod = self.modulation()
 
+        forbidden = [] if mod.retreat_allowed else ["retreat"]
+        preferred = ""
         if self.panicked and mod.retreat_allowed:
-            kind = "retreat"
+            preferred = "retreat"
         elif (
             self.fanatical
             or mod.fanaticism > TRAIT_MODEL.fanaticism_override()
         ):
-            kind = "banzai"
+            preferred = "attack"
         else:
-            kind, scores = TRAIT_MODEL.choose_intent(self.desires, values, mod)
-            if kind == "retreat" and not mod.retreat_allowed:
-                scores.pop("retreat", None)
-                kind = max(scores, key=lambda key: (scores[key], key))
-        intent = Intention(kind, need, urgency, TRAIT_MODEL.reason(kind))
-        self.intentions = (self.intentions + [intent])[-3:]
+            kind, _scores = TRAIT_MODEL.choose_intent(
+                self.desires, values, mod
+            )
+            preferred = ESSENCE_FOR_KIND.get(kind, "")
+        intent = self.bdi.choose_intention(
+            TRAIT_MODEL,
+            {
+                "target": need,
+                "preferred": preferred,
+                "forbidden": forbidden,
+            },
+        )
+        self.beliefs = self.bdi.beliefs
+        self.intentions = self.bdi.intentions
         return intent
 
     def receive_order(self, order):
@@ -357,7 +532,6 @@ class Character(S.UtilityAI):
         rng = rng or self.rng
         if self.is_dead:
             self.dead = True
-            self.needs["health"] = HEALTH_DEATH_THRESHOLD
             self.mind = "dead"
             self.morale = 0.0
             return
@@ -365,72 +539,40 @@ class Character(S.UtilityAI):
         uf = max(0.0, min(1.0, float(under_fire)))
         support = max(0.0, min(1.0, float(supported)))
         scale = max(0.0, float(seconds)) / 1800.0
-        health_multiplier = self.health_degradation_multiplier()
-        rate_multipliers = rate_multipliers or {}
-
-        rates = dict(_NEED_RATES)
         values = self.personality.as_dict()
-        for need in NEEDS:
-            rates[need] *= TRAIT_MODEL.growth_factor(need, values)
-        for need, multiplier in rate_multipliers.items():
-            if need in rates:
-                rates[need] *= max(0.0, float(multiplier))
+        self.bdi.traits = values
 
-        for need in NEEDS:
-            delta = rates[need]
-            if in_combat and need in ("fatigue", "fear", "anxiety", "health"):
-                delta += (0.003 + 0.010 * uf) * (0.8 + 0.4 * rng.random())
-            if need in ("fear", "anxiety"):
-                delta += 0.006 * uf
-            if need == "boredom" and not in_combat:
-                delta += 0.003
-            if need == "health":
+        deltas = self.bdi.tick(
+            seconds=seconds,
+            in_combat=in_combat,
+            under_fire=uf,
+            support=support,
+            resting=rested,
+            order_needs=mod.needs,
+            rate_multipliers=rate_multipliers,
+            trait_model=TRAIT_MODEL,
+        )
 
-                delta *= health_multiplier
-            self.needs[need] = min(1.0, self.needs[need] + delta * scale)
-            self.needs[need] = max(
-                0.0,
-                self.needs[need] - mod.needs.get(need, 0.0) * scale,
+        # BDI не хранит силу и энергию: персонаж применяет давление сам.
+        force_delta = float(deltas.get("force", 0.0))
+        energy_delta = float(deltas.get("energy", 0.0))
+        if force_delta:
+            self.force = max(0.0, float(self.force) + force_delta)
+        if energy_delta:
+            self.energy_pool = max(
+                0.0, float(self.energy_pool) + energy_delta
             )
-
-        if support > 0:
-            for need in (
-                "loneliness",
-                "friendship",
-                "love",
-                "fear",
-                "anxiety",
-            ):
-                self.needs[need] = max(
-                    0.0, self.needs[need] - 0.014 * support * scale
-                )
-        if rested:
-            for need in ("fatigue", "hunger", "thirst", "boredom"):
-                self.needs[need] = max(0.0, self.needs[need] - 0.035 * scale)
-        if in_combat:
-
-            self.needs["skill"] = max(0.0, self.needs["skill"] - 0.012 * scale)
-            self.needs["status"] = max(
-                0.0, self.needs["status"] - 0.006 * scale
-            )
-
-        if self.needs["health"] >= HEALTH_DEATH_THRESHOLD:
-            self.needs["health"] = HEALTH_DEATH_THRESHOLD
-            self.dead = True
-            self.mind = "dead"
-            self.morale = 0.0
-            return
 
         if mod.fear:
-            self.needs["fear"] = min(
-                1.0, self.needs["fear"] + mod.fear * scale
+            self.bdi.needs["fear"] = min(
+                1.0, self.bdi.needs["fear"] + mod.fear * scale
             )
         if mod.discipline:
-            self.needs["anxiety"] = max(
-                0.0, self.needs["anxiety"] - 0.02 * mod.discipline * scale
+            self.bdi.needs["anxiety"] = max(
+                0.0, self.bdi.needs["anxiety"] - 0.02 * mod.discipline * scale
             )
-            self.needs["fear"] = max(
-                0.0, self.needs["fear"] - 0.01 * mod.discipline * scale
+            self.bdi.needs["fear"] = max(
+                0.0, self.bdi.needs["fear"] - 0.01 * mod.discipline * scale
             )
 
         stress = TRAIT_MODEL.morale_stress(self.needs)
@@ -454,6 +596,12 @@ class Character(S.UtilityAI):
         self.morale = max(0.0, min(100.0, self.morale))
         self.under_fire = uf
         self.casualties = max(0.0, self.casualties + uf * 0.1 * scale)
+
+        if self.is_dead:
+            self.dead = True
+            self.mind = "dead"
+            self.morale = 0.0
+            return
 
         self._update_mind(rng)
         self.deliberate()
@@ -538,24 +686,25 @@ class Character(S.UtilityAI):
             self.mind = "steady"
 
     def satisfy(self, effects, morale_bonus=0.0):
-        restored = {}
         if self.is_dead:
-            return restored
-        for need, amount in (effects or {}).items():
-            if need not in self.needs:
-                continue
-            try:
-                amount = max(0.0, float(amount))
-            except (TypeError, ValueError):
-                continue
-            before = self.needs[need]
-            self.needs[need] = max(0.0, before - amount)
-            restored[need] = before - self.needs[need]
+            return {}
+        result = self.bdi.satisfy(effects)
+        restored = dict(result.get("restored") or {})
+        if result.get("force"):
+            self.force = min(
+                float(self.state.get("max_force", 10.0)),
+                max(0.0, float(self.force) + float(result["force"])),
+            )
+        if result.get("energy"):
+            self.energy_pool = max(
+                0.0, float(self.energy_pool) + float(result["energy"])
+            )
         total = sum(restored.values())
         if total and morale_bonus:
             self.morale = max(
                 0.0, min(100.0, self.morale + morale_bonus * total)
             )
+        self.desires = self.bdi.weighted_desires(TRAIT_MODEL)
         return restored
 
     def needs_summary(self):
@@ -564,18 +713,25 @@ class Character(S.UtilityAI):
         return {need: float(self.needs.get(need, 0.0)) for need in NEEDS}
 
     def snapshot(self):
+        intention = self.bdi.latest_intention()
         return {
             "name": self.name,
             "side": self.side,
             "role": self.role,
             "mind": self.mind,
             "morale": round(self.morale, 1),
+            "force": round(float(self.force), 3),
+            "energy": round(float(self.energy_pool), 3),
             "needs": {n: round(v, 3) for n, v in self.needs.items()},
             "desires": {n: round(v, 3) for n, v in self.desires.items()},
-            "intention": (
-                self.intentions[-1].__dict__.copy()
-                if self.intentions
-                else None
+            "intention": intention.as_dict() if intention else None,
+            "beliefs": [item.as_dict() for item in self.bdi.beliefs],
+            "conditions": {
+                key: round(value, 3)
+                for key, value in self.bdi.conditions.items()
+            },
+            "divisions": (
+                self.divisions.as_dict() if self.divisions is not None else {}
             ),
             "personality": self.personality.as_dict(),
         }

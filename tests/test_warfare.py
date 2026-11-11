@@ -25,6 +25,27 @@ INTENT_FOR_NEED = {
     "friendship": "hold",
 }
 
+#: Ожидаемая BDI-суть намерения при нейтральных чертах и одной
+#: предельно запущенной потребности.
+ESSENCE_FOR_NEED = {
+    "hunger": "eat",
+    "thirst": "drink",
+    "fatigue": "rest",
+    "health": "rest",
+    "fear": "defend",
+    "anxiety": "defend",
+    "loneliness": "defend",
+    "reproduction": "reproduce",
+    "knowledge": "learn",
+    "creativity": "create",
+    "boredom": "entertain",
+    "status": "seek_status",
+    "spirituality": "seek_meaning",
+    "skill": "practice",
+    "love": "court",
+    "friendship": "befriend",
+}
+
 
 def _char(name, side="red", seed=0, archetype="rifleman"):
     return W.Character(name, side, seed=seed, archetype=archetype)
@@ -62,23 +83,48 @@ def test_sixteen_needs_exactly():
 def test_character_has_bdi_and_needs_outside_canonical_state():
     c = _char("bdi", seed=5, archetype="veteran")
 
-    assert isinstance(c.beliefs, dict)
+    assert isinstance(c.beliefs, list)
     assert set(c.needs) == set(W.NEEDS)
     intent = c.deliberate()
     assert isinstance(intent, W.Intention)
-    assert intent.kind in {
-        "assault",
-        "fire",
-        "hold",
-        "rest",
-        "retreat",
-        "banzai",
-    }
+    assert intent.essence in c.bdi.config.essences
+    assert intent.target
     assert c.intentions and c.intentions[-1] is intent
-    assert set(c.desires) >= set(W.NEEDS)
+    assert set(c.desires) == set(W.NEEDS)
 
     assert "needs" not in c.state
     assert set(c.state) >= {"force", "energy_pool", "rest_units"}
+
+
+def test_character_beliefs_are_triplets_and_intentions_are_duplets():
+    c = _char("bdi-shapes", seed=2)
+
+    belief = c.believe("bdi-shapes", "trusts", "Соратник")
+    assert (belief.subject, belief.predicate, belief.object) == (
+        "bdi-shapes",
+        "trusts",
+        "Соратник",
+    )
+    assert belief.as_dict() == {
+        "subject": "bdi-shapes",
+        "predicate": "trusts",
+        "object": "Соратник",
+    }
+    assert c.beliefs == [belief]
+
+    intention = c.intend("Соратник", "befriend")
+    assert intention.target == "Соратник"
+    assert intention.essence == "befriend"
+    assert intention.as_dict() == {
+        "target": "Соратник",
+        "essence": "befriend",
+    }
+    assert c.intentions[-1] is intention
+
+    removed = c.forget("bdi-shapes", "trusts", "Соратник")
+    assert len(removed) == 1
+    assert removed[0].as_dict() == belief.as_dict()
+    assert c.beliefs == []
 
 
 def test_personality_seed_is_reproducible_and_mutable_by_archetype():
@@ -143,11 +189,15 @@ def test_character_deliberates_from_each_of_sixteen_needs():
     c = _char("needs", seed=0)
     c.personality.values = {name: 0.5 for name in W.TRAITS}
 
-    for need, expected in INTENT_FOR_NEED.items():
+    for need, expected in ESSENCE_FOR_NEED.items():
         c.needs = {name: 0.0 for name in W.NEEDS}
         c.needs[need] = 1.0
         intent = c.deliberate()
-        assert intent.kind == expected, "%s -> %s" % (need, intent.kind)
+        assert intent.essence == expected, "%s -> %s" % (
+            need,
+            intent.essence,
+        )
+        assert intent.target == need
         assert intent.need == need
 
 
@@ -208,8 +258,24 @@ def test_same_needs_with_different_traits_choose_different_actions():
     )
     cautious.needs = dict(needs)
 
-    assert brave.deliberate().kind == "assault"
-    assert cautious.deliberate().kind == "hold"
+    assert brave.deliberate().essence == "attack"
+    assert cautious.deliberate().essence == "defend"
+
+
+def test_character_force_death_not_health_threshold():
+    c = _char("doomed", seed=3)
+    c.needs["health"] = 0.999
+    c.tick_needs(seconds=1800, rng=random.Random(0))
+    assert not c.dead
+    assert not c.is_dead
+
+    c.force = 0.0
+    c.tick_needs(seconds=1800, rng=random.Random(0))
+    assert c.dead
+    assert c.is_dead
+
+    assert c.satisfy({"health": 0.5}) == {}
+    assert c.is_dead
 
 
 def test_trait_data_can_change_behavior_without_code(tmp_path):
@@ -426,18 +492,6 @@ def test_other_needs_multiply_health_degradation():
     low.tick_needs(seconds=1800, rng=random.Random(0))
     high.tick_needs(seconds=1800, rng=random.Random(0))
     assert high.needs["health"] - after_high > low.needs["health"] - after_low
-
-
-def test_character_dies_when_health_reaches_critical_value():
-    c = _char("doomed", seed=3)
-    c.needs["health"] = 0.999
-    c.tick_needs(seconds=1800, rng=random.Random(0))
-    assert c.dead
-    assert c.is_dead
-    assert c.needs["health"] == W.HEALTH_DEATH_THRESHOLD
-
-    assert c.satisfy({"health": 0.5}) == {}
-    assert c.is_dead
 
 
 def test_barrier_fires_on_retreating_unit():

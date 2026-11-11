@@ -468,7 +468,7 @@ class NeedsSystem:
             self._death_logged = True
             self.state.log_event(
                 self.state.player_idx,
-                "Командир погиб: здоровье достигло критического значения.",
+                "Командир погиб: сила иссякла.",
             )
             logger.warning("Потребности: персонаж игрока погиб")
 
@@ -667,6 +667,8 @@ class NeedsSystem:
             "player": {
                 "needs": dict(self.commander.needs),
                 "morale": float(self.commander.morale),
+                "force": float(self.commander.force),
+                "energy": float(self.commander.energy_pool),
                 "dead": bool(self.commander.dead),
             },
             "player_cooldowns": dict(self.player_cooldowns),
@@ -701,6 +703,12 @@ class NeedsSystem:
         if "morale" in player:
             self.commander.morale = max(
                 0.0, min(100.0, float(player["morale"]))
+            )
+        if "force" in player:
+            self.commander.force = max(0.0, float(player["force"]))
+        if "energy" in player:
+            self.commander.energy_pool = max(
+                0.0, float(player["energy"])
             )
         self.commander.dead = bool(player.get("dead", self.commander.is_dead))
         self._death_logged = bool(self.commander.dead)

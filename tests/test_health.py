@@ -83,7 +83,9 @@ def test_force_overflow_damages_health():
     assert health_damage == pytest.approx(15 * HEALTH_DAMAGE_RATIO)
     assert unit.force == 0
     assert unit.health == pytest.approx(100.0 - 15 * HEALTH_DAMAGE_RATIO)
-    assert not unit.is_dead
+    # Смерть автомата определяется силой, поэтому обнулённая F — это смерть,
+    # даже если здоровье ещё положительно.
+    assert unit.is_dead
 
 
 def test_health_factors_scale_decay_regen_and_damage():
@@ -121,7 +123,7 @@ def test_health_factors_are_clamped():
 
 
 def test_dead_unit_does_not_regenerate():
-    unit = Automaton(id="dead", health=0)
+    unit = Automaton(id="dead", force=0, health=0)
     unit.energy = 50
     unit.tick_health(resting=True)
     assert unit.health == 0
@@ -138,30 +140,32 @@ def test_observation_exposes_health():
     assert len(BDIPolicy().weights) == FEATURE_COUNT
 
 
-def test_arena_match_terminal_uses_health():
+def test_arena_match_terminal_uses_force():
     match = ArenaMatch(seed=1, steps=10)
-    match.ai.health = 0
+    match.ai.force = 0
     assert match._check_terminal()
     assert match.finished
     assert match.winner == "RL"
 
 
-def test_duel_world_terminal_uses_health_not_force():
+def test_duel_world_terminal_uses_force_not_health():
     world = DuelWorld(seed=2)
     world.agent.force = 0
     world.agent.health = 50
     _obs, _rew, done, info = world.step(
-        {"agent": Action("REST", form="rest")}
-    )
-    assert not done
-    assert info["winner"] is None
-
-    world.agent.health = 0
-    _obs, _rew, done, info = world.step(
-        {"agent": Action("REST", form="rest")}
+        {"agent": Action("WORK", form="force", fraction=0.0)}
     )
     assert done
     assert info["winner"] == "opponent"
+
+    world = DuelWorld(seed=2)
+    world.agent.force = 100
+    world.agent.health = 0
+    _obs, _rew, done, info = world.step(
+        {"agent": Action("WORK", form="force", fraction=0.0)}
+    )
+    assert not done
+    assert info["winner"] is None
 
 
 def test_capture_does_not_touch_health():

@@ -11,7 +11,8 @@
 * `F` — сила позиции; `standing` — её алиас, запись меняет `F`;
 * `E` — единая энергия; `actions_left` — проекция
   `floor(E / energy_per_action)`, `wealth` — денежная форма `E`;
-* `H` — здоровье (`S`), а не энергия; смерть при `H <= 0`;
+* `H` — здоровье/состояние `S`, а не энергия; в BDI персонажа это
+  желание `health` и условия, а смерть наступает при `force <= 0`;
 * `legitimacy`/`cohesion` — состояния `S`, `power` — проекция `F` +
   полномочия + отношения;
 * `influence`/`favor` — состояния/права, `evidence` — обязательство;
@@ -55,7 +56,7 @@ PROJECTIONS = {
     "health": {
         "core": "H",
         "kind": "state",
-        "note": "отдельное состояние S; смерть при H <= 0",
+        "note": "состояние S/BDI; смерть при force <= 0, не по здоровью",
     },
     "legitimacy": {
         "core": "S",
@@ -151,7 +152,7 @@ def core_state(condition):
         "sickness": max(0.0, number("sickness")),
         "wound": max(0.0, number("wound")),
         "fatigue": max(0.0, 1.0 - energy_ratio),
-        "alive": bool(condition.get("alive", health > 0.0)),
+        "alive": bool(condition.get("alive", force > 0.0)),
     }
 
 

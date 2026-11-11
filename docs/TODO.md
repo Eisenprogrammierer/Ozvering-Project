@@ -80,7 +80,7 @@
   состояние и известных детей, но не обработчики. Кампанийная проекция —
   `campaign.fractal.organ_composite()` и `AutomataCampaign.composite()`.
   Тесты — `tests/test_composite.py`,
-  `tests/test_automata_campaign.py::test_composite_view_aggregates_organ_hierarchy`;
+  `tests/test_automata_campaign.py::test_composite_view_aggregates_organ_network`;
   раздел — `WORLD_CORE_MODEL.md` §2.7.
 - [x] **Проекции старых шкал и версия снимка.** `campaign/projections.py`
   фиксирует соответствие `standing→F`, `actions_left/wealth→E`,

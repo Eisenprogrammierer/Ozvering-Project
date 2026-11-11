@@ -573,84 +573,126 @@
           "name": "Имперская ставка",
           "kind": "command",
           "description": "Штаб вертикали: планирует кампанию и держит связь между армиями.",
-          "parent_id": ""
+          "links": [
+            "abwehr",
+            "cathedral",
+            "guard",
+            "justice",
+            "propaganda",
+            "wehrmacht"
+          ]
         },
         {
           "id": "panzerwaffe",
           "name": "Панцерваффе",
           "kind": "coercion",
           "description": "Танковые соединения прорыва: масса, броня и давление на каналы снабжения.",
-          "parent_id": "wehrmacht"
+          "links": [
+            "guard",
+            "wehrmacht"
+          ]
         },
         {
           "id": "wehrmacht",
           "name": "Вермахт",
           "kind": "coercion",
           "description": "Полевая армия Империи: гарнизоны, призыв и удержание территории.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "artillery",
+            "bomber",
+            "imperial_staff",
+            "medical",
+            "panzerwaffe"
+          ]
         },
         {
           "id": "artillery",
           "name": "Артиллерийский корпус",
           "kind": "coercion",
           "description": "Огневая мощь, которая превращает спор о территории в спор о руинах.",
-          "parent_id": "wehrmacht"
+          "links": [
+            "bomber",
+            "wehrmacht"
+          ]
         },
         {
           "id": "bomber",
           "name": "Бомбардировочный флот",
           "kind": "coercion",
           "description": "Дальняя авиация: удар по тылам и демонстрация неизбежности наказания.",
-          "parent_id": "wehrmacht"
+          "links": [
+            "artillery",
+            "guard",
+            "wehrmacht"
+          ]
         },
         {
           "id": "abwehr",
           "name": "Абвер",
           "kind": "intelligence",
           "description": "Разведывательно-диверсионная служба: чужие штабы и чужие тайны.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "cyber",
+            "imperial_staff"
+          ]
         },
         {
           "id": "propaganda",
           "name": "Пропагандистская служба",
           "kind": "information",
           "description": "Сводки, плакаты и язык, на котором Империя объясняет свои потери.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "imperial_staff"
+          ]
         },
         {
           "id": "guard",
           "name": "Гвардейский корпус",
           "kind": "coercion",
           "description": "Символ контроля: охрана трона, ритуал и последний резерв вертикали.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "bomber",
+            "imperial_staff",
+            "panzerwaffe"
+          ]
         },
         {
           "id": "justice",
           "name": "Имперское министерство юстиции",
           "kind": "maintenance",
           "description": "Законность как инструмент: эдикты, суды и назначение врагов государства.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "imperial_staff",
+            "medical"
+          ]
         },
         {
           "id": "cathedral",
           "name": "Имперский собор",
           "kind": "legitimacy",
           "description": "Государственная церковь: присяга, коронация и освящение порядка.",
-          "parent_id": "imperial_staff"
+          "links": [
+            "imperial_staff"
+          ]
         },
         {
           "id": "medical",
           "name": "Медицинская служба",
           "kind": "maintenance",
           "description": "Госпитали, эвакуация и возвращение раненых в строй.",
-          "parent_id": "wehrmacht"
+          "links": [
+            "justice",
+            "wehrmacht"
+          ]
         },
         {
           "id": "cyber",
           "name": "Киберотдел спецслужбы",
           "kind": "intelligence",
           "description": "OSINT и GEOINT: чужие сети, чужие карты и чужие ошибки.",
-          "parent_id": "abwehr"
+          "links": [
+            "abwehr"
+          ]
         }
       ],
       "role_title_female": "императрица",
@@ -1246,77 +1288,110 @@
           "name": "Федеральный генштаб",
           "kind": "command",
           "description": "Координация фронтов и парламентских мандатов; медленно, зато обратимо.",
-          "parent_id": ""
+          "links": [
+            "cyber",
+            "diplomacy",
+            "field_corps",
+            "parliament",
+            "propaganda"
+          ]
         },
         {
           "id": "parliament",
           "name": "Парламентская канцелярия",
           "kind": "legitimacy",
           "description": "Процедура, слушания и искусство превращать спор в законное решение.",
-          "parent_id": "general_staff"
+          "links": [
+            "general_staff",
+            "rights"
+          ]
         },
         {
           "id": "field_corps",
           "name": "Полевой корпус",
           "kind": "coercion",
           "description": "Контрактная армия Республики: манёвр, инициатива и малые группы.",
-          "parent_id": "general_staff"
+          "links": [
+            "general_staff",
+            "medical",
+            "precision"
+          ]
         },
         {
           "id": "precision",
           "name": "Корпус высокоточных вооружений",
           "kind": "coercion",
           "description": "Точечные удары по складам и штабам вместо ковровых бомбардировок.",
-          "parent_id": "field_corps"
+          "links": [
+            "field_corps"
+          ]
         },
         {
           "id": "cyber",
           "name": "Киберкорпус",
           "kind": "intelligence",
           "description": "Взлом, утечки и сбор компромата на чужую вертикаль.",
-          "parent_id": "general_staff"
+          "links": [
+            "agents",
+            "general_staff"
+          ]
         },
         {
           "id": "radio",
           "name": "Подпольное радиовещание",
           "kind": "information",
           "description": "Голос, который звучит в имперском тылу без разрешения.",
-          "parent_id": "propaganda"
+          "links": [
+            "propaganda"
+          ]
         },
         {
           "id": "propaganda",
           "name": "Пропагандистский корпус",
           "kind": "information",
           "description": "Нарратив Республики: свобода, процедура и чужая непобедимость.",
-          "parent_id": "general_staff"
+          "links": [
+            "general_staff",
+            "radio"
+          ]
         },
         {
           "id": "rights",
           "name": "Правозащитное ведомство",
           "kind": "legitimacy",
           "description": "Документирование нарушений и суд, который сам является оружием.",
-          "parent_id": "parliament"
+          "links": [
+            "parliament"
+          ]
         },
         {
           "id": "diplomacy",
           "name": "Дипломатическое ведомство",
           "kind": "maintenance",
           "description": "Внешний канал, торговые соглашения и посредники без репутации.",
-          "parent_id": "general_staff"
+          "links": [
+            "general_staff",
+            "medical"
+          ]
         },
         {
           "id": "agents",
           "name": "Сеть агентов влияния",
           "kind": "intelligence",
           "description": "Люди внутри чужих институтов, которые делают энтропию управляемой.",
-          "parent_id": "cyber"
+          "links": [
+            "cyber"
+          ]
         },
         {
           "id": "medical",
           "name": "Медицинская служба",
           "kind": "maintenance",
           "description": "Полевые врачи и эвакуация: Республика дорожит своими гражданами.",
-          "parent_id": "field_corps"
+          "links": [
+            "diplomacy",
+            "field_corps"
+          ]
         }
       ],
       "role_title_female": "председательница парламента",
@@ -1857,63 +1932,88 @@
           "name": "Проповедническое управление",
           "kind": "information",
           "description": "Слово, которое меняет веру и не требует энергии армии.",
-          "parent_id": ""
+          "links": [
+            "agents",
+            "communities",
+            "knights",
+            "printing",
+            "rites"
+          ]
         },
         {
           "id": "communities",
           "name": "Общинное управление",
           "kind": "maintenance",
           "description": "Ячейки, школы и общие трапезы: база культа и источник энтропии.",
-          "parent_id": "preaching"
+          "links": [
+            "charity",
+            "preaching",
+            "scriptorium"
+          ]
         },
         {
           "id": "charity",
           "name": "Благотворительное управление",
           "kind": "care",
           "description": "Помощь, которую государство не успевает оказать, и благодарность, которую оно не получает.",
-          "parent_id": "communities"
+          "links": [
+            "communities"
+          ]
         },
         {
           "id": "scriptorium",
           "name": "Скрипториум",
           "kind": "legitimacy",
           "description": "Образование культистов взамен светского: своя история и свои учителя.",
-          "parent_id": "communities"
+          "links": [
+            "communities",
+            "synedrion"
+          ]
         },
         {
           "id": "synedrion",
           "name": "Синедрион",
           "kind": "legitimacy",
           "description": "Суд культистов взамен светского: община судит по вере, а не по закону.",
-          "parent_id": "scriptorium"
+          "links": [
+            "scriptorium"
+          ]
         },
         {
           "id": "knights",
           "name": "Рыцари Земли и Солнца",
           "kind": "coercion",
           "description": "Иррегулярные соединения культа: немногочисленные, но готовые к жертве.",
-          "parent_id": "preaching"
+          "links": [
+            "preaching"
+          ]
         },
         {
           "id": "agents",
           "name": "Агентурно-разведывательная служба",
           "kind": "intelligence",
           "description": "Люди культа внутри чужих структур: не шпионы, а носители сомнения.",
-          "parent_id": "preaching"
+          "links": [
+            "preaching"
+          ]
         },
         {
           "id": "printing",
           "name": "Подпольное типографское управление",
           "kind": "information",
           "description": "Листовки, мученики и истории, которые нельзя опровергнуть приказом.",
-          "parent_id": "preaching"
+          "links": [
+            "preaching"
+          ]
         },
         {
           "id": "rites",
           "name": "Хранители обряда",
           "kind": "meaning",
           "description": "Ритуал, который связывает обиду, надежду и общину в одно действие.",
-          "parent_id": "preaching"
+          "links": [
+            "preaching"
+          ]
         }
       ],
       "role_title_female": "верховная жрица",
@@ -2521,70 +2621,98 @@
           "name": "Торговое ведомство",
           "kind": "exchange",
           "description": "Канал, по которому идут ресурсы, деньги и информация.",
-          "parent_id": ""
+          "links": [
+            "diplomacy",
+            "finance",
+            "intelligence",
+            "port",
+            "security"
+          ]
         },
         {
           "id": "port",
           "name": "Портовое управление",
           "kind": "maintenance",
           "description": "Порт, склады и связь: без инфраструктуры планета — просто скала.",
-          "parent_id": "trade"
+          "links": [
+            "engineering",
+            "trade",
+            "warehouses"
+          ]
         },
         {
           "id": "finance",
           "name": "Финансовое ведомство",
           "kind": "exchange",
           "description": "Кредит, демпинг и цена, которую каждая сторона готова заплатить.",
-          "parent_id": "trade"
+          "links": [
+            "trade"
+          ]
         },
         {
           "id": "diplomacy",
           "name": "Дипломатическое ведомство",
           "kind": "legitimacy",
           "description": "Нейтралитет как услуга и баланс как способ выжить.",
-          "parent_id": "trade"
+          "links": [
+            "media",
+            "trade"
+          ]
         },
         {
           "id": "intelligence",
           "name": "Разведывательное управление",
           "kind": "intelligence",
           "description": "Знание о том, кто что покупает, стоит дороже любого товара.",
-          "parent_id": "trade"
+          "links": [
+            "agents",
+            "trade"
+          ]
         },
         {
           "id": "warehouses",
           "name": "Складское управление",
           "kind": "maintenance",
           "description": "Запасы, которые позволяют пережить эмбарго и не потерять канал.",
-          "parent_id": "port"
+          "links": [
+            "port"
+          ]
         },
         {
           "id": "media",
           "name": "Медийное управление",
           "kind": "information",
           "description": "Нарратив планеты: посредник нужен всем, пока он говорит о мире.",
-          "parent_id": "diplomacy"
+          "links": [
+            "diplomacy"
+          ]
         },
         {
           "id": "agents",
           "name": "Агентурное управление",
           "kind": "intelligence",
           "description": "Внедрение в чужие канцелярии: покупка не человека, а доступа.",
-          "parent_id": "intelligence"
+          "links": [
+            "intelligence"
+          ]
         },
         {
           "id": "security",
           "name": "Служба защиты",
           "kind": "coercion",
           "description": "Охрана порта, складов и переговорщиков; сила здесь считается расходом.",
-          "parent_id": "trade"
+          "links": [
+            "trade"
+          ]
         },
         {
           "id": "engineering",
           "name": "Инженерное управление",
           "kind": "maintenance",
           "description": "Ремонт инфраструктуры и восстановление того, что война считает расходником.",
-          "parent_id": "port"
+          "links": [
+            "port"
+          ]
         }
       ],
       "role_title_female": "генеральная директриса",
@@ -2680,8 +2808,8 @@
     {
       "id": "directive",
       "label": "Отдать директиву",
-      "description": "Приказ подчинённому автомату: вертикаль работает, цель укрепляется, законность фракции растёт.",
-      "relation": "subordinate",
+      "description": "Директива связанному автомату сети: совместная работа укрепляет цель и законность фракции.",
+      "relation": "linked",
       "cost": {
         "influence": 0.03
       },
@@ -2695,8 +2823,8 @@
     {
       "id": "escalate",
       "label": "Запросить поддержку",
-      "description": "Автомат обращается к вышестоящему органу за поддержкой: источник укрепляется, центр расходует часть целостности.",
-      "relation": "superior",
+      "description": "Автомат обращается к связанному узлу сети за поддержкой: источник укрепляется, сосед расходует часть целостности.",
+      "relation": "linked",
       "cost": {
         "influence": 0.02
       },

@@ -857,7 +857,43 @@ speeds = [1, 2, 4, 8, 16, 32]
 восстановление лимита действий за `2` минуты недопустимо: бюджет `E`
 восстанавливается по правилам мира, а не ускорением.
 
-### 10.3. День `world_actor`
+### 10.3. Производные активы фракции
+
+**Код:** `campaign/faction_state.py`; **данные:** `faction_state` в
+`configs/campaigns/base/automata_defaults.json`.
+
+Активы `legitimacy`, `cohesion`, `supply`, `fear`, `morale`, `influence`,
+`energy` не хранятся отдельно. Каждый считается взвешенной проекцией
+метрик персонажей, органов, организации и контекста:
+
+```text
+metric_m ∈ [0, 1]                         # каждая метрика нормирована
+asset    = clamp( Σ w_m · metric_m / Σ |w_m|, 0, 1 )
+```
+
+Метрики задаются строками JSON:
+
+```text
+characters.mean:<key>   characters.max:<key>   characters.min:<key>
+organs.mean             organs.kind:<kind>
+network.density         network.degree
+organization.<key>      context.<key>
+```
+
+Контекст — краткоживущий импульс, а не шкала: внутри он хранится в
+`context_min … context_max` (`-10 … 10`) с нейтралью `0.5`, поэтому
+совместимая запись может реализовать целевое значение актива; наружу
+актив всегда клампится в `0..1`. Затухание — `context_decay` (`0.08`) за
+тик, стартовая база — `baseline_context`/`baseline_assets`.
+
+Драйверы (`faction_state.drivers`) решают обратную задачу: изменение
+актива раскладывается в потребность, черту, условие, мораль, `force` или
+`energy` персонажа, целостность органа нужного `kind` и контекст с
+коэффициентом `driver_gain` (`0.8`). Поэтому `assets[key] = value` не
+создаёт второй источник истины: следующий тик снова считает актив
+формулой.
+
+### 10.4. День `world_actor`
 
 **Код:** `campaign/clock.py`.
 

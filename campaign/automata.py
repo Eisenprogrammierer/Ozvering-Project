@@ -17,21 +17,36 @@ from typing import Dict, Iterable, List, Mapping, Optional
 import warfare as W
 from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
+from systems.events import EventEngine, EventError
 
 from .defaults import default_dict, default_list, default_section
 from .errors import CampaignError
+from .faction_state import (
+    CONTEXT_MAX,
+    CONTEXT_MIN,
+    DerivedAssets,
+    apply_asset_delta,
+    asset_keys,
+    bump_context,
+    derived_asset,
+    derived_assets,
+    relax_context,
+    set_asset_value,
+)
 from .fractal import (
     ORGAN_MIN_WEIGHT,
     ORGAN_MODEL_DEFAULTS,
     OrganRuntime,
     damage_organs,
+    network_density,
     organ_composite,
-    organ_depths,
+    organ_degrees,
+    organ_links,
     readiness_scale,
     spread_organ_effect,
     strengthen_organ,
     tick_organs,
-    validate_organ_hierarchy,
+    validate_organ_network,
 )
 from .projections import (
     SCHEMA_VERSION,
@@ -149,6 +164,12 @@ def _character_from_record(record, seed):
         )
     character.campaign_id = record.get("id")
     character.campaign_faction_id = record.get("faction_id")
+    divisions = _as_mapping(record.get("divisions"))
+    if divisions and getattr(character, "divisions", None) is not None:
+        try:
+            character.divisions.update(divisions)
+        except Exception:
+            pass
     character.campaign_post = record.get("post")
     character.campaign_post_id = record.get("post_id", "")
     character.campaign_organ_id = record.get("organ_id", "")
@@ -167,7 +188,8 @@ class FactionRuntime:
     record: dict
     characters: list = field(default_factory=list)
     organization: Optional[OrganizationRuntime] = None
-    assets: Dict[str, float] = field(default_factory=dict)
+    context: Dict[str, float] = field(default_factory=dict)
+    baseline_context: Dict[str, float] = field(default_factory=dict)
     baseline_assets: Dict[str, float] = field(default_factory=dict)
     income: Dict[str, float] = field(default_factory=dict)
     score_assets: Dict[str, float] = field(default_factory=dict)
@@ -184,14 +206,37 @@ class FactionRuntime:
     organization_snapshot: dict = field(default_factory=dict)
     dissolved: bool = False
 
+    @property
+    def assets(self):
+        """Производные активы: BDI + органы + контекст взаимодействий."""
+        return DerivedAssets(self)
+
+    @assets.setter
+    def assets(self, values):
+        for key, value in _as_mapping(values).items():
+            self.set_asset(key, value)
+
     def asset(self, key, default=0.0):
-        return _number(self.assets.get(str(key), default), default)
+        if str(key) in asset_keys(self):
+            return derived_asset(self, key, default)
+        return _number(default, default)
 
     def set_asset(self, key, value):
-        self.assets[str(key)] = _clamp(value)
+        """Совместимая запись: подбирает контекст под производное значение."""
+        return set_asset_value(self, key, value)
 
     def add_asset(self, key, delta):
-        self.set_asset(key, self.asset(key) + _number(delta, 0.0))
+        """Разложить изменение актива в BDI, органы и контекст сети."""
+        return apply_asset_delta(self, key, delta)
+
+    def bump_context(self, key, delta):
+        return bump_context(self, key, delta)
+
+    def derived_assets(self):
+        return derived_assets(self)
+
+    def relax_context(self, rate):
+        return relax_context(self, rate)
 
     def action(self, action_id):
         for action in self.actions:
@@ -227,10 +272,44 @@ class FactionRuntime:
                 _clamp(_number(character.morale) / 100.0) * 100.0,
                 3,
             ),
+            "force": round(float(getattr(character, "force", 0.0)), 6),
+            "energy": round(
+                float(getattr(character, "energy_pool", 0.0)), 6
+            ),
             "needs": {
                 str(key): round(_clamp(value), 6)
                 for key, value in character.needs.items()
             },
+            "desires": {
+                str(key): round(_clamp(value), 6)
+                for key, value in getattr(
+                    character, "desires", {}
+                ).items()
+            },
+            "intention": (
+                character.bdi.latest_intention().as_dict()
+                if getattr(character, "bdi", None) is not None
+                and character.bdi.latest_intention() is not None
+                else None
+            ),
+            "beliefs": (
+                [item.as_dict() for item in character.bdi.beliefs]
+                if getattr(character, "bdi", None) is not None
+                else []
+            ),
+            "conditions": (
+                {
+                    str(key): round(_clamp(value), 6)
+                    for key, value in character.bdi.conditions.items()
+                }
+                if getattr(character, "bdi", None) is not None
+                else {}
+            ),
+            "divisions": (
+                character.divisions.as_dict()
+                if getattr(character, "divisions", None) is not None
+                else {}
+            ),
             "personality": {
                 str(key): round(_clamp(value), 6)
                 for key, value in values.items()
@@ -241,7 +320,13 @@ class FactionRuntime:
             "is_player": bool(
                 getattr(character, "campaign_is_player", False)
             ),
-            "dead": bool(getattr(character, "dead", False)),
+            "dead": bool(
+                getattr(
+                    character,
+                    "is_dead",
+                    getattr(character, "dead", False),
+                )
+            ),
             "cooldowns": {
                 str(key): int(value)
                 for key, value in _as_mapping(
@@ -338,11 +423,13 @@ class FactionRuntime:
                     willing_count / float(initial) if initial else 0.0,
                 )
             )
-        depths = organ_depths(self.organs)
+        links = organ_links(self.organs)
+        degrees = organ_degrees(self.organs)
         organ_snapshots = []
         for organ in self.organs:
             item = organ.snapshot()
-            item["depth"] = int(depths.get(organ.id, 0))
+            item["links"] = list(links.get(organ.id, ()))
+            item["degree"] = int(degrees.get(organ.id, 0))
             organ_snapshots.append(item)
         return {
             "side": self.side,
@@ -370,6 +457,13 @@ class FactionRuntime:
             "organs": organ_snapshots,
             "characters": self.character_options(),
             "organ_integrity": round(self.organ_average(), 6),
+            "network_density": round(network_density(self.organs), 6),
+            "context": {
+                key: round(
+                    _clamp(value, CONTEXT_MIN, CONTEXT_MAX), 6
+                )
+                for key, value in self.context.items()
+            },
             "organization": dict(stored),
             "willing_share": round(_clamp(willing_share), 6),
             "willing_count": int(willing_count),
@@ -472,12 +566,21 @@ class AutomataCampaign:
         self.finished = False
         self.log = []
         self.events = []
+        self.story_events = []
         self.history = []
         self.last_organ_result = None
         self.last_automaton_result = None
         self.last_character_result = None
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
+        self._story_progress = 0.0
+        try:
+            self.story_engine = EventEngine(seed=self.seed)
+        except EventError:
+            self.story_engine = None
+        except Exception:
+            logger.exception("не удалось поднять движок событий")
+            self.story_engine = None
         self._build_factions(data)
         if snapshot:
             self.load_snapshot(snapshot)
@@ -604,11 +707,11 @@ class AutomataCampaign:
                 )
                 if organ is not None:
                     organs.append(organ)
-            hierarchy_problems = validate_organ_hierarchy(organs)
-            if hierarchy_problems:
+            network_problems = validate_organ_network(organs)
+            if network_problems:
                 raise AutomataCampaignError(
                     "%s: %s"
-                    % (faction_id, "; ".join(hierarchy_problems))
+                    % (faction_id, "; ".join(network_problems))
                 )
             runtime = FactionRuntime(
                 side=side,
@@ -617,8 +720,6 @@ class AutomataCampaign:
                 record=dict(faction),
                 characters=specs,
                 organization=organization,
-                assets=assets,
-                baseline_assets=dict(assets),
                 income={
                     str(key): _number(value, 0.0)
                     for key, value in _as_mapping(
@@ -640,6 +741,15 @@ class AutomataCampaign:
                 automaton_interactions=automaton_interactions,
                 character_interactions=character_interactions,
             )
+            # Стартовые значения пресета задают фон, а не отдельный
+            # кошелёк: подбираем контекст так, чтобы производные активы
+            # начинались с данных шаблона.
+            for key in asset_keys(runtime):
+                runtime.context.setdefault(str(key), 0.5)
+            for key, value in assets.items():
+                runtime.set_asset(key, value)
+            runtime.baseline_context = dict(runtime.context)
+            runtime.baseline_assets = runtime.derived_assets()
             self.factions[side] = runtime
 
     def faction(self, side):
@@ -671,10 +781,10 @@ class AutomataCampaign:
         return [item for item in self.factions if item != str(side or "")]
 
     def composite(self, side=None):
-        """Составной автомат иерархии органов стороны.
+        """Составной автомат сети органов стороны.
 
         Это диагностическое представление (WORLD_CORE_MODEL §2.7):
-        `OrganRuntime` остаётся источником истины, а дерево отдаёт
+        `OrganRuntime` остаётся источником истины, а сеть отдаёт
         агрегаты `F/E/S` и распределение работы. ``side`` по умолчанию —
         сторона игрока; неизвестная сторона возвращает ``None``.
         """
@@ -819,6 +929,7 @@ class AutomataCampaign:
         self._regenerate_actions(scaled)
         self._advance_ai(scaled)
         self._advance_rounds(scaled)
+        self._advance_story_events(scaled)
         return self.snapshot()
 
     def _regenerate_actions(self, seconds):
@@ -864,6 +975,132 @@ class AutomataCampaign:
             self._tick_organizations()
             self._check_outcome()
             self.history.append(self.snapshot())
+
+    # --- ролевые события -------------------------------------------
+    def _story_context(self, side=None):
+        """Контекст для условий/видимости событий.
+
+        Берётся лидер фракции (по умолчанию — игрок). Все числа
+        нормированы в ``0..1``, чтобы условия в JSON были переносимыми.
+        """
+        side = str(side or self.player_side)
+        faction = self.faction(side)
+        if faction is None or not faction.characters:
+            return {
+                "side": side,
+                "faction_id": getattr(faction, "id", ""),
+                "alive": False,
+                "time": self.elapsed,
+            }
+        leader = faction.characters[0]
+        bdi = getattr(leader, "bdi", None)
+        divisions = getattr(leader, "divisions", None)
+        max_force = float(getattr(leader, "state", {}).get("max_force", 10.0))
+        max_energy = float(
+            getattr(leader, "state", {}).get("max_energy", 3.0)
+        )
+        return {
+            "id": str(getattr(leader, "campaign_id", "") or ""),
+            "name": str(getattr(leader, "name", "") or ""),
+            "side": side,
+            "faction_id": str(getattr(faction, "id", "") or ""),
+            "role": str(getattr(leader, "campaign_role_id", "") or ""),
+            "needs": dict(getattr(leader, "needs", {}) or {}),
+            "traits": dict(getattr(leader.personality, "values", {}) or {}),
+            "divisions": (
+                divisions.as_dict() if divisions is not None else {}
+            ),
+            "tags": divisions.tags() if divisions is not None else [],
+            "conditions": (
+                dict(bdi.conditions) if bdi is not None else {}
+            ),
+            "beliefs": list(bdi.beliefs) if bdi is not None else [],
+            "force": max(
+                0.0,
+                float(getattr(leader, "force", 0.0))
+                / max(1e-9, max_force),
+            ),
+            "energy": max(
+                0.0,
+                float(getattr(leader, "energy_pool", 0.0))
+                / max(1e-9, max_energy),
+            ),
+            "alive": not bool(getattr(leader, "is_dead", False)),
+            "time": float(self.elapsed),
+        }
+
+    def _apply_story_effects(self, instance, side=None):
+        side = str(side or self.player_side)
+        faction = self.faction(side)
+        if faction is None or not faction.characters:
+            return {}
+        leader = faction.characters[0]
+        applied = {"needs": {}, "conditions": {}, "force": 0.0, "energy": 0.0}
+        for key, value in (instance.effects or {}).items():
+            if key == "force":
+                applied["force"] = float(leader.add_force(value))
+            elif key == "energy":
+                applied["energy"] = float(leader.add_energy(value))
+            elif key == "needs":
+                for name, amount in (value or {}).items():
+                    name = str(name)
+                    if name not in leader.bdi.needs:
+                        continue
+                    before = leader.bdi.needs[name]
+                    leader.bdi.needs[name] = max(
+                        0.0, min(1.0, before + float(amount))
+                    )
+                    applied["needs"][name] = (
+                        leader.bdi.needs[name] - before
+                    )
+            elif key == "conditions":
+                for name, amount in (value or {}).items():
+                    definition = leader.bdi.config.conditions.get(str(name))
+                    maximum = definition.maximum if definition else 1.0
+                    before = leader.bdi.conditions.get(str(name), 0.0)
+                    leader.bdi.conditions[str(name)] = max(
+                        0.0, min(maximum, before + float(amount))
+                    )
+                    applied["conditions"][str(name)] = (
+                        leader.bdi.conditions[str(name)] - before
+                    )
+        return applied
+
+    def _advance_story_events(self, seconds):
+        if self.finished or self.story_engine is None:
+            return []
+        context = self._story_context()
+        self.story_engine.advance(seconds, context=context)
+        self._story_progress += max(0.0, float(seconds))
+        interval = max(4.0, self.organization_interval_seconds * 0.5)
+        spawned = []
+        while self._story_progress >= interval:
+            self._story_progress -= interval
+            instance = self.story_engine.trigger(context=context)
+            if instance is None:
+                continue
+            applied = self._apply_story_effects(instance)
+            entry = {
+                "id": instance.id,
+                "template_id": instance.template_id,
+                "category": instance.category,
+                "title": instance.title,
+                "text": instance.text,
+                "severity": instance.severity,
+                "stakes": instance.stakes,
+                "speed": instance.speed,
+                "duration": instance.duration,
+                "elapsed": instance.elapsed,
+                "visible": instance.mature,
+                "visibility": instance.visibility.as_dict(),
+                "effects": applied,
+                "turn": self.turn,
+            }
+            self.story_events.append(entry)
+            spawned.append(entry)
+        if len(self.story_events) > EVENT_LOG_LIMIT:
+            self.story_events = self.story_events[-EVENT_LOG_LIMIT:]
+        return spawned
 
     def _player_action_gate(self, side):
         """Проверить бюджет перед действием игрока."""
@@ -1237,31 +1474,24 @@ class AutomataCampaign:
     def _automaton_targets(self, faction, source, relation):
         """Кандидаты в цели для команды автомата.
 
-        ``relation`` задаётся данными: ``any`` — любой другой орган,
-        ``subordinate`` — прямые подчинённые, ``superior`` — родитель,
-        ``peer`` — соседи по уровню.
+        ``relation`` задаётся данными: ``any`` — любой другой узел,
+        ``linked``/``neighbor`` — соседи по сети, ``same_kind`` — узлы
+        того же типа. Старые ``subordinate``/``superior``/``peer``
+        читаются как сетевые связи, а не как вертикаль подчинения.
         """
         relation = str(relation or "any").lower()
         organs = list(faction.organs)
-        if relation == "subordinate":
-            return [
-                organ
-                for organ in organs
-                if str(organ.parent_id) == str(source.id)
-            ]
-        if relation == "superior":
-            parent = (
-                faction.organ(source.parent_id)
-                if source.parent_id
-                else None
-            )
-            return [parent] if parent is not None else []
-        if relation == "peer":
+        links = organ_links(organs)
+        if relation in ("linked", "neighbor", "adjacent", "subordinate",
+                        "superior", "peer"):
+            neighbors = set(links.get(source.id, ()))
+            return [organ for organ in organs if organ.id in neighbors]
+        if relation in ("same_kind", "kind"):
             return [
                 organ
                 for organ in organs
                 if organ.id != source.id
-                and str(organ.parent_id) == str(source.parent_id)
+                and str(organ.kind) == str(source.kind)
             ]
         return [organ for organ in organs if organ.id != source.id]
 
@@ -1284,10 +1514,17 @@ class AutomataCampaign:
             targets = self._automaton_targets(faction, source, relation)
             left = source.cooldown_left(interaction, self.turn)
             if not targets:
-                if relation == "subordinate":
-                    reason = "нет подчинённых автоматов"
-                elif relation == "superior":
-                    reason = "нет вышестоящего автомата"
+                if relation in (
+                    "linked",
+                    "neighbor",
+                    "adjacent",
+                    "subordinate",
+                    "superior",
+                    "peer",
+                ):
+                    reason = "нет связанных автоматов"
+                elif relation in ("same_kind", "kind"):
+                    reason = "нет автоматов того же типа"
                 else:
                     reason = "нет других автоматов"
             elif not affordable:
@@ -2060,9 +2297,50 @@ class AutomataCampaign:
             self.advance(player_action=player_action, target=target)
         return self.snapshot()
 
+    def _tick_faction_characters(self, faction, seconds):
+        """Дать BDI персонажей прожить организационный интервал.
+
+        Активы фракции производны от потребностей, морали и силы людей,
+        поэтому без этого шага «политические» шкалы выглядели бы
+        застывшими между редкими взаимодействиями.
+        """
+        stored = _as_mapping(faction.organization_snapshot)
+        support = _clamp(stored.get("willing_share", 0.5))
+        for character in faction.characters:
+            if bool(
+                getattr(
+                    character,
+                    "is_dead",
+                    getattr(character, "dead", False),
+                )
+            ):
+                continue
+            if not callable(getattr(character, "tick_needs", None)):
+                continue
+            try:
+                character.tick_needs(
+                    seconds=seconds,
+                    supported=support,
+                    in_combat=False,
+                    under_fire=0.0,
+                    rng=getattr(character, "rng", None),
+                )
+            except Exception:
+                logger.exception(
+                    "BDI персонажа %s не обновлён",
+                    getattr(character, "name", "?"),
+                )
+
     def _tick_organizations(self):
+        seconds = max(30.0, float(self.organization_interval_seconds))
         for faction in self.factions.values():
+            self._tick_faction_characters(faction, seconds)
             if faction.organization is None:
+                faction.relax_context(self.model["asset_relax"])
+                for key, value in faction.income.items():
+                    faction.bump_context(key, value)
+                for key, value in self.upkeep.items():
+                    faction.bump_context(key, -value)
                 tick_organs(faction, faction.organs, self.model)
                 continue
             snapshot = faction.organization.tick(turn=self.turn)
@@ -2082,41 +2360,41 @@ class AutomataCampaign:
                     "active_count": active,
                     "willing_count": willing_count,
                     "willing_share": willing,
+                    "active_share": share,
                 }
             )
             faction.organization_snapshot = snapshot
             if not snapshot.get("active", True):
                 faction.dissolved = True
-            faction.add_asset(
+            # Это не запись в независимый кошелёк, а контекстные
+            # импульсы организации: производные активы читают их вместе
+            # с BDI людей и целостностью сети.
+            faction.bump_context(
                 "cohesion",
                 self.model["organization_cohesion"] * (willing - 0.5),
             )
-            faction.add_asset(
+            faction.bump_context(
                 "legitimacy",
                 self.model["organization_legitimacy"] * (share - 0.5),
             )
-            faction.add_asset(
+            faction.bump_context(
                 "supply", -self.model["organization_supply_drain"]
             )
             mode_weights = _as_mapping(snapshot.get("mode_weights"))
-            faction.add_asset(
+            faction.bump_context(
                 "fear",
                 self.model["organization_fear"]
                 * _number(mode_weights.get("order"), 0.0),
             )
-            faction.add_asset(
+            faction.bump_context(
                 "morale",
                 self.model["organization_morale"] * share,
             )
-            relax = self.model["asset_relax"]
-            for key, baseline in faction.baseline_assets.items():
-                faction.add_asset(
-                    key, relax * (baseline - faction.asset(key))
-                )
+            faction.relax_context(self.model["asset_relax"])
             for key, value in faction.income.items():
-                faction.add_asset(key, value)
+                faction.bump_context(key, value)
             for key, value in self.upkeep.items():
-                faction.add_asset(key, -value)
+                faction.bump_context(key, -value)
             tick_organs(faction, faction.organs, self.model)
 
     def _check_outcome(self):
@@ -2226,6 +2504,7 @@ class AutomataCampaign:
                 for side, faction in self.factions.items()
             },
             "events": list(self.events[-SNAPSHOT_TAIL:]),
+            "story_events": list(self.story_events[-SNAPSHOT_TAIL:]),
             "log": list(self.log[-SNAPSHOT_TAIL:]),
         }
 
@@ -2244,6 +2523,18 @@ class AutomataCampaign:
                 state["raw_assets"] = {
                     str(key): float(value)
                     for key, value in faction.assets.items()
+                }
+                state["context"] = {
+                    str(key): float(value)
+                    for key, value in faction.context.items()
+                }
+                state["baseline_context"] = {
+                    str(key): float(value)
+                    for key, value in faction.baseline_context.items()
+                }
+                state["baseline_assets"] = {
+                    str(key): float(value)
+                    for key, value in faction.baseline_assets.items()
                 }
                 state["low_streaks"] = {
                     str(key): int(value)
@@ -2279,6 +2570,43 @@ class AutomataCampaign:
                             ).items()
                         },
                         "morale": float(character.morale),
+                        "force": float(getattr(character, "force", 0.0)),
+                        "energy": float(
+                            getattr(character, "energy_pool", 0.0)
+                        ),
+                        "dead": bool(getattr(character, "dead", False)),
+                        "conditions": {
+                            str(key): float(value)
+                            for key, value in getattr(
+                                getattr(character, "bdi", None),
+                                "conditions",
+                                {},
+                            ).items()
+                        },
+                        "beliefs": [
+                            item.as_dict()
+                            for item in getattr(
+                                getattr(character, "bdi", None),
+                                "beliefs",
+                                [],
+                            )
+                        ],
+                        "intentions": [
+                            item.as_dict()
+                            for item in getattr(
+                                getattr(character, "bdi", None),
+                                "intentions",
+                                [],
+                            )
+                        ],
+                        "divisions": (
+                            character.divisions.as_dict()
+                            if getattr(
+                                character, "divisions", None
+                            )
+                            is not None
+                            else {}
+                        ),
                         "cooldowns": {
                             str(key): int(value)
                             for key, value in _as_mapping(
@@ -2374,10 +2702,36 @@ class AutomataCampaign:
             faction = self.faction(side)
             if faction is None:
                 continue
-            faction.assets = {
-                str(key): _clamp(value)
+            saved_context = _as_mapping(state.get("context"))
+            if saved_context:
+                faction.context = {
+                    str(key): _clamp(
+                        value, CONTEXT_MIN, CONTEXT_MAX
+                    )
+                    for key, value in saved_context.items()
+                }
+            else:
+                # Старый сейв: раньше активы были независимыми. Для
+                # совместимости подбираем контекст под сохранённые
+                # значения, но не создаём отдельный кошелёк.
+                for key in asset_keys(faction):
+                    faction.context.setdefault(str(key), 0.5)
                 for key, value in _as_mapping(
                     state.get("raw_assets") or state.get("assets")
+                ).items():
+                    faction.set_asset(key, value)
+            faction.baseline_context = {
+                str(key): _clamp(
+                    value, CONTEXT_MIN, CONTEXT_MAX
+                )
+                for key, value in _as_mapping(
+                    state.get("baseline_context")
+                ).items()
+            } or dict(faction.context)
+            faction.baseline_assets = {
+                str(key): _clamp(value)
+                for key, value in _as_mapping(
+                    state.get("baseline_assets")
                 ).items()
             }
             faction.cooldowns = {
@@ -2441,6 +2795,49 @@ class AutomataCampaign:
                 ).items():
                     if key in values:
                         values[key] = _clamp(value)
+                divisions = _as_mapping(saved.get("divisions"))
+                if (
+                    divisions
+                    and getattr(character, "divisions", None) is not None
+                ):
+                    try:
+                        character.divisions.update(divisions)
+                    except Exception:
+                        pass
+                bdi = getattr(character, "bdi", None)
+                if bdi is not None:
+                    for key, value in _as_mapping(
+                        saved.get("conditions")
+                    ).items():
+                        if key in bdi.conditions:
+                            bdi.conditions[key] = max(
+                                0.0, _number(value, bdi.conditions[key])
+                            )
+                    if saved.get("beliefs") is not None:
+                        try:
+                            character.beliefs = list(saved["beliefs"])
+                        except Exception:
+                            pass
+                    if saved.get("intentions") is not None:
+                        try:
+                            character.intentions = list(
+                                saved["intentions"]
+                            )
+                        except Exception:
+                            pass
+                if saved.get("force") is not None:
+                    character.force = max(
+                        0.0, _number(saved.get("force"), character.force)
+                    )
+                if saved.get("energy") is not None:
+                    character.energy_pool = max(
+                        0.0,
+                        _number(
+                            saved.get("energy"), character.energy_pool
+                        ),
+                    )
+                if saved.get("dead") is not None:
+                    character.dead = bool(saved.get("dead"))
                 character.morale = max(
                     0.0,
                     min(
@@ -2456,11 +2853,16 @@ class AutomataCampaign:
                         saved.get("cooldowns")
                     ).items()
                 }
+                try:
+                    character.desires = character.weighted_urgency()
+                except Exception:
+                    pass
             if faction.organization is not None:
                 faction.organization.load_state_dict(
                     _as_mapping(state.get("organization_state"))
                 )
         self.events = list(snapshot.get("events") or [])
+        self.story_events = list(snapshot.get("story_events") or [])
         self.log = list(snapshot.get("log") or [])
         if self.outcome:
             self.finished = True
@@ -2493,7 +2895,7 @@ class AutomataCampaign:
                     )
             anomalies.extend(
                 "%s: %s" % (side, problem)
-                for problem in validate_organ_hierarchy(faction.organs)
+                for problem in validate_organ_network(faction.organs)
             )
             snapshot = faction.organization_snapshot
             if snapshot:

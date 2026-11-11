@@ -8,18 +8,67 @@
       "summary": "Сопротивляется страху и панике: реже отступает и держит строй под огнём.",
       "base": 0.55,
       "need_urgency": {
-        "fear": {"base": 0.75, "scale": 0.60}
+        "fear": {
+          "base": 0.75,
+          "scale": 0.6
+        }
       },
       "need_growth": {
-        "fear": {"base": 1.45, "scale": -0.90}
+        "fear": {
+          "base": 1.45,
+          "scale": -0.9
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 10.0},
-      "panic_score": {"base": 0.0, "scale": -0.34},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 10.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": -0.34
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": 0.10, "center": 0.5},
-        "hold": {"base": 0.0, "scale": -0.05, "center": 0.5},
-        "retreat": {"base": 0.0, "scale": -0.15, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": 0.1,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": -0.05,
+          "center": 0.5
+        },
+        "retreat": {
+          "base": 0.0,
+          "scale": -0.15,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "force_drain": {
+          "base": 1.0,
+          "scale": -0.35,
+          "center": 0.5
+        },
+        "energy_drain": {
+          "base": 1.0,
+          "scale": -0.15,
+          "center": 0.5
+        },
+        "need:fear": {
+          "base": 1.0,
+          "scale": -0.25,
+          "center": 0.5
+        },
+        "belief_weight": {
+          "base": 1.0,
+          "scale": -0.1,
+          "center": 0.5
+        }
       }
     },
     "discipline": {
@@ -27,19 +76,71 @@
       "summary": "Держит тревогу под контролем, ценит порядок и предпочитает подготовленное действие.",
       "base": 0.55,
       "need_urgency": {
-        "anxiety": {"base": 0.70, "scale": 0.80},
-        "skill": {"base": 0.60, "scale": 0.80}
+        "anxiety": {
+          "base": 0.7,
+          "scale": 0.8
+        },
+        "skill": {
+          "base": 0.6,
+          "scale": 0.8
+        }
       },
       "need_growth": {
-        "anxiety": {"base": 1.50, "scale": -0.90}
+        "anxiety": {
+          "base": 1.5,
+          "scale": -0.9
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 18.0},
-      "panic_score": {"base": 0.0, "scale": -0.20},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 18.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": -0.2
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": -0.05, "center": 0.5},
-        "hold": {"base": 0.0, "scale": 0.12, "center": 0.5},
-        "rest": {"base": 0.0, "scale": 0.08, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": -0.05,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": 0.12,
+          "center": 0.5
+        },
+        "rest": {
+          "base": 0.0,
+          "scale": 0.08,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need_growth": {
+          "base": 1.0,
+          "scale": -0.2,
+          "center": 0.5
+        },
+        "intention_weight": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "need:anxiety": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "need:skill": {
+          "base": 1.0,
+          "scale": 0.15,
+          "center": 0.5
+        }
       }
     },
     "aggression": {
@@ -48,31 +149,118 @@
       "base": 0.45,
       "need_urgency": {},
       "need_growth": {},
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.30},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.3
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": 0.30, "center": 0.5},
-        "hold": {"base": 0.0, "scale": -0.12, "center": 0.5},
-        "retreat": {"base": 0.0, "scale": -0.20, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": 0.3,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": -0.12,
+          "center": 0.5
+        },
+        "retreat": {
+          "base": 0.0,
+          "scale": -0.2,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:fear": {
+          "base": 1.0,
+          "scale": -0.2,
+          "center": 0.5
+        },
+        "force_drain": {
+          "base": 1.0,
+          "scale": 0.15,
+          "center": 0.5
+        },
+        "intention_weight": {
+          "base": 1.0,
+          "scale": 0.1,
+          "center": 0.5
+        }
       }
     },
     "empathy": {
       "label": "Эмпатия",
       "summary": "Чувствует состояние других: сильнее реагирует на любовь и дружбу, чаще выбирает заботу.",
-      "base": 0.50,
+      "base": 0.5,
       "need_urgency": {
-        "love": {"base": 0.55, "scale": 0.80},
-        "friendship": {"base": 0.85, "scale": 0.30}
+        "love": {
+          "base": 0.55,
+          "scale": 0.8
+        },
+        "friendship": {
+          "base": 0.85,
+          "scale": 0.3
+        }
       },
       "need_growth": {},
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": -0.12, "center": 0.5},
-        "hold": {"base": 0.0, "scale": 0.15, "center": 0.5},
-        "rest": {"base": 0.0, "scale": 0.06, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": -0.12,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": 0.15,
+          "center": 0.5
+        },
+        "rest": {
+          "base": 0.0,
+          "scale": 0.06,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:loneliness": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "need:friendship": {
+          "base": 1.0,
+          "scale": 0.25,
+          "center": 0.5
+        },
+        "need:love": {
+          "base": 1.0,
+          "scale": 0.25,
+          "center": 0.5
+        },
+        "belief_weight": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        }
       }
     },
     "curiosity": {
@@ -80,51 +268,162 @@
       "summary": "Тянется к знанию и новому: усиливает познавательные намерения и снижает скуку.",
       "base": 0.55,
       "need_urgency": {
-        "knowledge": {"base": 0.60, "scale": 0.80},
-        "boredom": {"base": 0.60, "scale": 0.70}
+        "knowledge": {
+          "base": 0.6,
+          "scale": 0.8
+        },
+        "boredom": {
+          "base": 0.6,
+          "scale": 0.7
+        }
       },
       "need_growth": {
-        "boredom": {"base": 1.35, "scale": -0.60}
+        "boredom": {
+          "base": 1.35,
+          "scale": -0.6
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "fire": {"base": 0.0, "scale": 0.18, "center": 0.5},
-        "rest": {"base": 0.0, "scale": -0.05, "center": 0.5}
+        "fire": {
+          "base": 0.0,
+          "scale": 0.18,
+          "center": 0.5
+        },
+        "rest": {
+          "base": 0.0,
+          "scale": -0.05,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:knowledge": {
+          "base": 1.0,
+          "scale": 0.3,
+          "center": 0.5
+        },
+        "need:boredom": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "belief_weight": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        }
       }
     },
     "creativity": {
       "label": "Креативность",
       "summary": "Ищет нестандартный ход: повышает значимость творчества и расчётливых действий.",
-      "base": 0.50,
+      "base": 0.5,
       "need_urgency": {
-        "creativity": {"base": 0.60, "scale": 0.80}
+        "creativity": {
+          "base": 0.6,
+          "scale": 0.8
+        }
       },
       "need_growth": {},
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "fire": {"base": 0.0, "scale": 0.14, "center": 0.5}
+        "fire": {
+          "base": 0.0,
+          "scale": 0.14,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:creativity": {
+          "base": 1.0,
+          "scale": 0.3,
+          "center": 0.5
+        },
+        "need:knowledge": {
+          "base": 1.0,
+          "scale": 0.12,
+          "center": 0.5
+        }
       }
     },
     "ambition": {
       "label": "Амбициозность",
       "summary": "Рвётся к статусу и первенству: поднимает значимость статуса, риска и натиска.",
-      "base": 0.50,
+      "base": 0.5,
       "need_urgency": {
-        "status": {"base": 0.65, "scale": 0.90}
+        "status": {
+          "base": 0.65,
+          "scale": 0.9
+        }
       },
       "need_growth": {
-        "status": {"base": 0.80, "scale": 0.50}
+        "status": {
+          "base": 0.8,
+          "scale": 0.5
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.10},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.1
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": 0.22, "center": 0.5},
-        "fire": {"base": 0.0, "scale": 0.04, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": 0.22,
+          "center": 0.5
+        },
+        "fire": {
+          "base": 0.0,
+          "scale": 0.04,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:status": {
+          "base": 1.0,
+          "scale": 0.3,
+          "center": 0.5
+        },
+        "force_drain": {
+          "base": 1.0,
+          "scale": 0.1,
+          "center": 0.5
+        },
+        "intention_weight": {
+          "base": 1.0,
+          "scale": 0.12,
+          "center": 0.5
+        }
       }
     },
     "spirituality": {
@@ -132,17 +431,57 @@
       "summary": "Ищет смысл и опору в вере: усиливает духовные потребности и готовность к жертве.",
       "base": 0.45,
       "need_urgency": {
-        "spirituality": {"base": 0.55, "scale": 1.10}
+        "spirituality": {
+          "base": 0.55,
+          "scale": 1.1
+        }
       },
       "need_growth": {
-        "spirituality": {"base": 0.80, "scale": 0.50}
+        "spirituality": {
+          "base": 0.8,
+          "scale": 0.5
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.16},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.16
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": 0.10, "center": 0.5},
-        "hold": {"base": 0.0, "scale": 0.10, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": 0.1,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": 0.1,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:spirituality": {
+          "base": 1.0,
+          "scale": 0.3,
+          "center": 0.5
+        },
+        "need:anxiety": {
+          "base": 1.0,
+          "scale": -0.15,
+          "center": 0.5
+        },
+        "force_drain": {
+          "base": 1.0,
+          "scale": -0.1,
+          "center": 0.5
+        }
       }
     },
     "sociability": {
@@ -150,51 +489,190 @@
       "summary": "Нуждается в людях и связях: усиливает одиночество, дружбу, любовь и продолжение рода.",
       "base": 0.55,
       "need_urgency": {
-        "loneliness": {"base": 0.55, "scale": 0.90},
-        "friendship": {"base": 0.55, "scale": 0.90},
-        "reproduction": {"base": 0.50, "scale": 0.90}
+        "loneliness": {
+          "base": 0.55,
+          "scale": 0.9
+        },
+        "friendship": {
+          "base": 0.55,
+          "scale": 0.9
+        },
+        "reproduction": {
+          "base": 0.5,
+          "scale": 0.9
+        }
       },
       "need_growth": {
-        "loneliness": {"base": 1.45, "scale": -0.70}
+        "loneliness": {
+          "base": 1.45,
+          "scale": -0.7
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "hold": {"base": 0.0, "scale": 0.10, "center": 0.5},
-        "fire": {"base": 0.0, "scale": 0.05, "center": 0.5}
+        "hold": {
+          "base": 0.0,
+          "scale": 0.1,
+          "center": 0.5
+        },
+        "fire": {
+          "base": 0.0,
+          "scale": 0.05,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:loneliness": {
+          "base": 1.0,
+          "scale": 0.25,
+          "center": 0.5
+        },
+        "need:friendship": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "need:reproduction": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "energy_drain": {
+          "base": 1.0,
+          "scale": -0.1,
+          "center": 0.5
+        }
       }
     },
     "loyalty": {
       "label": "Верность",
       "summary": "Держится за своих и обязательства: укрепляет мораль, дружбу и оборонительную логику.",
-      "base": 0.60,
+      "base": 0.6,
       "need_urgency": {
-        "friendship": {"base": 0.90, "scale": 0.20},
-        "love": {"base": 0.90, "scale": 0.20}
+        "friendship": {
+          "base": 0.9,
+          "scale": 0.2
+        },
+        "love": {
+          "base": 0.9,
+          "scale": 0.2
+        }
       },
       "need_growth": {},
-      "morale_baseline": {"base": 0.0, "scale": 2.0},
-      "panic_score": {"base": 0.0, "scale": -0.04},
-      "fanatic_score": {"base": 0.0, "scale": -0.03},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 2.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": -0.04
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": -0.03
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": -0.04, "center": 0.5},
-        "hold": {"base": 0.0, "scale": 0.10, "center": 0.5},
-        "retreat": {"base": 0.0, "scale": -0.10, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": -0.04,
+          "center": 0.5
+        },
+        "hold": {
+          "base": 0.0,
+          "scale": 0.1,
+          "center": 0.5
+        },
+        "retreat": {
+          "base": 0.0,
+          "scale": -0.1,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "need:friendship": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "need:love": {
+          "base": 1.0,
+          "scale": 0.15,
+          "center": 0.5
+        },
+        "energy_drain": {
+          "base": 1.0,
+          "scale": -0.12,
+          "center": 0.5
+        },
+        "intention_weight": {
+          "base": 1.0,
+          "scale": 0.1,
+          "center": 0.5
+        }
       }
     },
     "fanaticism": {
       "label": "Фанатизм",
       "summary": "Готов на всё ради идеи: повышает шанс банзай-порыва и отбрасывает осторожность.",
-      "base": 0.30,
+      "base": 0.3,
       "need_urgency": {},
       "need_growth": {},
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.26},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.26
+      },
       "intent_bias": {
-        "assault": {"base": 0.0, "scale": 0.20, "center": 0.5},
-        "retreat": {"base": 0.0, "scale": -0.24, "center": 0.5}
+        "assault": {
+          "base": 0.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "retreat": {
+          "base": 0.0,
+          "scale": -0.24,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "force_drain": {
+          "base": 1.0,
+          "scale": -0.25,
+          "center": 0.5
+        },
+        "need:fear": {
+          "base": 1.0,
+          "scale": -0.25,
+          "center": 0.5
+        },
+        "need:spirituality": {
+          "base": 1.0,
+          "scale": 0.2,
+          "center": 0.5
+        },
+        "intention_weight": {
+          "base": 1.0,
+          "scale": 0.15,
+          "center": 0.5
+        }
       }
     },
     "endurance": {
@@ -202,55 +680,145 @@
       "summary": "Медленнее устаёт и легче переносит тяготы: снижает рост усталости и ухудшение здоровья.",
       "base": 0.55,
       "need_urgency": {
-        "fatigue": {"base": 0.75, "scale": 0.50},
-        "health": {"base": 0.80, "scale": 0.40}
+        "fatigue": {
+          "base": 0.75,
+          "scale": 0.5
+        },
+        "health": {
+          "base": 0.8,
+          "scale": 0.4
+        }
       },
       "need_growth": {
-        "fatigue": {"base": 1.30, "scale": -0.60},
-        "health": {"base": 1.40, "scale": -0.70}
+        "fatigue": {
+          "base": 1.3,
+          "scale": -0.6
+        },
+        "health": {
+          "base": 1.4,
+          "scale": -0.7
+        }
       },
-      "morale_baseline": {"base": 0.0, "scale": 0.0},
-      "panic_score": {"base": 0.0, "scale": 0.0},
-      "fanatic_score": {"base": 0.0, "scale": 0.0},
+      "morale_baseline": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "panic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
+      "fanatic_score": {
+        "base": 0.0,
+        "scale": 0.0
+      },
       "intent_bias": {
-        "hold": {"base": 0.0, "scale": 0.06, "center": 0.5},
-        "rest": {"base": 0.0, "scale": 0.12, "center": 0.5}
+        "hold": {
+          "base": 0.0,
+          "scale": 0.06,
+          "center": 0.5
+        },
+        "rest": {
+          "base": 0.0,
+          "scale": 0.12,
+          "center": 0.5
+        }
+      },
+      "coefficients": {
+        "energy_drain": {
+          "base": 1.0,
+          "scale": -0.35,
+          "center": 0.5
+        },
+        "force_drain": {
+          "base": 1.0,
+          "scale": -0.3,
+          "center": 0.5
+        },
+        "need_growth": {
+          "base": 1.0,
+          "scale": -0.25,
+          "center": 0.5
+        },
+        "need:fatigue": {
+          "base": 1.0,
+          "scale": -0.2,
+          "center": 0.5
+        }
       }
     }
   },
   "archetypes": {
-    "rifleman": {"label": "Стрелок", "modifiers": {}},
+    "rifleman": {
+      "label": "Стрелок",
+      "modifiers": {}
+    },
     "veteran": {
       "label": "Ветеран",
-      "modifiers": {"courage": 0.18, "endurance": 0.16, "discipline": 0.12, "loyalty": 0.10}
+      "modifiers": {
+        "courage": 0.18,
+        "endurance": 0.16,
+        "discipline": 0.12,
+        "loyalty": 0.1
+      }
     },
     "conscript": {
       "label": "Новобранец",
-      "modifiers": {"courage": -0.18, "discipline": -0.12, "endurance": -0.10, "loyalty": -0.08}
+      "modifiers": {
+        "courage": -0.18,
+        "discipline": -0.12,
+        "endurance": -0.1,
+        "loyalty": -0.08
+      }
     },
     "commissar": {
       "label": "Комиссар",
-      "modifiers": {"discipline": 0.22, "fanaticism": 0.22, "aggression": 0.15, "empathy": -0.16}
+      "modifiers": {
+        "discipline": 0.22,
+        "fanaticism": 0.22,
+        "aggression": 0.15,
+        "empathy": -0.16
+      }
     },
     "chaplain": {
       "label": "Жрец",
-      "modifiers": {"spirituality": 0.22, "fanaticism": 0.18, "empathy": 0.12, "courage": 0.10}
+      "modifiers": {
+        "spirituality": 0.22,
+        "fanaticism": 0.18,
+        "empathy": 0.12,
+        "courage": 0.1
+      }
     },
     "medic": {
       "label": "Медик",
-      "modifiers": {"empathy": 0.22, "discipline": 0.10, "aggression": -0.15}
+      "modifiers": {
+        "empathy": 0.22,
+        "discipline": 0.1,
+        "aggression": -0.15
+      }
     },
     "scout": {
       "label": "Разведчик",
-      "modifiers": {"curiosity": 0.20, "creativity": 0.14, "discipline": -0.08}
+      "modifiers": {
+        "curiosity": 0.2,
+        "creativity": 0.14,
+        "discipline": -0.08
+      }
     },
     "machinegunner": {
       "label": "Пулемётчик",
-      "modifiers": {"discipline": 0.14, "endurance": 0.18, "courage": 0.10}
+      "modifiers": {
+        "discipline": 0.14,
+        "endurance": 0.18,
+        "courage": 0.1
+      }
     },
     "citizen": {
       "label": "Гражданин",
-      "modifiers": {"empathy": 0.04, "sociability": 0.04, "discipline": -0.02}
+      "modifiers": {
+        "empathy": 0.04,
+        "sociability": 0.04,
+        "discipline": -0.02
+      }
     }
   },
   "model": {
@@ -260,26 +828,33 @@
       "initial_courage": 12.0,
       "drift": 0.03,
       "stress": {
-        "fear": 0.30,
+        "fear": 0.3,
         "anxiety": 0.22,
-        "fatigue": 0.20,
+        "fatigue": 0.2,
         "health": 0.18,
-        "loneliness": 0.10
+        "loneliness": 0.1
       },
       "stress_scale": 4.0,
       "under_fire_penalty": 3.0,
       "order_morale": 0.15,
-      "support_bonus": 0.20,
-      "order_discipline": 0.10
+      "support_bonus": 0.2,
+      "order_discipline": 0.1
     },
     "mind": {
-      "panic_needs": {"fear": 0.34, "anxiety": 0.24, "fatigue": 0.18},
+      "panic_needs": {
+        "fear": 0.34,
+        "anxiety": 0.24,
+        "fatigue": 0.18
+      },
       "panic_morale": 0.38,
       "panic_noise": 0.08,
-      "panic_mod_discipline": -0.10,
+      "panic_mod_discipline": -0.1,
       "panic_threshold": 0.42,
-      "shaken_threshold": 0.30,
-      "fanatic_needs": {"fear": -0.24, "anxiety": -0.16},
+      "shaken_threshold": 0.3,
+      "fanatic_needs": {
+        "fear": -0.24,
+        "anxiety": -0.16
+      },
       "fanatic_morale": 0.16,
       "fanatic_mod_fanaticism": 0.25,
       "fanatic_threshold": 0.48,
@@ -290,24 +865,76 @@
       "fanatic_cooldown": 16
     },
     "intent": {
-      "intents": ["assault", "fire", "hold", "rest", "retreat"],
+      "intents": [
+        "assault",
+        "fire",
+        "hold",
+        "rest",
+        "retreat"
+      ],
       "need_intents": {
-        "hunger": {"rest": 1.0, "hold": 0.10},
-        "thirst": {"rest": 1.0, "hold": 0.10},
-        "fatigue": {"rest": 1.0, "hold": 0.10},
-        "health": {"rest": 1.0, "hold": 0.20},
-        "fear": {"hold": 0.80, "retreat": 0.40},
-        "anxiety": {"hold": 0.80, "retreat": 0.20},
-        "loneliness": {"hold": 0.40, "fire": 0.30},
-        "reproduction": {"hold": 0.20, "fire": 0.40},
-        "knowledge": {"fire": 0.80, "hold": 0.10},
-        "creativity": {"fire": 0.80},
-        "boredom": {"fire": 0.50, "assault": 0.20},
-        "status": {"assault": 0.80, "fire": 0.20},
-        "spirituality": {"assault": 0.45, "hold": 0.35},
-        "skill": {"fire": 0.80},
-        "love": {"hold": 0.40, "fire": 0.30},
-        "friendship": {"hold": 0.40, "fire": 0.30}
+        "hunger": {
+          "rest": 1.0,
+          "hold": 0.1
+        },
+        "thirst": {
+          "rest": 1.0,
+          "hold": 0.1
+        },
+        "fatigue": {
+          "rest": 1.0,
+          "hold": 0.1
+        },
+        "health": {
+          "rest": 1.0,
+          "hold": 0.2
+        },
+        "fear": {
+          "hold": 0.8,
+          "retreat": 0.4
+        },
+        "anxiety": {
+          "hold": 0.8,
+          "retreat": 0.2
+        },
+        "loneliness": {
+          "hold": 0.4,
+          "fire": 0.3
+        },
+        "reproduction": {
+          "hold": 0.2,
+          "fire": 0.4
+        },
+        "knowledge": {
+          "fire": 0.8,
+          "hold": 0.1
+        },
+        "creativity": {
+          "fire": 0.8
+        },
+        "boredom": {
+          "fire": 0.5,
+          "assault": 0.2
+        },
+        "status": {
+          "assault": 0.8,
+          "fire": 0.2
+        },
+        "spirituality": {
+          "assault": 0.45,
+          "hold": 0.35
+        },
+        "skill": {
+          "fire": 0.8
+        },
+        "love": {
+          "hold": 0.4,
+          "fire": 0.3
+        },
+        "friendship": {
+          "hold": 0.4,
+          "fire": 0.3
+        }
       },
       "reasons": {
         "assault": "порыв",
@@ -318,8 +945,18 @@
         "retreat": "паника"
       },
       "force": [
-        {"trait": "aggression", "at_least": 0.66, "intent": "assault", "bonus": 1.0},
-        {"mod": "aggression", "at_least": 0.20, "intent": "assault", "bonus": 1.0}
+        {
+          "trait": "aggression",
+          "at_least": 0.66,
+          "intent": "assault",
+          "bonus": 1.0
+        },
+        {
+          "mod": "aggression",
+          "at_least": 0.2,
+          "intent": "assault",
+          "bonus": 1.0
+        }
       ],
       "fanaticism_override": 0.35
     },
@@ -337,10 +974,21 @@
         "endurance": 0.25
       },
       "attack_aggression": 0.55,
-      "attack_boldness": 0.20,
-      "rest_caution": {"base": 0.85, "scale": 0.30},
+      "attack_boldness": 0.2,
+      "rest_caution": {
+        "base": 0.85,
+        "scale": 0.3
+      },
       "retreat_discipline_threshold": 0.52,
-      "retreat_caution_shift": 0.10
+      "retreat_caution_shift": 0.1
+    },
+    "coefficients": {
+      "need_weight": 1.0,
+      "need_growth": 1.0,
+      "force_drain": 1.0,
+      "energy_drain": 1.0,
+      "belief_weight": 1.0,
+      "intention_weight": 1.0
     }
   }
 }

@@ -250,8 +250,12 @@ class Agent:
 
     def rest_gain(self):
         e = self.force - UPKEEP
-        ceiling = self.rest_ceiling
-        return MAX_REST_DELTA * (e / ceiling) * (1.0 - e / ceiling)
+        ceiling = max(1e-9, self.rest_ceiling)
+        # В бою сила может временно превысить потолок отдыха. Формула
+        # задумана для ``e / ceiling`` в ``0..1``; за пределами этого
+        # диапазона она даёт отрицательный «отдых» и раскачивает силу.
+        ratio = max(0.0, min(1.0, e / ceiling))
+        return MAX_REST_DELTA * ratio * (1.0 - ratio)
 
     def do_rest(self, chosen=True):
         gain = self.rest_gain() if chosen else 0.5 * self.rest_gain()

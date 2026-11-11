@@ -1,23 +1,23 @@
-"""Фрактальный слой кампании автоматов: органы как уменьшенные копии.
+"""Сетевой слой кампании автоматов: органы как связанные узлы.
 
 Фракция и её органы описываются одной и той же идеей: у узла есть
-целостность, он реагирует на состояние родителя и передаёт ему часть
-своего изменения обратно. Поэтому органы — не декоративный список, а
-самоподобные автоматы:
+целостность и связи с другими узлами. Поэтому органы — не декоративная
+вертикаль подчинения, а самоподобная сеть:
 
+* **связи** (links) — данные задают соседей органа; связь двусторонняя,
+  а не «родитель → ребёнок»;
 * **вниз** (downscale) — состояние фракции задаёт цель для целостности
-  органа, но с меньшей амплитудой;
-* **вверх** (upscale) — среднее состояние органов возвращается во
-  фракцию небольшим потоком, поэтому слабый орган постепенно ослабляет
-  свою фракцию;
+  каждого узла, но с меньшей амплитудой;
+* **отклик** (upscale) — изменение узла возвращается во фракцию
+  контекстным импульсом, а производные активы читают целостность сети;
 * **работы** — сила работы зависит от целостности исполнившего органа;
-  успех укрепляет орган, провал и чужая атака ослабляют его;
+  успех укрепляет узел, провал и чужая атака ослабляют его;
 * **взаимодействия** — данные ``organ_interactions`` позволяют игроку
-  усиливать, реформировать, чистить или снабжать конкретный орган.
+  усиливать, реформировать, чистить или снабжать конкретный узел.
 
 Модуль не импортирует ``campaign.automata`` и не знает про интерфейс:
 он работает с любым объектом фракции, у которого есть ``asset``,
-``add_asset`` и ``dissolved``.
+``add_asset``, ``bump_context`` и ``dissolved``.
 """
 
 from __future__ import annotations
@@ -102,77 +102,126 @@ def organ_weight(kind, explicit=None):
     )
 
 
-def validate_organ_hierarchy(organs):
-    """Проверить ссылки ``parent_id`` и отсутствие циклов.
+def organ_links(organs):
+    """Двусторонняя карта связей сети органов.
 
-    Возвращает список человекочитаемых проблем. Пустой список означает,
-    что из органов можно построить корректное дерево/лес.
+    Явный список ``links`` — основной источник. Старое поле ``parent_id``
+    читается как одна дополнительная связь, чтобы открыть пресеты,
+    созданные до перехода на сетку. Возвращаются отсортированные соседи,
+    поэтому обход и отрисовка детерминированы.
+    """
+    organs = list(organs or ())
+    by_id = {str(getattr(item, "id", "") or ""): item for item in organs}
+    links = {organ_id: set() for organ_id in by_id if organ_id}
+    for organ in organs:
+        organ_id = str(getattr(organ, "id", "") or "")
+        if not organ_id:
+            continue
+        for linked in getattr(organ, "links", ()) or ():
+            linked = str(linked or "")
+            if not linked or linked == organ_id or linked not in by_id:
+                continue
+            links[organ_id].add(linked)
+            links[linked].add(organ_id)
+        parent_id = str(getattr(organ, "parent_id", "") or "")
+        if parent_id and parent_id != organ_id and parent_id in by_id:
+            links[organ_id].add(parent_id)
+            links[parent_id].add(organ_id)
+    return {key: sorted(value) for key, value in links.items()}
+
+
+def organ_degrees(organs):
+    """Степень каждого узла сети (число соседей)."""
+    return {
+        key: len(value) for key, value in organ_links(organs).items()
+    }
+
+
+def network_density(organs):
+    """Доля существующих связей от всех возможных (0..1)."""
+    links = organ_links(organs)
+    count = len(links)
+    if count <= 1:
+        return 0.0
+    edges = sum(len(value) for value in links.values()) / 2.0
+    return _clamp(edges / float(count * (count - 1) / 2.0))
+
+
+def validate_organ_network(organs):
+    """Проверить ссылки сети и вернуть список проблем.
+
+    Сеть не обязана быть деревом: допускаются циклы, несколько связей и
+    изолированные узлы. Ошибка — только ссылка на неизвестный узел или
+    связь узла с самим собой.
     """
     organs = list(organs or ())
     by_id = {str(getattr(item, "id", "") or ""): item for item in organs}
     problems = []
     for organ in organs:
+        organ_id = str(getattr(organ, "id", "") or "")
+        if not organ_id:
+            problems.append("орган без id")
+            continue
+        for linked in getattr(organ, "links", ()) or ():
+            linked = str(linked or "")
+            if not linked:
+                continue
+            if linked == organ_id:
+                problems.append(
+                    "орган %s связан сам с собой" % organ_id
+                )
+            elif linked not in by_id:
+                problems.append(
+                    "орган %s: неизвестная связь %s"
+                    % (organ_id, linked)
+                )
         parent_id = str(getattr(organ, "parent_id", "") or "")
-        if not parent_id:
-            continue
-        if parent_id == organ.id:
-            problems.append("орган %s ссылается сам на себя" % organ.id)
-            continue
-        if parent_id not in by_id:
-            problems.append(
-                "орган %s: неизвестный parent_id=%s"
-                % (organ.id, parent_id)
-            )
-    if problems:
-        return problems
-
-    state = {}
-
-    def visit(organ_id, path):
-        marker = state.get(organ_id)
-        if marker == "done":
-            return
-        if marker == "visiting":
-            cycle = " → ".join(path + [organ_id])
-            problems.append("цикл иерархии органов: %s" % cycle)
-            return
-        state[organ_id] = "visiting"
-        parent_id = str(getattr(by_id[organ_id], "parent_id", "") or "")
         if parent_id:
-            visit(parent_id, path + [organ_id])
-        state[organ_id] = "done"
-
-    for organ_id in by_id:
-        visit(organ_id, [])
-        if problems:
-            break
+            if parent_id == organ_id:
+                problems.append(
+                    "орган %s ссылается сам на себя" % organ_id
+                )
+            elif parent_id not in by_id:
+                problems.append(
+                    "орган %s: неизвестная связь %s"
+                    % (organ_id, parent_id)
+                )
     return problems
 
 
+def organ_network_distances(organs, root_id=None):
+    """Кратчайшее расстояние по связям сети от выбранного узла.
+
+    Это метрика связности для диагностики, а не уровень подчинения.
+    Недостижимые узлы получают ``-1``.
+    """
+    organs = list(organs or ())
+    links = organ_links(organs)
+    if not links:
+        return {}
+    start = str(root_id or next(iter(links)))
+    if start not in links:
+        start = next(iter(links))
+    distances = {key: -1 for key in links}
+    distances[start] = 0
+    queue = [start]
+    while queue:
+        current = queue.pop(0)
+        for neighbor in links.get(current, ()):
+            if distances.get(neighbor, -1) == -1:
+                distances[neighbor] = distances[current] + 1
+                queue.append(neighbor)
+    return distances
+
+
+def validate_organ_hierarchy(organs):
+    """Устаревшее имя; сеть проверяется :func:`validate_organ_network`."""
+    return validate_organ_network(organs)
+
+
 def organ_depths(organs):
-    """Глубина каждого органа от корня (у корня — 0)."""
-    by_id = {str(getattr(item, "id", "") or ""): item for item in organs}
-    depths = {}
-
-    def depth(organ_id, trail=()):
-        if organ_id in depths:
-            return depths[organ_id]
-        if organ_id in trail:
-            return 0
-        organ = by_id.get(organ_id)
-        if organ is None:
-            return 0
-        parent_id = str(getattr(organ, "parent_id", "") or "")
-        if not parent_id or parent_id not in by_id:
-            value = 0
-        else:
-            value = depth(parent_id, trail + (organ_id,)) + 1
-        depths[organ_id] = value
-        return value
-
-    for organ_id in by_id:
-        depth(organ_id)
-    return depths
+    """Устаревшее имя; расстояние по связям, не уровень иерархии."""
+    return organ_network_distances(organs)
 
 
 def organ_composite(
@@ -183,12 +232,13 @@ def organ_composite(
     energy_of=None,
     root_max_depth=None,
 ):
-    """Построить `CompositeAutomaton`-представление иерархии органов.
+    """Построить `CompositeAutomaton`-представление сети органов.
 
     Это диагностический слой (WORLD_CORE_MODEL §2.7): `OrganRuntime`
     остаётся источником истины и хранит взаимодействия/перезарядки, а
-    составной автомат даёт агрегаты `F/E/S` по дереву и распределение
-    работы между листьями.
+    составной автомат даёт агрегаты `F/E/S` по сети и распределение
+    работы между узлами. Узлы сети висят под корнем плоско: связи
+    ``links`` остаются в данных, но не превращаются в вертикаль власти.
 
     Отображение по умолчанию:
 
@@ -199,8 +249,8 @@ def organ_composite(
       взвешенная целостность.
 
     `force_of`/`energy_of` позволяют подставить другую проекцию, не меняя
-    модуль. Повреждённая иерархия (циклы, неизвестные родители) строится
-    плоским лесом под корнем, а не роняет вызов.
+    модуль. Сеть может содержать циклы и кластеры: все узлы всё равно
+    строятся плоским слоем под корнем, а связи остаются в данных органов.
     """
     organs = list(organs or ())
     if not organs:
@@ -215,8 +265,6 @@ def organ_composite(
     energy_of = energy_of or (
         lambda organ: _clamp(readiness_scale(organ))
     )
-    problems = validate_organ_hierarchy(organs)
-    depths = organ_depths(organs) if not problems else {}
     root = CompositeAutomaton(
         id=str(root_id or "faction"),
         force=0.0,
@@ -249,20 +297,10 @@ def organ_composite(
         node.state["organ_kind"] = str(getattr(organ, "kind", "") or "")
         nodes[organ_id] = node
         ordered.append((organ, node))
-    ordered.sort(
-        key=lambda item: (
-            depths.get(item[1].id, 0),
-            item[1].id,
-        )
-    )
-    for organ, node in ordered:
-        parent_id = "" if problems else str(
-            getattr(organ, "parent_id", "") or ""
-        )
-        parent = nodes.get(parent_id) if parent_id else None
-        target = parent if parent is not None and parent is not node else root
+    ordered.sort(key=lambda item: item[1].id)
+    for _organ, node in ordered:
         try:
-            target.add_child(node)
+            root.add_child(node)
         except ValueError:
             if getattr(node, "_composite_parent", None) is not None:
                 node._composite_parent.remove_child(node.id)
@@ -283,6 +321,7 @@ class OrganRuntime:
     description: str = ""
     automaton_id: str = ""
     parent_id: str = ""
+    links: List[str] = field(default_factory=list)
     action_ids: List[str] = field(default_factory=list)
     integrity: float = ORGAN_DEFAULT_INTEGRITY
     weight: float = 1.0
@@ -310,6 +349,11 @@ class OrganRuntime:
             description=str(record.get("description") or ""),
             automaton_id=str(record.get("automaton_id") or ""),
             parent_id=str(record.get("parent_id") or ""),
+            links=[
+                str(item)
+                for item in (record.get("links") or ())
+                if str(item or "").strip()
+            ],
             action_ids=[
                 str(item) for item in (record.get("action_ids") or ())
             ],
@@ -360,6 +404,7 @@ class OrganRuntime:
             "description": self.description,
             "automaton_id": self.automaton_id,
             "parent_id": self.parent_id,
+            "links": list(self.links),
             "action_ids": list(self.action_ids),
             "integrity": round(_clamp(self.integrity), 6),
             "status": self.status(),
@@ -454,9 +499,14 @@ def tick_organs(faction, organs, model=None):
         organ.integrity = _clamp(before + (target - before) * rate)
         deltas.append((organ, organ.integrity - before))
     if not getattr(faction, "dissolved", False):
+        bump = getattr(faction, "bump_context", None)
         for organ in organs:
             feedback = upscale * organ.weight * (organ.integrity - 0.5)
-            if feedback:
+            if not feedback:
+                continue
+            if callable(bump):
+                bump(organ.asset_key(), feedback)
+            else:
                 faction.add_asset(organ.asset_key(), feedback)
     return deltas
 
@@ -471,7 +521,11 @@ def spread_organ_effect(faction, organ, delta, model=None):
         ORGAN_MODEL_DEFAULTS["organ_spread"],
     )
     applied = delta * spread * max(ORGAN_MIN_WEIGHT, organ.weight)
-    faction.add_asset(organ.asset_key(), applied)
+    bump = getattr(faction, "bump_context", None)
+    if callable(bump):
+        bump(organ.asset_key(), applied)
+    else:
+        faction.add_asset(organ.asset_key(), applied)
     return applied
 
 
@@ -517,8 +571,12 @@ __all__ = [
     "OrganRuntime",
     "damage_organs",
     "faction_pressure",
+    "network_density",
     "organ_asset_key",
+    "organ_degrees",
     "organ_depths",
+    "organ_links",
+    "organ_network_distances",
     "organ_status",
     "organ_target",
     "organ_weight",
@@ -527,4 +585,5 @@ __all__ = [
     "strengthen_organ",
     "tick_organs",
     "validate_organ_hierarchy",
+    "validate_organ_network",
 ]

@@ -1,16 +1,15 @@
-"""Сеть автоматов: иерархия органов и действия внутри неё.
+"""Сеть автоматов: сетка связанных органов и действия внутри неё.
 
-Экран показывает только сеть игрока: корень — фракция, ниже — уровни
-органов, связанные через ``parent_id``. Поэтому видна вертикаль
-подчинения (например, ``Панцерваффе → Вермахт → Имперская ставка``), а
-чужие фракции нельзя выбрать или усилить.
+Экран показывает только сеть игрока. Органы — равноправные узлы,
+связанные данными ``links``; это не дерево подчинения. Поэтому видна
+сеть кластеров (например, ``Панцерваффе ↔ Вермахт ↔ Имперская ставка``),
+а чужие фракции нельзя выбрать или усилить.
 
 В сети три режима действий:
 
-* ``АВТОМАТЫ`` — выбранный орган отдаёт команду другому автомату
-  (согласование, передача резерва, директива подчинённому, запрос
-  поддержки у вышестоящего);
-* ``ВЛИЯНИЕ`` — игрок усиливает, реформирует, чистит или снабжает орган;
+* ``АВТОМАТЫ`` — выбранный узел отдаёт команду связанному автомату
+  (согласование, передача резерва, директива соседу, запрос поддержки);
+* ``ВЛИЯНИЕ`` — игрок усиливает, реформирует, чистит или снабжает узел;
 * ``ПЕРСОНАЛ`` — влияние на людей своей фракции.
 
 Работы, влияния и команды автоматов тратят ограниченный бюджет действий.
@@ -20,9 +19,11 @@
 
 from __future__ import annotations
 
+import math
+
 import pygame
 
-from campaign.fractal import organ_depths
+from campaign.fractal import organ_degrees, organ_links
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
@@ -214,10 +215,16 @@ class AutomataNetworkScreen(BaseScreen):
     def _default_organ_id(self, faction):
         if faction is None or not faction.organs:
             return None
-        for organ in faction.organs:
-            if not organ.parent_id:
-                return organ.id
-        return faction.organs[0].id
+        degrees = organ_degrees(faction.organs)
+        ordered = sorted(
+            faction.organs,
+            key=lambda item: (
+                -degrees.get(item.id, 0),
+                item.name,
+                item.id,
+            ),
+        )
+        return ordered[0].id
 
     def _characters(self):
         return self.campaign.character_options(self.campaign.player_side)
@@ -316,16 +323,12 @@ class AutomataNetworkScreen(BaseScreen):
         )
 
     def _path_ids(self):
+        """Выбранный узел и его соседи по сети — для подсветки связей."""
         organ = self._organ()
         if organ is None:
             return set()
-        organs = {item.id: item for item in self._organs()}
-        result = {organ.id}
-        current = organ
-        while current is not None and current.parent_id:
-            result.add(current.parent_id)
-            current = organs.get(current.parent_id)
-        return result
+        links = organ_links(self._organs())
+        return {organ.id, *links.get(organ.id, ())}
 
     def _sync_storyline(self):
         interp = getattr(self.app, "storyline_interpreter", None)
@@ -406,6 +409,10 @@ class AutomataNetworkScreen(BaseScreen):
             return False
         if mode in ("automata", "organs", "characters"):
             self.mode = mode
+        elif self.mode == "characters":
+            # Клик по органу из раздела персонала возвращает к влиянию
+            # на орган, а не оставляет игрока в «ПЕРСОНАЛЕ».
+            self.mode = "organs"
         elif self.mode not in ("automata", "organs"):
             self.mode = "organs"
         self.selected_organ_id = str(organ_id)
@@ -743,61 +750,72 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.finish_storyline_outcome("win")
 
     def _layout(self):
+        """Разложить органы сеткой, а не колонками иерархии."""
         self._organ_rects = {}
         self._faction_rect = None
         faction = self._faction()
         if faction is None:
             return
-        depths = organ_depths(faction.organs)
-        max_depth = max(depths.values(), default=0)
-        columns = max_depth + 2
-        available = GRAPH_RECT.width - 32
-        min_gap = 12
-        gap = max(
-            min_gap,
-            min(
-                36,
-                int(
-                    (available - columns * NODE_W)
-                    / float(max(1, columns - 1))
-                ),
+        self._faction_rect = pygame.Rect(
+            GRAPH_RECT.x + 14,
+            GRAPH_RECT.y + 32,
+            190,
+            34,
+        )
+        organs = sorted(
+            faction.organs,
+            key=lambda item: (item.kind, item.name, item.id),
+        )
+        if not organs:
+            return
+        count = len(organs)
+        available_w = GRAPH_RECT.width - 32
+        available_h = GRAPH_RECT.bottom - 12 - (GRAPH_RECT.y + 82)
+        target_ratio = available_w / float(max(1, available_h))
+        best_columns = 1
+        best_score = None
+        for columns in range(1, count + 1):
+            if columns * NODE_W > available_w and columns > 1:
+                continue
+            rows = int(math.ceil(count / float(columns)))
+            block_w = columns * NODE_W
+            block_h = rows * NODE_H
+            score = abs(
+                (block_w / float(max(1, block_h))) - target_ratio
+            )
+            if best_score is None or score < best_score:
+                best_score = score
+                best_columns = columns
+        columns = max(1, best_columns)
+        rows = int(math.ceil(count / float(columns)))
+        gap_x = min(
+            42,
+            max(
+                12,
+                (available_w - columns * NODE_W)
+                // max(1, columns - 1),
             ),
         )
-        total_width = columns * NODE_W + (columns - 1) * gap
-        start_x = GRAPH_RECT.x + (GRAPH_RECT.width - total_width) // 2
-        tree_top = GRAPH_RECT.y + 62
-        tree_bottom = GRAPH_RECT.bottom - 12
-        level_nodes = {}
-        for organ in faction.organs:
-            level_nodes.setdefault(depths.get(organ.id, 0), []).append(organ)
-        for level, organs in level_nodes.items():
-            organs.sort(key=lambda item: item.name)
-            column = level + 1
-            x = start_x + column * (NODE_W + gap)
-            total_height = (
-                len(organs) * NODE_H + (len(organs) - 1) * NODE_GAP_Y
-            )
-            available_height = tree_bottom - tree_top
-            if total_height > available_height:
-                step = max(
-                    NODE_H,
-                    (available_height - NODE_H)
-                    // max(1, len(organs) - 1),
-                )
-            else:
-                step = NODE_H + NODE_GAP_Y
-            block = NODE_H + (len(organs) - 1) * step
-            y = tree_top + max(0, (available_height - block) // 2)
-            for organ in organs:
-                self._organ_rects[organ.id] = pygame.Rect(
-                    x, y, NODE_W, NODE_H
-                )
-                y += step
-        root_x = start_x
-        root_y = (tree_top + tree_bottom) // 2 - ROOT_H // 2
-        self._faction_rect = pygame.Rect(
-            root_x, root_y, NODE_W, ROOT_H
+        gap_y = min(
+            NODE_GAP_Y + 30,
+            max(
+                NODE_GAP_Y,
+                (available_h - rows * NODE_H) // max(1, rows - 1),
+            ),
         )
+        total_w = columns * NODE_W + (columns - 1) * gap_x
+        total_h = rows * NODE_H + (rows - 1) * gap_y
+        start_x = GRAPH_RECT.x + (GRAPH_RECT.width - total_w) // 2
+        top = GRAPH_RECT.y + 82
+        start_y = top + max(0, (available_h - total_h) // 2)
+        for index, organ in enumerate(organs):
+            row, column = divmod(index, columns)
+            self._organ_rects[organ.id] = pygame.Rect(
+                start_x + column * (NODE_W + gap_x),
+                start_y + row * (NODE_H + gap_y),
+                NODE_W,
+                NODE_H,
+            )
 
     def organ_rect(self, organ_id):
         if not self._organ_rects:
@@ -902,10 +920,15 @@ class AutomataNetworkScreen(BaseScreen):
                 else:
                     self.select_organ(organ_id)
                 return
-        for rect, character in self._character_rows():
-            if rect.collidepoint(pos):
-                self.select_character(character["id"])
-                return
+        # Строки персонажей и строки действий начинаются с одной и той же
+        # высоты в правой панели. Поэтому клики по персонажам принимаются
+        # только в режиме «ПЕРСОНАЛ», иначе «Усилить орган» и команды
+        # автоматов перехватывались невидимым списком людей.
+        if self.mode == "characters":
+            for rect, character in self._character_rows():
+                if rect.collidepoint(pos):
+                    self.select_character(character["id"])
+                    return
         for rect, option in self._interaction_rows():
             if rect.collidepoint(pos):
                 if option.get("enabled"):
@@ -937,7 +960,7 @@ class AutomataNetworkScreen(BaseScreen):
         _panel(screen, GRAPH_RECT)
         screen.blit(
             self.app.font_small.render(
-                "ИЕРАРХИЯ АВТОМАТОВ · ТОЛЬКО ВАША ФРАКЦИЯ", True, MUTED
+                "СЕТЬ АВТОМАТОВ · ТОЛЬКО ВАША ФРАКЦИЯ", True, MUTED
             ),
             (GRAPH_RECT.x + 14, GRAPH_RECT.y + 12),
         )
@@ -954,43 +977,30 @@ class AutomataNetworkScreen(BaseScreen):
         faction = self._faction()
         if faction is None or self._faction_rect is None:
             return
-        depths = organ_depths(faction.organs)
-        max_depth = max(depths.values(), default=0)
-        for depth in range(max_depth + 1):
-            rects = [
-                rect
-                for organ_id, rect in self._organ_rects.items()
-                if depths.get(organ_id, 0) == depth
-            ]
-            if not rects:
-                continue
-            x = min(rect.x for rect in rects)
-            label = "УРОВЕНЬ %d" % (depth + 1)
-            screen.blit(
-                self.app.font_tiny.render(label, True, DIM),
-                (x + 2, GRAPH_RECT.y + 40),
-            )
-
+        links = organ_links(faction.organs)
+        degrees = organ_degrees(faction.organs)
         path = self._path_ids()
         target_ids = self._automaton_target_ids()
-        organs = {item.id: item for item in faction.organs}
-        for organ in faction.organs:
-            source = self._faction_rect
-            if organ.parent_id and organ.parent_id in organs:
-                source = self._organ_rects.get(organ.parent_id)
-            target = self._organ_rects.get(organ.id)
-            if source is None or target is None:
-                continue
-            highlighted = (
-                organ.id in path and organ.parent_id in path
-            )
-            self._draw_edge(
-                screen,
-                (source.right, source.centery),
-                (target.left, target.centery),
-                PATH_EDGE if highlighted else EDGE,
-                3 if highlighted else 1,
-            )
+
+        drawn = set()
+        for organ_id, neighbors in links.items():
+            for neighbor in neighbors:
+                edge = tuple(sorted((str(organ_id), str(neighbor))))
+                if edge in drawn:
+                    continue
+                drawn.add(edge)
+                source = self._organ_rects.get(edge[0])
+                target = self._organ_rects.get(edge[1])
+                if source is None or target is None:
+                    continue
+                highlighted = edge[0] in path and edge[1] in path
+                self._draw_edge(
+                    screen,
+                    (source.centerx, source.centery),
+                    (target.centerx, target.centery),
+                    PATH_EDGE if highlighted else EDGE,
+                    3 if highlighted else 1,
+                )
 
         pygame.draw.rect(
             screen, (34, 48, 68), self._faction_rect, border_radius=8
@@ -1003,22 +1013,25 @@ class AutomataNetworkScreen(BaseScreen):
                 self.app.font_small,
                 faction.name,
                 self._faction_rect.width - 14,
-            )[:2]
+            )[:1]
         ):
             screen.blit(
                 self.app.font_small.render(line, True, TEXT),
                 (
                     self._faction_rect.x + 7,
-                    self._faction_rect.y + 8 + line_number * 18,
+                    self._faction_rect.y + 3 + line_number * 18,
                 ),
             )
         screen.blit(
             self.app.font_tiny.render(
-                "корень · вы", True, ACCENT
+                "фракция · узлов %d · связей %d"
+                % (len(faction.organs), len(drawn)),
+                True,
+                ACCENT,
             ),
             (
                 self._faction_rect.x + 7,
-                self._faction_rect.bottom - 18,
+                self._faction_rect.bottom - 14,
             ),
         )
 
@@ -1080,6 +1093,12 @@ class AutomataNetworkScreen(BaseScreen):
                 ),
                 (rect.right - 29, rect.bottom - 17),
             )
+            screen.blit(
+                self.app.font_tiny.render(
+                    "·%d" % degrees.get(organ.id, 0), True, DIM
+                ),
+                (rect.right - 18, rect.y + 3),
+            )
 
     def _draw_detail(self, screen):
         _panel(screen, DETAIL_RECT)
@@ -1096,15 +1115,12 @@ class AutomataNetworkScreen(BaseScreen):
             )
             return
         organs = {item.id: item for item in self._organs()}
-        chain = [organ.name]
-        current = organ
-        while current is not None and current.parent_id:
-            parent = organs.get(current.parent_id)
-            if parent is None:
-                break
-            chain.append(parent.name)
-            current = parent
-        chain.append(self._faction().name)
+        links = organ_links(self._organs())
+        neighbors = [
+            organs[linked].name
+            for linked in links.get(organ.id, ())
+            if linked in organs
+        ]
         screen.blit(
             self.app.font_small.render(
                 "ОРГАН · %s"
@@ -1118,10 +1134,13 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.font_body.render(organ.name, True, TEXT),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 30),
         )
-        chain_text = "подчинение: " + " → ".join(chain)
+        network_text = "связи (%d): %s" % (
+            len(neighbors),
+            " · ".join(neighbors) if neighbors else "изолированный узел",
+        )
         screen.blit(
             self.app.font_tiny.render(
-                chain_text, True, ACCENT
+                network_text, True, ACCENT
             ),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 58),
         )

@@ -5,11 +5,13 @@
 > действительно требует правки кода. Спецификации отдельных подсистем —
 > [`AUTOMATA.md`](AUTOMATA.md), [`NAMING.md`](NAMING.md),
 > [`SYSTEMS.md`](SYSTEMS.md), [`WORLD.md`](WORLD.md),
-> [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
+> [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md),
+> [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md).
 
 > **Поставка не пустая.** В `configs/` уже лежит рабочий контент: четыре
 > лорных шаблона кампаний, общие фракции/органы/работы, роли, сюжеты,
-> 12 черт характера, каталог личности, имена, события и UI-контент.
+> 12 черт характера, 16 желаний BDI, 15 делений, каталог личности, имена,
+> события и UI-контент.
 > Каталоги `configs/worlds/`, `configs/strategy/`, `configs/automata/`,
 > `configs/environments/`, `configs/presets/`, `configs/classes/`,
 > `configs/view/` и корневой `campaigns/` пока содержат только `.gitkeep` —
@@ -57,7 +59,9 @@
 | `configs/systems/events.json` | категории и шаблоны событий | `EventCatalog.load()` | элемент в `events` (и категорию) | `templates`/вес/категорию | элемент |
 | `configs/systems/environment.json` | особенности среды | `EnvironmentCatalog.load()` | элемент в `features` | состояния/действия/дрейф | элемент |
 | `configs/systems/playwright.json` | веса и шаблоны драматурга | `PlaywrightConfig.load()` | шаблон в `templates` | веса/ритм/шаблон | шаблон |
-| `configs/characters/traits.json` | черты характера и их влияние | `character_traits.load_traits()` | черта в `traits`, архетип в `archetypes` | `base`/`scale`/`center`, `need_*`, `intent_bias` | черта/архетип (проверить ссылки) |
+| `configs/characters/traits.json` | черты характера и их влияние | `character_traits.load_traits()` | черта в `traits`, архетип в `archetypes` | `base`/`scale`/`center`, `need_*`, `intent_bias`, `coefficients` | черта/архетип (проверить ссылки) |
+| `configs/characters/bdi.json` | 16 желаний, состояния, предикаты убеждений, сути намерений | `bdi.load_bdi()` | желание в `needs`, предикат, суть | числа, `spillover`, `satisfaction`, `decision`, `conditions` | нельзя удалять 16 канонических желаний |
+| `configs/characters/divisions.json` | 15 ролевых делений и культурные пресеты | `campaign.divisions.load_divisions()` | значение в `dimensions.<key>.values`, пресет в `presets` | `label`/`summary`/`values` | значение/пресет (проверить ссылки) |
 | `configs/characters/identity.json` | варианты личности героя | `campaign.identity.load_identity_catalog()` | происхождение/призвание/ценность/слабость/пол в своей секции | `label`/`summary`/`text`, `needs`, `traits` | вариант (проверить, что на него не ссылаются сохранения) |
 | `configs/storylines/<id>.json` | основной сюжет | `view.support.storyline.load_storyline` | новый `<id>.json` | поля сюжета | файл |
 | `configs/storylines/<id>_char.json` | шаги создания персонажа | тот же, по полю `character_creation` | новый файл | `steps` | файл (и ссылку) |
@@ -210,19 +214,36 @@ custom = content.get("my_new_file", {})
   "severity": 0.5,
   "stakes": 0.6,
   "weight": 1.0,
-  "tags": ["court"]
+  "probability": 0.8,
+  "tags": ["court"],
+  "conditions": [
+    {"kind": "need", "key": "status", "op": ">=", "value": 0.6}
+  ],
+  "visibility": {"scope": "global"},
+  "speed": 1.0,
+  "duration": 4.0,
+  "cooldown": 12.0,
+  "effects": {"needs": {"anxiety": 0.1}}
 }
 ```
 
-Категория должна быть объявлена в `categories`. Удаление события не
-требует правки кода, если на его id никто не ссылается.
+Категория должна быть объявлена в `categories`. `conditions` задают
+порог допуска, `probability` — личный шанс, `speed`/`duration` — тайминг,
+`visibility` — кто видит событие, `effects` — последствия для
+`force`/`energy`/`needs`/`conditions`. Доля розыгрыша —
+`weight × category.weight × probability`. Удаление события не требует
+правки кода, если на его id никто не ссылается. Полное руководство —
+[`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md).
 
 ### Черты характера (`configs/characters/traits.json`)
 
 Один файл задаёт все 12 черт, их базы, разброс, архетипы и коэффициенты
-влияния. Потребности остаются в коде (`warfare.NEEDS`), потому что это
-контракт модели; что именно каждая потребность значит для действия —
-данные `model.intent.need_intents`.
+влияния. 16 желаний и их связи живут в `configs/characters/bdi.json`;
+черта лишь сдвигает коэффициенты через блок `coefficients`
+(`need:<желание>`, `need_growth`, `force_drain`, `energy_drain`,
+`belief_weight`, `intention_weight`). Что именно каждая потребность
+значит для действия — данные `model.intent.need_intents` и
+`bdi.intention_essences`.
 
 ```json
 {
@@ -332,18 +353,32 @@ custom = content.get("my_new_file", {})
 берёт явный текст, затем `effects.text`/`failure.text`, затем собирает
 подпись. Поэтому экран может показать описание даже у старых работ.
 
+Связи органов задаются полем `links` — это не иерархия, а сеть:
+`"links": ["wehrmacht", "guard"]`. Связь двусторонняя, циклы и кластеры
+допустимы; `campaign/fractal.py` проверяет только неизвестные id и связь
+узла с самим собой.
+
 `kind` органа (`command`, `coercion`, `intelligence`, `information`,
 `maintenance`, `legitimacy`, `care`, `meaning`, `exchange`) задаёт его
-проекцию на актив фракции и вес в фрактальной модели. Целостность органа
-(`integrity`) инициализируется рантаймом, а не JSON: `campaign/fractal.py`
-тянет её к уменьшенной копии состояния фракции, возвращает часть изменения
-обратно и масштабирует силу работ. Игрок влияет на органы через
-`organ_interactions`: `reinforce`, `reform`, `purge`, `resupply` (набор
-можно менять данными). Взаимодействие стоит активов, имеет перезарядку,
-меняет целостность органа и через `organ_spread` — его фракцию; выполняется
-через `AutomataCampaign.advance(organ_action=...)` или экран «Сеть».
+вклад в производные активы фракции и вес в сетевой модели. Целостность
+органа (`integrity`) инициализируется рантаймом, а не JSON:
+`campaign/fractal.py` тянет её к уменьшенной копии состояния фракции,
+возвращает часть изменения обратно контекстным импульсом и масштабирует
+силу работ. Игрок влияет на органы через `organ_interactions`: `reinforce`,
+`reform`, `purge`, `resupply` (набор можно менять данными). Взаимодействие
+стоит активов, имеет перезарядку, меняет целостность органа и через
+`organ_spread` — его фракцию; выполняется через
+`AutomataCampaign.advance(organ_action=...)` или экран «Сеть».
 
-Подробная модель работ, активов, фрактала, взаимодействий и исхода — в
+Активы фракции (`legitimacy`, `cohesion`, `supply`, `fear`, `morale`,
+`influence`, `energy`) больше не хранятся отдельно: это производные
+проекции BDI персонажей, целостности сети органов и краткоживущего
+контекста взаимодействий. Формулы и драйверы лежат в
+`configs/campaigns/base/automata_defaults.json` → `faction_state`; меняя
+веса или добавляя метрику, не нужно править Python.
+
+Подробная модель работ, производных активов, сети органов,
+взаимодействий и исхода — в
 [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md).
 
 ### Автомат (`configs/automata/<slug>.json`)
@@ -357,6 +392,10 @@ custom = content.get("my_new_file", {})
 ```bash
 # все JSON в configs и тестовых фикстурах читаются
 python3 -m pytest -q tests/test_content_pipeline.py
+
+# контракты BDI, делений и рантайм-событий
+python3 -m pytest -q tests/test_bdi.py tests/test_divisions.py \
+  tests/test_events_runtime.py
 
 # роли видны каталогу (после добавления configs/roles/*.json)
 python3 -m campaign --list-roles

@@ -36,7 +36,7 @@ def _preset(template_id="empire_campaign", seed=11):
     ).generate(seed=seed)
 
 
-def test_network_screen_draws_tree_and_applies_interaction():
+def test_network_screen_draws_graph_and_applies_interaction():
     from campaign.automata import AutomataCampaign
     from view.app import App
     from view.screens.automata_network import AutomataNetworkScreen
@@ -112,6 +112,116 @@ def test_network_screen_selects_character_and_applies_character_action():
     assert screen.last_result
     assert screen.last_result["ok"] is True
     assert screen.last_result["character_id"] == character["id"]
+    screen.draw(surface)
+    app.quit()
+
+
+def test_action_rows_do_not_fall_through_to_character_list():
+    from campaign.automata import AutomataCampaign
+    from view.app import App
+    from view.screens.automata_network import AutomataNetworkScreen
+
+    preset = _preset()
+    campaign = AutomataCampaign(preset, seed=11)
+    app = App()
+    app.storyline_interpreter = None
+    app.campaign_preset = preset
+    screen = AutomataNetworkScreen(app, campaign)
+    surface = pygame.Surface((1280, 720))
+    screen.draw(surface)
+
+    # «АВТОМАТЫ»: клик по строке команды не должен открывать персонал.
+    assert screen.mode == "automata"
+    automaton_rows = screen._interaction_rows()
+    assert automaton_rows
+    automaton_rect, automaton_option = automaton_rows[0]
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=automaton_rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "automata"
+    assert (
+        screen.selected_automaton_interaction_id
+        == automaton_option["id"]
+    )
+
+    # «ВЛИЯНИЕ»: та же геометрия, но теперь выбирается усиление органа.
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._organs_tab_rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "organs"
+    organ_rows = screen._interaction_rows()
+    reinforce_rect, reinforce = next(
+        (rect, option)
+        for rect, option in organ_rows
+        if option["id"] == "reinforce"
+    )
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=reinforce_rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "organs"
+    assert screen.selected_interaction_id == reinforce["id"]
+    app.quit()
+
+
+def test_clicking_organ_from_characters_returns_to_organ_influence():
+    from campaign.automata import AutomataCampaign
+    from view.app import App
+    from view.screens.automata_network import AutomataNetworkScreen
+
+    preset = _preset()
+    campaign = AutomataCampaign(preset, seed=11)
+    app = App()
+    app.storyline_interpreter = None
+    app.campaign_preset = preset
+    screen = AutomataNetworkScreen(app, campaign)
+    surface = pygame.Surface((1280, 720))
+    screen.draw(surface)
+
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._characters_tab_rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "characters"
+
+    organ = campaign.player.organs[0]
+    rect = screen.organ_rect(organ.id)
+    assert rect is not None
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "organs"
+    assert screen.selected_organ_id == organ.id
+
+    option = next(
+        item
+        for item in screen._interaction_options()
+        if item["id"] == "reinforce"
+    )
+    assert option["enabled"] is True
+    screen.select_interaction("reinforce")
+    screen.apply_current()
+    assert screen.last_result is not None
+    assert screen.last_result["ok"] is True
+    assert screen.last_result["organ_id"] == organ.id
     screen.draw(surface)
     app.quit()
 

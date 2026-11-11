@@ -951,6 +951,7 @@ class WorldEngine:
         self.horizon_passed = False
         self.ending = None
         self.attached = False
+        self._player_dead = False
         if snapshot:
             self.load_snapshot(snapshot)
         else:
@@ -1012,12 +1013,19 @@ class WorldEngine:
 
     @property
     def player_alive(self):
-        return self.player.alive
+        return not self._player_dead and self.player.alive
 
     @player_alive.setter
     def player_alive(self, value):
+        self._player_dead = not bool(value)
         if not value:
+            # Смерть — это обнуление силы. Здоровье остаётся состоянием,
+            # но не отдельным порогом смерти.
+            self.player.force = 0.0
             self.player.health = 0.0
+            resources = getattr(self, "player_resources", None)
+            if resources is not None:
+                resources["standing"] = 0.0
 
     def _build_nodes(self):
         nodes = {}
@@ -2602,6 +2610,9 @@ class WorldEngine:
                     )
                 )
             if self.player_health <= 0.0:
+                # Истощение и болезнь доводят силу до нуля; фиксируем смерть
+                # через единую метрику F, а не через порог здоровья.
+                self.player_alive = False
                 self.outcome = "lose"
                 self.finished = True
                 self.log.append(

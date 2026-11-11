@@ -83,6 +83,7 @@ class TraitDefinition:
     panic_score: LinearEffect = LinearEffect()
     fanatic_score: LinearEffect = LinearEffect()
     intent_bias: Mapping[str, LinearEffect] = field(default_factory=dict)
+    coefficients: Mapping[str, LinearEffect] = field(default_factory=dict)
 
 
 def _effects(data, where):
@@ -150,6 +151,10 @@ class TraitModel:
                 ),
                 intent_bias=_effects(
                     value.get("intent_bias"), "traits.%s.intent_bias" % key
+                ),
+                coefficients=_effects(
+                    value.get("coefficients"),
+                    "traits.%s.coefficients" % key,
                 ),
             )
 
@@ -318,6 +323,48 @@ class TraitModel:
             for intent, effect in definition.intent_bias.items():
                 result[intent] = result.get(intent, 0.0) + effect.apply(value)
         return result
+
+    def coefficient_factors(self, values):
+        """Множители логических коэффициентов от черт характера.
+
+        Каждая черта может задать в ``traits.json`` блок
+        ``coefficients``: ``{"need:hunger": {"base": 1.0, "scale": 0.4}}``.
+        Значение ``base`` — поправка при «среднем» характере, ``scale`` —
+        наклон вокруг ``center`` (по умолчанию 0.5). Черты перемножаются,
+        поэтому одинаковый коэффициент у нескольких черт усиливается.
+
+        Набор ключей свободный: код запрашивает только те, что ему нужны
+        (``need:<желание>``, ``need_growth``, ``force_drain``,
+        ``energy_drain``, ``belief_weight``, ``intention_weight`` и т. п.).
+        Отсутствующий ключ возвращает нейтральный множитель ``1.0``.
+        """
+        result = {}
+        for key, definition in self.traits.items():
+            value = values.get(key, definition.base)
+            for coefficient, effect in definition.coefficients.items():
+                result[coefficient] = result.get(
+                    coefficient, 1.0
+                ) * max(0.0, effect.apply(value))
+        return result
+
+    def coefficient(self, name, values, default=1.0):
+        """Множитель одного коэффициента; ``default`` — если его нет."""
+        return _number(
+            self.coefficient_factors(values).get(str(name)), default
+        )
+
+    def coefficient_effect(self, name, value, default=1.0):
+        """Применить к одной черте без агрегации по всем чертам.
+
+        Удобно для UI: показать, как конкретная черта сдвигает
+        коэффициент при её текущем значении.
+        """
+        total = default
+        for definition in self.traits.values():
+            effect = definition.coefficients.get(str(name))
+            if effect is not None:
+                total *= max(0.0, effect.apply(value))
+        return total
 
     def _rule_matches(self, rule, values, modulation):
         if "trait" in rule:

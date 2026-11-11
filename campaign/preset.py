@@ -28,6 +28,7 @@ from systems.playwright import (
 )
 
 from .defaults import default_dict
+from .divisions import load_divisions
 from .errors import CampaignError
 from .roles import RoleSpec, default_catalog as default_role_catalog
 
@@ -400,6 +401,32 @@ def _make_needs(randomizer, priority_needs):
     return {key: max(0.0, min(1.0, value)) for key, value in needs.items()}
 
 
+def _make_divisions(cfg, post, name):
+    """Собрать 15 ролевых делений из культуры и должности.
+
+    Данные берутся из ``configs/characters/divisions.json``: ``presets``
+    задают культурную основу, ``post.divisions`` — уточнения должности,
+    пол берётся из имени. Ошибка данных не должна ломать пресет: кампания
+    просто останется без делений.
+    """
+    try:
+        catalog = load_divisions()
+    except Exception:
+        return {}
+    culture = _text(cfg.get("culture")).lower()
+    values = catalog.preset(culture)
+    values.update(
+        {
+            str(key): str(value)
+            for key, value in _as_mapping(post.get("divisions")).items()
+        }
+    )
+    gender = _text(getattr(name, "gender", "")).lower()
+    if gender in ("male", "female", "other"):
+        values["sex"] = gender
+    return catalog.validate(values)
+
+
 def _make_character(
     randomizer,
     name,
@@ -428,6 +455,12 @@ def _make_character(
     character.needs.update(needs)
     character.desires = character.weighted_urgency()
     character.deliberate()
+    divisions = _make_divisions(cfg, post, name)
+    if divisions:
+        try:
+            character.divisions.update(divisions)
+        except Exception:
+            pass
     morale = character.morale
     if is_leader:
         morale += float(PRESET_DEFAULTS["morale_leader_bonus"])
@@ -451,6 +484,7 @@ def _make_character(
         "force": round(_as_float(force, 1.0), 3),
         "needs": _round_mapping(character.needs),
         "urgency": _round_mapping(character.desires),
+        "divisions": divisions,
         "personality": _round_mapping(personality.as_dict()),
         "morale": round(morale, 3),
         "seed": int(char_seed),

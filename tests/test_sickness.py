@@ -65,10 +65,13 @@ def test_rest_slows_sickness_and_can_recover():
     assert unit.health > 99.0
 
 
-def test_sickness_can_kill_when_untreated():
-    unit = Automaton(id="sick", health=1.0, sickness=1.0)
+def test_sickness_does_not_kill_by_health_alone():
+    unit = Automaton(id="sick", force=10, health=1.0, sickness=1.0)
     unit.tick_health(resting=False)
     assert unit.health == 0.0
+    # Болезнь и здоровье — состояния, а смерть определяется только силой.
+    assert not unit.is_dead
+    unit.force = 0.0
     assert unit.is_dead
 
 
