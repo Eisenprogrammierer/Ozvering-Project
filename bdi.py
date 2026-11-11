@@ -89,34 +89,53 @@ def boundary_split(value):
 
 @dataclass(frozen=True)
 class Belief:
-    """Убеждение-триплет: субъект, предикат, объект.
+    """Убеждение: субъект, предикат и (для отношений) объект.
 
     ``subject`` и ``object`` — идентификаторы автоматов. Предикат — имя
-    свойства или отношения из ``belief_predicates``. Объект может быть
-    внешним идентификатором, если контент ещё не создал автомат: BDI не
-    обязан знать весь мир.
+    свойства или отношения из ``belief_predicates``. У предиката-свойства
+    объекта нет: ``object`` остаётся пустой строкой, а правило задаёт
+    ``object: required|forbidden`` в конфиге.
+
+    ``value`` — сила убеждения, ``confidence`` — уверенность в нём,
+    ``ttl`` — сколько ещё живёт убеждение (``None`` — вечно), ``source`` —
+    откуда оно взялось (``content``, ``order``, ``rumor``, ``observation``).
     """
 
     subject: str
     predicate: str
-    object: str
+    object: str = ""
+    value: float = 1.0
+    confidence: float = 1.0
+    source: str = ""
+    ttl: Optional[float] = None
 
     def __post_init__(self):
         object.__setattr__(self, "subject", _text(self.subject))
         object.__setattr__(self, "predicate", _text(self.predicate))
         object.__setattr__(self, "object", _text(self.object))
-        if not self.subject or not self.predicate or not self.object:
-            raise BDIError("убеждение требует subject, predicate и object")
+        object.__setattr__(self, "value", _clamp(self.value))
+        object.__setattr__(self, "confidence", _clamp(self.confidence))
+        object.__setattr__(self, "source", _text(self.source))
+        if self.ttl is not None:
+            object.__setattr__(self, "ttl", max(0.0, _number(self.ttl, 0.0)))
+        if not self.subject or not self.predicate:
+            raise BDIError("убеждение требует subject и predicate")
 
     def as_tuple(self) -> Tuple[str, str, str]:
         return (self.subject, self.predicate, self.object)
 
     def as_dict(self) -> dict:
-        return {
+        data = {
             "subject": self.subject,
             "predicate": self.predicate,
             "object": self.object,
+            "value": round(self.value, 4),
+            "confidence": round(self.confidence, 4),
+            "source": self.source,
         }
+        if self.ttl is not None:
+            data["ttl"] = round(self.ttl, 4)
+        return data
 
     @classmethod
     def from_data(cls, data):
@@ -127,6 +146,10 @@ class Belief:
                 data.get("subject"),
                 data.get("predicate"),
                 data.get("object"),
+                data.get("value", 1.0),
+                data.get("confidence", 1.0),
+                data.get("source", ""),
+                data.get("ttl"),
             )
         if isinstance(data, (list, tuple)) and len(data) == 3:
             return cls(data[0], data[1], data[2])
@@ -349,9 +372,18 @@ class BDIConfig:
         self._validate()
 
     def _validate(self):
-        for predicate in self.predicates:
+        for predicate, spec in self.predicates.items():
             if not predicate:
                 raise BDIError("пустой предикат убеждения")
+            rule = _as_mapping(spec).get("object")
+            if rule is not None and str(rule) not in (
+                "required",
+                "forbidden",
+            ):
+                raise BDIError(
+                    "belief_predicates.%s.object: ожидалось "
+                    "required/forbidden" % predicate
+                )
         for key, essence in self.essences.items():
             need = essence.get("need")
             if need is not None and str(need) not in self.needs:
@@ -374,6 +406,18 @@ class BDIConfig:
     def predicate(self, key):
         return self.predicates.get(str(key))
 
+    def predicate_object_rule(self, key):
+        """``required`` или ``forbidden`` для объекта предиката.
+
+        Явное поле ``object`` сильнее вида: свойство по умолчанию не имеет
+        объекта, отношение — имеет.
+        """
+        spec = _as_mapping(self.predicates.get(str(key)))
+        rule = str(spec.get("object") or "")
+        if rule in ("required", "forbidden"):
+            return rule
+        return "forbidden" if spec.get("kind") == "property" else "required"
+
     def essence(self, key):
         return self.essences.get(str(key))
 
@@ -383,8 +427,25 @@ class BDIConfig:
 
     def validate_belief(self, belief):
         belief = Belief.from_data(belief)
-        if self.strict_predicates and belief.predicate not in self.predicates:
-            raise BDIError("неизвестный предикат %r" % belief.predicate)
+        if belief.predicate not in self.predicates:
+            if self.strict_predicates:
+                raise BDIError(
+                    "неизвестный предикат %r" % belief.predicate
+                )
+            if not belief.object:
+                raise BDIError(
+                    "убеждение с неизвестным предикатом требует object"
+                )
+            return belief
+        rule = self.predicate_object_rule(belief.predicate)
+        if rule == "required" and not belief.object:
+            raise BDIError(
+                "предикат %r требует object" % belief.predicate
+            )
+        if rule == "forbidden" and belief.object:
+            raise BDIError(
+                "предикат-свойство %r не имеет object" % belief.predicate
+            )
         return belief
 
     def validate_intention(self, intention):
@@ -482,9 +543,26 @@ class BDIState:
         }
 
     # --- убеждения -------------------------------------------------
-    def believe(self, subject, predicate, object):
+    def believe(
+        self,
+        subject,
+        predicate,
+        object="",
+        value=1.0,
+        confidence=1.0,
+        source="",
+        ttl=None,
+    ):
         belief = self.config.validate_belief(
-            Belief(subject, predicate, object)
+            Belief(
+                subject,
+                predicate,
+                object,
+                value=value,
+                confidence=confidence,
+                source=source,
+                ttl=ttl,
+            )
         )
         self.beliefs = [
             item
@@ -500,7 +578,15 @@ class BDIState:
         ).get("inverse")
         if inverse and self.config.strict_predicates:
             self.beliefs.append(
-                Belief(belief.object, str(inverse), belief.subject)
+                Belief(
+                    belief.object,
+                    str(inverse),
+                    belief.subject,
+                    value=belief.value,
+                    confidence=belief.confidence,
+                    source=belief.source,
+                    ttl=belief.ttl,
+                )
             )
         return belief
 
@@ -538,8 +624,38 @@ class BDIState:
                 ),
                 0.1,
             )
-            values.append(weight)
+            values.append(weight * item.value * item.confidence)
         return sum(values) / max(1.0, len(values)) if values else 0.0
+
+    def decay_beliefs(self, amount=1.0):
+        """Состарить убеждения: уменьшить ``ttl`` и уверенность.
+
+        Убеждение с ``ttl <= 0`` забывается. Убеждения без ``ttl`` живут
+        вечно, но теряют уверенность не ниже нуля. Метод не вызывается
+        автоматически: темп задаёт контент/работа, а не ядро.
+        """
+        amount = max(0.0, _number(amount, 0.0))
+        kept = []
+        for item in self.beliefs:
+            confidence = max(0.0, item.confidence - amount * 0.05)
+            ttl = item.ttl
+            if ttl is not None:
+                ttl = ttl - amount
+                if ttl <= 0.0:
+                    continue
+            kept.append(
+                Belief(
+                    item.subject,
+                    item.predicate,
+                    item.object,
+                    value=item.value,
+                    confidence=confidence,
+                    source=item.source,
+                    ttl=ttl,
+                )
+            )
+        self.beliefs = kept
+        return self.beliefs
 
     # --- намерения -------------------------------------------------
     def intend(self, target, essence):
@@ -550,6 +666,32 @@ class BDIState:
             self.intentions + [intention]
         )[-self.config.history :]
         return intention
+
+    def seed(self, beliefs=None, intentions=None):
+        """Засеять убеждения и намерения из контента.
+
+        В отличие от :meth:`believe`, не заменяет прежнее убеждение с тем
+        же субъектом и предикатом: контент вправе задать несколько
+        объектов одного отношения (например, «враждует» с двумя
+        сторонами). Дубликаты троек отбрасываются. Намерения добавляются
+        в конец истории, поэтому контентное намерение становится текущим.
+        """
+        known = {item.as_tuple() for item in self.beliefs}
+        for item in beliefs or ():
+            belief = self.config.validate_belief(item)
+            if belief.as_tuple() in known:
+                continue
+            self.beliefs.append(belief)
+            known.add(belief.as_tuple())
+        seeded = [
+            self.config.validate_intention(item)
+            for item in (intentions or ())
+        ]
+        if seeded:
+            self.intentions = (self.intentions + seeded)[
+                -self.config.history :
+            ]
+        return self
 
     def should(self, essence):
         """Поддерживается ли суть текущим намерением."""

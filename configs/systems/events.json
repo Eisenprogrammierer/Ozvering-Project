@@ -1591,14 +1591,6 @@
       "speed": 2.0,
       "duration": 6.0,
       "cooldown": 12.0,
-      "effects": {
-        "needs": {
-          "hunger": -0.2,
-          "fear": 0.1
-        },
-        "force": -0.02,
-        "energy": -0.03
-      },
       "templates": [
         "Толпа у складов требует хлеба: {actor} пытается говорить о порядке, но {place} уже охвачен голодным бунтом.",
         "В {place} вспыхивает голодный бунт; {organization} обещает пайки, а {actor} ищет виновных."
@@ -1633,12 +1625,6 @@
       "speed": 1.0,
       "duration": 4.0,
       "cooldown": 8.0,
-      "effects": {
-        "needs": {
-          "knowledge": -0.15,
-          "anxiety": 0.05
-        }
-      },
       "templates": [
         "Через {place} проходит слух: {actor} будто бы видел то, о чём {organization} велит молчать.",
         "{target} приносит весть из {place}; {actor} решает, верить ли ей и кому её пересказать."
@@ -1673,15 +1659,6 @@
       "speed": 1.0,
       "duration": 5.0,
       "cooldown": 10.0,
-      "effects": {
-        "conditions": {
-          "sickness": 0.15
-        },
-        "needs": {
-          "health": 0.2
-        },
-        "force": -0.03
-      },
       "templates": [
         "Старая рана {actor} открывается в {place}; жар не отступает, и {organization} ищет лекаря.",
         "{actor} не может скрыть раневую горячку: {target} замечает кровь и требует объяснений."

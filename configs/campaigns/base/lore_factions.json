@@ -20,6 +20,42 @@
         "вернуть символически значимую территорию любой ценой",
         "удержать вертикаль и миф о непобедимости"
       ],
+      "character_defaults": {
+        "deliberate_target": "faction.republic",
+        "beliefs": [
+          {
+            "subject": "faction.empire",
+            "predicate": "is_legitimate",
+            "source": "content"
+          },
+          {
+            "subject": "faction.empire",
+            "predicate": "considers_illegitimate",
+            "object": "faction.republic"
+          },
+          {
+            "subject": "faction.empire",
+            "predicate": "sees_as_threat",
+            "object": "faction.republic"
+          },
+          {
+            "subject": "faction.empire",
+            "predicate": "believes_in_own_myth",
+            "source": "content"
+          },
+          {
+            "subject": "faction.empire",
+            "predicate": "allied_with",
+            "object": "faction.corporation"
+          }
+        ],
+        "intentions": [
+          {
+            "target": "faction.republic",
+            "essence": "coerce"
+          }
+        ]
+      },
       "assets": {
         "legitimacy": 0.72,
         "influence": 0.74,
@@ -772,6 +808,37 @@
         "сохранить внешний канал через Торговую планету",
         "не допустить внесудебных казней и раскола парламента"
       ],
+      "character_defaults": {
+        "deliberate_target": "faction.empire",
+        "beliefs": [
+          {
+            "subject": "faction.republic",
+            "predicate": "is_legitimate",
+            "source": "content"
+          },
+          {
+            "subject": "faction.republic",
+            "predicate": "considers_illegitimate",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.republic",
+            "predicate": "sees_as_enemy",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.republic",
+            "predicate": "depends_on",
+            "object": "faction.corporation"
+          }
+        ],
+        "intentions": [
+          {
+            "target": "faction.empire",
+            "essence": "delegitimize"
+          }
+        ]
+      },
       "assets": {
         "legitimacy": 0.58,
         "influence": 0.64,
@@ -1471,6 +1538,37 @@
         "превратить обиду и страх в общины и ритуал",
         "сохранить нарратив и фигуру главы культа"
       ],
+      "character_defaults": {
+        "deliberate_target": "faction.empire",
+        "beliefs": [
+          {
+            "subject": "faction.cult",
+            "predicate": "considers_illegitimate",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.cult",
+            "predicate": "considers_illegitimate",
+            "object": "faction.republic"
+          },
+          {
+            "subject": "faction.cult",
+            "predicate": "sees_as_threat",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.cult",
+            "predicate": "believes_myth_of",
+            "object": "place.earth"
+          }
+        ],
+        "intentions": [
+          {
+            "target": "faction.empire",
+            "essence": "preach"
+          }
+        ]
+      },
       "assets": {
         "legitimacy": 0.22,
         "influence": 0.44,
@@ -2093,6 +2191,37 @@
         "продавать обеим сторонам так, чтобы война не закончилась слишком быстро",
         "не потерять автономию перед Империей"
       ],
+      "character_defaults": {
+        "deliberate_target": "faction.empire",
+        "beliefs": [
+          {
+            "subject": "faction.corporation",
+            "predicate": "controls",
+            "object": "channel.trade"
+          },
+          {
+            "subject": "faction.corporation",
+            "predicate": "depends_on",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.corporation",
+            "predicate": "sees_as_threat",
+            "object": "faction.empire"
+          },
+          {
+            "subject": "faction.corporation",
+            "predicate": "sees_as_threat",
+            "object": "faction.republic"
+          }
+        ],
+        "intentions": [
+          {
+            "target": "faction.empire",
+            "essence": "trade"
+          }
+        ]
+      },
       "assets": {
         "legitimacy": 0.34,
         "influence": 0.72,

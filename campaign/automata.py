@@ -18,6 +18,8 @@ import warfare as W
 from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
 from systems.events import EventEngine, EventError
+from .conditions import asset_reason, check_conditions
+from .effects import apply_effects
 
 from .defaults import default_dict, default_list, default_section
 from .errors import CampaignError
@@ -153,6 +155,10 @@ def _character_from_record(record, seed):
     for trait, value in personality.items():
         if trait in character.personality.values:
             character.personality.values[trait] = _clamp(value)
+    beliefs = record.get("beliefs")
+    intentions = record.get("intentions")
+    if beliefs or intentions:
+        character.bdi.seed(beliefs=beliefs, intentions=intentions)
     character.desires = character.weighted_urgency()
     if record.get("morale") is not None:
         character.morale = max(
@@ -164,6 +170,9 @@ def _character_from_record(record, seed):
         )
     character.campaign_id = record.get("id")
     character.campaign_faction_id = record.get("faction_id")
+    character.deliberate_target = str(
+        record.get("deliberate_target") or ""
+    )
     divisions = _as_mapping(record.get("divisions"))
     if divisions and getattr(character, "divisions", None) is not None:
         try:
@@ -191,6 +200,7 @@ class FactionRuntime:
     context: Dict[str, float] = field(default_factory=dict)
     baseline_context: Dict[str, float] = field(default_factory=dict)
     baseline_assets: Dict[str, float] = field(default_factory=dict)
+    flags: Dict[str, object] = field(default_factory=dict)
     income: Dict[str, float] = field(default_factory=dict)
     score_assets: Dict[str, float] = field(default_factory=dict)
     action_uses: Dict[str, int] = field(default_factory=dict)
@@ -464,6 +474,7 @@ class FactionRuntime:
                 )
                 for key, value in self.context.items()
             },
+            "flags": dict(self.flags),
             "organization": dict(stored),
             "willing_share": round(_clamp(willing_share), 6),
             "willing_count": int(willing_count),
@@ -1029,42 +1040,9 @@ class AutomataCampaign:
             "time": float(self.elapsed),
         }
 
-    def _apply_story_effects(self, instance, side=None):
-        side = str(side or self.player_side)
-        faction = self.faction(side)
-        if faction is None or not faction.characters:
-            return {}
-        leader = faction.characters[0]
-        applied = {"needs": {}, "conditions": {}, "force": 0.0, "energy": 0.0}
-        for key, value in (instance.effects or {}).items():
-            if key == "force":
-                applied["force"] = float(leader.add_force(value))
-            elif key == "energy":
-                applied["energy"] = float(leader.add_energy(value))
-            elif key == "needs":
-                for name, amount in (value or {}).items():
-                    name = str(name)
-                    if name not in leader.bdi.needs:
-                        continue
-                    before = leader.bdi.needs[name]
-                    leader.bdi.needs[name] = max(
-                        0.0, min(1.0, before + float(amount))
-                    )
-                    applied["needs"][name] = (
-                        leader.bdi.needs[name] - before
-                    )
-            elif key == "conditions":
-                for name, amount in (value or {}).items():
-                    definition = leader.bdi.config.conditions.get(str(name))
-                    maximum = definition.maximum if definition else 1.0
-                    before = leader.bdi.conditions.get(str(name), 0.0)
-                    leader.bdi.conditions[str(name)] = max(
-                        0.0, min(maximum, before + float(amount))
-                    )
-                    applied["conditions"][str(name)] = (
-                        leader.bdi.conditions[str(name)] - before
-                    )
-        return applied
+    # События — ролевой слой, а не часть ядра. Они ничего не производят:
+    # единственный источник изменений — работы, переходы автоматов и
+    # действия игрока. Событие только описывает уже случившееся.
 
     def _advance_story_events(self, seconds):
         if self.finished or self.story_engine is None:
@@ -1079,7 +1057,9 @@ class AutomataCampaign:
             instance = self.story_engine.trigger(context=context)
             if instance is None:
                 continue
-            applied = self._apply_story_effects(instance)
+            # Ролевой слой только фиксирует событие. Никаких записей в
+            # состояние: на состояние влияют работы и автоматы.
+            applied = {}
             entry = {
                 "id": instance.id,
                 "template_id": instance.template_id,
@@ -1165,51 +1145,29 @@ class AutomataCampaign:
     @staticmethod
     def _asset_requirement_reason(prefix, assets, conditions):
         """Проверить условия на активы и вернуть первую причину отказа."""
-        for key, spec in _as_mapping(conditions).items():
-            current = _number(assets.get(str(key)), 0.0)
-            label = str(ASSET_LABELS.get(str(key), key))
-            minimum = None
-            maximum = None
-            strict_min = False
-            strict_max = False
-            if isinstance(spec, Mapping):
-                minimum = spec.get(
-                    "min", spec.get("gte", spec.get("at_least"))
-                )
-                maximum = spec.get("max", spec.get("lte", spec.get("at_most")))
-                if "gt" in spec:
-                    minimum = spec.get("gt")
-                    strict_min = True
-                if "lt" in spec:
-                    maximum = spec.get("lt")
-                    strict_max = True
-            elif spec is not None:
-                minimum = spec
-            if minimum is not None:
-                threshold = _number(minimum, 0.0)
-                if current < threshold or (
-                    strict_min and current <= threshold
-                ):
-                    sign = ">" if strict_min else "≥"
-                    return "%s: %s %s %.2f" % (
-                        prefix,
-                        label,
-                        sign,
-                        threshold,
-                    )
-            if maximum is not None:
-                threshold = _number(maximum, 0.0)
-                if current > threshold or (
-                    strict_max and current >= threshold
-                ):
-                    sign = "<" if strict_max else "≤"
-                    return "%s: %s %s %.2f" % (
-                        prefix,
-                        label,
-                        sign,
-                        threshold,
-                    )
-        return ""
+        return asset_reason(prefix, assets, conditions, ASSET_LABELS)
+
+    def _condition_context(self, faction, target=None):
+        """Собрать состояние для типизированных условий."""
+        return {
+            "faction": faction,
+            "target": target,
+            "character": (
+                faction.characters[0] if faction.characters else None
+            ),
+            "target_character": (
+                target.characters[0]
+                if target is not None and target.characters
+                else None
+            ),
+            "turn": int(self.turn),
+            "used_actions": {
+                str(key)
+                for key, value in faction.action_uses.items()
+                if int(value) > 0
+            },
+            "labels": ASSET_LABELS,
+        }
 
     def _action_requirement_reason(self, faction, action, target=None):
         """Проверить предпосылки работы: состояния, историю и цели.
@@ -1256,6 +1214,12 @@ class AutomataCampaign:
             )
             if reason:
                 return reason
+        reason = check_conditions(
+            requires.get("when"),
+            self._condition_context(faction, target),
+        )
+        if reason:
+            return reason
         return ""
 
     def action_options(self, side, turn=None):
@@ -1967,24 +1931,16 @@ class AutomataCampaign:
         return self.rival_of(side)
 
     def _apply_branch(self, actor, target, branch, scale=None):
-        branch = _as_mapping(branch)
+        """Тонкая обёртка над единым движком эффектов."""
         if scale is None:
             scale = self.model["effect_scale"]
-        for key, value in _as_mapping(branch.get("self")).items():
-            actor.add_asset(key, _number(value) * scale)
-        for key, value in _as_mapping(branch.get("target")).items():
-            if target is not None:
-                target.add_asset(key, _number(value) * scale)
-        for scope, effects in _as_mapping(branch.get("needs")).items():
-            recipient = actor if scope == "self" else target
-            if recipient is None:
-                continue
-            for key, value in _as_mapping(effects).items():
-                for character in recipient.characters:
-                    if key in character.needs:
-                        character.needs[key] = _clamp(
-                            character.needs.get(key, 0.0) + _number(value)
-                        )
+        return apply_effects(
+            actor,
+            branch,
+            target=target,
+            scale=scale,
+            source="work",
+        )
 
     def _log_work(self, result):
         self.log.append(result)
@@ -2536,6 +2492,7 @@ class AutomataCampaign:
                     str(key): float(value)
                     for key, value in faction.baseline_assets.items()
                 }
+                state["flags"] = dict(faction.flags)
                 state["low_streaks"] = {
                     str(key): int(value)
                     for key, value in faction.low_streaks.items()
@@ -2734,6 +2691,7 @@ class AutomataCampaign:
                     state.get("baseline_assets")
                 ).items()
             }
+            faction.flags = dict(_as_mapping(state.get("flags")))
             faction.cooldowns = {
                 str(key): int(_number(value))
                 for key, value in _as_mapping(state.get("cooldowns")).items()

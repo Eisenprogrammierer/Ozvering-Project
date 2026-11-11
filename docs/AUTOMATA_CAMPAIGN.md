@@ -234,6 +234,7 @@ chance = sigmoid(base + slope * (attack_value - defense_value))
 | `requires.used_actions: [...]` | сначала должны быть выполнены перечисленные работы |
 | `requires.not_used_actions: [...]` | работа несовместима с уже выполненными работами |
 | `requires.self` / `requires.target` | условия на активы: `min`/`max` или строгие `gt`/`lt` |
+| `requires.when` | типизированные условия: потребности, черты, состояния, убеждения, намерения, органы, флаги, цикл, история; группы `all`/`any`/`not` |
 
 Условия на активы записываются как `{"legitimacy": {"min": 0.3}}` или
 короче `{"legitimacy": 0.3}`. Проверка идёт до выбора работы, поэтому
@@ -245,6 +246,28 @@ chance = sigmoid(base + slope * (attack_value - defense_value))
 актов (эдикт, мобилизация, суд, радио, школы, Синедрион) и
 `repeat_effect_decay` для регулярных работ, чтобы повтор не давал тот же
 результат бесплатно.
+
+`requires.when` читается движком `campaign/conditions.py` и не меняет
+состояние. Пример:
+
+```json
+"requires": {
+  "when": [
+    {"kind": "need", "key": "fear", "op": ">=", "value": 0.5},
+    {"kind": "belief", "predicate": "is_legitimate"},
+    {"any": [
+      {"kind": "flag", "key": "amnesty_offered"},
+      {"kind": "turn", "op": ">=", "value": 10}
+    ]}
+  ]
+}
+```
+
+Эффекты работ идут через `campaign/effects.py`. Старый плоский формат
+(`self: {"legitimacy": 0.02}`) сохранён; новый позволяет писать
+`self: {"assets": {...}}`, `needs`, `traits`, `conditions`,
+`beliefs.add/remove`, `intentions.push/clear`, `organs` и `flags`.
+События в этот движок не входят: они ничего не применяют.
 
 `organ_id` связывает работу с органом из того же файла фракции. Пресет
 добавляет к работе подпись `organ` и собирает для органа отдельный автомат

@@ -314,92 +314,175 @@
     "knows": {
       "label": "знает",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "trusts": {
       "label": "доверяет",
       "kind": "relation",
       "symmetric": false,
-      "inverse": "trusted_by"
+      "inverse": "trusted_by",
+      "object": "required"
     },
     "trusted_by": {
       "label": "пользуется доверием",
       "kind": "relation",
       "symmetric": false,
-      "inverse": "trusts"
+      "inverse": "trusts",
+      "object": "required"
     },
     "fears": {
       "label": "боится",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "respects": {
       "label": "уважает",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "loves": {
       "label": "любит",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "friends_with": {
       "label": "дружит",
       "kind": "relation",
-      "symmetric": true
+      "symmetric": true,
+      "object": "required"
     },
     "rival_of": {
       "label": "соперничает",
       "kind": "relation",
-      "symmetric": true
+      "symmetric": true,
+      "object": "required"
     },
     "allied_with": {
       "label": "состоит в союзе",
       "kind": "relation",
-      "symmetric": true
+      "symmetric": true,
+      "object": "required"
     },
     "subordinate_of": {
       "label": "подчинён",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "member_of": {
       "label": "входит в",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "owns": {
       "label": "владеет",
       "kind": "relation",
-      "symmetric": false
+      "symmetric": false,
+      "object": "required"
     },
     "has_force": {
       "label": "имеет силу",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "has_energy": {
       "label": "имеет энергию",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "has_need": {
       "label": "испытывает потребность",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "has_intention": {
       "label": "намерен",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "is_alive": {
       "label": "жив",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "is_dangerous": {
       "label": "опасен",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
     },
     "is_ally": {
       "label": "союзник",
-      "kind": "property"
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "considers_legitimate": {
+      "label": "считает законной",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "considers_illegitimate": {
+      "label": "считает незаконной",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "believes_myth_of": {
+      "label": "верит в миф",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "sees_as_enemy": {
+      "label": "видит врагом",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "sees_as_threat": {
+      "label": "видит угрозой",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "controls": {
+      "label": "контролирует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "depends_on": {
+      "label": "зависит от",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "infiltrated_by": {
+      "label": "внедрён в",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "hopes_amnesty_from": {
+      "label": "ждёт амнистии от",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_legitimate": {
+      "label": "законен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "believes_in_own_myth": {
+      "label": "верит в собственный миф",
+      "kind": "property",
+      "object": "forbidden"
     }
   },
   "intention_essences": {
@@ -502,6 +585,38 @@
     "retreat": {
       "label": "отступить",
       "need": "fear"
+    },
+    "coerce": {
+      "label": "принудить",
+      "need": "fear"
+    },
+    "delegitimize": {
+      "label": "разрушить законность",
+      "need": "knowledge"
+    },
+    "legitimize": {
+      "label": "утвердить законность",
+      "need": "spirituality"
+    },
+    "preach": {
+      "label": "проповедовать",
+      "need": "spirituality"
+    },
+    "subvert": {
+      "label": "подорвать изнутри",
+      "need": "knowledge"
+    },
+    "negotiate": {
+      "label": "договориться",
+      "need": "friendship"
+    },
+    "supply": {
+      "label": "снабдить",
+      "need": "hunger"
+    },
+    "infiltrate": {
+      "label": "внедриться",
+      "need": "knowledge"
     }
   },
   "decision": {
@@ -519,7 +634,18 @@
       "rival_of": 0.35,
       "allied_with": 0.3,
       "is_dangerous": 0.4,
-      "is_ally": 0.3
+      "is_ally": 0.3,
+      "considers_legitimate": 0.25,
+      "considers_illegitimate": 0.25,
+      "is_legitimate": 0.25,
+      "believes_myth_of": 0.3,
+      "believes_in_own_myth": 0.3,
+      "sees_as_enemy": 0.35,
+      "sees_as_threat": 0.3,
+      "controls": 0.2,
+      "depends_on": 0.2,
+      "infiltrated_by": 0.3,
+      "hopes_amnesty_from": 0.25
     }
   }
 }

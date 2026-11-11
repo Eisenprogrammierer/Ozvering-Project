@@ -68,15 +68,73 @@ def test_spillover_references_known_needs():
         bdi.BDIConfig(raw)
 
 
-def test_belief_is_a_triplet_and_requires_three_parts():
+def test_belief_roundtrips_and_requires_subject_and_predicate():
     belief = bdi.Belief("actor-1", "trusts", "actor-2")
     assert belief.as_tuple() == ("actor-1", "trusts", "actor-2")
     assert bdi.Belief.from_data(["actor-1", "trusts", "actor-2"]) == belief
     assert bdi.Belief.from_data(belief.as_dict()) == belief
     with pytest.raises(bdi.BDIError):
-        bdi.Belief("actor-1", "trusts", "")
-    with pytest.raises(bdi.BDIError):
         bdi.Belief.from_data({"subject": "actor-1"})
+    with pytest.raises(bdi.BDIError):
+        bdi.Belief("", "trusts", "actor-2")
+
+
+def test_predicate_object_rules_come_from_content(config):
+    assert config.predicate_object_rule("trusts") == "required"
+    assert config.predicate_object_rule("is_legitimate") == "forbidden"
+    with pytest.raises(bdi.BDIError):
+        config.validate_belief({"subject": "a", "predicate": "trusts"})
+    with pytest.raises(bdi.BDIError):
+        config.validate_belief(
+            {"subject": "a", "predicate": "is_legitimate", "object": "a"}
+        )
+    property_belief = config.validate_belief(
+        {"subject": "a", "predicate": "is_legitimate"}
+    )
+    assert property_belief.object == ""
+
+
+def test_belief_value_and_ttl_are_carried(config):
+    state = _state(config)
+    state.believe(
+        "actor-1",
+        "trusts",
+        "actor-2",
+        value=0.5,
+        confidence=0.4,
+        source="rumor",
+        ttl=2.0,
+    )
+    belief = state.beliefs[0]
+    assert belief.value == pytest.approx(0.5)
+    assert belief.confidence == pytest.approx(0.4)
+    assert belief.source == "rumor"
+    assert belief.ttl == pytest.approx(2.0)
+    restored = bdi.Belief.from_data(belief.as_dict())
+    assert restored == belief
+
+
+def test_belief_value_uses_strength_and_confidence(config):
+    weak = _state(config)
+    weak.believe(
+        "actor-1", "trusts", "actor-2", value=0.2, confidence=0.5
+    )
+    strong = _state(config)
+    strong.believe("actor-1", "trusts", "actor-2")
+    assert strong.belief_value("trusts", "actor-2") > weak.belief_value(
+        "trusts", "actor-2"
+    )
+
+
+def test_decay_beliefs_drops_expired_and_lowers_confidence(config):
+    state = _state(config)
+    state.believe("actor-1", "trusts", "actor-2", ttl=1.0)
+    state.believe("actor-1", "is_legitimate")
+    state.decay_beliefs(0.5)
+    assert [item.ttl for item in state.beliefs] == [pytest.approx(0.5), None]
+    state.decay_beliefs(1.0)
+    assert [item.predicate for item in state.beliefs] == ["is_legitimate"]
+    assert state.beliefs[0].confidence == pytest.approx(0.925)
 
 
 def test_intention_is_a_duplet_with_derived_target_kind():
@@ -120,6 +178,59 @@ def test_intention_history_is_bounded_by_config(config):
     assert len(state.intentions) == config.history
     assert state.should("eat")
     assert state.latest_intention().essence == "eat"
+
+
+def test_seed_keeps_multiple_objects_for_one_predicate(config):
+    state = _state(config)
+    state.seed(
+        beliefs=[
+            {"subject": "actor-1", "predicate": "trusts", "object": "actor-2"},
+            {"subject": "actor-1", "predicate": "trusts", "object": "actor-3"},
+            {"subject": "actor-1", "predicate": "trusts", "object": "actor-2"},
+        ]
+    )
+    assert sorted(item.object for item in state.beliefs) == [
+        "actor-2",
+        "actor-3",
+    ]
+
+
+def test_seed_accepts_property_beliefs_without_object(config):
+    state = _state(config)
+    state.seed(
+        beliefs=[
+            {
+                "subject": "faction.empire",
+                "predicate": "is_legitimate",
+                "source": "content",
+                "value": 0.9,
+                "confidence": 0.8,
+            }
+        ]
+    )
+    belief = state.beliefs[0]
+    assert belief.object == ""
+    assert belief.source == "content"
+    assert belief.value == pytest.approx(0.9)
+    assert state.belief_value("is_legitimate") > 0.0
+
+
+def test_seed_makes_content_intention_current(config):
+    state = _state(config)
+    state.seed(intentions=[{"target": "faction.republic", "essence": "coerce"}])
+    latest = state.latest_intention()
+    assert latest.target == "faction.republic"
+    assert latest.target_kind == "automaton"
+    assert latest.essence == "coerce"
+
+
+def test_choose_intention_respects_content_target(config):
+    state = _state(config, hunger=1.0)
+    intention = state.choose_intention(
+        context={"target": "faction.republic", "preferred": "coerce"}
+    )
+    assert intention.target == "faction.republic"
+    assert intention.essence == "coerce"
 
 
 def test_weighted_desires_use_needs_and_trait_coefficients(

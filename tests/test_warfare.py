@@ -109,6 +109,9 @@ def test_character_beliefs_are_triplets_and_intentions_are_duplets():
         "subject": "bdi-shapes",
         "predicate": "trusts",
         "object": "Соратник",
+        "value": 1.0,
+        "confidence": 1.0,
+        "source": "",
     }
     assert c.beliefs == [belief]
 

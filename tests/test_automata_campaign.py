@@ -70,6 +70,24 @@ def test_lore_templates_are_automata_and_have_four_factions():
             assert faction["character_ids"], template_id
 
 
+def test_lore_characters_seed_beliefs_and_intentions():
+    for template_id in LORE_TEMPLATES:
+        preset = _preset(template_id)
+        records = {item["id"]: item for item in preset.characters}
+        for faction in preset.factions:
+            leader = records[faction["leader_id"]]
+            assert leader["beliefs"], template_id
+            assert leader["intentions"], template_id
+            assert leader["deliberate_target"], template_id
+
+
+def test_automata_campaign_keeps_seeded_beliefs():
+    campaign = AutomataCampaign(_preset("empire_campaign", seed=13))
+    leader = campaign.faction("red").characters[0]
+    assert leader.bdi.beliefs
+    assert leader.bdi.latest_intention().target == "faction.republic"
+
+
 def test_automata_campaign_is_deterministic_and_logs_every_work():
     first = AutomataCampaign(_preset("empire_campaign", seed=13))
     second = AutomataCampaign(_preset("empire_campaign", seed=13))

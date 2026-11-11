@@ -565,11 +565,15 @@ venv/bin/python -m pytest -q tests/test_content_pipeline.py tests/test_docs_sync
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании четырёх фракций-автоматов |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными |
+| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P9 до полноценного Data-Driven ядра |
+| [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по `лор.pdf`: предикаты, сути, работы, автоматы |
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`NAMING.md`](NAMING.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | профильные инструменты и слои |
 | [`WORLD.md`](WORLD.md), [`STRATEGY.md`](STRATEGY.md) | мир должностного лица и легаси-стратегия |
 | [`SUMMARY.md`](SUMMARY.md) | сжатая карта, но проверяйте по коду |
+| [`SESSION_SUMMARY.md`](SESSION_SUMMARY.md) | саммари последней сессии: решения, находки, следующие шаги |
 | [`TODO.md`](TODO.md), [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | что открыто и что считать готовностью |
 | [`HOWTO.md`](HOWTO.md) | практические команды: игра, обучение, вклад |
 

@@ -442,6 +442,14 @@ def _make_character(
     is_player=False,
     is_leader=False,
 ):
+    defaults = _as_mapping(cfg.get("character_defaults"))
+    post_data = _as_mapping(post)
+    beliefs = list(defaults.get("beliefs") or ()) + list(
+        post_data.get("beliefs") or ()
+    )
+    intentions = list(defaults.get("intentions") or ()) + list(
+        post_data.get("intentions") or ()
+    )
     needs = _make_needs(randomizer, priority_needs)
     personality = W.Personality.from_seed(seed=char_seed, archetype=archetype)
 
@@ -453,8 +461,18 @@ def _make_character(
         role=post.get("id") or archetype,
     )
     character.needs.update(needs)
+    if beliefs:
+        character.bdi.seed(beliefs=beliefs)
+    deliberate_target = str(
+        defaults.get("deliberate_target")
+        or post_data.get("deliberate_target")
+        or ""
+    )
+    character.deliberate_target = deliberate_target
     character.desires = character.weighted_urgency()
-    character.deliberate()
+    character.deliberate(target=deliberate_target or None)
+    if intentions:
+        character.bdi.seed(intentions=intentions)
     divisions = _make_divisions(cfg, post, name)
     if divisions:
         try:
@@ -486,6 +504,11 @@ def _make_character(
         "urgency": _round_mapping(character.desires),
         "divisions": divisions,
         "personality": _round_mapping(personality.as_dict()),
+        "beliefs": [item.as_dict() for item in character.bdi.beliefs],
+        "intentions": [
+            item.as_dict() for item in character.bdi.intentions
+        ],
+        "deliberate_target": deliberate_target,
         "morale": round(morale, 3),
         "seed": int(char_seed),
         "is_player": bool(is_player),

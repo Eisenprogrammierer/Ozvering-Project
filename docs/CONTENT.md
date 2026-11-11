@@ -222,15 +222,15 @@ custom = content.get("my_new_file", {})
   "visibility": {"scope": "global"},
   "speed": 1.0,
   "duration": 4.0,
-  "cooldown": 12.0,
-  "effects": {"needs": {"anxiety": 0.1}}
+  "cooldown": 12.0
 }
 ```
 
 Категория должна быть объявлена в `categories`. `conditions` задают
 порог допуска, `probability` — личный шанс, `speed`/`duration` — тайминг,
-`visibility` — кто видит событие, `effects` — последствия для
-`force`/`energy`/`needs`/`conditions`. Доля розыгрыша —
+`visibility` — кто видит событие. **Событие ничего не меняет:** у него нет
+`effects`, `apply` или `emit`; оно только отражает уже случившиеся
+процессы. Доля розыгрыша —
 `weight × category.weight × probability`. Удаление события не требует
 правки кода, если на его id никто не ссылается. Полное руководство —
 [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md).

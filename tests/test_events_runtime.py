@@ -316,4 +316,5 @@ def test_production_runtime_events_are_data_driven():
         assert event.speed > 0.0
         assert event.duration > 0.0
         assert 0.0 < event.probability <= 1.0
-        assert event.effects
+        # Событие — слой отражения: оно ничего не производит.
+        assert not event.effects

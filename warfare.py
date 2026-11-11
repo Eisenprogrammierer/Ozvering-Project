@@ -237,6 +237,9 @@ class Character(S.UtilityAI):
             seed=seed, archetype=archetype
         )
         self.rng = random.Random(int(seed) * 1009 + 17)
+        # Объект намерения из контента (фракция, орган, персонаж). Если
+        # пуст, BDI направляет намерение на ведущую потребность.
+        self.deliberate_target = ""
 
         initial = {
             "hunger": 0.18,
@@ -461,10 +464,17 @@ class Character(S.UtilityAI):
         self.bdi.traits = self.personality.as_dict()
         return self.bdi.weighted_desires(TRAIT_MODEL)
 
-    def deliberate(self):
+    def deliberate(self, target=None):
+        """Выбрать намерение, по умолчанию направленное на потребность.
+
+        ``target`` — объект из контента (фракция, орган, персонаж). Если
+        он задан, BDI не подменяет его ведущей потребностью: суть
+        политического действия важнее биологического fallback.
+        """
         self.bdi.traits = self.personality.as_dict()
         self.desires = self.bdi.weighted_desires(TRAIT_MODEL)
         need = max(NEEDS, key=lambda n: self.desires[n])
+        target = target or self.deliberate_target
         values = self.personality.as_dict()
         mod = self.modulation()
 
@@ -485,7 +495,7 @@ class Character(S.UtilityAI):
         intent = self.bdi.choose_intention(
             TRAIT_MODEL,
             {
-                "target": need,
+                "target": target or need,
                 "preferred": preferred,
                 "forbidden": forbidden,
             },
