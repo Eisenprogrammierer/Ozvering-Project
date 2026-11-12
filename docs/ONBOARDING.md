@@ -511,7 +511,30 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   venv/bin/python -m pytest -q tests/test_campaign.py
   ```
 
-### 5.9. «Хочу проверить, что ничего не сломал»
+### 5.9. «Хочу понять диалог с агентами»
+
+Читайте [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md). Это проект, а не
+реализованный слой. Кратко:
+
+* диалог — read-only слой над BDI и кампанией, без LLM и статистики;
+* вход: свободная русская фраза → нормализация → морфология →
+  грамматический разбор → типизированная логическая форма;
+* содержание: эпистемическая модель агента (его убеждения, а не
+  глобальная истина) → логический вывод с трассировкой;
+* ответ: план речевого акта (ответить/уклониться/уточнить) → синтез
+  русского текста;
+* отладка: `--debug-dialogue` печатает разбор, логическую форму, факты,
+  доказательство, план и дерево синтеза;
+* порядок работ: D0 лексикон/грамматика, D1 read-only вопросы о мире,
+  D2 состояние диалога, D3 объяснения, D4 речевые действия, D5–D6 синтез
+  и калибровка.
+
+Связанные решения: G-18/G-19 в
+[`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
+[`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md), модель работы в
+[`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.0.
+
+### 5.10. «Хочу проверить, что ничего не сломал»
 
 ```bash
 venv/bin/python -m pytest -q
@@ -571,7 +594,8 @@ venv/bin/python -m pytest -q tests/test_content_pipeline.py tests/test_docs_sync
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными |
-| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P9 до полноценного Data-Driven ядра |
+| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P10 до полноценного Data-Driven ядра |
+| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог на естественном языке без LLM: архитектура, фазы D0–D6 |
 | [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по `лор.pdf`: предикаты, сути, работы, автоматы |
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |
