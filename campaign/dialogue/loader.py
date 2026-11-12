@@ -12,13 +12,18 @@ from typing import Any, Dict, Iterable, List, Mapping, Tuple
 
 from .errors import DialogueError
 from .model import (
+    AtomSpec,
     DialogueCatalog,
+    FactSpec,
     Grammar,
     GrammarRule,
     LexEntry,
     LexForm,
     Ontology,
+    Persona,
+    PlanSpec,
     RuleItem,
+    RuleSpec,
 )
 
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "configs" / "dialogue"
@@ -253,6 +258,155 @@ def load_grammar(path: Path) -> Grammar:
     return Grammar(start=start, rules=tuple(rules))
 
 
+def _atom(raw: Any, where: str) -> AtomSpec:
+    data = _mapping(raw, where)
+    rel = _text(data.get("rel"), where + ".rel")
+    args = tuple(
+        str(item)
+        for item in _sequence(data.get("args", []), where + ".args")
+    )
+    return AtomSpec(rel=rel, args=args)
+
+
+def load_rules(path: Path) -> Tuple[RuleSpec, ...]:
+    raw = _mapping(_read_json(path), str(path))
+    rules: List[RuleSpec] = []
+    seen: Dict[str, str] = {}
+    for index, item in enumerate(
+        _sequence(raw.get("rules"), "rules.rules")
+    ):
+        where = "rules.rules[%d]" % index
+        data = _mapping(item, where)
+        rule_id = _text(data.get("id"), where + ".id")
+        if rule_id in seen:
+            raise DialogueError(
+                "%s: повтор id %r (уже был в %s)"
+                % (where, rule_id, seen[rule_id])
+            )
+        seen[rule_id] = where
+        premises = tuple(
+            _atom(premise, "%s.premises[%d]" % (where, premise_index))
+            for premise_index, premise in enumerate(
+                _sequence(data.get("premises"), where + ".premises")
+            )
+        )
+        if not premises:
+            raise DialogueError("%s.premises: пусто" % where)
+        rules.append(
+            RuleSpec(
+                id=rule_id,
+                head=_atom(data.get("head"), where + ".head"),
+                premises=premises,
+                because=str(data.get("because") or ""),
+                priority=int(data.get("priority") or 0),
+            )
+        )
+    if not rules:
+        raise DialogueError("rules.rules: пусто")
+    return tuple(rules)
+
+
+def load_facts(path: Path) -> Tuple[FactSpec, ...]:
+    raw = _mapping(_read_json(path), str(path))
+    return tuple(
+        _atom(item, "facts.facts[%d]" % index)
+        for index, item in enumerate(
+            _sequence(raw.get("facts"), "facts.facts")
+        )
+    )
+
+
+def load_plans(path: Path) -> Tuple[PlanSpec, ...]:
+    raw = _mapping(_read_json(path), str(path))
+    plans: List[PlanSpec] = []
+    seen: Dict[str, str] = {}
+    for index, item in enumerate(
+        _sequence(raw.get("plans"), "plans.plans")
+    ):
+        where = "plans.plans[%d]" % index
+        data = _mapping(item, where)
+        plan_id = _text(data.get("id"), where + ".id")
+        if plan_id in seen:
+            raise DialogueError(
+                "%s: повтор id %r (уже был в %s)"
+                % (where, plan_id, seen[plan_id])
+            )
+        seen[plan_id] = where
+        answer = dict(_mapping(data.get("answer"), where + ".answer"))
+        output = data.get("output", answer.get("output", []))
+        plans.append(
+            PlanSpec(
+                id=plan_id,
+                priority=int(data.get("priority") or 0),
+                match=data.get("match", {}),
+                answer=answer,
+                output=tuple(
+                    str(key)
+                    for key in _sequence(output, where + ".output")
+                ),
+            )
+        )
+    if not plans:
+        raise DialogueError("plans.plans: пусто")
+    return tuple(plans)
+
+
+def load_realization(path: Path) -> Mapping[str, Any]:
+    return dict(_mapping(_read_json(path), str(path)))
+
+
+def load_synthesis(path: Path) -> Mapping[str, Any]:
+    """Загрузить конструкции, поля описания и морфологические исключения."""
+
+    raw = _mapping(_read_json(path), str(path))
+    for key in (
+        "constructions",
+        "statements",
+        "phrases",
+        "collections",
+        "entity_fields",
+        "describe",
+        "summary",
+    ):
+        value = raw.get(key)
+        if value is None:
+            continue
+        _mapping(value, "synthesis.%s" % key)
+    return dict(raw)
+
+
+def load_personas(path: Path) -> Dict[str, Persona]:
+    raw = _mapping(_read_json(path), str(path))
+    result: Dict[str, Persona] = {}
+    for key, value in raw.items():
+        if str(key) == "schema":
+            continue
+        where = "personas.%s" % key
+        data = _mapping(value, where)
+        result[str(key)] = Persona(
+            id=str(data.get("id") or key),
+            greeting=str(data.get("greeting") or ""),
+            smalltalk={
+                str(name): str(text)
+                for name, text in _mapping(
+                    data.get("smalltalk", {}), where + ".smalltalk"
+                ).items()
+            },
+            unknown=str(data.get("unknown") or ""),
+            parse_unknown=str(data.get("parse_unknown") or ""),
+            max_list_items=max(
+                1, int(data.get("max_list_items") or 20)
+            ),
+        )
+    if not result:
+        raise DialogueError("personas: пусто")
+    return result
+
+
+def load_world(path: Path) -> Mapping[str, Any]:
+    return dict(_mapping(_read_json(path), str(path)))
+
+
 def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
     """Загрузить онтологию, лексикон и грамматику из каталога."""
 
@@ -260,6 +414,17 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
     ontology = load_ontology(root / "ontology.json")
     lexicon = load_lexicon(root / "lexicon.json")
     grammar = load_grammar(root / "grammar.json")
+    rules_raw = _mapping(
+        _read_json(root / "rules.json"), str(root / "rules.json")
+    )
+    max_depth = max(1, int(rules_raw.get("max_depth") or 32))
+    rules = load_rules(root / "rules.json")
+    facts = load_facts(root / "facts.json")
+    plans = load_plans(root / "plans.json")
+    realization = load_realization(root / "realization.json")
+    synthesis = load_synthesis(root / "synthesis.json")
+    personas = load_personas(root / "personas.json")
+    world = load_world(root / "world.json")
     raw = {
         "directory": str(root),
         "ontology": ontology.raw,
@@ -268,10 +433,27 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
             "start": grammar.start,
             "rules": len(grammar.rules),
         },
+        "rules": {"count": len(rules)},
+        "facts": {"count": len(facts)},
+        "plans": {"count": len(plans)},
+        "synthesis": {
+            "constructions": len(synthesis.get("constructions") or {}),
+            "statements": len(synthesis.get("statements") or {}),
+            "phrases": len(synthesis.get("phrases") or {}),
+        },
+        "personas": {"count": len(personas)},
     }
     return DialogueCatalog(
         ontology=ontology,
         lexicon=lexicon,
         grammar=grammar,
+        rules=rules,
+        facts=facts,
+        max_depth=max_depth,
+        plans=plans,
+        realization=realization,
+        synthesis=synthesis,
+        personas=personas,
+        world=world,
         raw=raw,
     )

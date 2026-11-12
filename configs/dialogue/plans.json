@@ -1,0 +1,397 @@
+{
+  "schema": 1,
+  "plans": [
+    {
+      "id": "greeting",
+      "priority": 100,
+      "match": {"kind": "greeting"},
+      "answer": {"type": "smalltalk", "key": "greeting"}
+    },
+    {
+      "id": "farewell",
+      "priority": 100,
+      "match": {"kind": "farewell"},
+      "answer": {"type": "smalltalk", "key": "farewell"}
+    },
+    {
+      "id": "smalltalk_how",
+      "priority": 100,
+      "match": {
+        "kind": "question",
+        "wh": "how",
+        "body": {
+          "kind": "topic",
+          "topic": {"head": {"entity": "concept:affairs"}}
+        }
+      },
+      "answer": {"type": "smalltalk", "key": "how_are_you"}
+    },
+    {
+      "id": "belief_why",
+      "priority": 80,
+      "match": {
+        "kind": "question",
+        "wh": "why",
+        "body": {
+          "kind": "assert",
+          "predicate": "believe",
+          "value": "illegal",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {"head": {"entity": "$object"}}
+        }
+      },
+      "answer": {
+        "type": "explain",
+        "relation": "considers_outlaw",
+        "args": ["$subject", "$object"],
+        "statement": "considers_outlaw",
+        "missing": "unknown",
+        "prefix_key": "why_prefix",
+        "explain_with": "because"
+      }
+    },
+    {
+      "id": "belief_yesno",
+      "priority": 80,
+      "match": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "predicate": "believe",
+          "value": "illegal",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {"head": {"entity": "$object"}}
+        }
+      },
+      "answer": {
+        "type": "prove",
+        "relation": "considers_outlaw",
+        "args": ["$subject", "$object"],
+        "statement": "considers_outlaw",
+        "missing": "unknown"
+      }
+    },
+    {
+      "id": "war_why",
+      "priority": 80,
+      "match": {
+        "kind": "question",
+        "wh": "why",
+        "body": {
+          "kind": "assert",
+          "predicate": "fight",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {
+            "kind": "pp",
+            "prep": "with",
+            "object": {"head": {"entity": "$object"}}
+          }
+        }
+      },
+      "answer": {
+        "type": "explain",
+        "relation": "war_reason",
+        "args": ["$subject", "$object", "$reason"],
+        "output": ["reason"],
+        "statement": "war_reason",
+        "missing": "unknown",
+        "prefix_key": ""
+      }
+    },
+    {
+      "id": "war_yesno",
+      "priority": 80,
+      "match": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "predicate": "fight",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {
+            "kind": "pp",
+            "prep": "with",
+            "object": {"head": {"entity": "$object"}}
+          }
+        }
+      },
+      "answer": {
+        "type": "prove",
+        "relation": "at_war_with",
+        "args": ["$subject", "$object"],
+        "statement": "at_war_with",
+        "missing": "unknown"
+      }
+    },
+    {
+      "id": "know_about",
+      "priority": 75,
+      "match": {
+        "kind": "question",
+        "wh": "what",
+        "body": {
+          "kind": "assert",
+          "predicate": "know",
+          "subject": "you_sg",
+          "object": {
+            "kind": "pp",
+            "prep": "about",
+            "object": {"head": {"entity": "$target"}}
+          }
+        }
+      },
+      "answer": {"type": "summary", "target": "$target"}
+    },
+    {
+      "id": "tell_about",
+      "priority": 75,
+      "match": {
+        "kind": "request",
+        "action": "tell",
+        "topic": {
+          "kind": "pp",
+          "prep": "about",
+          "object": {"head": {"entity": "$target"}}
+        }
+      },
+      "answer": {"type": "summary", "target": "$target"}
+    },
+    {
+      "id": "organs_list",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:organ"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "list",
+        "relation": "has_organ",
+        "args": ["$owner", "$item"],
+        "output": ["item"],
+        "intro_key": "organs",
+        "empty_key": "organs"
+      }
+    },
+    {
+      "id": "allies_list",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:ally"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "list",
+        "relation": "allied_with",
+        "args": ["$owner", "$item"],
+        "output": ["item"],
+        "intro_key": "allies",
+        "empty_key": "allies"
+      }
+    },
+    {
+      "id": "allies_yesno",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:ally"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "list",
+        "relation": "allied_with",
+        "args": ["$owner", "$item"],
+        "output": ["item"],
+        "intro_key": "allies",
+        "empty_key": "allies",
+        "prefix_key": "yes",
+        "empty_prefix_key": "no"
+      }
+    },
+    {
+      "id": "works_list",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:work"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "list",
+        "relation": "has_work",
+        "args": ["$owner", "$item"],
+        "output": ["item", "label"],
+        "label_relation": "work_label",
+        "label_args": ["$item", "$label"],
+        "intro_key": "works",
+        "empty_key": "works"
+      }
+    },
+    {
+      "id": "asset_quantity",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "how_many",
+        "body": {
+          "kind": "quantity",
+          "object": {"head": {"entity": "asset:$key"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "value",
+        "relation": "asset",
+        "args": ["$owner", "$key", "$value"],
+        "output": ["value"],
+        "label_prefix": "asset:",
+        "template_key": "value"
+      }
+    },
+    {
+      "id": "leader_who",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "assert",
+          "predicate": "rule",
+          "object": {"head": {"entity": "$owner"}}
+        }
+      },
+      "answer": {
+        "type": "leader",
+        "owner": "$owner",
+        "relation": "leader",
+        "args": ["$owner", "$character", "$post", "$person"],
+        "output": ["character", "post", "person"],
+        "phrase_key": "leader"
+      }
+    },
+    {
+      "id": "where_entity",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "where",
+        "body": {
+          "kind": "assert",
+          "predicate": "locate",
+          "object": {"head": {"entity": "$target"}}
+        }
+      },
+      "answer": {
+        "type": "located",
+        "relation": "located_at",
+        "args": ["$target", "$place"],
+        "output": ["place"],
+        "statement": "located_at",
+        "missing": "unknown"
+      }
+    },
+    {
+      "id": "when_event",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "when",
+        "body": {
+          "kind": "assert",
+          "predicate": "begin",
+          "object": {"head": {"entity": "$target"}}
+        }
+      },
+      "answer": {
+        "type": "started",
+        "relation": "started_at",
+        "args": ["$target", "$time"],
+        "output": ["time"],
+        "statement": "started_at",
+        "missing": "unknown"
+      }
+    },
+    {
+      "id": "last_work",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "what",
+        "body": {
+          "kind": "assert",
+          "predicate": "do",
+          "subject": {"head": {"entity": "$owner"}}
+        }
+      },
+      "answer": {
+        "type": "last_works",
+        "owner": "$owner",
+        "relation": "recent_work",
+        "args": {"owner": 0, "turn": 1, "label": 2, "success": 3},
+        "keys": {
+          "intro": "last_work_intro",
+          "empty": "last_work_empty",
+          "success": "last_work_success",
+          "failure": "last_work_failure"
+        }
+      }
+    },
+    {
+      "id": "organ_yesno",
+      "priority": 70,
+      "match": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "organ:$organ"}},
+          "owner": {"object": {"head": {"entity": "$owner"}}}
+        }
+      },
+      "answer": {
+        "type": "prove",
+        "relation": "has_organ",
+        "args": ["$owner", "organ:$organ"],
+        "statement": "has_organ",
+        "missing": "no"
+      }
+    },
+    {
+      "id": "describe_entity",
+      "priority": 10,
+      "match": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {
+          "kind": "assert",
+          "copula": true,
+          "subject": {"head": {"entity": "$target"}}
+        }
+      },
+      "answer": {"type": "describe", "target": "$target"}
+    }
+  ]
+}

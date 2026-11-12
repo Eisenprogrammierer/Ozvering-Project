@@ -7140,6 +7140,329 @@
         "type": "post",
         "id": "post:amber:medicine"
       }
+    },
+    {
+      "id": "noun:work",
+      "type": "work",
+      "cat": "N",
+      "lemma": "работа",
+      "forms": {
+        "nom": [
+          "работа"
+        ],
+        "gen": [
+          "работы"
+        ],
+        "dat": [
+          "работе"
+        ],
+        "acc": [
+          "работу"
+        ],
+        "ins": [
+          "работой"
+        ],
+        "prep": [
+          "работе"
+        ],
+        "nom_pl": [
+          "работы"
+        ],
+        "gen_pl": [
+          "работ"
+        ],
+        "dat_pl": [
+          "работам"
+        ],
+        "acc_pl": [
+          "работы"
+        ],
+        "ins_pl": [
+          "работами"
+        ],
+        "prep_pl": [
+          "работах"
+        ]
+      },
+      "semantic": {
+        "kind": "entity",
+        "type": "work",
+        "id": "noun:work"
+      },
+      "features": {
+        "gender": "f"
+      }
+    },
+    {
+      "id": "noun:turn",
+      "type": "concept",
+      "cat": "N",
+      "lemma": "ход",
+      "forms": {
+        "nom": [
+          "ход"
+        ],
+        "gen": [
+          "хода"
+        ],
+        "dat": [
+          "ходу"
+        ],
+        "acc": [
+          "ход"
+        ],
+        "ins": [
+          "ходом"
+        ],
+        "prep": [
+          "ходе"
+        ],
+        "nom_pl": [
+          "ходы"
+        ],
+        "gen_pl": [
+          "ходов"
+        ],
+        "dat_pl": [
+          "ходам"
+        ],
+        "acc_pl": [
+          "ходы"
+        ],
+        "ins_pl": [
+          "ходами"
+        ],
+        "prep_pl": [
+          "ходах"
+        ]
+      },
+      "semantic": {
+        "kind": "entity",
+        "type": "concept",
+        "id": "concept:turn"
+      },
+      "features": {
+        "gender": "m"
+      }
+    },
+    {
+      "id": "adj:last",
+      "type": "adjective",
+      "cat": "ADJ",
+      "lemma": "последний",
+      "forms": {
+        "nom": [
+          "последний",
+          "последняя",
+          "последнее",
+          "последние"
+        ],
+        "gen": [
+          "последнего",
+          "последней",
+          "последних"
+        ],
+        "dat": [
+          "последнему",
+          "последней",
+          "последним"
+        ],
+        "acc": [
+          "последний",
+          "последнего",
+          "последнюю",
+          "последнее",
+          "последние",
+          "последних"
+        ],
+        "ins": [
+          "последним",
+          "последней",
+          "последними"
+        ],
+        "prep": [
+          "последнем",
+          "последней",
+          "последних"
+        ]
+      },
+      "semantic": {
+        "kind": "predicate",
+        "id": "last"
+      }
+    },
+    {
+      "id": "noun:enemy",
+      "type": "concept",
+      "cat": "N",
+      "lemma": "враг",
+      "forms": {
+        "nom": [
+          "враг"
+        ],
+        "gen": [
+          "врага"
+        ],
+        "dat": [
+          "врагу"
+        ],
+        "acc": [
+          "врага"
+        ],
+        "ins": [
+          "врагом"
+        ],
+        "prep": [
+          "враге"
+        ],
+        "nom_pl": [
+          "враги"
+        ],
+        "gen_pl": [
+          "врагов"
+        ],
+        "dat_pl": [
+          "врагам"
+        ],
+        "acc_pl": [
+          "врагов"
+        ],
+        "ins_pl": [
+          "врагами"
+        ],
+        "prep_pl": [
+          "врагах"
+        ]
+      },
+      "semantic": {
+        "kind": "entity",
+        "type": "concept",
+        "id": "noun:enemy"
+      },
+      "features": {
+        "gender": "m"
+      }
+    },
+    {
+      "id": "concept:dispute",
+      "type": "concept",
+      "cat": "N",
+      "lemma": "спор",
+      "forms": {
+        "nom": [
+          "спор"
+        ],
+        "gen": [
+          "спора"
+        ],
+        "dat": [
+          "спору"
+        ],
+        "acc": [
+          "спор"
+        ],
+        "ins": [
+          "спором"
+        ],
+        "prep": [
+          "споре"
+        ],
+        "nom_pl": [
+          "споры"
+        ],
+        "gen_pl": [
+          "споров"
+        ],
+        "dat_pl": [
+          "спорам"
+        ],
+        "acc_pl": [
+          "споры"
+        ],
+        "ins_pl": [
+          "спорами"
+        ],
+        "prep_pl": [
+          "спорах"
+        ]
+      },
+      "semantic": {
+        "kind": "entity",
+        "type": "concept",
+        "id": "concept:dispute"
+      },
+      "features": {
+        "gender": "m"
+      }
+    },
+    {
+      "id": "verb:depend",
+      "type": "verb",
+      "cat": "V",
+      "lemma": "зависеть",
+      "forms": [
+        "зависит",
+        "зависят",
+        "зависел",
+        "зависела",
+        "зависели",
+        "зависеть"
+      ],
+      "semantic": {
+        "kind": "predicate",
+        "id": "depend"
+      }
+    },
+    {
+      "id": "prep:of",
+      "type": "preposition",
+      "cat": "P",
+      "lemma": "от",
+      "forms": [
+        "от",
+        "ото"
+      ],
+      "semantic": {
+        "kind": "prep",
+        "id": "of"
+      }
+    },
+    {
+      "id": "prep:because_of",
+      "type": "preposition",
+      "cat": "P",
+      "lemma": "из-за",
+      "forms": [
+        "из-за"
+      ],
+      "semantic": {
+        "kind": "prep",
+        "id": "because_of"
+      }
+    },
+    {
+      "id": "adj:own",
+      "type": "adjective",
+      "cat": "ADJ",
+      "lemma": "собственный",
+      "forms": [
+        "собственный",
+        "собственная",
+        "собственное",
+        "собственные",
+        "собственного",
+        "собственной",
+        "собственному",
+        "собственным",
+        "собственном",
+        "собственную",
+        "собственных",
+        "собственными"
+      ],
+      "semantic": {
+        "kind": "predicate",
+        "id": "own"
+      }
     }
   ]
 }

@@ -1,0 +1,257 @@
+{
+  "schema": 1,
+  "answers": {
+    "yes": "Да.",
+    "no": "Нет.",
+    "unknown": "Не знаю.",
+    "why_prefix": "Причина: ",
+    "value": "{label} {owner_gen}: {value}.",
+    "leader": "Лидер {owner_gen} — {post} ({person}).",
+    "last_work_intro": "Последний ход {owner_gen}:",
+    "last_work_success": "{label} — успех.",
+    "last_work_failure": "{label} — неудача.",
+    "last_work_empty": "У {owner_gen} нет записанных работ за последний ход.",
+    "beliefs_prefix": "Убеждения: ",
+    "list_separator": ", ",
+    "list_end": ".",
+    "list": {
+      "organs": {
+        "intro": "У {owner_gen} есть органы:"
+      },
+      "allies": {
+        "intro": "У {owner_gen} есть союзники:"
+      },
+      "works": {
+        "intro": "У {owner_gen} есть работы:"
+      }
+    },
+    "empty": {
+      "organs": "У {owner_gen} нет органов.",
+      "allies": "У {owner_gen} нет союзников.",
+      "works": "У {owner_gen} нет работ."
+    },
+    "summary_intro": "Вот что мне известно о {name}."
+  },
+  "statements": {
+    "considers_outlaw": {
+      "template": "{subject} считает {object} незаконной.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "acc"}
+      }
+    },
+    "allied_with": {
+      "template": "{subject} состоит в союзе с {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "ins"}
+      }
+    },
+    "threatens": {
+      "template": "{subject} видит угрозу в {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "prep"}
+      }
+    },
+    "enemy": {
+      "template": "{subject} считает {object} врагом.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "acc"}
+      }
+    },
+    "depends_on": {
+      "template": "{subject} зависит от {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "gen"}
+      }
+    },
+    "protects": {
+      "template": "{subject} защищает {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "acc"}
+      }
+    },
+    "legitimate": {
+      "template": "{subject} считает себя законной властью.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"}
+      }
+    },
+    "myth": {
+      "template": "{subject} верит в собственный миф.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"}
+      }
+    },
+    "at_war_with": {
+      "template": "{subject} воюет с {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "object": {"arg": 1, "case": "ins"}
+      }
+    },
+    "war_reason": {
+      "template": "Причина войны между {a} и {b} — спор о {reason}.",
+      "slots": {
+        "a": {"arg": 0, "case": "ins"},
+        "b": {"arg": 1, "case": "ins"},
+        "reason": {"arg": 2, "case": "prep"}
+      }
+    },
+    "has_organ": {
+      "template": "У {subject} есть орган {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "gen"},
+        "object": {"arg": 1, "case": "nom"}
+      }
+    },
+    "has_work": {
+      "template": "У {subject} есть работа {object}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "gen"},
+        "object": {"arg": 1, "case": "nom"}
+      }
+    },
+    "located_at": {
+      "template": "{subject} находится {place}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "place": {"arg": 1}
+      }
+    },
+    "started_at": {
+      "template": "{subject} началась {time}.",
+      "slots": {
+        "subject": {"arg": 0, "case": "nom"},
+        "time": {"arg": 1}
+      }
+    }
+  },
+  "describe": {
+    "faction": [
+      "{name} — {type_label}.",
+      "{description}",
+      "Лидер: {post} ({person})."
+    ],
+    "organ": [
+      "{name} — {type_label} {owner_gen}.",
+      "{description}",
+      "Целостность: {integrity}."
+    ],
+    "post": [
+      "{name} — {type_label} {owner_gen}.",
+      "Носитель: {person}."
+    ],
+    "character": [
+      "{name} — {type_label}.",
+      "Должность: {post}.",
+      "Фракция: {owner}."
+    ],
+    "asset": [
+      "{name} — {type_label}.",
+      "{description}"
+    ],
+    "concept": [
+      "{name} — {type_label}.",
+      "{description}"
+    ],
+    "need": [
+      "{name} — {type_label}."
+    ],
+    "work": [
+      "{label} — {type_label} {owner_gen}.",
+      "{description}"
+    ]
+  },
+  "summary": {
+    "faction": [
+      "{name} — {type_label}.",
+      "{description}",
+      "Лидер: {post} ({person}).",
+      "Активы: {assets}.",
+      "Органы: {organs}.",
+      "Союзники: {allies}.",
+      "Война: {wars}.",
+      "{beliefs}"
+    ],
+    "organ": [
+      "{name} — {type_label} {owner_gen}.",
+      "{description}",
+      "Целостность: {integrity}."
+    ],
+    "post": [
+      "{name} — {type_label} {owner_gen}.",
+      "Носитель: {person}."
+    ],
+    "character": [
+      "{name} — {type_label}.",
+      "Должность: {post}.",
+      "Фракция: {owner}."
+    ],
+    "asset": [
+      "{name} — {type_label}.",
+      "{description}"
+    ],
+    "concept": [
+      "{name} — {type_label}.",
+      "{description}",
+      "Начало: {started}."
+    ],
+    "need": [
+      "{name} — {type_label}."
+    ],
+    "work": [
+      "{label} — {type_label} {owner_gen}.",
+      "{description}"
+    ]
+  },
+  "beliefs": {
+    "considers_illegitimate": {
+      "template": "{subject} считает {object} незаконной.",
+      "subject_case": "nom",
+      "object_case": "acc"
+    },
+    "allied_with": {
+      "template": "{subject} состоит в союзе с {object}.",
+      "subject_case": "nom",
+      "object_case": "ins"
+    },
+    "sees_as_threat": {
+      "template": "{subject} видит угрозу в {object}.",
+      "subject_case": "nom",
+      "object_case": "prep"
+    },
+    "sees_as_enemy": {
+      "template": "{subject} считает {object} врагом.",
+      "subject_case": "nom",
+      "object_case": "acc"
+    },
+    "depends_on": {
+      "template": "{subject} зависит от {object}.",
+      "subject_case": "nom",
+      "object_case": "gen"
+    },
+    "protects": {
+      "template": "{subject} защищает {object}.",
+      "subject_case": "nom",
+      "object_case": "acc"
+    },
+    "is_legitimate": {
+      "template": "{subject} считает себя законной властью.",
+      "subject_case": "nom"
+    },
+    "believes_in_own_myth": {
+      "template": "{subject} верит в собственный миф.",
+      "subject_case": "nom"
+    },
+    "fallback": {
+      "template": "{subject}: {predicate} {object}.",
+      "subject_case": "nom",
+      "object_case": "nom"
+    }
+  }
+}

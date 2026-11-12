@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "factions": {
+    "red": {
+      "campaign_id": "faction_empire",
+      "entity": "faction:red",
+      "belief_aliases": ["faction_empire", "faction.empire"]
+    },
+    "blue": {
+      "campaign_id": "faction_republic",
+      "entity": "faction:blue",
+      "belief_aliases": ["faction_republic", "faction.republic"]
+    },
+    "green": {
+      "campaign_id": "faction_cult",
+      "entity": "faction:green",
+      "belief_aliases": ["faction_cult", "faction.cult"]
+    },
+    "amber": {
+      "campaign_id": "faction_corporation",
+      "entity": "faction:amber",
+      "belief_aliases": ["faction_corporation", "faction.corporation"]
+    }
+  },
+  "adapter": {
+    "faction_name": "faction_name",
+    "asset": "asset",
+    "leader": "leader",
+    "speaks_for": "speaks_for",
+    "has_organ": "has_organ",
+    "organ_kind": "organ_kind",
+    "organ_integrity": "organ_integrity",
+    "description": "description",
+    "character_info": "character_info",
+    "post_info": "post_info",
+    "has_work": "has_work",
+    "work_label": "work_label",
+    "work_essence": "work_essence",
+    "work_target": "work_target",
+    "work_organ": "work_organ",
+    "belief": "belief",
+    "intention": "intention",
+    "recent_work": "recent_work"
+  },
+  "assets": [
+    "legitimacy",
+    "influence",
+    "cohesion",
+    "supply",
+    "fear",
+    "morale",
+    "energy"
+  ],
+  "relations": {
+    "allied_with": 2,
+    "asset": 3,
+    "at_war_with": 2,
+    "belief": 4,
+    "character_info": 4,
+    "considers_outlaw": 2,
+    "depends_on": 2,
+    "description": 2,
+    "enemy": 2,
+    "faction_name": 2,
+    "has_organ": 2,
+    "has_work": 2,
+    "intention": 3,
+    "leader": 4,
+    "legitimate": 1,
+    "located_at": 2,
+    "myth": 1,
+    "organ_integrity": 2,
+    "organ_kind": 2,
+    "post_info": 5,
+    "protects": 2,
+    "recent_work": 5,
+    "speaks_for": 2,
+    "started_at": 2,
+    "threatens": 2,
+    "war_reason": 3,
+    "work_essence": 2,
+    "work_label": 2,
+    "work_organ": 2,
+    "work_target": 2
+  },
+  "belief_predicates": {
+    "considers_illegitimate": {
+      "relation": "considers_outlaw",
+      "object": true
+    },
+    "allied_with": {
+      "relation": "allied_with",
+      "object": true
+    },
+    "sees_as_threat": {
+      "relation": "threatens",
+      "object": true
+    },
+    "sees_as_enemy": {
+      "relation": "enemy",
+      "object": true
+    },
+    "depends_on": {
+      "relation": "depends_on",
+      "object": true
+    },
+    "protects": {
+      "relation": "protects",
+      "object": true
+    },
+    "is_legitimate": {
+      "relation": "legitimate",
+      "object": false
+    },
+    "believes_in_own_myth": {
+      "relation": "myth",
+      "object": false
+    }
+  }
+}

@@ -109,10 +109,68 @@ class Parse:
 
 
 @dataclass(frozen=True)
+class AtomSpec:
+    """Атом логики: отношение и аргументы (константы или ``$переменные``)."""
+
+    rel: str
+    args: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RuleSpec:
+    """Правило вывода: посылки, голова и объяснение."""
+
+    id: str
+    head: AtomSpec
+    premises: Tuple[AtomSpec, ...]
+    because: str = ""
+    priority: int = 0
+
+
+@dataclass(frozen=True)
+class FactSpec:
+    """Статический факт из ``facts.json``."""
+
+    rel: str
+    args: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PlanSpec:
+    """План ответа: шаблон вопроса и действие над знанием."""
+
+    id: str
+    priority: int
+    match: Any
+    answer: Mapping[str, Any]
+    output: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Persona:
+    """Речевая политика агента: честность, тон, неизвестность."""
+
+    id: str
+    greeting: str = ""
+    smalltalk: Mapping[str, str] = field(default_factory=dict)
+    unknown: str = ""
+    parse_unknown: str = ""
+    max_list_items: int = 20
+
+
+@dataclass(frozen=True)
 class DialogueCatalog:
     """Полный набор данных диалога."""
 
     ontology: Ontology
     lexicon: Tuple[LexEntry, ...]
     grammar: Grammar
+    rules: Tuple[RuleSpec, ...] = ()
+    facts: Tuple[FactSpec, ...] = ()
+    max_depth: int = 32
+    plans: Tuple[PlanSpec, ...] = ()
+    realization: Mapping[str, Any] = field(default_factory=dict)
+    synthesis: Mapping[str, Any] = field(default_factory=dict)
+    personas: Mapping[str, Persona] = field(default_factory=dict)
+    world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

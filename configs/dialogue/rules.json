@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "max_depth": 32,
+  "rules": [
+    {
+      "id": "belief_outlaw",
+      "priority": 10,
+      "head": {
+        "rel": "considers_outlaw",
+        "args": ["$faction", "$target"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": [
+            "$speaker",
+            "$faction",
+            "considers_illegitimate",
+            "$target"
+          ]
+        }
+      ],
+      "because": "лидер фракции считает цель незаконной"
+    },
+    {
+      "id": "belief_alliance",
+      "priority": 10,
+      "head": {
+        "rel": "allied_with",
+        "args": ["$faction", "$other"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "allied_with", "$other"]
+        }
+      ],
+      "because": "лидер фракции считает эту фракцию союзником"
+    },
+    {
+      "id": "belief_threat",
+      "priority": 10,
+      "head": {
+        "rel": "threatens",
+        "args": ["$faction", "$target"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "sees_as_threat", "$target"]
+        }
+      ],
+      "because": "лидер фракции видит в цели угрозу"
+    },
+    {
+      "id": "belief_enemy",
+      "priority": 10,
+      "head": {
+        "rel": "enemy",
+        "args": ["$faction", "$target"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "sees_as_enemy", "$target"]
+        }
+      ],
+      "because": "лидер фракции считает цель врагом"
+    },
+    {
+      "id": "belief_depends",
+      "priority": 10,
+      "head": {
+        "rel": "depends_on",
+        "args": ["$faction", "$target"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "depends_on", "$target"]
+        }
+      ],
+      "because": "лидер фракции считает себя зависимой от цели"
+    },
+    {
+      "id": "belief_protects",
+      "priority": 10,
+      "head": {
+        "rel": "protects",
+        "args": ["$faction", "$target"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "protects", "$target"]
+        }
+      ],
+      "because": "лидер фракции считает, что защищает цель"
+    },
+    {
+      "id": "belief_legitimate",
+      "priority": 10,
+      "head": {
+        "rel": "legitimate",
+        "args": ["$faction"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "is_legitimate", ""]
+        }
+      ],
+      "because": "лидер фракции считает свою власть законной"
+    },
+    {
+      "id": "belief_myth",
+      "priority": 10,
+      "head": {
+        "rel": "myth",
+        "args": ["$faction"]
+      },
+      "premises": [
+        {
+          "rel": "speaks_for",
+          "args": ["$speaker", "$faction"]
+        },
+        {
+          "rel": "belief",
+          "args": ["$speaker", "$faction", "believes_in_own_myth", ""]
+        }
+      ],
+      "because": "лидер фракции верит в собственный миф"
+    },
+    {
+      "id": "war_symmetric",
+      "priority": 5,
+      "head": {
+        "rel": "at_war_with",
+        "args": ["$a", "$b"]
+      },
+      "premises": [
+        {
+          "rel": "at_war_with",
+          "args": ["$b", "$a"]
+        }
+      ],
+      "because": "война симметрична"
+    },
+    {
+      "id": "war_reason_legitimacy",
+      "priority": 5,
+      "head": {
+        "rel": "war_reason",
+        "args": ["$a", "$b", "asset:legitimacy"]
+      },
+      "premises": [
+        {
+          "rel": "at_war_with",
+          "args": ["$a", "$b"]
+        }
+      ],
+      "because": "война идёт из-за спора о законности"
+    }
+  ]
+}
