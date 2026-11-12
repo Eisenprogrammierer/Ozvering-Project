@@ -1,0 +1,410 @@
+{
+  "schema": 1,
+  "pronouns": {
+    "you_sg": {
+      "resolvable": false,
+      "person": "2",
+      "number": "sg"
+    },
+    "you_pl": {
+      "resolvable": false,
+      "person": "2",
+      "number": "pl"
+    },
+    "he": {
+      "resolvable": true,
+      "person": "3",
+      "gender": "m",
+      "number": "sg"
+    },
+    "she": {
+      "resolvable": true,
+      "person": "3",
+      "gender": "f",
+      "number": "sg"
+    },
+    "they": {
+      "resolvable": true,
+      "person": "3",
+      "number": "pl"
+    }
+  },
+  "entity_resolution": {
+    "answer_value_prefixes": [
+      "character:",
+      "post:",
+      "organ:",
+      "work:",
+      "faction:",
+      "asset:",
+      "place:",
+      "concept:"
+    ],
+    "ignore_prefixes": [
+      "noun:"
+    ],
+    "max_tokens": 5
+  },
+  "referents": {
+    "max_active": 16,
+    "decay_per_turn": 0.82,
+    "mention_gain": 1.0,
+    "min_salience": 0.04,
+    "position_weights": {
+      "subject": 1.6,
+      "owner": 1.6,
+      "target": 1.5,
+      "object": 1.25,
+      "reason": 0.8,
+      "topic": 1.0,
+      "place": 0.9,
+      "item": 0.8,
+      "default": 1.0
+    },
+    "type_gender": {
+      "faction": "f",
+      "subfaction": "f",
+      "organ": "m",
+      "post": "m",
+      "character": "m",
+      "work": "f",
+      "asset": "f",
+      "need": "f",
+      "predicate": "m",
+      "essence": "f",
+      "concept": "n",
+      "place": "f",
+      "event": "n"
+    },
+    "gender_sources": [
+      "name",
+      "type_default"
+    ],
+    "strict_gender": true,
+    "strict_number": false
+  },
+  "qud": {
+    "max_size": 16,
+    "keep_answered": true,
+    "base_order": [
+      "qud",
+      "last_sem"
+    ]
+  },
+  "question_intent": {
+    "marks": [
+      "?"
+    ],
+    "wrap_kinds": [
+      "assert"
+    ]
+  },
+  "fragments": [
+    {
+      "id": "why",
+      "tokens": [
+        "почему"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "why"
+        }
+      ]
+    },
+    {
+      "id": "why_a",
+      "tokens": [
+        "а",
+        "почему"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "why"
+        }
+      ]
+    },
+    {
+      "id": "where",
+      "tokens": [
+        "где"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "where"
+        }
+      ]
+    },
+    {
+      "id": "where_a",
+      "tokens": [
+        "а",
+        "где"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "where"
+        }
+      ]
+    },
+    {
+      "id": "when",
+      "tokens": [
+        "когда"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "when"
+        }
+      ]
+    },
+    {
+      "id": "when_a",
+      "tokens": [
+        "а",
+        "когда"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "when"
+        }
+      ]
+    },
+    {
+      "id": "who",
+      "tokens": [
+        "кто"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "who"
+        }
+      ]
+    },
+    {
+      "id": "who_a",
+      "tokens": [
+        "а",
+        "кто"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "who"
+        }
+      ]
+    },
+    {
+      "id": "how_many",
+      "tokens": [
+        "сколько"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "how_many"
+        }
+      ]
+    },
+    {
+      "id": "how_many_a",
+      "tokens": [
+        "а",
+        "сколько"
+      ],
+      "edits": [
+        {
+          "path": "wh",
+          "value": "how_many"
+        }
+      ]
+    },
+    {
+      "id": "owner_at",
+      "tokens": [
+        "а",
+        "у",
+        {
+          "slot": "owner",
+          "kind": "entity"
+        }
+      ],
+      "edits": [
+        {
+          "paths": [
+            "body.owner.object.head.entity",
+            "body.object.object.head.entity",
+            "body.subject.head.entity",
+            "body.object.head.entity"
+          ],
+          "value": "$owner"
+        }
+      ]
+    },
+    {
+      "id": "noun_kind",
+      "tokens": [
+        "а",
+        {
+          "any": [
+            "какие",
+            "какой",
+            "какая",
+            "каких"
+          ]
+        },
+        {
+          "slot": "noun",
+          "kind": "noun"
+        }
+      ],
+      "edits": [
+        {
+          "path": "body.object.head.entity",
+          "value": "$noun"
+        },
+        {
+          "path": "body.have",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "noun_kind_owner",
+      "tokens": [
+        "а",
+        {
+          "any": [
+            "какие",
+            "какой",
+            "какая",
+            "каких"
+          ]
+        },
+        {
+          "slot": "noun",
+          "kind": "noun"
+        },
+        "у",
+        {
+          "slot": "owner",
+          "kind": "entity"
+        }
+      ],
+      "edits": [
+        {
+          "path": "body.object.head.entity",
+          "value": "$noun"
+        },
+        {
+          "path": "body.have",
+          "value": true
+        },
+        {
+          "path": "body.owner.object.head.entity",
+          "value": "$owner"
+        }
+      ]
+    },
+    {
+      "id": "pronoun_topic",
+      "tokens": [
+        "а",
+        {
+          "slot": "entity",
+          "kind": "pronoun"
+        }
+      ],
+      "describe": "$entity"
+    },
+    {
+      "id": "entity_topic",
+      "tokens": [
+        "а",
+        {
+          "slot": "entity",
+          "kind": "entity"
+        }
+      ],
+      "describe": "$entity"
+    }
+  ],
+  "clarifications": {
+    "no_qud": "Не к чему это отнести: сначала назови тему.",
+    "no_referent": "Не понимаю, о ком или о чём речь.",
+    "no_entity": "Не узнаю эту сущность.",
+    "no_match": "Не понял, что именно уточнить.",
+    "ambiguous": "Уточни, кого или что ты имеешь в виду."
+  },
+  "memory": {
+    "weights": {
+      "entity": 1.0,
+      "fact": 1.0,
+      "summary": 1.0,
+      "common_ground": 1.0
+    },
+    "decay_per_day": 0.92,
+    "mention_gain": 0.2,
+    "min_weight": 0.08,
+    "limits": {
+      "entities": 96,
+      "facts": 160,
+      "summaries": 48,
+      "common_ground": 96
+    },
+    "pins": {
+      "relations": [
+        "at_war_with",
+        "allied_with",
+        "located_at",
+        "leader",
+        "considers_outlaw"
+      ],
+      "types": [
+        "faction",
+        "character"
+      ]
+    },
+    "significant": {
+      "relations": [
+        "at_war_with",
+        "allied_with",
+        "considers_outlaw",
+        "has_organ",
+        "leader",
+        "located_at",
+        "started_at",
+        "war_reason",
+        "recent_work",
+        "asset"
+      ],
+      "min_args": 2,
+      "require_known_entity": true
+    },
+    "summaries": {
+      "kinds": [
+        "description",
+        "summary"
+      ],
+      "max_chars": 240
+    }
+  },
+  "common_ground": {
+    "kinds": [
+      "yes",
+      "no",
+      "explanation",
+      "description",
+      "summary",
+      "value",
+      "entity"
+    ],
+    "max_items": 96
+  }
+}

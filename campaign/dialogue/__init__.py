@@ -19,16 +19,27 @@ from .morphology import normalize_text, tokenize
 from .parser import ChartParser, features_match, merge_features
 from .realize import Realizer
 from .semantics import entity_id, flatten, predicate_id, substitute
+from .state import (
+    ConversationState,
+    DialogueMemory,
+    DialogueMemoryStore,
+    EntityIndex,
+    build_state,
+)
 
 __all__ = [
     "AgentKnowledge",
     "Answer",
     "AnswerPlanner",
     "ChartParser",
+    "ConversationState",
     "DEFAULT_DIR",
     "DialogueCatalog",
     "DialogueError",
+    "DialogueMemory",
+    "DialogueMemoryStore",
     "DialogueSession",
+    "EntityIndex",
     "Fact",
     "Grammar",
     "InferenceEngine",
@@ -42,6 +53,7 @@ __all__ = [
     "Solution",
     "Turn",
     "build_knowledge",
+    "build_state",
     "entity_id",
     "features_match",
     "flatten",

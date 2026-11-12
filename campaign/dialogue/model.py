@@ -155,6 +155,7 @@ class Persona:
     smalltalk: Mapping[str, str] = field(default_factory=dict)
     unknown: str = ""
     parse_unknown: str = ""
+    clarify: Mapping[str, str] = field(default_factory=dict)
     max_list_items: int = 20
 
 
@@ -171,6 +172,7 @@ class DialogueCatalog:
     plans: Tuple[PlanSpec, ...] = ()
     realization: Mapping[str, Any] = field(default_factory=dict)
     synthesis: Mapping[str, Any] = field(default_factory=dict)
+    state: Mapping[str, Any] = field(default_factory=dict)
     personas: Mapping[str, Persona] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

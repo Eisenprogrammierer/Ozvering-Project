@@ -1,17 +1,22 @@
-"""Сессия диалога: разбор фразы → план → ответ.
+"""Сессия диалога: разбор фразы → состояние → план → ответ.
 
-D1 не хранит состояние диалога; это read-only слой над снимком знания.
+D2 добавляет к read-only слою QUD, активные референты, разрешение
+местоимений, декларативный эллипсис и память партии. Состояние разговора
+не меняет кампанию и BDI: оно лишь читает снимок знания и хранит следы
+беседы для связности.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Mapping, Optional
 
 from .answers import Answer, AnswerPlanner
 from .knowledge import AgentKnowledge
+from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
 from .parser import ChartParser
+from .state import DialogueMemory, build_state
 
 
 @dataclass(frozen=True)
@@ -21,6 +26,9 @@ class Turn:
     input: str
     parse: Optional[Parse]
     answer: Answer
+    sem: Any = None
+    source: str = "parser"
+    state: Mapping[str, Any] = field(default_factory=dict)
 
 
 class DialogueSession:
@@ -31,34 +39,94 @@ class DialogueSession:
         catalog: DialogueCatalog,
         knowledge: AgentKnowledge,
         persona_id: Optional[str] = None,
+        memory: Optional[DialogueMemory] = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.parser = ChartParser(catalog)
         self.persona = _select_persona(catalog, persona_id, knowledge.side)
         self.planner = AnswerPlanner(catalog, knowledge, self.persona)
+        self.morphology = Morphology(catalog.synthesis)
+        self.memory = memory or DialogueMemory(
+            catalog.state,
+            run_id=knowledge.run_id,
+            clock=knowledge.clock,
+        )
+        self.state = build_state(
+            catalog,
+            knowledge,
+            self.memory,
+            morphology=self.morphology,
+        )
 
     def ask(self, text: str) -> Answer:
-        parse = self.parser.parse_one(text)
-        if parse is None:
-            message = (
-                self.persona.parse_unknown
-                or self.persona.unknown
-                or "Не понял вопрос."
-            )
-            return Answer("unknown", message, "parse")
-        return self.planner.plan(parse.sem)
+        return self.respond(text).answer
 
     def respond(self, text: str) -> Turn:
+        self.state.begin_turn(self.knowledge.clock)
+        sem, parse, source = self._interpret(text)
+        if sem is None:
+            return self._clarification(text, parse, source)
+        sem, unresolved = self.state.resolve_pronouns(sem)
+        if unresolved:
+            return self._clarification(text, parse, source, "no_referent")
+        sem = self.state.apply_question_intent(sem, text)
+        mentioned = self.state.observe_sem(sem)
+        answer = self.planner.plan(sem)
+        self.state.push_turn(sem, answer)
+        self.state.remember(sem, answer, mentioned)
+        return Turn(text, parse, answer, sem, source, self.state_snapshot())
+
+    def state_snapshot(self) -> Mapping[str, Any]:
+        """Краткий срез состояния для отладки и тестов."""
+
+        return {
+            "turn": self.state.turn,
+            "qud": len(self.state.qud),
+            "referents": sorted(self.state.referents),
+            "common_ground": len(self.state.common_ground),
+            "memory_turns": self.memory.turns,
+        }
+
+    def _interpret(self, text: str):
         parse = self.parser.parse_one(text)
-        if parse is None:
+        if parse is not None:
+            return parse.sem, parse, "parser"
+        sem, fragment_id, reason = self.state.fragment(text)
+        if sem is not None:
+            return sem, None, "fragment:%s" % fragment_id
+        return None, None, reason
+
+    def _clarification(
+        self,
+        text: str,
+        parse: Optional[Parse],
+        source: str,
+        reason: str = "",
+    ) -> Turn:
+        reason = reason or source or "no_match"
+        if reason == "no_match":
             message = (
                 self.persona.parse_unknown
                 or self.persona.unknown
-                or "Не понял вопрос."
+                or "Не понял."
             )
-            return Turn(text, None, Answer("unknown", message, "parse"))
-        return Turn(text, parse, self.planner.plan(parse.sem))
+            answer = Answer("unknown", message, "parse")
+            self.state.push_turn(None, answer)
+            return Turn(
+                text, parse, answer, None, source, self.state_snapshot()
+            )
+        policy = self.catalog.state.get("clarifications") or {}
+        message = (
+            self.persona.clarify.get(reason)
+            or str(policy.get(reason) or "")
+            or self.persona.parse_unknown
+            or self.persona.unknown
+            or "Не понял."
+        )
+        answer = Answer("clarification", message, "state:%s" % reason)
+        self.state.push_turn(None, answer)
+        return Turn(text, parse, answer, None, source, self.state_snapshot())
 
 
 def _select_persona(

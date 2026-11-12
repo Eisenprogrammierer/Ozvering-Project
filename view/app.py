@@ -151,6 +151,8 @@ class App:
         self.selected_faction_id = None
         self.campaign_preset = None
         self.automata_campaign = None
+        self.dialogue_memory = None
+        self._dialogue_catalog_cache = None
         from .ui.music_manager import MusicManager
 
         self.music = MusicManager(
@@ -291,6 +293,7 @@ class App:
         self.selected_faction_id = None
         self.campaign_preset = None
         self.automata_campaign = None
+        self.dialogue_memory = None
         self.strategy = None
         self.strategy_config = None
         self.world = None
@@ -324,6 +327,7 @@ class App:
             "scenario_path", "scenarios/mvp.json"
         )
         self.pending_storyline_outcome = None
+        self.dialogue_memory = None
         state = build_world(
             scenario_path=self.scenario_path,
             content=self.content,
@@ -417,6 +421,7 @@ class App:
         self.world = None
         self.player_profile = None
         self.pending_storyline_outcome = None
+        self.dialogue_memory = None
         self.storyline_interpreter = StorylineInterpreter(self, storyline)
         interp = self.storyline_interpreter
         interp.set_variable("campaign_mode", "automata")
@@ -1048,12 +1053,57 @@ class App:
         )
         return len(results)
 
+    def _dialogue_catalog(self):
+        catalog = getattr(self, "_dialogue_catalog_cache", None)
+        if catalog is None:
+            from campaign.dialogue import load_dialogue
+
+            catalog = load_dialogue()
+            self._dialogue_catalog_cache = catalog
+        return catalog
+
+    def _dialogue_store(self):
+        store = getattr(self, "dialogue_memory", None)
+        if store is None:
+            from campaign.dialogue import DialogueMemoryStore
+
+            store = DialogueMemoryStore(self._dialogue_catalog().state)
+            self.dialogue_memory = store
+        return store
+
+    def _restore_dialogue_memory(self, snapshot):
+        from campaign.dialogue import DialogueMemoryStore
+
+        self.dialogue_memory = DialogueMemoryStore.from_dict(
+            self._dialogue_catalog().state, snapshot or {}
+        )
+
+    def dialogue_session(self, side, character_id=None):
+        """Создать сессию диалога с агентом стороны, помня прошлые беседы."""
+
+        campaign = getattr(self, "automata_campaign", None)
+        if campaign is None:
+            return None
+        from campaign.dialogue import DialogueSession, build_knowledge
+
+        catalog = self._dialogue_catalog()
+        knowledge = build_knowledge(catalog, campaign, side, character_id)
+        memory = self._dialogue_store().memory(
+            knowledge.speaker_id,
+            knowledge.run_id,
+            knowledge.clock,
+        )
+        return DialogueSession(catalog, knowledge, memory=memory)
+
     def _save_automata_game(self, slot_name, campaign):
         from view.support.save_system import save_game as do_save
 
         storyline_snapshot = None
         if self.storyline_interpreter is not None:
             storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
+        dialogue_snapshot = None
+        if self.dialogue_memory is not None:
+            dialogue_snapshot = self.dialogue_memory.to_dict()
         path = do_save(
             _AutomataSaveState(campaign.save_snapshot()),
             None,
@@ -1062,6 +1112,7 @@ class App:
             storyline_snapshot=storyline_snapshot,
             campaign_role=self.selected_role,
             campaign_preset=self.campaign_preset,
+            dialogue_snapshot=dialogue_snapshot,
         )
         logger.info(
             "Сохранение автоматов записано: слот=%s, ход=%d",
@@ -1149,6 +1200,11 @@ class App:
             storyline_snapshot=storyline_snapshot,
             campaign_role=self.selected_role,
             campaign_preset=self.campaign_preset,
+            dialogue_snapshot=(
+                self.dialogue_memory.to_dict()
+                if self.dialogue_memory is not None
+                else None
+            ),
         )
         logger.info("Сохранение записано: слот=%s", slot_name)
         return path
@@ -1174,6 +1230,7 @@ class App:
         scenario_path = snapshot.get("scenario_path", "scenarios/mvp.json")
         self.scenario_path = scenario_path
         self.pending_storyline_outcome = None
+        self._restore_dialogue_memory(snapshot.get("dialogue"))
         self.strategy = None
         self.strategy_config = None
         self.world = None

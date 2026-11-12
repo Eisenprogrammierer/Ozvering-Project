@@ -226,15 +226,32 @@ class Morphology:
         return result
 
     def gender_of(self, text: str) -> str:
-        """Род имени: явный признак лексикона или словарный разбор."""
+        """Род имени или именной группы по словарю.
 
-        tokens = str(text or "").split()
+        Сначала ищем личное имя, фамилию или отчество, затем вершину
+        именной группы. Возвращается краткий род (``m``, ``f``, ``n``);
+        если словарь не дал ответа — род по умолчанию.
+        """
+
+        tokens = [item for item in str(text or "").split() if item]
         if not tokens:
             return self.default_gender
-        parsed = self._morph.parse(tokens[-1])
-        if not parsed:
-            return self.default_gender
-        return self._tag_gender(parsed[0].tag) or self.default_gender
+        parsed = [self._morph.parse(token)[0] for token in tokens]
+        for item in parsed:
+            if self._is_name(item.tag):
+                gender = self._tag_gender(item.tag)
+                if gender:
+                    return _SHORT_GENDER.get(gender, gender)
+        for item in reversed(parsed):
+            if self._tag_pos(item.tag) == "NOUN":
+                gender = self._tag_gender(item.tag)
+                if gender:
+                    return _SHORT_GENDER.get(gender, gender)
+        for item in parsed:
+            gender = self._tag_gender(item.tag)
+            if gender:
+                return _SHORT_GENDER.get(gender, gender)
+        return self.default_gender
 
     def number_of(self, text: str) -> str:
         tokens = str(text or "").split()

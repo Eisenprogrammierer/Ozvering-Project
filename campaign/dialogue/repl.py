@@ -87,31 +87,36 @@ def _ask(
 ) -> int:
     turn = session.respond(text)
     answer = turn.answer
+    ok = turn.sem is not None
     if as_json:
         payload = {
             "input": text,
             "kind": answer.kind,
             "text": answer.text,
             "plan": answer.plan_id,
+            "source": turn.source,
             "proof": list(answer.proof[0].lines()) if answer.proof else [],
-            "sem": turn.parse.sem if turn.parse else None,
+            "sem": turn.sem,
         }
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0 if turn.parse else 2
+        print(
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+        )
+        return 0 if ok else 2
     print(answer.text)
     if debug:
-        if turn.parse is None:
-            print("[разбор не найден]")
+        print("[источник] %s" % turn.source)
+        if turn.sem is None:
+            print("[форма не восстановлена]")
         else:
             print("[план] %s" % answer.plan_id)
             print(
                 "[форма] "
-                + json.dumps(turn.parse.sem, ensure_ascii=False, sort_keys=True)
+                + json.dumps(turn.sem, ensure_ascii=False, sort_keys=True)
             )
             if answer.proof:
                 for line in answer.proof[0].lines():
                     print("[вывод] " + line)
-    return 0 if turn.parse else 2
+    return 0 if ok else 2
 
 
 if __name__ == "__main__":

@@ -375,6 +375,31 @@ def load_synthesis(path: Path) -> Mapping[str, Any]:
     return dict(raw)
 
 
+def load_state(path: Path) -> Mapping[str, Any]:
+    """Загрузить декларативную политику состояния диалога."""
+
+    raw = _mapping(_read_json(path), str(path))
+    for key in (
+        "pronouns",
+        "entity_resolution",
+        "referents",
+        "qud",
+        "question_intent",
+        "fragments",
+        "clarifications",
+        "memory",
+        "common_ground",
+    ):
+        value = raw.get(key)
+        if value is None:
+            continue
+        if key == "fragments":
+            _sequence(value, "state.fragments")
+        else:
+            _mapping(value, "state.%s" % key)
+    return dict(raw)
+
+
 def load_personas(path: Path) -> Dict[str, Persona]:
     raw = _mapping(_read_json(path), str(path))
     result: Dict[str, Persona] = {}
@@ -394,6 +419,12 @@ def load_personas(path: Path) -> Dict[str, Persona]:
             },
             unknown=str(data.get("unknown") or ""),
             parse_unknown=str(data.get("parse_unknown") or ""),
+            clarify={
+                str(name): str(text)
+                for name, text in _mapping(
+                    data.get("clarify", {}), where + ".clarify"
+                ).items()
+            },
             max_list_items=max(
                 1, int(data.get("max_list_items") or 20)
             ),
@@ -423,6 +454,7 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
     plans = load_plans(root / "plans.json")
     realization = load_realization(root / "realization.json")
     synthesis = load_synthesis(root / "synthesis.json")
+    state = load_state(root / "state.json")
     personas = load_personas(root / "personas.json")
     world = load_world(root / "world.json")
     raw = {
@@ -441,6 +473,10 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
             "statements": len(synthesis.get("statements") or {}),
             "phrases": len(synthesis.get("phrases") or {}),
         },
+        "state": {
+            "pronouns": len(state.get("pronouns") or {}),
+            "fragments": len(state.get("fragments") or ()),
+        },
         "personas": {"count": len(personas)},
     }
     return DialogueCatalog(
@@ -453,6 +489,7 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
         plans=plans,
         realization=realization,
         synthesis=synthesis,
+        state=state,
         personas=personas,
         world=world,
         raw=raw,

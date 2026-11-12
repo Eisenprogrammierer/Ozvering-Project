@@ -783,6 +783,174 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
             problems.append("persona %s: пустое parse_unknown" % key)
         if persona.max_list_items < 1:
             problems.append("persona %s: max_list_items < 1" % key)
+        for reason, text in (persona.clarify or {}).items():
+            if not str(text or "").strip():
+                problems.append(
+                    "persona %s: пустое clarify.%s" % (key, reason)
+                )
+    return problems
+
+
+def _state_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить политику QUD, референтов, эллипсиса и памяти."""
+
+    policy = catalog.state or {}
+    problems: List[str] = []
+    if not policy:
+        return ["state: пусто"]
+    pronouns = policy.get("pronouns") or {}
+    if not isinstance(pronouns, Mapping) or not pronouns:
+        problems.append("state.pronouns: пусто")
+    else:
+        for key, item in pronouns.items():
+            data = item if isinstance(item, Mapping) else {}
+            if not data:
+                problems.append("state.pronouns.%s: ожидался объект" % key)
+                continue
+            gender = str(data.get("gender") or "")
+            if gender and gender not in ("m", "f", "n", "pl"):
+                problems.append(
+                    "state.pronouns.%s: неизвестный род %r" % (key, gender)
+                )
+            number = str(data.get("number") or "")
+            if number and number not in ("sg", "pl"):
+                problems.append(
+                    "state.pronouns.%s: неизвестное число %r"
+                    % (key, number)
+                )
+    referents = policy.get("referents") or {}
+    if not isinstance(referents, Mapping):
+        problems.append("state.referents: ожидался объект")
+        referents = {}
+    try:
+        if int(referents.get("max_active", 0)) < 1:
+            problems.append("state.referents.max_active: должно быть > 0")
+    except (TypeError, ValueError):
+        problems.append("state.referents.max_active: ожидалось число")
+    types = set(catalog.ontology.entity_types)
+    for type_name in (referents.get("type_gender") or {}):
+        if str(type_name) not in types:
+            problems.append(
+                "state.referents.type_gender.%s: нет такого типа"
+                % type_name
+            )
+    qud = policy.get("qud") or {}
+    for source in qud.get("base_order") or ():
+        if str(source) not in ("qud", "last_sem"):
+            problems.append(
+                "state.qud.base_order: неизвестный источник %r" % source
+            )
+    known_relations = set(_relations(catalog))
+    memory = policy.get("memory") or {}
+    for section in ("significant", "pins"):
+        for relation in (memory.get(section) or {}).get("relations") or ():
+            if str(relation) not in known_relations:
+                problems.append(
+                    "state.memory.%s.relations: %r не объявлено"
+                    % (section, relation)
+                )
+    for type_name in (memory.get("pins") or {}).get("types") or ():
+        if str(type_name) not in types:
+            problems.append(
+                "state.memory.pins.types: неизвестный тип %r" % type_name
+            )
+    limits = memory.get("limits") or {}
+    for name, value in limits.items():
+        try:
+            if int(value) < 1:
+                problems.append(
+                    "state.memory.limits.%s: должно быть > 0" % name
+                )
+        except (TypeError, ValueError):
+            problems.append(
+                "state.memory.limits.%s: ожидалось число" % name
+            )
+    kinds = {"pronoun", "entity", "noun"}
+    fragments = policy.get("fragments") or ()
+    if not isinstance(fragments, (list, tuple)) or not fragments:
+        problems.append("state.fragments: пусто")
+        fragments = ()
+    seen: set = set()
+    for index, item in enumerate(fragments):
+        data = item if isinstance(item, Mapping) else {}
+        where = "state.fragments[%d]" % index
+        if not data:
+            problems.append("%s: ожидался объект" % where)
+            continue
+        identifier = str(data.get("id") or "").strip()
+        if not identifier:
+            problems.append("%s: пустой id" % where)
+            continue
+        if identifier in seen:
+            problems.append("%s: повтор id %r" % (where, identifier))
+        seen.add(identifier)
+        where = "state.fragments.%s" % identifier
+        tokens = data.get("tokens") or ()
+        if not isinstance(tokens, (list, tuple)) or not tokens:
+            problems.append("%s.tokens: пусто" % where)
+            continue
+        slots: Set[str] = set()
+        for token in tokens:
+            if isinstance(token, str):
+                continue
+            spec = token if isinstance(token, Mapping) else {}
+            if not spec:
+                problems.append(
+                    "%s.tokens: ожидалась строка или объект" % where
+                )
+                continue
+            if "any" in spec:
+                values = spec.get("any") or ()
+                if not isinstance(values, (list, tuple)) or not values:
+                    problems.append("%s.tokens.any: пусто" % where)
+                continue
+            slot = str(spec.get("slot") or "").strip()
+            kind = str(spec.get("kind") or "entity")
+            if not slot:
+                problems.append("%s.tokens: пустой slot" % where)
+                continue
+            if slot in slots:
+                problems.append("%s.tokens: повтор слота %r" % (where, slot))
+            slots.add(slot)
+            if kind not in kinds:
+                problems.append(
+                    "%s.tokens.%s: неизвестный вид %r"
+                    % (where, slot, kind)
+                )
+        describe = data.get("describe")
+        if describe is not None:
+            reference = str(describe)
+            if not reference.startswith("$") or reference[1:] not in slots:
+                problems.append(
+                    "%s.describe: ссылка %r не на слот"
+                    % (where, describe)
+                )
+        for edit_index, edit in enumerate(data.get("edits") or ()):
+            edit_where = "%s.edits[%d]" % (where, edit_index)
+            spec = edit if isinstance(edit, Mapping) else {}
+            if not spec:
+                problems.append("%s: ожидался объект" % edit_where)
+                continue
+            paths = spec.get("paths")
+            if paths is None:
+                path = str(spec.get("path") or "").strip()
+                if not path:
+                    problems.append("%s: пустой path" % edit_where)
+            elif not isinstance(paths, (list, tuple)) or not paths:
+                problems.append("%s.paths: пусто" % edit_where)
+            value = spec.get("value")
+            if value is None:
+                problems.append("%s: пустое value" % edit_where)
+            elif isinstance(value, str) and value.startswith("$"):
+                if value[1:] not in slots:
+                    problems.append(
+                        "%s.value: ссылка %r не на слот"
+                        % (edit_where, value)
+                    )
+    clarifications = policy.get("clarifications") or {}
+    for reason in ("no_qud", "no_referent", "no_entity", "no_match"):
+        if not str(clarifications.get(reason) or "").strip():
+            problems.append("state.clarifications.%s: пусто" % reason)
     return problems
 
 
@@ -832,6 +1000,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_synthesis_problems(catalog, known))
     problems.extend(_world_problems(catalog))
     problems.extend(_persona_problems(catalog))
+    problems.extend(_state_problems(catalog))
     return problems
 
 

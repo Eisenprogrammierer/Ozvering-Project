@@ -8,7 +8,7 @@ from .log_journal import get_logger
 logger = get_logger("view.save")
 ROOT = Path(__file__).resolve().parents[2]
 SAVES_DIR = ROOT / "saves" / "campaign"
-SAVE_VERSION = 2
+SAVE_VERSION = 3
 
 
 def _migrate_v1_to_v2(data):
@@ -28,6 +28,20 @@ def _migrate_v1_to_v2(data):
     return data
 
 
+def _migrate_v2_to_v3(data):
+    """Миграция 2 → 3: память диалога партии.
+
+    Память необязательна: старые сейвы получают пустой контейнер, а
+    новая игра начинает разговор с чистого листа. Память привязана к
+    сейву, поэтому чужие партии её не видят.
+    """
+    dialogue = data.get("dialogue")
+    if not isinstance(dialogue, dict):
+        dialogue = {}
+    data["dialogue"] = dialogue
+    return data
+
+
 def _ensure_containers(data):
     """Гарантировать контейнеры текущей версии даже у свежего сейва."""
     campaign = data.get("campaign")
@@ -36,11 +50,14 @@ def _ensure_containers(data):
     campaign.setdefault("node_strategy_state", {})
     campaign.setdefault("environment_plan", {})
     data["campaign"] = campaign
+    if not isinstance(data.get("dialogue"), dict):
+        data["dialogue"] = {}
     return data
 
 
 MIGRATIONS = {
     1: _migrate_v1_to_v2,
+    2: _migrate_v2_to_v3,
 }
 
 COMPATIBLE_MODES = ("automata", "strategy", "world")
@@ -154,6 +171,7 @@ def save_game(
     storyline_snapshot=None,
     campaign_role=None,
     campaign_preset=None,
+    dialogue_snapshot=None,
 ):
     _ensure_dir()
     payload = {
@@ -167,6 +185,11 @@ def save_game(
         "storyline": storyline_snapshot,
         "campaign_role": _jsonable(campaign_role),
         "campaign_preset": _jsonable(campaign_preset),
+        "dialogue": (
+            dialogue_snapshot
+            if isinstance(dialogue_snapshot, dict)
+            else {}
+        ),
     }
     payload = _ensure_containers(payload)
     path = _path(slot_name)

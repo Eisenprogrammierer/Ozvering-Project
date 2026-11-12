@@ -64,6 +64,8 @@ class AgentKnowledge:
         speaker_id: str,
         speaker_name: str,
         world: Mapping[str, Any],
+        clock: int = 0,
+        run_id: str = "",
     ):
         self.catalog = catalog
         self.facts = tuple(facts)
@@ -73,6 +75,8 @@ class AgentKnowledge:
         self.speaker_id = speaker_id
         self.speaker_name = speaker_name
         self.world = world
+        self.clock = clock
+        self.run_id = run_id or "campaign"
         self._by_rel: Dict[str, List[Fact]] = {}
         for fact in self.facts:
             self._by_rel.setdefault(fact.rel, []).append(fact)
@@ -432,7 +436,38 @@ def build_knowledge(
         speaker_id=speaker_id,
         speaker_name=speaker_name,
         world=world,
+        clock=_clock(campaign),
+        run_id=_run_id(campaign),
     )
+
+
+def _clock(campaign: Any) -> int:
+    """Игровое время для памяти: день мира, иначе ход кампании."""
+
+    for name in ("day", "turn"):
+        value = getattr(campaign, name, None)
+        if value is None:
+            continue
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            continue
+    world = getattr(campaign, "world", None)
+    value = getattr(world, "day", None)
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _run_id(campaign: Any) -> str:
+    """Идентификатор партии: пресет и зерно, без привязки к сюжету."""
+
+    preset = _text(getattr(campaign, "preset_id", ""))
+    seed = _text(getattr(campaign, "seed", ""))
+    if preset or seed:
+        return "campaign:%s:%s" % (preset, seed)
+    return "campaign"
 
 
 def _leader(faction: Any) -> Any:
