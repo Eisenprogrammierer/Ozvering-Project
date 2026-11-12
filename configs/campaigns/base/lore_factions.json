@@ -621,6 +621,279 @@
             "target": "self",
             "essence": "repair"
           }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.1,
+          "cost": {
+            "supply": 0.06,
+            "influence": 0.03
+          },
+          "ai_priority": 1.05,
+          "cooldown": 3,
+          "id": "siege_operation",
+          "label": "Осадить узел",
+          "organ_id": "artillery",
+          "form": "coercion",
+          "effects": {
+            "self": {
+              "fear": 0.02
+            },
+            "target": {
+              "supply": -0.06,
+              "cohesion": -0.03
+            },
+            "needs": {
+              "target": {
+                "fatigue": 0.02,
+                "fear": 0.01
+              }
+            },
+            "text": "Осада не берёт город штурмом: она отрезает его от воды, хлеба и новостей."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.04
+            },
+            "text": "Осада затянулась; гарнизон получает помощь, а имперские части тратят запас."
+          },
+          "essence": "besiege",
+          "intention": {
+            "target": "rival",
+            "essence": "besiege"
+          },
+          "requires": {
+            "min_turn": 2,
+            "self": {
+              "supply": {
+                "min": 0.25
+              }
+            }
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.05,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.05
+          },
+          "ai_priority": 1.1,
+          "cooldown": 2,
+          "id": "myth_campaign",
+          "label": "Кампания о непобедимости",
+          "organ_id": "propaganda",
+          "form": "information",
+          "effects": {
+            "self": {
+              "legitimacy": 0.02
+            },
+            "target": {
+              "legitimacy": -0.04,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "doubts_myth",
+                    "value": 0.7
+                  }
+                ]
+              }
+            },
+            "text": "Миф о непобедимости дешевле новой дивизии: он заставляет сомневаться до первого выстрела."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Кампания звучит как заклинание; общество замечает разрыв между словом и фронтом."
+          },
+          "essence": "legitimize",
+          "intention": {
+            "target": "self",
+            "essence": "legitimize"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "supply": 0.03
+          },
+          "ai_priority": 0.7,
+          "cooldown": 3,
+          "id": "guard_parade",
+          "label": "Провести парад гвардии",
+          "organ_id": "guard",
+          "form": "information",
+          "effects": {
+            "self": {
+              "cohesion": 0.03,
+              "fear": 0.02,
+              "legitimacy": 0.01
+            },
+            "needs": {
+              "self": {
+                "status": 0.02
+              }
+            },
+            "text": "Парад не меняет баланс сил, но меняет то, как его видят свои и чужие."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            },
+            "text": "Парад вышел дорогим и пустым; гвардия устала маршировать, а миф не вырос."
+          },
+          "essence": "demonstrate",
+          "intention": {
+            "target": "self",
+            "essence": "demonstrate"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.15,
+          "slope": 1.2,
+          "cost": {
+            "influence": 0.05,
+            "legitimacy": 0.02
+          },
+          "ai_priority": 0.75,
+          "cooldown": 3,
+          "id": "officer_purge",
+          "label": "Провести чистку офицерского корпуса",
+          "organ_id": "justice",
+          "form": "coercion",
+          "max_uses": 2,
+          "effects": {
+            "self": {
+              "cohesion": 0.03,
+              "fear": 0.03,
+              "subfactions": {
+                "orthodox": {
+                  "assets": {
+                    "influence": 0.02
+                  }
+                },
+                "revisionist": {
+                  "assets": {
+                    "grievance": 0.04
+                  }
+                }
+              }
+            },
+            "needs": {
+              "self": {
+                "fear": 0.02
+              }
+            },
+            "text": "Чистка делает штаб послушным, но каждый уволенный офицер становится чьим-то аргументом."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.04,
+              "legitimacy": -0.02
+            },
+            "text": "Чистка вышла шире списка; офицеры перестают отличать приказ от доноса."
+          },
+          "essence": "purge",
+          "intention": {
+            "target": "self",
+            "essence": "purge"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.35,
+          "slope": 1.0,
+          "cost": {
+            "energy": 0.03
+          },
+          "ai_priority": 0.65,
+          "cooldown": 2,
+          "id": "cipher_protection",
+          "label": "Защитить шифры",
+          "organ_id": "cyber",
+          "form": "provision",
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "influence": 0.02,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_secret",
+                    "value": 1.0
+                  }
+                ]
+              }
+            },
+            "text": "Шифры меняют не потому, что их взломали, а потому, что кто-то мог их читать."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Новая схема не прижилась; штаб вернулся к старым ключам и старым привычкам."
+          },
+          "essence": "encrypt",
+          "intention": {
+            "target": "self",
+            "essence": "encrypt"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "morale",
+          "defense_asset": "morale",
+          "base": 0.35,
+          "slope": 0.9,
+          "cost": {
+            "supply": 0.04
+          },
+          "ai_priority": 0.7,
+          "cooldown": 2,
+          "id": "church_hospitals",
+          "label": "Открыть церковные госпитали",
+          "organ_id": "cathedral",
+          "form": "care",
+          "effects": {
+            "self": {
+              "morale": 0.04,
+              "legitimacy": 0.02,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "health": -0.02,
+                "fear": -0.02
+              }
+            },
+            "text": "Госпиталь при соборе лечит всех, но запоминает, кто пришёл благодарить."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03
+            },
+            "text": "Лекарств не хватило; собор обещал милосердие, а выдал очередь."
+          },
+          "essence": "charity",
+          "intention": {
+            "target": "self",
+            "essence": "charity"
+          }
         }
       ],
       "income": {
@@ -1448,6 +1721,279 @@
             "target": "self",
             "essence": "evacuate"
           }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.0,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.04,
+            "energy": 0.03
+          },
+          "ai_priority": 1.05,
+          "cooldown": 2,
+          "id": "rights_documentation",
+          "label": "Документировать преступления",
+          "organ_id": "rights",
+          "form": "information",
+          "effects": {
+            "self": {
+              "legitimacy": 0.02
+            },
+            "target": {
+              "legitimacy": -0.04,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_outlaw",
+                    "value": 0.8
+                  }
+                ]
+              }
+            },
+            "text": "Каждый протокол и каждая фотография превращают спор о войне в спор о вине."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Документы признали тенденциозными; суд становится ещё одной площадкой пропаганды."
+          },
+          "essence": "expose",
+          "intention": {
+            "target": "rival",
+            "essence": "expose"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.2,
+          "slope": 1.1,
+          "cost": {
+            "influence": 0.05
+          },
+          "ai_priority": 1.0,
+          "cooldown": 3,
+          "id": "constitutional_reform",
+          "label": "Провести конституционную реформу",
+          "organ_id": "parliament",
+          "form": "meaning",
+          "effects": {
+            "self": {
+              "legitimacy": 0.03,
+              "cohesion": 0.02,
+              "subfactions": {
+                "moderate": {
+                  "assets": {
+                    "influence": 0.03
+                  },
+                  "share": 0.01
+                },
+                "orthodox": {
+                  "assets": {
+                    "grievance": 0.03
+                  }
+                }
+              }
+            },
+            "needs": {
+              "self": {
+                "anxiety": -0.02
+              }
+            },
+            "text": "Реформа не решает конфликт, но меняет правила, по которым его будут вести."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.02
+            },
+            "text": "Поправки утонули в комитетах; и сторонники, и противники увидели цену процедуры."
+          },
+          "essence": "reform",
+          "intention": {
+            "target": "self",
+            "essence": "reform"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.2,
+          "cost": {
+            "energy": 0.04,
+            "influence": 0.03
+          },
+          "ai_priority": 0.95,
+          "cooldown": 2,
+          "id": "electronic_warfare",
+          "label": "Провести радиоэлектронную борьбу",
+          "organ_id": "cyber",
+          "form": "coercion",
+          "effects": {
+            "self": {
+              "influence": 0.02
+            },
+            "target": {
+              "cohesion": -0.04,
+              "supply": -0.02
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Связь противника начинает слышать собственный шум: приказы приходят позже, чем обстановка меняется."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Помехи ударили по своим каналам; наступление захлебнулось в недоразумениях."
+          },
+          "essence": "intercept",
+          "intention": {
+            "target": "rival",
+            "essence": "intercept"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.1,
+          "cost": {
+            "supply": 0.05
+          },
+          "ai_priority": 1.0,
+          "cooldown": 2,
+          "id": "tank_raid",
+          "label": "Провести танковый рейд",
+          "organ_id": "field_corps",
+          "form": "coercion",
+          "effects": {
+            "self": {
+              "fear": 0.02
+            },
+            "target": {
+              "supply": -0.05,
+              "cohesion": -0.03
+            },
+            "text": "Рейд не удерживает территорию: он заставляет противника тратить силы на её поиск."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03
+            },
+            "text": "Колонна попала в засаду; рейд стал примером того, как не надо экономить на разведке."
+          },
+          "essence": "raid",
+          "intention": {
+            "target": "rival",
+            "essence": "raid"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.1,
+          "slope": 1.4,
+          "cost": {
+            "influence": 0.03
+          },
+          "ai_priority": 0.75,
+          "cooldown": 3,
+          "id": "negotiation_offer",
+          "label": "Предложить переговоры",
+          "organ_id": "diplomacy",
+          "form": "negotiation",
+          "effects": {
+            "self": {
+              "legitimacy": 0.02
+            },
+            "target": {
+              "legitimacy": 0.01,
+              "cohesion": 0.01
+            },
+            "needs": {
+              "target": {
+                "anxiety": -0.01
+              }
+            },
+            "text": "Предложение переговоров не заканчивает войну, но заставляет противника объяснять, почему он от неё отказывается."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.01
+            },
+            "text": "Инициативу сочли слабостью; внутри коалиции снова заговорили о предательстве."
+          },
+          "essence": "negotiate",
+          "intention": {
+            "target": "rival",
+            "essence": "negotiate"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.2,
+          "slope": 1.2,
+          "cost": {
+            "influence": 0.04
+          },
+          "ai_priority": 0.9,
+          "cooldown": 3,
+          "id": "emergency_powers",
+          "label": "Взять чрезвычайные полномочия",
+          "organ_id": "general_staff",
+          "form": "provision",
+          "max_uses": 2,
+          "effects": {
+            "self": {
+              "cohesion": 0.03,
+              "legitimacy": -0.01,
+              "subfactions": {
+                "revisionist": {
+                  "assets": {
+                    "influence": 0.03
+                  },
+                  "share": 0.02
+                },
+                "moderate": {
+                  "assets": {
+                    "grievance": 0.03
+                  }
+                }
+              }
+            },
+            "needs": {
+              "self": {
+                "anxiety": 0.02
+              }
+            },
+            "text": "Полномочия дают скорость, но каждая чрезвычайная мера становится прецедентом."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.03,
+              "cohesion": -0.01
+            },
+            "text": "Парламент отказал; сторонники увидели, что процедура сильнее их страха."
+          },
+          "essence": "centralize",
+          "intention": {
+            "target": "self",
+            "essence": "centralize"
+          }
         }
       ],
       "income": {
@@ -2208,6 +2754,269 @@
             ]
           },
           "essence": "defend"
+        },
+        {
+          "target": "rival",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.05,
+          "slope": 2.0,
+          "cost": {
+            "energy": 0.04,
+            "influence": 0.02
+          },
+          "ai_priority": 1.0,
+          "cooldown": 2,
+          "id": "underground_printing",
+          "label": "Запустить подпольную типографию",
+          "organ_id": "printing",
+          "form": "information",
+          "effects": {
+            "self": {
+              "cohesion": 0.02
+            },
+            "target": {
+              "cohesion": -0.03,
+              "legitimacy": -0.02,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "doubts_myth",
+                    "value": 0.6
+                  }
+                ]
+              }
+            },
+            "text": "Типография печатает не правду, а вопросы, на которые государство не хочет отвечать."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Тираж перехвачен; культ получил ещё одну историю о том, как власть боится бумаги."
+          },
+          "essence": "disinform",
+          "intention": {
+            "target": "rival",
+            "essence": "disinform"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "legitimacy",
+          "defense_asset": "legitimacy",
+          "base": 0.25,
+          "slope": 1.1,
+          "cost": {
+            "supply": 0.03
+          },
+          "ai_priority": 0.7,
+          "cooldown": 3,
+          "id": "relic_procession",
+          "label": "Провести процессию реликвий",
+          "organ_id": "rites",
+          "form": "meaning",
+          "effects": {
+            "self": {
+              "legitimacy": 0.02,
+              "cohesion": 0.03,
+              "morale": 0.02
+            },
+            "needs": {
+              "self": {
+                "spirituality": 0.02
+              }
+            },
+            "text": "Реликвия проходит по улицам, и город на время вспоминает, что у него есть душа."
+          },
+          "failure": {
+            "self": {
+              "morale": -0.01
+            },
+            "text": "Процессия собрала меньше людей, чем ждали; вера не терпит расписания."
+          },
+          "essence": "ritualize",
+          "intention": {
+            "target": "self",
+            "essence": "ritualize"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.25,
+          "slope": 1.1,
+          "cost": {
+            "supply": 0.03
+          },
+          "ai_priority": 0.8,
+          "cooldown": 2,
+          "id": "shelter_network",
+          "label": "Развернуть сеть убежищ",
+          "organ_id": "communities",
+          "form": "care",
+          "effects": {
+            "self": {
+              "cohesion": 0.03,
+              "supply": 0.02
+            },
+            "needs": {
+              "self": {
+                "loneliness": -0.03,
+                "fear": -0.02
+              }
+            },
+            "text": "Убежище не спрашивает, во что ты веришь, но помнит, кто открыл дверь."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            },
+            "text": "Убежища переполнены; община снова считает, кого пускать первым."
+          },
+          "essence": "shelter",
+          "intention": {
+            "target": "self",
+            "essence": "shelter"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "legitimacy",
+          "base": -0.05,
+          "slope": 2.0,
+          "cost": {
+            "energy": 0.04
+          },
+          "ai_priority": 0.85,
+          "cooldown": 3,
+          "id": "apocalyptic_prophecy",
+          "label": "Произнести апокалиптическое пророчество",
+          "organ_id": "preaching",
+          "form": "meaning",
+          "max_uses": 2,
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "fear": 0.02
+            },
+            "target": {
+              "fear": 0.04,
+              "legitimacy": -0.03
+            },
+            "needs": {
+              "target": {
+                "anxiety": 0.03,
+                "fear": 0.02
+              }
+            },
+            "text": "Пророчество не обещает спасения: оно обещает, что счёт уже предъявлен."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Слова прозвучали как политический лозунг; даже община устала от конца света."
+          },
+          "essence": "radicalize",
+          "intention": {
+            "target": "rival",
+            "essence": "radicalize"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": -0.1,
+          "slope": 2.3,
+          "cost": {
+            "influence": 0.04,
+            "energy": 0.03
+          },
+          "ai_priority": 0.8,
+          "cooldown": 3,
+          "id": "convert_officer",
+          "label": "Обратить офицера",
+          "organ_id": "agents",
+          "form": "recruitment",
+          "effects": {
+            "self": {
+              "influence": 0.03
+            },
+            "target": {
+              "cohesion": -0.03,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_disillusioned",
+                    "value": 0.6
+                  }
+                ]
+              }
+            },
+            "text": "Офицер не переходит на сторону культа — он просто начинает сомневаться в приказе."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Офицер оказался убеждённее, чем думали; вербовщик попал под наблюдение."
+          },
+          "essence": "convert",
+          "intention": {
+            "target": "rival",
+            "essence": "convert"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "cohesion",
+          "defense_asset": "cohesion",
+          "base": 0.3,
+          "slope": 1.0,
+          "cost": {
+            "energy": 0.03
+          },
+          "ai_priority": 0.6,
+          "cooldown": 3,
+          "id": "catacomb_archive",
+          "label": "Собрать катакомбный архив",
+          "organ_id": "scriptorium",
+          "form": "knowledge",
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "influence": 0.02,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_secret",
+                    "value": 1.0
+                  }
+                ]
+              }
+            },
+            "needs": {
+              "self": {
+                "knowledge": 0.02
+              }
+            },
+            "text": "Архив хранит не только тексты, но и имена тех, кто их переписывал."
+          },
+          "failure": {
+            "self": {
+              "cohesion": -0.02
+            },
+            "text": "Часть архива утрачена; спор о том, что важнее сохранить, расколол скрипториум."
+          },
+          "essence": "encrypt",
+          "intention": {
+            "target": "self",
+            "essence": "encrypt"
+          }
         }
       ],
       "income": {
@@ -2955,6 +3764,262 @@
           "intention": {
             "target": "self",
             "essence": "repair"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "influence",
+          "defense_asset": "legitimacy",
+          "base": 0.1,
+          "slope": 1.8,
+          "cost": {
+            "supply": 0.04,
+            "influence": 0.02
+          },
+          "ai_priority": 0.95,
+          "cooldown": 2,
+          "id": "buy_silence",
+          "label": "Купить молчание",
+          "organ_id": "agents",
+          "form": "exchange",
+          "effects": {
+            "self": {
+              "influence": 0.02
+            },
+            "target": {
+              "legitimacy": -0.02,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_compromised",
+                    "value": 0.7
+                  }
+                ]
+              }
+            },
+            "text": "Молчание покупается не приказом, а счётом, который становится неудобно показывать."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Собеседник оказался честнее цены; планета потеряла и деньги, и лицо."
+          },
+          "essence": "bribe",
+          "intention": {
+            "target": "rival",
+            "essence": "bribe"
+          }
+        },
+        {
+          "target": "strongest",
+          "attack_asset": "influence",
+          "defense_asset": "cohesion",
+          "base": 0.0,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.04
+          },
+          "ai_priority": 0.9,
+          "cooldown": 2,
+          "id": "blackmail_operation",
+          "label": "Провести шантаж",
+          "organ_id": "intelligence",
+          "form": "information",
+          "effects": {
+            "self": {
+              "influence": 0.03
+            },
+            "target": {
+              "cohesion": -0.04,
+              "legitimacy": -0.02,
+              "beliefs": {
+                "add": [
+                  {
+                    "predicate": "is_compromised",
+                    "value": 0.8
+                  }
+                ]
+              }
+            },
+            "text": "Шантаж работает, пока жертва верит, что цена раскрытия выше цены уступки."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02
+            },
+            "text": "Компромат оказался известен заранее; теперь шантажист выглядит слабым."
+          },
+          "essence": "blackmail",
+          "intention": {
+            "target": "rival",
+            "essence": "blackmail"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": -0.05,
+          "slope": 2.0,
+          "cost": {
+            "influence": 0.04,
+            "supply": 0.03
+          },
+          "ai_priority": 1.0,
+          "cooldown": 2,
+          "id": "close_channel",
+          "label": "Наложить санкции на канал",
+          "organ_id": "diplomacy",
+          "form": "negotiation",
+          "effects": {
+            "self": {
+              "influence": 0.02
+            },
+            "target": {
+              "supply": -0.05,
+              "cohesion": -0.02
+            },
+            "needs": {
+              "target": {
+                "hunger": 0.02,
+                "fatigue": 0.01
+              }
+            },
+            "text": "Санкции не перекрывают поток — они делают каждую поставку дороже и заметнее."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.03
+            },
+            "text": "Канал обошли через посредников; санкции ударили по собственной репутации."
+          },
+          "essence": "sanction",
+          "intention": {
+            "target": "rival",
+            "essence": "sanction"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "supply",
+          "defense_asset": "supply",
+          "base": 0.35,
+          "slope": 1.0,
+          "cost": {
+            "influence": 0.02
+          },
+          "ai_priority": 0.8,
+          "cooldown": 2,
+          "id": "warehouse_reserves",
+          "label": "Собрать складские резервы",
+          "organ_id": "warehouses",
+          "form": "provision",
+          "effects": {
+            "self": {
+              "supply": 0.04,
+              "cohesion": 0.02
+            },
+            "needs": {
+              "self": {
+                "hunger": -0.02
+              }
+            },
+            "text": "Резерв не приносит прибыли, пока не начнётся день, когда всё остальное перестанет работать."
+          },
+          "failure": {
+            "self": {
+              "supply": -0.02
+            },
+            "text": "Часть запасов испортилась; экономия обернулась списанием."
+          },
+          "essence": "hoard",
+          "intention": {
+            "target": "self",
+            "essence": "hoard"
+          }
+        },
+        {
+          "target": "self",
+          "attack_asset": "influence",
+          "defense_asset": "influence",
+          "base": 0.25,
+          "slope": 1.1,
+          "cost": {
+            "supply": 0.03
+          },
+          "ai_priority": 0.75,
+          "cooldown": 2,
+          "id": "insurance_scheme",
+          "label": "Запустить страховую схему",
+          "organ_id": "finance",
+          "form": "exchange",
+          "effects": {
+            "self": {
+              "influence": 0.03,
+              "legitimacy": 0.02,
+              "supply": 0.01
+            },
+            "needs": {
+              "self": {
+                "anxiety": -0.02
+              }
+            },
+            "text": "Страхование продаёт не безопасность, а право не думать о потере каждый день."
+          },
+          "failure": {
+            "self": {
+              "influence": -0.02
+            },
+            "text": "Схему сочли игрой на чужом страхе; доверие к финансовому ведомству упало."
+          },
+          "essence": "insure",
+          "intention": {
+            "target": "self",
+            "essence": "insure"
+          }
+        },
+        {
+          "target": "rival",
+          "attack_asset": "fear",
+          "defense_asset": "cohesion",
+          "base": -0.05,
+          "slope": 2.1,
+          "cost": {
+            "supply": 0.05
+          },
+          "ai_priority": 0.85,
+          "cooldown": 3,
+          "id": "mercenary_contract",
+          "label": "Нанять наёмный контракт",
+          "organ_id": "security",
+          "form": "coercion",
+          "effects": {
+            "self": {
+              "cohesion": 0.02,
+              "fear": 0.02
+            },
+            "target": {
+              "cohesion": -0.04
+            },
+            "needs": {
+              "target": {
+                "fear": 0.02
+              }
+            },
+            "text": "Наёмники не спрашивают, за что воюют; они спрашивают, когда платят."
+          },
+          "failure": {
+            "self": {
+              "legitimacy": -0.02,
+              "supply": -0.02
+            },
+            "text": "Контракт сорван; наёмники ушли, оставив после себя вопросы и долги."
+          },
+          "essence": "defend",
+          "intention": {
+            "target": "rival",
+            "essence": "defend"
           }
         }
       ],

@@ -1422,6 +1422,18 @@
     "celebrate": {
       "label": "отпраздновать",
       "need": "status"
+    },
+    "disinform": {
+      "label": "дезинформировать",
+      "need": "knowledge"
+    },
+    "radicalize": {
+      "label": "радикализовать",
+      "need": "fear"
+    },
+    "protect": {
+      "label": "защитить",
+      "need": "health"
     }
   },
   "decision": {
