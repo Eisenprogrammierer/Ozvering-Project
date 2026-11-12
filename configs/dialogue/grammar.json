@@ -1,0 +1,353 @@
+{
+  "schema": 1,
+  "start": "S",
+  "rules": [
+    {
+      "id": "np_noun",
+      "lhs": "NP",
+      "rhs": [{"cat": "N", "as": "head"}],
+      "head": "head",
+      "sem": {"kind": "np", "head": "$head"}
+    },
+    {
+      "id": "np_adj_noun",
+      "lhs": "NP",
+      "rhs": [
+        {"cat": "ADJ", "as": "mod"},
+        {"cat": "N", "as": "head"}
+      ],
+      "head": "head",
+      "sem": {"kind": "np", "head": "$head", "modifiers": ["$mod"]}
+    },
+    {
+      "id": "np_pronoun",
+      "lhs": "NP",
+      "rhs": [{"cat": "PRON", "as": "head"}],
+      "head": "head",
+      "sem": {"kind": "np", "head": "$head"}
+    },
+    {
+      "id": "pp_prep_np",
+      "lhs": "PP",
+      "rhs": [
+        {"cat": "P", "as": "prep"},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "pp", "prep": "$prep", "object": "$object"}
+    },
+    {
+      "id": "s_assert_np_v",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "V", "as": "verb"}
+      ],
+      "sem": {"kind": "assert", "predicate": "$verb", "subject": "$subj"}
+    },
+    {
+      "id": "s_assert_np_v_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_assert_np_v_np_adj",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"},
+        {"cat": "ADJ", "as": "value"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj",
+        "value": "$value"
+      }
+    },
+    {
+      "id": "s_assert_np_v_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "PP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_assert_np_cop_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "COP", "as": "cop"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "copula": true,
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_assert_np_have_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "HAVE", "as": "have"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "have": true,
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_assert_np_have_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "HAVE", "as": "have"},
+        {"cat": "PP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "have": true,
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_yesno_v_part_np_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb"},
+        {"cat": "PART", "as": "part"},
+        {"cat": "NP", "as": "subj"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "predicate": "$verb",
+          "subject": "$subj",
+          "object": "$obj"
+        }
+      }
+    },
+    {
+      "id": "s_yesno_v_part_np_np_adj",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb"},
+        {"cat": "PART", "as": "part"},
+        {"cat": "NP", "as": "subj"},
+        {"cat": "NP", "as": "obj"},
+        {"cat": "ADJ", "as": "value"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "predicate": "$verb",
+          "subject": "$subj",
+          "object": "$obj",
+          "value": "$value"
+        }
+      }
+    },
+    {
+      "id": "s_yesno_have_part_pp_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "HAVE", "as": "have"},
+        {"cat": "PART", "as": "part"},
+        {"cat": "PP", "as": "owner"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "yesno",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "owner": "$owner",
+          "object": "$obj"
+        }
+      }
+    },
+    {
+      "id": "s_wh_s",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {"kind": "question", "wh": "$wh", "body": "$body"}
+    },
+    {
+      "id": "s_wh_cop_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COP", "as": "cop"},
+        {"cat": "NP", "as": "subj"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {"kind": "assert", "copula": true, "subject": "$subj"}
+      }
+    },
+    {
+      "id": "s_wh_np_have_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "NP", "as": "obj"},
+        {"cat": "HAVE", "as": "have"},
+        {"cat": "PP", "as": "owner"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": "$obj",
+          "owner": "$owner"
+        }
+      }
+    },
+    {
+      "id": "s_wh_np_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "NP", "as": "obj"},
+        {"cat": "PP", "as": "owner"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {
+          "kind": "quantity",
+          "object": "$obj",
+          "owner": "$owner"
+        }
+      }
+    },
+    {
+      "id": "s_wh_v_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {
+          "kind": "assert",
+          "predicate": "$verb",
+          "object": "$obj"
+        }
+      }
+    },
+    {
+      "id": "s_wh_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "NP", "as": "topic"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {"kind": "topic", "topic": "$topic"}
+      }
+    },
+    {
+      "id": "s_wh_pron_v_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "PRON", "as": "subj"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "PP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "question",
+        "wh": "$wh",
+        "body": {
+          "kind": "assert",
+          "predicate": "$verb",
+          "subject": "$subj",
+          "object": "$obj"
+        }
+      }
+    },
+    {
+      "id": "s_request_tell",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "рассказать"}},
+        {"cat": "PP", "as": "topic"}
+      ],
+      "sem": {"kind": "request", "action": "tell", "topic": "$topic"}
+    },
+    {
+      "id": "s_request_explain",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "объяснить"}},
+        {"cat": "PP", "as": "topic"}
+      ],
+      "sem": {"kind": "request", "action": "explain", "topic": "$topic"}
+    },
+    {
+      "id": "s_request_answer",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "ответить"}},
+        {"cat": "PP", "as": "topic"}
+      ],
+      "sem": {"kind": "request", "action": "answer", "topic": "$topic"}
+    },
+    {
+      "id": "s_greeting",
+      "lhs": "S",
+      "rhs": [{"cat": "GREETING", "as": "greeting"}],
+      "sem": {"kind": "greeting", "id": "hello"}
+    },
+    {
+      "id": "s_farewell",
+      "lhs": "S",
+      "rhs": [{"cat": "FAREWELL", "as": "farewell"}],
+      "sem": {"kind": "farewell", "id": "bye"}
+    }
+  ]
+}

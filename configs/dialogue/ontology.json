@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "entity_types": {
+    "faction": {
+      "label": "фракция",
+      "plural": "фракции",
+      "summary": "Верхний автомат мира: Империя, Республика, Культ Земли, Торговая планета."
+    },
+    "subfaction": {
+      "label": "подфракция",
+      "plural": "подфракции",
+      "summary": "Внутренняя группа фракции: ортодоксы, модераты, ревизионисты."
+    },
+    "organ": {
+      "label": "орган",
+      "plural": "органы",
+      "summary": "Институт или служба, через которую фракция действует."
+    },
+    "post": {
+      "label": "должность",
+      "plural": "должности",
+      "summary": "Место в иерархии, за которым стоит персонаж."
+    },
+    "character": {
+      "label": "персонаж",
+      "plural": "персонажи",
+      "summary": "Разумный агент с BDI-состоянием."
+    },
+    "work": {
+      "label": "работа",
+      "plural": "работы",
+      "summary": "Декларативное действие фракции."
+    },
+    "asset": {
+      "label": "актив",
+      "plural": "активы",
+      "summary": "Числовая шкала фракции: законность, влияние, снабжение и т. п."
+    },
+    "need": {
+      "label": "потребность",
+      "plural": "потребности",
+      "summary": "Одна из 16 неизменных потребностей персонажа."
+    },
+    "predicate": {
+      "label": "предикат убеждения",
+      "plural": "предикаты",
+      "summary": "Логическая связь или свойство в BDI."
+    },
+    "essence": {
+      "label": "суть намерения",
+      "plural": "сути",
+      "summary": "Тип будущего обязательства лидера."
+    },
+    "concept": {
+      "label": "понятие",
+      "plural": "понятия",
+      "summary": "Лорное понятие: война, миф, канал, энтропия, легитимность."
+    },
+    "place": {
+      "label": "место",
+      "plural": "места",
+      "summary": "Узел или регион мира."
+    },
+    "event": {
+      "label": "событие",
+      "plural": "события",
+      "summary": "Наблюдаемое изменение в мире."
+    }
+  },
+  "relations": {
+    "at_war_with": {
+      "label": "воюет с",
+      "subject": "faction",
+      "object": "faction",
+      "symmetric": true
+    },
+    "considers_outlaw": {
+      "label": "считает вне закона",
+      "subject": "faction",
+      "object": "faction"
+    },
+    "allied_with": {
+      "label": "состоит в союзе",
+      "subject": "faction",
+      "object": "faction",
+      "symmetric": true
+    },
+    "trades_with": {
+      "label": "торгует с",
+      "subject": "faction",
+      "object": "faction",
+      "symmetric": true
+    },
+    "has_organ": {
+      "label": "имеет орган",
+      "subject": "faction",
+      "object": "organ"
+    },
+    "has_asset": {
+      "label": "имеет актив",
+      "subject": "faction",
+      "object": "asset"
+    },
+    "has_subfaction": {
+      "label": "имеет подфракцию",
+      "subject": "faction",
+      "object": "subfaction"
+    },
+    "believes": {
+      "label": "считает",
+      "subject": "character",
+      "object": "predicate"
+    },
+    "intends": {
+      "label": "намеревается",
+      "subject": "character",
+      "object": "essence"
+    },
+    "located_at": {
+      "label": "находится в",
+      "subject": "organ",
+      "object": "place"
+    },
+    "part_of": {
+      "label": "входит в",
+      "subject": "organ",
+      "object": "faction"
+    },
+    "leads": {
+      "label": "возглавляет",
+      "subject": "character",
+      "object": "organ"
+    },
+    "protects": {
+      "label": "защищает",
+      "subject": "faction",
+      "object": "faction"
+    },
+    "threatens": {
+      "label": "угрожает",
+      "subject": "faction",
+      "object": "faction"
+    },
+    "controls": {
+      "label": "контролирует",
+      "subject": "faction",
+      "object": "concept"
+    },
+    "produces": {
+      "label": "производит",
+      "subject": "faction",
+      "object": "asset"
+    }
+  },
+  "question_types": {
+    "yesno": {
+      "label": "да/нет",
+      "answer": "proof_or_countermodel"
+    },
+    "why": {
+      "label": "причина",
+      "answer": "proof_trace"
+    },
+    "what": {
+      "label": "что",
+      "answer": "definition_or_fact"
+    },
+    "who": {
+      "label": "кто",
+      "answer": "entity"
+    },
+    "which": {
+      "label": "какой",
+      "answer": "set"
+    },
+    "how_many": {
+      "label": "сколько",
+      "answer": "number"
+    },
+    "where": {
+      "label": "где",
+      "answer": "location"
+    },
+    "when": {
+      "label": "когда",
+      "answer": "time"
+    },
+    "how": {
+      "label": "как",
+      "answer": "state_or_method"
+    },
+    "request": {
+      "label": "просьба",
+      "answer": "action_or_explanation"
+    }
+  },
+  "roles": {
+    "subject": "Тот, о ком утверждается или кто действует.",
+    "object": "То, на что направлено действие или убеждение.",
+    "predicate": "Логическая связь или свойство.",
+    "topic": "Предмет разговора.",
+    "owner": "Тот, у кого что-то есть.",
+    "possess": "То, чем владеют.",
+    "quantity": "Что измеряется.",
+    "location": "Где происходит действие.",
+    "time": "Когда происходит действие.",
+    "agent": "Действующий персонаж.",
+    "target": "Цель действия."
+  }
+}
