@@ -238,7 +238,12 @@ def load_template(path=None):
             for item in (base.get("automaton_interactions") or ())
             if isinstance(item, Mapping) and item.get("id")
         ]
+        shared_geometry = base.get("geometry") or {}
         merged.update(dict(data.get("factions") or {}))
+        if shared_geometry:
+            for side, cfg in merged.items():
+                if isinstance(cfg, dict) and side in shared_geometry:
+                    cfg.setdefault("geometry", shared_geometry[side])
         if shared_interactions:
             for cfg in merged.values():
                 if isinstance(cfg, dict):
@@ -972,6 +977,7 @@ def _build_faction_record(
         "actions": _action_records(cfg),
         "organs": _organ_records(cfg),
         "subfactions": _subfaction_records(cfg),
+        "geometry": dict(cfg.get("geometry") or {}),
         "organ_interactions": [
             dict(item)
             for item in (cfg.get("organ_interactions") or ())

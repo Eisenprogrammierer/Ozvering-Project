@@ -136,7 +136,7 @@ venv/bin/python main.py
 | «Хочу править контент без кода» | §5.2, [`CONTENT.md`](CONTENT.md) | `configs/` | `tests/test_content_pipeline.py` |
 | «Хочу править современный GUI» | §5.3, [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `view/` | `tests/test_gui_smoke.py`, `tests/test_view_*.py` |
 | «Хочу править легаси-GUI» | §5.3, [`UI.md`](UI.md) | `ui/` | `tests/test_ui.py` |
-| «Хочу менять кампанию автоматов» | §5.4, [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | `campaign/automata.py`, `campaign/fractal.py`, `configs/campaigns/` | `tests/test_automata_campaign.py`, `tests/test_automata_network.py` |
+| «Хочу менять кампанию автоматов» | §5.4, [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | `campaign/automata.py`, `campaign/fractal.py`, `campaign/geometry.py`, `configs/campaigns/` | `tests/test_automata_campaign.py`, `tests/test_automata_network.py`, `tests/test_geometry.py` |
 | «Хочу обучить агента» | §5.6, [`AGENTS.md`](AGENTS.md), [`HOWTO.md`](HOWTO.md) §2 | `agents/`, `core41/` | `tests/test_train_cli.py` |
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
 | «Хочу понять сейвы» | §5.7 | `view/support/save_system.py` | `tests/test_save_system.py` |
@@ -412,6 +412,8 @@ venv/bin/python -m pytest -q tests/test_ui.py
   бюджет действий, исходы, взаимодействия с органами, персонажами и
   команды автоматов друг другу), `campaign/fractal.py` (целостность и
   связи органов, `links`, downscale/upscale, урон),
+  `campaign/geometry.py` (метрический граф без глобальных осей, локальные
+  углы, кратчайшие пути, `distance`/`angle` в условиях),
   `campaign/faction_state.py` (производные активы, контекст, драйверы),
   `view/screens/automata_screen.py` (основной экран с описанием выбранной
   работы), `view/screens/automata_network.py` (сетка своей фракции,
@@ -565,6 +567,7 @@ venv/bin/python -m pytest -q tests/test_content_pipeline.py tests/test_docs_sync
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | современный клиент `view/`, кампанийные потоки |
 | [`UI.md`](UI.md) | легаси-клиент `ui/`, сцены, сейвы, RTS |
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании четырёх фракций-автоматов |
+| [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия: метрический граф, локальные углы, пути |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными |

@@ -75,7 +75,7 @@
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
 | `configs/campaigns/*.json` | шаблоны пресетов | `campaign.preset.load_template()` | новый шаблон | фракции/сценарий | файл |
-| `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы и взаимодействия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions` | цели, активы, титулы, органы, работы, взаимодействия | фракция/орган/работа/взаимодействие (проверить `organ_id` и ссылки шаблонов) |
+| `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы, взаимодействия и геометрия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions`, геометрия в `geometry.<side>` | цели, активы, титулы, органы, работы, взаимодействия, длины/углы | фракция/орган/работа/взаимодействие/геометрия (проверить `organ_id`, `links` и узлы геометрии) |
 | `configs/campaigns/base/automata_defaults.json` | базовые данные кампании автоматов | `campaign.defaults.load_defaults()` | секция в JSON | модель, интервалы реального времени, скорости, взаимодействия, потребности, бюджет | секция (ядро читает без хардкода) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
@@ -382,6 +382,38 @@ custom = content.get("my_new_file", {})
 Подробная модель работ, производных активов, сети органов,
 взаимодействий и исхода — в
 [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md).
+
+### Геометрия (`geometry` в `lore_factions.json`)
+
+Верхнеуровневый ключ `geometry` задаёт по сторонам семантическую
+геометрию органов: длины рёбер, циклический порядок соседей и углы
+поворотов. Это не координаты: `layout.x/y` остаётся проекцией для
+редактора и игровыми расчётами не читается.
+
+```json
+"geometry": {
+  "red": {
+    "schema": 1,
+    "model": "metric_graph",
+    "dimension": 2,
+    "composition": "shortest_path",
+    "edges": [
+      {"from": "imperial_staff", "to": "wehrmacht", "length": 1.7}
+    ],
+    "orientation": {
+      "imperial_staff": [{"to": "wehrmacht", "turn": 6.283185307}]
+    }
+  }
+}
+```
+
+Каждый узел ориентации обязан быть органом фракции, а `turn` — покрывать
+все его `links`. Сумма поворотов вокруг плоского узла равна `2π`.
+Дальние расстояния складываются по кратчайшему пути, локальные углы
+читаются из порядка соседей. Без блока `geometry` работает совместимый
+режим: топология из `links`, единичные длины, равные углы. Проверка —
+`python -m campaign.content_lint`. Полная схема и ограничения этапа —
+[`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md).
 
 ### Автомат (`configs/automata/<slug>.json`)
 

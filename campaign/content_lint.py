@@ -24,6 +24,7 @@ from collections.abc import Mapping
 from typing import Iterable, List, Sequence
 
 import bdi
+from .geometry import GeometryError, MetricGraph
 from .state_machine import StateMachineDefinition, StateMachineError
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -70,6 +71,8 @@ CONDITION_KINDS = {
     "intention",
     "organ",
     "subfaction",
+    "distance",
+    "angle",
     "flag",
     "context",
     "turn",
@@ -275,6 +278,18 @@ def _condition_problems(source, conditions):
             problems.append(
                 "%s: неизвестный вид условия %r" % (where, kind)
             )
+        elif kind == "distance" and not (
+            clause.get("from") and clause.get("to")
+        ):
+            problems.append(
+                "%s: для distance нужны from и to" % where
+            )
+        elif kind == "angle" and not (
+            clause.get("node") and clause.get("from") and clause.get("to")
+        ):
+            problems.append(
+                "%s: для angle нужны node, from и to" % where
+            )
     return problems
 
 
@@ -295,6 +310,56 @@ def check_requires(source, requires):
     return problems
 
 
+def _faction_organs(faction):
+    """Органы фракции, включая вложенные в подфракции."""
+    faction = _as_mapping(faction)
+    organs = [item for item in _as_list(faction.get("organs")) if item]
+    for sub in _as_list(faction.get("subfactions")):
+        sub = _as_mapping(sub)
+        for organ in _as_list(sub.get("organs")):
+            if organ:
+                organs.append(organ)
+    return organs
+
+
+def _organ_link_map(organs):
+    """Карта соседства по сырым записям органов."""
+    by_id = {}
+    for organ in organs:
+        organ = _as_mapping(organ)
+        organ_id = str(organ.get("id") or "")
+        if organ_id:
+            by_id[organ_id] = organ
+    links = {key: set() for key in by_id}
+    for organ_id, organ in by_id.items():
+        for linked in _as_list(organ.get("links")):
+            linked = str(linked or "")
+            if linked and linked != organ_id and linked in by_id:
+                links[organ_id].add(linked)
+                links[linked].add(organ_id)
+        parent_id = str(organ.get("parent_id") or "")
+        if parent_id and parent_id != organ_id and parent_id in by_id:
+            links[organ_id].add(parent_id)
+            links[parent_id].add(organ_id)
+    return {key: sorted(value) for key, value in links.items()}
+
+
+def check_geometry(source, geometry, node_ids, links=None):
+    """Проверить блок семантической геометрии фракции."""
+    if not isinstance(geometry, Mapping) or not geometry:
+        return ["%s: геометрия должна быть непустым объектом" % source]
+    try:
+        MetricGraph.from_record(
+            geometry,
+            nodes=node_ids,
+            links=links,
+            source="declared",
+        )
+    except (GeometryError, ValueError, TypeError) as error:
+        return ["%s: %s" % (source, error)]
+    return []
+
+
 def check_faction(side, faction, config):
     problems: List[str] = []
     prefix = "factions.%s" % side
@@ -303,16 +368,12 @@ def check_faction(side, faction, config):
     if not faction_id:
         problems.append("%s: пустой id фракции" % prefix)
 
-    organs = [item for item in _as_list(faction.get("organs")) if item]
+    organs = _faction_organs(faction)
     subfactions = [
         _as_mapping(item)
         for item in _as_list(faction.get("subfactions"))
         if item
     ]
-    for sub in subfactions:
-        for organ in _as_list(sub.get("organs")):
-            if organ:
-                organs.append(organ)
     organ_ids = set()
     for index, organ in enumerate(organs):
         organ = _as_mapping(organ)
@@ -454,6 +515,16 @@ def check_faction(side, faction, config):
         problems.extend(
             check_intentions(source, post.get("intentions"), config)
         )
+
+    if faction.get("geometry"):
+        problems.extend(
+            check_geometry(
+                prefix + ".geometry",
+                faction.get("geometry"),
+                sorted(organ_ids),
+                _organ_link_map(organs),
+            )
+        )
     return problems
 
 
@@ -524,6 +595,9 @@ def lint_factions_data(data, config):
     else:
         return ["factions: ожидался объект или список"]
     seen = set()
+    geometries = _as_mapping(
+        data.get("geometry") if isinstance(data, Mapping) else None
+    )
     for side, faction in items:
         faction = _as_mapping(faction)
         faction_id = str(faction.get("id") or "")
@@ -533,6 +607,23 @@ def lint_factions_data(data, config):
             )
         seen.add(faction_id)
         problems.extend(check_faction(str(side), faction, config))
+        if side in geometries and not faction.get("geometry"):
+            organs = _faction_organs(faction)
+            node_ids = sorted(
+                {
+                    str(_as_mapping(organ).get("id") or "")
+                    for organ in organs
+                }
+                - {""}
+            )
+            problems.extend(
+                check_geometry(
+                    "factions.%s.geometry" % side,
+                    geometries[side],
+                    node_ids,
+                    _organ_link_map(organs),
+                )
+            )
     if isinstance(data, Mapping) and "events" in data:
         problems.extend(check_events("events", data.get("events")))
     return problems

@@ -50,6 +50,7 @@ from .fractal import (
     tick_organs,
     validate_organ_network,
 )
+from .geometry import GeometryError, MetricGraph
 from .projections import (
     SCHEMA_VERSION,
     ensure_supported_snapshot,
@@ -67,6 +68,31 @@ logger = logging.getLogger(__name__)
 
 class AutomataCampaignError(CampaignError):
     pass
+
+
+def _build_geometry(faction_id, faction, organs):
+    """Собрать семантическую геометрию из данных фракции.
+
+    Явный блок ``geometry`` валидируется и падает громко: ошибка длины,
+    ориентации или ссылки — это ошибка контента, а не повод молча играть
+    в другом мире. Без блока работает совместимый режим: топология из
+    ``links``, единичные длины и равные углы.
+    """
+    nodes = [str(organ.id) for organ in organs]
+    links = organ_links(organs)
+    record = _as_mapping(faction.get("geometry"))
+    if not record:
+        return MetricGraph.from_links(
+            nodes, links, source="derived"
+        )
+    try:
+        return MetricGraph.from_record(
+            record, nodes=nodes, links=links, source="declared"
+        )
+    except GeometryError as error:
+        raise AutomataCampaignError(
+            "%s: геометрия: %s" % (faction_id, error)
+        ) from error
 
 
 def _subfaction_organ(organs, organ_id):
@@ -316,6 +342,7 @@ class FactionRuntime:
     actions: List[dict] = field(default_factory=list)
     organs: List[OrganRuntime] = field(default_factory=list)
     subfactions: List[SubfactionRuntime] = field(default_factory=list)
+    geometry: Optional[MetricGraph] = None
     automaton_interactions: List[dict] = field(default_factory=list)
     character_interactions: List[dict] = field(default_factory=list)
     character_cooldowns: Dict[str, Dict[str, int]] = field(
@@ -1017,6 +1044,7 @@ class AutomataCampaign:
             subfactions = _build_subfactions(
                 faction, organs, organ_interactions
             )
+            geometry = _build_geometry(faction_id, faction, organs)
             network_problems = validate_organ_network(organs)
             if network_problems:
                 raise AutomataCampaignError(
@@ -1049,6 +1077,7 @@ class AutomataCampaign:
                 ],
                 organs=organs,
                 subfactions=subfactions,
+                geometry=geometry,
                 automaton_interactions=automaton_interactions,
                 character_interactions=character_interactions,
             )
@@ -1065,6 +1094,43 @@ class AutomataCampaign:
 
     def faction(self, side):
         return self.factions.get(str(side or ""))
+
+    def geometry(self, side):
+        """Семантическая геометрия стороны или ``None``."""
+        faction = self.faction(side)
+        return getattr(faction, "geometry", None) if faction is not None else None
+
+    def geometry_distance(self, side, source, target):
+        """Кратчайшее расстояние по сети стороны; ``inf`` без пути."""
+        graph = self.geometry(side)
+        if graph is None:
+            return math.inf
+        return graph.distance(source, target)
+
+    def geometry_path(self, side, source, target):
+        """Канонический путь стороны или ``None``."""
+        graph = self.geometry(side)
+        if graph is None:
+            return None
+        return graph.path(source, target)
+
+    def geometry_angle(self, side, node, source, target):
+        """Локальный угол между двумя соседями узла, радианы."""
+        graph = self.geometry(side)
+        if graph is None:
+            raise AutomataCampaignError(
+                "у стороны %s нет геометрии" % side
+            )
+        return graph.angle(node, source, target)
+
+    def geometry_bearing(self, side, observer, source, target):
+        """Угол между направлениями на две цели из наблюдателя."""
+        graph = self.geometry(side)
+        if graph is None:
+            raise AutomataCampaignError(
+                "у стороны %s нет геометрии" % side
+            )
+        return graph.angle_between_targets(observer, source, target)
 
     @property
     def player(self):

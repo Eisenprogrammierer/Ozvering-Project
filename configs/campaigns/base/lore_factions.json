@@ -2903,6 +2903,738 @@
       ]
     }
   },
+  "geometry": {
+    "red": {
+      "schema": 1,
+      "model": "metric_graph",
+      "dimension": 2,
+      "angle_unit": "radian",
+      "composition": "shortest_path",
+      "edges": [
+        {
+          "from": "abwehr",
+          "to": "imperial_staff",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "cathedral",
+          "to": "imperial_staff",
+          "length": 1.3,
+          "kind": "spatial"
+        },
+        {
+          "from": "guard",
+          "to": "imperial_staff",
+          "length": 1.7,
+          "kind": "spatial"
+        },
+        {
+          "from": "imperial_staff",
+          "to": "justice",
+          "length": 1.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "imperial_staff",
+          "to": "propaganda",
+          "length": 1.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "imperial_staff",
+          "to": "wehrmacht",
+          "length": 1.7,
+          "kind": "spatial"
+        },
+        {
+          "from": "guard",
+          "to": "panzerwaffe",
+          "length": 1.6,
+          "kind": "spatial"
+        },
+        {
+          "from": "panzerwaffe",
+          "to": "wehrmacht",
+          "length": 1.8,
+          "kind": "spatial"
+        },
+        {
+          "from": "artillery",
+          "to": "wehrmacht",
+          "length": 2.0,
+          "kind": "spatial"
+        },
+        {
+          "from": "bomber",
+          "to": "wehrmacht",
+          "length": 1.6,
+          "kind": "spatial"
+        },
+        {
+          "from": "medical",
+          "to": "wehrmacht",
+          "length": 1.9,
+          "kind": "spatial"
+        },
+        {
+          "from": "artillery",
+          "to": "bomber",
+          "length": 2.0,
+          "kind": "spatial"
+        },
+        {
+          "from": "bomber",
+          "to": "guard",
+          "length": 1.6,
+          "kind": "spatial"
+        },
+        {
+          "from": "abwehr",
+          "to": "cyber",
+          "length": 2.2,
+          "kind": "spatial"
+        },
+        {
+          "from": "justice",
+          "to": "medical",
+          "length": 2.2,
+          "kind": "spatial"
+        }
+      ],
+      "orientation": {
+        "imperial_staff": [
+          {
+            "to": "abwehr",
+            "turn": 1.204277
+          },
+          {
+            "to": "cathedral",
+            "turn": 0.890118
+          },
+          {
+            "to": "guard",
+            "turn": 1.047198
+          },
+          {
+            "to": "justice",
+            "turn": 1.204277
+          },
+          {
+            "to": "propaganda",
+            "turn": 0.890118
+          },
+          {
+            "to": "wehrmacht",
+            "turn": 1.047197
+          }
+        ],
+        "panzerwaffe": [
+          {
+            "to": "guard",
+            "turn": 3.141593
+          },
+          {
+            "to": "wehrmacht",
+            "turn": 3.141593
+          }
+        ],
+        "wehrmacht": [
+          {
+            "to": "imperial_staff",
+            "turn": 1.101177
+          },
+          {
+            "to": "panzerwaffe",
+            "turn": 1.295502
+          },
+          {
+            "to": "artillery",
+            "turn": 1.489827
+          },
+          {
+            "to": "bomber",
+            "turn": 1.101177
+          },
+          {
+            "to": "medical",
+            "turn": 1.295502
+          }
+        ],
+        "artillery": [
+          {
+            "to": "wehrmacht",
+            "turn": 3.141593
+          },
+          {
+            "to": "bomber",
+            "turn": 3.141593
+          }
+        ],
+        "bomber": [
+          {
+            "to": "wehrmacht",
+            "turn": 1.780236
+          },
+          {
+            "to": "artillery",
+            "turn": 2.094395
+          },
+          {
+            "to": "guard",
+            "turn": 2.408554
+          }
+        ],
+        "abwehr": [
+          {
+            "to": "imperial_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "cyber",
+            "turn": 3.141593
+          }
+        ],
+        "propaganda": [
+          {
+            "to": "imperial_staff",
+            "turn": 6.283185
+          }
+        ],
+        "guard": [
+          {
+            "to": "imperial_staff",
+            "turn": 2.408554
+          },
+          {
+            "to": "panzerwaffe",
+            "turn": 1.780236
+          },
+          {
+            "to": "bomber",
+            "turn": 2.094395
+          }
+        ],
+        "justice": [
+          {
+            "to": "imperial_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "medical",
+            "turn": 3.141593
+          }
+        ],
+        "cathedral": [
+          {
+            "to": "imperial_staff",
+            "turn": 6.283185
+          }
+        ],
+        "medical": [
+          {
+            "to": "wehrmacht",
+            "turn": 3.141593
+          },
+          {
+            "to": "justice",
+            "turn": 3.141593
+          }
+        ],
+        "cyber": [
+          {
+            "to": "abwehr",
+            "turn": 6.283185
+          }
+        ]
+      }
+    },
+    "blue": {
+      "schema": 1,
+      "model": "metric_graph",
+      "dimension": 2,
+      "angle_unit": "radian",
+      "composition": "shortest_path",
+      "edges": [
+        {
+          "from": "cyber",
+          "to": "general_staff",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "diplomacy",
+          "to": "general_staff",
+          "length": 1.6,
+          "kind": "spatial"
+        },
+        {
+          "from": "field_corps",
+          "to": "general_staff",
+          "length": 1.7,
+          "kind": "spatial"
+        },
+        {
+          "from": "general_staff",
+          "to": "parliament",
+          "length": 1.1,
+          "kind": "spatial"
+        },
+        {
+          "from": "general_staff",
+          "to": "propaganda",
+          "length": 1.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "parliament",
+          "to": "rights",
+          "length": 1.6,
+          "kind": "spatial"
+        },
+        {
+          "from": "field_corps",
+          "to": "medical",
+          "length": 1.7,
+          "kind": "spatial"
+        },
+        {
+          "from": "field_corps",
+          "to": "precision",
+          "length": 1.8,
+          "kind": "spatial"
+        },
+        {
+          "from": "agents",
+          "to": "cyber",
+          "length": 2.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "propaganda",
+          "to": "radio",
+          "length": 1.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "diplomacy",
+          "to": "medical",
+          "length": 2.0,
+          "kind": "spatial"
+        }
+      ],
+      "orientation": {
+        "general_staff": [
+          {
+            "to": "cyber",
+            "turn": 1.220036
+          },
+          {
+            "to": "diplomacy",
+            "turn": 1.403041
+          },
+          {
+            "to": "field_corps",
+            "turn": 1.037031
+          },
+          {
+            "to": "parliament",
+            "turn": 1.220036
+          },
+          {
+            "to": "propaganda",
+            "turn": 1.403041
+          }
+        ],
+        "parliament": [
+          {
+            "to": "general_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "rights",
+            "turn": 3.141593
+          }
+        ],
+        "field_corps": [
+          {
+            "to": "general_staff",
+            "turn": 2.408554
+          },
+          {
+            "to": "medical",
+            "turn": 1.780236
+          },
+          {
+            "to": "precision",
+            "turn": 2.094395
+          }
+        ],
+        "precision": [
+          {
+            "to": "field_corps",
+            "turn": 6.283185
+          }
+        ],
+        "cyber": [
+          {
+            "to": "general_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "agents",
+            "turn": 3.141593
+          }
+        ],
+        "radio": [
+          {
+            "to": "propaganda",
+            "turn": 6.283185
+          }
+        ],
+        "propaganda": [
+          {
+            "to": "general_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "radio",
+            "turn": 3.141593
+          }
+        ],
+        "rights": [
+          {
+            "to": "parliament",
+            "turn": 6.283185
+          }
+        ],
+        "diplomacy": [
+          {
+            "to": "general_staff",
+            "turn": 3.141593
+          },
+          {
+            "to": "medical",
+            "turn": 3.141593
+          }
+        ],
+        "agents": [
+          {
+            "to": "cyber",
+            "turn": 6.283185
+          }
+        ],
+        "medical": [
+          {
+            "to": "field_corps",
+            "turn": 3.141593
+          },
+          {
+            "to": "diplomacy",
+            "turn": 3.141593
+          }
+        ]
+      }
+    },
+    "green": {
+      "schema": 1,
+      "model": "metric_graph",
+      "dimension": 2,
+      "angle_unit": "radian",
+      "composition": "shortest_path",
+      "edges": [
+        {
+          "from": "agents",
+          "to": "preaching",
+          "length": 1.7,
+          "kind": "spatial"
+        },
+        {
+          "from": "communities",
+          "to": "preaching",
+          "length": 1.8,
+          "kind": "spatial"
+        },
+        {
+          "from": "knights",
+          "to": "preaching",
+          "length": 1.9,
+          "kind": "spatial"
+        },
+        {
+          "from": "preaching",
+          "to": "printing",
+          "length": 1.4,
+          "kind": "spatial"
+        },
+        {
+          "from": "preaching",
+          "to": "rites",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "charity",
+          "to": "communities",
+          "length": 1.85,
+          "kind": "spatial"
+        },
+        {
+          "from": "communities",
+          "to": "scriptorium",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "scriptorium",
+          "to": "synedrion",
+          "length": 1.4,
+          "kind": "spatial"
+        }
+      ],
+      "orientation": {
+        "preaching": [
+          {
+            "to": "agents",
+            "turn": 1.101177
+          },
+          {
+            "to": "communities",
+            "turn": 1.295502
+          },
+          {
+            "to": "knights",
+            "turn": 1.489827
+          },
+          {
+            "to": "printing",
+            "turn": 1.101177
+          },
+          {
+            "to": "rites",
+            "turn": 1.295502
+          }
+        ],
+        "communities": [
+          {
+            "to": "preaching",
+            "turn": 2.408554
+          },
+          {
+            "to": "charity",
+            "turn": 1.780236
+          },
+          {
+            "to": "scriptorium",
+            "turn": 2.094395
+          }
+        ],
+        "charity": [
+          {
+            "to": "communities",
+            "turn": 6.283185
+          }
+        ],
+        "scriptorium": [
+          {
+            "to": "communities",
+            "turn": 3.141593
+          },
+          {
+            "to": "synedrion",
+            "turn": 3.141593
+          }
+        ],
+        "synedrion": [
+          {
+            "to": "scriptorium",
+            "turn": 6.283185
+          }
+        ],
+        "knights": [
+          {
+            "to": "preaching",
+            "turn": 6.283185
+          }
+        ],
+        "agents": [
+          {
+            "to": "preaching",
+            "turn": 6.283185
+          }
+        ],
+        "printing": [
+          {
+            "to": "preaching",
+            "turn": 6.283185
+          }
+        ],
+        "rites": [
+          {
+            "to": "preaching",
+            "turn": 6.283185
+          }
+        ]
+      }
+    },
+    "amber": {
+      "schema": 1,
+      "model": "metric_graph",
+      "dimension": 2,
+      "angle_unit": "radian",
+      "composition": "shortest_path",
+      "edges": [
+        {
+          "from": "diplomacy",
+          "to": "trade",
+          "length": 1.25,
+          "kind": "spatial"
+        },
+        {
+          "from": "finance",
+          "to": "trade",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "intelligence",
+          "to": "trade",
+          "length": 2.05,
+          "kind": "spatial"
+        },
+        {
+          "from": "port",
+          "to": "trade",
+          "length": 1.55,
+          "kind": "spatial"
+        },
+        {
+          "from": "security",
+          "to": "trade",
+          "length": 1.65,
+          "kind": "spatial"
+        },
+        {
+          "from": "engineering",
+          "to": "port",
+          "length": 2.2,
+          "kind": "spatial"
+        },
+        {
+          "from": "port",
+          "to": "warehouses",
+          "length": 1.8,
+          "kind": "spatial"
+        },
+        {
+          "from": "diplomacy",
+          "to": "media",
+          "length": 1.5,
+          "kind": "spatial"
+        },
+        {
+          "from": "agents",
+          "to": "intelligence",
+          "length": 2.4,
+          "kind": "spatial"
+        }
+      ],
+      "orientation": {
+        "trade": [
+          {
+            "to": "diplomacy",
+            "turn": 1.445133
+          },
+          {
+            "to": "finance",
+            "turn": 1.068142
+          },
+          {
+            "to": "intelligence",
+            "turn": 1.256637
+          },
+          {
+            "to": "port",
+            "turn": 1.445133
+          },
+          {
+            "to": "security",
+            "turn": 1.06814
+          }
+        ],
+        "port": [
+          {
+            "to": "trade",
+            "turn": 2.094395
+          },
+          {
+            "to": "engineering",
+            "turn": 2.408554
+          },
+          {
+            "to": "warehouses",
+            "turn": 1.780236
+          }
+        ],
+        "finance": [
+          {
+            "to": "trade",
+            "turn": 6.283185
+          }
+        ],
+        "diplomacy": [
+          {
+            "to": "trade",
+            "turn": 3.141593
+          },
+          {
+            "to": "media",
+            "turn": 3.141593
+          }
+        ],
+        "intelligence": [
+          {
+            "to": "trade",
+            "turn": 3.141593
+          },
+          {
+            "to": "agents",
+            "turn": 3.141593
+          }
+        ],
+        "warehouses": [
+          {
+            "to": "port",
+            "turn": 6.283185
+          }
+        ],
+        "media": [
+          {
+            "to": "diplomacy",
+            "turn": 6.283185
+          }
+        ],
+        "agents": [
+          {
+            "to": "intelligence",
+            "turn": 6.283185
+          }
+        ],
+        "security": [
+          {
+            "to": "trade",
+            "turn": 6.283185
+          }
+        ],
+        "engineering": [
+          {
+            "to": "port",
+            "turn": 6.283185
+          }
+        ]
+      }
+    }
+  },
   "automaton_interactions": [
     {
       "id": "coordinate",

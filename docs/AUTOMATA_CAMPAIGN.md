@@ -102,6 +102,62 @@
 снимок.
 как часть `python -m campaign.content_lint`.
 
+### 1.3. Семантическая геометрия
+
+Мир не использует единую абсолютную систему координат. Органы образуют
+**метрический граф**: у узлов нет `x/y`, есть только длины рёбер,
+циклический порядок соседей и углы поворота между соседними
+полуребрами. `layout` остаётся проекцией для редактора и игровыми
+расчётами не читается.
+
+Геометрия задаётся блоком `geometry` у фракции или верхнеуровневым
+`geometry.<side>` в `lore_factions.json`:
+
+```json
+"geometry": {
+  "schema": 1,
+  "model": "metric_graph",
+  "dimension": 2,
+  "composition": "shortest_path",
+  "edges": [
+    {"from": "imperial_staff", "to": "wehrmacht", "length": 1.7}
+  ],
+  "orientation": {
+    "imperial_staff": [
+      {"to": "abwehr", "turn": 1.2},
+      {"to": "wehrmacht", "turn": 1.6}
+    ]
+  }
+}
+```
+
+Дальние расстояния не хранятся: это сумма длин кратчайшего пути.
+Локальный угол читается из порядка соседей, а дальнее направление
+разворачивается вдоль канонической геодезической. Ничьи путей
+разрешаются лексикографически, поэтому результат детерминирован. В
+циклах разные геодезические могут дать разные дальние углы; ядро
+фиксирует одну каноническую и документирует это как поведение этапа B.
+
+API кампании:
+
+```python
+campaign.geometry("red")                       # MetricGraph
+campaign.geometry_distance("red", "staff", "field")
+campaign.geometry_path("red", "staff", "field")
+campaign.geometry_angle("red", "staff", "field", "rear")
+campaign.geometry_bearing("red", "staff", "field", "rear")
+```
+
+Условия работ понимают `kind: distance` (`from`, `to`, `op`, `value`) и
+`kind: angle` (`node`, `from`, `to`, `op`, `value`). Линтер проверяет
+оба вида и саму геометрию. Без блока `geometry` работает совместимый
+режим: топология из `links`, единичные длины, равные углы.
+
+`duration` ребра принимается и складывается в `travel_time`, но пока не
+является физическим временем. Локальные базисы, голономия, часы и
+причинность — следующие этапы; полное описание в
+[`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md).
+
 ## 2. Запуск и сохранение
 
 Сюжеты лежат в `configs/storylines/<faction>_campaign.json`. У лорных

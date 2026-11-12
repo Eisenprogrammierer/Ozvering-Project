@@ -275,6 +275,40 @@ pdftotext -layout docs/лор.pdf /tmp/opencode/lore.txt
 Осталось по P6: дерево «орган внутри органа» по `parent_id`, собственные
 шкалы органа и петля «лидер → доктрина → работы» (G-14).
 
+### 5.6. Реализовано (P6.5, геометрия этап B)
+
+* `campaign/geometry.py` — `MetricGraph`, `GeometryEdge`, `GeometryPath`,
+  `GeometryError`, `edge_key`; 2D-метрический граф без глобальных осей.
+  Узлы хранят циклический порядок соседей и `turn` между соседними
+  полуребрами; сумма поворотов плоского узла — `2π`.
+* Запросы: `length`, `duration`, `angle`, `signed_angle`, `turn`,
+  `curvature`, `nearest`, `path`, `distance`, `travel_time`,
+  `angle_between_targets`, `validate`, `to_dict`.
+* Дальние расстояния — сумма длин кратчайшего пути; ничьи разрешаются
+  лексикографически, поэтому результат детерминирован. Дальние
+  направления разворачиваются вдоль канонического пути; зависимость от
+  выбора геодезической в циклах документирована.
+* `campaign/automata.py` — `FactionRuntime.geometry`, `_build_geometry()`,
+  методы `geometry()`, `geometry_distance()`, `geometry_path()`,
+  `geometry_angle()`, `geometry_bearing()`.
+* `campaign/conditions.py` — виды `distance` и `angle`.
+* `campaign/content_lint.py` — `check_geometry()`, проверка вложенного и
+  верхнеуровневого блока против органов, включая органы подфракций.
+* `campaign/preset.py` — верхнеуровневый `geometry.<side>` из
+  `lore_factions.json` копируется в запись фракции.
+* `configs/campaigns/base/lore_factions.json` — блок `geometry` для
+  red/blue/green/amber: явные рёбра с длинами и явная ориентация;
+  загружается как `source="declared"` для всех четырёх сторон.
+* `docs/AUTOMATA_GEOMETRY.md` — схема, запросы, инварианты, разделение
+  `layout`, отложенные этапы C/D.
+* Тесты: `tests/test_geometry.py` (20 проверок: локальные углы, пути,
+  композиция, `layout`, ошибки данных, линтер, кампания).
+
+`layout.x/y` остаётся только проекцией для редактора/отрисовки.
+`duration` принимается и складывается в `travel_time`, но физическим
+временем пока не является. Этапы C (локальные базисы, переносы,
+голономия) и D (часы, причинность, радарная дистанция) отложены.
+
 ---
 
 ## 6. Следующие шаги
@@ -297,10 +331,14 @@ pdftotext -layout docs/лор.pdf /tmp/opencode/lore.txt
 6. ~~**P6.** Подсистемы и вложенные органы.~~ Основа сделана:
    `subfactions`, активы/эффекты/условия/метрики, автоматы и снимок;
    осталось дерево «орган внутри органа» и петля G-14.
-7. **P7.** ИИ из данных.
-8. **P8.** Отношения.
-9. **P9.** Наполнение по `CONTENT_PLAN_LORE.md`, начиная с предикатов,
-   активов, органов и работ Империи.
+7. ~~**P6.5.** Семантическая геометрия, этап B.~~ Сделано: метрический
+   граф, локальные углы, кратчайшие пути, условия `distance`/`angle`,
+   линтер, производственная геометрия четырёх фракций. Этапы C/D
+   отложены.
+8. **P7.** ИИ из данных.
+9. **P8.** Отношения.
+10. **P9.** Наполнение по `CONTENT_PLAN_LORE.md`, начиная с предикатов,
+    активов, органов и работ Империи.
 
 ---
 
@@ -330,6 +368,7 @@ venv/bin/python -m pytest -q tests/test_bdi.py
 venv/bin/python -m pytest -q tests/test_content_pipeline.py
 venv/bin/python -m pytest -q tests/test_automata_campaign.py
 venv/bin/python -m pytest -q tests/test_state_machine.py tests/test_subfactions.py
+venv/bin/python -m pytest -q tests/test_geometry.py
 ```
 
 ---

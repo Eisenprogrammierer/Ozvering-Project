@@ -318,6 +318,54 @@ def _clause_reason(clause, context):
         if not compare(values.get(key), op, expected):
             return "нужно: флаг %s %s %s" % (key, op, expected)
         return ""
+    if kind in ("distance", "angle"):
+        graph = getattr(faction, "geometry", None)
+        if graph is None:
+            return "нужно: геометрия стороны"
+        if kind == "distance":
+            source = _text(clause.get("from") or clause.get("source"))
+            target = _text(
+                clause.get("to")
+                or clause.get("target")
+                or clause.get("node")
+            )
+            try:
+                current = graph.distance(source, target)
+            except ValueError as error:
+                return "нужно: расстояние %s→%s: %s" % (
+                    source,
+                    target,
+                    error,
+                )
+            if not compare(current, op, expected):
+                return "нужно: расстояние %s→%s %s %s" % (
+                    source,
+                    target,
+                    op,
+                    expected,
+                )
+            return ""
+        node = _text(clause.get("node") or clause.get("at"))
+        source = _text(clause.get("from") or clause.get("source"))
+        target = _text(clause.get("to") or clause.get("target"))
+        try:
+            current = graph.angle(node, source, target)
+        except ValueError as error:
+            return "нужно: угол %s/%s→%s: %s" % (
+                node,
+                source,
+                target,
+                error,
+            )
+        if not compare(current, op, expected):
+            return "нужно: угол %s/%s→%s %s %s" % (
+                node,
+                source,
+                target,
+                op,
+                expected,
+            )
+        return ""
     if kind == "turn":
         if not compare(_number(context.get("turn")), op, expected):
             return "нужно: цикл %s %s" % (op, expected)
