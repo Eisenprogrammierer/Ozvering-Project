@@ -224,6 +224,39 @@ def faction_metric(faction, metric):
             getattr(faction, "organization_snapshot", {}) or {}
         )
         return _clamp(snapshot.get(key, 0.5))
+    if metric.startswith("subfactions.mean:"):
+        key = metric[len("subfactions.mean:") :]
+        return _mean(
+            [
+                _number(_as_mapping(getattr(item, "assets", {})).get(key))
+                for item in (getattr(faction, "subfactions", ()) or ())
+            ],
+            0.5,
+        )
+    if metric.startswith("subfactions.max:"):
+        key = metric[len("subfactions.max:") :]
+        values = [
+            _number(_as_mapping(getattr(item, "assets", {})).get(key))
+            for item in (getattr(faction, "subfactions", ()) or ())
+        ]
+        return max(values) if values else 0.5
+    if metric.startswith("subfactions.min:"):
+        key = metric[len("subfactions.min:") :]
+        values = [
+            _number(_as_mapping(getattr(item, "assets", {})).get(key))
+            for item in (getattr(faction, "subfactions", ()) or ())
+        ]
+        return min(values) if values else 0.5
+    if metric.startswith("subfactions."):
+        rest = metric[len("subfactions.") :]
+        sub_id, _separator, key = rest.partition(".")
+        for item in getattr(faction, "subfactions", ()) or ():
+            if str(getattr(item, "id", "")) != sub_id:
+                continue
+            return _clamp(
+                _as_mapping(getattr(item, "assets", {})).get(key)
+            )
+        return 0.5
     if metric.startswith("context."):
         key = metric[len("context.") :]
         context = _as_mapping(getattr(faction, "context", {}) or {})

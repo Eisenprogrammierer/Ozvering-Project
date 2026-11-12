@@ -24,12 +24,14 @@ from collections.abc import Mapping
 from typing import Iterable, List, Sequence
 
 import bdi
+from .state_machine import StateMachineDefinition, StateMachineError
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PATHS = (
     ROOT / "configs" / "characters" / "bdi.json",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
+    ROOT / "configs" / "campaigns" / "base" / "automata",
 )
 
 # Ключи, которые применяет `campaign/effects.py`.
@@ -43,6 +45,7 @@ EFFECT_KEYS = {
     "beliefs",
     "intentions",
     "organs",
+    "subfactions",
     "flags",
     "text",
 }
@@ -66,6 +69,7 @@ CONDITION_KINDS = {
     "belief",
     "intention",
     "organ",
+    "subfaction",
     "flag",
     "context",
     "turn",
@@ -228,6 +232,7 @@ def check_effects(source, effects):
             "traits",
             "conditions",
             "organs",
+            "subfactions",
             "flags",
         ):
             if not isinstance(value, Mapping):
@@ -299,6 +304,15 @@ def check_faction(side, faction, config):
         problems.append("%s: пустой id фракции" % prefix)
 
     organs = [item for item in _as_list(faction.get("organs")) if item]
+    subfactions = [
+        _as_mapping(item)
+        for item in _as_list(faction.get("subfactions"))
+        if item
+    ]
+    for sub in subfactions:
+        for organ in _as_list(sub.get("organs")):
+            if organ:
+                organs.append(organ)
     organ_ids = set()
     for index, organ in enumerate(organs):
         organ = _as_mapping(organ)
@@ -319,6 +333,50 @@ def check_faction(side, faction, config):
                 problems.append(
                     "%s.organs.%s: ссылка на неизвестный орган %r"
                     % (prefix, organ_id, link)
+                )
+
+    sub_ids = set()
+    for index, sub in enumerate(subfactions):
+        sub_id = str(sub.get("id") or "")
+        source = "%s.subfactions.%s" % (prefix, sub_id or index)
+        if not sub_id:
+            problems.append("%s: пустой id" % source)
+        elif sub_id in sub_ids:
+            problems.append(
+                "%s: повторяющийся id подфракции %r"
+                % (prefix, sub_id)
+            )
+        sub_ids.add(sub_id)
+        share = sub.get("share")
+        if share is not None:
+            try:
+                number = float(share)
+            except (TypeError, ValueError):
+                problems.append("%s.share: ожидалось число" % source)
+            else:
+                if not 0.0 <= number <= 1.0:
+                    problems.append(
+                        "%s.share: вне диапазона 0..1" % source
+                    )
+        assets = sub.get("assets")
+        if assets is not None and not isinstance(assets, Mapping):
+            problems.append("%s.assets: ожидался объект" % source)
+        for organ in _as_list(sub.get("organs")):
+            organ_id = (
+                str(_as_mapping(organ).get("id") or "")
+                if isinstance(organ, Mapping)
+                else str(organ or "")
+            )
+            if organ_id and organ_id not in organ_ids:
+                problems.append(
+                    "%s: ссылка на неизвестный орган %r"
+                    % (source, organ_id)
+                )
+        for organ_id in _as_list(sub.get("organ_ids")):
+            if str(organ_id) not in organ_ids:
+                problems.append(
+                    "%s: ссылка на неизвестный орган %r"
+                    % (source, organ_id)
                 )
 
     actions = [item for item in _as_list(faction.get("actions")) if item]
@@ -480,6 +538,65 @@ def lint_factions_data(data, config):
     return problems
 
 
+def check_automaton(data, source):
+    """Проверить исполняемый автомат из ``configs/automata``."""
+    problems: List[str] = []
+    data = _as_mapping(data)
+    schema = data.get("schema")
+    if schema is not None:
+        try:
+            schema_number = int(schema)
+        except (TypeError, ValueError):
+            problems.append(
+                "%s: схема %r, ожидалась 2" % (source, schema)
+            )
+        else:
+            if schema_number != 2:
+                problems.append(
+                    "%s: схема %r, ожидалась 2" % (source, schema)
+                )
+    try:
+        definition = StateMachineDefinition.from_data(data, source)
+    except (StateMachineError, ValueError) as error:
+        return problems + [str(error)]
+    for state in definition.states.values():
+        for key in ("on_enter", "on_tick", "outputs"):
+            for index, effect in enumerate(getattr(state, key)):
+                problems.extend(
+                    check_effects(
+                        "%s.state.%s.%s[%d]"
+                        % (source, state.id, key, index),
+                        effect,
+                    )
+                )
+        for index, transition in enumerate(state.transitions):
+            if transition.when is None:
+                continue
+            problems.extend(
+                _condition_problems(
+                    "%s.state.%s.transitions[%d].when"
+                    % (source, state.id, index),
+                    transition.when,
+                )
+            )
+    for name, payload in definition.handlers.items():
+        payload = _as_mapping(payload)
+        if payload.get("when") is not None:
+            problems.extend(
+                _condition_problems(
+                    "%s.handlers.%s.when" % (source, name),
+                    payload.get("when"),
+                )
+            )
+        problems.extend(
+            check_effects(
+                "%s.handlers.%s.effects" % (source, name),
+                payload.get("effects"),
+            )
+        )
+    return problems
+
+
 def _problems_for(path, data, config, factions_data=None):
     path = pathlib.Path(path)
     problems: List[str] = []
@@ -489,11 +606,24 @@ def _problems_for(path, data, config, factions_data=None):
         problems.extend(lint_factions_data(data, config))
     if isinstance(data, Mapping) and "faction_state" in data:
         problems.extend(check_defaults(data, factions_data))
+    if (
+        isinstance(data, Mapping)
+        and (
+            data.get("schema") == 2
+            or (
+                data.get("kind") in ("faction", "organ", "subfaction")
+                and "states" in data
+            )
+        )
+    ):
+        problems.extend(check_automaton(data, str(path)))
     return ["%s: %s" % (path, item) for item in problems]
 
 
 def lint_path(path, config=None, factions_data=None):
     path = pathlib.Path(path)
+    if path.is_dir():
+        return lint([path], config=config)
     try:
         data = _load(path)
     except (OSError, ValueError) as error:
@@ -503,11 +633,23 @@ def lint_path(path, config=None, factions_data=None):
     return _problems_for(path, data, config, factions_data)
 
 
+def _expand(paths):
+    """Развернуть каталоги в список JSON-файлов."""
+    files = []
+    for path in paths:
+        path = pathlib.Path(path)
+        if path.is_dir():
+            files.extend(sorted(path.glob("*.json")))
+        else:
+            files.append(path)
+    return files
+
+
 def lint(paths: Iterable = DEFAULT_PATHS, config=None):
     config = config or bdi.load_bdi()
     loaded = []
     problems: List[str] = []
-    for path in paths:
+    for path in _expand(paths):
         path = pathlib.Path(path)
         try:
             loaded.append((path, _load(path)))
@@ -529,13 +671,14 @@ def lint(paths: Iterable = DEFAULT_PATHS, config=None):
 def main(argv: Sequence[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
     paths = [pathlib.Path(item) for item in argv] or list(DEFAULT_PATHS)
-    problems = lint(paths)
+    files = _expand(paths)
+    problems = lint(files)
     for item in problems:
         print(item)
     if problems:
         print("найдено проблем: %d" % len(problems), file=sys.stderr)
         return 1
-    print("контент в порядке: %d файл(ов)" % len(paths))
+    print("контент в порядке: %d файл(ов)" % len(files))
     return 0
 
 

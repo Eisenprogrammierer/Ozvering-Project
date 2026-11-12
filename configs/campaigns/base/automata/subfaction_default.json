@@ -1,0 +1,75 @@
+{
+  "schema": 2,
+  "id": "subfaction.default",
+  "kind": "subfaction",
+  "name": "Жизненный цикл подфракции",
+  "description": "Внутренняя фракция набирает и теряет влияние. Переходы читают собственные активы подфракции, работы могут менять их через область subfactions.",
+  "initial": "loyal",
+  "states": {
+    "loyal": {
+      "label": "Лояльная",
+      "x": 80,
+      "y": 100,
+      "initial": true,
+      "transitions": [
+        {
+          "to": "ascendant",
+          "event": "берёт повестку",
+          "guard": "влияние выше аппарата",
+          "priority": 10,
+          "when": [
+            {"kind": "turn", "op": ">=", "value": 1},
+            {"kind": "subfaction", "asset": "influence", "op": ">=", "value": 0.60}
+          ]
+        },
+        {
+          "to": "sidelined",
+          "event": "оттеснена",
+          "guard": "влияние упало",
+          "priority": 20,
+          "when": [
+            {"kind": "subfaction", "asset": "influence", "op": "<", "value": 0.30}
+          ]
+        }
+      ]
+    },
+    "ascendant": {
+      "label": "Правящая",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "loyal",
+          "event": "компромисс",
+          "guard": "влияние нормализовалось",
+          "priority": 10,
+          "when": [
+            {"kind": "subfaction", "asset": "influence", "op": "<", "value": 0.48}
+          ]
+        }
+      ]
+    },
+    "sidelined": {
+      "label": "Оттеснённая",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "ascendant",
+          "event": "ревизия",
+          "guard": "обида превратилась в программу",
+          "priority": 10,
+          "when": [
+            {"kind": "subfaction", "asset": "grievance", "op": ">=", "value": 0.55},
+            {"kind": "subfaction", "asset": "influence", "op": ">=", "value": 0.45}
+          ]
+        }
+      ]
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": ["turn", "subfaction"],
+    "authority": "subfaction assets"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "schema": 2,
+  "id": "faction.default",
+  "kind": "faction",
+  "name": "Жизненный цикл фракции",
+  "description": "Классический цикл: латентность, мобилизация, кампания, кризис легитимности и распад. Состояния читаются интерфейсом, переходы исполняет ядро.",
+  "initial": "latent",
+  "states": {
+    "latent": {
+      "label": "Латентная фракция",
+      "x": 80,
+      "y": 100,
+      "initial": true,
+      "on_enter": [
+        {"flags": {"faction_latent": true, "faction_mobilizing": false}}
+      ],
+      "transitions": [
+        {
+          "to": "mobilizing",
+          "event": "угроза осознана",
+          "guard": "приоритетная потребность находит отклик",
+          "priority": 10,
+          "when": [
+            {"kind": "turn", "op": ">=", "value": 1},
+            {"kind": "asset", "scope": "self", "key": "cohesion", "op": ">=", "value": 0.30}
+          ]
+        }
+      ]
+    },
+    "mobilizing": {
+      "label": "Мобилизация",
+      "x": 300,
+      "y": 100,
+      "on_enter": [
+        {"flags": {"faction_latent": false, "faction_mobilizing": true}}
+      ],
+      "transitions": [
+        {
+          "to": "campaign",
+          "event": "силы собраны",
+          "guard": "легитимность выше кризисной",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "legitimacy", "op": ">=", "value": 0.50},
+            {"kind": "asset", "scope": "self", "key": "supply", "op": ">=", "value": 0.25}
+          ]
+        },
+        {
+          "to": "crisis",
+          "event": "мобилизация сорвана",
+          "guard": "легитимность и снабжение на дне",
+          "priority": 20,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "legitimacy", "op": "<", "value": 0.35}
+          ]
+        }
+      ]
+    },
+    "campaign": {
+      "label": "Кампания",
+      "x": 530,
+      "y": 100,
+      "on_enter": [
+        {"flags": {"faction_campaign": true, "faction_crisis": false}}
+      ],
+      "transitions": [
+        {
+          "to": "crisis",
+          "event": "потери и раскол",
+          "guard": "легитимность падает",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "legitimacy", "op": "<", "value": 0.42}
+          ]
+        }
+      ]
+    },
+    "crisis": {
+      "label": "Кризис легитимности",
+      "x": 530,
+      "y": 300,
+      "on_enter": [
+        {"flags": {"faction_crisis": true, "faction_campaign": false}}
+      ],
+      "transitions": [
+        {
+          "to": "dissolved",
+          "event": "фракция распалась",
+          "guard": "нет лояльных участников",
+          "priority": 20,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "cohesion", "op": "<", "value": 0.18}
+          ]
+        },
+        {
+          "to": "campaign",
+          "event": "внутренний компромисс",
+          "guard": "лидер сохраняет номинальную власть",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "legitimacy", "op": ">=", "value": 0.52},
+            {"kind": "asset", "scope": "self", "key": "cohesion", "op": ">=", "value": 0.25}
+          ]
+        }
+      ]
+    },
+    "dissolved": {
+      "label": "Распад",
+      "x": 300,
+      "y": 300,
+      "final": true,
+      "on_enter": [
+        {"flags": {"faction_dissolved": true, "faction_campaign": false}}
+      ],
+      "transitions": []
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": ["turn", "asset"],
+    "authority": "faction assets"
+  }
+}

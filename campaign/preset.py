@@ -31,6 +31,7 @@ from .defaults import default_dict
 from .divisions import load_divisions
 from .errors import CampaignError
 from .roles import RoleSpec, default_catalog as default_role_catalog
+from .state_machine import StateMachineError, load_catalog
 
 SCHEMA = 1
 
@@ -519,7 +520,52 @@ def _make_character(
     }
 
 
+def _machine_definition(kind):
+    """Вернуть первое определение автомата нужного вида.
+
+    Автоматы — данные в ``configs/automata``. Если файлов нет, пресет
+    остаётся работоспособным и собирает старый Python-граф.
+    """
+    try:
+        catalog = load_catalog()
+    except (OSError, StateMachineError, ValueError):
+        return None
+    return catalog.first(kind)
+
+
+def _automaton_from_definition(definition, name, description):
+    """Собрать граф редактора из исполняемого определения."""
+    automaton = Automaton(name, description)
+    ids = {}
+    for state_id, spec in definition.states.items():
+        state = automaton.add_state(
+            spec.label or state_id,
+            x=spec.x,
+            y=spec.y,
+            initial=(state_id == definition.initial),
+            final=spec.final,
+        )
+        ids[state_id] = state.id
+    for state_id, spec in definition.states.items():
+        for transition in spec.transitions:
+            automaton.add_transition(
+                ids[state_id],
+                ids[transition.to],
+                transition.event or transition.to,
+                transition.guard or "",
+            )
+    return automaton
+
+
 def _build_faction_automaton(faction_name, leader_name, priority_need, seed):
+    definition = _machine_definition("faction")
+    if definition is not None:
+        return _automaton_from_definition(
+            definition,
+            "Фракция: %s" % faction_name,
+            "Жизненный цикл фракции-автомата; номинальный лидер — %s."
+            % leader_name,
+        )
     automaton = Automaton(
         "Фракция: %s" % faction_name,
         "Жизненный цикл фракции-автомата; номинальный лидер — %s."
@@ -558,10 +604,27 @@ def _build_faction_automaton(faction_name, leader_name, priority_need, seed):
     return automaton
 
 
+def _subfaction_organs(cfg):
+    """Органы, вложенные в подфракции, в общий список органов фракции."""
+    result = []
+    for item in cfg.get("subfactions") or ():
+        if not isinstance(item, Mapping):
+            continue
+        sub_id = _text(item.get("id"))
+        for organ in item.get("organs") or ():
+            if not isinstance(organ, Mapping):
+                continue
+            record = dict(organ)
+            if sub_id:
+                record.setdefault("subfaction_id", sub_id)
+            result.append(record)
+    return result
+
+
 def _organ_records(cfg):
-    organs = [dict(item) for item in (cfg.get("organs") or ())]
-    if not organs:
-        return []
+    organs = [
+        dict(item) for item in (cfg.get("organs") or ())
+    ] + _subfaction_organs(cfg)
     labels = {
         _text(item.get("id")): _text(item.get("name"))
         for item in organs
@@ -586,6 +649,50 @@ def _organ_records(cfg):
     return result
 
 
+def _subfaction_records(cfg):
+    """Подфракции с ссылками на органы, без дублей определений."""
+    result = []
+    for item in cfg.get("subfactions") or ():
+        if not isinstance(item, Mapping):
+            continue
+        sub_id = _text(item.get("id"))
+        if not sub_id:
+            continue
+        record = {
+            key: value
+            for key, value in item.items()
+            if key not in ("organs", "organ_ids")
+        }
+        record["id"] = sub_id
+        record["label"] = _text(
+            item.get("label"), _text(item.get("name"), sub_id)
+        )
+        record["share"] = max(
+            0.0, min(1.0, _as_float(item.get("share"), 0.0))
+        )
+        record["assets"] = {
+            _text(key): _as_float(value, 0.0)
+            for key, value in _as_mapping(item.get("assets")).items()
+        }
+        organ_ids = []
+        for organ in item.get("organs") or ():
+            if isinstance(organ, Mapping):
+                organ_id = _text(organ.get("id"))
+            else:
+                organ_id = _text(organ)
+            if organ_id:
+                organ_ids.append(organ_id)
+        organ_ids.extend(
+            _text(organ_id)
+            for organ_id in (item.get("organ_ids") or ())
+            if _text(organ_id)
+        )
+        record["organ_ids"] = list(dict.fromkeys(organ_ids))
+        record["automaton"] = _text(item.get("automaton"))
+        result.append(record)
+    return result
+
+
 def _action_records(cfg):
     """Работы фракции с подписью автомата-исполнителя.
 
@@ -594,7 +701,9 @@ def _action_records(cfg):
     явно, берём текст успеха/провала из эффектов, а в крайнем случае
     собираем нейтральную подпись из названия работы и органа.
     """
-    organs = [dict(item) for item in (cfg.get("organs") or ())]
+    organs = [
+        dict(item) for item in (cfg.get("organs") or ())
+    ] + _subfaction_organs(cfg)
     labels = {
         _text(item.get("id")): _text(item.get("name"))
         for item in organs
@@ -631,6 +740,11 @@ def _build_organ_automaton(organ, faction_name, leader_name, seed):
         organ.get("description"),
         "Орган фракции «%s»; подчинён %s." % (faction_name, leader_name),
     )
+    definition = _machine_definition("organ")
+    if definition is not None:
+        return _automaton_from_definition(
+            definition, "Автомат: %s" % name, description
+        )
     automaton = Automaton("Автомат: %s" % name, description)
     forming = automaton.add_state(
         "Формирование", x=80, y=100, initial=True
@@ -857,6 +971,7 @@ def _build_faction_record(
         "population": _as_int(cfg.get("population"), 0),
         "actions": _action_records(cfg),
         "organs": _organ_records(cfg),
+        "subfactions": _subfaction_records(cfg),
         "organ_interactions": [
             dict(item)
             for item in (cfg.get("organ_interactions") or ())

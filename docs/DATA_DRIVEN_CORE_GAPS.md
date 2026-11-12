@@ -16,21 +16,25 @@
 > разнообразие поведения должно расти через предикаты, намерения,
 > состояния, события, работы и активы.
 
-### 0.2. Статус закрытия (обновлено 2026-11-11)
+### 0.2. Статус закрытия (обновлено 2026-11-12)
 
 | ID | Статус | Чем закрыто |
 |---|---|---|
 | G-01 | закрыто | `BDIState.seed()`, чтение `character_defaults`/`posts` в `campaign/preset.py` |
 | G-02 | закрыто | `Character.deliberate(target)`, `deliberate_target`, контентные намерения |
 | G-03 | закрыто частично | `campaign/effects.py`: активы, потребности, черты, состояния, убеждения, намерения, органы, флаги; `relations` — P8 |
+| G-04 | закрыто | `campaign/state_machine.py` + `configs/campaigns/base/automata/*.json`; тик фракций и органов, снимок |
+| G-05 | закрыто частично | `SubfactionRuntime`, `subfactions.*` в эффектах/условиях/метриках, `subfaction_id` у органов, автоматы и снимок; дерево орган-в-органе — P6+ |
 | G-07 | закрыто | `campaign/conditions.py`, `requires.when` |
 | G-08 | закрыто частично | событие больше не пишет; `conditions` читают BDI/органы/флаги, но `_story_context` всё ещё узок |
 | G-09 | закрыто | `Belief.value/confidence/source/ttl`, `object: required/forbidden`, `decay_beliefs()` |
 | G-12 | закрыто частично | `campaign/content_lint.py`; JSON Schema ещё нет |
+| G-15 | закрыто | пресет строит граф редактора из того же `StateMachineDefinition` |
 | G-16 | закрыто частично | линтер проверяет предикаты; `strict_predicates` остаётся `false` для рантайма |
 
-Остальные находки (G-04, G-05, G-06, G-10, G-11, G-13, G-14, G-15)
-остаются открытыми.
+Остальные находки (G-06, G-08 в части ширины контекста, G-10, G-11,
+G-13, G-14) остаются открытыми. Орган-в-органе по `parent_id` и петля
+«лидер → доктрина» — следующие шаги.
 
 ---
 
@@ -117,8 +121,8 @@ configs/campaigns/base/automata_defaults.json
   faction_state.assets ► формулы активов ──────────────────────────── ✅
   organ_model ─────────► tick_organs (только integrity) ────────────── ⚠️ G-05
 
-configs/automata/*.json ─► AutomataStore (редактор) ──► UI-кодекс      ❌ G-15
-                          └─ кампания не загружает ─────────────────── ❌ G-04
+configs/campaigns/base/automata/*.json ─► StateMachineCatalog ─► кампания  ✅ G-04
+configs/automata/*.json ─► AutomataStore (редактор) ──► UI-кодекс
 ```
 
 ---
@@ -230,7 +234,10 @@ for scope, effects in branch.get("needs"): ... character.needs[...] += ...
 
 ### G-04. Автоматы фракций и органов строятся в Python, а не читаются из JSON
 
-**Critical.**
+**Critical.** **Закрыто 2026-11-12:** `campaign/state_machine.py` читает
+`configs/campaigns/base/automata/faction_default.json` и
+`organ_default.json`, пресет строит из них граф, а `AutomataCampaign`
+тикает и сохраняет состояния.
 
 * `campaign/preset.py:499-535` (`_build_faction_automaton`) создаёт
   фиксированный жизненный цикл: `Латентность → Мобилизация → Кампания →
@@ -239,7 +246,7 @@ for scope, effects in branch.get("needs"): ... character.needs[...] += ...
 * `campaign/preset.py:604-...` (`_build_organ_automaton`) создаёт **один и
   тот же** цикл `Формирование → В строю → Напряжение → Восстановление →
   Расформирование` для любого органа любой фракции.
-* `configs/automata/` пуст (только `.gitkeep`); формат редактора
+* `configs/automata/` был пуст (только `.gitkeep`) до P5; формат редактора
   (`AUTOMATA.md`) кампанией не загружается.
 * `AutomataCampaign` хранит `preset.automata` для кодекса/UI
   (`campaign/automata.py:269-...`, снимок `automata`), но не исполняет
@@ -258,7 +265,12 @@ for scope, effects in branch.get("needs"): ... character.needs[...] += ...
 
 ### G-05. Модель органа — один скаляр; дерево подсистем не работает
 
-**High.**
+**High.** **Частично закрыто 2026-11-12:** у каждого органа есть исполняемый
+автомат (`organ_default.json`) и сохраняемое состояние; подфракции
+(`SubfactionRuntime`) получили активы, эффекты `subfactions`, условия
+`kind: subfaction`, метрики `subfactions.*`, автоматы и снимок; вложенный
+орган помечается `subfaction_id`. Дерево «орган внутри органа» по
+`parent_id` пока остаётся сетевой связью, а не отдельным тиком.
 
 `OrganRuntime` (`campaign/fractal.py:315-405`) хранит:
 
@@ -466,7 +478,10 @@ no-op. Для контента объёмом в тысячи строк это 
 
 ### G-15. Два несовместимых понятия «автомат»
 
-**Low.**
+**Low.** **Закрыто 2026-11-12:** `StateMachineDefinition` — общий контракт;
+`configs/campaigns/base/automata/*.json` исполняются кампанией, а
+`preset.py` собирает из них граф редактора (`Automaton`) без второй копии
+состояний. `configs/automata` остаётся хранилищем графов редактора.
 
 * `configs/automata/*.json` + `automata.storage.AutomataStore` — формат
   редактора: состояния/переходы/координаты, только отображение.

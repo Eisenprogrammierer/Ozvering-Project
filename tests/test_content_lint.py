@@ -145,3 +145,50 @@ def test_defaults_require_labels_and_formulas():
         "faction_state.assets" in item and "myth" in item
         for item in problems
     )
+
+
+def test_automaton_targets_and_effects_are_checked():
+    broken = {
+        "schema": 2,
+        "id": "test.broken",
+        "kind": "faction",
+        "initial": "a",
+        "states": {
+            "a": {"transitions": [{"to": "missing"}]},
+        },
+    }
+    problems = content_lint.check_automaton(broken, "automaton")
+    assert any("ведёт в никуда" in item for item in problems)
+
+    invalid = {
+        "schema": 2,
+        "id": "test.invalid",
+        "kind": "organ",
+        "initial": "a",
+        "states": {
+            "a": {
+                "on_enter": [{"relations": {}}],
+                "transitions": [
+                    {"to": "b", "when": [{"kind": "nope"}]}
+                ],
+            },
+            "b": {},
+        },
+    }
+    problems = content_lint.check_automaton(invalid, "automaton")
+    assert any("не поддерживается ядром" in item for item in problems)
+    assert any("неизвестный вид условия" in item for item in problems)
+
+
+def test_automaton_schema_is_checked():
+    problems = content_lint.check_automaton(
+        {
+            "schema": 1,
+            "id": "test.old",
+            "kind": "faction",
+            "initial": "a",
+            "states": {"a": {}},
+        },
+        "automaton",
+    )
+    assert any("ожидалась 2" in item for item in problems)

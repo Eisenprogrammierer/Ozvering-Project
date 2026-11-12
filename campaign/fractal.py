@@ -321,6 +321,7 @@ class OrganRuntime:
     description: str = ""
     automaton_id: str = ""
     parent_id: str = ""
+    subfaction_id: str = ""
     links: List[str] = field(default_factory=list)
     action_ids: List[str] = field(default_factory=list)
     integrity: float = ORGAN_DEFAULT_INTEGRITY
@@ -349,6 +350,7 @@ class OrganRuntime:
             description=str(record.get("description") or ""),
             automaton_id=str(record.get("automaton_id") or ""),
             parent_id=str(record.get("parent_id") or ""),
+            subfaction_id=str(record.get("subfaction_id") or ""),
             links=[
                 str(item)
                 for item in (record.get("links") or ())
@@ -404,6 +406,7 @@ class OrganRuntime:
             "description": self.description,
             "automaton_id": self.automaton_id,
             "parent_id": self.parent_id,
+            "subfaction_id": self.subfaction_id,
             "links": list(self.links),
             "action_ids": list(self.action_ids),
             "integrity": round(_clamp(self.integrity), 6),

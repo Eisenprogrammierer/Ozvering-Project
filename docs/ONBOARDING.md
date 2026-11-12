@@ -207,7 +207,9 @@ main.py
 | `configs/systems/*.json` | среда, события, драматург | `systems.*` |
 | `configs/naming/*.json` | лексикон и имена | `naming.*` |
 | `configs/worlds/` | миров пока нет (только `.gitkeep`) | `campaign.world.load_world()` |
-| `configs/strategy/`, `configs/automata/`, `configs/environments/`, `configs/presets/`, `configs/classes/`, `configs/view/` | пусто (`.gitkeep`) | соответствующие загрузчики |
+| `configs/automata/*.json` | графы автоматов для редактора (схема 1) | `automata.storage.AutomataStore` |
+| `configs/campaigns/base/automata/*.json` | исполняемые автоматы фракций и органов (схема 2) | `campaign.state_machine` |
+| `configs/strategy/`, `configs/environments/`, `configs/presets/`, `configs/classes/`, `configs/view/` | пусто (`.gitkeep`) | соответствующие загрузчики |
 
 Тестовый набор контента лежит отдельно: `tests/fixtures/content/`.
 `tests/conftest.py` подменяет рабочие каталоги на фикстуры, поэтому тесты
@@ -276,8 +278,8 @@ GUI существует и играется, но это **рабочий пе�
 * **Статусы документов различаются.** README, SUMMARY, SYSTEMS, WORLD и
   этот документ сверены с поставкой 2026-11-09: в `configs/` уже есть роли,
   сюжеты, кампании, среда/события/драматург и имена; пусты только
-  `configs/worlds/`, `configs/strategy/`, `configs/automata/`,
-  `configs/environments/`, `configs/presets/`, `configs/classes/` и
+  `configs/worlds/`, `configs/strategy/`, `configs/environments/`,
+  `configs/presets/`, `configs/classes/` и
   `configs/view/`. `docs/code/*` — исторические снимки, а `CAMPAIGN_UI.md`
   содержит и текущий поток, и легаси-разделы; их числа относятся к своим
   датам. Для текущего состояния сверяйтесь с

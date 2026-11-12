@@ -1,0 +1,116 @@
+{
+  "schema": 2,
+  "id": "organ.default",
+  "kind": "organ",
+  "name": "Жизненный цикл органа",
+  "description": "Орган формируется, входит в строй, выдерживает перегрузку, уходит в резерв или расформировывается. Переходы читают активы фракции.",
+  "initial": "forming",
+  "states": {
+    "forming": {
+      "label": "Формирование",
+      "x": 80,
+      "y": 100,
+      "initial": true,
+      "transitions": [
+        {
+          "to": "active",
+          "event": "приказ получен",
+          "guard": "орган укомплектован",
+          "priority": 10,
+          "when": [
+            {"kind": "turn", "op": ">=", "value": 1},
+            {"kind": "asset", "scope": "self", "key": "supply", "op": ">=", "value": 0.20}
+          ]
+        }
+      ]
+    },
+    "active": {
+      "label": "В строю",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "strained",
+          "event": "потери и перегрузка",
+          "guard": "ресурс ниже нормы",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "supply", "op": "<", "value": 0.35}
+          ]
+        },
+        {
+          "to": "restored",
+          "event": "выведен в резерв",
+          "guard": "командование даёт передышку",
+          "priority": 5,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "energy", "op": "<", "value": 0.25}
+          ]
+        }
+      ]
+    },
+    "strained": {
+      "label": "Напряжение",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "disbanded",
+          "event": "расформирован",
+          "guard": "фракция распалась",
+          "priority": 20,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "cohesion", "op": "<", "value": 0.20}
+          ]
+        },
+        {
+          "to": "active",
+          "event": "пополнение",
+          "guard": "тыл восстановил запас",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "supply", "op": ">=", "value": 0.45}
+          ]
+        },
+        {
+          "to": "restored",
+          "event": "выведен в резерв",
+          "guard": "нужна передышка",
+          "priority": 5,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "energy", "op": "<", "value": 0.20}
+          ]
+        }
+      ]
+    },
+    "restored": {
+      "label": "Восстановление",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "active",
+          "event": "возвращён в строй",
+          "guard": "готовность подтверждена",
+          "priority": 10,
+          "when": [
+            {"kind": "asset", "scope": "self", "key": "supply", "op": ">=", "value": 0.40},
+            {"kind": "asset", "scope": "self", "key": "energy", "op": ">=", "value": 0.30}
+          ]
+        }
+      ]
+    },
+    "disbanded": {
+      "label": "Расформирование",
+      "x": 300,
+      "y": 300,
+      "final": true,
+      "transitions": []
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": ["turn", "asset"],
+    "authority": "faction assets"
+  }
+}

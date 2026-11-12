@@ -12,7 +12,7 @@
 > лорных шаблона кампаний, общие фракции/органы/работы, роли, сюжеты,
 > 12 черт характера, 16 желаний BDI, 15 делений, каталог личности, имена,
 > события и UI-контент.
-> Каталоги `configs/worlds/`, `configs/strategy/`, `configs/automata/`,
+> Каталоги `configs/worlds/`, `configs/strategy/`,
 > `configs/environments/`, `configs/presets/`, `configs/classes/`,
 > `configs/view/` и корневой `campaigns/` пока содержат только `.gitkeep` —
 > это заготовки под свои данные. `tests/fixtures/content/` остаётся
@@ -22,7 +22,8 @@
 
 1. **Один источник — JSON.** Игровые данные не дублируются в Python-коде.
 2. **Добавление файла = добавление контента** там, где загрузчик сканирует
-   папку: `configs/automata/`, `configs/naming/classes/`,
+   папку: `configs/automata/`, `configs/campaigns/base/automata/`,
+   `configs/naming/classes/`,
    `configs/naming/interactions/`, `configs/storylines/`, `configs/roles/`,
    `configs/worlds/`, `configs/campaigns/`, `configs/content/`,
    `configs/characters/`, `campaigns/`. Новый файл сразу попадает в обход
@@ -50,7 +51,8 @@
 
 | Путь | Что это | Загрузчик | Добавить | Изменить | Удалить |
 |---|---|---|---|---|---|
-| `configs/automata/*.json` | автоматы для редактора | `automata.storage.AutomataStore` | новый `*.json` или кнопка редактора | редактор/`store.save(automaton, slug)` | `store.delete(slug)` |
+| `configs/automata/*.json` | графы редактора (schema 1) | `automata.storage.AutomataStore` | новый `*.json` или кнопка редактора | редактор/`store.save(automaton, slug)` | `store.delete(slug)` |
+| `configs/campaigns/base/automata/*.json` | исполняемые автоматы фракций и органов (schema 2) | `campaign.state_machine` | новый `*.json` с `id`, `kind`, `states` | переходы/эффекты/условия | файл |
 | `configs/naming/lexicon.json` | словарь морфологии | `NamingCatalog`/`PersonCatalog` | слово в `words` | значение слова | слово (проверить ссылки) |
 | `configs/naming/classes/*.json` | классы автоматов | `NamingCatalog.load()` | новый файл класса | поля класса | файл |
 | `configs/naming/interactions/*.json` | типы взаимодействий | `NamingCatalog.load()` | новый файл | поля типа | файл |
@@ -383,9 +385,19 @@ custom = content.get("my_new_file", {})
 
 ### Автомат (`configs/automata/<slug>.json`)
 
-Один файл — один автомат. Полная схема и редактор —
+Один файл — один автомат. Полная схема редактора —
 [`AUTOMATA.md`](AUTOMATA.md). `AutomataStore` сам строит slug из имени,
 поэтому новый файл можно создать копированием и правкой.
+
+Исполняемые автоматы кампании лежат отдельно, в
+`configs/campaigns/base/automata/<id>.json`: схема 2 с полями `id`, `kind`,
+`initial`, `states`, `handlers`. Их читает
+`campaign.state_machine.StateMachineCatalog`, а `preset.py` строит из них
+граф кодекса. Разделение папок не даёт редактору показывать исполняемые
+состояния как пустые графы; загрузчик всё равно пропускает файлы без
+`schema: 2`, если они случайно окажутся рядом. Дефолты:
+`faction_default.json` и `organ_default.json`; проверка —
+`python -m campaign.content_lint`.
 
 ## 4. Проверка после правки
 

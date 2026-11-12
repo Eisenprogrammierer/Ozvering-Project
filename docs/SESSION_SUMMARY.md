@@ -4,9 +4,9 @@
 > прочитано, что найдено, какие решения приняты и что делать дальше.
 > Документ — не канон; канон в [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md).
 >
-> **Дата:** 2026-11-11.
-> **Ветка/дерево:** текущий `Ozvering-Project`, без коммитов и правок
-> кода/конфигов.
+> **Дата:** 2026-11-12 (обновлено после P5/P6).
+> **Ветка/дерево:** `main`; P0–P6 закоммичены, дальше P7 (ИИ) и P8
+> (отношения).
 
 ---
 
@@ -98,7 +98,7 @@ pdftotext -layout docs/лор.pdf /tmp/opencode/lore.txt
    активы и потребности. Убеждения, намерения, органы, флаги, отношения —
    невозможно.
 4. **Автоматы — Python, не данные.** `preset.py:499-535` и `604+` —
-   фиксированные пятифазные циклы; `configs/automata/` пуст; состояния не
+   фиксированные пятифазные циклы; `configs/automata/` был пуст до P5; состояния не
    исполняются.
 5. **Условия — только активы.** `automata.py:1166-1260`.
 6. **ИИ игнорирует BDI.** `automata.py:2168-2198` — только
@@ -223,6 +223,58 @@ pdftotext -layout docs/лор.pdf /tmp/opencode/lore.txt
 кампания их не вызывает. Линтер отклоняет `effects`/`apply`/`emit` в
 событиях.
 
+### 5.4. Реализовано (P5)
+
+* `campaign/state_machine.py` — `StateMachineDefinition`, `StateSpec`,
+  `TransitionSpec`, `StateMachine`, `StateMachineCatalog`; загрузка
+  `configs/campaigns/base/automata/*.json`, приоритеты переходов, `on_enter`/`on_tick`,
+  обработчики событий, снимок состояния и истории.
+* `configs/campaigns/base/automata/faction_default.json` и `organ_default.json` — схема 2,
+  пять состояний жизненного цикла, условия на активы и цикл, флаги на
+  входах в ключевые состояния.
+* `campaign/preset.py` — фракционные и органные автоматы собираются из
+  JSON; Python-циклы остались fallback'ом, если файлов нет.
+* `campaign/automata.py` — `_build_machines()` создаёт машины для каждой
+  фракции и каждого органа; `_tick_machines()` вызывается из
+  `_tick_organizations()`; состояния и история сохраняются в снимке под
+  ключом `machines` и восстанавливаются.
+* `campaign/content_lint.py` — проверяет `configs/campaigns/base/automata/*.json`:
+  схема 2, `kind`, начальное состояние, цели переходов, эффекты и условия.
+* Тесты: `tests/test_state_machine.py` (условия, приоритеты, эффекты,
+  обработчик, стабильное состояние, снимок, дефолтный каталог, кампания);
+  `tests/test_content_lint.py` дополнен проверками автоматов.
+
+Автоматы пока не меняют баланс: у дефолтных состояний нет эффектов на
+активы, только флаги. Это оставляет место для P9, где контент задаст
+лорные эффекты переходов.
+
+### 5.5. Реализовано (P6, основа)
+
+* `SubfactionRuntime` во фракции: `id`, `label`, `share`, собственные
+  `assets`, `organ_ids`, `machine_id`; `FactionRuntime.subfaction()`.
+* `campaign/automata.py` — `_build_subfactions()` читает JSON, связывает
+  вложенные органы через `subfaction_id`, создаёт автоматы подфракций,
+  тикает их и сохраняет активы/состояния в снимке.
+* `campaign/effects.py` — область `subfactions`:
+  `{id: {"assets": {...}, "share": delta}}`; неизвестная подфракция
+  попадает в `ignored`, а не в активы.
+* `campaign/conditions.py` — `kind: subfaction` читает `asset` и `id`
+  (или контекстную подфракцию).
+* `campaign/faction_state.py` — метрики `subfactions.<id>.<asset>` и
+  агрегаты `subfactions.mean|max|min:<asset>`.
+* `campaign/preset.py` — `_subfaction_records()`, вложенные органы
+  подфракций попадают в общий `organs` с `subfaction_id`; работы видят их
+  подписи.
+* `configs/campaigns/base/automata/subfaction_default.json` — лояльная →
+  правящая / оттеснённая → ревизия.
+* `campaign/content_lint.py` — id/share/assets/ссылки подфракций и
+  вложенных органов.
+* Тесты: `tests/test_subfactions.py` (сборка, эффекты, условия, метрики,
+  автомат, снимок, линтер).
+
+Осталось по P6: дерево «орган внутри органа» по `parent_id`, собственные
+шкалы органа и петля «лидер → доктрина → работы» (G-14).
+
 ---
 
 ## 6. Следующие шаги
@@ -239,11 +291,15 @@ pdftotext -layout docs/лор.pdf /tmp/opencode/lore.txt
 4. ~~**P3/P4.** `campaign/effects.py` и `campaign/conditions.py`; перевести
    `_apply_branch` и `_asset_requirement_reason`.~~ Сделано; `relations`
    отложена до P8, `when` доступен работам.
-5. **P5/P6.** `campaign/state_machine.py`; вынести автоматы из
-   `preset.py`; подсистемы.
-6. **P7.** ИИ из данных.
-7. **P8.** Отношения.
-8. **P9.** Наполнение по `CONTENT_PLAN_LORE.md`, начиная с предикатов,
+5. ~~**P5.** `campaign/state_machine.py`; вынести автоматы из
+   `preset.py`.~~ Сделано: JSON-каталог, тик и снимок автоматов фракций и
+   органов.
+6. ~~**P6.** Подсистемы и вложенные органы.~~ Основа сделана:
+   `subfactions`, активы/эффекты/условия/метрики, автоматы и снимок;
+   осталось дерево «орган внутри органа» и петля G-14.
+7. **P7.** ИИ из данных.
+8. **P8.** Отношения.
+9. **P9.** Наполнение по `CONTENT_PLAN_LORE.md`, начиная с предикатов,
    активов, органов и работ Империи.
 
 ---
@@ -273,6 +329,7 @@ venv/bin/python -m pytest -q
 venv/bin/python -m pytest -q tests/test_bdi.py
 venv/bin/python -m pytest -q tests/test_content_pipeline.py
 venv/bin/python -m pytest -q tests/test_automata_campaign.py
+venv/bin/python -m pytest -q tests/test_state_machine.py tests/test_subfactions.py
 ```
 
 ---
@@ -288,12 +345,14 @@ venv/bin/python -m pytest -q tests/test_automata_campaign.py
 | `deliberate` | `warfare.py:464-500` |
 | `ESSENCE_FOR_KIND` | `warfare.py:135` |
 | Генерация персонажа | `campaign/preset.py:430-496` |
-| Автомат фракции (Python) | `campaign/preset.py:499-535` |
-| Автомат органа (Python) | `campaign/preset.py:604-660` |
+| Автоматы (данные) | `configs/campaigns/base/automata/*.json` |
+| Рантайм автоматов | `campaign/state_machine.py` |
+| Сборка графа пресета | `campaign/preset.py` (`_automaton_from_definition`) |
+| Тик/снимок автоматов | `campaign/automata.py` (`_tick_machines`, `_machines_snapshot`) |
+| Подфракции | `campaign/automata.py` (`SubfactionRuntime`, `_build_subfactions`) |
 | Запись персонажа | `campaign/automata.py:141-182` |
 | Сборка фракций | `campaign/automata.py:588-755` |
 | Контекст сюжета | `campaign/automata.py:980-1031` |
-| Эффекты сюжета | `campaign/automata.py:1032-1100` |
 | Требования работ | `campaign/automata.py:1166-1260` |
 | Эффекты работ | `campaign/automata.py:1969-1987` |
 | ИИ | `campaign/automata.py:2168-2198` |

@@ -447,6 +447,15 @@ def evaluate(campaign, scope, spec, *, target=None, character=None):
 
 **Цель:** закрыть G-04 и G-15. Автомат становится данными с семантикой.
 
+**Статус (2026-11-12):** реализовано. `campaign/state_machine.py` читает
+`configs/campaigns/base/automata/faction_default.json` и
+`organ_default.json`; пресет
+строит из них граф редактора, `AutomataCampaign` тикает машины фракций и
+органов в `_tick_organizations`, состояния и история входят в снимок под
+ключом `machines`. Линтер проверяет схему, цели переходов, эффекты и
+условия. Обработчики доступны через `StateMachine.handle()`; подключение
+к конкретным формам работ — следующий шаг. Подсистемы (P6) не начаты.
+
 ### Новый модуль `campaign/state_machine.py`
 
 ```python
@@ -461,9 +470,9 @@ class StateMachine:
 
 ### Схема автомата
 
-Файлы: `configs/campaigns/base/automata/<id>.json` (или секция
-`automata` в `automata_defaults.json` — решить на P5; предпочтительны
-отдельные файлы для масштаба).
+Файлы: `configs/campaigns/base/automata/<id>.json` (решение P5: отдельные
+файлы на вид автомата; папка рядом с данными кампании, чтобы не смешивать
+исполняемые автоматы с графами редактора в `configs/automata`).
 
 ```json
 {
@@ -505,10 +514,10 @@ class StateMachine:
 | Файл | Изменение |
 |---|---|
 | `campaign/state_machine.py` | новый модуль |
-| `campaign/preset.py:499-535` | удалить `_build_faction_automaton`; загружать из JSON с fallback на дефолт |
-| `campaign/preset.py:604-...` | удалить `_build_organ_automaton`; загружать из JSON |
-| `campaign/fractal.py:315-500` | `OrganRuntime` получает `state`, `history`, `inputs`, `outputs`; `tick_organs` исполняет машину |
-| `campaign/automata.py` (`end_turn`) | тик автоматов фракций и органов через `StateMachine` |
+| `campaign/preset.py` | `_build_faction_automaton`/`_build_organ_automaton` читают JSON; Python-цикл остался fallback |
+| `campaign/automata.py` | `_build_machines`, `_tick_machines` в `_tick_organizations`, `machines` в снимке |
+| `campaign/content_lint.py` | проверка `configs/campaigns/base/automata/*.json` |
+| `campaign/fractal.py` | собственные шкалы/вложенность органов — P6 |
 | `view/screens/campaign_codex.py` | читает состояния из снимка, а не из `preset.automata` |
 
 ### Совместимость
@@ -516,7 +525,8 @@ class StateMachine:
 * Если для фракции/органа нет JSON-автомата — генерируется дефолтный
   (текущий пятифазный цикл) в коде как fallback, с предупреждением
   линтера. Это позволяет мигрировать постепенно.
-* Снимок получает `machine_states: {id: {state, history}}`.
+* Снимок получает `machines: {factions: {side: {state, history}},
+  organs: {side: {organ_id: {state, history}}}}`.
 
 ### Тесты
 
@@ -532,6 +542,16 @@ class StateMachine:
 
 **Цель:** закрыть G-05 и G-14, дать «фракции внутри фракций» и органные
 автоматы.
+
+**Статус (2026-11-12):** реализована основа подсистем. Фракция читает
+`subfactions` из JSON, строит `SubfactionRuntime` (доля, активы, ссылки на
+органы), эффекты пишут `subfactions.<id>.assets/share`, условия читают
+`kind: subfaction`, метрики — `subfactions.<id>.<asset>` и
+`subfactions.mean|max|min:<asset>`, у подфракций есть автоматы
+`subfaction_default.json` и снимок. Вложенные органы помечаются
+`subfaction_id` и попадают в общий список фракции. Осталось: дерево
+«орган внутри органа» по `parent_id`, собственные шкалы органа и петля
+«лидер → доктрина → работы» (G-14).
 
 ### Схема
 
@@ -556,11 +576,13 @@ class StateMachine:
 
 | Файл | Изменение |
 |---|---|
-| `campaign/faction_state.py:181-241` | новые префиксы метрик `subfactions.*` |
-| `campaign/automata.py:588-755` | `_build_factions` рекурсивно строит подфракции; `FactionRuntime.subfactions` |
-| `campaign/fractal.py` | `OrganRuntime.parent_id` используется для вложенности; `tick_organs` обходит дерево |
-| `campaign/effects.py` | область `subfactions` и `organ:<id>` |
-| `campaign/conditions.py` | термы `subfactions` |
+| `campaign/faction_state.py` | префиксы метрик `subfactions.*` |
+| `campaign/automata.py` | `SubfactionRuntime`, `_build_subfactions`, `subfactions` в снимке, машины и восстановление |
+| `campaign/fractal.py` | `OrganRuntime.subfaction_id`; `parent_id` остаётся сетевой связью |
+| `campaign/effects.py` | область `subfactions` (`assets`, `share`), неизвестная подфракция → `ignored` |
+| `campaign/conditions.py` | терм `kind: subfaction` (`asset`, `id`, `subfaction`) |
+| `campaign/preset.py` | `_subfaction_records`, вложенные органы в `_organ_records` |
+| `campaign/content_lint.py` | id/share/assets/ссылки подфракций |
 
 ### Тесты
 
@@ -568,6 +590,7 @@ class StateMachine:
 * Родитель видит агрегат.
 * Смена власти (ревизионисты побеждают) выражается переходом автомата и
   меняет набор доступных работ.
+* Снимок сохраняет активы и состояние автомата подфракции.
 * Орган внутри органа тикает и влияет на родителя.
 
 ---

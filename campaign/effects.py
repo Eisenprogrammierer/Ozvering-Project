@@ -46,6 +46,7 @@ STRUCTURAL_KEYS = {
     "beliefs",
     "intentions",
     "organs",
+    "subfactions",
     "relations",
     "flags",
     "text",
@@ -313,6 +314,51 @@ def _apply_organs(faction, values, scale, applied, scope):
             )
 
 
+def _apply_subfactions(faction, values, scale, applied, scope):
+    """Записать активы подфракций: ``{id: {"assets": {...}}}``."""
+    if faction is None:
+        return
+    for sub_id, payload in _as_mapping(values).items():
+        sub = faction.subfaction(str(sub_id))
+        if sub is None:
+            applied["ignored"].append(
+                {
+                    "scope": scope,
+                    "key": "subfaction:%s" % sub_id,
+                    "reason": "unknown",
+                }
+            )
+            continue
+        payload = _as_mapping(payload)
+        for key, value in _as_mapping(payload.get("assets")).items():
+            delta = _number(value) * scale
+            if not delta:
+                continue
+            before = sub.asset(key)
+            sub.add_asset(key, delta)
+            applied["subfactions"].append(
+                {
+                    "scope": scope,
+                    "subfaction": sub.id,
+                    "key": str(key),
+                    "delta": sub.asset(key) - before,
+                }
+            )
+        if payload.get("share") is not None:
+            before = sub.share
+            sub.share = _clamp(
+                before + _number(payload.get("share")) * scale
+            )
+            applied["subfactions"].append(
+                {
+                    "scope": scope,
+                    "subfaction": sub.id,
+                    "key": "share",
+                    "delta": sub.share - before,
+                }
+            )
+
+
 def _apply_flags(faction, values, scale, applied, scope):
     if faction is None:
         return
@@ -349,6 +395,8 @@ def _apply_scope(faction, payload, scope, scale, applied):
             _apply_intentions(faction, value, scale, applied, scope)
         elif key == "organs":
             _apply_organs(faction, value, scale, applied, scope)
+        elif key == "subfactions":
+            _apply_subfactions(faction, value, scale, applied, scope)
         elif key == "flags":
             _apply_flags(faction, value, scale, applied, scope)
         elif key == "relations":
@@ -392,6 +440,7 @@ def apply_effects(
         "beliefs": [],
         "intentions": [],
         "organs": [],
+        "subfactions": [],
         "flags": [],
         "ignored": [],
     }

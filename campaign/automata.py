@@ -55,12 +55,86 @@ from .projections import (
     ensure_supported_snapshot,
     stamp_snapshot,
 )
+from .state_machine import (
+    StateMachine,
+    StateMachineCatalog,
+    StateMachineError,
+    load_catalog,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class AutomataCampaignError(CampaignError):
     pass
+
+
+def _subfaction_organ(organs, organ_id):
+    for organ in organs:
+        if str(organ.id) == str(organ_id):
+            return organ
+    return None
+
+
+def _build_subfactions(faction, organs, interactions):
+    """Собрать подфракции и связать их органы с родителем."""
+    result = []
+    for record in _as_mapping(faction).get("subfactions") or ():
+        if not isinstance(record, Mapping):
+            continue
+        sub_id = str(record.get("id") or "").strip()
+        if not sub_id:
+            continue
+        organ_ids = []
+        for item in record.get("organ_ids") or ():
+            organ_id = str(item or "").strip()
+            if not organ_id:
+                continue
+            organ = _subfaction_organ(organs, organ_id)
+            if organ is not None:
+                organ.subfaction_id = sub_id
+            if organ_id not in organ_ids:
+                organ_ids.append(organ_id)
+        for item in record.get("organs") or ():
+            if isinstance(item, Mapping):
+                organ = OrganRuntime.from_record(
+                    item, interactions=interactions
+                )
+                if organ is None:
+                    continue
+                organ.subfaction_id = sub_id
+                existing = _subfaction_organ(organs, organ.id)
+                if existing is None:
+                    organs.append(organ)
+                else:
+                    existing.subfaction_id = sub_id
+                if organ.id not in organ_ids:
+                    organ_ids.append(organ.id)
+                continue
+            organ_id = str(item or "").strip()
+            organ = _subfaction_organ(organs, organ_id)
+            if organ is not None:
+                organ.subfaction_id = sub_id
+            if organ_id and organ_id not in organ_ids:
+                organ_ids.append(organ_id)
+        result.append(
+            SubfactionRuntime(
+                id=sub_id,
+                label=str(
+                    record.get("label") or record.get("name") or sub_id
+                ),
+                share=_clamp(record.get("share", 0.0)),
+                assets={
+                    str(key): _clamp(value)
+                    for key, value in _as_mapping(
+                        record.get("assets")
+                    ).items()
+                },
+                organ_ids=organ_ids,
+                machine_id=str(record.get("automaton") or ""),
+            )
+        )
+    return result
 
 
 MODEL_DEFAULTS = default_dict("automata_model")
@@ -190,6 +264,41 @@ def _character_from_record(record, seed):
 
 
 @dataclass
+class SubfactionRuntime:
+    """Подсистема внутри фракции: своя доля и свои активы."""
+
+    id: str
+    label: str = ""
+    share: float = 0.0
+    assets: Dict[str, float] = field(default_factory=dict)
+    organ_ids: List[str] = field(default_factory=list)
+    machine_id: str = ""
+
+    def asset(self, key, default=0.0):
+        return _clamp(_number(self.assets.get(str(key)), default))
+
+    def add_asset(self, key, delta):
+        key = str(key)
+        self.assets[key] = _clamp(
+            _number(self.assets.get(key)) + _number(delta)
+        )
+        return self.assets[key]
+
+    def snapshot(self):
+        return {
+            "id": self.id,
+            "label": self.label,
+            "share": round(_clamp(self.share), 6),
+            "assets": {
+                str(key): round(_clamp(value), 6)
+                for key, value in self.assets.items()
+            },
+            "organ_ids": list(self.organ_ids),
+            "machine_id": self.machine_id,
+        }
+
+
+@dataclass
 class FactionRuntime:
     side: str
     id: str
@@ -206,6 +315,7 @@ class FactionRuntime:
     action_uses: Dict[str, int] = field(default_factory=dict)
     actions: List[dict] = field(default_factory=list)
     organs: List[OrganRuntime] = field(default_factory=list)
+    subfactions: List[SubfactionRuntime] = field(default_factory=list)
     automaton_interactions: List[dict] = field(default_factory=list)
     character_interactions: List[dict] = field(default_factory=list)
     character_cooldowns: Dict[str, Dict[str, int]] = field(
@@ -258,6 +368,12 @@ class FactionRuntime:
         for organ in self.organs:
             if str(organ.id) == str(organ_id):
                 return organ
+        return None
+
+    def subfaction(self, subfaction_id):
+        for item in self.subfactions:
+            if str(item.id) == str(subfaction_id):
+                return item
         return None
 
     def character(self, character_id):
@@ -465,6 +581,9 @@ class FactionRuntime:
             },
             "dissolved": bool(self.dissolved),
             "organs": organ_snapshots,
+            "subfactions": [
+                item.snapshot() for item in self.subfactions
+            ],
             "characters": self.character_options(),
             "organ_integrity": round(self.organ_average(), 6),
             "network_density": round(network_density(self.organs), 6),
@@ -585,6 +704,12 @@ class AutomataCampaign:
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
         self._story_progress = 0.0
+        self.machine_catalog = self._load_machine_catalog()
+        self.faction_machines: Dict[str, StateMachine] = {}
+        self.organ_machines: Dict[str, Dict[str, StateMachine]] = {}
+        self.subfaction_machines: Dict[
+            str, Dict[str, StateMachine]
+        ] = {}
         try:
             self.story_engine = EventEngine(seed=self.seed)
         except EventError:
@@ -593,8 +718,179 @@ class AutomataCampaign:
             logger.exception("не удалось поднять движок событий")
             self.story_engine = None
         self._build_factions(data)
+        self._build_machines()
         if snapshot:
             self.load_snapshot(snapshot)
+
+    @staticmethod
+    def _load_machine_catalog():
+        """Прочитать исполняемые автоматы из ``configs/automata``."""
+        try:
+            return load_catalog()
+        except (OSError, StateMachineError, ValueError) as error:
+            logger.warning("Автоматы кампании не загружены: %s", error)
+            return StateMachineCatalog()
+
+    def _build_machines(self):
+        """Создать рантайм автоматов для фракций, подсистем и органов."""
+        self.faction_machines = {}
+        self.organ_machines = {}
+        self.subfaction_machines = {}
+        faction_definition = self.machine_catalog.first("faction")
+        organ_definition = self.machine_catalog.first("organ")
+        subfaction_definition = self.machine_catalog.first("subfaction")
+        for side, faction in self.factions.items():
+            if faction_definition is not None:
+                self.faction_machines[side] = StateMachine(
+                    faction_definition
+                )
+            subs = {}
+            for subfaction in faction.subfactions:
+                definition = None
+                if subfaction.machine_id:
+                    definition = self.machine_catalog.get(
+                        subfaction.machine_id
+                    )
+                definition = definition or subfaction_definition
+                if definition is not None:
+                    subs[subfaction.id] = StateMachine(definition)
+            if subs:
+                self.subfaction_machines[side] = subs
+            if organ_definition is None:
+                continue
+            machines = {}
+            for organ in faction.organs:
+                machines[str(organ.id)] = StateMachine(organ_definition)
+            if machines:
+                self.organ_machines[side] = machines
+
+    def _machine_context(self, faction, organ=None, subfaction=None):
+        character = faction.characters[0] if faction.characters else None
+        context = {
+            "faction": faction,
+            "character": character,
+            "turn": self.turn,
+        }
+        if organ is not None:
+            context["organ"] = organ
+        if subfaction is not None:
+            context["subfaction"] = subfaction
+        return context
+
+    def _tick_machines(self):
+        """Продвинуть исполняемые автоматы на один тик.
+
+        Переходы читают состояние; эффекты состояний проходят через
+        ``campaign/effects.py``. События сюда не попадают.
+        """
+        for side, machine in self.faction_machines.items():
+            faction = self.factions.get(side)
+            if faction is None or faction.dissolved:
+                continue
+            machine.tick(
+                self._machine_context(faction), actor=faction
+            )
+        for side, machines in self.subfaction_machines.items():
+            faction = self.factions.get(side)
+            if faction is None or faction.dissolved:
+                continue
+            for subfaction in faction.subfactions:
+                machine = machines.get(subfaction.id)
+                if machine is None:
+                    continue
+                machine.tick(
+                    self._machine_context(faction, subfaction=subfaction),
+                    actor=faction,
+                )
+        for side, machines in self.organ_machines.items():
+            faction = self.factions.get(side)
+            if faction is None:
+                continue
+            for organ in faction.organs:
+                machine = machines.get(str(organ.id))
+                if machine is None or organ.integrity <= 0.0:
+                    continue
+                machine.tick(
+                    self._machine_context(faction, organ),
+                    actor=faction,
+                )
+
+    def _machines_snapshot(self):
+        return {
+            "factions": {
+                side: machine.to_dict()
+                for side, machine in self.faction_machines.items()
+            },
+            "subfactions": {
+                side: {
+                    sub_id: machine.to_dict()
+                    for sub_id, machine in machines.items()
+                }
+                for side, machines in self.subfaction_machines.items()
+            },
+            "organs": {
+                side: {
+                    organ_id: machine.to_dict()
+                    for organ_id, machine in machines.items()
+                }
+                for side, machines in self.organ_machines.items()
+            },
+        }
+
+    def _restore_machines(self, data):
+        data = _as_mapping(data)
+        for side, payload in _as_mapping(
+            data.get("factions")
+        ).items():
+            machine = self.faction_machines.get(str(side))
+            if machine is None:
+                continue
+            try:
+                self.faction_machines[str(side)] = StateMachine.from_dict(
+                    payload, machine.definition
+                )
+            except (StateMachineError, ValueError) as error:
+                logger.warning(
+                    "Автомат фракции %s не восстановлен: %s",
+                    side,
+                    error,
+                )
+        for side, entries in _as_mapping(
+            data.get("subfactions")
+        ).items():
+            machines = self.subfaction_machines.get(str(side), {})
+            for sub_id, payload in _as_mapping(entries).items():
+                machine = machines.get(str(sub_id))
+                if machine is None:
+                    continue
+                try:
+                    machines[str(sub_id)] = StateMachine.from_dict(
+                        payload, machine.definition
+                    )
+                except (StateMachineError, ValueError) as error:
+                    logger.warning(
+                        "Автомат подфракции %s/%s не восстановлен: %s",
+                        side,
+                        sub_id,
+                        error,
+                    )
+        for side, entries in _as_mapping(data.get("organs")).items():
+            machines = self.organ_machines.get(str(side), {})
+            for organ_id, payload in _as_mapping(entries).items():
+                machine = machines.get(str(organ_id))
+                if machine is None:
+                    continue
+                try:
+                    machines[str(organ_id)] = StateMachine.from_dict(
+                        payload, machine.definition
+                    )
+                except (StateMachineError, ValueError) as error:
+                    logger.warning(
+                        "Автомат органа %s/%s не восстановлен: %s",
+                        side,
+                        organ_id,
+                        error,
+                    )
 
     def _build_factions(self, data):
         characters = list(data.get("characters") or ())
@@ -718,6 +1014,9 @@ class AutomataCampaign:
                 )
                 if organ is not None:
                     organs.append(organ)
+            subfactions = _build_subfactions(
+                faction, organs, organ_interactions
+            )
             network_problems = validate_organ_network(organs)
             if network_problems:
                 raise AutomataCampaignError(
@@ -749,6 +1048,7 @@ class AutomataCampaign:
                     if isinstance(item, Mapping) and item.get("id")
                 ],
                 organs=organs,
+                subfactions=subfactions,
                 automaton_interactions=automaton_interactions,
                 character_interactions=character_interactions,
             )
@@ -2289,6 +2589,7 @@ class AutomataCampaign:
 
     def _tick_organizations(self):
         seconds = max(30.0, float(self.organization_interval_seconds))
+        self._tick_machines()
         for faction in self.factions.values():
             self._tick_faction_characters(faction, seconds)
             if faction.organization is None:
@@ -2461,6 +2762,7 @@ class AutomataCampaign:
             },
             "events": list(self.events[-SNAPSHOT_TAIL:]),
             "story_events": list(self.story_events[-SNAPSHOT_TAIL:]),
+            "machines": self._machines_snapshot(),
             "log": list(self.log[-SNAPSHOT_TAIL:]),
         }
 
@@ -2493,6 +2795,17 @@ class AutomataCampaign:
                     for key, value in faction.baseline_assets.items()
                 }
                 state["flags"] = dict(faction.flags)
+                state["subfactions"] = [
+                    {
+                        "id": item.id,
+                        "share": float(item.share),
+                        "assets": {
+                            str(key): float(value)
+                            for key, value in item.assets.items()
+                        },
+                    }
+                    for item in faction.subfactions
+                ]
                 state["low_streaks"] = {
                     str(key): int(value)
                     for key, value in faction.low_streaks.items()
@@ -2647,6 +2960,7 @@ class AutomataCampaign:
         )
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))
+        self._restore_machines(snapshot.get("machines"))
         rng_state = snapshot.get("rng_state")
         if rng_state:
             try:
@@ -2692,6 +3006,21 @@ class AutomataCampaign:
                 ).items()
             }
             faction.flags = dict(_as_mapping(state.get("flags")))
+            for saved_sub in state.get("subfactions") or ():
+                if not isinstance(saved_sub, Mapping):
+                    continue
+                sub = faction.subfaction(saved_sub.get("id"))
+                if sub is None:
+                    continue
+                sub.share = _clamp(
+                    saved_sub.get("share", sub.share)
+                )
+                sub.assets = {
+                    str(key): _clamp(value)
+                    for key, value in _as_mapping(
+                        saved_sub.get("assets")
+                    ).items()
+                }
             faction.cooldowns = {
                 str(key): int(_number(value))
                 for key, value in _as_mapping(state.get("cooldowns")).items()

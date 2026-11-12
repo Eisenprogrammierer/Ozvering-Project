@@ -281,6 +281,27 @@ def _clause_reason(clause, context):
         if not compare(_number(organ.integrity), op, expected):
             return "нужно: орган %s %s %s" % (key, op, expected)
         return ""
+    if kind == "subfaction":
+        sub = context.get("subfaction")
+        sub_id = _text(
+            clause.get("subfaction") or clause.get("id")
+        )
+        if sub_id and faction is not None:
+            sub = faction.subfaction(sub_id)
+        if sub is None:
+            return "нужно: подфракция %s" % (sub_id or "?")
+        asset_key = _text(clause.get("asset") or clause.get("key"))
+        current = _number(
+            _as_mapping(getattr(sub, "assets", {})).get(asset_key)
+        )
+        if not compare(current, op, expected):
+            return "нужно: подфракция %s.%s %s %s" % (
+                sub.id,
+                asset_key,
+                op,
+                expected,
+            )
+        return ""
     if kind in ("flag", "context"):
         attribute = "flags" if kind == "flag" else "context"
         values = (
