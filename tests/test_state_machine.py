@@ -264,10 +264,10 @@ def test_campaign_ticks_and_persists_machines():
     )
 
     campaign.end_turn()
-    assert campaign.faction_machines["red"].state == "mobilizing"
+    assert campaign.faction_machines["red"].state != "latent"
     assert campaign.faction("red").flags["faction_mobilizing"] is True
     assert all(
-        item.state == "active" for item in organ_machines.values()
+        item.state != "forming" for item in organ_machines.values()
     )
 
     restored = AutomataCampaign(

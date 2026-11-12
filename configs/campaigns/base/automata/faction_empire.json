@@ -1,0 +1,292 @@
+{
+  "schema": 2,
+  "id": "faction.empire",
+  "kind": "faction",
+  "name": "Империя: миф и вертикаль",
+  "description": "Цикл Империи: латентность, мобилизация, кампания, перенапряжение, кризис законности, реставрация или распад.",
+  "initial": "latent",
+  "states": {
+    "latent": {
+      "label": "Латентность",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "mobilization",
+          "event": "угроза осознана",
+          "guard": "вертикаль держит удар",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.28
+            }
+          ]
+        }
+      ],
+      "initial": true,
+      "on_enter": [
+        {
+          "flags": {
+            "faction_latent": true,
+            "faction_mobilizing": false
+          }
+        }
+      ]
+    },
+    "mobilization": {
+      "label": "Мобилизация",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "campaign",
+          "event": "армии готовы",
+          "guard": "законность и снабжение выше нормы",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "legitimacy_crisis",
+          "event": "мобилизация сорвана",
+          "guard": "миф трещит",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": "<",
+              "value": 0.32
+            }
+          ]
+        }
+      ],
+      "on_enter": [
+        {
+          "flags": {
+            "faction_latent": false,
+            "faction_mobilizing": true
+          }
+        }
+      ]
+    },
+    "campaign": {
+      "label": "Кампания",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "overstretch",
+          "event": "фронт перенапряжён",
+          "guard": "снабжение на исходе",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.3
+            }
+          ]
+        },
+        {
+          "to": "legitimacy_crisis",
+          "event": "потери бьют по мифу",
+          "guard": "законность падает",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        }
+      ],
+      "on_enter": [
+        {
+          "flags": {
+            "faction_campaign": true,
+            "faction_crisis": false
+          }
+        }
+      ]
+    },
+    "overstretch": {
+      "label": "Перенапряжение",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "legitimacy_crisis",
+          "event": "тыл не выдерживает",
+          "guard": "снабжение падает",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.25
+            }
+          ]
+        },
+        {
+          "to": "campaign",
+          "event": "наступление выдохлось",
+          "guard": "резервы вернулись",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    "legitimacy_crisis": {
+      "label": "Кризис законности",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "dissolution",
+          "event": "империя распалась",
+          "guard": "вертикаль не удержала людей",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.17
+            }
+          ]
+        },
+        {
+          "to": "restoration",
+          "event": "реставрация",
+          "guard": "собор и гвардия вернули миф",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.52
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.3
+            }
+          ]
+        }
+      ],
+      "on_enter": [
+        {
+          "flags": {
+            "faction_crisis": true,
+            "faction_campaign": false
+          }
+        }
+      ]
+    },
+    "restoration": {
+      "label": "Реставрация",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "campaign",
+          "event": "новый поход",
+          "guard": "миф снова ведёт армии",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.55
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "dissolution": {
+      "label": "Распад",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true,
+      "on_enter": [
+        {
+          "flags": {
+            "faction_dissolved": true,
+            "faction_campaign": false
+          }
+        }
+      ]
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset",
+      "flag"
+    ],
+    "authority": "faction assets and flags"
+  }
+}

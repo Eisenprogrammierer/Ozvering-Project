@@ -759,7 +759,13 @@ class AutomataCampaign:
             return StateMachineCatalog()
 
     def _build_machines(self):
-        """Создать рантайм автоматов для фракций, подсистем и органов."""
+        """Создать рантайм автоматов для фракций, подсистем и органов.
+
+        Явная ссылка в данных сильнее общего автомата вида:
+        ``faction.automaton`` выбирает автомат фракции, ``automaton_id``
+        органа — его собственный, а при его отсутствии используется
+        автомат по ``kind``. ``*.default`` остаётся совместимым fallback.
+        """
         self.faction_machines = {}
         self.organ_machines = {}
         self.subfaction_machines = {}
@@ -767,10 +773,12 @@ class AutomataCampaign:
         organ_definition = self.machine_catalog.first("organ")
         subfaction_definition = self.machine_catalog.first("subfaction")
         for side, faction in self.factions.items():
-            if faction_definition is not None:
-                self.faction_machines[side] = StateMachine(
-                    faction_definition
-                )
+            definition = self.machine_catalog.get(
+                str(faction.record.get("automaton") or "")
+            )
+            definition = definition or faction_definition
+            if definition is not None:
+                self.faction_machines[side] = StateMachine(definition)
             subs = {}
             for subfaction in faction.subfactions:
                 definition = None
@@ -787,7 +795,15 @@ class AutomataCampaign:
                 continue
             machines = {}
             for organ in faction.organs:
-                machines[str(organ.id)] = StateMachine(organ_definition)
+                definition = self.machine_catalog.get(
+                    str(organ.automaton_id or "")
+                )
+                if definition is None:
+                    definition = self.machine_catalog.get(
+                        "organ.%s" % str(organ.kind or "")
+                    )
+                definition = definition or organ_definition
+                machines[str(organ.id)] = StateMachine(definition)
             if machines:
                 self.organ_machines[side] = machines
 
@@ -2342,6 +2358,41 @@ class AutomataCampaign:
         if len(self.events) > EVENT_LOG_LIMIT:
             self.events = self.events[-EVENT_LOG_LIMIT:]
 
+    def _action_intention(self, action, actor, target_faction):
+        """Собрать дуплет намерения из ``essence``/``intention`` работы.
+
+        ``intention.target`` может быть ``self``, ``rival`` или явным id.
+        Пустой/алиасный target разрешается в фактическую цель работы,
+        поэтому один и тот же шаблон работает для любой стороны.
+        """
+        action = _as_mapping(action)
+        raw = _as_mapping(action.get("intention"))
+        essence = str(
+            raw.get("essence") or action.get("essence") or ""
+        ).strip()
+        if not essence:
+            return None
+        target = str(raw.get("target") or "").strip()
+        if target == "self":
+            target = actor.id
+        elif target in (
+            "",
+            "target",
+            "rival",
+            "any",
+            "all",
+            "all_rivals",
+            "other",
+            "strongest",
+            "weakest",
+        ):
+            target = (
+                target_faction.id
+                if target_faction is not None
+                else actor.id
+            )
+        return {"target": target, "essence": essence}
+
     def perform(self, side, action_id, target=None):
         actor = self.faction(side)
         if actor is None or actor.dissolved:
@@ -2386,6 +2437,22 @@ class AutomataCampaign:
         roll = self.rng.random()
         success = roll < chance
         branch = action.get("effects") if success else action.get("failure")
+        intention = (
+            self._action_intention(action, actor, target_faction)
+            if success
+            else None
+        )
+        if intention is not None:
+            branch = dict(branch) if isinstance(branch, Mapping) else {}
+            self_scope = _as_mapping(branch.get("self"))
+            self_scope = dict(self_scope)
+            intentions = dict(_as_mapping(self_scope.get("intentions")))
+            pushed = list(intentions.get("push") or ())
+            if intention not in pushed:
+                pushed.append(intention)
+            intentions["push"] = pushed
+            self_scope["intentions"] = intentions
+            branch["self"] = self_scope
         organ_id = str(action.get("organ_id") or "")
         organ = actor.organ(organ_id) if organ_id else None
         readiness = readiness_scale(organ, self.model)
@@ -2465,6 +2532,7 @@ class AutomataCampaign:
             "chance": round(chance, 6),
             "roll": round(roll, 6),
             "success": bool(success),
+            "intention": dict(intention or {}),
             "cost": {
                 key: round(_number(value), 6)
                 for key, value in cost.items()

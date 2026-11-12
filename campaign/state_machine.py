@@ -390,10 +390,18 @@ class StateMachineCatalog:
         ]
 
     def first(self, kind, default=None):
-        for item in self.machines.values():
-            if item.kind == kind:
+        """Первое определение вида, предпочитая ``*.default``.
+
+        В каталоге могут лежать общие и специализированные автоматы одного
+        вида. Общий — это контракт совместимости: если у объекта нет
+        явной ссылки на автомат, он получает ``*.default``, а не первый
+        файл по алфавиту.
+        """
+        items = self.by_kind(kind)
+        for item in items:
+            if str(item.id).endswith(".default"):
                 return item
-        return default
+        return items[0] if items else default
 
     @classmethod
     def from_data(cls, data, source="automata"):

@@ -968,6 +968,7 @@ def _build_faction_record(
         "leader_name": leader["name"],
         "organization_id": organization["id"],
         "automaton_id": "automaton_%s" % cfg["id"],
+        "automaton": _text(cfg.get("automaton")),
         "priority_needs": list(cfg.get("priority_needs") or ()),
         "goals": list(cfg.get("goals") or ()),
         "assets": dict(cfg.get("assets") or {}),

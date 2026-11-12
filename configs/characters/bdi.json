@@ -371,7 +371,8 @@
       "label": "подчинён",
       "kind": "relation",
       "symmetric": false,
-      "object": "required"
+      "object": "required",
+      "inverse": "leads"
     },
     "member_of": {
       "label": "входит в",
@@ -481,6 +482,558 @@
     },
     "believes_in_own_myth": {
       "label": "верит в собственный миф",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "recognizes": {
+      "label": "признаёт",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "is_recognized_by"
+    },
+    "is_recognized_by": {
+      "label": "признан",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "recognizes"
+    },
+    "owes_allegiance_to": {
+      "label": "присягает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_loyal_to": {
+      "label": "лоялен",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "has_loyal"
+    },
+    "has_claim_on": {
+      "label": "претендует на",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "at_war_with": {
+      "label": "в состоянии войны",
+      "kind": "relation",
+      "symmetric": true,
+      "object": "required"
+    },
+    "is_at_ceasefire_with": {
+      "label": "в перемирии",
+      "kind": "relation",
+      "symmetric": true,
+      "object": "required"
+    },
+    "occupies": {
+      "label": "оккупирует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "besieges": {
+      "label": "осаждает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_threat_to": {
+      "label": "угрожает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_deterrent_to": {
+      "label": "сдерживает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_superiority_over": {
+      "label": "превосходит",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "was_defeated_by": {
+      "label": "потерпел поражение от",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "raids": {
+      "label": "совершает рейды на",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "protects": {
+      "label": "защищает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "sees_enemy_as_evil": {
+      "label": "видит врага злом",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "sees_enemy_as_legitimate": {
+      "label": "видит врага законным",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_faith_in_leader": {
+      "label": "верит в лидера",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "feels_betrayed_by": {
+      "label": "чувствует предательство от",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "resents": {
+      "label": "обижен на",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_infiltrated_by": {
+      "label": "внедрён в",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_sympathetic_to": {
+      "label": "сочувствует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "trades_with": {
+      "label": "торгует",
+      "kind": "relation",
+      "symmetric": true,
+      "object": "required"
+    },
+    "supplies": {
+      "label": "снабжает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "is_indebted_to": {
+      "label": "должен",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "sanctions": {
+      "label": "санкционирует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "blackmails": {
+      "label": "шантажирует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "bribes": {
+      "label": "подкупает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "smuggles": {
+      "label": "контрабандой снабжает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_access_to": {
+      "label": "имеет доступ к",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "price_controlled_by": {
+      "label": "под ценовым давлением",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "suspects": {
+      "label": "подозревает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_proof_of": {
+      "label": "имеет доказательство",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "spreads_narrative_about": {
+      "label": "распространяет нарратив о",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "intercepts": {
+      "label": "перехватывает",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_source_in": {
+      "label": "имеет источник в",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "disinforms": {
+      "label": "дезинформирует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "distrusts": {
+      "label": "не доверяет",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "hates": {
+      "label": "ненавидит",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "leads": {
+      "label": "возглавляет",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "subordinate_of"
+    },
+    "serves": {
+      "label": "служит",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "reconciled_with": {
+      "label": "примирился с",
+      "kind": "relation",
+      "symmetric": true,
+      "object": "required"
+    },
+    "owes_favor_to": {
+      "label": "обязан услугой",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "patron_of": {
+      "label": "покровительствует",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "client_of"
+    },
+    "client_of": {
+      "label": "клиент",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required",
+      "inverse": "patron_of"
+    },
+    "is_subordinated_to": {
+      "label": "подчинён",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
+    "has_loyal": {
+      "label": "пользуется лояльностью",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "has_monopoly_on_legitimacy": {
+      "label": "претендует на монополию законности",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_usurper": {
+      "label": "узурпатор",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "has_mandate": {
+      "label": "обладает мандатом",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_sovereign": {
+      "label": "суверен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_in_revolt": {
+      "label": "в мятеже",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "grants_amnesty": {
+      "label": "дарует амнистию",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_purged": {
+      "label": "вычищен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_outlaw": {
+      "label": "вне закона",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_martyr": {
+      "label": "мученик",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_heretic": {
+      "label": "еретик",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_saint": {
+      "label": "святой",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_corrupt": {
+      "label": "коррумпирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_competent": {
+      "label": "компетентен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_popular": {
+      "label": "популярен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_despised": {
+      "label": "презираем",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_compromised": {
+      "label": "скомпрометирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "defeated": {
+      "label": "разгромлен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_mobilized": {
+      "label": "мобилизован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_overstretched": {
+      "label": "перенапряжён",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "has_reserves": {
+      "label": "имеет резервы",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_blockaded": {
+      "label": "блокирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_fortified": {
+      "label": "укреплён",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "has_initiative": {
+      "label": "владеет инициативой",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "believes_in_myth": {
+      "label": "верит в миф",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "doubts_myth": {
+      "label": "сомневается в мифе",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "believes_in_cause": {
+      "label": "верит в правоту дела",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "trusts_propaganda": {
+      "label": "доверяет пропаганде",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_disillusioned": {
+      "label": "разочарован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "expects_victory": {
+      "label": "ждёт победы",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "expects_defeat": {
+      "label": "ждёт поражения",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "fears_punishment": {
+      "label": "боится кары",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "hopes_for_amnesty": {
+      "label": "надеется на амнистию",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_radicalized": {
+      "label": "радикализован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_apocalyptic": {
+      "label": "апокалиптичен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "controls_channel": {
+      "label": "контролирует канал",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_nationalized": {
+      "label": "национализирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "leaked": {
+      "label": "произошла утечка",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_secret": {
+      "label": "тайна",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_exposed": {
+      "label": "раскрыт",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "fabricated": {
+      "label": "сфабрикован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "betrayed": {
+      "label": "предан",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_functional": {
+      "label": "функционален",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_disbanded": {
+      "label": "расформирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_underground": {
+      "label": "в подполье",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_overloaded": {
+      "label": "перегружен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_reformed": {
+      "label": "реформирован",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_autonomous": {
+      "label": "автономен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_wounded": {
+      "label": "ранен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_sick": {
+      "label": "болен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_exhausted": {
+      "label": "истощён",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_panicked": {
+      "label": "в панике",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_confident": {
+      "label": "уверен",
+      "kind": "property",
+      "object": "forbidden"
+    },
+    "is_isolated": {
+      "label": "изолирован",
       "kind": "property",
       "object": "forbidden"
     }
@@ -617,6 +1170,258 @@
     "infiltrate": {
       "label": "внедриться",
       "need": "knowledge"
+    },
+    "demonstrate": {
+      "label": "показать силу",
+      "need": "status"
+    },
+    "terrorize": {
+      "label": "устрашить",
+      "need": "fear"
+    },
+    "purge": {
+      "label": "провести чистку",
+      "need": "anxiety"
+    },
+    "repress": {
+      "label": "подавить",
+      "need": "anxiety"
+    },
+    "besiege": {
+      "label": "осадить",
+      "need": "fear"
+    },
+    "raid": {
+      "label": "совершить рейд",
+      "need": "hunger"
+    },
+    "blockade": {
+      "label": "устроить блокаду",
+      "need": "hunger"
+    },
+    "mobilize": {
+      "label": "мобилизовать",
+      "need": "anxiety"
+    },
+    "occupy": {
+      "label": "занять",
+      "need": "status"
+    },
+    "withdraw": {
+      "label": "отойти",
+      "need": "fear"
+    },
+    "fortify": {
+      "label": "укрепить",
+      "need": "fear"
+    },
+    "retaliate": {
+      "label": "ответить карой",
+      "need": "status"
+    },
+    "deter": {
+      "label": "сдержать",
+      "need": "fear"
+    },
+    "suppress": {
+      "label": "подавить огнём",
+      "need": "anxiety"
+    },
+    "strike": {
+      "label": "нанести удар",
+      "need": "status"
+    },
+    "recognize": {
+      "label": "признать",
+      "need": "friendship"
+    },
+    "deny_recognition": {
+      "label": "не признавать",
+      "need": "status"
+    },
+    "reform": {
+      "label": "реформировать",
+      "need": "anxiety"
+    },
+    "preserve": {
+      "label": "сохранить порядок",
+      "need": "anxiety"
+    },
+    "coup": {
+      "label": "совершить переворот",
+      "need": "status"
+    },
+    "amnesty": {
+      "label": "даровать амнистию",
+      "need": "love"
+    },
+    "sanction": {
+      "label": "наложить санкции",
+      "need": "hunger"
+    },
+    "crown": {
+      "label": "короновать",
+      "need": "spirituality"
+    },
+    "inaugurate": {
+      "label": "инаугурировать",
+      "need": "status"
+    },
+    "martyrize": {
+      "label": "сделать мучеником",
+      "need": "spirituality"
+    },
+    "judge": {
+      "label": "судить",
+      "need": "anxiety"
+    },
+    "excommunicate": {
+      "label": "отлучить",
+      "need": "spirituality"
+    },
+    "analyze": {
+      "label": "проанализировать",
+      "need": "knowledge"
+    },
+    "intercept": {
+      "label": "перехватить",
+      "need": "knowledge"
+    },
+    "encrypt": {
+      "label": "зашифровать",
+      "need": "anxiety"
+    },
+    "deceive": {
+      "label": "обмануть",
+      "need": "knowledge"
+    },
+    "expose": {
+      "label": "разоблачить",
+      "need": "knowledge"
+    },
+    "leak": {
+      "label": "сделать утечку",
+      "need": "knowledge"
+    },
+    "fabricate": {
+      "label": "сфабриковать",
+      "need": "creativity"
+    },
+    "blackmail": {
+      "label": "шантажировать",
+      "need": "status"
+    },
+    "recruit": {
+      "label": "завербовать",
+      "need": "friendship"
+    },
+    "turn": {
+      "label": "перевербовать",
+      "need": "status"
+    },
+    "invest": {
+      "label": "вложить",
+      "need": "creativity"
+    },
+    "hoard": {
+      "label": "накопить",
+      "need": "hunger"
+    },
+    "distribute": {
+      "label": "распределить",
+      "need": "love"
+    },
+    "tax": {
+      "label": "обложить поборами",
+      "need": "hunger"
+    },
+    "smuggle": {
+      "label": "провести контрабандой",
+      "need": "hunger"
+    },
+    "sponsor": {
+      "label": "профинансировать",
+      "need": "status"
+    },
+    "bribe": {
+      "label": "подкупить",
+      "need": "status"
+    },
+    "price_war": {
+      "label": "обрушить цены",
+      "need": "hunger"
+    },
+    "nationalize": {
+      "label": "национализировать",
+      "need": "anxiety"
+    },
+    "insure": {
+      "label": "застраховать",
+      "need": "anxiety"
+    },
+    "convert": {
+      "label": "обратить",
+      "need": "spirituality"
+    },
+    "shelter": {
+      "label": "укрыть",
+      "need": "love"
+    },
+    "charity": {
+      "label": "оказать милосердие",
+      "need": "love"
+    },
+    "educate": {
+      "label": "обучить",
+      "need": "knowledge"
+    },
+    "ritualize": {
+      "label": "провести ритуал",
+      "need": "spirituality"
+    },
+    "pilgrim": {
+      "label": "совершить паломничество",
+      "need": "spirituality"
+    },
+    "sacrifice": {
+      "label": "принести жертву",
+      "need": "spirituality"
+    },
+    "mourn": {
+      "label": "оплакать",
+      "need": "love"
+    },
+    "train": {
+      "label": "обучить навыку",
+      "need": "skill"
+    },
+    "repair": {
+      "label": "отремонтировать",
+      "need": "health"
+    },
+    "evacuate": {
+      "label": "эвакуировать",
+      "need": "health"
+    },
+    "centralize": {
+      "label": "централизовать",
+      "need": "anxiety"
+    },
+    "decentralize": {
+      "label": "децентрализовать",
+      "need": "fear"
+    },
+    "administer": {
+      "label": "управлять",
+      "need": "anxiety"
+    },
+    "coordinate": {
+      "label": "скоординировать",
+      "need": "knowledge"
+    },
+    "celebrate": {
+      "label": "отпраздновать",
+      "need": "status"
     }
   },
   "decision": {

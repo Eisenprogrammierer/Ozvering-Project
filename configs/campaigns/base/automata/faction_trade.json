@@ -1,0 +1,192 @@
+{
+  "schema": 2,
+  "id": "faction.trade",
+  "kind": "faction",
+  "name": "Торговая планета: канал и баланс",
+  "description": "Цикл планеты: нейтралитет, прибыль, давление, эмбарго, война посредников или национализация.",
+  "initial": "neutral",
+  "states": {
+    "neutral": {
+      "label": "Нейтралитет",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "profitable",
+          "event": "канал открыт",
+          "guard": "торговля пошла",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "profitable": {
+      "label": "Прибыль",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "pressured",
+          "event": "давление сторон",
+          "guard": "баланс качнулся",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "influence",
+              "op": "<",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "pressured": {
+      "label": "Давление",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "embargo",
+          "event": "эмбарго",
+          "guard": "страх перевесил прибыль",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "fear",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        },
+        {
+          "to": "profitable",
+          "event": "баланс восстановлен",
+          "guard": "канал снова приносит",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "influence",
+              "op": ">=",
+              "value": 0.55
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    "embargo": {
+      "label": "Эмбарго",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "broker_war",
+          "event": "война посредников",
+          "guard": "планета стала арбитром",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.45
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "nationalized",
+          "event": "национализация",
+          "guard": "автономия потеряна",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.18
+            }
+          ]
+        }
+      ]
+    },
+    "broker_war": {
+      "label": "Война посредников",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "profitable",
+          "event": "канал восстановлен",
+          "guard": "торговля важнее войны",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "nationalized": {
+      "label": "Национализация",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

@@ -200,6 +200,11 @@
                 "min": 0.3
               }
             }
+          },
+          "essence": "legitimize",
+          "intention": {
+            "target": "self",
+            "essence": "legitimize"
           }
         },
         {
@@ -244,7 +249,8 @@
           },
           "cooldown": 1,
           "organ_id": "guard",
-          "repeat_effect_decay": 0.7
+          "repeat_effect_decay": 0.7,
+          "essence": "demonstrate"
         },
         {
           "id": "garrison_network",
@@ -273,7 +279,12 @@
           },
           "cooldown": 2,
           "organ_id": "wehrmacht",
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "fortify",
+          "intention": {
+            "target": "self",
+            "essence": "fortify"
+          }
         },
         {
           "id": "enemy_of_state",
@@ -314,7 +325,8 @@
             "text": "Обвинение не убеждает: общество видит в нём борьбу аппаратов."
           },
           "organ_id": "justice",
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "purge"
         },
         {
           "id": "imperial_church",
@@ -349,7 +361,12 @@
           },
           "cooldown": 2,
           "organ_id": "cathedral",
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "ritualize",
+          "intention": {
+            "target": "self",
+            "essence": "ritualize"
+          }
         },
         {
           "id": "panzer_breakthrough",
@@ -393,7 +410,8 @@
                 "min": 0.25
               }
             }
-          }
+          },
+          "essence": "raid"
         },
         {
           "id": "terror_bombing",
@@ -440,7 +458,8 @@
             "used_actions": [
               "enemy_of_state"
             ]
-          }
+          },
+          "essence": "terrorize"
         },
         {
           "id": "abwehr_sabotage",
@@ -475,7 +494,8 @@
             },
             "text": "Сеть раскрыта; противник получил доказательство имперского вмешательства."
           },
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "subvert"
         },
         {
           "id": "cyber_osint",
@@ -515,7 +535,8 @@
             },
             "text": "Сеть оказалась приманкой; утечка ударила по имперской разведке."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "analyze"
         },
         {
           "id": "staff_plan",
@@ -552,7 +573,12 @@
             },
             "text": "Ставка увязает в согласованиях; каждый род войск тянет план на себя."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "coordinate",
+          "intention": {
+            "target": "self",
+            "essence": "coordinate"
+          }
         },
         {
           "id": "field_medicine",
@@ -589,7 +615,12 @@
             },
             "text": "Госпитали перегружены; помощь приходит позже, чем сводки обещали."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "repair",
+          "intention": {
+            "target": "self",
+            "essence": "repair"
+          }
         }
       ],
       "income": {
@@ -787,6 +818,57 @@
           },
           "cooldown": 4
         }
+      ],
+      "automaton": "faction.empire",
+      "subfactions": [
+        {
+          "id": "orthodox",
+          "label": "Имперские ортодоксы",
+          "share": 0.4,
+          "automaton": "subfaction.orthodox",
+          "assets": {
+            "influence": 0.46,
+            "cohesion": 0.62,
+            "grievance": 0.24,
+            "legitimacy": 0.58
+          },
+          "organ_ids": [
+            "cathedral",
+            "justice"
+          ]
+        },
+        {
+          "id": "moderate",
+          "label": "Имперские модераты",
+          "share": 0.35,
+          "automaton": "subfaction.moderate",
+          "assets": {
+            "influence": 0.38,
+            "cohesion": 0.55,
+            "grievance": 0.18,
+            "legitimacy": 0.5
+          },
+          "organ_ids": [
+            "imperial_staff",
+            "wehrmacht"
+          ]
+        },
+        {
+          "id": "revisionist",
+          "label": "Имперские ревизионисты",
+          "share": 0.25,
+          "automaton": "subfaction.revisionist",
+          "assets": {
+            "influence": 0.22,
+            "cohesion": 0.34,
+            "grievance": 0.52,
+            "legitimacy": 0.26
+          },
+          "organ_ids": [
+            "propaganda",
+            "medical"
+          ]
+        }
       ]
     },
     "blue": {
@@ -982,7 +1064,8 @@
           },
           "cooldown": 1,
           "organ_id": "propaganda",
-          "repeat_effect_decay": 0.7
+          "repeat_effect_decay": 0.7,
+          "essence": "delegitimize"
         },
         {
           "id": "parliament_debate",
@@ -1016,7 +1099,12 @@
           },
           "cooldown": 1,
           "organ_id": "parliament",
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "legitimize",
+          "intention": {
+            "target": "self",
+            "essence": "legitimize"
+          }
         },
         {
           "id": "precision_strike",
@@ -1051,7 +1139,8 @@
           },
           "cooldown": 1,
           "organ_id": "precision",
-          "repeat_effect_decay": 0.7
+          "repeat_effect_decay": 0.7,
+          "essence": "strike"
         },
         {
           "id": "human_rights_court",
@@ -1092,6 +1181,11 @@
                 "min": 0.4
               }
             }
+          },
+          "essence": "judge",
+          "intention": {
+            "target": "faction.empire",
+            "essence": "judge"
           }
         },
         {
@@ -1124,7 +1218,8 @@
           },
           "cooldown": 1,
           "organ_id": "diplomacy",
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "trade"
         },
         {
           "id": "cyber_leak",
@@ -1164,7 +1259,8 @@
             },
             "text": "Утечка оказалась подделкой; доверие к республиканским источникам упало."
           },
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "expose"
         },
         {
           "id": "underground_radio",
@@ -1211,6 +1307,11 @@
                 "min": 0.3
               }
             }
+          },
+          "essence": "educate",
+          "intention": {
+            "target": "self",
+            "essence": "educate"
           }
         },
         {
@@ -1251,7 +1352,8 @@
             },
             "text": "Сеть раскрыта; Республика теряет людей и оправдывается за методы."
           },
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "infiltrate"
         },
         {
           "id": "general_mobilization",
@@ -1297,6 +1399,11 @@
                 "min": 0.3
               }
             }
+          },
+          "essence": "mobilize",
+          "intention": {
+            "target": "self",
+            "essence": "mobilize"
           }
         },
         {
@@ -1335,7 +1442,12 @@
             },
             "text": "Раненые ждут эвакуации слишком долго; обещание процедуры столкнулось с логистикой."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "evacuate",
+          "intention": {
+            "target": "self",
+            "essence": "evacuate"
+          }
         }
       ],
       "income": {
@@ -1516,6 +1628,58 @@
             "morale": 0.01
           },
           "cooldown": 4
+        }
+      ],
+      "automaton": "faction.republic",
+      "subfactions": [
+        {
+          "id": "orthodox",
+          "label": "Республиканские ортодоксы",
+          "share": 0.32,
+          "automaton": "subfaction.orthodox",
+          "assets": {
+            "influence": 0.3,
+            "cohesion": 0.44,
+            "grievance": 0.3,
+            "legitimacy": 0.38
+          },
+          "organ_ids": [
+            "rights",
+            "parliament"
+          ]
+        },
+        {
+          "id": "moderate",
+          "label": "Республиканские модераты",
+          "share": 0.43,
+          "automaton": "subfaction.moderate",
+          "assets": {
+            "influence": 0.48,
+            "cohesion": 0.6,
+            "grievance": 0.14,
+            "legitimacy": 0.54
+          },
+          "organ_ids": [
+            "general_staff",
+            "diplomacy"
+          ]
+        },
+        {
+          "id": "revisionist",
+          "label": "Республиканские ревизионисты",
+          "share": 0.25,
+          "automaton": "subfaction.revisionist",
+          "assets": {
+            "influence": 0.26,
+            "cohesion": 0.36,
+            "grievance": 0.58,
+            "legitimacy": 0.24
+          },
+          "organ_ids": [
+            "field_corps",
+            "precision",
+            "agents"
+          ]
         }
       ]
     },
@@ -1699,7 +1863,8 @@
           },
           "cooldown": 1,
           "organ_id": "preaching",
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "preach"
         },
         {
           "id": "community_network",
@@ -1734,7 +1899,12 @@
           },
           "cooldown": 2,
           "organ_id": "communities",
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "build_network",
+          "intention": {
+            "target": "self",
+            "essence": "build_network"
+          }
         },
         {
           "id": "martyr_narrative",
@@ -1774,7 +1944,12 @@
             "text": "История не убеждает: её слишком легко проверить."
           },
           "organ_id": "printing",
-          "repeat_effect_decay": 0.7
+          "repeat_effect_decay": 0.7,
+          "essence": "martyrize",
+          "intention": {
+            "target": "self",
+            "essence": "martyrize"
+          }
         },
         {
           "id": "infiltration",
@@ -1808,7 +1983,8 @@
           },
           "cooldown": 1,
           "organ_id": "agents",
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "infiltrate"
         },
         {
           "id": "earth_ritual",
@@ -1844,7 +2020,12 @@
           },
           "cooldown": 2,
           "organ_id": "rites",
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "ritualize",
+          "intention": {
+            "target": "self",
+            "essence": "ritualize"
+          }
         },
         {
           "id": "scriptorium_schools",
@@ -1882,7 +2063,12 @@
             },
             "text": "Школы закрывают как незаконные; культ снова подтверждает, что его место — в тени."
           },
-          "once": true
+          "once": true,
+          "essence": "educate",
+          "intention": {
+            "target": "self",
+            "essence": "educate"
+          }
         },
         {
           "id": "parallel_court",
@@ -1927,6 +2113,11 @@
             "used_actions": [
               "scriptorium_schools"
             ]
+          },
+          "essence": "judge",
+          "intention": {
+            "target": "self",
+            "essence": "judge"
           }
         },
         {
@@ -1964,7 +2155,12 @@
             },
             "text": "Лекарства кончились; община снова убедилась, что обещания требуют ресурсов."
           },
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "charity",
+          "intention": {
+            "target": "self",
+            "essence": "charity"
+          }
         },
         {
           "id": "knights_patrol",
@@ -2010,7 +2206,8 @@
             "used_actions": [
               "sermon"
             ]
-          }
+          },
+          "essence": "defend"
         }
       ],
       "income": {
@@ -2170,7 +2367,8 @@
           },
           "cooldown": 4
         }
-      ]
+      ],
+      "automaton": "faction.cult"
     },
     "amber": {
       "id": "faction_corporation",
@@ -2347,7 +2545,12 @@
           },
           "cooldown": 1,
           "organ_id": "trade",
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "trade",
+          "intention": {
+            "target": "self",
+            "essence": "trade"
+          }
         },
         {
           "id": "credit_offer",
@@ -2380,7 +2583,8 @@
           },
           "cooldown": 1,
           "organ_id": "finance",
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "invest"
         },
         {
           "id": "embargo",
@@ -2427,7 +2631,8 @@
                 "min": 0.2
               }
             }
-          }
+          },
+          "essence": "blockade"
         },
         {
           "id": "information_broker",
@@ -2466,7 +2671,8 @@
                 "min": 0.3
               }
             }
-          }
+          },
+          "essence": "analyze"
         },
         {
           "id": "neutral_hub",
@@ -2495,7 +2701,12 @@
           },
           "cooldown": 2,
           "organ_id": "diplomacy",
-          "once": true
+          "once": true,
+          "essence": "negotiate",
+          "intention": {
+            "target": "self",
+            "essence": "negotiate"
+          }
         },
         {
           "id": "port_control",
@@ -2539,7 +2750,8 @@
           "repeat_effect_decay": 0.7,
           "requires": {
             "min_turn": 2
-          }
+          },
+          "essence": "blockade"
         },
         {
           "id": "price_dumping",
@@ -2580,7 +2792,8 @@
             },
             "text": "Демпинг съел собственные запасы; планета заплатила за чужой страх."
           },
-          "max_uses": 2
+          "max_uses": 2,
+          "essence": "price_war"
         },
         {
           "id": "bribe_official",
@@ -2616,7 +2829,8 @@
             },
             "text": "Чиновник оказался честнее ожиданий; скандал ударил по репутации канала."
           },
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "bribe"
         },
         {
           "id": "media_narrative",
@@ -2655,7 +2869,8 @@
             },
             "text": "Кампания выглядит рекламой; обе стороны одинаково не верят заказным новостям."
           },
-          "repeat_effect_decay": 0.75
+          "repeat_effect_decay": 0.75,
+          "essence": "deceive"
         },
         {
           "id": "security_sweep",
@@ -2694,7 +2909,12 @@
             },
             "text": "Служба защиты перестаралась; портовые артели отвечают саботажем."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "purge",
+          "intention": {
+            "target": "self",
+            "essence": "purge"
+          }
         },
         {
           "id": "repair_hub",
@@ -2730,7 +2950,12 @@
             },
             "text": "Поставки стройматериалов сорваны; ремонт снова отложен."
           },
-          "repeat_effect_decay": 0.8
+          "repeat_effect_decay": 0.8,
+          "essence": "repair",
+          "intention": {
+            "target": "self",
+            "essence": "repair"
+          }
         }
       ],
       "income": {
@@ -2900,7 +3125,8 @@
           },
           "cooldown": 4
         }
-      ]
+      ],
+      "automaton": "faction.trade"
     }
   },
   "geometry": {

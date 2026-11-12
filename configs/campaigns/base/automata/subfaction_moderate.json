@@ -1,0 +1,213 @@
+{
+  "schema": 2,
+  "id": "subfaction.moderate",
+  "kind": "subfaction",
+  "name": "Модераты",
+  "description": "Внутренняя фракция компромисса: процедуры, институты, коалиции.",
+  "initial": "underground",
+  "states": {
+    "underground": {
+      "label": "Подполье",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "growth",
+          "event": "ячейки выросли",
+          "guard": "влияние достигло порога",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.2
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "growth": {
+      "label": "Рост",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "legitimacy",
+          "event": "своя повестка",
+          "guard": "влияние и единство выросли",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.35
+            },
+            {
+              "kind": "subfaction",
+              "asset": "cohesion",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "underground",
+          "event": "репрессии",
+          "guard": "влияние упало",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": "<",
+              "value": 0.15000000000000002
+            }
+          ]
+        }
+      ]
+    },
+    "legitimacy": {
+      "label": "Легитимность",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "dominance",
+          "event": "доктрина победила",
+          "guard": "влияние стало решающим",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        },
+        {
+          "to": "crackdown",
+          "event": "раскол",
+          "guard": "обида перевесила",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "grievance",
+              "op": ">=",
+              "value": 0.6
+            }
+          ]
+        }
+      ]
+    },
+    "dominance": {
+      "label": "Доминирование",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "crackdown",
+          "event": "кризис власти",
+          "guard": "обида накопилась",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "grievance",
+              "op": ">=",
+              "value": 0.6
+            }
+          ]
+        },
+        {
+          "to": "growth",
+          "event": "откат",
+          "guard": "влияние упало",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        }
+      ]
+    },
+    "crackdown": {
+      "label": "Репрессии",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "purge",
+          "event": "чистка",
+          "guard": "сопротивление сломлено",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "cohesion",
+              "op": "<",
+              "value": 0.2
+            }
+          ]
+        },
+        {
+          "to": "return",
+          "event": "возвращение",
+          "guard": "единство восстановлено",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "cohesion",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "return": {
+      "label": "Возвращение",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "growth",
+          "event": "новый рост",
+          "guard": "влияние снова растёт",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.2
+            }
+          ]
+        }
+      ]
+    },
+    "purge": {
+      "label": "Чистка",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "subfaction"
+    ],
+    "authority": "subfaction assets"
+  }
+}

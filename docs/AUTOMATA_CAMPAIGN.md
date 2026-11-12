@@ -78,6 +78,38 @@
 старые сейвы без него загружаются с начальных состояний. Линтер проверяет
 `configs/campaigns/base/automata`.
 
+#### Выбор автомата
+
+Выбор полностью определяется данными и идёт от частного к общему:
+
+| Объект | Порядок выбора |
+|---|---|
+| Фракция | `faction.automaton` → `faction.default` |
+| Подфракция | поле `automaton` подфракции → `subfaction.default` |
+| Орган | `organ.automaton_id` → `organ.<kind>` → `organ.default` |
+
+`StateMachineCatalog.first(kind)` специально предпочитает файл с id
+`<kind>.default`: общий автомат — контракт совместимости, а не первый файл
+по алфавиту. Специализированные файлы просто лежат рядом и выбираются
+ссылкой. Так добавление `faction.empire.json` не меняет поведение старых
+пресетов и тестовых фикстур, у которых нет поля `automaton`.
+
+В производственном `lore_factions.json` заданы:
+
+* `faction.empire`, `faction.republic`, `faction.cult`, `faction.trade`
+  для четырёх верхних автоматов;
+* `subfaction.orthodox`, `subfaction.moderate`,
+  `subfaction.revisionist` для шести внутренних фракций Империи и
+  Республики;
+* `organ.command`, `organ.coercion`, `organ.intelligence`,
+  `organ.legitimacy`, `organ.maintenance`, `organ.information`,
+  `organ.care`, `organ.meaning`, `organ.exchange` для архетипов органов.
+
+Империя и Республика получили по три подфракции с `share`, собственными
+активами (`influence`, `cohesion`, `grievance`, `legitimacy`) и
+`organ_ids`. Доли внутри фракции не обязаны складываться в единицу:
+`share` — вес влияния, а не жёсткое распределение мест.
+
 ### 1.2. Подфракции
 
 Фракция может объявить `subfactions`:

@@ -1,0 +1,171 @@
+{
+  "schema": 2,
+  "id": "organ.intelligence",
+  "kind": "organ",
+  "name": "Разведывательный орган",
+  "description": "Разведка: сон, сбор, операция, раскрытие, чистка.",
+  "initial": "forming",
+  "states": {
+    "forming": {
+      "label": "Формирование",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "dormant",
+          "event": "ядро собрано",
+          "guard": "орган готов к работе",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "dormant": {
+      "label": "Сон",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "collecting",
+          "event": "сбор сведений",
+          "guard": "влияние позволяет",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "influence",
+              "op": ">=",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "collecting": {
+      "label": "Сбор",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "operation",
+          "event": "операция",
+          "guard": "сведения сложились",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "influence",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "operation": {
+      "label": "Операция",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "exposed",
+          "event": "раскрытие",
+          "guard": "законность или снабжение просели",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "collecting",
+          "event": "операция свёрнута",
+          "guard": "риск слишком высок",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.25
+            }
+          ]
+        }
+      ]
+    },
+    "exposed": {
+      "label": "Раскрытие",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "purge",
+          "event": "чистка",
+          "guard": "орган вычищен",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.2
+            }
+          ]
+        },
+        {
+          "to": "collecting",
+          "event": "новая сеть",
+          "guard": "доверие восстановлено",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "purge": {
+      "label": "Чистка",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    },
+    "disbanded": {
+      "label": "Расформирование",
+      "x": 530,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

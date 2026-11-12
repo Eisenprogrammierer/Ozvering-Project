@@ -1,0 +1,208 @@
+{
+  "schema": 2,
+  "id": "faction.cult",
+  "kind": "faction",
+  "name": "Культ Земли: тайна и мученик",
+  "description": "Цикл культа: скрытость, вербовка, проникновение, разоблачение, мученичество, возрождение или искоренение.",
+  "initial": "hidden",
+  "states": {
+    "hidden": {
+      "label": "Скрытость",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "recruitment",
+          "event": "первая община",
+          "guard": "сеть выдерживает давление",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.25
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "recruitment": {
+      "label": "Вербовка",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "infiltration",
+          "event": "ячейки выросли",
+          "guard": "влияние проникает в институты",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "influence",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "hidden",
+          "event": "община распалась",
+          "guard": "страх рассеял людей",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.2
+            }
+          ]
+        }
+      ]
+    },
+    "infiltration": {
+      "label": "Проникновение",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "exposure",
+          "event": "обряд замечен",
+          "guard": "власти почуяли угрозу",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "fear",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        },
+        {
+          "to": "recruitment",
+          "event": "сеть расширилась",
+          "guard": "вербовка продолжается",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.25
+            }
+          ]
+        }
+      ]
+    },
+    "exposure": {
+      "label": "Разоблачение",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "martyrdom",
+          "event": "мученик",
+          "guard": "община сплотилась вокруг жертвы",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        },
+        {
+          "to": "eradication",
+          "event": "культ искоренён",
+          "guard": "общины не осталось",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.15
+            }
+          ]
+        }
+      ]
+    },
+    "martyrdom": {
+      "label": "Мученичество",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "revival",
+          "event": "возрождение",
+          "guard": "нарратив сильнее страха",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "fear",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "revival": {
+      "label": "Возрождение",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "recruitment",
+          "event": "новая вербовка",
+          "guard": "общины снова растут",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "eradication": {
+      "label": "Искоренение",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

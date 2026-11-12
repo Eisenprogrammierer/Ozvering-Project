@@ -1,0 +1,208 @@
+{
+  "schema": 2,
+  "id": "organ.maintenance",
+  "kind": "organ",
+  "name": "Орган поддержания",
+  "description": "Тыл: запас, напряжение, приоритет, истощение, восстановление.",
+  "initial": "forming",
+  "states": {
+    "forming": {
+      "label": "Формирование",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "stocked",
+          "event": "запас собран",
+          "guard": "орган вошёл в строй",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.2
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "stocked": {
+      "label": "Запас",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "strained",
+          "event": "напряжение",
+          "guard": "потребление выросло",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "strained": {
+      "label": "Напряжение",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "priority",
+          "event": "приоритет",
+          "guard": "снабжение перераспределено",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "stocked",
+          "event": "запас восстановлен",
+          "guard": "тыл справился",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    "priority": {
+      "label": "Приоритет",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "depleted",
+          "event": "истощение",
+          "guard": "резерв исчерпан",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.2
+            }
+          ]
+        },
+        {
+          "to": "stocked",
+          "event": "запас восстановлен",
+          "guard": "поставки налажены",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    "depleted": {
+      "label": "Истощение",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "restored",
+          "event": "восстановление",
+          "guard": "поставки вернулись",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        },
+        {
+          "to": "disbanded",
+          "event": "расформирование",
+          "guard": "орган не восстановить",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.15
+            }
+          ]
+        }
+      ]
+    },
+    "restored": {
+      "label": "Восстановление",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "stocked",
+          "event": "возврат к запасу",
+          "guard": "энергия восстановлена",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "energy",
+              "op": ">=",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "disbanded": {
+      "label": "Расформирование",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

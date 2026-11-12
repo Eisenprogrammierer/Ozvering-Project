@@ -1,0 +1,149 @@
+{
+  "schema": 2,
+  "id": "organ.meaning",
+  "kind": "organ",
+  "name": "Орган смысла",
+  "description": "Церковь/идеология: сбор, проповедь, раскол, обновление.",
+  "initial": "forming",
+  "states": {
+    "forming": {
+      "label": "Формирование",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "gathering",
+          "event": "община собрана",
+          "guard": "орган готов говорить",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "gathering": {
+      "label": "Сбор",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "sermon",
+          "event": "проповедь",
+          "guard": "законность поддерживает слово",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "sermon": {
+      "label": "Проповедь",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "schism",
+          "event": "раскол",
+          "guard": "единство пошатнулось",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        }
+      ]
+    },
+    "schism": {
+      "label": "Раскол",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "renewal",
+          "event": "обновление",
+          "guard": "смысл вернулся",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        },
+        {
+          "to": "disbanded",
+          "event": "расформирование",
+          "guard": "община распалась",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.15
+            }
+          ]
+        }
+      ]
+    },
+    "renewal": {
+      "label": "Обновление",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "gathering",
+          "event": "новый сбор",
+          "guard": "единство восстановлено",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "disbanded": {
+      "label": "Расформирование",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

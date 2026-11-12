@@ -1,0 +1,251 @@
+{
+  "schema": 2,
+  "id": "faction.republic",
+  "kind": "faction",
+  "name": "Республика: процедура и лицо",
+  "description": "Цикл Республики: обсуждение, консолидация, контрнаступление, истощение, поляризация, реформа или коллапс.",
+  "initial": "deliberation",
+  "states": {
+    "deliberation": {
+      "label": "Обсуждение",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "consolidation",
+          "event": "коалиция собрана",
+          "guard": "процедура дала мандат",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 2
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "consolidation": {
+      "label": "Консолидация",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "counteroffensive",
+          "event": "мандат подтверждён",
+          "guard": "институты держат фронт",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "attrition",
+          "event": "коалиция трещит",
+          "guard": "снабжение падает",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "counteroffensive": {
+      "label": "Контрнаступление",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "attrition",
+          "event": "наступление затянулось",
+          "guard": "тыл истощён",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.35
+            }
+          ]
+        },
+        {
+          "to": "polarization",
+          "event": "поражение бьёт по лицам",
+          "guard": "законность procedure падает",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": "<",
+              "value": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "attrition": {
+      "label": "Истощение",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "polarization",
+          "event": "общество поляризовано",
+          "guard": "доверие к процедуре падает",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": "<",
+              "value": 0.4
+            }
+          ]
+        },
+        {
+          "to": "consolidation",
+          "event": "компромисс найден",
+          "guard": "коалиция восстановлена",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.45
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "polarization": {
+      "label": "Поляризация",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "collapse",
+          "event": "республика распалась",
+          "guard": "коалиция не удержала институт",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.18
+            }
+          ]
+        },
+        {
+          "to": "reform",
+          "event": "реформа",
+          "guard": "процедура перезапущена",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.35
+            }
+          ]
+        }
+      ]
+    },
+    "reform": {
+      "label": "Реформа",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "consolidation",
+          "event": "новый мандат",
+          "guard": "реформа дала опору",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "legitimacy",
+              "op": ">=",
+              "value": 0.55
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": ">=",
+              "value": 0.45
+            }
+          ]
+        }
+      ]
+    },
+    "collapse": {
+      "label": "Коллапс",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}

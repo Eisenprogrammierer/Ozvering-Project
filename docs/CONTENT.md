@@ -428,8 +428,15 @@ custom = content.get("my_new_file", {})
 граф кодекса. Разделение папок не даёт редактору показывать исполняемые
 состояния как пустые графы; загрузчик всё равно пропускает файлы без
 `schema: 2`, если они случайно окажутся рядом. Дефолты:
-`faction_default.json` и `organ_default.json`; проверка —
-`python -m campaign.content_lint`.
+`faction_default.json`, `organ_default.json` и `subfaction_default.json`.
+Специализированные файлы выбираются ссылкой из данных: `faction.automaton`,
+поле `automaton` подфракции, `organ.automaton_id`, затем `organ.<kind>`.
+Проверка — `python -m campaign.content_lint`.
+
+Производственный набор: четыре фракционных автомата, три автомата
+подфракций и девять архетипов органов. Добавление нового файла в папку не
+меняет поведение, пока на него не сослались; `*.default` остаётся
+совместимым fallback.
 
 ## 4. Проверка после правки
 

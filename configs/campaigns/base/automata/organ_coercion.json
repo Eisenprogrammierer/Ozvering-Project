@@ -1,0 +1,185 @@
+{
+  "schema": 2,
+  "id": "organ.coercion",
+  "kind": "organ",
+  "name": "Силовой орган",
+  "description": "Войска: гарнизон, мобилизация, наступление, истощение, пополнение.",
+  "initial": "forming",
+  "states": {
+    "forming": {
+      "label": "Формирование",
+      "x": 80,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "garrison",
+          "event": "приказ получен",
+          "guard": "части сведены",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.2
+            }
+          ]
+        }
+      ],
+      "initial": true
+    },
+    "garrison": {
+      "label": "Гарнизон",
+      "x": 300,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "mobilized",
+          "event": "мобилизация",
+          "guard": "страх и приказ совпали",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "fear",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "mobilized": {
+      "label": "Мобилизация",
+      "x": 530,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "offensive",
+          "event": "наступление",
+          "guard": "превосходство достигнуто",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "fear",
+              "op": ">=",
+              "value": 0.5
+            },
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "offensive": {
+      "label": "Наступление",
+      "x": 760,
+      "y": 100,
+      "transitions": [
+        {
+          "to": "attrition",
+          "event": "истощение",
+          "guard": "снабжение на исходе",
+          "priority": 20,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": "<",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "attrition": {
+      "label": "Истощение",
+      "x": 760,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "replenishment",
+          "event": "пополнение",
+          "guard": "тыл восстановил запас",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "supply",
+              "op": ">=",
+              "value": 0.4
+            }
+          ]
+        },
+        {
+          "to": "disbanded",
+          "event": "расформирование",
+          "guard": "сопротивление сломлено",
+          "priority": 30,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "cohesion",
+              "op": "<",
+              "value": 0.15
+            }
+          ]
+        }
+      ]
+    },
+    "replenishment": {
+      "label": "Пополнение",
+      "x": 530,
+      "y": 300,
+      "transitions": [
+        {
+          "to": "mobilized",
+          "event": "возврат в строй",
+          "guard": "энергия восстановлена",
+          "priority": 10,
+          "when": [
+            {
+              "kind": "asset",
+              "scope": "self",
+              "key": "energy",
+              "op": ">=",
+              "value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "disbanded": {
+      "label": "Расформирование",
+      "x": 300,
+      "y": 300,
+      "transitions": [],
+      "final": true
+    }
+  },
+  "handlers": {},
+  "inputs": {
+    "clauses": [
+      "turn",
+      "asset"
+    ],
+    "authority": "faction assets"
+  }
+}
