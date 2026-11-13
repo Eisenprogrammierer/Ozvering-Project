@@ -225,12 +225,25 @@ class Realizer:
         spec: Mapping[str, Any],
         data: Dict[str, Any],
     ) -> str:
+        """Собрать предложение по ``statements[relation]``.
+
+        Явная конструкция из ``statements`` исключается из кандидатов
+        ``_select``: если данные прямо указывают конструкцию, она не
+        должна конкурировать с автоматической вариативностью по стилю.
+        Сначала пробуем явную, затем — оставшиеся совместимые.
+        """
+
         for name, value in (spec.get("consts") or {}).items():
             data[str(name)] = value
         prefix = str(spec.get("label_prefix") or "")
         if prefix and "key" in data:
             data["label"] = prefix + str(data["key"])
-        chosen = self._select(self.relations.get(relation) or ())
+        explicit = str(spec.get("construction") or "")
+        candidates = [
+            item for item in (self.relations.get(relation) or ())
+            if str(item.get("id") or "") != explicit
+        ]
+        chosen = self._select(candidates)
         if chosen is not None:
             text = self._render_spec(chosen, data)
             if text:
@@ -240,11 +253,10 @@ class Realizer:
                     relation=relation,
                 )
                 return text
-        construction_id = str(spec.get("construction") or "")
-        text = self.construction(construction_id, data)
+        text = self.construction(explicit, data)
         if text:
             self._record(
-                "construction", construction_id, relation=relation
+                "construction", explicit, relation=relation
             )
         return text
 

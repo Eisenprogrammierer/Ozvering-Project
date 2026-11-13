@@ -2,36 +2,6 @@
   "schema": 1,
   "plans": [
     {
-      "id": "social_command",
-      "priority": 90,
-      "match": {"kind": "social", "act": "command"},
-      "answer": {"type": "social", "act": "command"}
-    },
-    {
-      "id": "social_promise",
-      "priority": 90,
-      "match": {"kind": "social", "act": "promise"},
-      "answer": {"type": "social", "act": "promise"}
-    },
-    {
-      "id": "social_threat",
-      "priority": 90,
-      "match": {"kind": "social", "act": "threat"},
-      "answer": {"type": "social", "act": "threat"}
-    },
-    {
-      "id": "social_offer",
-      "priority": 90,
-      "match": {"kind": "social", "act": "offer"},
-      "answer": {"type": "social", "act": "offer"}
-    },
-    {
-      "id": "social_apology",
-      "priority": 90,
-      "match": {"kind": "social", "act": "apology"},
-      "answer": {"type": "social", "act": "apology"}
-    },
-    {
       "id": "greeting",
       "priority": 100,
       "match": {"kind": "greeting"},
@@ -422,6 +392,36 @@
         }
       },
       "answer": {"type": "describe", "target": "$target"}
+    },
+    {
+      "id": "social_command",
+      "priority": 90,
+      "match": {"kind": "social", "act": "command"},
+      "answer": {"type": "social", "act": "command"}
+    },
+    {
+      "id": "social_promise",
+      "priority": 90,
+      "match": {"kind": "social", "act": "promise"},
+      "answer": {"type": "social", "act": "promise"}
+    },
+    {
+      "id": "social_threat",
+      "priority": 90,
+      "match": {"kind": "social", "act": "threat"},
+      "answer": {"type": "social", "act": "threat"}
+    },
+    {
+      "id": "social_offer",
+      "priority": 90,
+      "match": {"kind": "social", "act": "offer"},
+      "answer": {"type": "social", "act": "offer"}
+    },
+    {
+      "id": "social_apology",
+      "priority": 90,
+      "match": {"kind": "social", "act": "apology"},
+      "answer": {"type": "social", "act": "apology"}
     }
   ]
 }

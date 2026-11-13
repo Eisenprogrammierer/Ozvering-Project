@@ -69,8 +69,7 @@
     {"kind": "lex", "entry": "noun:ally", "case": "nom"},
     {"kind": "np", "source": "object", "case": "gen"}
    ],
-   "end": ".",
-   "relation": "allied_with"
+   "end": "."
   },
   "clause_threaten": {
    "parts": [
