@@ -62,6 +62,8 @@ def flatten(value: Any) -> Any:
     kind = value.get("kind")
     if kind == "entity":
         return {"entity": value.get("id")}
+    if kind == "neg":
+        return True
     if kind in (
         "predicate",
         "adjective",

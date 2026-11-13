@@ -141,7 +141,7 @@
       "lhs": "S",
       "rhs": [
         {"cat": "V", "as": "verb"},
-        {"cat": "PART", "as": "part"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "ли"}},
         {"cat": "NP", "as": "subj"},
         {"cat": "NP", "as": "obj"}
       ],
@@ -161,7 +161,7 @@
       "lhs": "S",
       "rhs": [
         {"cat": "V", "as": "verb"},
-        {"cat": "PART", "as": "part"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "ли"}},
         {"cat": "NP", "as": "subj"},
         {"cat": "NP", "as": "obj"},
         {"cat": "ADJ", "as": "value"}
@@ -183,7 +183,7 @@
       "lhs": "S",
       "rhs": [
         {"cat": "HAVE", "as": "have"},
-        {"cat": "PART", "as": "part"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "ли"}},
         {"cat": "PP", "as": "owner"},
         {"cat": "NP", "as": "obj"}
       ],
@@ -308,6 +308,100 @@
           "subject": "$subj",
           "object": "$obj"
         }
+      }
+    },
+    {
+      "id": "np_neg_v_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "NEG", "as": "neg"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "negated": true,
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "np_neg_v_np_adj",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "NEG", "as": "neg"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"},
+        {"cat": "ADJ", "as": "value"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "negated": true,
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj",
+        "value": "$value"
+      }
+    },
+    {
+      "id": "np_neg_v_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "NEG", "as": "neg"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "PP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "negated": true,
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_counterfactual",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body"
+      }
+    },
+    {
+      "id": "s_counterfactual_short",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body"
+      }
+    },
+    {
+      "id": "s_counterfactual_neg",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body"
       }
     },
     {

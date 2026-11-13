@@ -2763,10 +2763,26 @@
   {
    "id": "part:not",
    "type": "particle",
-   "cat": "PART",
+   "cat": "NEG",
    "lemma": "не",
    "forms": ["не", "нет"],
-   "semantic": {"kind": "particle", "id": "not"}
+   "semantic": {"kind": "neg", "id": "not"}
+  },
+  {
+   "id": "concept:if",
+   "type": "particle",
+   "cat": "COND",
+   "lemma": "если",
+   "forms": ["если"],
+   "semantic": {"kind": "particle", "id": "if"}
+  },
+  {
+   "id": "part:would",
+   "type": "particle",
+   "cat": "PART",
+   "lemma": "бы",
+   "forms": ["бы", "б"],
+   "semantic": {"kind": "particle", "id": "would"}
   },
   {
    "id": "cop:this",

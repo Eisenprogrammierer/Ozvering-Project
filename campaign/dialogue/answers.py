@@ -11,6 +11,10 @@ D5.3 добавляет агрегацию (``mode: clause``), анафору в
 ``entities``, чтобы анафора работала даже если ``_build_moves``
 вернул ходы без этого поля.
 D3.1 добавляет тип ответа ``comparison``.
+D3.2 добавляет тип ответа ``counterfactual``.
+D5.4 добавляет порядок абзаца через ``topics: [...]``.
+D6.2a добавляет отрицание (``negated: true``) в антецеденте
+контрфакта: ``remove`` и ``add`` из плана меняются местами.
 """
 
 from __future__ import annotations
@@ -19,8 +23,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from .counterfactual import CounterfactualEngine
 from .inference import InferenceEngine, ProofStep, Solution, is_variable
-from .knowledge import AgentKnowledge
+from .knowledge import AgentKnowledge, Fact
 from .model import DialogueCatalog, Persona, PlanSpec, StyleSpec
 from .realize import ACT_FOR_KIND, Realizer, render_lines
 from .social import SocialDecision, SocialEngine, social_bindings
@@ -142,6 +147,34 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
+def _fact_from(spec: Mapping[str, Any], captures: Mapping[str, str]) -> Fact:
+    """Собрать ``Fact`` из описания в плане с подстановкой захватов."""
+
+    rel = str(spec.get("rel") or "")
+    raw_args = spec.get("args") or ()
+    args = tuple(_resolve(str(item), captures) for item in raw_args)
+    return Fact(rel, args)
+
+
+def _fact_from_values(
+    spec: Mapping[str, Any], values: Mapping[str, str]
+) -> Fact:
+    """Собрать ``Fact`` из описания в плане с подстановкой значений.
+
+    Отличие от ``_fact_from``: ``values`` — это результат матчинга
+    плюс захваты, где ``$rel`` уже разрешён в конкретное имя
+    отношения. Используется в контрфакте, когда ``$rel`` приходит из
+    антецедента.
+    """
+
+    rel = str(spec.get("rel") or "")
+    if rel.startswith("$"):
+        rel = str(values.get(rel, rel))
+    raw_args = spec.get("args") or ()
+    args = tuple(_resolve(str(item), values) for item in raw_args)
+    return Fact(rel, args)
+
+
 class AnswerPlanner:
     """Сопоставляет логическую форму с планом и исполняет его."""
 
@@ -161,6 +194,7 @@ class AnswerPlanner:
         self.social_engine = SocialEngine(
             catalog, knowledge, self.engine
         )
+        self.counterfactual = CounterfactualEngine(catalog, knowledge)
         self.realizer = Realizer(
             catalog,
             knowledge,
@@ -231,6 +265,12 @@ class AnswerPlanner:
                 break
         if selected is None:
             return self._unknown("unmatched")
+        if (
+            isinstance(sem, Mapping)
+            and sem.get("kind") == "counterfactual"
+        ):
+            captures = dict(captures)
+            captures["$sem"] = sem
         handler = getattr(
             self, "_answer_" + str(selected.answer.get("type", "")), None
         )
@@ -311,12 +351,37 @@ class AnswerPlanner:
         return result
 
     def _ordered_moves(self, pattern: Any) -> List[str]:
-        moves = list(pattern.moves)
+        """Порядок ходов: ``topics`` → ``topic`` → остальные ``moves``.
+
+        D5.4. ``topics`` (абзац 4+ хода) идёт первым; ``topic`` (один
+        ход) — частный случай, если ``topics`` пусто. Дубликаты
+        дедуплицируются с сохранением первого вхождения. Ходы из
+        ``topics``/``topic``, которых нет в ``moves``, пропускаются —
+        это защита от опечаток в данных; линтер такие случаи ловит.
+        """
+
+        moves: List[str] = list(pattern.moves)
+        seen: set = set()
+        ordered: List[str] = []
+
+        def add(name: Any) -> None:
+            text = str(name or "")
+            if not text or text in seen:
+                return
+            if text not in moves:
+                return
+            seen.add(text)
+            ordered.append(text)
+
+        topics = getattr(pattern, "topics", ()) or ()
+        for name in topics:
+            add(name)
         topic = str(getattr(pattern, "topic", "") or "")
-        if topic and topic in moves:
-            moves.remove(topic)
-            moves.insert(0, topic)
-        return moves
+        if topic:
+            add(topic)
+        for name in moves:
+            add(name)
+        return ordered
 
     def _fallback_entities(self, answer: Answer) -> Tuple[str, ...]:
         """Сущности из ``catalog.lexicon`` по ``args``/``target``/``owner``.
@@ -701,6 +766,74 @@ class AnswerPlanner:
         if left_number > right_number:
             return str(spec.greater or ""), "greater"
         return str(spec.less or ""), "less"
+
+    def _answer_counterfactual(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Построить контрфакт по антецеденту и цели из плана.
+
+        D6.2a: если антецедент отрицательный (``negated: true``),
+        ``remove`` и ``add`` из плана меняются местами: отрицание
+        означает «добавить то, чего не было», а не «убрать то, что
+        есть». План при этом остаётся тем же.
+        """
+
+        if not self.counterfactual.enabled():
+            return self._unknown(plan.id)
+        relation = _resolve(
+            str(plan.answer.get("relation") or ""), captures
+        )
+        args = _resolve_args(plan.answer.get("args") or (), captures)
+        negated = False
+        sem = captures.get("$sem")
+        if isinstance(sem, Mapping):
+            antecedent = sem.get("antecedent")
+            if isinstance(antecedent, Mapping):
+                negated = bool(antecedent.get("negated"))
+        remove_spec = plan.answer.get("remove") or ()
+        add_spec = plan.answer.get("add") or ()
+        remove = [
+            _fact_from(item, captures)
+            for item in remove_spec
+            if isinstance(item, Mapping)
+        ]
+        add = [
+            _fact_from(item, captures)
+            for item in add_spec
+            if isinstance(item, Mapping)
+        ]
+        if negated:
+            remove, add = add, remove
+        result = self.counterfactual.compare(
+            relation, args, remove=remove, add=add
+        )
+        if not result.construction:
+            return self._unknown(plan.id)
+        target = _resolve(
+            str(plan.answer.get("target") or ""), captures
+        )
+        data: Dict[str, Any] = {
+            "relation": relation,
+            "args": args,
+            "outcome": result.outcome,
+            "differences": result.differences,
+            "removed": result.removed,
+            "added": result.added,
+            "target": target,
+            "target_name": (
+                self.knowledge.name(target) if target else ""
+            ),
+            "negated": negated,
+        }
+        text = self.realizer.construction(result.construction, data)
+        if not text:
+            return self._unknown(plan.id)
+        return Answer(
+            "counterfactual",
+            text,
+            plan.id,
+            data=data,
+        )
 
     def _answer_list(
         self, plan: PlanSpec, captures: Mapping[str, str]
@@ -1159,5 +1292,5 @@ class AnswerPlanner:
 
 
 def _capitalize(text: str) -> str:
-    text = str(text or "")
-    return text[:1].upper() + text[1:] if text else text
+    text = text[:1].upper() + text[1:] if text else text
+    return text

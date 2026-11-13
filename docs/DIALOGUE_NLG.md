@@ -1,7 +1,8 @@
 # Диалог на естественном языке: детерминированный белый ящик
 
 > **Статус:** проектный документ. Фиксирует глубинную потребность,
-> архитектуру, фактический прогресс D0–D5.3 и поэтапный план до D6.
+> архитектуру, фактический прогресс D0–D5.3 и D3.2, поэтапный план
+> до D6.
 >
 > **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 > [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
@@ -11,7 +12,7 @@
 > [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md),
 > [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md).
 >
-> **Дата:** 2026-11-13.
+> **Дата:** 2026-11-14.
 
 ---
 
@@ -84,6 +85,7 @@ NLG (генерация естественного языка) — не само
 | Автовыбор регистра по контексту | `configs/dialogue/style_context.json` | Применяет правила |
 | Дискурсивные ходы, связки, анафора | `configs/dialogue/discourse.json` | Склеивает ходы |
 | Сравнения числовых отношений | `configs/dialogue/comparison.json` | Выбирает исход |
+| Контрфакты: whitelist, шаги, конструкции | `configs/dialogue/counterfactual.json` | Подменяет факты и сравнивает вывод |
 | Речевые акты и реакции | `configs/dialogue/social.json` | Выбирает реакцию |
 | Диалоговое состояние: QUD, референты, память | `configs/dialogue/state.json` | Применяет политику |
 | Мост к кампании и BDI | `configs/dialogue/world.json` | Снимает read-only снимок |
@@ -354,6 +356,7 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 | Список | запрос с проекцией |
 | Причина | трассировка доказательства |
 | Сравнение | `comparison.json` |
+| Контрфакт | `counterfactual.json` + `CounterfactualEngine` |
 | Незнание | отсутствие факта в модели агента |
 | Уклонение | политика раскрытия |
 
@@ -372,8 +375,7 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 
 - `relation` — какое отношение сравнивать (`asset`);
 - `subject_arg`/`key_arg`/`value_arg` — какие позиции аргументов;
-- `key_prefix` — префикс лексемы ключа, снимаемый перед унификацией
-  (у `asset` ключ хранится без `asset:`);
+- `key_prefix` — префикс лексемы ключа, снимаемый перед унификацией;
 - `greater`/`less`/`equal`/`unknown_left`/`unknown_right`/
   `both_unknown` — конструкции синтеза для исхода.
 
@@ -381,12 +383,33 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 значения через `InferenceEngine.first`, сравнивает числа по оператору
 из данных и передаёт конструкцию в реализатор.
 
-### 6.4. Контрфакты (D3.2, открыто)
+### 6.4. Контрфакты (D3.2, закрыто)
 
-«Что было бы, если бы эдикт не издали?» — не полная симуляция, а
-**контрмодель**: временно убрать факт, пересчитать вывод, сравнить.
-Границы: один-два шага, без побочных эффектов и без изменения
-кампании. Требует отдельного согласования механизма.
+«Что было бы, если бы X?» — не полная симуляция, а **контрмодель**:
+временно убрать факт, пересчитать вывод, сравнить.
+
+- **Вход.** `s_counterfactual` / `s_counterfactual_short` в
+  `grammar.json`; лексемы `concept:if` (`COND`) и `part:would` (`PART`).
+  Семантика — `kind: counterfactual`, `antecedent` (тело).
+- **Движок.** `CounterfactualEngine.with_facts(remove, add)` собирает
+  новый `AgentKnowledge` без мутаций. Whitelist отношений —
+  `counterfactual.json: relations`. Правила вывода не подменяются.
+- **Сравнение.** `compare(relation, args, remove, add)` доказывает цель
+  в базе и в контрмодели. Исход: `changed` / `unchanged` / `unknown`.
+  `_differences` обходит базу сверху вниз и возвращает **первый
+  расходящийся шаг**; если одна сторона не доказана — голову
+  доказанной ветки. Ограничение — `max_steps`.
+- **Синтез.** Конструкции `cf_changed` / `cf_unchanged` /
+  `cf_unknown` в `synthesis.json`. Исход → конструкция — из
+  `counterfactual.json: outcomes`.
+- **Планы.** `cf_explain` (обобщённый: `relation`, `args`, `remove`
+  из антецедента, `rel: "$rel"`) и `cf_explain_yesno` (`has_organ`).
+
+**Границы D3.2 (зафиксированы):** пересчёт 1–2 шага, только факты,
+никаких побочных эффектов, никаких изменений кампании. Отложено в
+D6.2: `не` в антецеденте, «то»-клауза, маппинг
+`predicate → relation` через `world.belief_predicates`, использование
+`differences` в тексте ответа.
 
 ---
 
@@ -489,6 +512,7 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 | Anaphora | Имя не повторяется в склеенном ответе |
 | Style context | Автовыбор регистра по контексту |
 | Comparison | Исходы greater/less/equal/unknown |
+| Counterfactual | Исходы changed/unchanged/unknown, whitelist, read-only |
 
 Отдельно — **инвариант отсутствия DSL**: в UI нет полей «предикат»,
 «субъект», «объект»; только текстовая строка.
@@ -516,7 +540,7 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 `ConversationState`, `DialogueMemory`, `DialogueMemoryStore`.
 Сейв версии 3 хранит память по агентам.
 
-### D3. Объяснения и контрфакты — частично
+### D3. Объяснения и контрфакты — закрыто
 
 #### D3.1. Сравнения и расширенное «почему» — закрыто
 
@@ -529,11 +553,28 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 - Линтер `_comparison_problems`.
 - Тесты `tests/test_d3_comparison.py` — 11 passed.
 
-#### D3.2. Контрфакты — открыто
+#### D3.2. Контрфакты — закрыто (2026-11-14)
 
-«Что было бы, если…» — контрмодель через временную подмену фактов и
-пересчёт вывода. Требует отдельного согласования границ (сколько
-шагов, какие отношения, как объяснять разницу).
+- `campaign/dialogue/counterfactual.py`: `CounterfactualEngine`,
+  `CounterfactualResult`, `Difference`.
+- `CounterfactualSpec` + поле `counterfactual` в `DialogueCatalog`.
+- `configs/dialogue/counterfactual.json` — whitelist
+  `belief`/`asset`/`at_war_with`/`considers_outlaw`, `max_steps: 2`,
+  `outcomes` → `cf_changed`/`cf_unchanged`/`cf_unknown`.
+- `_answer_counterfactual`, `_fact_from` в `answers.py`.
+- Планы `cf_explain` (обобщённый) и `cf_explain_yesno` (`has_organ`).
+- `_counterfactual_problems` в `lint.py`; `_plan_problems` пропускает
+  `$`-значения в `remove`/`add`; `counterfactual` в `_ANSWER_TYPES`
+  и `_DISCOURSE_KINDS`.
+- Грамматика `s_counterfactual` / `s_counterfactual_short`; лексемы
+  `concept:if` (`COND`) и `part:would` (`PART`).
+- Конструкции `cf_changed`/`cf_unchanged`/`cf_unknown` в
+  `synthesis.json`.
+
+**Вне объёма D3.2 (в D6.2):** `не` в антецеденте, «то»-клауза,
+маппинг `predicate → relation` через `world.belief_predicates`,
+использование `differences` в тексте ответа, расширение whitelist
+по P8/P9.
 
 ### D4. Речевые действия — закрыто
 
@@ -547,59 +588,50 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 - `configs/dialogue/discourse.json` — `moves`, `patterns`,
   `connectives`.
 - `DiscourseMove`, `DiscoursePattern`, `DiscourseCatalog` в `model.py`.
-- `_discourse` в `answers.py`: собирает ходы по шаблону, пропускает
-  пустые (обязательный ход → откат к одному ответу, необязательный
-  → выпадает).
-- `render_moves` в `realize.py`: склейка через связки, антиповтор
-  связок через `DialogueMemory`.
+- `_discourse` в `answers.py`.
+- `render_moves` в `realize.py`.
 - Линтер `_discourse_problems`.
 - Тесты `tests/test_d5_discourse.py` — 15 passed.
 
 #### D5.2. Автовыбор регистра по контексту — закрыто
 
-- `configs/dialogue/style_context.json` — `enabled`, `rules` с
-  `when`-условиями (`fact`/`field`), `style`, `priority`.
+- `configs/dialogue/style_context.json` — `enabled`, `rules`.
 - `StyleEngine.resolve_for_context` — явный стиль → `persona.default_style`
   → правила по контексту → `styles.default`.
-- `DialogueSession(style_id=None)` — авто-режим. Явный стиль побеждает
-  правила.
-- Правила `enemy_hostile`, `superior_order`, `superior_report`,
-  `ally_friendly`, `same_faction_friendly`, `trusts_mentor`,
-  `default_official`.
+- `DialogueSession(style_id=None)` — авто-режим.
 - Линтер `_style_context_problems`.
 - Тесты `tests/test_d5_registers.py` — 15 passed.
 
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 
-- `discourse.connectives[].mode: "plain" | "clause"` — plain склеивает
-  два предложения, clause — внутрь одного через запятую.
-- `discourse.patterns[].topic` — какой ход идёт первым (тема), остальные
-  — ремы. `explanation_basic` использует `topic: "justify"`.
+- `discourse.connectives[].mode: "plain" | "clause"`.
+- `discourse.patterns[].topic`.
 - `discourse.anaphora` — `enabled`, `types`, `kinds`, `pronouns`,
-  `min_length`. Анафора работает внутри ответа: имя в ходе 2
-  заменяется на местоимение, если оно уже было в ходе 1.
-- `_apply_anaphora` в `realize.py` — регистронезависимое сравнение с
-  сохранением регистра замены. Нормализация числа (`sing`→`sg`,
-  `plur`→`pl`).
-- `DiscourseAnaphora` в `model.py`; `load_discourse` читает `anaphora`;
-  линтер `_anaphora_problems`.
-- `_answer_entities_for_anaphora`/`_fallback_entities` в `answers.py` —
-  сущности из `catalog.lexicon` по `args`/`target`/`owner`/`left`/`right`.
+  `min_length`.
+- `_apply_anaphora` в `realize.py`.
+- `_answer_entities_for_anaphora`/`_fallback_entities` в `answers.py`.
+- Линтер `_anaphora_problems`.
 - Тесты `tests/test_d5_discourse_paragraph.py` — 11 passed.
 
 #### D5.4. Дискурсивная агрегация абзаца (4+ хода) — открыто
 
-Разбиение на абзац из 4+ ходов, тема-рема на уровне абзаца, порядок
-изложения. Требует отдельного планировщика.
+Решение: **эволюционно**, без отдельного `paragraph_planner`.
+`discourse.patterns[].topics: [...]` — несколько тем; `render_moves`
+учится собирать абзац 4+ ходов. Риски отдельного planner
+зафиксированы в `TODO.md` §1.1.
 
 ### D6. Расширение и калибровка — открыто
 
+* `не` в антецеденте контрфакта, «то»-клауза.
+* Обобщение `cf_explain` через `world.belief_predicates`.
 * Больше конструкций: условия, уступки, косвенная речь, цитаты.
 * Больше типов вопросов и тем.
 * Корпус парафраз, замер покрытия, устранение провалов.
 * Производительность и лимиты.
 * Политика раскрытия и ложь (`lie_probability` как параметр персоны).
 * Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
+* Использование `differences` в тексте контрфакта («изменилось бы
+  потому, что …»).
 
 ---
 
@@ -633,6 +665,9 @@ style_context.json` (автовыбор).
 | Недетерминизм из-за порядка словарей | сортировка, golden-тесты снимка |
 | Игрок пишет вне домена | уточнение + подсказка, без падения |
 | Стиль вырождается в шаблон | запрет `frames`/`prefix`/`suffix`, регистровый профиль, `coverage.py` |
+| Контрфакт подменяет правила вывода, а не только факты | whitelist отношений в `counterfactual.json`, `with_facts` фильтрует по нему, правила не трогаются |
+| Контрфакт меняет кампанию | `AgentKnowledge` иммутабелен; `with_facts` создаёт копию, кампания не затрагивается; тест read-only |
+| Контрфакт объясняет шумно | `_differences` возвращает первый расходящийся шаг сверху вниз, ограничено `max_steps` |
 
 ---
 
@@ -662,12 +697,16 @@ style_context.json` (автовыбор).
    схемы.
 6. **Оценка естественности.** Субъективная, но проверяемая: корпус
    парафраз, blind-сравнение с шаблонами, отсутствие повторов.
-7. **D3.2 (контрфакты).** Границы: сколько шагов пересчёта, какие
-   отношения можно подменять, как объяснять разницу.
-8. **D5.4 (абзац 4+ ходов).** Как разбивать длинный ответ на абзац
-   без потери связности.
+7. **D5.4 (абзац 4+ ходов).** Как разбивать длинный ответ на абзац
+   без потери связности. Эволюционный путь (`topics: [...]`)
+   согласован; риски отдельного planner зафиксированы.
+8. **D6.2 (грамматика и `world.belief_predicates`).** Маппинг
+   `predicate → relation`; `не` в антецеденте; «то»-клауза.
 9. **D6.3 (политика раскрытия и ложь).** Как `lie_probability`
    согласуется с детерминизмом и трассировкой.
+10. **D3.2 в тексте ответа.** Сейчас `cf_*` конструкции не используют
+    `differences`/`removed`/`added`. «Изменилось бы потому, что …» —
+    D6.2 или D6.4.
 
 ---
 
@@ -681,9 +720,8 @@ style_context.json` (автовыбор).
 * синтез — композиционные конструкции с морфологией и регистровым
   профилем; `realization.json` — только fallback;
 * дискурсивный слой — 1–3 хода, связки, тема-рема, анафора;
+* контрфакты — `CounterfactualEngine` на копии `AgentKnowledge`,
+  whitelist отношений, никаких изменений кампании;
 * детерминизм и отладка — обязательные контракты.
 
-Начинать с D0–D1: узкий домен, read-only, вопросы о фактах и
-намерениях. Это уже закрывает глубинную потребность «спросить агента
-своими словами и получить осмысленный ответ», не нарушая ни одного
-ограничения. D3.1, D4, D5.1–D5.3 закрыты. Дальше — D3.2, D5.4, D6.
+D0–D5.3 и D3.2 закрыты. Дальше — D5.4, D6.1, D6.2, D6.3.

@@ -49,6 +49,50 @@
       }
     },
     {
+      "id": "cf_explain",
+      "priority": 85,
+      "match": {
+        "kind": "counterfactual",
+        "antecedent": {
+          "kind": "assert",
+          "predicate": "$rel",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {"head": {"entity": "$object"}}
+        }
+      },
+      "answer": {
+        "type": "counterfactual",
+        "relation": "$rel",
+        "args": ["$subject", "$object"],
+        "remove": [
+          {"rel": "$rel", "args": ["$subject", "$object"]}
+        ],
+        "target": "$subject"
+      }
+    },
+    {
+      "id": "cf_explain_yesno",
+      "priority": 84,
+      "match": {
+        "kind": "counterfactual",
+        "antecedent": {
+          "kind": "assert",
+          "have": true,
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {"head": {"entity": "$object"}}
+        }
+      },
+      "answer": {
+        "type": "counterfactual",
+        "relation": "has_organ",
+        "args": ["$subject", "$object"],
+        "remove": [
+          {"rel": "has_organ", "args": ["$subject", "$object"]}
+        ],
+        "target": "$subject"
+      }
+    },
+    {
       "id": "belief_why",
       "priority": 80,
       "match": {

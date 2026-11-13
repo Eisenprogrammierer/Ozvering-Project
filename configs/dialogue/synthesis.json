@@ -599,6 +599,29 @@
     {"kind": "literal", "text": "обеих сторон"}
    ],
    "end": "."
+  },
+  "cf_changed": {
+   "parts": [
+    {"kind": "literal", "text": "Если бы это было иначе,"},
+    {"kind": "np", "source": "target", "case": "nom"},
+    {"kind": "literal", "text": "изменилось бы."}
+   ],
+   "end": "."
+  },
+  "cf_unchanged": {
+   "parts": [
+    {"kind": "literal", "text": "Даже если бы это было иначе,"},
+    {"kind": "np", "source": "target", "case": "nom"},
+    {"kind": "literal", "text": "ничего бы не изменилось."}
+   ],
+   "end": "."
+  },
+  "cf_unknown": {
+   "parts": [
+    {"kind": "literal", "text": "Не знаю, что было бы иначе с"},
+    {"kind": "np", "source": "target", "case": "ins"}
+   ],
+   "end": "."
   }
  },
  "statements": {

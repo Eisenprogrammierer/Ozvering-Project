@@ -1,10 +1,12 @@
-"""Тесты D5.3: агрегация, анафора и порядок тема-рема.
+"""Тесты D5.3/D5.4: агрегация, анафора, тема-рема, порядок абзаца.
 
-Проверяют, что связки с ``mode: "clause"`` склеивают ходы в одно
-сложное предложение, что анафора внутри ответа заменяет повтор имени
-первого хода на местоимение по роду/числу, что ``topic`` меняет
-порядок ходов, и что всё это задаётся в ``discourse.json`` без правки
-Python.
+D5.3: связки ``mode: "clause"``, анафора, ``topic``.
+D5.4: ``topics: [...]`` — порядок абзаца 4+ ходов. Паттерн
+``explanation_detailed`` добавляется в фикстуру, а не лежит в
+production: иначе ``pattern_for("explanation", "")`` подхватывал бы
+его, когда ``explanation_basic`` убран, и это ломало бы семантику
+«нет паттерна — нет дискурса» (см. ``test_missing_pattern_skips_discourse``
+в ``test_d5_discourse.py``).
 """
 
 from __future__ import annotations
@@ -103,6 +105,29 @@ def _answer_with_reason(left="faction:red", right="faction:blue"):
             "args": (left, right),
             "target": left,
         },
+    )
+
+
+def _add_detailed_pattern(directory: Path) -> None:
+    """Добавить ``explanation_detailed`` в фикстуру.
+
+    Паттерн намеренно не лежит в production-`discourse.json`:
+    ``test_missing_pattern_skips_discourse`` требует, чтобы без
+    `explanation_basic` дискурс не подхватывался. Поэтому тесты D5.4
+    добавляют паттерн локально.
+    """
+
+    path = directory / "discourse.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["patterns"]["explanation_detailed"] = {
+        "id": "explanation_detailed",
+        "kind": "explanation",
+        "moves": ["answer", "justify", "hedge", "conclusion"],
+        "topics": ["justify", "answer", "conclusion", "hedge"],
+        "priority": 1,
+    }
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
     )
 
 
@@ -287,7 +312,140 @@ def test_topic_can_be_disabled_json_only(tmp_path):
     assert moves[0]["id"] == "answer"
 
 
-# --- линтер -------------------------------------------------------
+# --- D5.4: topics --------------------------------------------------
+
+
+def test_explanation_detailed_added_by_json_only(tmp_path):
+    """Паттерн с ``topics`` загружается из JSON и работает."""
+
+    directory = _copy_configs(tmp_path)
+    _add_detailed_pattern(directory)
+    catalog = _catalog(directory)
+    pattern = next(
+        (
+            item
+            for item in catalog.discourse.patterns
+            if item.id == "explanation_detailed"
+        ),
+        None,
+    )
+    assert pattern is not None
+    assert pattern.topics == (
+        "justify",
+        "answer",
+        "conclusion",
+        "hedge",
+    )
+    assert pattern.moves == (
+        "answer",
+        "justify",
+        "hedge",
+        "conclusion",
+    )
+
+
+def test_topics_set_paragraph_order(tmp_path):
+    """``topics`` задаёт порядок абзаца 4+ хода."""
+
+    directory = _copy_configs(tmp_path)
+    _add_detailed_pattern(directory)
+    data = json.loads(
+        (directory / "discourse.json").read_text(encoding="utf-8")
+    )
+    del data["patterns"]["explanation_basic"]
+    (directory / "discourse.json").write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    catalog = _catalog(directory)
+    planner = _planner(catalog, style_id="official")
+    answer = Answer(
+        "explanation",
+        "Империя сильна.",
+        "p1",
+        data={
+            "reason": "эдикт объявил её мятежом",
+            "reason_args": ("faction:red", "faction:blue"),
+        },
+    )
+    result = planner._discourse(answer)
+    moves = (result.data or {}).get("moves") or ()
+    ids = [move["id"] for move in moves]
+    assert ids[0] == "justify"
+    assert ids[1] == "answer"
+
+
+def test_topics_partial_falls_back_to_moves(tmp_path):
+    """Неполный ``topics``: недостающие идут по ``moves``."""
+
+    directory = _copy_configs(tmp_path)
+    _add_detailed_pattern(directory)
+    path = directory / "discourse.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    del data["patterns"]["explanation_basic"]
+    data["patterns"]["explanation_detailed"]["topics"] = ["justify"]
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    catalog = _catalog(directory)
+    planner = _planner(catalog, style_id="official")
+    answer = Answer(
+        "explanation",
+        "Империя сильна.",
+        "p1",
+        data={
+            "reason": "эдикт объявил её мятежом",
+            "reason_args": ("faction:red", "faction:blue"),
+        },
+    )
+    result = planner._discourse(answer)
+    moves = (result.data or {}).get("moves") or ()
+    ids = [move["id"] for move in moves]
+    assert ids[0] == "justify"
+    assert "answer" in ids
+
+
+def test_lint_catches_unknown_topic(tmp_path):
+    directory = _copy_configs(tmp_path)
+    _add_detailed_pattern(directory)
+    path = directory / "discourse.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["patterns"]["explanation_detailed"]["topics"] = [
+        "justify",
+        "nonexistent",
+    ]
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    problems = lint_directory(directory)
+    assert any(
+        "discourse.patterns.explanation_detailed" in item
+        and "nonexistent" in item
+        for item in problems
+    )
+
+
+def test_lint_catches_duplicate_topic(tmp_path):
+    directory = _copy_configs(tmp_path)
+    _add_detailed_pattern(directory)
+    path = directory / "discourse.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["patterns"]["explanation_detailed"]["topics"] = [
+        "justify",
+        "justify",
+        "answer",
+    ]
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    problems = lint_directory(directory)
+    assert any(
+        "discourse.patterns.explanation_detailed" in item
+        and "повтор" in item
+        for item in problems
+    )
+
+
+# --- линтер (D5.3) -----------------------------------------------
 
 
 def test_lint_catches_unknown_anaphora_type(tmp_path):

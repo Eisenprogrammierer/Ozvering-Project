@@ -32,6 +32,7 @@ _ANSWER_TYPES = frozenset(
         "last_works",
         "social",
         "comparison",
+        "counterfactual",
     }
 )
 _CASES = frozenset({"nom", "gen", "dat", "acc", "ins", "prep"})
@@ -54,6 +55,7 @@ _DISCOURSE_KINDS = frozenset(
         "summary",
         "social",
         "comparison",
+        "counterfactual",
     }
 )
 
@@ -308,6 +310,31 @@ def _plan_problems(
                                 "%s: конструкция %r (%s) отсутствует"
                                 % (where, construction, name)
                             )
+        if kind == "counterfactual":
+            for section in ("remove", "add"):
+                for index, item in enumerate(
+                    answer.get(section) or ()
+                ):
+                    if not isinstance(item, Mapping):
+                        problems.append(
+                            "%s: %s[%d] должен быть объектом"
+                            % (where, section, index)
+                        )
+                        continue
+                    rel = str(item.get("rel") or "")
+                    if not rel:
+                        problems.append(
+                            "%s: %s[%d].rel пуст"
+                            % (where, section, index)
+                        )
+                        continue
+                    if rel.startswith("$"):
+                        continue
+                    if rel not in known:
+                        problems.append(
+                            "%s: %s.rel=%r не объявлено"
+                            % (where, section, rel)
+                        )
         label_relation = str(answer.get("label_relation") or "")
         if label_relation:
             label_args = [
@@ -1226,6 +1253,24 @@ def _discourse_problems(
                 "%s.topic: %r отсутствует в moves"
                 % (where, pattern.topic)
             )
+        seen_topics: Set[str] = set()
+        for topic_id in pattern.topics:
+            if not str(topic_id).strip():
+                problems.append(
+                    "%s.topics: пустой id" % where
+                )
+                continue
+            if topic_id in seen_topics:
+                problems.append(
+                    "%s.topics: повтор хода %r" % (where, topic_id)
+                )
+                continue
+            seen_topics.add(topic_id)
+            if topic_id not in pattern.moves:
+                problems.append(
+                    "%s.topics: ход %r отсутствует в moves"
+                    % (where, topic_id)
+                )
         if pattern.kind and pattern.kind not in _DISCOURSE_KINDS:
             problems.append(
                 "%s.kind: неизвестный вид ответа %r"
@@ -1322,6 +1367,50 @@ def _comparison_problems(
                     "%s.%s: конструкция %r отсутствует"
                     % (where, name, construction)
                 )
+    return problems
+
+
+def _counterfactual_problems(
+    catalog: DialogueCatalog, known: Mapping[str, int]
+) -> List[str]:
+    """Проверить whitelist, шаги и ссылки на конструкции."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "counterfactual", None)
+    if spec is None or not spec.relations:
+        return problems
+    constructions = (catalog.synthesis or {}).get("constructions") or {}
+    for relation in spec.relations:
+        if relation not in known:
+            problems.append(
+                "counterfactual.relations: %r не объявлено в "
+                "world.relations" % relation
+            )
+    try:
+        steps = int(spec.max_steps)
+    except (TypeError, ValueError):
+        steps = 0
+    if steps < 1:
+        problems.append(
+            "counterfactual.max_steps: ожидалось целое >= 1"
+        )
+    for outcome, construction in spec.outcomes.items():
+        if outcome not in ("changed", "unchanged", "unknown"):
+            problems.append(
+                "counterfactual.outcomes.%s: неизвестный исход"
+                % outcome
+            )
+        if not construction:
+            problems.append(
+                "counterfactual.outcomes.%s: пустая конструкция"
+                % outcome
+            )
+        elif construction not in constructions:
+            problems.append(
+                "counterfactual.outcomes.%s: конструкция %r "
+                "отсутствует в synthesis.constructions"
+                % (outcome, construction)
+            )
     return problems
 
 
@@ -1539,6 +1628,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_discourse_problems(catalog, known))
     problems.extend(_anaphora_problems(catalog))
     problems.extend(_comparison_problems(catalog, known))
+    problems.extend(_counterfactual_problems(catalog, known))
     return problems
 
 

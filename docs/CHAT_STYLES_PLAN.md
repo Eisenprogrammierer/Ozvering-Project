@@ -1,6 +1,6 @@
 # План: игровой чат и стилевой слой общения
 
-> **Статус:** рабочий план и фактический прогресс D5.1–D5.3.
+> **Статус:** рабочий план и фактический прогресс D5.1–D5.3 и D3.2.
 > Разделы 1–4 сохранены как история первого подхода (строковые
 > `frames`/`prefix`/`suffix`/`closer`), признанного недостаточным.
 > Актуальная архитектура — регистровый профиль реализатора (§11)
@@ -9,7 +9,7 @@
 > **Связанные документы:** [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md),
 > [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md).
 >
-> **Дата:** 2026-11-13.
+> **Дата:** 2026-11-14.
 
 ## 1. Запрос пользователя
 
@@ -134,16 +134,18 @@ venv/bin/python -m pytest -q
 - [x] `model.py`: `StyleSpec`, `StyleCatalog`, `FeatureSchema`,
   `DiscourseMove`, `DiscoursePattern`, `DiscourseCatalog`,
   `DiscourseAnaphora`, `StyleContextRule`, `StyleContextCatalog`,
-  `ComparisonSpec`, `ComparisonCatalog`.
+  `ComparisonSpec`, `ComparisonCatalog`, `CounterfactualSpec`.
 - [x] `loader.py`: `load_styles` (extends/features/selection),
   `load_features`, `load_discourse` (moves/patterns/connectives/
-  anaphora), `load_style_context`, `load_comparison`.
+  anaphora), `load_style_context`, `load_comparison`,
+  `load_counterfactual`.
 - [x] `configs/dialogue/styles.json` (schema 4, 8 стилей).
 - [x] `configs/dialogue/features.json`.
 - [x] `configs/dialogue/style_context.json` (D5.2).
 - [x] `configs/dialogue/discourse.json` (D5.1 + D5.3:
   `mode`, `topic`, `anaphora`).
 - [x] `configs/dialogue/comparison.json` (D3.1).
+- [x] `configs/dialogue/counterfactual.json` (D3.2).
 - [x] `campaign/dialogue/style.py`: `StyleEngine`, `SELECTION_KEYS`,
   `features()`, `is_neutral()`, `resolve_for_context`,
   `profile_for_context`.
@@ -155,12 +157,16 @@ venv/bin/python -m pytest -q
   с `mode: plain|clause`, анафора, тема-рема.
 - [x] `campaign/dialogue/answers.py`: `_discourse`, `_build_moves`,
   `_ordered_moves`, `_answer_entities_for_anaphora`,
-  `_fallback_entities`, `_answer_comparison`, `max_premises`.
+  `_fallback_entities`, `_answer_comparison`, `_answer_counterfactual`,
+  `max_premises`.
+- [x] `campaign/dialogue/counterfactual.py` (D3.2):
+  `CounterfactualEngine.with_facts` / `compare` / `_differences`.
 - [x] `campaign/dialogue/engine.py`: `DialogueSession(style_id=None)`
   = авто-режим; `set_style(None)` возвращает в авто.
 - [x] `campaign/dialogue/lint.py`: `_style_problems`,
   `_style_context_problems`, `_discourse_problems`,
-  `_anaphora_problems`, `_comparison_problems`.
+  `_anaphora_problems`, `_comparison_problems`,
+  `_counterfactual_problems`.
 - [x] `view/screens/dialogue_chat.py` (D1.5–D4).
 - [x] Кнопка «СВЯЗЬ» в `automata_screen.py`.
 - [x] Тесты `tests/test_d5_discourse.py` (15 passed).
@@ -169,8 +175,10 @@ venv/bin/python -m pytest -q
 - [x] Тесты `tests/test_d3_comparison.py` (11 passed).
 - [ ] D5.4 — дискурсивная агрегация абзаца (4+ хода).
 - [ ] D6.3 — политика раскрытия и ложь.
-- [ ] D6.2 — расширение грамматики (условия, уступки, косвенная речь).
+- [ ] D6.2 — расширение грамматики (условия, уступки, косвенная речь),
+  `не` в антецеденте, «то»-клауза, `world.belief_predicates`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
+- [ ] D3.2: использование `differences` в тексте ответа.
 
 ## 9. Файловая карта
 
@@ -179,21 +187,24 @@ venv/bin/python -m pytest -q
 - `configs/dialogue/style_context.json` — правила автовыбора.
 - `configs/dialogue/discourse.json` — ходы, шаблоны, связки, анафора.
 - `configs/dialogue/comparison.json` — таблица сравнений.
+- `configs/dialogue/counterfactual.json` — правила контрфакта.
 - `campaign/dialogue/style.py` — селектор регистра и автовыбор.
 - `campaign/dialogue/features.py` — детерминированный выбор.
 - `campaign/dialogue/coverage.py` — отчёт покрытия.
 - `campaign/dialogue/realize.py` — синтез с учётом регистра,
   `render_moves` (plain/clause, анафора, тема-рема).
 - `campaign/dialogue/answers.py` — план + синтез + дискурсивный слой
-  + сравнения.
+  + сравнения + контрфакты.
+- `campaign/dialogue/counterfactual.py` — контрфакты.
 - `campaign/dialogue/engine.py` — авто-режим стиля.
 - `campaign/dialogue/lint.py` — валидация стилей, дискурса, анафоры,
-  сравнений.
+  сравнений, контрфактов.
 - `view/screens/dialogue_chat.py` — экран чата.
 - `tests/test_d5_discourse.py` — D5.1.
 - `tests/test_d5_discourse_paragraph.py` — D5.3.
 - `tests/test_d5_registers.py` — D5.2.
 - `tests/test_d3_comparison.py` — D3.1.
+- `tests/test_d3_counterfactual.py` — D3.2 (планируется).
 
 ## 10. Что нельзя потерять
 
@@ -270,7 +281,8 @@ venv/bin/python -m pytest -q
   клаузы, обращения, маркеры, антиповтор, `render_moves` с
   `mode: plain|clause`, анафора, тема-рема.
 - `answers.py` — передаёт стиль в реализатор, собирает `moves`,
-  `data["discourse_trace"]`.
+  `data["discourse_trace"]`, обрабатывает контрфакты.
+- `counterfactual.py` — подмена фактов и сравнение вывода.
 - `engine.py` — авто-режим стиля.
 - `coverage.py` — отчёт покрытия.
 
@@ -429,13 +441,54 @@ venv/bin/python -m pytest -q
 - Не выходит за числовые отношения.
 - Не работает через контрмодель (это D3.2).
 
-## 15. Файловая карта (актуально)
+## 15. D3.2: контрфакты
+
+### 15.1. Схема данных
+
+```json
+{
+  "schema": 1,
+  "relations": ["belief", "asset", "at_war_with", "considers_outlaw"],
+  "max_steps": 2,
+  "outcomes": {
+    "changed": "cf_changed",
+    "unchanged": "cf_unchanged",
+    "unknown": "cf_unknown"
+  }
+}
+```
+
+- `relations` — whitelist подменяемых отношений; вне списка `with_facts`
+  игнорирует `remove`/`add`.
+- `max_steps` — ограничение на число отличий в `differences`.
+- `outcomes` — исход → конструкция синтеза в `synthesis.constructions`.
+
+### 15.2. Движок
+
+- `CounterfactualEngine.with_facts(remove, add)` собирает новый
+  `AgentKnowledge` тем же конструктором, без мутаций и без изменений
+  кампании.
+- `compare(relation, args, remove, add)` доказывает цель в базе и в
+  контрмодели.
+- `_differences` обходит базу сверху вниз и возвращает **первый
+  расходящийся шаг**; при `None` с одной стороны — голову доказанной
+  ветки.
+
+### 15.3. Что НЕ делает контрфакт
+
+- Не подменяет правила вывода.
+- Не меняет кампанию или BDI.
+- Не добавляет новых фактов за пределами whitelist.
+- Не объясняет «что именно» изменилось в тексте — это D6.2/D6.4.
+
+## 16. Файловая карта (актуально)
 
 - `configs/dialogue/styles.json`
 - `configs/dialogue/features.json`
 - `configs/dialogue/style_context.json`
 - `configs/dialogue/discourse.json`
 - `configs/dialogue/comparison.json`
+- `configs/dialogue/counterfactual.json`
 - `campaign/dialogue/style.py`
 - `campaign/dialogue/features.py`
 - `campaign/dialogue/coverage.py`
@@ -444,6 +497,7 @@ venv/bin/python -m pytest -q
 - `campaign/dialogue/lint.py`
 - `campaign/dialogue/realize.py`
 - `campaign/dialogue/answers.py`
+- `campaign/dialogue/counterfactual.py`
 - `campaign/dialogue/engine.py`
 - `campaign/dialogue/knowledge.py`
 - `campaign/dialogue/state.py`
@@ -453,3 +507,4 @@ venv/bin/python -m pytest -q
 - `tests/test_d5_discourse_paragraph.py`
 - `tests/test_d5_registers.py`
 - `tests/test_d3_comparison.py`
+- `tests/test_d3_counterfactual.py` (планируется)

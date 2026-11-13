@@ -269,8 +269,11 @@ class DiscourseMove:
 class DiscoursePattern:
     """Какие ходы собираются для какого вида ответа.
 
-    ``topic`` — ход, который идёт первым как тема, остальные — по
-    порядку ``moves``. Пустая строка означает «как в moves».
+    ``topic`` — один ход, который идёт первым как тема, остальные — по
+    порядку ``moves``. ``topics`` — список ходов, задающих порядок
+    абзаца 4+ ходов: сначала они в указанном порядке, затем остальные
+    ``moves``. ``topics`` перекрывает ``topic``; если ``topics``
+    пусто, поведение прежнее.
     """
 
     id: str
@@ -278,6 +281,7 @@ class DiscoursePattern:
     plan_id: str = ""
     moves: Tuple[str, ...] = ()
     topic: str = ""
+    topics: Tuple[str, ...] = ()
     priority: int = 0
 
 
@@ -385,6 +389,22 @@ class ComparisonCatalog:
 
 
 @dataclass(frozen=True)
+class CounterfactualSpec:
+    """Правила контрфакта: что подменять, сколько шагов, конструкции."""
+
+    relations: Tuple[str, ...] = ()
+    max_steps: int = 2
+    outcomes: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CounterfactualCatalog:
+    """Обёртка для загрузчика: единая точка доступа."""
+
+    spec: CounterfactualSpec = field(default_factory=CounterfactualSpec)
+
+
+@dataclass(frozen=True)
 class DialogueCatalog:
     """Полный набор данных диалога."""
 
@@ -408,6 +428,9 @@ class DialogueCatalog:
     )
     comparison: ComparisonCatalog = field(
         default_factory=ComparisonCatalog
+    )
+    counterfactual: CounterfactualSpec = field(
+        default_factory=CounterfactualSpec
     )
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

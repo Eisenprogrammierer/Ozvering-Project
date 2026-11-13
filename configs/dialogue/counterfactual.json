@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "relations": [
+    "belief",
+    "asset",
+    "at_war_with",
+    "considers_outlaw"
+  ],
+  "max_steps": 2,
+  "outcomes": {
+    "changed": "cf_changed",
+    "unchanged": "cf_unchanged",
+    "unknown": "cf_unknown"
+  }
+}
