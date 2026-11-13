@@ -8,6 +8,9 @@
 > [`BASELINE.md`](BASELINE.md); задачи текущего кода — [`TODO.md`](TODO.md).
 > При расхождении верны они. Все формулы ниже описывают текущий `simulation.py`,
 > а не целевую модель 4-2-1.
+>
+> **Дата:** 2026-11-14. Числа и статусы сверены с текущим кодом; полный
+> набор тестов не запускался, счёт — по `pytest --collect-only`.
 
 ## 0. Код и документация
 
@@ -191,6 +194,9 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `view/` | кампанийный UI: мир должностного лица, биография, выбор автомата и должности, новелла, документы, сюжет, выбор роли; легаси-стратегия и RTS |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
 | `campaign/` | **роли, мир, пресеты и кампания**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, генератор персонажей/фракций/организаций, `automata.py` с работами и производными активами, `fractal.py` с сетью органов, `faction_state.py` с формулами активов, `divisions.py` с 15 делениями, легаси `strategy.py`, хранилище и CLI; без pygame |
+| `campaign/dialogue/` | **диалоговый слой**: разбор, вывод, план ответа, дискурс, стили, контрфакты, линтер; без LLM и pygame |
+| `configs/dialogue/` | 18 JSON диалога: онтология, лексикон, грамматика, факты, правила, планы, дискурс, синтез (schema 2), стили (schema 4), контрфакты |
+| `view/screens/dialogue_chat.py` | игровой чат «СВЯЗЬ»: фракция, персонаж, стиль ответа и память партии |
 | `configs/roles/`, `configs/worlds/`, `configs/campaigns/`, `configs/strategy/`, `campaigns/` | каталоги игрового JSON-контента. В поставке есть `configs/roles/roles.json`, `configs/campaigns/*.json` и `configs/campaigns/base/*.json`; `configs/worlds/` и `configs/strategy/` пока пусты (`.gitkeep`). Тестовый набор — в `tests/fixtures/content/` |
 | `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
 | `interaction/` | **доменно-нейтральный фреймворк взаимодействий**: объекты, действия, шумные/скрытые/неизвестные исходы (без pygame) |
@@ -221,7 +227,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/WARFARE.md` | войсковые автоматы: персонажи/отделения/станы/приказы/заградотряды/подкрепления |
 | `docs/DESIGN_ADVANCED.md` | решения по lossy/LOD/энтропии, границы MVP, открытые задачи |
 | `docs/BASELINE.md` | воспроизводимая базовая линия и ограничения |
-| `docs/TODO.md` | трекер отложенных задач (P0/P1/P2, F1–F5, G1/G2, O1/E1/E2/L1/L2/C1) |
+| `docs/TODO.md` | трекер отложенных задач: P0/P1/P2, F1–F5, G1/G2, O1/E1/E2/L1/L2/C1, диалоговый D6 |
 | `docs/UI.md`, `GAME_ENGINE_CHANGES.md` | слои UI/движка |
 | `CONTRIBUTING.md`, `.github/` | процесс, CI, PR-чек-лист |
 
@@ -245,6 +251,9 @@ python3 -m systems --playwright --turns 20 --seed 7
 python3 main.py --scene battlefield  # сразу изометрическое поле (RTS)
 python3 main.py --interaction    # экран взаимодействий (объекты/действия/исходы)
 python3 main.py --arena          # автономная арена
+venv/bin/python -m campaign.dialogue.lint   # проверка JSON диалогового слоя
+venv/bin/python -m campaign.dialogue.repl --side red --ask "Кто такой канцлер?"
+venv/bin/python -m campaign.dialogue "Империя считает Республику незаконной?"
 python3 warfare.py               # войсковая симуляция: отделения/паника/банзай
 python3 main.py --speed 4        # секундный клок core41: 1x/2x/4x/8x/16x
 python3 main.py --checkpoint saves/bdi.json  # политика в активные сцены
@@ -451,3 +460,70 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 Подробности — [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) и
 [`WORLD.md`](WORLD.md); тесты — `tests/test_campaign.py`,
 `tests/test_world.py`, `tests/test_view_world.py`.
+
+## 13. Диалоговый слой (D0–D5.4, D6.2a)
+
+Игрок говорит с агентами мира обычной русской фразой; ответ строится
+детерминированно и остаётся белым ящиком: разбор → логическая форма →
+факты и вывод → план ответа → дискурс → синтез → стиль. LLM, эмбеддингов
+и обучения на корпусах нет — всё расширяется JSON.
+
+* **Код** — `campaign/dialogue/`: нормализация и `pymorphy3`-морфология,
+  chart-парсер, семантика, `InferenceEngine`, `AnswerPlanner`,
+  `Realizer`, дискурсивный слой, `StyleEngine`, `CounterfactualEngine`,
+  линтер. Точка входа — `DialogueSession`; игровой экран
+  `view/screens/dialogue_chat.py` открывается кнопкой «СВЯЗЬ» из редактора
+  автоматов.
+* **Данные** — `configs/dialogue/` (18 JSON): онтология, лексикон,
+  грамматика, факты, правила вывода, планы, сравнения, контрфакты,
+  дискурс, синтез (schema 2), стили (schema 4), контекст стиля, социальные
+  акты, состояние, персоны, признаки и мир.
+* **Память** — `DialogueMemory`/`DialogueMemoryStore` привязаны к сейву;
+  `SAVE_VERSION = 3` мигрирует v2→v3 пустым контейнером.
+
+| Этап | Что закрыто |
+|---|---|
+| D0 | контракты, онтология, лексикон, грамматика, линтер |
+| D1 | вопросы о мире read-only: знания, вывод, доказательства, «не знаю» |
+| D1.5 | композиционный синтез, морфология, fallback |
+| D2 | QUD, референты, общий фонд, местоимения, эллипсис, память партии |
+| D3.1 | сравнения и расширенное «почему» |
+| D3.2 | контрфакты: whitelist отношений, `cf_changed`/`cf_unchanged`/`cf_unknown` |
+| D4 | речевые акты, реакции, обязательства |
+| D5.1 | дискурсивный планировщик 1–3 ходов |
+| D5.2 | автовыбор регистра по контексту |
+| D5.3 | агрегация, анафора, тема-рема |
+| D5.4 | абзац 4+ хода через `DiscoursePattern.topics` |
+| D6.2a | отрицание в антецеденте контрфакта |
+
+Границы — не путать механизм с готовым сценарием:
+
+* **D3.2 и D6.2a закрыты на уровне механизма, но не сквозного сценария.**
+  `cf_explain` берёт предикат разбора (`believe`/`fight`/`have`) как
+  отношение мира, а whitelist допускает `belief`/`asset`/`at_war_with`/
+  `considers_outlaw`; `has_organ` в whitelist нет. Поэтому типичный
+  production-ответ — `cf_unknown`/`unchanged`. Нужен D6.2c
+  (`predicate → relation` через `world.belief_predicates`) и расширение
+  whitelist.
+* В production-`discourse.json` нет `topics` и `explanation_detailed` —
+  это осознанно, иначе длинный паттерн перехватывал бы обычное
+  объяснение.
+* Игровой экран поддерживает только ручной выбор стиля; авто-режим
+  (`DialogueSession(style_id=None)`) доступен через API.
+* Открыты D6.2b (следствие), D6.2c (маппинг предикатов), D6.2d
+  (условия/уступки/косвенная речь), D6.3 (раскрытие и ложь), D6.4
+  (планировщик и мост к действиям), D7 (текстовая RPG).
+* Отдельных тестов D3.2, D6.2a и `DialogueChatScreen` пока нет.
+
+Проверка данных и ручные пробы:
+
+```bash
+venv/bin/python -m campaign.dialogue.lint        # JSON диалога
+venv/bin/python -m campaign.dialogue "..."       # разбор фразы
+venv/bin/python -m campaign.dialogue.repl --side red --ask "..."
+```
+
+Подробности — [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) (архитектура и этапы),
+[`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) (регистры),
+[`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) и
+[`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md).
