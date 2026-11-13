@@ -6,11 +6,12 @@
 
 ## 0. Закрыто
 
-### 0.1. D3.2 — контрфакты (закрыто 2026-11-14)
+### 0.1. D3.2 — контрфакты (механизм закрыт 2026-11-14)
 
 - **Грамматика.** `s_counterfactual` и `s_counterfactual_short` в
   `configs/dialogue/grammar.json`; лексемы `concept:if` (`COND`) и
-  `part:would` (`PART`) в `lexicon.json`.
+  `part:would` (`PART`) в `lexicon.json`. Разбираются «Что если …?» и
+  «Что, если бы …?»; «Что было бы, если бы …?» пока не разбирается.
 - **Движок.** `campaign/dialogue/counterfactual.py`
   (`CounterfactualEngine.with_facts` / `compare`). `_differences` —
   первый расходящийся шаг сверху вниз; при `None` с одной стороны —
@@ -25,6 +26,14 @@
 - **Линтер.** `_counterfactual_problems`; `counterfactual` в
   `_ANSWER_TYPES` и `_DISCOURSE_KINDS`; `_plan_problems` пропускает
   `$`-значения в `remove`/`add`.
+- **Сквозное ограничение.** `cf_explain` подставляет предикат разбора
+  (`believe`/`fight`/`have`) в поле отношения, а whitelist содержит
+  `belief`/`asset`/`at_war_with`/`considers_outlaw`.
+  `cf_explain_yesno` удаляет `has_organ`, которого нет в whitelist,
+  поэтому удаление игнорируется. В production типовой исход —
+  `unknown`/`unchanged`; `cf_changed` практически недостижим до D6.2c.
+- **Тесты.** Отдельного файла `tests/test_d3_counterfactual.py` нет;
+  поведение проверяется косвенно линтером и ручными прогонами.
 
 **Долг, вынесенный из D3.2 в D6.2:**
 
@@ -63,7 +72,7 @@
   иначе ломался бы `test_missing_pattern_skips_discourse`.
 - Тесты `tests/test_d5_discourse_paragraph.py` (D5.4-часть).
 
-### 0.4. D6.2a — `не` в утверждениях и антецеденте (закрыто 2026-11-14)
+### 0.4. D6.2a — `не` в утверждениях и антецеденте (механизм закрыт 2026-11-14)
 
 - `lexicon.json`: `part:not` переехал из `PART` в `NEG`,
   `semantic: {"kind": "neg", "id": "not"}`.
@@ -76,6 +85,9 @@
   `$sem.antecedent.negated` и меняет `remove`/`add` местами.
 - `plans.json`, `lint.py`, `model.py`, `loader.py`, `parser.py` —
   не тронуты.
+- **Сквозное ограничение.** Из-за отсутствия `predicate_relations`
+  (D6.2c) отрицательный контрфакт в production обычно даёт `unknown`.
+- **Тесты.** Отдельных тестов D6.2a нет; покрытие — в §2.
 
 ## 1. Диалог: следующий шаг
 
@@ -188,26 +200,47 @@
 - **D3.2 whitelist.** 4 отношения; расширять по мере P8/P9.
 - **D6.2a `s_counterfactual_neg`.** Дублирует `s_counterfactual`;
   удалить или оставить как документирующий алиас.
+- **Тесты D3.2.** Нет `tests/test_d3_counterfactual.py`: нужны
+  исходы changed/unchanged/unknown, whitelist и read-only.
+- **Тесты D6.2a.** Нет тестов разбора `NEG`, `negated: true` и
+  обмена `remove`/`add`.
+- **Тесты `DialogueChatScreen`.** Нет headless-теста экрана чата:
+  выбор фракции/персонажа, ручной стиль, отправка, память.
+- **Автостиль в чате.** `DialogueChatScreen` всегда передаёт
+  выбранный вручную стиль; авто-режим есть только в
+  `DialogueSession(style_id=None)`. Нужен переключатель «авто».
+- **Production `topics`.** Механизм D5.4 покрыт тестами, но паттерна
+  с `topics` в `configs/dialogue/discourse.json` нет. Решить, когда
+  включать `explanation_detailed`, не ломая
+  `test_missing_pattern_skips_discourse`.
 
 ## 3. Документация
 
-- [x] `DIALOGUE_NLG.md` — D3.1, D3.2, D5.1–D5.4 закрыты.
+- [x] `DIALOGUE_NLG.md` — D0–D5.4, D3.2 и D6.2a отражены; границы
+  сквозных контрфактов зафиксированы.
 - [x] `CHAT_STYLES_PLAN.md` — вынесен обратно в отдельный файл.
-- [x] `ONBOARDING.md` — §5.9, §6 обновлены.
-- [x] `DATA_DRIVEN_CORE_GAPS.md` — G-20…G-23, G-19 D3.2.
-- [x] `DATA_DRIVEN_CORE_PLAN.md` — P10: D3.2, D5.4 в закрытых.
+- [x] `ONBOARDING.md` — §3, §4, §5.9, §5.10, §6 обновлены.
+- [x] `SOURCE_OF_TRUTH.md` — диалог добавлен в навигатор, карты
+  пакетов/конфигов/тестов и §4/§9; ссылка на
+  `CHAT_STYLES_PLAN.md` добавлена.
+- [x] `DATA_DRIVEN_CORE_GAPS.md` — G-20…G-23, G-19 D3.2; статусы
+  D3.2/D5.4/D6.2a выровнены с кодом.
+- [x] `DATA_DRIVEN_CORE_PLAN.md` — P10: D3.2, D5.4, D6.2a; открытые
+  D6.2b–d/D6.3/D6.4.
 - [x] `TODO.md` — этот файл.
-- [ ] `SOURCE_OF_TRUTH.md` — добавить ссылку на `CHAT_STYLES_PLAN.md`
-  как на отдельный документ.
 - [ ] `SCALING_ANALYSIS.md` — личный документ, в проектную иерархию
   не входит.
 
 ## 4. Регрессии и полный прогон
 
-- [x] Точечные прогоны D3.2/D5.1–D5.4/D6.2a зелёные.
-- [ ] Запустить полный прогон (`venv/bin/python -m pytest -q`, ~15
-  минут) после D6.2a. Если есть падения — чинить.
-- [ ] Если полный прогон зелёный — коммит и пуш.
+- [x] Точечные прогоны D0–D5.4 зелёные (`test_dialogue.py`,
+  `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
+  `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
+  `test_d5_registers.py`, `test_d5_discourse_paragraph.py`).
+- [ ] Отдельные тесты D3.2 и D6.2a — см. §2.
+- [x] Полный прогон: **1252 теста**, зелёный (по подтверждению
+  пользователя; повторно не запускался).
+- [ ] Коммит и пуш после ревизии документации.
 - [ ] После коммита — прогнать `venv/bin/python -m campaign.dialogue.lint`
   и `git diff --check`.
 

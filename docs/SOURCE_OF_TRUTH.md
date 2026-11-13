@@ -2,10 +2,11 @@
 
 **Статус:** главный проектный документ и навигационная карта. Решения ниже
 согласованы с автором проекта. Реализация целевой модели начата: есть
-вертикальный срез `core41`, runtime активной арены и слой обучаемых агентов
-`agents`; полная миграция мира ещё не завершена.
+вертикальный срез `core41`, runtime активной арены, слой обучаемых агентов
+`agents` и диалоговый слой `campaign/dialogue/`; полная миграция мира ещё не
+завершена.
 
-**Дата:** 2026-11-09.
+**Дата:** 2026-11-14.
 
 **Формулы:** точные формулы, единицы, примеры и ссылки на код собраны в
 [`FORMULAS.md`](FORMULAS.md). Этот документ даёт только сводку и маршрут к
@@ -56,6 +57,7 @@
 | Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/faction_state.py`, `campaign/preset.py` · `configs/campaigns/`, `configs/characters/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/` (пуст) · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
 | Играть на арене | арена | `game_engine.py`, `core41/arena.py` · `configs/content/` · `test_health.py`, `test_core41.py` · [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) |
+| Говорить с агентом в чате | диалог | `view/screens/dialogue_chat.py`, `campaign/dialogue/` · `configs/dialogue/` · `test_dialogue.py`, `test_d1_dialogue.py`, `test_d5_registers.py` · [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md), [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) |
 
 `-m` принимает имя модуля через точку, а не путь. `python3 -m campaign`
 запускает CLI ролей/пресетов, `python3 -m core41` показывает справку и демо
@@ -136,6 +138,7 @@
 | Среда, события, драматург | `configs/systems/`; `systems/`; `test_systems.py`, `test_events_runtime.py` |
 | Имена и политики имён | `configs/naming/`; `naming/`; `test_naming.py`, `test_people.py`; [`NAMING.md`](NAMING.md) |
 | Приказы, документы, диалоги, время | `configs/content/`; `view/support/content.py`; `test_content_pipeline.py` |
+| Диалог: лексикон, грамматика, планы, стили, дискурс, контрфакты | `configs/dialogue/`; `campaign/dialogue/loader.py`; `test_dialogue.py`, `test_d5_registers.py`; [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) |
 | Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
 
 ### 0.8. Изменить имена и политики имён
@@ -185,6 +188,7 @@
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
 | `campaign/` | кампании автоматов и дневной мир `world_actor` | активный |
+| `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
 | `systems/` | среда/события/драматург | активный инструмент |
@@ -207,6 +211,7 @@
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
+| `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, мост к миру | `campaign.dialogue.loader` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
 | `configs/worlds/` | **пуст** (только `.gitkeep`) | `campaign/world.py` |
 | `configs/strategy/` | **пуст** | `campaign/strategy.py` |
@@ -225,6 +230,7 @@
 | Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
 | Дневной мир | `test_campaign.py`, `test_world.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
 | Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_story_arcs.py`, `test_lore_characters.py` |
+| Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
 | UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |
 | Легаси и прочее | `test_canon.py`, `test_strategy.py`, `test_warfare.py`, `test_advanced.py`, `test_breakthrough_balance.py`, `test_soak.py`, `test_checks.py`, `test_domain_audit.py` |
@@ -235,6 +241,7 @@
 venv/bin/python -m pytest -q                       # все тесты
 venv/bin/python -m pycodestyle                     # стиль
 venv/bin/python -m agents.train --episodes 500 --seed 0
+venv/bin/python -m campaign.dialogue.lint         # проверка диалоговых данных
 python3 main.py                                    # клиент view/
 python3 main.py --arena                            # арена
 python3 main.py --automata                         # редактор автоматов
@@ -514,6 +521,7 @@ BDI — не третий тип и не отдельная онтология. 
 | Здоровье | `H=100`, отдых `+0.78/тик`, голод `-0.20/тик`, переполнение урона с коэффициентом `0.25` после `F=0`; факторы `aging/illness/stress/care`; болезнь `sickness ∈ [0,1]` с прогрессом, уроном, отдыхом, `treat()` и шестым действием `TREAT`; контактная передача `CONTAGION_*`; средовой резервуар болезни и острые раны `ArenaEnvironment`; кампанийная передача в одном узле; `condition_state()` и сейв текущих `health`/`sickness`; дневной срез болезни/смерти/распада в кампании; калибровка §2.3.2–2.3.5 | production-планировщик сквозного цикла игрока |
 | `campaign/world.py` | дневной ход; тестовый мир `tests/fixtures/content/configs/worlds/agora_world.json` содержит 43 узла (в поставке `configs/worlds/` пуст); `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day` | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
 | `campaign/clock.py` | `CampaignClock`, `offline_days`, `background_pause_reason`; 120 с/день, догон не больше 7 дней | production-планировщик сквозного цикла игрока |
+| `campaign/dialogue/` | read-only диалог над BDI и кампанией: разбор, вывод, планы, синтез, стили и дискурс D5.1–D5.4, сравнения D3.1, контрфакты D3.2, отрицание D6.2a, речевые действия D4, память | сквозные контрфакты через `predicate_relations` (D6.2c), политика раскрытия/ложь (D6.3), мост к действиям (D6.4) |
 | `WorldScreen` | бесконечный день, смена должности, фоновый догон, win/lose/neutral | бесконечная RTS, только поражения |
 | ИИ арены | `core41.ArenaAgent`: QTable/BDI-политики, `UtilityAI` — только baseline и эксперименты | BDI/не-BDI, стоимость работы, энергия |
 | ИИ кампании | рейтинг действий, стоимость `E`/ресурсов, отношения, стратегии и коалиции в `_ai_score` | BDI/не-BDI, полная стоимость работы и энергии |
@@ -592,6 +600,10 @@ BDI — не третий тип и не отдельная онтология. 
 | [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
 | [`UI.md`](UI.md) | сценный UI `ui/` | текущая реализация |
+| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, фазы D0–D6, прогресс D0–D5.4/D3.2/D6.2a | текущая реализация + план |
+| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит G-1…G-23: что в коде мешает контенту быть данными | аудит, не канон |
+| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | фазы P0–P10 перевода ядра на данные | план |
 | [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия | текущий код |
 | [`ONBOARDING.md`](ONBOARDING.md) | карта проекта по потребностям | руководство |
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
@@ -628,7 +640,7 @@ BDI — не третий тип и не отдельная онтология. 
 Реестр закрытых решений и открытых пунктов — [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md)
 §7, сводка открытых пунктов — §7.0 там же. **Не все пункты §7 являются
 блокерами:** большинство помечено «Закрыто» и фиксирует принятые решения.
-На 2026-11-09 действительно открыты:
+На 2026-11-14 действительно открыты:
 
 | Пункт | Что уже есть | Что осталось |
 |---|---|---|
@@ -641,11 +653,13 @@ BDI — не третий тип и не отдельная онтология. 
 | §2.10 | `relation_effect()` на приёме, `affinity` в автономии | полное влияние `trust/fear/respect` на обработчик и выход |
 | [`AGENTS.md`](AGENTS.md) §5 | `IntentQueue`, слоты, `tick()` (A5) | production-планировщик: сквозной игровой цикл игрока |
 | [`AGENTS.md`](AGENTS.md) §5 | многофазный план и цели среды — фон | полноценная стратегическая политика среды (`force/defense/in_open`) |
+| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) §10 | D0–D5.4, D3.2 и D6.2a; движок контрфактов и отрицание | D6.2b–D6.2d (`predicate_relations`, «то»-клауза, условия/уступки), D6.3 (раскрытие и ложь), D6.4 (планировщик и действия), D7 (текстовая RPG) |
 
 Закрыты и не являются блокерами: единицы `E/F/W`, конверсии и энтропия,
 логистика и её коэффициенты, отношения и обязательства, проекции старых
 шкал, внутридневные тики, приоритеты/отмена намерений, устойчивые раны, LOD
-и журнал. Детали формул — [`FORMULAS.md`](FORMULAS.md); текущий статус слоёв —
+и журнал, а также диалоговые D0–D5.4, D3.2 (механизм) и D6.2a (механизм).
+Детали формул — [`FORMULAS.md`](FORMULAS.md); текущий статус слоёв —
 §9 ниже.
 
 ---
@@ -775,6 +789,19 @@ BDI — не третий тип и не отдельная онтология. 
   калибровка сохраняется.
 - `game_engine.py` и `ui/battlefield.py` работают на `core41`; `UtilityAI` и
   `simulation.py` оставлены baseline/легаси-канону.
+- Реализован диалоговый слой `campaign/dialogue/` — read-only над BDI и
+  кампанией, без LLM и статистики. Данные лежат в `configs/dialogue/`,
+  Python интерпретирует. Сделаны D0 (разбор), D1 (вопросы о мире), D1.5
+  (композиционный синтез), D2 (QUD, референты, память), D3.1 (сравнения),
+  D4 (речевые действия), D5.1–D5.4 (дискурс, регистры, агрегация,
+  `topics`), D3.2 (движок контрфактов) и D6.2a (отрицание в разборе и
+  семантике). В чате `DialogueChatScreen` стиль выбирается вручную;
+  авторежим `DialogueSession(style_id=None)` доступен через API сессии.
+  Сквозной контрфакт пока ограничен: предикат разбора (`believe`, `have`)
+  не совпадает с отношением мира (`considers_outlaw`, `has_organ`), а
+  `has_organ` нет в whitelist `counterfactual.json`, поэтому типовой
+  исход — `unknown`/`unchanged`. Это закрывает D6.2c
+  (`predicate_relations`). Отдельных тестов D3.2 и D6.2a пока нет.
 - Полная миграция остального UI, сейвов и организационных шкал кампании
   **не завершена**: персонаж уже на `E/F/H`, но `power/cohesion/...` остаются
   легаси-проекциями мира. Устойчивые раны и внутридневные действия закрыты;

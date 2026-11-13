@@ -5,14 +5,17 @@
 > документы читать. Документ не заменяет канон и спецификации, а помогает
 > быстро найти нужный из них.
 >
-> **Дата сверки:** 2026-11-14. Проверялось по коду, тестам и фактическому
-> headless-запуску, а не только по README. Если документ расходится с
-> кодом, доверяйте коду и тестам; расхождение лучше сразу исправлять.
+> **Дата сверки:** 2026-11-14. Проверялось по коду и тестам, а не только
+> по README. Полный набор — 1252 теста, прогон зелёный. Если документ
+> расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
+> исправлять.
 >
 > **Источник истины:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). Порядок
 > приоритетов документов описан в его начале.
 >
-> **Дата обновления §4.3, §5.9, §6:** 2026-11-14 (после D3.1, D5.1–D5.3).
+> **Дата обновления §3.2, §3.3, §4.1, §4.3, §5.9, §5.10, §6:**
+> 2026-11-14 (после D3.2, D5.4 и D6.2a; ограничения сквозных сценариев
+> см. в §5.9).
 
 ---
 
@@ -71,9 +74,10 @@ venv/bin/python main.py
    «исчерпано», а условия вроде «сначала нужно: …» видны прямо в списке.
 8. Кнопка «СВЯЗЬ» в свободной области сверху справа открывает игровой чат
    с агентом (`view/screens/dialogue_chat.py`): выбор фракции, персонажа и
-   стиля ответа. Ответ агента проходит парсер, вывод, план, синтез и
-   регистровый слой. Это единственный способ поговорить с агентом в
-   интерфейсе; подробности — §5.9.
+   стиля ответа. Ответ агента проходит парсер, состояние диалога, вывод,
+   план, социальный и дискурсивный слои, затем регистровый синтез. Это
+   единственный способ поговорить с агентом в интерфейсе; подробности —
+   §5.9.
 9. «Кодекс» показывает всех персонажей и автоматы, включая органы фракций.
    У записи своей фракции внизу карточки есть кнопки действий: персонажа
    можно повысить, наградить, поддержать или допросить, орган — усилить,
@@ -167,7 +171,8 @@ venv/bin/python main.py
 | `game_engine.py` | автономная арена | `core41`-дуэль + HUD, встраивается в `view/` |
 | `automata/` | редактор автоматов | граф состояний/переходов, JSON-хранилище, без игровой модели |
 | `core41/` | целевой срез 4-2-1 | арена, дуэль, здоровье/болезнь/раны, часы, среда |
-| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, сеть органов `fractal.py`, производные активы `faction_state.py`, сейвы, диалог (`campaign/dialogue/`) |
+| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, сеть органов `fractal.py`, производные активы `faction_state.py`, сейвы |
+| `campaign/dialogue/` | детерминированный диалог | парсер, вывод, план ответа, синтез, стили, дискурс, сравнения, контрфакты, речевые действия, память |
 | `agents/` | обучаемые политики | BDI/QTable/MLP, чекпойнты, `agents.train` |
 | `warfare.py` | войсковые автоматы | персонажи, отделения, станы, приказы, мораль, черты |
 | `simulation.py` | легаси-канон дуэлей | воспроизводимый baseline, не активный игровой поток |
@@ -179,8 +184,8 @@ venv/bin/python main.py
 ```text
 main.py
   ├─ view/        современный GUI + сюжет
-  │    ├─ campaign/  мир, пресеты, кампания автоматов, диалог
-  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.3)
+  │    ├─ campaign/  мир, пресеты, кампания автоматов
+  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.4, D3.2, D6.2a)
   │    │    └─ warfare.py / core41
   │    ├─ view/support/  адаптеры, сейвы, время, эффекты
   │    └─ view/ui/       менеджер экранов, HUD, виджеты, ассеты
@@ -196,9 +201,10 @@ main.py
 * `campaign/` — дневной мир и кампанийные правила; не переписывайте аренные
   константы без перекалибровки.
 * `campaign/dialogue/` — диалоговый слой: парсер, вывод, планы, синтез,
-  стили, состояние, речевые действия, дискурсивный слой, сравнения.
-  Полностью Data-Driven: данные в `configs/dialogue/`, Python только
-  интерпретирует.
+  стили, состояние, речевые действия, дискурсивный слой, сравнения,
+  контрфакты. Полностью Data-Driven: данные в `configs/dialogue/`, Python
+  только интерпретирует. Сквозные ограничения контрфактов и отрицания
+  описаны в §5.9.
 * `warfare.py` — персонажи и отделения; кампания автоматов использует его
   для состава фракций и организаций.
 * `view/` и `ui/` — представление и ввод. Логику лучше держать в чистых
@@ -221,7 +227,7 @@ main.py
 | `configs/characters/divisions.json` | 15 делений | `campaign.divisions` |
 | `configs/systems/*.json` | среда, события, драматург | `systems.*` |
 | `configs/naming/*.json` | лексикон и имена | `naming.*` |
-| `configs/dialogue/` | диалоговый слой: онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, состояние, соц. действия, дискурс, сравнения | `campaign.dialogue.loader` |
+| `configs/dialogue/` | диалоговый слой: онтология, лексикон, грамматика, правила, факты, планы, синтез, стили и автовыбор, состояние, соц. действия, дискурс, сравнения, контрфакты, мост к миру | `campaign.dialogue.loader` |
 | `configs/worlds/` | миров пока нет (только `.gitkeep`) | `campaign.world.load_world()` |
 | `configs/automata/*.json` | графы автоматов для редактора (схема 1) | `automata.storage.AutomataStore` |
 | `configs/campaigns/base/automata/*.json` | исполняемые автоматы фракций и органов (схема 2) | `campaign.state_machine` |
@@ -251,11 +257,13 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный прогон 2026-11-14 (до D3.1): **1184 passed**.
-* Точечные прогоны D3.1/D5.1–D5.3: **~1180 passed**, D3.1
-  (`test_d3_comparison.py`), D5.1 (`test_d5_discourse.py`),
-  D5.2 (`test_d5_registers.py`), D5.3
-  (`test_d5_discourse_paragraph.py`) — зелёные.
+* Полный набор 2026-11-14: **1252 теста**, зелёный.
+* Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
+  `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
+  `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
+  `test_d5_registers.py`, `test_d5_discourse_paragraph.py`.
+* Для D3.2 (контрфакты) и D6.2a (отрицание) отдельных тестовых файлов
+  пока нет; это зафиксировано в [`TODO.md`](TODO.md) §2.
 * Полный путь «Новая игра → роль → новелла → кампания автоматов →
   бюджет действий → сеть → чат → исход» исполнен headless без исключений.
 
@@ -294,14 +302,24 @@ GUI существует и играется, но это **рабочий пе�
 * **Баланс и полировка — первый срез.** Кампания автоматов проходится, но
   субъективный баланс, читаемость HUD и длинная прогрессия ещё не
   откалиброваны как «игра для игрока».
-* **Диалоговый слой — D5.3.** Сделаны: D0 (лексикон и разбор), D1 (вопросы
-  о мире), D1.5 (композиционный синтез), D2 (QUD, референты, память),
-  D3.1 (сравнения, расширенное «почему»), D4 (речевые действия),
-  D5.1 (дискурсивный планировщик), D5.2 (автовыбор регистра),
-  D5.3 (агрегация, анафора, тема-рема). Открыто: D3.2 (контрфакты),
-  D5.4 (абзац 4+ хода), D6 (расширение грамматики, политика раскрытия и
-  ложь, аудит лексикона). Стиль выбирается автоматически по контексту
-  или вручную в чате; ответ агента — 1–3 предложения.
+* **Диалоговый слой — D6.2a на уровне механизмов.** Сделаны: D0
+  (лексикон и разбор), D1 (вопросы о мире), D1.5 (композиционный
+  синтез), D2 (QUD, референты, память), D3.1 (сравнения, расширенное
+  «почему»), D4 (речевые действия), D5.1 (дискурсивный планировщик),
+  D5.2 (автовыбор регистра в API сессии), D5.3 (агрегация, анафора,
+  тема-рема), D5.4 (механизм абзаца через `topics`), D3.2 (движок
+  контрфактов), D6.2a (отрицание в разборе и семантике).
+  Сквозные сценарии контрфактов и отрицания пока ограничены: в
+  production-лексиконе предикат не совпадает с отношением мира
+  (`believe` против `considers_outlaw`, `have` против `has_organ`), а
+  `has_organ` не входит в whitelist `counterfactual.json`. Поэтому
+  типовой ответ сейчас — `unknown`/`unchanged`, а `cf_changed`
+  практически недостижим до D6.2c (`predicate_relations`). В чате стиль
+  выбирается вручную; авто-режим `DialogueSession(style_id=None)`
+  доступен только через API сессии. Открыто: D6.2b–D6.2d (грамматика,
+  «то»-клауза, `predicate_relations`), D6.3 (политика раскрытия и ложь),
+  D6.4 (планировщик и мост к действиям), D7 (текстовая RPG), аудит
+  лексикона и тесты D3.2/D6.2a.
 
 ---
 
@@ -534,9 +552,9 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 * диалог — read-only слой над BDI и кампанией, без LLM и статистики;
 * диалог полностью Data-Driven: онтология, лексикон, грамматика, правила
   вывода, планы, политики состояния, конструкции синтеза, стили,
-  `style_context`, `discourse`, `comparison`, `social` лежат в
-  `configs/dialogue/`, Python только интерпретирует их;
-* проверка D0–D5.3:
+  `style_context`, `discourse`, `comparison`, `counterfactual`, `social`
+  лежат в `configs/dialogue/`, Python только интерпретирует их;
+* проверка D0–D5.4:
 
   ```bash
   venv/bin/python -m campaign.dialogue.lint
@@ -544,9 +562,8 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   venv/bin/python -m campaign.dialogue.repl --side blue --ask "Кто правит Республикой?" --debug
   venv/bin/python -m pytest -q tests/test_dialogue.py \
     tests/test_d1_dialogue.py tests/test_d1_5_synthesis.py \
-    tests/test_d2_state.py tests/test_d3_chat_styles.py \
-    tests/test_d3_comparison.py tests/test_d5_discourse.py \
-    tests/test_d5_discourse_paragraph.py \
+    tests/test_d2_state.py tests/test_d3_comparison.py \
+    tests/test_d5_discourse.py tests/test_d5_discourse_paragraph.py \
     tests/test_d5_registers.py tests/test_d4_social.py
   ```
 * вход: свободная русская фраза → нормализация → морфология →
@@ -567,13 +584,37 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 * **D5.2 — автовыбор регистра**: `style_context.json` (rules с
   `fact`/`field`-условиями), `StyleEngine.resolve_for_context`.
   Явный стиль игрока побеждает правила. `DialogueSession(style_id=None)`
-  = авто-режим;
+  = авто-режим; экран чата `DialogueChatScreen` авто-режим не
+  показывает и всегда передаёт выбранный вручную стиль;
 * **D5.3 — агрегация, анафора, тема-рема**: `discourse.connectives
   [].mode: plain|clause`, `discourse.patterns[].topic`,
   `discourse.anaphora` (типы, виды ходов, местоимения, min_length);
+* **D5.4 — абзац 4+ хода**: `DiscoursePattern.topics`, порядок
+  `topics → topic → moves` в `_ordered_moves`, линтер
+  `_discourse_problems`. Механизм готов и покрыт
+  `test_d5_discourse_paragraph.py`, но production-паттерна с `topics`
+  нет: `explanation_detailed` намеренно оставлен только в фикстуре;
 * **D3.1 — сравнения**: `comparison.json` (relation, args,
   key_prefix, конструкции исходов), `_answer_comparison` без
   `if a > b`. Расширенное «почему» через `max_premises` в плане;
+* **D3.2 — контрфакты**: `counterfactual.py`
+  (`CounterfactualEngine.with_facts`/`compare`/`_differences`),
+  `counterfactual.json` (whitelist `belief`/`asset`/`at_war_with`/
+  `considers_outlaw`, `max_steps`, `outcomes`), планы `cf_explain` и
+  `cf_explain_yesno`, грамматика `s_counterfactual` /
+  `s_counterfactual_short`. Разбираются формы «Что если …?» и
+  «Что, если бы …?»; конструкция «Что было бы, если бы …?» пока не
+  имеет правила. Сквозной путь ограничен: `cf_explain` подставляет
+  предикат разбора (`believe`, `fight`, `have`) вместо отношения мира,
+  а `cf_explain_yesno` удаляет `has_organ`, которого нет в whitelist,
+  поэтому `cf_changed` в production практически не достигается до
+  D6.2c (`predicate_relations`);
+* **D6.2a — отрицание**: `part:not` в категории `NEG`, правила
+  `np_neg_v_np*`, `negated: true` в семантике и обмен `remove`/`add`
+  в `_answer_counterfactual`. Это механизм разбора и семантики; из-за
+  той же несогласованности предиката и отношения отрицательный
+  контрфакт в production тоже обычно даёт `unknown`. Отдельного теста
+  пока нет;
 * речевые действия: `social.json` — акты (`command/promise/threat/
   offer/apology`), реакции (`accept/reject/evade/counter/clarify`),
   условия (`AtomSpec`), эффекты (`commitment/refusal/evasion/
@@ -582,16 +623,19 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   агентам в блоке `dialogue` сейва версии 3;
 * расширение: новое отношение, тип, лексема, конструкция, фраза,
   словоформа, фрагмент эллипсиса, речевой акт, стиль, правило
-  автовыбора, связка, ход, сравнение добавляются JSON-ом;
+  автовыбора, связка, ход, сравнение, отношение контрфакта добавляются
+  JSON-ом;
 * отладка: `--debug` печатает план, логическую форму и дерево вывода;
   `Answer.data["discourse_trace"]` — трасса дискурсивного слоя
   (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
   речевого действия;
-* статус: **D0 — сделан, D1 — сделан, D1.5 — сделан, D2 — сделан,
-  D3.1 — сделан, D4 — сделан, D5.1 — сделан, D5.2 — сделан,
-  D5.3 — сделан**. Открыто: D3.2 (контрфакты), D5.4 (абзац 4+ хода),
-  D6 (расширение грамматики, политика раскрытия и ложь, аудит
-  лексикона).
+* статус: **D0, D1, D1.5, D2, D3.1, D4, D5.1–D5.4 — сделаны;
+  D3.2 и D6.2a — сделаны на уровне механизма, сквозной контрфакт ждёт
+  D6.2c**. Открыто: D6.2b («то»-клауза), D6.2c
+  (`predicate_relations`), D6.2d (условия, уступки, косвенная речь),
+  D6.1 (аудит лексикона), D6.3 (политика раскрытия и ложь), D6.4
+  (планировщик и мост к действиям), D7 (текстовая RPG), тесты D3.2 и
+  D6.2a.
 
 Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
@@ -627,10 +671,9 @@ venv/bin/python -m pytest -q tests/test_content_pipeline.py tests/test_docs_sync
 venv/bin/python -m campaign.dialogue.lint
 venv/bin/python -m pytest -q tests/test_dialogue.py \
   tests/test_d1_dialogue.py tests/test_d1_5_synthesis.py \
-  tests/test_d2_state.py tests/test_d3_chat_styles.py \
-  tests/test_d3_comparison.py tests/test_d5_discourse.py \
-  tests/test_d5_discourse_paragraph.py tests/test_d5_registers.py \
-  tests/test_d4_social.py
+  tests/test_d2_state.py tests/test_d3_comparison.py \
+  tests/test_d5_discourse.py tests/test_d5_discourse_paragraph.py \
+  tests/test_d5_registers.py tests/test_d4_social.py
 ```
 
 ---
@@ -648,12 +691,13 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | Диалог D1 | `test_d1_dialogue.py` | вопросы о мире, доказательства, незнание, детерминизм, read-only |
 | Диалог D1.5 | `test_d1_5_synthesis.py` | композиционный синтез, морфология, расширяемость JSON-ом |
 | Диалог D2 | `test_d2_state.py` | QUD, местоимения, эллипсис, память партии, сейв |
-| Диалог D3 (стили) | `test_d3_chat_styles.py` | регистры, `features.select_best`, `coverage`, экран чата |
 | Диалог D3.1 (сравнения) | `test_d3_comparison.py` | greater/less/equal/unknown, key_prefix, max_premises |
+| Диалог D3.2 (контрфакты) | отдельных тестов нет | движок, whitelist и планы `cf_*`; покрытие — в [`TODO.md`](TODO.md) §2 |
 | Диалог D4 | `test_d4_social.py` | акты, реакции, условия, эффекты, `commitments`, JSON-only расширение |
 | Диалог D5.1 | `test_d5_discourse.py` | moves, patterns, connectives, нейтральный путь, антиповтор связок |
-| Диалог D5.2 | `test_d5_registers.py` | автовыбор регистра по контексту, явный стиль побеждает, пустой каталог |
-| Диалог D5.3 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора внутри ответа, тема-рема |
+| Диалог D5.2–D5.3 | `test_d5_registers.py` | регистры, автовыбор по контексту, явный стиль побеждает, пустой каталог |
+| Диалог D5.3–D5.4 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора, тема-рема, `topics` и порядок 4+ ходов |
+| Диалог D6.2a (отрицание) | отдельных тестов нет | разбор `NEG`, `negated: true`, обмен `remove`/`add`; ждёт D6.2c |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |
 | Контент | `test_content_pipeline.py`, `test_story_arcs.py`, `test_docs_sync.py` | загрузка/правка/удаление JSON, ссылки |
@@ -681,10 +725,10 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия: метрический граф, локальные углы, пути |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
-| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными; G-20…G-23 — закрытые стили/автовыбор/дискурс/сравнения |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными; G-19 — диалог и его срезы, G-20…G-23 — стили/автовыбор/дискурс/сравнения |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P10 до полноценного Data-Driven ядра |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог на естественном языке без LLM: архитектура, фазы D0–D6 |
-| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль реализатора, диагноз отвергнутого подхода, прогресс D5.1–D5.3, автовыбор D5.2 |
+| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль реализатора, диагноз отвергнутого подхода, прогресс D5.1–D5.4 и D3.2, автовыбор D5.2 |
 | [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по `лор.pdf`: предикаты, сути, работы, автоматы |
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |

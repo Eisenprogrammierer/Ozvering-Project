@@ -1,6 +1,7 @@
 # План: игровой чат и стилевой слой общения
 
-> **Статус:** рабочий план и фактический прогресс D5.1–D5.3 и D3.2.
+> **Статус:** рабочий план и фактический прогресс D5.1–D5.4, D3.2 и
+> D6.2a.
 > Разделы 1–4 сохранены как история первого подхода (строковые
 > `frames`/`prefix`/`suffix`/`closer`), признанного недостаточным.
 > Актуальная архитектура — регистровый профиль реализатора (§11)
@@ -114,7 +115,7 @@ venv/bin/python -m campaign.dialogue.lint
 venv/bin/python -m campaign.content_lint
 venv/bin/python -m pytest -q tests/test_d1_dialogue.py \
   tests/test_d1_5_synthesis.py tests/test_d2_state.py \
-  tests/test_d3_chat_styles.py tests/test_d3_comparison.py \
+  tests/test_d3_comparison.py \
   tests/test_d5_discourse.py tests/test_d5_discourse_paragraph.py \
   tests/test_d5_registers.py tests/test_d4_social.py \
   tests/test_save_system.py
@@ -169,16 +170,21 @@ venv/bin/python -m pytest -q
   `_counterfactual_problems`.
 - [x] `view/screens/dialogue_chat.py` (D1.5–D4).
 - [x] Кнопка «СВЯЗЬ» в `automata_screen.py`.
-- [x] Тесты `tests/test_d5_discourse.py` (15 passed).
-- [x] Тесты `tests/test_d5_discourse_paragraph.py` (11 passed).
-- [x] Тесты `tests/test_d5_registers.py` (15 passed).
-- [x] Тесты `tests/test_d3_comparison.py` (11 passed).
-- [ ] D5.4 — дискурсивная агрегация абзаца (4+ хода).
+- [x] Тесты `tests/test_d5_discourse.py` — 17 тестов.
+- [x] Тесты `tests/test_d5_discourse_paragraph.py` — 16 тестов
+  (D5.3 + D5.4).
+- [x] Тесты `tests/test_d5_registers.py` — 19 тестов.
+- [x] Тесты `tests/test_d3_comparison.py` — 16 тестов.
+- [x] D5.4 — дискурсивная агрегация абзаца (4+ хода): механизм
+  `topics` + линтер + тесты. Production-паттерна с `topics` нет.
+- [x] D6.2a — отрицание в антецеденте: `NEG` в лексиконе, правила
+  `np_neg_v_np*`, `negated: true`, обмен `remove`/`add`. Отдельного
+  теста нет; сквозной сценарий ждёт D6.2c.
 - [ ] D6.3 — политика раскрытия и ложь.
-- [ ] D6.2 — расширение грамматики (условия, уступки, косвенная речь),
-  `не` в антецеденте, «то»-клауза, `world.belief_predicates`.
+- [ ] D6.2b–D6.2d — «то»-клауза, `predicate_relations`, условия,
+  уступки, косвенная речь.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
-- [ ] D3.2: использование `differences` в тексте ответа.
+- [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 
 ## 9. Файловая карта
 
@@ -201,10 +207,11 @@ venv/bin/python -m pytest -q
   сравнений, контрфактов.
 - `view/screens/dialogue_chat.py` — экран чата.
 - `tests/test_d5_discourse.py` — D5.1.
-- `tests/test_d5_discourse_paragraph.py` — D5.3.
+- `tests/test_d5_discourse_paragraph.py` — D5.3 и D5.4.
 - `tests/test_d5_registers.py` — D5.2.
 - `tests/test_d3_comparison.py` — D3.1.
-- `tests/test_d3_counterfactual.py` — D3.2 (планируется).
+- `tests/test_d3_counterfactual.py` — D3.2 (не создан; см. `TODO.md`
+  §2).
 
 ## 10. Что нельзя потерять
 
@@ -235,8 +242,8 @@ venv/bin/python -m pytest -q
 4. **Обращения как именные группы.** Звательная/именительная форма,
    согласование по полу.
 5. **Дискурсивный планировщик.** 1–3 хода: прямой ответ, обоснование,
-   оговорка, заключение. Стиль выбирает форму и связки, но не
-   добавляет факты.
+   оговорка, заключение; 4+ — через `topics` (D5.4). Стиль выбирает
+   форму и связки, но не добавляет факты.
 6. **Детерминированный антиповтор.** Последние использованные
    конструкции хранятся в `DialogueMemory`.
 7. **Анафора внутри ответа (D5.3).** Повтор имени первого хода
@@ -481,6 +488,15 @@ venv/bin/python -m pytest -q
 - Не добавляет новых фактов за пределами whitelist.
 - Не объясняет «что именно» изменилось в тексте — это D6.2/D6.4.
 
+### 15.4. Сквозное ограничение (2026-11-14)
+
+`cf_explain` использует предикат разбора (`believe`/`fight`/`have`) как
+имя отношения, а whitelist содержит `belief`/`asset`/`at_war_with`/
+`considers_outlaw`. `cf_explain_yesno` удаляет `has_organ`,
+которого нет в whitelist, поэтому удаление игнорируется. В production
+типовой исход — `unknown`/`unchanged`; `cf_changed` практически
+недостижим до D6.2c. Отдельного теста D3.2 нет.
+
 ## 16. Файловая карта (актуально)
 
 - `configs/dialogue/styles.json`
@@ -507,4 +523,5 @@ venv/bin/python -m pytest -q
 - `tests/test_d5_discourse_paragraph.py`
 - `tests/test_d5_registers.py`
 - `tests/test_d3_comparison.py`
-- `tests/test_d3_counterfactual.py` (планируется)
+- `tests/test_d3_counterfactual.py` (не создан; D3.2 покрыт только
+  линтером и ручными прогонами)
