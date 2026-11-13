@@ -27,6 +27,28 @@
       "answer": {"type": "smalltalk", "key": "how_are_you"}
     },
     {
+      "id": "compare_assets",
+      "priority": 95,
+      "match": {
+        "kind": "question",
+        "wh": "compare",
+        "body": {
+          "kind": "compare",
+          "relation": "$relation",
+          "left": {"head": {"entity": "$left"}},
+          "right": {"head": {"entity": "$right"}},
+          "key": {"head": {"entity": "$key"}}
+        }
+      },
+      "answer": {
+        "type": "comparison",
+        "relation": "$relation",
+        "left": "$left",
+        "right": "$right",
+        "key": "$key"
+      }
+    },
+    {
       "id": "belief_why",
       "priority": 80,
       "match": {
@@ -47,7 +69,8 @@
         "statement": "considers_outlaw",
         "missing": "unknown",
         "prefix_key": "why_prefix",
-        "explain_with": "because"
+        "explain_with": "because",
+        "max_premises": 1
       }
     },
     {
@@ -96,7 +119,8 @@
         "output": ["reason"],
         "statement": "war_reason",
         "missing": "unknown",
-        "prefix_key": ""
+        "prefix_key": "",
+        "max_premises": 1
       }
     },
     {

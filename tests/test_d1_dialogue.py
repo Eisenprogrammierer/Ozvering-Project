@@ -40,14 +40,18 @@ def catalog():
 @pytest.fixture(scope="module")
 def red(catalog, campaign):
     return DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
 
 
 @pytest.fixture(scope="module")
 def blue(catalog, campaign):
     return DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "blue")
+        catalog,
+        build_knowledge(catalog, campaign, "blue"),
+        style_id="neutral",
     )
 
 
@@ -177,7 +181,9 @@ def test_concept_summary_uses_description(red):
 
 def test_last_work_waits_for_a_real_turn(catalog, campaign):
     session = DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
     empty = session.ask("Что Империя делала в последний ход?")
     assert empty.kind == "no"
@@ -193,7 +199,9 @@ def test_last_work_waits_for_a_real_turn(catalog, campaign):
     for _ in range(2):
         advanced.advance(player_action=advanced.auto_action(advanced.player_side))
     session = DialogueSession(
-        catalog, build_knowledge(catalog, advanced, "red")
+        catalog,
+        build_knowledge(catalog, advanced, "red"),
+        style_id="neutral",
     )
     answer = session.ask("Что Империя делала в последний ход?")
     assert answer.kind == "list"
@@ -234,7 +242,9 @@ def test_answers_are_deterministic_and_have_plans(red, phrase):
 
 def test_dialogue_is_read_only(catalog, campaign):
     session = DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
     before = _snapshot(campaign)
     for phrase in (
@@ -280,7 +290,9 @@ def test_new_fact_needs_only_json(tmp_path, campaign):
     assert lint_directory(root) == []
     catalog = load_dialogue(root)
     session = DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
     answer = session.ask("Расскажи о делах.")
     assert "Дела идут своим чередом." in answer.text
@@ -312,7 +324,9 @@ def test_new_rule_needs_only_json(tmp_path, campaign):
     assert lint_directory(root) == []
     catalog = load_dialogue(root)
     session = DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
     answer = session.ask("Есть ли у Торговой планеты союзники?")
     assert answer.kind == "list"

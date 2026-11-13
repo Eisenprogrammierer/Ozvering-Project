@@ -45,6 +45,7 @@ def _session(catalog, campaign, side="red", memory=None):
         catalog,
         build_knowledge(catalog, campaign, side),
         memory=memory,
+        style_id="neutral",
     )
 
 

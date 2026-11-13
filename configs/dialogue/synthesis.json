@@ -543,6 +543,62 @@
     {"kind": "marker", "concept": "clarify_social"}
    ],
    "end": "."
+  },
+  "comparison_greater": {
+   "parts": [
+    {"kind": "text", "source": "left_name"},
+    {"kind": "literal", "text": "сильнее"},
+    {"kind": "literal", "text": "по"},
+    {"kind": "text", "source": "key_gen"},
+    {"kind": "literal", "text": "чем"},
+    {"kind": "text", "source": "right_name"}
+   ],
+   "end": "."
+  },
+  "comparison_less": {
+   "parts": [
+    {"kind": "text", "source": "right_name"},
+    {"kind": "literal", "text": "сильнее"},
+    {"kind": "literal", "text": "по"},
+    {"kind": "text", "source": "key_gen"},
+    {"kind": "literal", "text": "чем"},
+    {"kind": "text", "source": "left_name"}
+   ],
+   "end": "."
+  },
+  "comparison_equal": {
+   "parts": [
+    {"kind": "text", "source": "left_name"},
+    {"kind": "literal", "text": "и"},
+    {"kind": "text", "source": "right_name"},
+    {"kind": "literal", "text": "равны по"},
+    {"kind": "text", "source": "key_dat"}
+   ],
+   "end": "."
+  },
+  "comparison_unknown_left": {
+   "parts": [
+    {"kind": "literal", "text": "Не знаю, сколько у"},
+    {"kind": "text", "source": "left_name"},
+    {"kind": "text", "source": "key_gen"}
+   ],
+   "end": "."
+  },
+  "comparison_unknown_right": {
+   "parts": [
+    {"kind": "literal", "text": "Не знаю, сколько у"},
+    {"kind": "text", "source": "right_name"},
+    {"kind": "text", "source": "key_gen"}
+   ],
+   "end": "."
+  },
+  "comparison_both_unknown": {
+   "parts": [
+    {"kind": "literal", "text": "Не располагаю сведениями об уровне"},
+    {"kind": "text", "source": "key_gen"},
+    {"kind": "literal", "text": "обеих сторон"}
+   ],
+   "end": "."
   }
  },
  "statements": {
@@ -973,7 +1029,8 @@
   "social_reject": {"construction": "social_reject"},
   "social_evade": {"construction": "social_evade"},
   "social_counter": {"construction": "social_counter"},
-  "social_clarify": {"construction": "social_clarify"}
+  "social_clarify": {"construction": "social_clarify"},
+  "comparison_default": {"construction": "comparison_equal"}
  },
  "lists": {
   "organs": {"intro": "organs_intro", "empty": "organs_empty", "separator": ", "},

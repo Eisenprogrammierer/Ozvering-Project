@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "enabled": true,
+  "rules": [
+    {
+      "id": "enemy_hostile",
+      "style": "hostile",
+      "priority": 100,
+      "description": "Стороны в состоянии войны — враждебный регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "at_war_with",
+          "args": ["$speaker_faction", "$player_faction"]
+        }
+      ]
+    },
+    {
+      "id": "enemy_hostile_reverse",
+      "style": "hostile",
+      "priority": 100,
+      "description": "Обратное направление войны — тоже враждебно.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "at_war_with",
+          "args": ["$player_faction", "$speaker_faction"]
+        }
+      ]
+    },
+    {
+      "id": "superior_report",
+      "style": "report",
+      "priority": 80,
+      "description": "Игрок имеет полномочия над собеседником — доклад.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "has_authority",
+          "args": ["$player_id", "$speaker_id"]
+        }
+      ]
+    },
+    {
+      "id": "superior_order",
+      "style": "order",
+      "priority": 90,
+      "description": "Собеседник имеет полномочия над игроком — приказ.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "has_authority",
+          "args": ["$speaker_id", "$player_id"]
+        }
+      ]
+    },
+    {
+      "id": "ally_friendly",
+      "style": "friendly",
+      "priority": 60,
+      "description": "Стороны в союзе — дружеский регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "allied_with",
+          "args": ["$speaker_faction", "$player_faction"]
+        }
+      ]
+    },
+    {
+      "id": "same_faction_friendly",
+      "style": "friendly",
+      "priority": 55,
+      "description": "Одна фракция — дружеский регистр.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "player_side",
+          "op": "eq",
+          "value": "$side"
+        }
+      ]
+    },
+    {
+      "id": "trusts_mentor",
+      "style": "mentor",
+      "priority": 50,
+      "description": "Доверие без союза — наставительный регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "trusts",
+          "args": ["$player_id", "$speaker_id"]
+        }
+      ]
+    },
+    {
+      "id": "default_official",
+      "style": "official",
+      "priority": 10,
+      "description": "Формальный разговор без явных отношений — канцелярит.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "player_id",
+          "op": "exists",
+          "value": null
+        }
+      ]
+    }
+  ]
+}

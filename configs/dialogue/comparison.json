@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "comparisons": {
+    "asset": {
+      "relation": "asset",
+      "args": {
+        "left": 0,
+        "key": 1,
+        "left_value": 2
+      },
+      "value_arg": 2,
+      "key_arg": 1,
+      "subject_arg": 0,
+      "key_prefix": "asset:",
+      "greater": "comparison_greater",
+      "less": "comparison_less",
+      "equal": "comparison_equal",
+      "unknown_left": "comparison_unknown_left",
+      "unknown_right": "comparison_unknown_right",
+      "both_unknown": "comparison_both_unknown"
+    }
+  }
+}

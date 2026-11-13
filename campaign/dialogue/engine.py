@@ -6,6 +6,10 @@ D2 добавляет к read-only слою QUD, активные референ
 ``ConversationState.commitments``. Состояние разговора не меняет
 кампанию и BDI: оно лишь читает снимок знания и хранит следы беседы
 для связности.
+
+D5.2 добавляет авто-режим выбора регистра: если игрок не выбрал стиль
+явно, регистр определяется правилами из ``style_context.json`` по
+данным ``AgentKnowledge``. Явный выбор побеждает любые правила.
 """
 
 from __future__ import annotations
@@ -50,9 +54,9 @@ class DialogueSession:
         self.parser = ChartParser(catalog)
         self.persona = _select_persona(catalog, persona_id, knowledge.side)
         self.style_engine = StyleEngine(catalog)
-        self.style_id = self.style_engine.resolve(
-            style_id, self.persona
-        )
+        self.explicit_style_id = ""
+        if style_id is not None and str(style_id) in self.style_engine.styles:
+            self.explicit_style_id = str(style_id)
         self.morphology = Morphology(catalog.synthesis)
         self.memory = memory or DialogueMemory(
             catalog.state,
@@ -74,18 +78,41 @@ class DialogueSession:
             morphology=self.morphology,
         )
 
+    @property
+    def style_id(self) -> str:
+        """Текущий стиль: явный, иначе вычисленный по контексту."""
+
+        return self.style_engine.resolve_for_context(
+            self.explicit_style_id, self.persona, self.knowledge
+        )
+
     def ask(self, text: str) -> Answer:
         return self.respond(text).answer
 
     def set_style(self, style_id: Optional[str]) -> str:
-        """Сменить регистровый профиль; неизвестный стиль безопасен."""
+        """Сменить регистровый профиль.
 
-        self.style_id = self.style_engine.resolve(style_id, self.persona)
+        ``None`` переключает в авто-режим: стиль выбирается правилами
+        ``style_context.json`` по ``AgentKnowledge``. Явный идентификатор
+        побеждает любые правила, но только если он существует.
+        """
+
+        key = "" if style_id is None else str(style_id)
+        if key and key not in self.style_engine.styles:
+            key = ""
+        self.explicit_style_id = key
         self.planner.set_style(self._profile())
         return self.style_id
 
+    def is_auto(self) -> bool:
+        """Сессия в авто-режиме выбора стиля?"""
+
+        return not self.explicit_style_id
+
     def _profile(self):
-        return self.style_engine.profile(self.style_id, self.persona)
+        return self.style_engine.profile_for_context(
+            self.explicit_style_id, self.persona, self.knowledge
+        )
 
     def respond(self, text: str) -> Turn:
         self.state.begin_turn(self.knowledge.clock)
@@ -130,6 +157,8 @@ class DialogueSession:
             "common_ground": len(self.state.common_ground),
             "commitments": len(self.state.commitments),
             "memory_turns": self.memory.turns,
+            "style_id": self.style_id,
+            "style_auto": self.is_auto(),
         }
 
     def _interpret(self, text: str):

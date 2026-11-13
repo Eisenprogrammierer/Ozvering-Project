@@ -49,7 +49,9 @@ def catalog():
 @pytest.fixture(scope="module")
 def red(catalog, campaign):
     return DialogueSession(
-        catalog, build_knowledge(catalog, campaign, "red")
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id="neutral",
     )
 
 
@@ -105,7 +107,9 @@ def test_content_answers_do_not_use_whole_sentence_templates(
     _rewrite(root / "realization.json", poison)
     poisoned = load_dialogue(root)
     session = DialogueSession(
-        poisoned, build_knowledge(poisoned, campaign, "red")
+        poisoned,
+        build_knowledge(poisoned, campaign, "red"),
+        style_id="neutral",
     )
     for phrase in (
         "Считает ли Империя Республику незаконной?",
@@ -171,7 +175,9 @@ def test_new_phrase_extends_description_without_python(tmp_path, campaign):
     assert lint_directory(root) == []
     changed = load_dialogue(root)
     session = DialogueSession(
-        changed, build_knowledge(changed, campaign, "red")
+        changed,
+        build_knowledge(changed, campaign, "red"),
+        style_id="neutral",
     )
     answer = session.ask("Что такое Абвер?")
     assert "Девиз: порядок и точность" in answer.text

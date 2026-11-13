@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "moves": {
+    "answer": {
+      "id": "answer",
+      "label": "прямой ответ",
+      "act": "answer",
+      "optional": false
+    },
+    "justify": {
+      "id": "justify",
+      "label": "обоснование",
+      "source": "reason",
+      "optional": true
+    },
+    "hedge": {
+      "id": "hedge",
+      "label": "оговорка",
+      "act": "hedge",
+      "optional": true
+    },
+    "conclusion": {
+      "id": "conclusion",
+      "label": "заключение",
+      "act": "conclusion",
+      "optional": true
+    },
+    "clarify": {
+      "id": "clarify",
+      "label": "уточнение",
+      "act": "clarify",
+      "optional": true
+    },
+    "refuse": {
+      "id": "refuse",
+      "label": "отказ",
+      "act": "refuse",
+      "optional": true
+    }
+  },
+  "patterns": {
+    "explanation_basic": {
+      "id": "explanation_basic",
+      "kind": "explanation",
+      "moves": ["answer", "justify"],
+      "priority": 10
+    },
+    "value_with_conclusion": {
+      "id": "value_with_conclusion",
+      "kind": "value",
+      "moves": ["answer", "conclusion"],
+      "priority": 5
+    },
+    "list_with_conclusion": {
+      "id": "list_with_conclusion",
+      "kind": "list",
+      "moves": ["answer", "conclusion"],
+      "priority": 5
+    },
+    "unknown_with_hedge": {
+      "id": "unknown_with_hedge",
+      "kind": "unknown",
+      "moves": ["answer", "hedge"],
+      "priority": 5
+    }
+  },
+  "connectives": {
+    "connective:neutral_plain": {
+      "text": ".",
+      "features": {},
+      "priority": 0,
+      "position": "between"
+    },
+    "connective:neutral_because": {
+      "text": "Потому что",
+      "features": {},
+      "priority": 10,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:official_plain": {
+      "text": ".",
+      "features": {"formality": "high"},
+      "priority": 5,
+      "position": "between"
+    },
+    "connective:official_moreover": {
+      "text": "При этом",
+      "features": {"formality": "high", "nominalization": "high"},
+      "priority": 15,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:official_therefore": {
+      "text": "Соответственно",
+      "features": {"formality": "high"},
+      "priority": 10,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:report_basis": {
+      "text": "Основание:",
+      "features": {"formality": "high", "authority": "high"},
+      "priority": 15,
+      "position": "between"
+    },
+    "connective:report_done": {
+      "text": "Докладываю.",
+      "features": {"formality": "high", "authority": "high"},
+      "priority": 20,
+      "position": "between"
+    },
+    "connective:order_therefore": {
+      "text": "Следовательно",
+      "features": {"authority": "high", "register": "command"},
+      "priority": 15,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:friendly_because": {
+      "text": "Потому",
+      "features": {"distance": "near", "affect": "warm"},
+      "priority": 15,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:friendly_well": {
+      "text": "Вот",
+      "features": {"distance": "near", "affect": "warm"},
+      "priority": 10,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:romantic_soft": {
+      "text": "Просто",
+      "features": {"distance": "intimate", "affect": "intimate"},
+      "priority": 15,
+      "position": "between",
+      "lowercase_next": true
+    },
+    "connective:hostile_flat": {
+      "text": "Точка.",
+      "features": {"distance": "far", "affect": "cold"},
+      "priority": 15,
+      "position": "between"
+    },
+    "connective:mentor_explains": {
+      "text": "Смотри:",
+      "features": {"authority": "high", "affect": "warm"},
+      "priority": 15,
+      "position": "between"
+    }
+  }
+}

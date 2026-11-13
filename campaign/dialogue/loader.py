@@ -13,7 +13,12 @@ from typing import Any, Dict, Iterable, List, Mapping, Tuple
 from .errors import DialogueError
 from .model import (
     AtomSpec,
+    ComparisonCatalog,
+    ComparisonSpec,
     DialogueCatalog,
+    DiscourseCatalog,
+    DiscourseMove,
+    DiscoursePattern,
     FactSpec,
     FeatureSchema,
     Grammar,
@@ -29,6 +34,8 @@ from .model import (
     SocialActSpec,
     SocialCatalog,
     StyleCatalog,
+    StyleContextCatalog,
+    StyleContextRule,
     StyleSpec,
 )
 
@@ -43,6 +50,18 @@ EFFECT_TYPES = frozenset(
         "evasion",
         "counter_offer",
         "clarification",
+    }
+)
+
+MOVE_MODES = ("act", "construction", "relation")
+
+CONTEXT_OPERATORS = frozenset(
+    {
+        "eq",
+        "ne",
+        "in",
+        "not_in",
+        "exists",
     }
 )
 
@@ -555,6 +574,98 @@ def load_styles(
     return StyleCatalog(default=default, styles=styles)
 
 
+def _context_condition(raw: Any, where: str) -> Mapping[str, Any]:
+    data = _mapping(raw, where)
+    kind = str(data.get("kind") or "field")
+    if kind == "fact":
+        rel = _text(data.get("rel"), where + ".rel")
+        args = tuple(
+            str(item)
+            for item in _sequence(data.get("args", []), where + ".args")
+        )
+        return {"kind": "fact", "rel": rel, "args": args}
+    if kind == "field":
+        field_name = _text(data.get("field"), where + ".field")
+        operator = str(data.get("op") or "eq")
+        if operator not in CONTEXT_OPERATORS:
+            raise DialogueError(
+                "%s.op: неизвестный оператор %r" % (where, operator)
+            )
+        value = data.get("value")
+        if isinstance(value, Mapping):
+            value = {
+                str(key): str(item)
+                for key, item in value.items()
+            }
+        elif isinstance(value, (list, tuple)):
+            value = [str(item) for item in value]
+        elif value is not None:
+            value = str(value)
+        return {
+            "kind": "field",
+            "field": field_name,
+            "op": operator,
+            "value": value,
+        }
+    raise DialogueError("%s.kind: неизвестный вид условия" % where)
+
+
+def load_style_context(
+    path: Path, styles: StyleCatalog
+) -> StyleContextCatalog:
+    """Загрузить правила автовыбора регистра по контексту.
+
+    Файла может не быть: пустой каталог означает «автовыбор отключён».
+    Это сохраняет обратную совместимость: без файла работает только
+    ручной выбор и ``persona.default_style``.
+    """
+
+    if not path.is_file():
+        return StyleContextCatalog()
+    raw = _mapping(_read_json(path), str(path))
+    enabled = bool(raw.get("enabled", True))
+    items = _sequence(raw.get("rules", []), "style_context.rules")
+    rules: List[StyleContextRule] = []
+    seen: Dict[str, str] = {}
+    for index, item in enumerate(items):
+        where = "style_context.rules[%d]" % index
+        data = _mapping(item, where)
+        rule_id = _text(data.get("id"), where + ".id")
+        if rule_id in seen:
+            raise DialogueError(
+                "%s: повтор id %r (уже был в %s)"
+                % (where, rule_id, seen[rule_id])
+            )
+        seen[rule_id] = where
+        style_id = _text(data.get("style"), where + ".style")
+        if style_id not in styles.styles:
+            raise DialogueError(
+                "%s.style: стиль %r отсутствует в styles.styles"
+                % (where, style_id)
+            )
+        conditions: List[Mapping[str, Any]] = []
+        for cond_index, cond in enumerate(
+            _sequence(data.get("when", []), where + ".when")
+        ):
+            conditions.append(
+                _context_condition(
+                    cond, "%s.when[%d]" % (where, cond_index)
+                )
+            )
+        if not conditions:
+            raise DialogueError("%s.when: пусто" % where)
+        rules.append(
+            StyleContextRule(
+                id=rule_id,
+                style_id=style_id,
+                priority=int(data.get("priority") or 0),
+                conditions=tuple(conditions),
+                description=str(data.get("description") or ""),
+            )
+        )
+    return StyleContextCatalog(rules=tuple(rules), enabled=enabled)
+
+
 def _social_atoms(value: Any, where: str) -> Tuple[AtomSpec, ...]:
     if value is None:
         return ()
@@ -565,14 +676,7 @@ def _social_atoms(value: Any, where: str) -> Tuple[AtomSpec, ...]:
 
 
 def load_social(path: Path) -> SocialCatalog:
-    """Загрузить акты, реакции и политику обязательств.
-
-    Акт описывает входное речевое действие и список допустимых реакций.
-    Реакция описывает условия срабатывания, типизированный эффект и
-    конструкцию синтеза. Условия — те же ``AtomSpec``, что в правилах
-    вывода, и доказываются тем же движком. Новый акт или реакция
-    добавляются JSON-ом.
-    """
+    """Загрузить акты, реакции и политику обязательств."""
 
     raw = _mapping(_read_json(path), str(path))
     acts_raw = _mapping(raw.get("acts", {}), "social.acts")
@@ -642,6 +746,170 @@ def load_social(path: Path) -> SocialCatalog:
     )
 
 
+def _discourse_move(key: str, value: Any) -> DiscourseMove:
+    where = "discourse.moves.%s" % key
+    data = _mapping(value, where)
+    move_id = str(data.get("id") or key)
+    act = str(data.get("act") or "")
+    construction = str(data.get("construction") or "")
+    relation = str(data.get("relation") or "")
+    source = str(data.get("source") or "")
+    modes = sum(1 for item in (act, construction, relation) if item)
+    if modes == 0 and not source:
+        raise DialogueError(
+            "%s: нужен act, construction, relation или source" % where
+        )
+    if modes > 1:
+        raise DialogueError(
+            "%s: одновременно act/construction/relation запрещены"
+            % where
+        )
+    if relation and not source:
+        raise DialogueError(
+            "%s: relation без source (имя поля данных)" % where
+        )
+    return DiscourseMove(
+        id=move_id,
+        label=str(data.get("label") or move_id),
+        act=act,
+        construction=construction,
+        relation=relation,
+        source=source,
+        optional=bool(data.get("optional", False)),
+        features=_features(
+            data.get("features"), where + ".features"
+        ),
+        priority=int(data.get("priority") or 0),
+    )
+
+
+def _discourse_pattern(key: str, value: Any) -> DiscoursePattern:
+    where = "discourse.patterns.%s" % key
+    data = _mapping(value, where)
+    pattern_id = str(data.get("id") or key)
+    kind = str(data.get("kind") or "")
+    plan_id = str(data.get("plan_id") or "")
+    if not kind and not plan_id:
+        raise DialogueError(
+            "%s: нужен kind или plan_id" % where
+        )
+    moves = tuple(
+        str(item)
+        for item in _sequence(data.get("moves"), where + ".moves")
+    )
+    if not moves:
+        raise DialogueError("%s.moves: пусто" % where)
+    return DiscoursePattern(
+        id=pattern_id,
+        kind=kind,
+        plan_id=plan_id,
+        moves=moves,
+        priority=int(data.get("priority") or 0),
+    )
+
+
+def _discourse_connective(key: str, value: Any) -> Mapping[str, Any]:
+    where = "discourse.connectives.%s" % key
+    data = _mapping(value, where)
+    text = str(data.get("text") or "")
+    if not text.strip():
+        raise DialogueError("%s.text: пусто" % where)
+    item = dict(data)
+    item["id"] = str(data.get("id") or key)
+    item["text"] = text
+    item["features"] = _features(
+        data.get("features"), where + ".features"
+    )
+    try:
+        item["priority"] = int(data.get("priority") or 0)
+    except (TypeError, ValueError) as error:
+        raise DialogueError(
+            "%s.priority: ожидалось число" % where
+        ) from error
+    return item
+
+
+def load_discourse(path: Path) -> DiscourseCatalog:
+    """Загрузить ходы, шаблоны и связки дискурсивного планировщика."""
+
+    if not path.is_file():
+        return DiscourseCatalog()
+    raw = _mapping(_read_json(path), str(path))
+    moves_raw = _mapping(raw.get("moves", {}), "discourse.moves")
+    patterns_raw = _mapping(
+        raw.get("patterns", {}), "discourse.patterns"
+    )
+    connectives_raw = _mapping(
+        raw.get("connectives", {}), "discourse.connectives"
+    )
+    moves: Dict[str, DiscourseMove] = {}
+    for key, value in moves_raw.items():
+        move = _discourse_move(str(key), value)
+        if str(key) in moves:
+            raise DialogueError(
+                "discourse.moves.%s: повтор id" % key
+            )
+        moves[str(key)] = move
+    patterns: List[DiscoursePattern] = []
+    for key, value in patterns_raw.items():
+        patterns.append(_discourse_pattern(str(key), value))
+    connectives: List[Mapping[str, Any]] = []
+    for key, value in connectives_raw.items():
+        connectives.append(_discourse_connective(str(key), value))
+    return DiscourseCatalog(
+        moves=moves,
+        patterns=tuple(patterns),
+        connectives=tuple(connectives),
+    )
+
+
+def load_comparison(path: Path) -> ComparisonCatalog:
+    """Загрузить таблицу сравнений по отношениям.
+
+    Файла может не быть: пустой каталог означает «сравнения отключены»,
+    и план ``compare_assets`` не срабатывает. Это сохраняет обратную
+    совместимость.
+    """
+
+    if not path.is_file():
+        return ComparisonCatalog()
+    raw = _mapping(_read_json(path), str(path))
+    items = _mapping(raw.get("comparisons", {}), "comparison.comparisons")
+    comparisons: Dict[str, ComparisonSpec] = {}
+    for key, value in items.items():
+        where = "comparison.comparisons.%s" % key
+        data = _mapping(value, where)
+        relation = _text(data.get("relation"), where + ".relation")
+        args = dict(_mapping(data.get("args", {}), where + ".args"))
+        try:
+            value_arg = int(data.get("value_arg") or 2)
+            key_arg = int(data.get("key_arg") or 1)
+            subject_arg = int(data.get("subject_arg") or 0)
+        except (TypeError, ValueError) as error:
+            raise DialogueError(
+                "%s: числовые поля должны быть целыми" % where
+            ) from error
+        comparisons[str(key)] = ComparisonSpec(
+            id=str(key),
+            relation=relation,
+            args={
+                str(name): int(index)
+                for name, index in args.items()
+            },
+            value_arg=value_arg,
+            key_arg=key_arg,
+            subject_arg=subject_arg,
+            key_prefix=str(data.get("key_prefix") or ""),
+            greater=str(data.get("greater") or ""),
+            less=str(data.get("less") or ""),
+            equal=str(data.get("equal") or ""),
+            unknown_left=str(data.get("unknown_left") or ""),
+            unknown_right=str(data.get("unknown_right") or ""),
+            both_unknown=str(data.get("both_unknown") or ""),
+        )
+    return ComparisonCatalog(comparisons=comparisons)
+
+
 def load_world(path: Path) -> Mapping[str, Any]:
     return dict(_mapping(_read_json(path), str(path)))
 
@@ -667,6 +935,11 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
     feature_schema = load_features(root / "features.json")
     styles = load_styles(root / "styles.json", feature_schema)
     social = load_social(root / "social.json")
+    discourse = load_discourse(root / "discourse.json")
+    style_context = load_style_context(
+        root / "style_context.json", styles
+    )
+    comparison = load_comparison(root / "comparison.json")
     world = load_world(root / "world.json")
     raw = {
         "directory": str(root),
@@ -698,6 +971,18 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
             "acts": len(social.acts),
             "reactions": len(social.reactions),
         },
+        "discourse": {
+            "moves": len(discourse.moves),
+            "patterns": len(discourse.patterns),
+            "connectives": len(discourse.connectives),
+        },
+        "style_context": {
+            "enabled": style_context.enabled,
+            "rules": len(style_context.rules),
+        },
+        "comparison": {
+            "comparisons": len(comparison.comparisons),
+        },
     }
     return DialogueCatalog(
         ontology=ontology,
@@ -714,6 +999,9 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
         styles=styles,
         features=feature_schema,
         social=social,
+        discourse=discourse,
+        style_context=style_context,
+        comparison=comparison,
         world=world,
         raw=raw,
     )

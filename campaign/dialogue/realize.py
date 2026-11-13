@@ -8,6 +8,13 @@
 Конструкции — это деревья частей. Одна и та же логическая связь может
 быть выражена разными конструкциями; выбор задаётся данными, а шаблоны
 из ``realization.json`` используются только как аварийный fallback.
+
+D5.1 добавляет ``_render_discourse``: сборку 1–3 готовых ходов в один
+ответ через связки из ``discourse.json``. Ходы приходят от планировщика
+как намерения (``kind`` + ``data``), а реализатор лишь озвучивает их
+уже принятыми механизмами (акт, конструкция, statement) и склеивает
+связками. Нейтральный стиль сюда не доходит: контракт байт-в-байт
+сохранён на уровне ``AnswerPlanner``.
 """
 
 from __future__ import annotations
@@ -77,6 +84,7 @@ class Realizer:
         self.style: StyleSpec = StyleSpec(id="", label="")
         self.memory = memory
         self.trace: List[Dict[str, Any]] = []
+        self.discourse_trace: List[Dict[str, Any]] = []
         self.synthesis: Mapping[str, Any] = catalog.synthesis or {}
         self.constructions = self.synthesis.get("constructions") or {}
         self.statements = self.synthesis.get("statements") or {}
@@ -116,6 +124,13 @@ class Realizer:
             act = str(item.get("act") or "")
             if act:
                 self.act_constructions.setdefault(act, []).append(item)
+        discourse = getattr(catalog, "discourse", None)
+        self.discourse = discourse
+        self.connectives: List[Dict[str, Any]] = [
+            dict(item)
+            for item in getattr(discourse, "connectives", ()) or ()
+            if isinstance(item, Mapping)
+        ]
 
     # --- публичный API ----------------------------------------------
 
@@ -124,11 +139,28 @@ class Realizer:
 
         self.style = style or StyleSpec(id="", label="")
 
+    def set_discourse(self, catalog: Any) -> None:
+        """Обновить каталог дискурсивного слоя (для тестов и перезагрузки)."""
+
+        self.discourse = catalog
+        self.connectives = [
+            dict(item)
+            for item in getattr(catalog, "connectives", ()) or ()
+            if isinstance(item, Mapping)
+        ]
+
     def take_trace(self) -> List[Dict[str, Any]]:
         """Забрать след выбора конструкций и лексем текущего ответа."""
 
         trace = self.trace
         self.trace = []
+        return trace
+
+    def take_discourse_trace(self) -> List[Dict[str, Any]]:
+        """Забрать след дискурсивного слоя текущего ответа."""
+
+        trace = self.discourse_trace
+        self.discourse_trace = []
         return trace
 
     def _recent(self) -> List[str]:
@@ -137,12 +169,25 @@ class Realizer:
         getter = getattr(self.memory, "recent_constructions", None)
         return list(getter()) if callable(getter) else []
 
+    def _recent_discourse(self) -> List[str]:
+        if self.memory is None:
+            return []
+        getter = getattr(self.memory, "recent_discourse", None)
+        return list(getter()) if callable(getter) else []
+
     def _note(self, construction_id: str) -> None:
         if self.memory is None or not construction_id:
             return
         note = getattr(self.memory, "note_construction", None)
         if callable(note):
             note(construction_id)
+
+    def _note_discourse(self, connective_id: str) -> None:
+        if self.memory is None or not connective_id:
+            return
+        note = getattr(self.memory, "note_discourse", None)
+        if callable(note):
+            note(connective_id)
 
     def _features(self) -> Mapping[str, str]:
         return StyleEngine.features(self.style)
@@ -373,6 +418,97 @@ class Realizer:
         values = dict(base)
         values.update(data)
         return self.realize_act(act, values, fallback)
+
+    # --- дискурсивный слой (D5.1) ----------------------------------
+
+    def render_moves(
+        self, moves: Sequence[Mapping[str, Any]]
+    ) -> str:
+        """Собрать ответ из 1–3 ходов и связок между ними.
+
+        Ход — это словарь с полями ``id``, ``kind`` (``answer``/
+        ``justify``/…), ``text`` (готовый текст хода) и ``act`` (имя
+        речевого акта). Содержание ходов приходит от планировщика:
+        реализатор не добавляет факты, только склеивает и подбирает
+        связки по стилю.
+        """
+
+        if not moves:
+            return ""
+        rendered: List[Dict[str, str]] = []
+        for raw in moves:
+            if not isinstance(raw, Mapping):
+                continue
+            text = str(raw.get("text") or "").strip()
+            if not text:
+                continue
+            rendered.append(
+                {
+                    "id": str(raw.get("id") or ""),
+                    "kind": str(raw.get("kind") or ""),
+                    "text": text,
+                }
+            )
+        if not rendered:
+            return ""
+        result = [rendered[0]["text"]]
+        for index in range(1, len(rendered)):
+            connective = self._pick_connective(
+                rendered[index - 1], rendered[index]
+            )
+            if connective is None:
+                glue = "."
+                next_text = rendered[index]["text"]
+            else:
+                glue = str(connective.get("text") or ".")
+                next_text = rendered[index]["text"]
+                if bool(connective.get("lowercase_next")):
+                    next_text = (
+                        next_text[:1].lower() + next_text[1:]
+                        if next_text
+                        else next_text
+                    )
+                self.discourse_trace.append(
+                    {
+                        "kind": "connective",
+                        "id": str(connective.get("id") or ""),
+                        "register": self.style.register,
+                        "between": (
+                            rendered[index - 1]["id"],
+                            rendered[index]["id"],
+                        ),
+                    }
+                )
+                self._note_discourse(
+                    str(connective.get("id") or "")
+                )
+            result[-1] = result[-1].rstrip(".")
+            result.append(glue)
+            result.append(next_text)
+        text = " ".join(part for part in result if part)
+        return self._finish(text, ".", True)
+
+    def _pick_connective(
+        self, left: Mapping[str, str], right: Mapping[str, str]
+    ) -> Optional[Mapping[str, Any]]:
+        """Выбрать связку между двумя ходами по признакам стиля."""
+
+        if not self.connectives:
+            return None
+        candidates = [
+            item for item in self.connectives
+            if str(item.get("position") or "between") == "between"
+        ]
+        if not candidates:
+            return None
+        return select_best(
+            candidates,
+            self._features(),
+            recent=self._recent_discourse(),
+            avoid=self._avoid_recent(),
+        )
+
+    # --- остальное без изменений -----------------------------------
 
     def list_intro(self, key: str, owner: str) -> str:
         data = {"owner": owner, "key": str(key)}

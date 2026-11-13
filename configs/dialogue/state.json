@@ -333,6 +333,71 @@
         }
       ],
       "describe": "$entity"
+    },
+    {
+      "id": "compare_assets",
+      "tokens": [
+        {
+          "any": ["сравни", "сравнить", "сравнение"]
+        },
+        {
+          "slot": "left",
+          "kind": "entity"
+        },
+        {
+          "any": ["и", "с"]
+        },
+        {
+          "slot": "right",
+          "kind": "entity"
+        },
+        {
+          "any": ["по", "на", "об"]
+        },
+        {
+          "slot": "key",
+          "kind": "noun"
+        }
+      ],
+      "edits": [
+        {
+          "path": "kind",
+          "value": "question"
+        },
+        {
+          "path": "wh",
+          "value": "compare"
+        },
+        {
+          "path": "body.kind",
+          "value": "compare"
+        },
+        {
+          "path": "body.relation",
+          "value": "asset"
+        },
+        {
+          "path": "body.left",
+          "value": {
+            "kind": "np",
+            "head": {"entity": "$left"}
+          }
+        },
+        {
+          "path": "body.right",
+          "value": {
+            "kind": "np",
+            "head": {"entity": "$right"}
+          }
+        },
+        {
+          "path": "body.key",
+          "value": {
+            "kind": "np",
+            "head": {"entity": "$key"}
+          }
+        }
+      ]
     }
   ],
   "clarifications": {

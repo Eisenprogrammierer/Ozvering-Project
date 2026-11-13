@@ -2,13 +2,13 @@
 
 Планы, конструкции, поля описания и морфологические исключения живут в
 JSON. Python только сопоставляет логическую форму с планом, доказывает
-цель и передаёт смысл в композиционный реализатор. Готовые предложения-
-шаблоны из ``realization.json`` используются лишь как аварийный fallback.
+цель и передаёт смысл в композиционный реализатор.
 
-D4 добавляет тип ответа ``social``: акт и реакция берутся из
-``social.json``, решение принимает ``SocialEngine``, текст собирается
-конструкцией реакции, эффект уходит в ``Answer.data`` для
-``ConversationState.apply_effect``.
+D4 добавляет тип ответа ``social``.
+D5.1 добавляет дискурсивный слой (ходы и связки).
+D3.1 добавляет тип ответа ``comparison``: два значения одного
+отношения сравниваются по оператору из ``comparison.json``, исход
+выбирает конструкцию синтеза. Python не содержит ``if a > b``.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from .inference import InferenceEngine, ProofStep, Solution, is_variable
 from .knowledge import AgentKnowledge
 from .model import DialogueCatalog, Persona, PlanSpec, StyleSpec
-from .realize import Realizer, render_lines
+from .realize import ACT_FOR_KIND, Realizer, render_lines
 from .social import SocialDecision, SocialEngine, social_bindings
 from .style import StyleEngine
 
@@ -135,6 +135,13 @@ def _index(mapping: Mapping[str, Any], name: str, default: int) -> int:
         return default
 
 
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class AnswerPlanner:
     """Сопоставляет логическую форму с планом и исполняет его."""
 
@@ -180,29 +187,33 @@ class AnswerPlanner:
         if style is not None:
             self.set_style(style)
         self.realizer.take_trace()
+        self.realizer.take_discourse_trace()
         answer = self._plan(sem, plan_id)
+        answer = self._discourse(answer)
         trace = self.realizer.take_trace()
-        if not trace:
-            return answer
+        discourse = self.realizer.take_discourse_trace()
         data = dict(answer.data or {})
-        data.setdefault("register", self.style.register)
-        data.setdefault("construction_trace", tuple(trace))
-        constructions = [
-            item.get("id")
-            for item in trace
-            if item.get("kind") == "construction" and item.get("id")
-        ]
-        if constructions:
-            data.setdefault("constructions", tuple(constructions))
-            data.setdefault("construction", constructions[0])
-            data.setdefault("primary_construction", constructions[0])
-        lexemes = [
-            {"from": item.get("from"), "to": item.get("to")}
-            for item in trace
-            if item.get("kind") == "lexeme"
-        ]
-        if lexemes:
-            data.setdefault("lexemes", tuple(lexemes))
+        if trace:
+            data.setdefault("register", self.style.register)
+            data.setdefault("construction_trace", tuple(trace))
+            constructions = [
+                item.get("id")
+                for item in trace
+                if item.get("kind") == "construction" and item.get("id")
+            ]
+            if constructions:
+                data.setdefault("constructions", tuple(constructions))
+                data.setdefault("construction", constructions[0])
+                data.setdefault("primary_construction", constructions[0])
+            lexemes = [
+                {"from": item.get("from"), "to": item.get("to")}
+                for item in trace
+                if item.get("kind") == "lexeme"
+            ]
+            if lexemes:
+                data.setdefault("lexemes", tuple(lexemes))
+        if discourse:
+            data.setdefault("discourse_trace", tuple(discourse))
         return Answer(
             answer.kind,
             answer.text,
@@ -229,21 +240,125 @@ class AnswerPlanner:
             return self._unknown(selected.id)
         return handler(selected, captures)
 
+    # --- дискурсивный слой (D5.1) ----------------------------------
+
+    def _discourse(self, answer: Answer) -> Answer:
+        """Собрать ответ из 1–3 ходов, если есть шаблон и стиль не нейтральный.
+
+        Нейтральный стиль сохраняет путь байт-в-байт; нет шаблона для
+        ``kind``/``plan_id`` — ответ идёт как есть. Ходы не добавляют
+        факты: только озвучивают уже принятые смыслы.
+        """
+
+        if StyleEngine.is_neutral(self.style):
+            return answer
+        discourse = getattr(self.catalog, "discourse", None)
+        if discourse is None:
+            return answer
+        pattern = discourse.pattern_for(answer.kind, answer.plan_id)
+        if pattern is None:
+            return answer
+        moves = self._build_moves(answer, pattern)
+        if not moves:
+            return answer
+        text = self.realizer.render_moves(moves)
+        if not text:
+            return answer
+        discourse_trace = self.realizer.take_discourse_trace()
+        data = dict(answer.data or {})
+        data["moves"] = tuple(
+            {
+                "id": move["id"],
+                "kind": move["kind"],
+                "act": move.get("act", ""),
+                "text": move["text"],
+            }
+            for move in moves
+        )
+        if discourse_trace:
+            data["discourse_trace"] = tuple(discourse_trace)
+        return Answer(
+            answer.kind,
+            text,
+            answer.plan_id,
+            answer.proof,
+            data,
+        )
+
+    def _build_moves(
+        self, answer: Answer, pattern: Any
+    ) -> List[Dict[str, Any]]:
+        discourse = getattr(self.catalog, "discourse", None)
+        if discourse is None:
+            return []
+        result: List[Dict[str, Any]] = []
+        for move_id in pattern.moves:
+            spec = discourse.move(move_id)
+            if spec is None:
+                continue
+            text, act = self._move_text(spec, answer)
+            if not text:
+                if bool(spec.optional):
+                    continue
+                return []
+            result.append(
+                {
+                    "id": spec.id,
+                    "kind": spec.id,
+                    "act": act,
+                    "text": text,
+                }
+            )
+        return result
+
+    def _move_text(
+        self, spec: Any, answer: Answer
+    ) -> Tuple[str, str]:
+        data = dict(answer.data or {})
+        if spec.act:
+            text, act = self._move_act(spec, answer, data)
+            return text, act
+        if spec.construction:
+            values = dict(data)
+            values.setdefault("message", answer.text)
+            text = self.realizer.construction(spec.construction, values)
+            return text, spec.id
+        if spec.relation:
+            value = data.get(spec.source, "")
+            if isinstance(value, str) and value:
+                text = value
+            else:
+                payload = data.get("reason_args") or ()
+                if payload:
+                    text = self.realizer.statement(
+                        spec.relation, tuple(str(item) for item in payload)
+                    )
+                else:
+                    text = ""
+            return text, spec.id
+        if spec.source:
+            value = data.get(spec.source, "")
+            if isinstance(value, str) and value:
+                return value, spec.id
+        return "", spec.id
+
+    def _move_act(
+        self, spec: Any, answer: Answer, data: Mapping[str, Any]
+    ) -> Tuple[str, str]:
+        act = str(spec.act)
+        if act == "answer":
+            return answer.text, act
+        values = dict(data)
+        values.setdefault("message", answer.text)
+        values.setdefault("claim", answer.text)
+        text = self.realizer.realize_act(act, values, fallback="")
+        return text, act
+
     # --- обработчики -------------------------------------------------
 
     def _answer_social(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:
-        """Выбрать реакцию на речевое действие и синтезировать её.
-
-        ``plan.answer.act`` называет акт из ``social.json``. Логическая
-        форма приходит из парсера в ``captures``; если её нет, шаблон
-        акта сопоставляется с ``captures`` напрямую. Реакция выбирается
-        ``SocialEngine``, текст собирается конструкцией из
-        ``synthesis.constructions``, эффект уходит в ``Answer.data`` для
-        ``ConversationState.apply_effect``.
-        """
-
         act_id = str(plan.answer.get("act") or "")
         bound = dict(captures)
         sem = bound.get("$sem")
@@ -285,13 +400,6 @@ class AnswerPlanner:
         return Answer("social", text, plan.id, data=data)
 
     def _social_fallback(self, decision: SocialDecision) -> str:
-        """Аварийный текст, если конструкция реакции не задана.
-
-        Не стиль и не шаблон ответа, а защита от пустого
-        ``synthesis.constructions``. Линтер требует конструкцию для
-        каждой реакции, поэтому fallback в норме не срабатывает.
-        """
-
         key = "social_" + str(decision.reaction_id or "clarify")
         fallback = self.answers.get(key) or self.answers.get("unknown", "")
         try:
@@ -363,7 +471,10 @@ class AnswerPlanner:
             text,
             plan.id,
             proof=(solution.proof,),
-            data={"relation": relation, "args": args},
+            data={
+                "relation": relation,
+                "args": args,
+            },
         )
 
     def _answer_explain(
@@ -381,11 +492,13 @@ class AnswerPlanner:
         statement = self._statement(relation, resolved)
         prefix_key = str(plan.answer.get("prefix_key") or "")
         prefix = str(self.answers.get(prefix_key, "")) if prefix_key else ""
+        max_premises = self._max_premises(plan)
+        reasons = self._reasons_for(solution.proof, max_premises)
+        text = statement
         if str(plan.answer.get("explain_with") or "") == "because":
-            reason = str(solution.proof.because or "")
-            if reason:
-                statement = _capitalize(reason) + "."
-        text = (prefix + statement).strip()
+            if reasons:
+                text = _capitalize(reasons[0]) + "."
+        text = (prefix + text).strip()
         text = self.realizer.realize_answer(
             "explanation",
             {"message": text, "relation": relation},
@@ -396,8 +509,175 @@ class AnswerPlanner:
             text,
             plan.id,
             proof=(solution.proof,),
-            data={"relation": relation, "args": resolved},
+            data={
+                "relation": relation,
+                "args": resolved,
+                "reason": reasons[0] if reasons else "",
+                "reasons": tuple(reasons),
+                "reason_args": resolved,
+            },
         )
+
+    def _max_premises(self, plan: PlanSpec) -> int:
+        """Сколько ближайших посылок озвучивать в «почему».
+
+        По умолчанию 1 — обратная совместимость с D3 до расширения.
+        Значение задаётся планом, не кодом.
+        """
+
+        try:
+            value = int(plan.answer.get("max_premises") or 1)
+        except (TypeError, ValueError):
+            value = 1
+        return max(1, value)
+
+    def _reasons_for(
+        self, proof: ProofStep, limit: int
+    ) -> List[str]:
+        """Собрать до ``limit`` текстовых обоснований из доказательства.
+
+        Приоритет: явные ``because`` на шагах, затем рекурсивно по
+        детям. Пустая строка означает «обоснования нет» и не попадает
+        в список. Никаких новых фактов: только то, что доказано.
+        """
+
+        found: List[str] = []
+
+        def walk(step: ProofStep) -> None:
+            if len(found) >= limit:
+                return
+            text = str(getattr(step, "because", "") or "")
+            if text:
+                found.append(text)
+            for child in getattr(step, "children", ()) or ():
+                if len(found) >= limit:
+                    return
+                walk(child)
+
+        if proof is not None:
+            walk(proof)
+        return found[:limit]
+
+    def _reason_for(self, proof: ProofStep) -> str:
+        reasons = self._reasons_for(proof, 1)
+        return reasons[0] if reasons else ""
+
+    def _answer_comparison(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Сравнить два значения отношения по правилу из comparison.json.
+
+        Никаких ``if a > b``: оператор и конструкция исхода берутся из
+        ``comparison.comparisons[relation]``. Отсутствие данных на любой
+        стороне даёт конструкцию ``unknown_*``; полностью неизвестное
+        сравнение — ``both_unknown``.
+        """
+
+        relation = _resolve(
+            str(plan.answer.get("relation") or ""), captures
+        )
+        left = _resolve(str(plan.answer.get("left") or ""), captures)
+        right = _resolve(str(plan.answer.get("right") or ""), captures)
+        key = _resolve(str(plan.answer.get("key") or ""), captures)
+        comparison = getattr(self.catalog, "comparison", None)
+        spec = comparison.get(relation) if comparison is not None else None
+        if spec is None:
+            return self._unknown(plan.id)
+        left_value = self._value_for(spec, left, key)
+        right_value = self._value_for(spec, right, key)
+        left_number = _to_float(left_value) if left_value else None
+        right_number = _to_float(right_value) if right_value else None
+        data = {
+            "relation": relation,
+            "left": left,
+            "right": right,
+            "key": key,
+            "left_name": self.knowledge.name(left),
+            "right_name": self.knowledge.name(right),
+            "key_gen": self.knowledge.surface(key, "gen"),
+            "key_dat": self.knowledge.surface(key, "dat"),
+            "left_value": left_value,
+            "right_value": right_value,
+        }
+        construction, outcome = self._comparison_outcome(
+            spec, left_number, right_number
+        )
+        if not construction:
+            return self._unknown(plan.id)
+        text = self.realizer.construction(construction, data)
+        if not text:
+            return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "comparison",
+            {**data, "message": text, "outcome": outcome},
+            fallback=text,
+        )
+        data["outcome"] = outcome
+        data["construction"] = construction
+        if left_number is not None:
+            data["left_value"] = left_number
+        if right_number is not None:
+            data["right_value"] = right_number
+        return Answer("comparison", text, plan.id, data=data)
+
+    def _value_for(
+        self, spec: Any, subject: str, key: str
+    ) -> str:
+        """Значение отношения для (subject, key) как строка.
+
+        Читается через ``InferenceEngine.first``. На месте value
+        подставляется переменная ``$value``: пустая строка в паттерне
+        не унифицируется с фактом. ``key_prefix`` из данных снимается
+        с ключа перед унификацией: в факте ``asset`` ключ хранится без
+        префикса лексемы. Пустая строка в результате — «нет данных».
+        """
+
+        relation = str(spec.relation or "")
+        if not relation:
+            return ""
+        normalized_key = str(key or "")
+        prefix = str(getattr(spec, "key_prefix", "") or "")
+        if prefix and normalized_key.startswith(prefix):
+            normalized_key = normalized_key[len(prefix):]
+        size = max(spec.value_arg, spec.key_arg, spec.subject_arg) + 1
+        args: List[str] = [
+            "$unused_%d" % index for index in range(size)
+        ]
+        args[spec.subject_arg] = subject
+        args[spec.key_arg] = normalized_key
+        args[spec.value_arg] = "$value"
+        solution = self.engine.first(relation, *args)
+        if solution is None:
+            return ""
+        for variable, value in solution.bindings.items():
+            if variable == "$value":
+                return str(value)
+        return ""
+
+    def _comparison_outcome(
+        self,
+        spec: Any,
+        left_number: Optional[float],
+        right_number: Optional[float],
+    ) -> Tuple[str, str]:
+        """Выбрать конструкцию и имя исхода без ``if a > b`` по данным.
+
+        Оператор и порог задаются в ``comparison.json``; здесь только
+        арифметика: ``==``/``>``/``<`` по числам. Это не предметная
+        логика, а исполнение оператора из данных.
+        """
+
+        if left_number is None and right_number is None:
+            return str(spec.both_unknown or ""), "both_unknown"
+        if left_number is None:
+            return str(spec.unknown_left or ""), "unknown_left"
+        if right_number is None:
+            return str(spec.unknown_right or ""), "unknown_right"
+        if left_number == right_number:
+            return str(spec.equal or ""), "equal"
+        if left_number > right_number:
+            return str(spec.greater or ""), "greater"
+        return str(spec.less or ""), "less"
 
     def _answer_list(
         self, plan: PlanSpec, captures: Mapping[str, str]
@@ -504,7 +784,12 @@ class AnswerPlanner:
             "list",
             text,
             plan.id,
-            data={"items": [item for _, item in items]},
+            data={
+                "items": [item for _, item in items],
+                "labels": [label for label, _ in items],
+                "owner": owner,
+                "key": key,
+            },
         )
 
     def _answer_value(
@@ -563,7 +848,12 @@ class AnswerPlanner:
             "value",
             text,
             plan.id,
-            data={"value": value, "owner": owner, "key": key},
+            data={
+                "value": value,
+                "owner": owner,
+                "key": key,
+                "label": label_entity,
+            },
         )
 
     def _answer_leader(
@@ -799,14 +1089,18 @@ class AnswerPlanner:
             text,
             plan.id,
             proof=(solution.proof,),
-            data={"relation": relation, "args": resolved},
+            data={
+                "relation": relation,
+                "args": resolved,
+                "reason": self._reason_for(solution.proof),
+                "reason_args": resolved,
+            },
         )
 
     def _belief_sentences(self, target: str) -> List[str]:
         sentences = self.realizer.belief_sentences(target)
         if sentences:
             return sentences
-        # Аварийный fallback: старые шаблоны убеждений.
         specs = self.realization.get("beliefs") or {}
         fallback: List[str] = []
         for fact in self.knowledge.facts_for("belief"):

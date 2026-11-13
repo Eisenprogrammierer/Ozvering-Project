@@ -273,6 +273,159 @@ class SocialCatalog:
 
 
 @dataclass(frozen=True)
+class DiscourseMove:
+    """Один ход дискурсивного ответа.
+
+    Ход не хранит готовый текст и не добавляет факты. Он говорит, как
+    реализовать уже принятый смысл: через речевой акт (``act``), через
+    конструкцию синтеза (``construction``), через отношение
+    (``relation`` + ``source``) или через готовую строку в данных
+    (``source`` без остальных режимов). Три первых способа совпадают с
+    механизмами, которые уже есть в реализаторе; четвёртый —
+    «озвучить готовую строку».
+    """
+
+    id: str
+    label: str = ""
+    act: str = ""
+    construction: str = ""
+    relation: str = ""
+    source: str = ""
+    optional: bool = False
+    features: Mapping[str, str] = field(default_factory=dict)
+    priority: int = 0
+
+
+@dataclass(frozen=True)
+class DiscoursePattern:
+    """Какие ходы собираются для какого вида ответа.
+
+    ``kind`` — вид ``Answer.kind``; ``plan_id`` уточняет конкретный план,
+    если одно и то же ``kind`` должно собираться по-разному. Порядок
+    ходов в ``moves`` — порядок их реализации в тексте.
+    """
+
+    id: str
+    kind: str = ""
+    plan_id: str = ""
+    moves: Tuple[str, ...] = ()
+    priority: int = 0
+
+
+@dataclass(frozen=True)
+class DiscourseCatalog:
+    """Ходы, шаблоны и связки дискурсивного планировщика.
+
+    Всё содержание — данные. Нет шаблона для вида ответа — нет ходов:
+    реализатор возвращает ответ как есть (обратная совместимость и
+    байт-в-байт нейтральный путь).
+    """
+
+    moves: Mapping[str, DiscourseMove] = field(default_factory=dict)
+    patterns: Tuple[DiscoursePattern, ...] = ()
+    connectives: Tuple[Mapping[str, Any], ...] = ()
+
+    def move(self, move_id: str) -> Any:
+        return self.moves.get(str(move_id or ""))
+
+    def pattern_for(self, kind: str, plan_id: str = "") -> Any:
+        """Найти шаблон: сначала по plan_id, затем по kind.
+
+        Порядок фиксирован и объясним: конкретный план важнее общего
+        вида ответа, при равенстве — по убыванию приоритета и id.
+        """
+
+        candidates = [
+            item
+            for item in self.patterns
+            if item.plan_id and item.plan_id == str(plan_id)
+        ]
+        if not candidates:
+            candidates = [
+                item
+                for item in self.patterns
+                if item.kind and item.kind == str(kind) and not item.plan_id
+            ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (-item.priority, item.id))
+        return candidates[0]
+
+
+@dataclass(frozen=True)
+class StyleContextRule:
+    """Правило автовыбора регистра по контексту разговора.
+
+    Условие — список атомов, объявленных в данных: ``fact`` проверяет
+    наличие факта в ``AgentKnowledge`` с подстановкой ``$speaker`` /
+    ``$player``, ``field`` сравнивает поле знания с константой или с
+    другим полем. Итог — ``style_id``, имя существующего стиля.
+    """
+
+    id: str
+    style_id: str
+    priority: int = 0
+    conditions: Tuple[Mapping[str, Any], ...] = ()
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class StyleContextCatalog:
+    """Правила автовыбора регистра.
+
+    Пустой каталог — валидное состояние: автовыбор отключён, работает
+    ручной выбор и ``persona.default_style``. Это сохраняет обратную
+    совместимость и «нейтральный путь байт-в-байт».
+    """
+
+    rules: Tuple[StyleContextRule, ...] = ()
+    enabled: bool = False
+
+    def ordered(self) -> Tuple[StyleContextRule, ...]:
+        return tuple(
+            sorted(self.rules, key=lambda item: (-item.priority, item.id))
+        )
+
+
+@dataclass(frozen=True)
+class ComparisonSpec:
+    """Правило сравнения: какое отношение, какие аргументы, конструкции.
+
+    ``greater``/``less``/``equal``/``unknown_left``/``unknown_right``/
+    ``both_unknown`` — ключи конструкций в ``synthesis.constructions``.
+    ``key_prefix`` — необязательный префикс лексемы ключа, который надо
+    снять перед унификацией с фактом (например, ``asset:`` у ``asset``
+    хранится в факте без префикса). Никакого ``if a > b`` в коде.
+    """
+
+    id: str
+    relation: str
+    args: Mapping[str, int] = field(default_factory=dict)
+    value_arg: int = 2
+    key_arg: int = 1
+    subject_arg: int = 0
+    key_prefix: str = ""
+    greater: str = ""
+    less: str = ""
+    equal: str = ""
+    unknown_left: str = ""
+    unknown_right: str = ""
+    both_unknown: str = ""
+
+
+@dataclass(frozen=True)
+class ComparisonCatalog:
+    """Таблица сравнений. Пустой каталог — сравнения отключены."""
+
+    comparisons: Mapping[str, ComparisonSpec] = field(
+        default_factory=dict
+    )
+
+    def get(self, relation: str) -> Any:
+        return self.comparisons.get(str(relation or ""))
+
+
+@dataclass(frozen=True)
 class DialogueCatalog:
     """Полный набор данных диалога."""
 
@@ -290,5 +443,12 @@ class DialogueCatalog:
     styles: StyleCatalog = field(default_factory=StyleCatalog)
     features: FeatureSchema = field(default_factory=FeatureSchema)
     social: SocialCatalog = field(default_factory=SocialCatalog)
+    discourse: DiscourseCatalog = field(default_factory=DiscourseCatalog)
+    style_context: StyleContextCatalog = field(
+        default_factory=StyleContextCatalog
+    )
+    comparison: ComparisonCatalog = field(
+        default_factory=ComparisonCatalog
+    )
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

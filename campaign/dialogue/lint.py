@@ -8,9 +8,14 @@ from typing import Any, Dict, List, Mapping, Set
 
 from .coverage import style_coverage
 from .errors import DialogueError
-from .loader import DEFAULT_DIR, EFFECT_TYPES, load_dialogue
+from .loader import (
+    CONTEXT_OPERATORS,
+    DEFAULT_DIR,
+    EFFECT_TYPES,
+    load_dialogue,
+)
 from .model import AtomSpec, DialogueCatalog, GrammarRule
-from .style import SELECTION_KEYS
+from .style import SELECTION_KEYS, _SUBJECT_FIELDS
 
 _ANSWER_TYPES = frozenset(
     {
@@ -26,12 +31,31 @@ _ANSWER_TYPES = frozenset(
         "started",
         "last_works",
         "social",
+        "comparison",
     }
 )
 _CASES = frozenset({"nom", "gen", "dat", "acc", "ins", "prep"})
 _VAR = re.compile(r"\$([A-Za-z0-9_]+)")
 
 _REF = re.compile(r"^\$([A-Za-z0-9_]+)(?:\.[A-Za-z0-9_.]+)?$")
+
+_DISCOURSE_KINDS = frozenset(
+    {
+        "yes",
+        "no",
+        "unknown",
+        "clarification",
+        "smalltalk",
+        "explanation",
+        "list",
+        "value",
+        "entity",
+        "description",
+        "summary",
+        "social",
+        "comparison",
+    }
+)
 
 
 def _walk_refs(value, found: Set[str]) -> None:
@@ -187,6 +211,7 @@ def _plan_problems(
     answers, statements = _realization_keys(catalog)
     list_intros = answers.get("list") or {}
     list_empty = answers.get("empty") or {}
+    comparison = getattr(catalog, "comparison", None)
     for plan in catalog.plans:
         where = "план %s" % plan.id
         answer = plan.answer
@@ -219,7 +244,7 @@ def _plan_problems(
                         "%s: args.%s=%d вне арности %d"
                         % (where, name, position, arity)
                     )
-        elif relation:
+        elif relation and not relation.startswith("$"):
             args = [str(item) for item in raw_args]
             problems.extend(
                 _atom_problems(
@@ -233,6 +258,56 @@ def _plan_problems(
                             "%s: переменная $%s в args не связана "
                             "шаблоном или output" % (where, name)
                         )
+        if kind == "explain":
+            max_premises = answer.get("max_premises")
+            if max_premises is not None:
+                try:
+                    value = int(max_premises)
+                except (TypeError, ValueError):
+                    value = 0
+                if value < 1:
+                    problems.append(
+                        "%s: max_premises должен быть >= 1" % where
+                    )
+        if kind == "comparison":
+            comparison_relation = str(answer.get("relation") or "")
+            if not comparison_relation.startswith("$"):
+                spec = (
+                    comparison.get(comparison_relation)
+                    if comparison is not None
+                    else None
+                )
+                if spec is None:
+                    problems.append(
+                        "%s: отношение %r отсутствует в comparison.json"
+                        % (where, comparison_relation)
+                    )
+                else:
+                    constructions = (
+                        catalog.synthesis.get("constructions") or {}
+                    )
+                    for name in (
+                        "greater",
+                        "less",
+                        "equal",
+                        "unknown_left",
+                        "unknown_right",
+                        "both_unknown",
+                    ):
+                        construction = str(
+                            getattr(spec, name, "") or ""
+                        )
+                        if not construction:
+                            problems.append(
+                                "%s: у сравнения %r нет %s"
+                                % (where, comparison_relation, name)
+                            )
+                            continue
+                        if construction not in constructions:
+                            problems.append(
+                                "%s: конструкция %r (%s) отсутствует"
+                                % (where, construction, name)
+                            )
         label_relation = str(answer.get("label_relation") or "")
         if label_relation:
             label_args = [
@@ -893,11 +968,66 @@ def _style_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _style_context_problems(catalog: DialogueCatalog) -> List[str]:
+    problems: List[str] = []
+    context = getattr(catalog, "style_context", None)
+    if context is None or not context.rules:
+        return problems
+    known_fields = set(_SUBJECT_FIELDS.values())
+    relations = set(_relations(catalog))
+    seen: Set[str] = set()
+    for rule in context.rules:
+        where = "style_context.rules.%s" % rule.id
+        if rule.id in seen:
+            problems.append("%s: повтор id" % where)
+        seen.add(rule.id)
+        if rule.style_id not in catalog.styles.styles:
+            problems.append(
+                "%s.style: стиль %r отсутствует"
+                % (where, rule.style_id)
+            )
+        if not rule.conditions:
+            problems.append("%s.when: пусто" % where)
+        for index, condition in enumerate(rule.conditions):
+            cond_where = "%s.when[%d]" % (where, index)
+            if not isinstance(condition, Mapping):
+                problems.append(
+                    "%s: ожидался объект" % cond_where
+                )
+                continue
+            kind = str(condition.get("kind") or "field")
+            if kind == "fact":
+                rel = str(condition.get("rel") or "")
+                if rel not in relations:
+                    problems.append(
+                        "%s.rel: отношение %r не объявлено"
+                        % (cond_where, rel)
+                    )
+                continue
+            if kind == "field":
+                field_name = str(condition.get("field") or "")
+                if field_name not in known_fields:
+                    problems.append(
+                        "%s.field: неизвестное поле %r"
+                        % (cond_where, field_name)
+                    )
+                operator = str(condition.get("op") or "eq")
+                if operator not in CONTEXT_OPERATORS:
+                    problems.append(
+                        "%s.op: неизвестный оператор %r"
+                        % (cond_where, operator)
+                    )
+                continue
+            problems.append(
+                "%s.kind: неизвестный вид условия %r"
+                % (cond_where, kind)
+            )
+    return problems
+
+
 def _social_problems(
     catalog: DialogueCatalog, known: Mapping[str, int]
 ) -> List[str]:
-    """Проверить акты, реакции, эффекты и конструкции синтеза."""
-
     problems: List[str] = []
     social = getattr(catalog, "social", None)
     if social is None or not social.acts or not social.reactions:
@@ -973,6 +1103,161 @@ def _social_problems(
         problems.append(
             "social.commitments.ttl_turns: ожидалось целое >= 1"
         )
+    return problems
+
+
+def _discourse_problems(
+    catalog: DialogueCatalog, known: Mapping[str, int]
+) -> List[str]:
+    problems: List[str] = []
+    discourse = getattr(catalog, "discourse", None)
+    if discourse is None:
+        return problems
+    if not discourse.moves:
+        return problems
+    constructions = (catalog.synthesis or {}).get("constructions") or {}
+    relations = known
+    for key, move in discourse.moves.items():
+        where = "discourse.moves.%s" % key
+        if move.id != key:
+            problems.append(
+                "%s.id: %r не совпадает с ключом" % (where, move.id)
+            )
+        modes = sum(
+            1 for item in (move.act, move.construction, move.relation)
+            if item
+        )
+        if modes == 0 and not move.source:
+            problems.append(
+                "%s: нужен act, construction, relation или source"
+                % where
+            )
+        if modes > 1:
+            problems.append(
+                "%s: одновременно act/construction/relation запрещены"
+                % where
+            )
+        if move.construction and move.construction not in constructions:
+            problems.append(
+                "%s.construction: %r отсутствует в synthesis.constructions"
+                % (where, move.construction)
+            )
+        if move.relation and move.relation not in relations:
+            problems.append(
+                "%s.relation: %r не объявлено в world.relations"
+                % (where, move.relation)
+            )
+        if move.relation and not move.source:
+            problems.append(
+                "%s.source: relation без source (имя поля данных)"
+                % where
+            )
+    seen_patterns: Set[str] = set()
+    for pattern in discourse.patterns:
+        where = "discourse.patterns.%s" % pattern.id
+        if pattern.id in seen_patterns:
+            problems.append("%s: повтор id" % where)
+        seen_patterns.add(pattern.id)
+        if not pattern.moves:
+            problems.append("%s.moves: пусто" % where)
+        for move_id in pattern.moves:
+            if move_id not in discourse.moves:
+                problems.append(
+                    "%s.moves: ход %r отсутствует в discourse.moves"
+                    % (where, move_id)
+                )
+        if pattern.kind and pattern.kind not in _DISCOURSE_KINDS:
+            problems.append(
+                "%s.kind: неизвестный вид ответа %r"
+                % (where, pattern.kind)
+            )
+    seen_connectives: Set[str] = set()
+    for connective in discourse.connectives:
+        where = "discourse.connectives.%s" % (
+            connective.get("id") or "?"
+        )
+        identifier = str(connective.get("id") or "")
+        if not identifier:
+            problems.append("%s: пустой id" % where)
+        elif identifier in seen_connectives:
+            problems.append("%s: повтор id" % where)
+        seen_connectives.add(identifier)
+        text = str(connective.get("text") or "")
+        if not text.strip():
+            problems.append("%s.text: пусто" % where)
+        features = connective.get("features")
+        if features is not None and not isinstance(features, Mapping):
+            problems.append(
+                "%s.features: ожидался объект" % where
+            )
+        position = str(connective.get("position") or "between")
+        if position not in ("between", "after", "before"):
+            problems.append(
+                "%s.position: неизвестное значение %r"
+                % (where, position)
+            )
+    return problems
+
+
+def _comparison_problems(
+    catalog: DialogueCatalog, known: Mapping[str, int]
+) -> List[str]:
+    """Проверить таблицу сравнений: отношение, аргументы, конструкции."""
+
+    problems: List[str] = []
+    comparison = getattr(catalog, "comparison", None)
+    if comparison is None or not comparison.comparisons:
+        return problems
+    constructions = (catalog.synthesis or {}).get("constructions") or {}
+    for key, spec in comparison.comparisons.items():
+        where = "comparison.comparisons.%s" % key
+        if spec.id != key:
+            problems.append(
+                "%s.id: %r не совпадает с ключом" % (where, spec.id)
+            )
+        if spec.relation not in known:
+            problems.append(
+                "%s.relation: %r не объявлено в world.relations"
+                % (where, spec.relation)
+            )
+        else:
+            arity = known[spec.relation]
+            for name in (
+                "value_arg",
+                "key_arg",
+                "subject_arg",
+            ):
+                position = getattr(spec, name)
+                if position < 0 or position >= arity:
+                    problems.append(
+                        "%s.%s: позиция %d вне арности %d"
+                        % (where, name, position, arity)
+                    )
+            for arg_name, position in spec.args.items():
+                if position < 0 or position >= arity:
+                    problems.append(
+                        "%s.args.%s: позиция %d вне арности %d"
+                        % (where, arg_name, position, arity)
+                    )
+        for name in (
+            "greater",
+            "less",
+            "equal",
+            "unknown_left",
+            "unknown_right",
+            "both_unknown",
+        ):
+            construction = str(getattr(spec, name, "") or "")
+            if not construction:
+                problems.append(
+                    "%s.%s: пустая конструкция" % (where, name)
+                )
+                continue
+            if construction not in constructions:
+                problems.append(
+                    "%s.%s: конструкция %r отсутствует"
+                    % (where, name, construction)
+                )
     return problems
 
 
@@ -1186,8 +1471,11 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_world_problems(catalog))
     problems.extend(_persona_problems(catalog))
     problems.extend(_style_problems(catalog))
+    problems.extend(_style_context_problems(catalog))
     problems.extend(_state_problems(catalog))
     problems.extend(_social_problems(catalog, known))
+    problems.extend(_discourse_problems(catalog, known))
+    problems.extend(_comparison_problems(catalog, known))
     return problems
 
 

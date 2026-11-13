@@ -12,6 +12,10 @@
 D4 добавляет ``commitments`` — обязательства и отказы из речевых
 действий. Это социальное состояние разговора, а не факт мира: диалог
 по-прежнему read-only по отношению к кампании и BDI.
+
+D5.1 добавляет ``discourse`` — историю связок дискурсивного слоя.
+Отдельный список нужен, чтобы антиповтор связок не вытеснял антиповтор
+конструкций и лексем: это разные уровни вариативности.
 """
 
 from __future__ import annotations
@@ -257,6 +261,7 @@ class DialogueMemory:
         self.summaries: List[Dict[str, Any]] = []
         self.common_ground: Dict[str, Dict[str, Any]] = {}
         self.realizations: List[str] = []
+        self.discourse: List[str] = []
 
     @classmethod
     def from_dict(
@@ -290,6 +295,11 @@ class DialogueMemory:
             for item in raw.get("realizations") or ()
             if str(item)
         ][-8:]
+        memory.discourse = [
+            str(item)
+            for item in raw.get("discourse") or ()
+            if str(item)
+        ][-8:]
         memory.prune()
         return memory
 
@@ -316,6 +326,7 @@ class DialogueMemory:
                 for key, record in sorted(self.common_ground.items())
             },
             "realizations": list(self.realizations[-8:]),
+            "discourse": list(self.discourse[-8:]),
         }
 
     def recent_constructions(self) -> List[str]:
@@ -332,6 +343,25 @@ class DialogueMemory:
         self.realizations.append(construction_id)
         if len(self.realizations) > 16:
             del self.realizations[: len(self.realizations) - 16]
+
+    def recent_discourse(self) -> List[str]:
+        """Последние использованные связки — отдельно от конструкций."""
+
+        return list(self.discourse[-8:])
+
+    def note_discourse(self, connective_id: str) -> None:
+        """Запомнить связку дискурсивного слоя.
+
+        Отдельный список, а не общий с конструкциями: иначе связки будут
+        вытеснять антиповтор конструкций, и наоборот.
+        """
+
+        connective_id = _text(connective_id)
+        if not connective_id:
+            return
+        self.discourse.append(connective_id)
+        if len(self.discourse) > 16:
+            del self.discourse[: len(self.discourse) - 16]
 
     def observe_clock(self, clock: int) -> None:
         clock = _integer(clock)
