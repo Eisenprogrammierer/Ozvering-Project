@@ -905,6 +905,10 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
             problems.append("persona %s: пустое parse_unknown" % key)
         if persona.max_list_items < 1:
             problems.append("persona %s: max_list_items < 1" % key)
+        if persona.max_discourse_moves < 1:
+            problems.append(
+                "persona %s: max_discourse_moves < 1" % key
+            )
         for reason, text in (persona.clarify or {}).items():
             if not str(text or "").strip():
                 problems.append(
@@ -922,8 +926,6 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
 
 
 def _style_problems(catalog: DialogueCatalog) -> List[str]:
-    """Проверить регистровые профили: признаки и политику выбора."""
-
     problems: List[str] = []
     styles = getattr(catalog, "styles", None)
     if styles is None or not styles.styles:
@@ -1106,6 +1108,59 @@ def _social_problems(
     return problems
 
 
+def _anaphora_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить анафору: типы, роды, местоимения, min_length."""
+
+    problems: List[str] = []
+    discourse = getattr(catalog, "discourse", None)
+    if discourse is None:
+        return problems
+    anaphora = getattr(discourse, "anaphora", None)
+    if anaphora is None or not getattr(anaphora, "enabled", False):
+        return problems
+    entity_types = set(catalog.ontology.entity_types)
+    for type_name in getattr(anaphora, "types", ()) or ():
+        if type_name not in entity_types:
+            problems.append(
+                "discourse.anaphora.types: неизвестный тип %r"
+                % type_name
+            )
+    known_kinds = {str(move_id) for move_id in discourse.moves}
+    for kind in getattr(anaphora, "kinds", ()) or ():
+        if kind not in known_kinds:
+            problems.append(
+                "discourse.anaphora.kinds: ход %r отсутствует"
+                % kind
+            )
+    try:
+        min_length = int(getattr(anaphora, "min_length", 0))
+    except (TypeError, ValueError):
+        min_length = 0
+    if min_length < 1:
+        problems.append(
+            "discourse.anaphora.min_length: должно быть >= 1"
+        )
+    pronouns = getattr(anaphora, "pronouns", {}) or {}
+    for key, value in pronouns.items():
+        gender, _, number = str(key).partition(":")
+        if gender not in ("m", "f", "n"):
+            problems.append(
+                "discourse.anaphora.pronouns.%s: "
+                "неизвестный род %r" % (key, gender)
+            )
+        if number not in ("sg", "pl"):
+            problems.append(
+                "discourse.anaphora.pronouns.%s: "
+                "неизвестное число %r" % (key, number)
+            )
+        if not str(value).strip():
+            problems.append(
+                "discourse.anaphora.pronouns.%s: пустое местоимение"
+                % key
+            )
+    return problems
+
+
 def _discourse_problems(
     catalog: DialogueCatalog, known: Mapping[str, int]
 ) -> List[str]:
@@ -1166,6 +1221,11 @@ def _discourse_problems(
                     "%s.moves: ход %r отсутствует в discourse.moves"
                     % (where, move_id)
                 )
+        if pattern.topic and pattern.topic not in pattern.moves:
+            problems.append(
+                "%s.topic: %r отсутствует в moves"
+                % (where, pattern.topic)
+            )
         if pattern.kind and pattern.kind not in _DISCOURSE_KINDS:
             problems.append(
                 "%s.kind: неизвестный вид ответа %r"
@@ -1196,14 +1256,18 @@ def _discourse_problems(
                 "%s.position: неизвестное значение %r"
                 % (where, position)
             )
+        mode = str(connective.get("mode") or "plain")
+        if mode not in ("plain", "clause"):
+            problems.append(
+                "%s.mode: неизвестный режим %r" % (where, mode)
+            )
+    problems.extend(_anaphora_problems(catalog))
     return problems
 
 
 def _comparison_problems(
     catalog: DialogueCatalog, known: Mapping[str, int]
 ) -> List[str]:
-    """Проверить таблицу сравнений: отношение, аргументы, конструкции."""
-
     problems: List[str] = []
     comparison = getattr(catalog, "comparison", None)
     if comparison is None or not comparison.comparisons:
@@ -1262,8 +1326,6 @@ def _comparison_problems(
 
 
 def _state_problems(catalog: DialogueCatalog) -> List[str]:
-    """Проверить политику QUD, референтов, эллипсиса и памяти."""
-
     policy = catalog.state or {}
     problems: List[str] = []
     if not policy:
@@ -1475,6 +1537,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_state_problems(catalog))
     problems.extend(_social_problems(catalog, known))
     problems.extend(_discourse_problems(catalog, known))
+    problems.extend(_anaphora_problems(catalog))
     problems.extend(_comparison_problems(catalog, known))
     return problems
 

@@ -152,9 +152,11 @@ def test_official_explanation_has_two_moves(tmp_path):
     result = planner._discourse(answer)
     moves = (result.data or {}).get("moves") or ()
     assert len(moves) == 2
-    assert moves[0]["id"] == "answer"
-    assert moves[1]["id"] == "justify"
-    assert moves[1]["text"] == "Эдикт объявил её мятежом"
+    ids = [move["id"] for move in moves]
+    # Порядок задаётся pattern.topic: justify идёт первым
+    assert ids[0] == "justify"
+    assert ids[1] == "answer"
+    assert moves[1]["text"] == "Империя считает Республику незаконной."
     trace = (result.data or {}).get("discourse_trace") or ()
     assert trace
     assert trace[0]["id"].startswith("connective:official_")

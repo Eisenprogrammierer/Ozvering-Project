@@ -1,8 +1,4 @@
-"""Загрузка диалоговых данных из JSON.
-
-Код не знает содержания: он читает онтологию, лексикон и грамматику,
-проверяет базовые контракты и отдаёт неизменяемый каталог.
-"""
+"""Загрузка диалоговых данных из JSON."""
 
 from __future__ import annotations
 
@@ -16,6 +12,7 @@ from .model import (
     ComparisonCatalog,
     ComparisonSpec,
     DialogueCatalog,
+    DiscourseAnaphora,
     DiscourseCatalog,
     DiscourseMove,
     DiscoursePattern,
@@ -64,6 +61,8 @@ CONTEXT_OPERATORS = frozenset(
         "exists",
     }
 )
+
+CONNECTIVE_MODES = frozenset({"plain", "clause"})
 
 
 def _mapping(value: Any, where: str) -> Mapping[str, Any]:
@@ -391,8 +390,6 @@ def load_realization(path: Path) -> Mapping[str, Any]:
 
 
 def load_synthesis(path: Path) -> Mapping[str, Any]:
-    """Загрузить конструкции, поля описания и морфологические исключения."""
-
     raw = _mapping(_read_json(path), str(path))
     for key in (
         "constructions",
@@ -411,8 +408,6 @@ def load_synthesis(path: Path) -> Mapping[str, Any]:
 
 
 def load_state(path: Path) -> Mapping[str, Any]:
-    """Загрузить декларативную политику состояния диалога."""
-
     raw = _mapping(_read_json(path), str(path))
     for key in (
         "pronouns",
@@ -463,6 +458,9 @@ def load_personas(path: Path) -> Dict[str, Persona]:
             max_list_items=max(
                 1, int(data.get("max_list_items") or 20)
             ),
+            max_discourse_moves=max(
+                1, int(data.get("max_discourse_moves") or 3)
+            ),
             default_style=str(data.get("default_style") or ""),
         )
     if not result:
@@ -471,8 +469,6 @@ def load_personas(path: Path) -> Dict[str, Persona]:
 
 
 def load_features(path: Path) -> FeatureSchema:
-    """Загрузить схему измерений стиля: значения и умолчания."""
-
     raw = _mapping(_read_json(path), str(path))
     dimensions: Dict[str, Dict[str, Any]] = {}
     for name, value in _mapping(
@@ -503,8 +499,6 @@ def load_features(path: Path) -> FeatureSchema:
 def load_styles(
     path: Path, schema: FeatureSchema | None = None
 ) -> StyleCatalog:
-    """Загрузить профили стилей с наследованием и умолчаниями."""
-
     raw = _mapping(_read_json(path), str(path))
     default = str(raw.get("default") or "neutral")
     items = _mapping(raw.get("styles"), "styles.styles")
@@ -613,13 +607,6 @@ def _context_condition(raw: Any, where: str) -> Mapping[str, Any]:
 def load_style_context(
     path: Path, styles: StyleCatalog
 ) -> StyleContextCatalog:
-    """Загрузить правила автовыбора регистра по контексту.
-
-    Файла может не быть: пустой каталог означает «автовыбор отключён».
-    Это сохраняет обратную совместимость: без файла работает только
-    ручной выбор и ``persona.default_style``.
-    """
-
     if not path.is_file():
         return StyleContextCatalog()
     raw = _mapping(_read_json(path), str(path))
@@ -676,8 +663,6 @@ def _social_atoms(value: Any, where: str) -> Tuple[AtomSpec, ...]:
 
 
 def load_social(path: Path) -> SocialCatalog:
-    """Загрузить акты, реакции и политику обязательств."""
-
     raw = _mapping(_read_json(path), str(path))
     acts_raw = _mapping(raw.get("acts", {}), "social.acts")
     reactions_raw = _mapping(
@@ -799,11 +784,17 @@ def _discourse_pattern(key: str, value: Any) -> DiscoursePattern:
     )
     if not moves:
         raise DialogueError("%s.moves: пусто" % where)
+    topic = str(data.get("topic") or "")
+    if topic and topic not in moves:
+        raise DialogueError(
+            "%s.topic: %r отсутствует в moves" % (where, topic)
+        )
     return DiscoursePattern(
         id=pattern_id,
         kind=kind,
         plan_id=plan_id,
         moves=moves,
+        topic=topic,
         priority=int(data.get("priority") or 0),
     )
 
@@ -820,6 +811,12 @@ def _discourse_connective(key: str, value: Any) -> Mapping[str, Any]:
     item["features"] = _features(
         data.get("features"), where + ".features"
     )
+    mode = str(data.get("mode") or "plain")
+    if mode not in CONNECTIVE_MODES:
+        raise DialogueError(
+            "%s.mode: неизвестный режим %r" % (where, mode)
+        )
+    item["mode"] = mode
     try:
         item["priority"] = int(data.get("priority") or 0)
     except (TypeError, ValueError) as error:
@@ -829,9 +826,45 @@ def _discourse_connective(key: str, value: Any) -> Mapping[str, Any]:
     return item
 
 
-def load_discourse(path: Path) -> DiscourseCatalog:
-    """Загрузить ходы, шаблоны и связки дискурсивного планировщика."""
+def _discourse_anaphora(raw: Any) -> DiscourseAnaphora:
+    if raw is None:
+        return DiscourseAnaphora()
+    data = _mapping(raw, "discourse.anaphora")
+    enabled = bool(data.get("enabled", False))
+    types = tuple(
+        str(item)
+        for item in _sequence(
+            data.get("types", []), "discourse.anaphora.types"
+        )
+    )
+    kinds = tuple(
+        str(item)
+        for item in _sequence(
+            data.get("kinds", []), "discourse.anaphora.kinds"
+        )
+    )
+    pronouns = {
+        str(name): str(value)
+        for name, value in _mapping(
+            data.get("pronouns", {}), "discourse.anaphora.pronouns"
+        ).items()
+    }
+    try:
+        min_length = int(data.get("min_length") or 3)
+    except (TypeError, ValueError) as error:
+        raise DialogueError(
+            "discourse.anaphora.min_length: ожидалось число"
+        ) from error
+    return DiscourseAnaphora(
+        types=types,
+        kinds=kinds,
+        pronouns=pronouns,
+        min_length=max(1, min_length),
+        enabled=enabled,
+    )
 
+
+def load_discourse(path: Path) -> DiscourseCatalog:
     if not path.is_file():
         return DiscourseCatalog()
     raw = _mapping(_read_json(path), str(path))
@@ -856,21 +889,16 @@ def load_discourse(path: Path) -> DiscourseCatalog:
     connectives: List[Mapping[str, Any]] = []
     for key, value in connectives_raw.items():
         connectives.append(_discourse_connective(str(key), value))
+    anaphora = _discourse_anaphora(raw.get("anaphora"))
     return DiscourseCatalog(
         moves=moves,
         patterns=tuple(patterns),
         connectives=tuple(connectives),
+        anaphora=anaphora,
     )
 
 
 def load_comparison(path: Path) -> ComparisonCatalog:
-    """Загрузить таблицу сравнений по отношениям.
-
-    Файла может не быть: пустой каталог означает «сравнения отключены»,
-    и план ``compare_assets`` не срабатывает. Это сохраняет обратную
-    совместимость.
-    """
-
     if not path.is_file():
         return ComparisonCatalog()
     raw = _mapping(_read_json(path), str(path))
@@ -915,8 +943,6 @@ def load_world(path: Path) -> Mapping[str, Any]:
 
 
 def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
-    """Загрузить онтологию, лексикон и грамматику из каталога."""
-
     root = Path(directory) if directory is not None else DEFAULT_DIR
     ontology = load_ontology(root / "ontology.json")
     lexicon = load_lexicon(root / "lexicon.json")
@@ -975,6 +1001,7 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
             "moves": len(discourse.moves),
             "patterns": len(discourse.patterns),
             "connectives": len(discourse.connectives),
+            "anaphora": bool(discourse.anaphora.enabled),
         },
         "style_context": {
             "enabled": style_context.enabled,

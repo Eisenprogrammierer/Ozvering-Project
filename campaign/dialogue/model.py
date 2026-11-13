@@ -50,13 +50,7 @@ class RuleItem:
 
 @dataclass(frozen=True)
 class GrammarRule:
-    """Правило грамматики: синтаксис плюс шаблон семантики.
-
-    ``head`` называет роль ребёнка, чьи признаки наследуются родителем
-    (вершинное согласование). Пустая строка — родитель берёт только свои
-    признаки. Так лексические признаки вроде леммы не сталкиваются при
-    сборке фразы.
-    """
+    """Правило грамматики: синтаксис плюс шаблон семантики."""
 
     id: str
     lhs: str
@@ -157,18 +151,13 @@ class Persona:
     parse_unknown: str = ""
     clarify: Mapping[str, str] = field(default_factory=dict)
     max_list_items: int = 20
+    max_discourse_moves: int = 3
     default_style: str = ""
 
 
 @dataclass(frozen=True)
 class StyleSpec:
-    """Регистровый профиль как набор признаков, а не список фраз.
-
-    Стиль не выбирает факты и не заменяет план. Он задаёт значения
-    признаков (формальность, дистанция, авторитет, аффект, прямота,
-    номинализация и т.п.), с которыми реализатор согласует конструкции
-    и лексемы. Новый стиль не требует новых шаблонов ответа.
-    """
+    """Регистровый профиль как набор признаков, а не список фраз."""
 
     id: str
     label: str
@@ -223,12 +212,7 @@ class StyleCatalog:
 
 @dataclass(frozen=True)
 class SocialActSpec:
-    """Речевое действие как данные: акт, пропозиция, условия, реакции.
-
-    Акт не меняет мир. Он задаёт входную социальную пропозицию, для
-    которой ``SocialEngine`` выбирает реакцию по условиям. Новый акт
-    добавляется JSON-ом, не правкой Python.
-    """
+    """Речевое действие как данные: акт, пропозиция, условия, реакции."""
 
     id: str
     label: str
@@ -241,13 +225,7 @@ class SocialActSpec:
 
 @dataclass(frozen=True)
 class ReactionSpec:
-    """Реакция на речевое действие: условия, эффект, конструкция синтеза.
-
-    ``effect.type`` — типизированный социальный эффект
-    (commitment/refusal/evasion/counter_offer/clarification), не
-    произвольный код. Конструкция ссылается на ``synthesis.constructions``
-    и согласуется со стилем через общий реализатор.
-    """
+    """Реакция на речевое действие: условия, эффект, конструкция синтеза."""
 
     id: str
     label: str
@@ -274,16 +252,7 @@ class SocialCatalog:
 
 @dataclass(frozen=True)
 class DiscourseMove:
-    """Один ход дискурсивного ответа.
-
-    Ход не хранит готовый текст и не добавляет факты. Он говорит, как
-    реализовать уже принятый смысл: через речевой акт (``act``), через
-    конструкцию синтеза (``construction``), через отношение
-    (``relation`` + ``source``) или через готовую строку в данных
-    (``source`` без остальных режимов). Три первых способа совпадают с
-    механизмами, которые уже есть в реализаторе; четвёртый —
-    «озвучить готовую строку».
-    """
+    """Один ход дискурсивного ответа."""
 
     id: str
     label: str = ""
@@ -300,41 +269,49 @@ class DiscourseMove:
 class DiscoursePattern:
     """Какие ходы собираются для какого вида ответа.
 
-    ``kind`` — вид ``Answer.kind``; ``plan_id`` уточняет конкретный план,
-    если одно и то же ``kind`` должно собираться по-разному. Порядок
-    ходов в ``moves`` — порядок их реализации в тексте.
+    ``topic`` — ход, который идёт первым как тема, остальные — по
+    порядку ``moves``. Пустая строка означает «как в moves».
     """
 
     id: str
     kind: str = ""
     plan_id: str = ""
     moves: Tuple[str, ...] = ()
+    topic: str = ""
     priority: int = 0
 
 
 @dataclass(frozen=True)
-class DiscourseCatalog:
-    """Ходы, шаблоны и связки дискурсивного планировщика.
+class DiscourseAnaphora:
+    """Политика анафоры внутри одного ответа.
 
-    Всё содержание — данные. Нет шаблона для вида ответа — нет ходов:
-    реализатор возвращает ответ как есть (обратная совместимость и
-    байт-в-байт нейтральный путь).
+    ``types`` — типы сущностей, к которым применима замена. ``kinds`` —
+    виды ходов, для которых анафора активна. ``pronouns`` — карта
+    ``(род, число) → местоимение``, например ``"m:sg" → "он"``.
+    ``min_length`` — минимальная длина имени, чтобы не менять короткие
+    уникальные слова (например, «Ты»).
     """
+
+    types: Tuple[str, ...] = ()
+    kinds: Tuple[str, ...] = ()
+    pronouns: Mapping[str, str] = field(default_factory=dict)
+    min_length: int = 3
+    enabled: bool = False
+
+
+@dataclass(frozen=True)
+class DiscourseCatalog:
+    """Ходы, шаблоны, связки и анафора дискурсивного слоя."""
 
     moves: Mapping[str, DiscourseMove] = field(default_factory=dict)
     patterns: Tuple[DiscoursePattern, ...] = ()
     connectives: Tuple[Mapping[str, Any], ...] = ()
+    anaphora: DiscourseAnaphora = field(default_factory=DiscourseAnaphora)
 
     def move(self, move_id: str) -> Any:
         return self.moves.get(str(move_id or ""))
 
     def pattern_for(self, kind: str, plan_id: str = "") -> Any:
-        """Найти шаблон: сначала по plan_id, затем по kind.
-
-        Порядок фиксирован и объясним: конкретный план важнее общего
-        вида ответа, при равенстве — по убыванию приоритета и id.
-        """
-
         candidates = [
             item
             for item in self.patterns
@@ -354,13 +331,7 @@ class DiscourseCatalog:
 
 @dataclass(frozen=True)
 class StyleContextRule:
-    """Правило автовыбора регистра по контексту разговора.
-
-    Условие — список атомов, объявленных в данных: ``fact`` проверяет
-    наличие факта в ``AgentKnowledge`` с подстановкой ``$speaker`` /
-    ``$player``, ``field`` сравнивает поле знания с константой или с
-    другим полем. Итог — ``style_id``, имя существующего стиля.
-    """
+    """Правило автовыбора регистра по контексту разговора."""
 
     id: str
     style_id: str
@@ -371,12 +342,7 @@ class StyleContextRule:
 
 @dataclass(frozen=True)
 class StyleContextCatalog:
-    """Правила автовыбора регистра.
-
-    Пустой каталог — валидное состояние: автовыбор отключён, работает
-    ручной выбор и ``persona.default_style``. Это сохраняет обратную
-    совместимость и «нейтральный путь байт-в-байт».
-    """
+    """Правила автовыбора регистра."""
 
     rules: Tuple[StyleContextRule, ...] = ()
     enabled: bool = False
@@ -389,14 +355,7 @@ class StyleContextCatalog:
 
 @dataclass(frozen=True)
 class ComparisonSpec:
-    """Правило сравнения: какое отношение, какие аргументы, конструкции.
-
-    ``greater``/``less``/``equal``/``unknown_left``/``unknown_right``/
-    ``both_unknown`` — ключи конструкций в ``synthesis.constructions``.
-    ``key_prefix`` — необязательный префикс лексемы ключа, который надо
-    снять перед унификацией с фактом (например, ``asset:`` у ``asset``
-    хранится в факте без префикса). Никакого ``if a > b`` в коде.
-    """
+    """Правило сравнения: какое отношение, какие аргументы, конструкции."""
 
     id: str
     relation: str
@@ -415,7 +374,7 @@ class ComparisonSpec:
 
 @dataclass(frozen=True)
 class ComparisonCatalog:
-    """Таблица сравнений. Пустой каталог — сравнения отключены."""
+    """Таблица сравнений."""
 
     comparisons: Mapping[str, ComparisonSpec] = field(
         default_factory=dict

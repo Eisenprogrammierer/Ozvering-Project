@@ -6,9 +6,11 @@ JSON. Python только сопоставляет логическую форм
 
 D4 добавляет тип ответа ``social``.
 D5.1 добавляет дискурсивный слой (ходы и связки).
-D3.1 добавляет тип ответа ``comparison``: два значения одного
-отношения сравниваются по оператору из ``comparison.json``, исход
-выбирает конструкцию синтеза. Python не содержит ``if a > b``.
+D5.3 добавляет агрегацию (``mode: clause``), анафору внутри ответа и
+порядок тема-рема. ``_discourse`` гарантированно снабжает ходы
+``entities``, чтобы анафора работала даже если ``_build_moves``
+вернул ходы без этого поля.
+D3.1 добавляет тип ответа ``comparison``.
 """
 
 from __future__ import annotations
@@ -43,8 +45,6 @@ class PatternError(ValueError):
 def match_pattern(
     pattern: Any, value: Any, bindings: Optional[Dict[str, str]] = None
 ) -> Optional[Dict[str, str]]:
-    """Сопоставить шаблон с логической формой, связав ``$переменные``."""
-
     result = dict(bindings or {})
     if isinstance(pattern, Mapping):
         if not isinstance(value, Mapping):
@@ -176,8 +176,6 @@ class AnswerPlanner:
         )
 
     def set_style(self, style: Optional[StyleSpec]) -> None:
-        """Сменить регистровый профиль, используемый при синтезе."""
-
         self.style = style or StyleSpec(id="", label="")
         self.realizer.set_style(self.style)
 
@@ -240,16 +238,9 @@ class AnswerPlanner:
             return self._unknown(selected.id)
         return handler(selected, captures)
 
-    # --- дискурсивный слой (D5.1) ----------------------------------
+    # --- дискурсивный слой -----------------------------------------
 
     def _discourse(self, answer: Answer) -> Answer:
-        """Собрать ответ из 1–3 ходов, если есть шаблон и стиль не нейтральный.
-
-        Нейтральный стиль сохраняет путь байт-в-байт; нет шаблона для
-        ``kind``/``plan_id`` — ответ идёт как есть. Ходы не добавляют
-        факты: только озвучивают уже принятые смыслы.
-        """
-
         if StyleEngine.is_neutral(self.style):
             return answer
         discourse = getattr(self.catalog, "discourse", None)
@@ -261,6 +252,11 @@ class AnswerPlanner:
         moves = self._build_moves(answer, pattern)
         if not moves:
             return answer
+        if not any(move.get("entities") for move in moves):
+            entities = self._fallback_entities(answer)
+            if entities:
+                for move in moves:
+                    move["entities"] = entities
         text = self.realizer.render_moves(moves)
         if not text:
             return answer
@@ -291,8 +287,10 @@ class AnswerPlanner:
         discourse = getattr(self.catalog, "discourse", None)
         if discourse is None:
             return []
+        entities = self._answer_entities_for_anaphora(answer)
+        ordered = self._ordered_moves(pattern)
         result: List[Dict[str, Any]] = []
-        for move_id in pattern.moves:
+        for move_id in ordered:
             spec = discourse.move(move_id)
             if spec is None:
                 continue
@@ -307,9 +305,71 @@ class AnswerPlanner:
                     "kind": spec.id,
                     "act": act,
                     "text": text,
+                    "entities": entities,
                 }
             )
         return result
+
+    def _ordered_moves(self, pattern: Any) -> List[str]:
+        moves = list(pattern.moves)
+        topic = str(getattr(pattern, "topic", "") or "")
+        if topic and topic in moves:
+            moves.remove(topic)
+            moves.insert(0, topic)
+        return moves
+
+    def _fallback_entities(self, answer: Answer) -> Tuple[str, ...]:
+        """Сущности из ``catalog.lexicon`` по ``args``/``target``/``owner``.
+
+        Нужны, если адаптер знания пуст или не содержит эти id. Тип и
+        имя реализатор всё равно возьмёт через лексикон. Это делает
+        анафору независимой от ``knowledge.entities``.
+        """
+
+        known = {entry.id for entry in self.catalog.lexicon}
+        data = dict(answer.data or {})
+        found: List[str] = []
+
+        def add(value: Any) -> None:
+            text = str(value or "")
+            if not text or ":" not in text:
+                return
+            if text not in known:
+                return
+            if text not in found:
+                found.append(text)
+
+        args = data.get("args") or ()
+        if isinstance(args, (list, tuple)):
+            for item in args:
+                add(item)
+        for key in ("target", "owner", "left", "right"):
+            add(data.get(key))
+        return tuple(found)
+
+    def _answer_entities_for_anaphora(
+        self, answer: Answer
+    ) -> Tuple[str, ...]:
+        known = {entry.id for entry in self.catalog.lexicon}
+        data = dict(answer.data or {})
+        found: List[str] = []
+
+        def add(value: Any) -> None:
+            text = str(value or "")
+            if not text or ":" not in text:
+                return
+            if text not in known:
+                return
+            if text not in found:
+                found.append(text)
+
+        args = data.get("args") or ()
+        if isinstance(args, (list, tuple)):
+            for item in args:
+                add(item)
+        for key in ("target", "owner", "left", "right"):
+            add(data.get(key))
+        return tuple(found)
 
     def _move_text(
         self, spec: Any, answer: Answer
@@ -354,7 +414,7 @@ class AnswerPlanner:
         text = self.realizer.realize_act(act, values, fallback="")
         return text, act
 
-    # --- обработчики -------------------------------------------------
+    # --- обработчики ------------------------------------------------
 
     def _answer_social(
         self, plan: PlanSpec, captures: Mapping[str, str]
@@ -519,12 +579,6 @@ class AnswerPlanner:
         )
 
     def _max_premises(self, plan: PlanSpec) -> int:
-        """Сколько ближайших посылок озвучивать в «почему».
-
-        По умолчанию 1 — обратная совместимость с D3 до расширения.
-        Значение задаётся планом, не кодом.
-        """
-
         try:
             value = int(plan.answer.get("max_premises") or 1)
         except (TypeError, ValueError):
@@ -534,13 +588,6 @@ class AnswerPlanner:
     def _reasons_for(
         self, proof: ProofStep, limit: int
     ) -> List[str]:
-        """Собрать до ``limit`` текстовых обоснований из доказательства.
-
-        Приоритет: явные ``because`` на шагах, затем рекурсивно по
-        детям. Пустая строка означает «обоснования нет» и не попадает
-        в список. Никаких новых фактов: только то, что доказано.
-        """
-
         found: List[str] = []
 
         def walk(step: ProofStep) -> None:
@@ -565,14 +612,6 @@ class AnswerPlanner:
     def _answer_comparison(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:
-        """Сравнить два значения отношения по правилу из comparison.json.
-
-        Никаких ``if a > b``: оператор и конструкция исхода берутся из
-        ``comparison.comparisons[relation]``. Отсутствие данных на любой
-        стороне даёт конструкцию ``unknown_*``; полностью неизвестное
-        сравнение — ``both_unknown``.
-        """
-
         relation = _resolve(
             str(plan.answer.get("relation") or ""), captures
         )
@@ -623,15 +662,6 @@ class AnswerPlanner:
     def _value_for(
         self, spec: Any, subject: str, key: str
     ) -> str:
-        """Значение отношения для (subject, key) как строка.
-
-        Читается через ``InferenceEngine.first``. На месте value
-        подставляется переменная ``$value``: пустая строка в паттерне
-        не унифицируется с фактом. ``key_prefix`` из данных снимается
-        с ключа перед унификацией: в факте ``asset`` ключ хранится без
-        префикса лексемы. Пустая строка в результате — «нет данных».
-        """
-
         relation = str(spec.relation or "")
         if not relation:
             return ""
@@ -660,13 +690,6 @@ class AnswerPlanner:
         left_number: Optional[float],
         right_number: Optional[float],
     ) -> Tuple[str, str]:
-        """Выбрать конструкцию и имя исхода без ``if a > b`` по данным.
-
-        Оператор и порог задаются в ``comparison.json``; здесь только
-        арифметика: ``==``/``>``/``<`` по числам. Это не предметная
-        логика, а исполнение оператора из данных.
-        """
-
         if left_number is None and right_number is None:
             return str(spec.both_unknown or ""), "both_unknown"
         if left_number is None:
@@ -1026,7 +1049,7 @@ class AnswerPlanner:
             data={"turn": last, "items": items},
         )
 
-    # --- общие помощники --------------------------------------------
+    # --- общие помощники -------------------------------------------
 
     def _unknown(self, plan_id: str = "") -> Answer:
         message = str(

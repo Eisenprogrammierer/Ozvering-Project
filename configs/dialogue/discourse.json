@@ -43,6 +43,7 @@
       "id": "explanation_basic",
       "kind": "explanation",
       "moves": ["answer", "justify"],
+      "topic": "justify",
       "priority": 10
     },
     "value_with_conclusion": {
@@ -69,26 +70,30 @@
       "text": ".",
       "features": {},
       "priority": 0,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     },
     "connective:neutral_because": {
       "text": "Потому что",
       "features": {},
       "priority": 10,
       "position": "between",
+      "mode": "clause",
       "lowercase_next": true
     },
     "connective:official_plain": {
       "text": ".",
       "features": {"formality": "high"},
       "priority": 5,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     },
     "connective:official_moreover": {
       "text": "При этом",
       "features": {"formality": "high", "nominalization": "high"},
       "priority": 15,
       "position": "between",
+      "mode": "plain",
       "lowercase_next": true
     },
     "connective:official_therefore": {
@@ -96,25 +101,29 @@
       "features": {"formality": "high"},
       "priority": 10,
       "position": "between",
+      "mode": "clause",
       "lowercase_next": true
     },
     "connective:report_basis": {
       "text": "Основание:",
       "features": {"formality": "high", "authority": "high"},
       "priority": 15,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     },
     "connective:report_done": {
       "text": "Докладываю.",
       "features": {"formality": "high", "authority": "high"},
       "priority": 20,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     },
     "connective:order_therefore": {
       "text": "Следовательно",
       "features": {"authority": "high", "register": "command"},
       "priority": 15,
       "position": "between",
+      "mode": "clause",
       "lowercase_next": true
     },
     "connective:friendly_because": {
@@ -122,6 +131,7 @@
       "features": {"distance": "near", "affect": "warm"},
       "priority": 15,
       "position": "between",
+      "mode": "clause",
       "lowercase_next": true
     },
     "connective:friendly_well": {
@@ -129,6 +139,7 @@
       "features": {"distance": "near", "affect": "warm"},
       "priority": 10,
       "position": "between",
+      "mode": "plain",
       "lowercase_next": true
     },
     "connective:romantic_soft": {
@@ -136,19 +147,36 @@
       "features": {"distance": "intimate", "affect": "intimate"},
       "priority": 15,
       "position": "between",
+      "mode": "clause",
       "lowercase_next": true
     },
     "connective:hostile_flat": {
       "text": "Точка.",
       "features": {"distance": "far", "affect": "cold"},
       "priority": 15,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     },
     "connective:mentor_explains": {
       "text": "Смотри:",
       "features": {"authority": "high", "affect": "warm"},
       "priority": 15,
-      "position": "between"
+      "position": "between",
+      "mode": "plain"
     }
+  },
+  "anaphora": {
+    "enabled": true,
+    "types": ["faction", "character", "organ", "work"],
+    "kinds": ["answer", "justify", "conclusion", "hedge"],
+    "pronouns": {
+      "m:sg": "он",
+      "f:sg": "она",
+      "n:sg": "оно",
+      "m:pl": "они",
+      "f:pl": "они",
+      "n:pl": "они"
+    },
+    "min_length": 3
   }
 }

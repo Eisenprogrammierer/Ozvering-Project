@@ -1,24 +1,8 @@
-"""Композиционный синтез русской фразы по данным.
-
-Слой не содержит готовых ответов и не знает предметной области. Он умеет
-только собирать предложение из частей, описанных в ``synthesis.json``:
-именная группа, лексема, прилагательное, число, литерал. Падежи, род,
-число и спряжение берутся из ``morph.py``.
-
-Конструкции — это деревья частей. Одна и та же логическая связь может
-быть выражена разными конструкциями; выбор задаётся данными, а шаблоны
-из ``realization.json`` используются только как аварийный fallback.
-
-D5.1 добавляет ``_render_discourse``: сборку 1–3 готовых ходов в один
-ответ через связки из ``discourse.json``. Ходы приходят от планировщика
-как намерения (``kind`` + ``data``), а реализатор лишь озвучивает их
-уже принятыми механизмами (акт, конструкция, statement) и склеивает
-связками. Нейтральный стиль сюда не доходит: контракт байт-в-байт
-сохранён на уровне ``AnswerPlanner``.
-"""
+"""Композиционный синтез русской фразы по данным."""
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from .features import select_best
@@ -42,6 +26,14 @@ ACT_FOR_KIND = {
     "entity": "leader",
     "list": "list",
     "value": "value",
+    "comparison": "text",
+}
+
+_NUMBER_ALIASES = {
+    "sing": "sg",
+    "plur": "pl",
+    "sg": "sg",
+    "pl": "pl",
 }
 
 
@@ -58,12 +50,15 @@ def _format_number(value: Any) -> str:
 
 
 def _marker_concept(identifier: str) -> str:
-    """Вывести концепт маркера из его id, если он не задан явно."""
-
     text = str(identifier or "")
     if text.startswith("marker:"):
         text = text[len("marker:") :]
     return text.split("_", 1)[0]
+
+
+def _normalize_number(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    return _NUMBER_ALIASES.get(text, "sg")
 
 
 class Realizer:
@@ -104,9 +99,7 @@ class Realizer:
                 continue
             item = dict(value)
             item["id"] = str(key)
-            item.setdefault(
-                "concept", _marker_concept(str(key))
-            )
+            item.setdefault("concept", _marker_concept(str(key)))
             self.markers.append(item)
         self.lexical_groups: Mapping[str, Any] = (
             self.synthesis.get("lexical_groups") or {}
@@ -131,34 +124,28 @@ class Realizer:
             for item in getattr(discourse, "connectives", ()) or ()
             if isinstance(item, Mapping)
         ]
+        self.anaphora: Any = getattr(discourse, "anaphora", None)
 
     # --- публичный API ----------------------------------------------
 
     def set_style(self, style: Optional[StyleSpec]) -> None:
-        """Установить регистровый профиль для последующей генерации."""
-
         self.style = style or StyleSpec(id="", label="")
 
     def set_discourse(self, catalog: Any) -> None:
-        """Обновить каталог дискурсивного слоя (для тестов и перезагрузки)."""
-
         self.discourse = catalog
         self.connectives = [
             dict(item)
             for item in getattr(catalog, "connectives", ()) or ()
             if isinstance(item, Mapping)
         ]
+        self.anaphora = getattr(catalog, "anaphora", None)
 
     def take_trace(self) -> List[Dict[str, Any]]:
-        """Забрать след выбора конструкций и лексем текущего ответа."""
-
         trace = self.trace
         self.trace = []
         return trace
 
     def take_discourse_trace(self) -> List[Dict[str, Any]]:
-        """Забрать след дискурсивного слоя текущего ответа."""
-
         trace = self.discourse_trace
         self.discourse_trace = []
         return trace
@@ -199,8 +186,6 @@ class Realizer:
             return 0
 
     def _select(self, candidates: Iterable[Any]) -> Any:
-        """Выбрать совместимую единицу по признакам текущего стиля."""
-
         items = list(candidates)
         if not items:
             return None
@@ -222,8 +207,6 @@ class Realizer:
         self._note(identifier)
 
     def statement(self, relation: str, args: Iterable[Any]) -> str:
-        """Выразить логическую связь предложением из конструкции."""
-
         spec = self.statements.get(str(relation))
         if not isinstance(spec, Mapping):
             return ""
@@ -234,8 +217,6 @@ class Realizer:
     def values_for(
         self, relation: str, args: Iterable[Any]
     ) -> Dict[str, str]:
-        """Назвать аргументы связи по ролям из ``statements.json``."""
-
         spec = self.statements.get(str(relation))
         if not isinstance(spec, Mapping):
             return {}
@@ -253,8 +234,6 @@ class Realizer:
     def statement_map(
         self, relation: str, values: Mapping[str, Any]
     ) -> str:
-        """Выразить связь, когда аргументы уже названы по ролям."""
-
         spec = self.statements.get(str(relation))
         if not isinstance(spec, Mapping):
             return ""
@@ -270,14 +249,6 @@ class Realizer:
         spec: Mapping[str, Any],
         data: Dict[str, Any],
     ) -> str:
-        """Собрать предложение по ``statements[relation]``.
-
-        Явная конструкция из ``statements`` исключается из кандидатов
-        ``_select``: если данные прямо указывают конструкцию, она не
-        должна конкурировать с автоматической вариативностью по стилю.
-        Сначала пробуем явную, затем — оставшиеся совместимые.
-        """
-
         for name, value in (spec.get("consts") or {}).items():
             data[str(name)] = value
         prefix = str(spec.get("label_prefix") or "")
@@ -333,8 +304,6 @@ class Realizer:
         return self._render_sequence(ids, target)
 
     def answer(self, key: str, data: Mapping[str, Any]) -> str:
-        """Готовая ответная конструкция по ключу из данных."""
-
         spec = self.answers.get(str(key))
         if not isinstance(spec, Mapping):
             return ""
@@ -346,13 +315,6 @@ class Realizer:
     def realize_act(
         self, act: str, data: Mapping[str, Any], fallback: str = ""
     ) -> str:
-        """Собрать речевой акт из конструкций, совместимых со стилем.
-
-        Нейтральный профиль сохраняет прежний путь байт-в-байт. Для
-        остальных стилей выбирается конструкция акта по признакам, затем
-        к результату добавляется обращение, если профиль этого требует.
-        """
-
         if StyleEngine.is_neutral(self.style):
             return fallback
         chosen = self._select(self.act_constructions.get(str(act)) or ())
@@ -398,13 +360,6 @@ class Realizer:
         fallback: str = "",
         keys: Optional[Iterable[str]] = None,
     ) -> str:
-        """Реализовать ответный ход как речевой акт.
-
-        ``keys`` сохранён в сигнатуре для совместимости со старыми
-        вызовами; выбор теперь идёт не по ключам ответов, а по акту и
-        признакам стиля.
-        """
-
         act = ACT_FOR_KIND.get(str(kind), str(kind))
         base: Dict[str, Any] = {
             "speaker": getattr(self.knowledge, "speaker_name", ""),
@@ -419,49 +374,60 @@ class Realizer:
         values.update(data)
         return self.realize_act(act, values, fallback)
 
-    # --- дискурсивный слой (D5.1) ----------------------------------
+    # --- дискурсивный слой ------------------------------------------
 
     def render_moves(
         self, moves: Sequence[Mapping[str, Any]]
     ) -> str:
-        """Собрать ответ из 1–3 ходов и связок между ними.
+        """Собрать ответ из ходов, связок и анафоры.
 
-        Ход — это словарь с полями ``id``, ``kind`` (``answer``/
-        ``justify``/…), ``text`` (готовый текст хода) и ``act`` (имя
-        речевого акта). Содержание ходов приходит от планировщика:
-        реализатор не добавляет факты, только склеивает и подбирает
-        связки по стилю.
+        ``plain``-связка ставится после точки: «A. При этом B.».
+        Если текст связки — сама точка, второе предложение просто
+        идёт следом: «A. B.». ``clause``-связка встраивается внутрь
+        одного предложения через запятую: «A, потому что B.».
         """
 
         if not moves:
             return ""
-        rendered: List[Dict[str, str]] = []
+        rendered: List[Dict[str, Any]] = []
         for raw in moves:
             if not isinstance(raw, Mapping):
                 continue
             text = str(raw.get("text") or "").strip()
             if not text:
                 continue
-            rendered.append(
-                {
-                    "id": str(raw.get("id") or ""),
-                    "kind": str(raw.get("kind") or ""),
-                    "text": text,
-                }
+            item = {
+                "id": str(raw.get("id") or ""),
+                "kind": str(raw.get("kind") or ""),
+                "text": text,
+            }
+            entities = raw.get("entities") or ()
+            item["entities"] = tuple(
+                str(entity) for entity in entities if entity
             )
+            rendered.append(item)
         if not rendered:
             return ""
-        result = [rendered[0]["text"]]
+        first_entities = self._first_entities(rendered[0])
+        if first_entities:
+            for index in range(1, len(rendered)):
+                rendered[index]["text"] = self._apply_anaphora(
+                    rendered[index]["text"],
+                    rendered[index]["kind"],
+                    first_entities,
+                )
+        result_parts: List[str] = [rendered[0]["text"]]
         for index in range(1, len(rendered)):
             connective = self._pick_connective(
                 rendered[index - 1], rendered[index]
             )
+            next_text = rendered[index]["text"]
             if connective is None:
                 glue = "."
-                next_text = rendered[index]["text"]
+                mode = "plain"
             else:
                 glue = str(connective.get("text") or ".")
-                next_text = rendered[index]["text"]
+                mode = str(connective.get("mode") or "plain")
                 if bool(connective.get("lowercase_next")):
                     next_text = (
                         next_text[:1].lower() + next_text[1:]
@@ -473,6 +439,7 @@ class Realizer:
                         "kind": "connective",
                         "id": str(connective.get("id") or ""),
                         "register": self.style.register,
+                        "mode": mode,
                         "between": (
                             rendered[index - 1]["id"],
                             rendered[index]["id"],
@@ -482,17 +449,146 @@ class Realizer:
                 self._note_discourse(
                     str(connective.get("id") or "")
                 )
-            result[-1] = result[-1].rstrip(".")
-            result.append(glue)
-            result.append(next_text)
-        text = " ".join(part for part in result if part)
+            previous = result_parts[-1].rstrip(".!?")
+            if mode == "clause":
+                result_parts[-1] = (
+                    previous + ", " + glue + " " + next_text
+                )
+            else:
+                if glue == "." or not glue:
+                    result_parts[-1] = previous + ". " + next_text
+                else:
+                    result_parts[-1] = (
+                        previous + ". " + glue + " " + next_text
+                    )
+        text = " ".join(part for part in result_parts if part)
         return self._finish(text, ".", True)
 
-    def _pick_connective(
-        self, left: Mapping[str, str], right: Mapping[str, str]
-    ) -> Optional[Mapping[str, Any]]:
-        """Выбрать связку между двумя ходами по признакам стиля."""
+    def _first_entities(
+        self, move: Mapping[str, Any]
+    ) -> List[Mapping[str, Any]]:
+        if not self._anaphora_enabled():
+            return []
+        allowed_types = set(self._anaphora_types())
+        if not allowed_types:
+            return []
+        min_length = self._anaphora_min_length()
+        result: List[Mapping[str, Any]] = []
+        seen: set = set()
+        for entity in move.get("entities") or ():
+            entity = str(entity)
+            if not entity or entity in seen:
+                continue
+            type_name = self.knowledge.type_of(entity)
+            if type_name not in allowed_types:
+                continue
+            name = self.knowledge.name(entity)
+            if len(name) < min_length:
+                continue
+            seen.add(entity)
+            result.append(
+                {
+                    "id": entity,
+                    "name": name,
+                    "type": type_name,
+                    "gender": self.morphology.gender_of(name),
+                    "number": _normalize_number(
+                        self.morphology.number_of(name)
+                    ),
+                }
+            )
+        return result
 
+    def _apply_anaphora(
+        self,
+        text: str,
+        kind: str,
+        entities: Sequence[Mapping[str, Any]],
+    ) -> str:
+        if not self._anaphora_enabled():
+            return text
+        allowed_kinds = set(self._anaphora_kinds())
+        if kind not in allowed_kinds:
+            return text
+        pronouns = self._anaphora_pronouns()
+        result = str(text)
+        replaced: set = set()
+        for entity in entities:
+            entity_id = str(entity.get("id") or "")
+            name = str(entity.get("name") or "")
+            if not entity_id or not name or entity_id in replaced:
+                continue
+            pattern = re.compile(re.escape(name), re.IGNORECASE)
+            match = pattern.search(result)
+            if match is None:
+                continue
+            gender = str(entity.get("gender") or "m")
+            number = _normalize_number(entity.get("number") or "sg")
+            key = "%s:%s" % (gender, number)
+            pronoun = str(pronouns.get(key) or "")
+            if not pronoun:
+                continue
+            original = match.group(0)
+            if original.isupper() and len(original) > 1:
+                replacement = pronoun.upper()
+            elif original[:1].isupper():
+                replacement = pronoun[:1].upper() + pronoun[1:]
+            else:
+                replacement = pronoun
+            result = (
+                result[: match.start()]
+                + replacement
+                + result[match.end() :]
+            )
+            replaced.add(entity_id)
+            self.discourse_trace.append(
+                {
+                    "kind": "anaphora",
+                    "entity": entity_id,
+                    "pronoun": pronoun,
+                    "gender": gender,
+                    "number": number,
+                    "in": kind,
+                }
+            )
+        return result
+
+    def _anaphora_enabled(self) -> bool:
+        anaphora = self.anaphora
+        if anaphora is None:
+            return False
+        return bool(getattr(anaphora, "enabled", False))
+
+    def _anaphora_types(self) -> Sequence[str]:
+        anaphora = self.anaphora
+        if anaphora is None:
+            return ()
+        return tuple(getattr(anaphora, "types", ()) or ())
+
+    def _anaphora_kinds(self) -> Sequence[str]:
+        anaphora = self.anaphora
+        if anaphora is None:
+            return ()
+        return tuple(getattr(anaphora, "kinds", ()) or ())
+
+    def _anaphora_pronouns(self) -> Mapping[str, str]:
+        anaphora = self.anaphora
+        if anaphora is None:
+            return {}
+        return dict(getattr(anaphora, "pronouns", {}) or {})
+
+    def _anaphora_min_length(self) -> int:
+        anaphora = self.anaphora
+        if anaphora is None:
+            return 3
+        try:
+            return max(1, int(getattr(anaphora, "min_length", 3)))
+        except (TypeError, ValueError):
+            return 3
+
+    def _pick_connective(
+        self, left: Mapping[str, Any], right: Mapping[str, Any]
+    ) -> Optional[Mapping[str, Any]]:
         if not self.connectives:
             return None
         candidates = [
@@ -527,8 +623,6 @@ class Realizer:
         return str(spec.get("separator") or default)
 
     def belief_sentences(self, target: str) -> List[str]:
-        """Убеждения говорящего о цели — предложениями из конструкций."""
-
         predicates = self.knowledge.world.get("belief_predicates") or {}
         result: List[str] = []
         seen: set = set()
@@ -550,8 +644,6 @@ class Realizer:
                 seen.add(sentence)
                 result.append(sentence)
         return result
-
-    # --- данные описания --------------------------------------------
 
     def description_data(self, target: str) -> Dict[str, Any]:
         data: Dict[str, Any] = {
@@ -693,8 +785,6 @@ class Realizer:
             rows.sort()
         return str(spec.get("join") or ", ").join(rows)
 
-    # --- сборка фразы ----------------------------------------------
-
     def _render_collection(
         self, spec: Mapping[str, Any], data: Mapping[str, Any]
     ) -> str:
@@ -729,14 +819,6 @@ class Realizer:
     def _requirements_met(
         self, spec: Mapping[str, Any], data: Mapping[str, Any]
     ) -> bool:
-        """Проверить, есть ли в данных все обязательные источники фразы.
-
-        Фраза с ``requires`` не рендерится, если хотя бы одного источника
-        нет. Так описание не превращается в «Начало:» без начала или в
-        «— работа работы» у словарной лексемы без владельца. Набор
-        обязательных полей задаётся в JSON, а не в коде.
-        """
-
         for name in spec.get("requires") or ():
             value = data.get(str(name), "")
             if value is None or value == "" or isinstance(value, Mapping):
@@ -821,8 +903,6 @@ class Realizer:
     def _clause(
         self, part: Mapping[str, Any], data: Mapping[str, Any]
     ) -> str:
-        """Вложенная клауза: та же логика, но как часть сложного предложения."""
-
         relation = str(part.get("relation") or "")
         source = str(part.get("source") or "")
         if not relation and source:
@@ -856,8 +936,6 @@ class Realizer:
     def _address(
         self, part: Mapping[str, Any], data: Mapping[str, Any]
     ) -> str:
-        """Обращение как именная группа, выбранная по признакам и полу."""
-
         if str(self.style.feature("address_mode", "none")) == "none":
             source = str(part.get("source") or "")
             return str(data.get(source) or "") if source else ""
@@ -907,8 +985,6 @@ class Realizer:
         )
 
     def _marker(self, part: Mapping[str, Any]) -> str:
-        """Выбрать маркер речевого акта, совместимый со стилем."""
-
         concept = str(part.get("concept") or "")
         pool = [
             item
@@ -993,8 +1069,6 @@ class Realizer:
 
     @staticmethod
     def _lexical_item(entry: LexEntry) -> Dict[str, Any]:
-        """Лексема как кандидат выбора: морфология не участвует в скоре."""
-
         features = {
             str(name): str(value)
             for name, value in (entry.features or {}).items()
@@ -1064,8 +1138,6 @@ class Realizer:
             gender = self.entity_gender(str(data.get(source) or ""))
         return gender
 
-    # --- именные группы и признаки ----------------------------------
-
     def noun(self, entity: str, case: str = "nom", number: str = "sg") -> str:
         entity = str(entity or "")
         if not entity:
@@ -1104,8 +1176,6 @@ class Realizer:
                 return "pl"
         return "sg"
 
-    # --- мелочи ------------------------------------------------------
-
     @staticmethod
     def _finish(text: str, end: str = ".", capitalize: bool = True) -> str:
         text = " ".join(str(text or "").split())
@@ -1119,8 +1189,6 @@ class Realizer:
 
 
 def render_lines(lines: Iterable[str], data: Mapping[str, Any]) -> str:
-    """Аварийный рендер строк realization.json (только fallback)."""
-
     rendered: List[str] = []
     for line in lines or ():
         fields = [
