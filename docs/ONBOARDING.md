@@ -11,6 +11,8 @@
 >
 > **Источник истины:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md). Порядок
 > приоритетов документов описан в его начале.
+>
+> **Дата обновления §4.3, §5.9, §6:** 2026-11-14 (после D3.1, D5.1–D5.3).
 
 ---
 
@@ -145,7 +147,7 @@ venv/bin/python main.py
 | «Хочу обучить агента» | §5.6, [`AGENTS.md`](AGENTS.md), [`HOWTO.md`](HOWTO.md) §2 | `agents/`, `core41/` | `tests/test_train_cli.py` |
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
 | «Хочу понять сейвы» | §5.7 | `view/support/save_system.py` | `tests/test_save_system.py` |
-| «Хочу понять диалог с агентами» | §5.9 | `campaign/dialogue/`, `configs/dialogue/` | `tests/test_d0*.py` … `tests/test_d4_social.py` |
+| «Хочу понять диалог с агентами» | §5.9 | `campaign/dialogue/`, `configs/dialogue/` | `tests/test_d0*.py` … `tests/test_d5_*.py` |
 | «Хочу проверить, что ничего не сломал» | §5.10 | `tests/` | `pytest -q` |
 
 ---
@@ -178,7 +180,7 @@ venv/bin/python main.py
 main.py
   ├─ view/        современный GUI + сюжет
   │    ├─ campaign/  мир, пресеты, кампания автоматов, диалог
-  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D4)
+  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.3)
   │    │    └─ warfare.py / core41
   │    ├─ view/support/  адаптеры, сейвы, время, эффекты
   │    └─ view/ui/       менеджер экранов, HUD, виджеты, ассеты
@@ -194,8 +196,9 @@ main.py
 * `campaign/` — дневной мир и кампанийные правила; не переписывайте аренные
   константы без перекалибровки.
 * `campaign/dialogue/` — диалоговый слой: парсер, вывод, планы, синтез,
-  стили, состояние, речевые действия. Полностью Data-Driven: данные в
-  `configs/dialogue/`, Python только интерпретирует.
+  стили, состояние, речевые действия, дискурсивный слой, сравнения.
+  Полностью Data-Driven: данные в `configs/dialogue/`, Python только
+  интерпретирует.
 * `warfare.py` — персонажи и отделения; кампания автоматов использует его
   для состава фракций и организаций.
 * `view/` и `ui/` — представление и ввод. Логику лучше держать в чистых
@@ -218,7 +221,7 @@ main.py
 | `configs/characters/divisions.json` | 15 делений | `campaign.divisions` |
 | `configs/systems/*.json` | среда, события, драматург | `systems.*` |
 | `configs/naming/*.json` | лексикон и имена | `naming.*` |
-| `configs/dialogue/` | диалоговый слой: онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, состояние, соц. действия | `campaign.dialogue.loader` |
+| `configs/dialogue/` | диалоговый слой: онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, состояние, соц. действия, дискурс, сравнения | `campaign.dialogue.loader` |
 | `configs/worlds/` | миров пока нет (только `.gitkeep`) | `campaign.world.load_world()` |
 | `configs/automata/*.json` | графы автоматов для редактора (схема 1) | `automata.storage.AutomataStore` |
 | `configs/campaigns/base/automata/*.json` | исполняемые автоматы фракций и органов (схема 2) | `campaign.state_machine` |
@@ -248,9 +251,11 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный прогон 2026-11-14: **1184 passed** (включая все D0–D4-тесты
-  диалога).
-* Групповой прогон GUI-тестов на 2026-11-05: **128 passed**.
+* Полный прогон 2026-11-14 (до D3.1): **1184 passed**.
+* Точечные прогоны D3.1/D5.1–D5.3: **~1180 passed**, D3.1
+  (`test_d3_comparison.py`), D5.1 (`test_d5_discourse.py`),
+  D5.2 (`test_d5_registers.py`), D5.3
+  (`test_d5_discourse_paragraph.py`) — зелёные.
 * Полный путь «Новая игра → роль → новелла → кампания автоматов →
   бюджет действий → сеть → чат → исход» исполнен headless без исключений.
 
@@ -289,10 +294,14 @@ GUI существует и играется, но это **рабочий пе�
 * **Баланс и полировка — первый срез.** Кампания автоматов проходится, но
   субъективный баланс, читаемость HUD и длинная прогрессия ещё не
   откалиброваны как «игра для игрока».
-* **Диалоговый слой — D4.** Дискурсивный планировщик (D5.1), автовыбор
-  регистра (D5.2), контрфакты (D3), политика раскрытия (D6.3) ещё не
-  сделаны. Стиль выбирается игроком вручную; ответ агента — одно-два
-  предложения, не абзац.
+* **Диалоговый слой — D5.3.** Сделаны: D0 (лексикон и разбор), D1 (вопросы
+  о мире), D1.5 (композиционный синтез), D2 (QUD, референты, память),
+  D3.1 (сравнения, расширенное «почему»), D4 (речевые действия),
+  D5.1 (дискурсивный планировщик), D5.2 (автовыбор регистра),
+  D5.3 (агрегация, анафора, тема-рема). Открыто: D3.2 (контрфакты),
+  D5.4 (абзац 4+ хода), D6 (расширение грамматики, политика раскрытия и
+  ложь, аудит лексикона). Стиль выбирается автоматически по контексту
+  или вручную в чате; ответ агента — 1–3 предложения.
 
 ---
 
@@ -444,7 +453,7 @@ venv/bin/python -m pytest -q tests/test_gui_smoke.py
 2. Сформулируйте инвариант и напишите тест до реализации. Для модели —
    `tests/test_math_model.py`/`test_core41.py`; для кампании —
    `test_campaign_env.py`/`test_world.py`; для GUI — `test_gui_smoke.py`;
-   для диалога — `test_d0*.py` … `test_d4_social.py`.
+   для диалога — `test_d0*.py` … `test_d5_*.py`.
 3. Если поведение должно быть data-driven, сначала добавьте поле/схему в
    JSON и загрузчик, затем код.
 4. Обновите профильный документ и, если меняются константы, `MODEL.md`/
@@ -511,29 +520,34 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   venv/bin/python -m pytest -q tests/test_automata_campaign.py
   venv/bin/python -m pytest -q tests/test_campaign.py
   venv/bin/python -m pytest -q tests/test_d4_social.py
+  venv/bin/python -m pytest -q tests/test_d5_discourse.py
+  venv/bin/python -m pytest -q tests/test_d5_registers.py
+  venv/bin/python -m pytest -q tests/test_d5_discourse_paragraph.py
+  venv/bin/python -m pytest -q tests/test_d3_comparison.py
   ```
 
 ### 5.9. «Хочу понять диалог с агентами»
 
-Читайте [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md). D0 (лексикон, грамматика,
-разбор), D1 (read-only вопросы о мире), D1.5 (композиционный синтез),
-D2 (QUD, местоимения, эллипсис, память партии) и D4 (речевые действия)
-реализованы; D3+, D5, D6 — проект. Кратко:
+Читайте [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) и
+[`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md). Кратко:
 
 * диалог — read-only слой над BDI и кампанией, без LLM и статистики;
 * диалог полностью Data-Driven: онтология, лексикон, грамматика, правила
-  вывода, планы, политики состояния, конструкции синтеза, стили и
-  речевые действия лежат в `configs/dialogue/`, Python только
-  интерпретирует их;
-* проверка D0–D4:
+  вывода, планы, политики состояния, конструкции синтеза, стили,
+  `style_context`, `discourse`, `comparison`, `social` лежат в
+  `configs/dialogue/`, Python только интерпретирует их;
+* проверка D0–D5.3:
 
   ```bash
   venv/bin/python -m campaign.dialogue.lint
   venv/bin/python -m campaign.dialogue.repl --side red --ask "Почему Империя считает Республику незаконной?"
   venv/bin/python -m campaign.dialogue.repl --side blue --ask "Кто правит Республикой?" --debug
-  venv/bin/python -m pytest -q tests/test_dialogue.py tests/test_d1_dialogue.py \
-    tests/test_d1_5_synthesis.py tests/test_d2_state.py \
-    tests/test_d3_chat_styles.py tests/test_d4_social.py
+  venv/bin/python -m pytest -q tests/test_dialogue.py \
+    tests/test_d1_dialogue.py tests/test_d1_5_synthesis.py \
+    tests/test_d2_state.py tests/test_d3_chat_styles.py \
+    tests/test_d3_comparison.py tests/test_d5_discourse.py \
+    tests/test_d5_discourse_paragraph.py \
+    tests/test_d5_registers.py tests/test_d4_social.py
   ```
 * вход: свободная русская фраза → нормализация → морфология →
   грамматический разбор → типизированная логическая форма;
@@ -546,38 +560,44 @@ D2 (QUD, местоимения, эллипсис, память партии) и
 * ответ: план выбирает смысл → конструкция из `synthesis.json` →
   композиционный синтез (`realize.py`) → словоформы (`morph.py`,
   словарный `pymorphy3`, не нейросеть);
-* регистры: `styles.json` (schema 4, 8 стилей) + `features.json` +
-  `features.select_best` с антиповтором через `DialogueMemory`;
-* речевые действия: `social.json` — акты (`command/promise/threat/offer/
-  apology`), реакции (`accept/reject/evade/counter/clarify`), условия
-  (`AtomSpec`, доказываются `InferenceEngine`), эффекты
-  (`commitment/refusal/evasion/counter_offer/clarification`).
-  `SocialEngine.decide` — детерминированный выбор реакции,
-  `ConversationState.apply_effect` пишет `commitments` с TTL,
-  `Answer.data["effect"]` несёт трассу. Экран чата —
-  `view/screens/dialogue_chat.py`, вход — кнопка «СВЯЗЬ» в
-  `automata_screen.py`;
+* **D5.1 — дискурсивный планировщик**: `discourse.json` (moves,
+  patterns, connectives), `_discourse` в `answers.py`,
+  `render_moves` в `realize.py`. Нейтральный стиль не разбивает ответ
+  на ходы;
+* **D5.2 — автовыбор регистра**: `style_context.json` (rules с
+  `fact`/`field`-условиями), `StyleEngine.resolve_for_context`.
+  Явный стиль игрока побеждает правила. `DialogueSession(style_id=None)`
+  = авто-режим;
+* **D5.3 — агрегация, анафора, тема-рема**: `discourse.connectives
+  [].mode: plain|clause`, `discourse.patterns[].topic`,
+  `discourse.anaphora` (типы, виды ходов, местоимения, min_length);
+* **D3.1 — сравнения**: `comparison.json` (relation, args,
+  key_prefix, конструкции исходов), `_answer_comparison` без
+  `if a > b`. Расширенное «почему» через `max_premises` в плане;
+* речевые действия: `social.json` — акты (`command/promise/threat/
+  offer/apology`), реакции (`accept/reject/evade/counter/clarify`),
+  условия (`AtomSpec`), эффекты (`commitment/refusal/evasion/
+  counter_offer/clarification`);
 * память: `DialogueMemoryStore` хранит значимые факты и сводки по
-  агентам в блоке `dialogue` сейва версии 3; затухание и лимиты
-  детерминированы, новая игра начинает с пустой памяти;
+  агентам в блоке `dialogue` сейва версии 3;
 * расширение: новое отношение, тип, лексема, конструкция, фраза,
-  словоформа, фрагмент эллипсиса или речевой акт добавляются JSON-ом;
-  `world.adapter` связывает роли адаптера кампании с отношениями без
-  правки Python;
+  словоформа, фрагмент эллипсиса, речевой акт, стиль, правило
+  автовыбора, связка, ход, сравнение добавляются JSON-ом;
 * отладка: `--debug` печатает план, логическую форму и дерево вывода;
-  `Answer.data["social_trace"]` — трасса речевого действия;
-* порядок работ: **D0 — сделан, D1 — сделан, D1.5 — сделан,
-  D2 — сделан, D4 — сделан**; D3 (объяснения, контрфакты, сравнения)
-  частично (есть «почему» через trace), D5 (дискурсивный планировщик,
-  автовыбор регистра, агрегация) — следующее, D6 (расширение грамматики,
-  политика раскрытия, аудит лексикона) — после.
+  `Answer.data["discourse_trace"]` — трасса дискурсивного слоя
+  (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
+  речевого действия;
+* статус: **D0 — сделан, D1 — сделан, D1.5 — сделан, D2 — сделан,
+  D3.1 — сделан, D4 — сделан, D5.1 — сделан, D5.2 — сделан,
+  D5.3 — сделан**. Открыто: D3.2 (контрфакты), D5.4 (абзац 4+ хода),
+  D6 (расширение грамматики, политика раскрытия и ложь, аудит
+  лексикона).
 
-Связанные решения: G-18/G-19 в
+Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
-[`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md), модель работы в
-[`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.0,
+[`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md),
 [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) — архитектура стилевого
-слоя.
+слоя, автовыбор и дискурсивный слой.
 
 ### 5.10. «Хочу проверить, что ничего не сломал»
 
@@ -605,9 +625,12 @@ venv/bin/python -m pytest -q tests/test_content_pipeline.py tests/test_docs_sync
 
 ```bash
 venv/bin/python -m campaign.dialogue.lint
-venv/bin/python -m pytest -q tests/test_dialogue.py tests/test_d1_dialogue.py \
-  tests/test_d1_5_synthesis.py tests/test_d2_state.py \
-  tests/test_d3_chat_styles.py tests/test_d4_social.py
+venv/bin/python -m pytest -q tests/test_dialogue.py \
+  tests/test_d1_dialogue.py tests/test_d1_5_synthesis.py \
+  tests/test_d2_state.py tests/test_d3_chat_styles.py \
+  tests/test_d3_comparison.py tests/test_d5_discourse.py \
+  tests/test_d5_discourse_paragraph.py tests/test_d5_registers.py \
+  tests/test_d4_social.py
 ```
 
 ---
@@ -626,7 +649,11 @@ venv/bin/python -m pytest -q tests/test_dialogue.py tests/test_d1_dialogue.py \
 | Диалог D1.5 | `test_d1_5_synthesis.py` | композиционный синтез, морфология, расширяемость JSON-ом |
 | Диалог D2 | `test_d2_state.py` | QUD, местоимения, эллипсис, память партии, сейв |
 | Диалог D3 (стили) | `test_d3_chat_styles.py` | регистры, `features.select_best`, `coverage`, экран чата |
+| Диалог D3.1 (сравнения) | `test_d3_comparison.py` | greater/less/equal/unknown, key_prefix, max_premises |
 | Диалог D4 | `test_d4_social.py` | акты, реакции, условия, эффекты, `commitments`, JSON-only расширение |
+| Диалог D5.1 | `test_d5_discourse.py` | moves, patterns, connectives, нейтральный путь, антиповтор связок |
+| Диалог D5.2 | `test_d5_registers.py` | автовыбор регистра по контексту, явный стиль побеждает, пустой каталог |
+| Диалог D5.3 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора внутри ответа, тема-рема |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |
 | Контент | `test_content_pipeline.py`, `test_story_arcs.py`, `test_docs_sync.py` | загрузка/правка/удаление JSON, ссылки |
@@ -654,10 +681,10 @@ venv/bin/python -m pytest -q tests/test_dialogue.py tests/test_d1_dialogue.py \
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия: метрический граф, локальные углы, пути |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
-| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными; G-20…G-23 — закрытые стили/автовыбор/дискурс/сравнения |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P10 до полноценного Data-Driven ядра |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог на естественном языке без LLM: архитектура, фазы D0–D6 |
-| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль реализатора, диагноз отвергнутого подхода, прогресс |
+| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль реализатора, диагноз отвергнутого подхода, прогресс D5.1–D5.3, автовыбор D5.2 |
 | [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по `лор.pdf`: предикаты, сути, работы, автоматы |
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |
@@ -682,9 +709,10 @@ venv/bin/python -m pytest -q tests/test_dialogue.py tests/test_d1_dialogue.py \
 * `campaign/` — дневной мир; не переписывайте аренные константы ради
   кампанийных правил.
 * `campaign/dialogue/` — диалоговый слой; правила Data-Driven
-  обязательны. Новый акт, реакция, конструкция, фраза, стиль или лексема
-  добавляются JSON-ом; Python только интерпретирует. LLM, эмбеддинги,
-  статистическое ранжирование запрещены. 16 потребностей в
+  обязательны. Новый акт, реакция, конструкция, фраза, стиль, правило
+  автовыбора, связка, ход, сравнение или лексема добавляются JSON-ом;
+  Python только интерпретирует. LLM, эмбеддинги, статистическое
+  ранжирование запрещены. 16 потребностей в
   `configs/characters/bdi.json` не трогать. `realization.json` — только
   аварийный fallback.
 * `configs/` — данные. Новый контент не должен требовать правки кода, если
