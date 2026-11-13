@@ -1,0 +1,86 @@
+{
+  "class": "political_body",
+  "label": "Политический орган",
+  "description": "Орган власти или влияния, формулирующий требования, предоставляющий ресурсы и определяющий политический контекст.",
+  "functional_role": "постановка стратегических целей, распределение ресурсов, политический контроль",
+
+  "ipo": {
+    "input": {
+      "matter": {"label": "Ресурсы, поступающие в распоряжение (налоги, пожертвования)", "source_entities": ["enterprise", "population", "treasury"]},
+      "energy": {"label": "Бюджет, дотации, финансирование", "source_entities": ["treasury", "sponsors"]},
+      "information": {"label": "Доклады о состоянии дел, разведданные, общественное мнение", "source_entities": ["military_unit", "enterprise", "media", "population"]},
+      "force": {"label": "Давление оппозиции, угрозы переворота, внешнее давление", "source_entities": ["opposition", "enemy_government"]}
+    },
+    "process": {
+      "matter": {"label": "Распределение ресурсов, финансирование программ", "calculators": ["budget_allocator", "resource_distributor"]},
+      "energy": {"label": "Политическая борьба, лоббирование, принятие решений", "calculators": ["political_struggle", "lobbying_engine", "decision_maker"]},
+      "information": {"label": "Анализ ситуации, выработка требований, пропаганда", "calculators": ["situation_analyzer", "demands_generator", "propaganda_engine"]},
+      "force": {"label": "Подавление оппозиции, обеспечение безопасности", "calculators": ["oppression_engine", "security_provider"]}
+    },
+    "output": {
+      "matter": {"label": "Распределённые ресурсы, профинансированные программы"},
+      "energy": {"label": "Политический капитал, влияние"},
+      "information": {"label": "Требования, директивы, законы, пропаганда"},
+      "force": {"label": "Политическая стабильность, подавленное недовольство"}
+    },
+    "state": {
+      "matter": {"label": "Контролируемые ресурсы, имущество"},
+      "energy": {"label": "Политический вес, бюджет"},
+      "information": {"label": "Уровень поддержки, информированность"},
+      "force": {"label": "Способность к принуждению, силовой ресурс"}
+    }
+  },
+
+  "objective_function": {
+    "description": "Целевая функция политического органа — максимизация влияния и контроль над ресурсами при сохранении стабильности",
+    "weights": {"output.information": 0.3, "state.energy": 0.25, "state.information": 0.2, "output.force": 0.15, "state.matter": 0.1}
+  },
+
+  "signal_delay_modifier": 0.8,
+
+  "bitmask": {
+    "layout": "custom",
+    "segments": {
+      "condition": {"bits": [0, 2], "states": ["Распущен", "Парализован", "Коррумпирован", "Некомпетентен", "В порядке", "Эффективен", "Всесилен"]},
+      "sphere": {"bits": [3, 5], "states": ["Политика и безопасность", "Культура, спорт, религия", "Наука, образование, медицина", "Экономика, налоги, внешние связи", "Юстиция и право", "Военное командование", "Муниципальное управление", "Надзор и контроль"]},
+      "type": {"bits": [6, 8], "states": ["Государственный орган", "Юридическое лицо", "Общественное объединение", "Орден, церковь, ложа", "Партийный орган", "Теневой орган"]},
+      "reach": {"bits": [9, 11], "states": ["Локальный", "Городской", "Региональный", "Национальный", "Международный", "Глобальный"]},
+      "influence": {"bits": [12, 14], "states": ["Низкое", "Умеренное", "Среднее", "Высокое", "Абсолютное", "Тотальное"]},
+      "flexibility": {"bits": [15, 17], "states": ["Жёсткое", "Консервативное", "Умеренное", "Гибкое", "Бесхребетное", "Хаотичное"]},
+      "demands": {"bits": [18, 20], "states": ["Нереалистичные", "Завышенные", "Адекватные", "Заниженные", "Отсутствуют", "Противоречивые"]},
+      "public_support": {"bits": [21, 23], "states": ["Ненависть", "Недоверие", "Безразличие", "Неосведомлённость", "Поддержка", "Высокое доверие", "Культ", "Противоречивое"]},
+      "corruption_level": {"bits": [24, 26], "states": ["Тотальная", "Высокая", "Умеренная", "Низкая", "Отсутствует", "Аскетическая честность"]},
+      "bureaucracy": {"bits": [27, 29], "states": ["Хаос", "Волокита", "Умеренная", "Эффективная", "Образцовая", "Цифровой автомат"]},
+      "reserved": {"bits": [30, 63], "states": "unused"}
+    }
+  },
+
+  "validation_rules": [
+    {
+      "id": "no_influence_without_support",
+      "trigger": "on_indicator_change",
+      "target": "influence",
+      "condition": {"type": "all_of", "conditions": [
+        {"type": "segment_at_least", "segment": "influence", "value": 4},
+        {"type": "segment_at_most", "segment": "public_support", "value": 2}
+      ]},
+      "action": "revert",
+      "message": "Абсолютное влияние невозможно без поддержки населения"
+    }
+  ],
+
+  "voltage_channels": {
+    "U_pressure_on_player": {
+      "label": "Давление на игрока", "initial": 0.4, "min": 0.0, "max": 1.0,
+      "threshold_high": 0.8,
+      "effect": "При превышении генерируется неотложное требование"
+    },
+    "U_public_trust": {
+      "label": "Доверие населения", "initial": 0.5, "min": 0.0, "max": 1.0,
+      "threshold_low": 0.2, "threshold_high": 0.8,
+      "target_segment": "public_support", "direction": "improve",
+      "effect": "При падении снижается влияние"
+    },
+    "U_budget": {"label": "Бюджет и финансовые ресурсы", "initial": 0.0, "min": 0.0, "max": 1000000000.0}
+  }
+}

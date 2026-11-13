@@ -348,6 +348,42 @@
       "lhs": "S",
       "rhs": [{"cat": "FAREWELL", "as": "farewell"}],
       "sem": {"kind": "farewell", "id": "bye"}
+    },
+    {
+      "id": "s_social_command",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "приказывать"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "command", "object": "$object"}
+    },
+    {
+      "id": "s_social_promise",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "обещать"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "promise", "object": "$object"}
+    },
+    {
+      "id": "s_social_offer",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "предлагать"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "offer", "object": "$object"}
+    },
+    {
+      "id": "s_social_apology",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "сожалеть"}},
+        {"cat": "PP", "as": "topic"}
+      ],
+      "sem": {"kind": "social", "act": "apology", "object": "$topic"}
     }
   ]
 }

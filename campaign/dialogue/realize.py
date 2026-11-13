@@ -14,10 +14,28 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
+from .features import select_best
 from .inference import InferenceEngine, is_variable
 from .knowledge import AgentKnowledge
-from .model import DialogueCatalog, LexEntry
+from .model import DialogueCatalog, LexEntry, StyleSpec
 from .morph import Morphology
+from .style import StyleEngine, normalize_gender
+
+ACT_FOR_KIND = {
+    "yes": "confirm",
+    "no": "deny",
+    "no_reason": "deny_reason",
+    "unknown": "unknown",
+    "clarification": "clarify",
+    "clarify": "clarify",
+    "smalltalk": "text",
+    "explanation": "text",
+    "description": "text",
+    "summary": "text",
+    "entity": "leader",
+    "list": "list",
+    "value": "value",
+}
 
 
 def _capitalize(text: str) -> str:
@@ -32,6 +50,15 @@ def _format_number(value: Any) -> str:
         return str(value)
 
 
+def _marker_concept(identifier: str) -> str:
+    """Вывести концепт маркера из его id, если он не задан явно."""
+
+    text = str(identifier or "")
+    if text.startswith("marker:"):
+        text = text[len("marker:") :]
+    return text.split("_", 1)[0]
+
+
 class Realizer:
     """Собирает русский текст из данных и морфологии."""
 
@@ -40,10 +67,16 @@ class Realizer:
         catalog: DialogueCatalog,
         knowledge: AgentKnowledge,
         engine: InferenceEngine,
+        style_engine: Optional[StyleEngine] = None,
+        memory: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.engine = engine
+        self.style_engine = style_engine or StyleEngine(catalog)
+        self.style: StyleSpec = StyleSpec(id="", label="")
+        self.memory = memory
+        self.trace: List[Dict[str, Any]] = []
         self.synthesis: Mapping[str, Any] = catalog.synthesis or {}
         self.constructions = self.synthesis.get("constructions") or {}
         self.statements = self.synthesis.get("statements") or {}
@@ -57,8 +90,91 @@ class Realizer:
         self._entries: Dict[str, LexEntry] = {
             entry.id: entry for entry in catalog.lexicon
         }
+        self.markers: List[Dict[str, Any]] = []
+        for key, value in (self.synthesis.get("markers") or {}).items():
+            if not isinstance(value, Mapping):
+                continue
+            item = dict(value)
+            item["id"] = str(key)
+            item.setdefault(
+                "concept", _marker_concept(str(key))
+            )
+            self.markers.append(item)
+        self.lexical_groups: Mapping[str, Any] = (
+            self.synthesis.get("lexical_groups") or {}
+        )
+        self.relations: Dict[str, List[Dict[str, Any]]] = {}
+        self.act_constructions: Dict[str, List[Dict[str, Any]]] = {}
+        for key, value in self.constructions.items():
+            if not isinstance(value, Mapping):
+                continue
+            item = dict(value)
+            item["id"] = str(key)
+            relation = str(item.get("relation") or "")
+            if relation:
+                self.relations.setdefault(relation, []).append(item)
+            act = str(item.get("act") or "")
+            if act:
+                self.act_constructions.setdefault(act, []).append(item)
 
     # --- публичный API ----------------------------------------------
+
+    def set_style(self, style: Optional[StyleSpec]) -> None:
+        """Установить регистровый профиль для последующей генерации."""
+
+        self.style = style or StyleSpec(id="", label="")
+
+    def take_trace(self) -> List[Dict[str, Any]]:
+        """Забрать след выбора конструкций и лексем текущего ответа."""
+
+        trace = self.trace
+        self.trace = []
+        return trace
+
+    def _recent(self) -> List[str]:
+        if self.memory is None:
+            return []
+        getter = getattr(self.memory, "recent_constructions", None)
+        return list(getter()) if callable(getter) else []
+
+    def _note(self, construction_id: str) -> None:
+        if self.memory is None or not construction_id:
+            return
+        note = getattr(self.memory, "note_construction", None)
+        if callable(note):
+            note(construction_id)
+
+    def _features(self) -> Mapping[str, str]:
+        return StyleEngine.features(self.style)
+
+    def _avoid_recent(self) -> int:
+        try:
+            return max(0, int(self.style.selection.get("avoid_recent") or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def _select(self, candidates: Iterable[Any]) -> Any:
+        """Выбрать совместимую единицу по признакам текущего стиля."""
+
+        items = list(candidates)
+        if not items:
+            return None
+        return select_best(
+            items,
+            self._features(),
+            recent=self._recent(),
+            avoid=self._avoid_recent(),
+        )
+
+    def _record(self, kind: str, identifier: str, **extra: Any) -> None:
+        entry = {
+            "kind": kind,
+            "id": identifier,
+            "register": self.style.register,
+        }
+        entry.update(extra)
+        self.trace.append(entry)
+        self._note(identifier)
 
     def statement(self, relation: str, args: Iterable[Any]) -> str:
         """Выразить логическую связь предложением из конструкции."""
@@ -66,8 +182,20 @@ class Realizer:
         spec = self.statements.get(str(relation))
         if not isinstance(spec, Mapping):
             return ""
+        return self._statement_data(
+            str(relation), spec, self.values_for(relation, args)
+        )
+
+    def values_for(
+        self, relation: str, args: Iterable[Any]
+    ) -> Dict[str, str]:
+        """Назвать аргументы связи по ролям из ``statements.json``."""
+
+        spec = self.statements.get(str(relation))
+        if not isinstance(spec, Mapping):
+            return {}
         args = tuple(str(item) for item in args)
-        data: Dict[str, Any] = {}
+        data: Dict[str, str] = {}
         for name, index in (spec.get("args") or {}).items():
             try:
                 position = int(index)
@@ -75,12 +203,50 @@ class Realizer:
                 continue
             if 0 <= position < len(args):
                 data[str(name)] = args[position]
+        return data
+
+    def statement_map(
+        self, relation: str, values: Mapping[str, Any]
+    ) -> str:
+        """Выразить связь, когда аргументы уже названы по ролям."""
+
+        spec = self.statements.get(str(relation))
+        if not isinstance(spec, Mapping):
+            return ""
+        data = {
+            str(name): str(value)
+            for name, value in values.items()
+        }
+        return self._statement_data(str(relation), spec, data)
+
+    def _statement_data(
+        self,
+        relation: str,
+        spec: Mapping[str, Any],
+        data: Dict[str, Any],
+    ) -> str:
         for name, value in (spec.get("consts") or {}).items():
             data[str(name)] = value
         prefix = str(spec.get("label_prefix") or "")
         if prefix and "key" in data:
             data["label"] = prefix + str(data["key"])
-        return self.construction(str(spec.get("construction") or ""), data)
+        chosen = self._select(self.relations.get(relation) or ())
+        if chosen is not None:
+            text = self._render_spec(chosen, data)
+            if text:
+                self._record(
+                    "construction",
+                    str(chosen.get("id") or ""),
+                    relation=relation,
+                )
+                return text
+        construction_id = str(spec.get("construction") or "")
+        text = self.construction(construction_id, data)
+        if text:
+            self._record(
+                "construction", construction_id, relation=relation
+            )
+        return text
 
     def construction(
         self, construction_id: str, data: Mapping[str, Any]
@@ -120,15 +286,93 @@ class Realizer:
             return self.phrase(phrase_id, data)
         return self.construction(str(spec.get("construction") or ""), data)
 
+    def realize_act(
+        self, act: str, data: Mapping[str, Any], fallback: str = ""
+    ) -> str:
+        """Собрать речевой акт из конструкций, совместимых со стилем.
+
+        Нейтральный профиль сохраняет прежний путь байт-в-байт. Для
+        остальных стилей выбирается конструкция акта по признакам, затем
+        к результату добавляется обращение, если профиль этого требует.
+        """
+
+        if StyleEngine.is_neutral(self.style):
+            return fallback
+        chosen = self._select(self.act_constructions.get(str(act)) or ())
+        if chosen is None:
+            return fallback
+        values = dict(data)
+        values.setdefault("message", fallback)
+        text = self._render_spec(chosen, values)
+        if not text:
+            return fallback
+        self._record("act", str(chosen.get("id") or ""), act=str(act))
+        return self._wrap_address(text, values, str(act))
+
+    def _wrap_address(
+        self, text: str, data: Mapping[str, Any], act: str
+    ) -> str:
+        mode = str(self.style.feature("address_mode", "none"))
+        if mode not in ("pre", "post"):
+            return text
+        if not self._address({}, data):
+            return text
+        chosen = self._select(
+            self.act_constructions.get("address_wrap") or ()
+        )
+        if chosen is None:
+            return text
+        values = dict(data)
+        values["inner"] = (
+            text.rstrip(".") if mode == "post" else text
+        )
+        wrapped = self._render_spec(chosen, values)
+        if not wrapped:
+            return text
+        self._record(
+            "act", str(chosen.get("id") or ""), act="address_wrap"
+        )
+        return wrapped
+
+    def realize_answer(
+        self,
+        kind: str,
+        data: Mapping[str, Any],
+        fallback: str = "",
+        keys: Optional[Iterable[str]] = None,
+    ) -> str:
+        """Реализовать ответный ход как речевой акт.
+
+        ``keys`` сохранён в сигнатуре для совместимости со старыми
+        вызовами; выбор теперь идёт не по ключам ответов, а по акту и
+        признакам стиля.
+        """
+
+        act = ACT_FOR_KIND.get(str(kind), str(kind))
+        base: Dict[str, Any] = {
+            "speaker": getattr(self.knowledge, "speaker_name", ""),
+            "speaker_post": getattr(self.knowledge, "speaker_post", ""),
+            "speaker_faction": getattr(self.knowledge, "faction_name", ""),
+            "player": getattr(self.knowledge, "player_name", ""),
+            "player_post": getattr(self.knowledge, "player_post", ""),
+            "player_faction": getattr(self.knowledge, "player_faction", ""),
+            "player_gender": getattr(self.knowledge, "player_gender", ""),
+        }
+        values = dict(base)
+        values.update(data)
+        return self.realize_act(act, values, fallback)
+
     def list_intro(self, key: str, owner: str) -> str:
+        data = {"owner": owner, "key": str(key)}
         spec = self.lists.get(str(key)) or {}
         phrase_id = str(spec.get("intro") or "")
-        return self.phrase(phrase_id, {"owner": owner}) if phrase_id else ""
+        return self.phrase(phrase_id, data) if phrase_id else ""
 
     def list_empty(self, key: str, owner: str) -> str:
+        data = {"owner": owner, "key": str(key)}
         spec = self.lists.get(str(key)) or {}
         phrase_id = str(spec.get("empty") or "")
-        return self.phrase(phrase_id, {"owner": owner}) if phrase_id else ""
+        return self.phrase(phrase_id, data) if phrase_id else ""
 
     def list_separator(self, key: str, default: str = ", ") -> str:
         spec = self.lists.get(str(key)) or {}
@@ -361,7 +605,11 @@ class Realizer:
             if not isinstance(part, Mapping):
                 continue
             text = self._part(part, data)
-            if text:
+            if not text:
+                continue
+            if parts and str(part.get("glue") or "") == "before":
+                parts[-1] = parts[-1] + text
+            else:
                 parts.append(text)
         text = " ".join(parts)
         return self._finish(
@@ -378,9 +626,12 @@ class Realizer:
             value = data.get(str(part.get("source") or ""), "")
             if value is None or value == "" or isinstance(value, Mapping):
                 return ""
+            text = str(value)
+            if bool(part.get("lower")):
+                text = text[:1].lower() + text[1:] if text else text
             return (
                 str(part.get("prefix") or "")
-                + str(value)
+                + text
                 + str(part.get("suffix") or "")
             )
         if kind == "number":
@@ -399,7 +650,148 @@ class Realizer:
             return self._lex(part, data)
         if kind == "adj":
             return self._adj(part, data)
+        if kind == "clause":
+            return self._clause(part, data)
+        if kind == "address":
+            return self._address(part, data)
+        if kind == "items":
+            return self._items_part(part, data)
+        if kind == "marker":
+            return self._marker(part)
+        if kind == "act":
+            source = str(part.get("source") or "")
+            value = data.get(source, "")
+            if value in (None, ""):
+                value = data.get("claim") or data.get("message") or ""
+            if not value or isinstance(value, Mapping):
+                return ""
+            return str(value)
+        if kind == "particle":
+            return self._particle(part)
         return ""
+
+    def _clause(
+        self, part: Mapping[str, Any], data: Mapping[str, Any]
+    ) -> str:
+        """Вложенная клауза: та же логика, но как часть сложного предложения."""
+
+        relation = str(part.get("relation") or "")
+        source = str(part.get("source") or "")
+        if not relation and source:
+            relation = str(data.get(source) or "")
+        if not relation:
+            return ""
+        values: Dict[str, Any] = {}
+        mapping = part.get("args")
+        if isinstance(mapping, str):
+            raw = data.get(mapping) or {}
+            mapping = raw if isinstance(raw, Mapping) else {}
+        if isinstance(mapping, Mapping):
+            for name, slot in mapping.items():
+                if isinstance(slot, str):
+                    value = data.get(slot, slot)
+                else:
+                    value = slot
+                if value is not None and value != "":
+                    values[str(name)] = value
+        text = self.statement_map(relation, values)
+        if not text:
+            return ""
+        text = text.rstrip(".")
+        if bool(part.get("lower")):
+            text = text[:1].lower() + text[1:] if text else text
+        conjunction = str(part.get("conjunction") or "")
+        if conjunction:
+            text = conjunction + " " + text
+        return text
+
+    def _address(
+        self, part: Mapping[str, Any], data: Mapping[str, Any]
+    ) -> str:
+        """Обращение как именная группа, выбранная по признакам и полу."""
+
+        if str(self.style.feature("address_mode", "none")) == "none":
+            source = str(part.get("source") or "")
+            return str(data.get(source) or "") if source else ""
+        group = [
+            str(item)
+            for item in self.lexical_groups.get("address") or ()
+        ]
+        entries = [
+            self._entries[item]
+            for item in group
+            if item in self._entries
+        ]
+        gender = normalize_gender(
+            getattr(self.knowledge, "player_gender", "")
+        )
+        wanted = gender if gender in ("m", "f") else "m"
+        exact = [
+            entry
+            for entry in entries
+            if str(entry.features.get("gender") or "") == wanted
+        ]
+        pool = exact or [
+            entry
+            for entry in entries
+            if not str(entry.features.get("gender") or "")
+        ]
+        chosen = self._select(
+            [self._lexical_item(entry) for entry in pool]
+        )
+        if chosen is None:
+            return ""
+        entry = chosen["entry"]
+        self._record("address", entry.id, gender=wanted)
+        if entry.type == "adjective" or entry.cat == "ADJ":
+            return self.morphology.adjective(
+                entry.lemma,
+                case=str(part.get("case") or "nom"),
+                number=str(part.get("number") or "sg"),
+                gender=str(part.get("gender") or wanted),
+                entry_id=entry.id,
+            )
+        return self.morphology.noun(
+            entry.lemma,
+            case=str(part.get("case") or "nom"),
+            number=str(part.get("number") or "sg"),
+            entry_id=entry.id,
+        )
+
+    def _marker(self, part: Mapping[str, Any]) -> str:
+        """Выбрать маркер речевого акта, совместимый со стилем."""
+
+        concept = str(part.get("concept") or "")
+        pool = [
+            item
+            for item in self.markers
+            if str(item.get("concept") or "") == concept
+            or str(item.get("id") or "").startswith(
+                "marker:%s_" % concept
+            )
+        ]
+        chosen = self._select(pool)
+        if chosen is None:
+            return ""
+        self._record(
+            "marker", str(chosen.get("id") or ""), concept=concept
+        )
+        return str(chosen.get("text") or "")
+
+    def _items_part(
+        self, part: Mapping[str, Any], data: Mapping[str, Any]
+    ) -> str:
+        values = data.get(str(part.get("source") or "items")) or ()
+        if isinstance(values, str):
+            return values
+        separator = str(part.get("separator") or ", ")
+        return separator.join(str(item) for item in values if item)
+
+    def _particle(self, part: Mapping[str, Any]) -> str:
+        values = part.get("values") or ()
+        if isinstance(values, str):
+            return values
+        return str(values[0]) if values else str(part.get("default") or "")
 
     def _lex(self, part: Mapping[str, Any], data: Mapping[str, Any]) -> str:
         entry = self._entry(part, data)
@@ -451,16 +843,57 @@ class Realizer:
             entry_id=entry.id if entry is not None else "",
         )
 
+    @staticmethod
+    def _lexical_item(entry: LexEntry) -> Dict[str, Any]:
+        """Лексема как кандидат выбора: морфология не участвует в скоре."""
+
+        features = {
+            str(name): str(value)
+            for name, value in (entry.features or {}).items()
+            if str(name) not in ("gender", "number", "case")
+        }
+        return {"id": entry.id, "features": features, "entry": entry}
+
+    def _concept_entries(self, concept: str) -> List[LexEntry]:
+        group = self.lexical_groups.get(str(concept)) or ()
+        return [
+            self._entries[str(item)]
+            for item in group
+            if str(item) in self._entries
+        ]
+
     def _entry(
         self, part: Mapping[str, Any], data: Mapping[str, Any]
     ) -> Optional[LexEntry]:
         entry_id = str(part.get("entry") or "")
         if not entry_id:
+            concept = str(part.get("concept") or "")
+            if concept:
+                chosen = self._select(
+                    [
+                        self._lexical_item(entry)
+                        for entry in self._concept_entries(concept)
+                    ]
+                )
+                if chosen is None:
+                    return None
+                entry = chosen["entry"]
+                self.trace.append(
+                    {
+                        "kind": "lexeme",
+                        "concept": concept,
+                        "to": entry.id,
+                        "register": self.style.register,
+                    }
+                )
+                return entry
             mapping = str(part.get("entry_from") or "")
             source = str(part.get("source") or "")
             if mapping and source:
                 value = str(data.get(source) or "")
                 entry_id = str(self.value_lexicon.get(value) or "")
+        if not entry_id:
+            return None
         return self._entries.get(entry_id)
 
     def _part_number(

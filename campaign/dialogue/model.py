@@ -157,6 +157,119 @@ class Persona:
     parse_unknown: str = ""
     clarify: Mapping[str, str] = field(default_factory=dict)
     max_list_items: int = 20
+    default_style: str = ""
+
+
+@dataclass(frozen=True)
+class StyleSpec:
+    """Регистровый профиль как набор признаков, а не список фраз.
+
+    Стиль не выбирает факты и не заменяет план. Он задаёт значения
+    признаков (формальность, дистанция, авторитет, аффект, прямота,
+    номинализация и т.п.), с которыми реализатор согласует конструкции
+    и лексемы. Новый стиль не требует новых шаблонов ответа.
+    """
+
+    id: str
+    label: str
+    description: str = ""
+    register: str = "neutral"
+    features: Mapping[str, str] = field(default_factory=dict)
+    selection: Mapping[str, Any] = field(default_factory=dict)
+
+    def feature(self, name: str, default: str = "neutral") -> str:
+        return str(self.features.get(str(name)) or default)
+
+
+@dataclass(frozen=True)
+class FeatureSchema:
+    """Схема измерений стиля: допустимые значения и умолчания."""
+
+    dimensions: Mapping[str, Mapping[str, Any]] = field(
+        default_factory=dict
+    )
+
+    def names(self) -> Tuple[str, ...]:
+        return tuple(self.dimensions)
+
+    def values(self, name: str) -> Tuple[str, ...]:
+        data = self.dimensions.get(str(name)) or {}
+        return tuple(str(item) for item in data.get("values") or ())
+
+    def default(self, name: str) -> str:
+        data = self.dimensions.get(str(name)) or {}
+        return str(data.get("default") or "neutral")
+
+    def defaults(self) -> Mapping[str, str]:
+        return {
+            name: self.default(name)
+            for name in self.dimensions
+        }
+
+
+@dataclass(frozen=True)
+class StyleCatalog:
+    """Набор стилей и стиль по умолчанию."""
+
+    default: str = "neutral"
+    styles: Mapping[str, StyleSpec] = field(default_factory=dict)
+
+    def get(self, style_id: str) -> Any:
+        return self.styles.get(str(style_id or ""))
+
+    def ids(self) -> Tuple[str, ...]:
+        return tuple(sorted(self.styles))
+
+
+@dataclass(frozen=True)
+class SocialActSpec:
+    """Речевое действие как данные: акт, пропозиция, условия, реакции.
+
+    Акт не меняет мир. Он задаёт входную социальную пропозицию, для
+    которой ``SocialEngine`` выбирает реакцию по условиям. Новый акт
+    добавляется JSON-ом, не правкой Python.
+    """
+
+    id: str
+    label: str
+    match: Mapping[str, Any]
+    proposition: Mapping[str, Any] = field(default_factory=dict)
+    validity: Tuple[AtomSpec, ...] = ()
+    taboo: Tuple[str, ...] = ()
+    reactions: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReactionSpec:
+    """Реакция на речевое действие: условия, эффект, конструкция синтеза.
+
+    ``effect.type`` — типизированный социальный эффект
+    (commitment/refusal/evasion/counter_offer/clarification), не
+    произвольный код. Конструкция ссылается на ``synthesis.constructions``
+    и согласуется со стилем через общий реализатор.
+    """
+
+    id: str
+    label: str
+    effect: Mapping[str, Any] = field(default_factory=dict)
+    conditions: Tuple[AtomSpec, ...] = ()
+    priority: int = 0
+    construction: str = ""
+
+
+@dataclass(frozen=True)
+class SocialCatalog:
+    """Акты, реакции и политика обязательств."""
+
+    acts: Mapping[str, SocialActSpec] = field(default_factory=dict)
+    reactions: Mapping[str, ReactionSpec] = field(default_factory=dict)
+    commitments: Mapping[str, Any] = field(default_factory=dict)
+
+    def act(self, act_id: str) -> Any:
+        return self.acts.get(str(act_id or ""))
+
+    def reaction(self, reaction_id: str) -> Any:
+        return self.reactions.get(str(reaction_id or ""))
 
 
 @dataclass(frozen=True)
@@ -174,5 +287,8 @@ class DialogueCatalog:
     synthesis: Mapping[str, Any] = field(default_factory=dict)
     state: Mapping[str, Any] = field(default_factory=dict)
     personas: Mapping[str, Persona] = field(default_factory=dict)
+    styles: StyleCatalog = field(default_factory=StyleCatalog)
+    features: FeatureSchema = field(default_factory=FeatureSchema)
+    social: SocialCatalog = field(default_factory=SocialCatalog)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

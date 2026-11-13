@@ -1,0 +1,138 @@
+{
+  "class": "enterprise",
+  "label": "Предприятие",
+  "description": "Производственная единица, преобразующая сырьё и труд в продукцию.",
+  "functional_role": "производство военной и гражданской продукции, добыча и переработка ресурсов",
+
+  "ipo": {
+    "input": {
+      "matter": {"label": "Сырьё, комплектующие, полуфабрикаты", "source_entities": ["resource_depot", "supplier_enterprise"]},
+      "energy": {"label": "Электроэнергия, топливо, бюджетное финансирование", "source_entities": ["power_grid", "fuel_depot", "treasury"]},
+      "information": {"label": "Производственные заказы, технологии, чертежи, спецификации", "source_entities": ["headquarters", "research_center", "political_body"]},
+      "force": {"label": "Угроза обстрелов, диверсий, рейдерских захватов", "source_entities": ["enemy_unit", "criminal_group"]}
+    },
+    "process": {
+      "matter": {"label": "Обработка сырья, сборка, упаковка, складирование", "calculators": ["production_line", "assembly_chain", "warehouse_manager"]},
+      "energy": {"label": "Потребление энергии, оплата труда, амортизация оборудования", "calculators": ["energy_consumer", "payroll_calculator", "depreciation_tracker"]},
+      "information": {"label": "Контроль качества, учёт продукции, оптимизация процессов", "calculators": ["quality_controller", "inventory_manager", "process_optimizer"]},
+      "force": {"label": "Охрана предприятия, противопожарная безопасность", "calculators": ["security_manager", "fire_safety"]}
+    },
+    "output": {
+      "matter": {"label": "Готовая продукция, отходы производства"},
+      "energy": {"label": "Освоенный бюджет, выплаченная зарплата, прибыль"},
+      "information": {"label": "Отчёты о производстве, сертификаты качества, статистика"},
+      "force": {"label": "Охраняемая территория, предотвращённые диверсии"}
+    },
+    "state": {
+      "matter": {"label": "Запасы сырья и готовой продукции, состояние зданий и станков"},
+      "energy": {"label": "Энергопотребление, бюджет, фонд оплаты труда"},
+      "information": {"label": "Технологический уровень, квалификация персонала"},
+      "force": {"label": "Уровень охраны, пожарная безопасность"}
+    }
+  },
+
+  "objective_function": {
+    "description": "Целевая функция предприятия — максимизация выпуска продукции при минимизации затрат",
+    "weights": {"output.matter": 0.4, "state.matter": 0.2, "state.energy": 0.15, "process.information": 0.15, "input.matter": 0.1}
+  },
+
+  "signal_delay_modifier": 1.0,
+
+  "decay_rates": {"equipment": 0.002, "raw_materials": 0.005, "finished_goods": 0.003},
+
+  "bitmask": {
+    "layout": "custom",
+    "segments": {
+      "condition": {"bits": [0, 1], "states": ["Уничтожено", "Аварийное", "Приемлемое", "Оптимальное"]},
+      "function": {"bits": [2, 4], "states": ["Добыча сырья", "Первичная обработка", "Выпуск готовой продукции", "Ремонт и обслуживание", "Исследования и разработки", "Логистика и хранение"]},
+      "output_type": {"bits": [5, 7], "states": ["Пехота и лёгкое вооружение", "Бронетехника и транспорт", "Артиллерия и ракеты", "Авиация и БПЛА", "Флот и подводные силы", "Космические системы", "Снаряжение и амуниция", "Продовольствие и медикаменты"]},
+      "capacity": {"bits": [8, 10], "states": ["Остановлен", "Минимальная загрузка", "Четверть мощности", "Половина мощности", "Плановая загрузка", "Повышенная загрузка", "Форсированная", "Мобилизационная"]},
+      "tech_level": {"bits": [11, 13], "states": ["Кустарное", "Довоенное", "Военное стандартное", "Военное передовое", "Экспериментальное", "Прототипное"]},
+      "equipment_quantity": {"bits": [14, 16], "states": ["Пустые цеха", "Критический некомплект", "Недостаток станков", "Укомплектовано", "Полный парк", "Избыток станков"]},
+      "equipment_condition": {"bits": [17, 19], "states": ["Металлолом", "Критический износ", "Значительный износ", "Удовлетворительное", "Хорошее", "Идеальное"]},
+      "automation": {"bits": [20, 22], "states": ["Ручной труд", "Механизация", "Конвейер", "Автоматизация", "Роботизация", "Полная автономия"]},
+      "workforce_skill": {"bits": [23, 25], "states": ["Чернорабочие", "Ученики", "Специалисты", "Профессионалы", "Эксперты", "Мастера"]},
+      "workforce_quantity": {"bits": [26, 28], "states": ["Пусто", "Критический некомплект", "Недостаток", "Укомплектовано", "Полный штат", "Избыток"]},
+      "supply_raw": {"bits": [29, 31], "states": ["Нет поставок", "Критический дефицит", "Недостаток", "Достаточно", "Профицит", "Избыток"]},
+      "supply_energy": {"bits": [32, 34], "states": ["Обесточено", "Критический дефицит", "Недостаток", "Достаточно", "Профицит", "Избыток"]},
+      "quality_control": {"bits": [35, 37], "states": ["Отсутствует", "Низкое", "Среднее", "Высокое", "Жёсткое", "Избыточное"]},
+      "safety": {"bits": [38, 40], "states": ["Опасно для жизни", "Высокий травматизм", "Нарушения", "Приемлемо", "Безопасно", "Образцово"]},
+      "logistics_in": {"bits": [41, 43], "states": ["Блокада", "Критически затруднена", "Перебои", "Стабильно", "Хорошо", "Избыточно"]},
+      "logistics_out": {"bits": [44, 46], "states": ["Блокада", "Критически затруднена", "Перебои", "Стабильно", "Хорошо", "Избыточно"]},
+      "reserved": {"bits": [47, 63], "states": "unused"}
+    }
+  },
+
+  "susceptibility_profile": {"extreme_heat": 0.4, "blast": 0.7, "flood": 0.6, "emp": 0.5, "fire": 0.9},
+
+  "resource_recipe": {
+    "inputs": {"steel": 10, "coal": 5, "electricity": 20},
+    "outputs": {"rifles": 50},
+    "personnel": {"manual_laborers": 30, "technicians": 15, "engineers": 5, "white_collar": 5, "service_workers": 5}
+  },
+
+  "validation_rules": [
+    {
+      "id": "no_production_without_equipment",
+      "trigger": "on_indicator_change",
+      "target": "capacity",
+      "condition": {"type": "all_of", "conditions": [
+        {"type": "segment_at_least", "segment": "capacity", "value": 3},
+        {"type": "segment_at_most", "segment": "equipment_quantity", "value": 1}
+      ]},
+      "action": "revert",
+      "message": "Невозможно загрузить мощности без оборудования"
+    },
+    {
+      "id": "equipment_quality_requires_tech",
+      "trigger": "on_indicator_change",
+      "target": "equipment_condition",
+      "condition": {"type": "all_of", "conditions": [
+        {"type": "segment_at_least", "segment": "equipment_condition", "value": 4},
+        {"type": "segment_at_most", "segment": "tech_level", "value": 2}
+      ]},
+      "action": "revert",
+      "message": "Идеальное состояние оборудования требует передового техуровня"
+    }
+  ],
+
+  "metamorphosis_rules": [
+    {
+      "id": "convert_to_military_production",
+      "trigger": "on_player_decision",
+      "decision_name": "Конвертировать на военное производство",
+      "condition": {"type": "segment_at_least", "segment": "tech_level", "value": 2},
+      "on_success": {"action": "set_segment", "segment": "output_type", "value": 0},
+      "message_success": "Предприятие конвертировано на военное производство",
+      "message_failure": "Конверсия требует технологического уровня не ниже военного стандартного"
+    },
+    {
+      "id": "convert_to_civilian_production",
+      "trigger": "on_player_decision",
+      "decision_name": "Конвертировать на мирное производство",
+      "condition": {"type": "segment_at_least", "segment": "capacity", "value": 2},
+      "on_success": {"action": "set_segment", "segment": "output_type", "value": 7},
+      "message_success": "Предприятие конвертировано на мирное производство",
+      "message_failure": "Остановленные мощности нельзя конвертировать"
+    }
+  ],
+
+  "voltage_channels": {
+    "U_production_output": {"label": "Текущий выпуск продукции", "initial": 0.5, "min": 0.0, "max": 1.0},
+    "U_equipment_wear": {
+      "label": "Износ оборудования", "initial": 0.0, "min": 0.0, "max": 1.0,
+      "threshold_low": 0.2, "threshold_high": 0.8,
+      "target_segment": "equipment_condition", "direction": "degrade",
+      "effect": "При превышении порога понижается состояние оборудования"
+    },
+    "U_worker_morale": {
+      "label": "Мораль рабочих", "initial": 0.6, "min": 0.0, "max": 1.0,
+      "threshold_low": 0.3, "threshold_high": 0.7,
+      "target_segment": "capacity", "direction": "improve",
+      "effect": "При падении снижается производительность"
+    },
+    "U_personnel": {"label": "Численность персонала", "initial": 0.0, "min": 0.0, "max": 100000.0},
+    "U_raw_stock": {"label": "Запас сырья", "initial": 0.0, "min": 0.0, "max": 1000000.0},
+    "U_product_stock": {"label": "Запас готовой продукции", "initial": 0.0, "min": 0.0, "max": 1000000.0}
+  }
+}

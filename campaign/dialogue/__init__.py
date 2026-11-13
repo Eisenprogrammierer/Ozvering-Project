@@ -5,7 +5,12 @@ from .engine import DialogueSession, Turn
 from .errors import DialogueError
 from .inference import InferenceEngine, ProofStep, Solution
 from .knowledge import AgentKnowledge, Fact, build_knowledge
-from .loader import DEFAULT_DIR, load_dialogue, load_synthesis
+from .loader import (
+    DEFAULT_DIR,
+    load_dialogue,
+    load_styles,
+    load_synthesis,
+)
 from .morph import Morphology
 from .model import (
     DialogueCatalog,
@@ -14,6 +19,8 @@ from .model import (
     Ontology,
     Parse,
     Persona,
+    StyleCatalog,
+    StyleSpec,
 )
 from .morphology import normalize_text, tokenize
 from .parser import ChartParser, features_match, merge_features
@@ -26,6 +33,7 @@ from .state import (
     EntityIndex,
     build_state,
 )
+from .style import StyleEngine
 
 __all__ = [
     "AgentKnowledge",
@@ -51,6 +59,9 @@ __all__ = [
     "ProofStep",
     "Realizer",
     "Solution",
+    "StyleCatalog",
+    "StyleEngine",
+    "StyleSpec",
     "Turn",
     "build_knowledge",
     "build_state",
@@ -58,6 +69,7 @@ __all__ = [
     "features_match",
     "flatten",
     "load_dialogue",
+    "load_styles",
     "load_synthesis",
     "merge_features",
     "normalize_text",

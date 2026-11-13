@@ -3,6 +3,10 @@
 Адаптер ничего не меняет: он снимает копию нужных значений в неизменяемые
 факты. Все дальнейшие ответы строятся только по этой копии, поэтому
 диалог не может изменить кампанию или BDI.
+
+D4 добавляет факты социального слоя: ``has_authority``, ``trusts``,
+``has_leverage``. Они вычисляются из данных кампании, а не из BDI, и
+используются ``SocialEngine`` для проверки допустимости речевых актов.
 """
 
 from __future__ import annotations
@@ -66,6 +70,14 @@ class AgentKnowledge:
         world: Mapping[str, Any],
         clock: int = 0,
         run_id: str = "",
+        speaker_post: str = "",
+        faction_name: str = "",
+        player_id: str = "",
+        player_name: str = "",
+        player_post: str = "",
+        player_faction: str = "",
+        player_side: str = "",
+        player_gender: str = "",
     ):
         self.catalog = catalog
         self.facts = tuple(facts)
@@ -74,6 +86,14 @@ class AgentKnowledge:
         self.faction_id = faction_id
         self.speaker_id = speaker_id
         self.speaker_name = speaker_name
+        self.speaker_post = speaker_post
+        self.faction_name = faction_name
+        self.player_id = player_id
+        self.player_name = player_name
+        self.player_post = player_post
+        self.player_faction = player_faction
+        self.player_side = player_side
+        self.player_gender = player_gender
         self.world = world
         self.clock = clock
         self.run_id = run_id or "campaign"
@@ -214,6 +234,18 @@ def build_knowledge(
         raise DialogueError("у стороны %r нет персонажей для диалога" % side)
     speaker_id = _text(getattr(speaker, "campaign_id", ""), "character")
     speaker_name = _text(getattr(speaker, "name", ""), speaker_id)
+    speaker_post = _text(getattr(speaker, "campaign_post", ""))
+    faction_name = _text(getattr(faction, "name", ""), side)
+    player = _player_character(campaign)
+    player_side, player_faction_runtime, player_character = player
+    player_name = _text(getattr(player_character, "name", ""))
+    player_post = _text(
+        getattr(player_character, "campaign_post", "")
+    )
+    player_faction = _text(
+        getattr(player_faction_runtime, "name", ""), player_side
+    )
+    player_gender = _player_gender(campaign, player_character)
 
     entities: Dict[str, EntityInfo] = {}
     for entry in catalog.lexicon:
@@ -427,6 +459,14 @@ def build_knowledge(
             )
         )
 
+    player_entity = _text(
+        getattr(player_character, "campaign_id", "")
+    )
+    if player_entity and speaker_id and player_entity != speaker_id:
+        add(_authority_fact(player_character, speaker, player_entity, speaker_id))
+        if _allied(player_character, speaker):
+            add(_fact(rel("trusts"), player_entity, speaker_id))
+
     return AgentKnowledge(
         catalog,
         facts,
@@ -438,7 +478,53 @@ def build_knowledge(
         world=world,
         clock=_clock(campaign),
         run_id=_run_id(campaign),
+        speaker_post=speaker_post,
+        faction_name=faction_name,
+        player_id=player_entity,
+        player_name=player_name,
+        player_post=player_post,
+        player_faction=player_faction,
+        player_side=player_side,
+        player_gender=player_gender,
     )
+
+
+def _authority_fact(
+    player: Any, speaker: Any, player_id: str, speaker_id: str
+) -> Fact:
+    """Факт ``has_authority(player, speaker)`` по данным кампании.
+
+    Полномочия определяются по ``campaign_post_rank``, если он заполнен
+    у обеих сторон; иначе — по ``campaign_post_id`` (равенство должности
+    не даёт полномочий). Это консервативная проверка: если данных
+    недостаточно, факт не выставляется, и ``SocialEngine`` вернёт
+    ``reject`` с причиной ``has_authority``. Это не баг, а честное «нет
+    данных о полномочиях».
+    """
+
+    player_rank = getattr(player, "campaign_post_rank", None)
+    speaker_rank = getattr(speaker, "campaign_post_rank", None)
+    try:
+        if player_rank is not None and speaker_rank is not None:
+            if int(player_rank) > int(speaker_rank):
+                return _fact("has_authority", player_id, speaker_id)
+    except (TypeError, ValueError):
+        pass
+    player_post = _text(getattr(player, "campaign_post_id", ""))
+    speaker_post = _text(getattr(speaker, "campaign_post_id", ""))
+    if player_post and speaker_post and player_post != speaker_post:
+        return _fact("has_authority", player_id, speaker_id)
+    return _fact("has_authority", "", "")
+
+
+def _allied(player: Any, speaker: Any) -> bool:
+    """Игрок и говорящий в одной фракции/альянсе — слабый признак доверия."""
+
+    player_faction = getattr(player, "campaign_faction", None)
+    speaker_faction = getattr(speaker, "campaign_faction", None)
+    if player_faction is None or speaker_faction is None:
+        return False
+    return player_faction is speaker_faction
 
 
 def _clock(campaign: Any) -> int:
@@ -481,6 +567,50 @@ def _leader(faction: Any) -> Any:
             return character
     characters = list(getattr(faction, "characters", ()) or ())
     return characters[0] if characters else None
+
+
+def _player_character(campaign: Any):
+    """Найти игрового персонажа, не меняя кампанию.
+
+    Сначала проверяется сторона игрока, затем остальные фракции: это
+    делает поиск устойчивым к старым снимкам, где ``player_side`` мог не
+    совпасть с записью персонажа.
+    """
+
+    factions = getattr(campaign, "factions", {}) or {}
+    player_side = _text(getattr(campaign, "player_side", ""))
+    order = [player_side] + [
+        str(side) for side in factions if str(side) != player_side
+    ]
+    for side in order:
+        faction = factions.get(side)
+        if faction is None:
+            continue
+        for character in getattr(faction, "characters", ()) or ():
+            if bool(getattr(character, "campaign_is_player", False)):
+                return side, faction, character
+    return player_side, factions.get(player_side), None
+
+
+def _player_gender(campaign: Any, player: Any) -> str:
+    """Пол игрока для обращений; пустая строка даёт нейтральную форму."""
+
+    data = getattr(campaign, "data", {}) or {}
+    identity = (
+        data.get("player_identity")
+        if isinstance(data, Mapping)
+        else None
+    )
+    identity = identity if isinstance(identity, Mapping) else {}
+    for value in (
+        identity.get("gender"),
+        getattr(player, "gender", ""),
+        getattr(player, "sex", ""),
+    ):
+        text = _text(value)
+        if text:
+            return text
+    return ""
 
 
 def _select_speaker(faction: Any, character_id: Optional[str]) -> Any:

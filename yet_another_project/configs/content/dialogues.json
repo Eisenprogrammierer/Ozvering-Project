@@ -1,0 +1,77 @@
+{
+  "adjutant_intro": {
+    "speaker": "Адъютант",
+    "text": "Товарищ командир, срочный пакет из штаба фронта. Противник готовит атаку.",
+    "choices": [
+      { "text": "Вскрыть пакет", "next": "adjutant_packet" },
+      { "text": "Сначала доложить обстановку", "next": "adjutant_report", "effect": { "targets": ["player"], "add_voltages": { "U_morale_delta": 0.02 } } }
+    ]
+  },
+  "adjutant_packet": {
+    "speaker": "Адъютант",
+    "text": "Приказ: удержать рубеж любой ценой. Подкрепления подойдут через семь дней.",
+    "choices": [
+      { "text": "Понял. Выполняем.", "next": "adjutant_orders_node" },
+      { "text": "Семь дней? Это невозможно.", "next": "adjutant_doubt" }
+    ]
+  },
+  "adjutant_report": {
+    "speaker": "Адъютант",
+    "text": "Обстановка: противник в 12 км, готовит атаку. Наши позиции укреплены. Туман снижает видимость.",
+    "choices": [
+      { "text": "Хорошо. Теперь пакет.", "next": "adjutant_packet" },
+      { "text": "Что с снабжением?", "next": "adjutant_supply" }
+    ]
+  },
+  "adjutant_doubt": {
+    "speaker": "Адъютант",
+    "text": "Возможно, товарищ командир. Но приказ есть приказ. Люди верят в вас.",
+    "choices": [
+      { "text": "Выполняем.", "next": "adjutant_orders_node" }
+    ]
+  },
+  "adjutant_supply": {
+    "speaker": "Адъютант",
+    "text": "Снабжение в норме. Передовой склад у позиций. Но боеприпасы ограничены.",
+    "choices": [
+      { "text": "Понял. К делу.", "next": "adjutant_orders_node" }
+    ]
+  },
+  "adjutant_orders_node": {
+    "speaker": "Адъютант",
+    "text": "Жду приказов, товарищ командир.",
+    "choices": []
+  },
+  "commander_report": {
+    "speaker": "Командующий",
+    "text": "Как обстановка на рубеже Марки? Держитесь?",
+    "choices": [
+      { "text": "Держимся. Потери умеренные.", "effect": { "targets": ["player"], "add_voltages": { "U_morale_delta": 0.05 } } },
+      { "text": "Тяжело. Нужны подкрепления.", "effect": { "targets": ["player"], "add_voltages": { "U_morale_delta": -0.05 } } }
+    ]
+  },
+  "tank_commander_request": {
+    "speaker": "Командир 42-го батальона",
+    "text": "Товарищ командир, танки готовы. Прошу разрешения на контратаку.",
+    "choices": [
+      { "text": "Разрешаю контратаку.", "effect": { "targets": ["player_tank_battalion"], "set_segments": { "order": "aggressive_attack" } } },
+      { "text": "Отставить. Держать оборону.", "effect": { "targets": ["player_tank_battalion"], "set_segments": { "order": "defense" } } }
+    ]
+  },
+  "artillery_commander_request": {
+    "speaker": "Командир 65-го дивизиона",
+    "text": "Товарищ командир, артиллерия готова. Прошу целеуказание.",
+    "choices": [
+      { "text": "Огонь по скоплению противника.", "effect": { "targets": ["player_artillery"], "add_voltages": { "U_ammo": -20.0 } } },
+      { "text": "Беречь боеприпасы.", "effect": { "targets": ["player_artillery"], "set_segments": { "order": "defense" } } }
+    ]
+  },
+  "infantry_commander_request": {
+    "speaker": "Командир 127-го полка",
+    "text": "Товарищ командир, люди устали. Прошу дать отдых или сменить на позиции.",
+    "choices": [
+      { "text": "Дам отдых, когда будет возможность.", "effect": { "targets": ["player_infantry"], "add_voltages": { "U_morale_delta": -0.03 } } },
+      { "text": "Держитесь. Отдых после победы.", "effect": { "targets": ["player_infantry"], "add_voltages": { "U_morale_delta": -0.05 } } }
+    ]
+  }
+}

@@ -6,9 +6,11 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Set
 
+from .coverage import style_coverage
 from .errors import DialogueError
-from .loader import DEFAULT_DIR, load_dialogue
+from .loader import DEFAULT_DIR, EFFECT_TYPES, load_dialogue
 from .model import AtomSpec, DialogueCatalog, GrammarRule
+from .style import SELECTION_KEYS
 
 _ANSWER_TYPES = frozenset(
     {
@@ -23,6 +25,7 @@ _ANSWER_TYPES = frozenset(
         "located",
         "started",
         "last_works",
+        "social",
     }
 )
 _CASES = frozenset({"nom", "gen", "dat", "acc", "ins", "prep"})
@@ -302,6 +305,15 @@ def _plan_problems(
                 problems.append("%s: list без output" % where)
         if kind == "value" and not plan.output:
             problems.append("%s: value без output" % where)
+        if kind == "social":
+            act = str(answer.get("act") or "")
+            if not act:
+                problems.append("%s: social без act" % where)
+            elif act not in catalog.social.acts:
+                problems.append(
+                    "%s: act=%r отсутствует в social.acts"
+                    % (where, act)
+                )
         statement = str(answer.get("statement") or "")
         synthesis_statements = catalog.synthesis.get("statements") or {}
         if (
@@ -686,8 +698,41 @@ def _part_problems(
             if case not in _CASES:
                 problems.append("%s: неизвестный падеж %r" % (where, case))
         return problems
+    if kind == "clause":
+        relation = str(part.get("relation") or "")
+        source = str(part.get("source") or "")
+        if not relation and not source:
+            problems.append("%s: clause без relation/source" % where)
+        args = part.get("args")
+        if args is not None and not isinstance(args, (str, Mapping)):
+            problems.append("%s.args: ожидался объект или строка" % where)
+        return problems
+    if kind == "address":
+        case = str(part.get("case") or "nom")
+        if case not in _CASES:
+            problems.append("%s: неизвестный падеж %r" % (where, case))
+        return problems
+    if kind == "items":
+        if not str(part.get("source") or "items"):
+            problems.append("%s: пустой источник элементов" % where)
+        return problems
+    if kind == "particle":
+        if not str(part.get("group") or "") and not str(
+            part.get("default") or ""
+        ):
+            problems.append("%s: particle без group/default" % where)
+        return problems
+    if kind == "marker":
+        if not str(part.get("concept") or ""):
+            problems.append("%s: marker без concept" % where)
+        return problems
+    if kind == "act":
+        if not str(part.get("source") or ""):
+            problems.append("%s: act без source" % where)
+        return problems
     if kind in ("lex", "adj"):
         entry_id = str(part.get("entry") or "")
+        concept = str(part.get("concept") or "")
         mapping = str(part.get("entry_from") or "")
         source = str(part.get("source") or "")
         if mapping:
@@ -703,6 +748,8 @@ def _part_problems(
                 problems.append(
                     "%s: пустой value_lexicon" % where
                 )
+        elif concept:
+            pass
         elif not entry_id:
             problems.append(
                 "%s: нужен entry или entry_from" % where
@@ -788,6 +835,144 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
                 problems.append(
                     "persona %s: пустое clarify.%s" % (key, reason)
                 )
+        if (
+            persona.default_style
+            and persona.default_style not in catalog.styles.styles
+        ):
+            problems.append(
+                "persona %s: неизвестный default_style %r"
+                % (key, persona.default_style)
+            )
+    return problems
+
+
+def _style_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить регистровые профили: признаки и политику выбора."""
+
+    problems: List[str] = []
+    styles = getattr(catalog, "styles", None)
+    if styles is None or not styles.styles:
+        return ["styles: пусто"]
+    if styles.default not in styles.styles:
+        problems.append(
+            "styles.default: стиль %r отсутствует" % styles.default
+        )
+    for key, style in styles.styles.items():
+        where = "styles.%s" % key
+        if style.id != key:
+            problems.append(
+                "%s.id: %r не совпадает с ключом" % (where, style.id)
+            )
+        if not str(style.label or "").strip():
+            problems.append("%s.label: пусто" % where)
+        if not str(style.register or "").strip():
+            problems.append("%s.register: пусто" % where)
+        for name, value in style.features.items():
+            if not str(name).strip():
+                problems.append("%s.features: пустое имя признака" % where)
+            if not str(value).strip():
+                problems.append(
+                    "%s.features.%s: пустое значение" % (where, name)
+                )
+        for field in style.selection:
+            if str(field) not in SELECTION_KEYS:
+                problems.append(
+                    "%s.selection.%s: неизвестное поле" % (where, field)
+                )
+        avoid = style.selection.get("avoid_recent")
+        if avoid is not None:
+            try:
+                value = int(avoid)
+            except (TypeError, ValueError):
+                value = -1
+            if value < 0:
+                problems.append(
+                    "%s.selection.avoid_recent: ожидалось целое >= 0"
+                    % where
+                )
+    return problems
+
+
+def _social_problems(
+    catalog: DialogueCatalog, known: Mapping[str, int]
+) -> List[str]:
+    """Проверить акты, реакции, эффекты и конструкции синтеза."""
+
+    problems: List[str] = []
+    social = getattr(catalog, "social", None)
+    if social is None or not social.acts or not social.reactions:
+        return ["social: пусто (нет актов или реакций)"]
+    constructions = (catalog.synthesis or {}).get("constructions") or {}
+    for key, act in social.acts.items():
+        where = "social.acts.%s" % key
+        if act.id != key:
+            problems.append(
+                "%s.id: %r не совпадает с ключом" % (where, act.id)
+            )
+        if not isinstance(act.match, Mapping) or not act.match:
+            problems.append("%s.match: пустой шаблон" % where)
+        if not act.reactions:
+            problems.append("%s.reactions: пусто" % where)
+        for reaction_id in act.reactions:
+            if reaction_id not in social.reactions:
+                problems.append(
+                    "%s.reactions: %r отсутствует в social.reactions"
+                    % (where, reaction_id)
+                )
+        for index, atom in enumerate(act.validity):
+            problems.extend(
+                _atom_problems(
+                    atom, known, "%s.validity[%d]" % (where, index)
+                )
+            )
+        for index, name in enumerate(act.taboo):
+            if not str(name).strip():
+                problems.append(
+                    "%s.taboo[%d]: пустое имя" % (where, index)
+                )
+    for key, reaction in social.reactions.items():
+        where = "social.reactions.%s" % key
+        if reaction.id != key:
+            problems.append(
+                "%s.id: %r не совпадает с ключом" % (where, reaction.id)
+            )
+        kind = str((reaction.effect or {}).get("type") or "")
+        if not kind:
+            problems.append("%s.effect.type: пусто" % where)
+        elif kind not in EFFECT_TYPES:
+            problems.append(
+                "%s.effect.type: неизвестный %r" % (where, kind)
+            )
+        for index, atom in enumerate(reaction.conditions):
+            problems.extend(
+                _atom_problems(
+                    atom, known, "%s.conditions[%d]" % (where, index)
+                )
+            )
+        construction = str(reaction.construction or "")
+        if not construction:
+            problems.append("%s.construction: пусто" % where)
+        elif construction not in constructions:
+            problems.append(
+                "%s.construction: %r отсутствует в synthesis.constructions"
+                % (where, construction)
+            )
+    commitments = social.commitments or {}
+    kinds = commitments.get("kinds") or ()
+    for name in kinds:
+        if str(name) not in social.acts:
+            problems.append(
+                "social.commitments.kinds: %r отсутствует в social.acts"
+                % name
+            )
+    try:
+        ttl = int(commitments.get("ttl_turns") or 0)
+    except (TypeError, ValueError):
+        ttl = 0
+    if ttl < 1:
+        problems.append(
+            "social.commitments.ttl_turns: ожидалось целое >= 1"
+        )
     return problems
 
 
@@ -1000,7 +1185,9 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_synthesis_problems(catalog, known))
     problems.extend(_world_problems(catalog))
     problems.extend(_persona_problems(catalog))
+    problems.extend(_style_problems(catalog))
     problems.extend(_state_problems(catalog))
+    problems.extend(_social_problems(catalog, known))
     return problems
 
 

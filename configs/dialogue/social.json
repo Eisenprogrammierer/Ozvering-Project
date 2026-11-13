@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "acts": {
+    "command": {
+      "id": "command",
+      "label": "приказ",
+      "match": {"kind": "social", "act": "command"},
+      "proposition": {"verb": "$verb", "object": "$object"},
+      "validity": [
+        {"rel": "has_authority", "args": ["$speaker", "$listener"]}
+      ],
+      "taboo": [],
+      "reactions": ["accept", "reject", "counter", "clarify"]
+    },
+    "promise": {
+      "id": "promise",
+      "label": "обещание",
+      "match": {"kind": "social", "act": "promise"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "taboo": [],
+      "reactions": ["accept", "evade", "counter", "clarify"]
+    },
+    "threat": {
+      "id": "threat",
+      "label": "угроза",
+      "match": {"kind": "social", "act": "threat"},
+      "proposition": {
+        "speaker": "$speaker",
+        "object": "$object",
+        "consequence": "$consequence"
+      },
+      "validity": [],
+      "taboo": [],
+      "reactions": ["reject", "counter", "evade", "clarify"]
+    },
+    "offer": {
+      "id": "offer",
+      "label": "предложение",
+      "match": {"kind": "social", "act": "offer"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "taboo": [],
+      "reactions": ["accept", "reject", "counter", "clarify"]
+    },
+    "apology": {
+      "id": "apology",
+      "label": "извинение",
+      "match": {"kind": "social", "act": "apology"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "taboo": [],
+      "reactions": ["accept", "reject", "clarify"]
+    }
+  },
+  "reactions": {
+    "accept": {
+      "id": "accept",
+      "label": "принятие",
+      "effect": {
+        "type": "commitment",
+        "subject": "$speaker",
+        "object": "$object"
+      },
+      "conditions": [],
+      "priority": 10,
+      "construction": "social_accept"
+    },
+    "reject": {
+      "id": "reject",
+      "label": "отказ",
+      "effect": {
+        "type": "refusal",
+        "subject": "$listener",
+        "object": "$object"
+      },
+      "conditions": [],
+      "priority": 20,
+      "construction": "social_reject"
+    },
+    "evade": {
+      "id": "evade",
+      "label": "уклонение",
+      "effect": {
+        "type": "evasion",
+        "subject": "$listener"
+      },
+      "conditions": [],
+      "priority": 30,
+      "construction": "social_evade"
+    },
+    "counter": {
+      "id": "counter",
+      "label": "встречное условие",
+      "effect": {
+        "type": "counter_offer",
+        "subject": "$listener",
+        "object": "$object",
+        "condition": "$condition"
+      },
+      "conditions": [],
+      "priority": 40,
+      "construction": "social_counter"
+    },
+    "clarify": {
+      "id": "clarify",
+      "label": "уточнение",
+      "effect": {
+        "type": "clarification",
+        "subject": "$listener"
+      },
+      "conditions": [],
+      "priority": 100,
+      "construction": "social_clarify"
+    }
+  },
+  "commitments": {
+    "ttl_turns": 20,
+    "kinds": ["promise", "threat", "offer", "command"]
+  }
+}

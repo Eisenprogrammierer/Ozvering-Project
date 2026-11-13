@@ -4,6 +4,11 @@
 JSON. Python только сопоставляет логическую форму с планом, доказывает
 цель и передаёт смысл в композиционный реализатор. Готовые предложения-
 шаблоны из ``realization.json`` используются лишь как аварийный fallback.
+
+D4 добавляет тип ответа ``social``: акт и реакция берутся из
+``social.json``, решение принимает ``SocialEngine``, текст собирается
+конструкцией реакции, эффект уходит в ``Answer.data`` для
+``ConversationState.apply_effect``.
 """
 
 from __future__ import annotations
@@ -14,8 +19,10 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from .inference import InferenceEngine, ProofStep, Solution, is_variable
 from .knowledge import AgentKnowledge
-from .model import DialogueCatalog, Persona, PlanSpec
+from .model import DialogueCatalog, Persona, PlanSpec, StyleSpec
 from .realize import Realizer, render_lines
+from .social import SocialDecision, SocialEngine, social_bindings
+from .style import StyleEngine
 
 
 @dataclass(frozen=True)
@@ -136,19 +143,75 @@ class AnswerPlanner:
         catalog: DialogueCatalog,
         knowledge: AgentKnowledge,
         persona: Persona,
+        style_engine: Optional[StyleEngine] = None,
+        memory: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.persona = persona
         self.engine = InferenceEngine(catalog, knowledge)
-        self.realizer = Realizer(catalog, knowledge, self.engine)
+        self.style_engine = style_engine or StyleEngine(catalog)
+        self.social_engine = SocialEngine(
+            catalog, knowledge, self.engine
+        )
+        self.realizer = Realizer(
+            catalog,
+            knowledge,
+            self.engine,
+            style_engine=self.style_engine,
+            memory=memory,
+        )
+        self.style: StyleSpec = StyleSpec(id="", label="")
         self.realization = catalog.realization or {}
         self.answers = self.realization.get("answers") or {}
         self.plans = tuple(
             sorted(catalog.plans, key=lambda item: (-item.priority, item.id))
         )
 
-    def plan(self, sem: Any, plan_id: str = "") -> Answer:
+    def set_style(self, style: Optional[StyleSpec]) -> None:
+        """Сменить регистровый профиль, используемый при синтезе."""
+
+        self.style = style or StyleSpec(id="", label="")
+        self.realizer.set_style(self.style)
+
+    def plan(
+        self, sem: Any, plan_id: str = "", style: Optional[StyleSpec] = None
+    ) -> Answer:
+        if style is not None:
+            self.set_style(style)
+        self.realizer.take_trace()
+        answer = self._plan(sem, plan_id)
+        trace = self.realizer.take_trace()
+        if not trace:
+            return answer
+        data = dict(answer.data or {})
+        data.setdefault("register", self.style.register)
+        data.setdefault("construction_trace", tuple(trace))
+        constructions = [
+            item.get("id")
+            for item in trace
+            if item.get("kind") == "construction" and item.get("id")
+        ]
+        if constructions:
+            data.setdefault("constructions", tuple(constructions))
+            data.setdefault("construction", constructions[0])
+            data.setdefault("primary_construction", constructions[0])
+        lexemes = [
+            {"from": item.get("from"), "to": item.get("to")}
+            for item in trace
+            if item.get("kind") == "lexeme"
+        ]
+        if lexemes:
+            data.setdefault("lexemes", tuple(lexemes))
+        return Answer(
+            answer.kind,
+            answer.text,
+            answer.plan_id,
+            answer.proof,
+            data,
+        )
+
+    def _plan(self, sem: Any, plan_id: str = "") -> Answer:
         selected = None
         captures: Dict[str, str] = {}
         for plan in self.plans:
@@ -168,6 +231,74 @@ class AnswerPlanner:
 
     # --- обработчики -------------------------------------------------
 
+    def _answer_social(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Выбрать реакцию на речевое действие и синтезировать её.
+
+        ``plan.answer.act`` называет акт из ``social.json``. Логическая
+        форма приходит из парсера в ``captures``; если её нет, шаблон
+        акта сопоставляется с ``captures`` напрямую. Реакция выбирается
+        ``SocialEngine``, текст собирается конструкцией из
+        ``synthesis.constructions``, эффект уходит в ``Answer.data`` для
+        ``ConversationState.apply_effect``.
+        """
+
+        act_id = str(plan.answer.get("act") or "")
+        bound = dict(captures)
+        sem = bound.get("$sem")
+        if not isinstance(sem, Mapping):
+            sem = {"kind": "social", "act": act_id}
+            for key, value in bound.items():
+                if isinstance(key, str) and key.startswith("$"):
+                    sem[key[1:]] = value
+        bindings = social_bindings(sem, self.knowledge)
+        for key, value in bound.items():
+            if isinstance(key, str) and key.startswith("$") and value:
+                bindings.setdefault(key[1:], str(value))
+        decision = self.social_engine.decide(sem, bindings)
+        if decision is None:
+            return self._unknown(plan.id)
+        data: Dict[str, Any] = {
+            "act": decision.act_id,
+            "reaction": decision.reaction_id,
+            "effect": dict(decision.effect),
+            "bindings": dict(decision.bindings),
+            "social_trace": tuple(decision.trace),
+            "reason": decision.reason,
+        }
+        text = self.realizer.construction(
+            decision.construction, decision.bindings
+        )
+        if not text:
+            text = self._social_fallback(decision)
+        text = self.realizer.realize_answer(
+            "social",
+            {
+                "message": text,
+                "act": decision.act_id,
+                "reaction": decision.reaction_id,
+                "effect": dict(decision.effect),
+            },
+            fallback=text,
+        )
+        return Answer("social", text, plan.id, data=data)
+
+    def _social_fallback(self, decision: SocialDecision) -> str:
+        """Аварийный текст, если конструкция реакции не задана.
+
+        Не стиль и не шаблон ответа, а защита от пустого
+        ``synthesis.constructions``. Линтер требует конструкцию для
+        каждой реакции, поэтому fallback в норме не срабатывает.
+        """
+
+        key = "social_" + str(decision.reaction_id or "clarify")
+        fallback = self.answers.get(key) or self.answers.get("unknown", "")
+        try:
+            return str(fallback).format(**decision.bindings)
+        except (KeyError, IndexError):
+            return str(fallback)
+
     def _answer_smalltalk(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:
@@ -181,6 +312,12 @@ class AnswerPlanner:
             text = self.persona.smalltalk[key]
         if not text:
             return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "smalltalk",
+            {"message": text, "key": key},
+            fallback=text,
+            keys=("answer_smalltalk:" + key, "answer_smalltalk"),
+        )
         return Answer("smalltalk", text, plan.id, data={"key": key})
 
     def _answer_prove(
@@ -192,14 +329,35 @@ class AnswerPlanner:
         if not solutions:
             missing = str(plan.answer.get("missing") or "unknown")
             if missing == "no":
-                return Answer(
-                    "no", str(self.answers.get("no", "Нет.")), plan.id
+                no = str(self.answers.get("no", "Нет."))
+                text = self.realizer.realize_answer(
+                    "no",
+                    {
+                        "relation": relation,
+                        "args": self.realizer.values_for(relation, args),
+                        "claim": "",
+                        "message": no,
+                    },
+                    fallback=no,
+                    keys=("answer_no:" + relation, "answer_no"),
                 )
+                return Answer("no", text, plan.id)
             return self._unknown(plan.id)
         solution = solutions[0]
         statement = self._statement(relation, args)
         yes = str(self.answers.get("yes", "Да."))
         text = (yes + " " + statement).strip()
+        text = self.realizer.realize_answer(
+            "yes",
+            {
+                "relation": relation,
+                "args": self.realizer.values_for(relation, args),
+                "claim": statement,
+                "message": yes,
+            },
+            fallback=text,
+            keys=("answer_yes:" + relation, "answer_yes"),
+        )
         return Answer(
             "yes",
             text,
@@ -227,9 +385,15 @@ class AnswerPlanner:
             reason = str(solution.proof.because or "")
             if reason:
                 statement = _capitalize(reason) + "."
+        text = (prefix + statement).strip()
+        text = self.realizer.realize_answer(
+            "explanation",
+            {"message": text, "relation": relation},
+            fallback=text,
+        )
         return Answer(
             "explanation",
-            (prefix + statement).strip(),
+            text,
             plan.id,
             proof=(solution.proof,),
             data={"relation": relation, "args": resolved},
@@ -284,6 +448,17 @@ class AnswerPlanner:
             if prefix_key:
                 prefix = str(self.answers.get(prefix_key, ""))
                 text = (prefix + " " + text).strip()
+            text = self.realizer.realize_answer(
+                "no_reason",
+                {
+                    "owner": owner,
+                    "items": [],
+                    "key": key,
+                    "message": text,
+                },
+                fallback=text,
+                keys=("answer_no_list:" + key, "answer_no_list"),
+            )
             return Answer("no", text, plan.id, data={"items": []})
         intro = self.realizer.list_intro(key, owner) if key else ""
         if not intro:
@@ -309,6 +484,22 @@ class AnswerPlanner:
         if prefix_key:
             prefix = str(self.answers.get(prefix_key, ""))
             text = (prefix + " " + text).strip()
+        text = self.realizer.realize_answer(
+            "list",
+            {
+                "owner": owner,
+                "key": key,
+                "items": [label for label, _ in items],
+                "intro": intro,
+                "separator": separator,
+            },
+            fallback=text,
+            keys=(
+                "answer_list:" + key,
+                "answer_list:" + str(plan.id),
+                "answer_list",
+            ),
+        )
         return Answer(
             "list",
             text,
@@ -352,6 +543,22 @@ class AnswerPlanner:
                 owner_gen=self.knowledge.surface(owner, "gen"),
                 value=_format_number(value),
             )
+        text = self.realizer.realize_answer(
+            "value",
+            {
+                "owner": owner,
+                "key": key,
+                "value": value,
+                "label": label_entity,
+                "intro": text,
+            },
+            fallback=text,
+            keys=(
+                "answer_value:" + key,
+                "answer_value:" + str(plan.id),
+                "answer_value",
+            ),
+        )
         return Answer(
             "value",
             text,
@@ -387,6 +594,11 @@ class AnswerPlanner:
                 else "",
                 person=values.get("person", ""),
             )
+        text = self.realizer.realize_answer(
+            "entity",
+            {"owner": owner, **values, "message": text},
+            fallback=text,
+        )
         return Answer(
             "entity",
             text,
@@ -401,6 +613,9 @@ class AnswerPlanner:
         text = self.realizer.describe(target)
         if not text:
             return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "description", {"message": text}, fallback=text
+        )
         return Answer(
             "description",
             text,
@@ -415,6 +630,9 @@ class AnswerPlanner:
         text = self.realizer.summary(target)
         if not text:
             return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "summary", {"message": text}, fallback=text
+        )
         return Answer(
             "summary",
             text,
@@ -521,11 +739,16 @@ class AnswerPlanner:
     # --- общие помощники --------------------------------------------
 
     def _unknown(self, plan_id: str = "") -> Answer:
-        return Answer(
-            "unknown",
-            str(self.persona.unknown or self.answers.get("unknown", "")),
-            plan_id,
+        message = str(
+            self.persona.unknown or self.answers.get("unknown", "")
         )
+        text = self.realizer.realize_answer(
+            "unknown",
+            {"message": message, "plan": plan_id},
+            fallback=message,
+            keys=("answer_unknown",),
+        )
+        return Answer("unknown", text, plan_id)
 
     def _statement(self, relation: str, args: Iterable[str]) -> str:
         rendered = self.realizer.statement(relation, args)
@@ -566,9 +789,14 @@ class AnswerPlanner:
             solution.bindings.get(item, item) for item in args
         )
         statement = self._statement(relation, resolved)
+        text = self.realizer.realize_answer(
+            "explanation",
+            {"message": statement, "relation": relation},
+            fallback=statement,
+        )
         return Answer(
             "explanation",
-            statement,
+            text,
             plan.id,
             proof=(solution.proof,),
             data={"relation": relation, "args": resolved},

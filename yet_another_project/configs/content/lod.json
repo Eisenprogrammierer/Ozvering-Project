@@ -1,0 +1,14 @@
+{
+  "lod_radii": [15, 40],
+  "lod1_interval_steps": 4,
+  "lod_config": {
+    "bdi": {"lod0": true, "lod1": false, "lod2": false},
+    "combat": {"lod0": true, "lod1": true, "lod2": false},
+    "field_ai": {"lod0": true, "lod1": true, "lod2": false},
+    "rules": {"lod0": true, "lod1": false, "lod2": false},
+    "modalities": {"lod0": true, "lod1": true, "lod2": false},
+    "decay": {"lod0": true, "lod1": true, "lod2": false}
+  },
+  "recalc_interval_steps": 10,
+  "player_children_always_lod0": true
+}

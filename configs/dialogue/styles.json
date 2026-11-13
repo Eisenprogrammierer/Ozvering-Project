@@ -1,0 +1,108 @@
+{
+  "schema": 4,
+  "default": "neutral",
+  "styles": {
+    "neutral": {
+      "id": "neutral",
+      "label": "нейтрально",
+      "description": "Ровный деловой регистр без стилистических надстроек.",
+      "register": "neutral",
+      "features": {},
+      "selection": {
+        "avoid_recent": 0
+      }
+    },
+    "official": {
+      "id": "official",
+      "label": "канцелярит",
+      "description": "Официальная переписка: высокий регистр, дальняя дистанция, номинализации и косвенность.",
+      "extends": "neutral",
+      "register": "official",
+      "features": {
+        "formality": "high",
+        "distance": "far",
+        "directness": "indirect",
+        "nominalization": "high",
+        "address_mode": "post"
+      }
+    },
+    "report": {
+      "id": "report",
+      "label": "доклад",
+      "description": "Доклад: краткие сведения, высокая формальность и подчёркнутая субординация.",
+      "extends": "neutral",
+      "register": "military",
+      "features": {
+        "formality": "high",
+        "authority": "high",
+        "nominalization": "medium"
+      }
+    },
+    "order": {
+      "id": "order",
+      "label": "приказ",
+      "description": "Приказ: властный регистр, прямота и короткая дистанция исполнения.",
+      "extends": "neutral",
+      "register": "command",
+      "features": {
+        "authority": "high",
+        "affect": "cold"
+      }
+    },
+    "friendly": {
+      "id": "friendly",
+      "label": "дружески",
+      "description": "Дружеское общение: близкая дистанция, тёплый аффект и разговорная прямота.",
+      "extends": "neutral",
+      "register": "friendly",
+      "features": {
+        "formality": "low",
+        "distance": "near",
+        "affect": "warm",
+        "address_mode": "post"
+      }
+    },
+    "romantic": {
+      "id": "romantic",
+      "label": "любовно",
+      "description": "Любовное общение: интимная дистанция, тёплый аффект и личные обращения.",
+      "extends": "neutral",
+      "register": "intimate",
+      "features": {
+        "formality": "low",
+        "distance": "intimate",
+        "affect": "intimate",
+        "directness": "indirect",
+        "address_mode": "post"
+      }
+    },
+    "hostile": {
+      "id": "hostile",
+      "label": "враждебно",
+      "description": "Враждебное общение: дальняя дистанция, холодный аффект и резкая прямота.",
+      "extends": "neutral",
+      "register": "hostile",
+      "features": {
+        "formality": "low",
+        "distance": "far",
+        "authority": "high",
+        "affect": "cold",
+        "address_mode": "pre"
+      }
+    },
+    "mentor": {
+      "id": "mentor",
+      "label": "наставление",
+      "description": "Наставление: авторитет, тёплый аффект, объяснение и вывод.",
+      "extends": "neutral",
+      "register": "mentor",
+      "features": {
+        "authority": "high",
+        "affect": "warm",
+        "directness": "indirect",
+        "nominalization": "medium",
+        "address_mode": "pre"
+      }
+    }
+  }
+}

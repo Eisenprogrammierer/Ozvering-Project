@@ -15,6 +15,7 @@ from .model import (
     AtomSpec,
     DialogueCatalog,
     FactSpec,
+    FeatureSchema,
     Grammar,
     GrammarRule,
     LexEntry,
@@ -22,13 +23,28 @@ from .model import (
     Ontology,
     Persona,
     PlanSpec,
+    ReactionSpec,
     RuleItem,
     RuleSpec,
+    SocialActSpec,
+    SocialCatalog,
+    StyleCatalog,
+    StyleSpec,
 )
 
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "configs" / "dialogue"
 
 CASES = ("nom", "gen", "dat", "acc", "ins", "prep")
+
+EFFECT_TYPES = frozenset(
+    {
+        "commitment",
+        "refusal",
+        "evasion",
+        "counter_offer",
+        "clarification",
+    }
+)
 
 
 def _mapping(value: Any, where: str) -> Mapping[str, Any]:
@@ -428,10 +444,202 @@ def load_personas(path: Path) -> Dict[str, Persona]:
             max_list_items=max(
                 1, int(data.get("max_list_items") or 20)
             ),
+            default_style=str(data.get("default_style") or ""),
         )
     if not result:
         raise DialogueError("personas: пусто")
     return result
+
+
+def load_features(path: Path) -> FeatureSchema:
+    """Загрузить схему измерений стиля: значения и умолчания."""
+
+    raw = _mapping(_read_json(path), str(path))
+    dimensions: Dict[str, Dict[str, Any]] = {}
+    for name, value in _mapping(
+        raw.get("dimensions"), "features.dimensions"
+    ).items():
+        where = "features.dimensions.%s" % name
+        data = _mapping(value, where)
+        values = [
+            str(item)
+            for item in _sequence(data.get("values"), where + ".values")
+        ]
+        if not values:
+            raise DialogueError("%s.values: пусто" % where)
+        default = str(data.get("default") or values[0])
+        if default not in values:
+            raise DialogueError(
+                "%s.default: %r отсутствует в values" % (where, default)
+            )
+        dimensions[str(name)] = {
+            "values": tuple(values),
+            "default": default,
+        }
+    if not dimensions:
+        raise DialogueError("features.dimensions: пусто")
+    return FeatureSchema(dimensions=dimensions)
+
+
+def load_styles(
+    path: Path, schema: FeatureSchema | None = None
+) -> StyleCatalog:
+    """Загрузить профили стилей с наследованием и умолчаниями."""
+
+    raw = _mapping(_read_json(path), str(path))
+    default = str(raw.get("default") or "neutral")
+    items = _mapping(raw.get("styles"), "styles.styles")
+    cached: Dict[str, StyleSpec] = {}
+
+    def resolve(name: str, stack: Tuple[str, ...] = ()) -> StyleSpec:
+        key = str(name)
+        if key in cached:
+            return cached[key]
+        if key in stack:
+            raise DialogueError(
+                "styles.%s: цикл наследования %s"
+                % (key, " -> ".join(stack + (key,)))
+            )
+        if key not in items:
+            raise DialogueError("styles.%s: стиль отсутствует" % key)
+        where = "styles.%s" % key
+        data = _mapping(items[key], where)
+        base_features = (
+            dict(schema.defaults()) if schema is not None else {}
+        )
+        base_selection: Dict[str, Any] = {}
+        base_register = "neutral"
+        parent = str(data.get("extends") or "")
+        if parent:
+            if parent not in items:
+                raise DialogueError(
+                    "%s.extends: стиль %r отсутствует" % (where, parent)
+                )
+            base = resolve(parent, stack + (key,))
+            base_features.update(base.features)
+            base_selection.update(base.selection)
+            base_register = base.register
+        base_features.update(
+            {
+                str(name_item): str(value)
+                for name_item, value in _mapping(
+                    data.get("features", {}), where + ".features"
+                ).items()
+            }
+        )
+        base_selection.update(
+            dict(
+                _mapping(
+                    data.get("selection", {}), where + ".selection"
+                )
+            )
+        )
+        style = StyleSpec(
+            id=str(data.get("id") or key),
+            label=str(data.get("label") or key),
+            description=str(data.get("description") or ""),
+            register=str(data.get("register") or base_register),
+            features=base_features,
+            selection=base_selection,
+        )
+        cached[key] = style
+        return style
+
+    styles = {str(key): resolve(str(key)) for key in items}
+    if not styles:
+        raise DialogueError("styles.styles: пусто")
+    if default not in styles:
+        raise DialogueError(
+            "styles.default: стиль %r отсутствует" % default
+        )
+    return StyleCatalog(default=default, styles=styles)
+
+
+def _social_atoms(value: Any, where: str) -> Tuple[AtomSpec, ...]:
+    if value is None:
+        return ()
+    result: List[AtomSpec] = []
+    for index, item in enumerate(_sequence(value, where)):
+        result.append(_atom(item, "%s[%d]" % (where, index)))
+    return tuple(result)
+
+
+def load_social(path: Path) -> SocialCatalog:
+    """Загрузить акты, реакции и политику обязательств.
+
+    Акт описывает входное речевое действие и список допустимых реакций.
+    Реакция описывает условия срабатывания, типизированный эффект и
+    конструкцию синтеза. Условия — те же ``AtomSpec``, что в правилах
+    вывода, и доказываются тем же движком. Новый акт или реакция
+    добавляются JSON-ом.
+    """
+
+    raw = _mapping(_read_json(path), str(path))
+    acts_raw = _mapping(raw.get("acts", {}), "social.acts")
+    reactions_raw = _mapping(
+        raw.get("reactions", {}), "social.reactions"
+    )
+    acts: Dict[str, SocialActSpec] = {}
+    for key, value in acts_raw.items():
+        where = "social.acts.%s" % key
+        data = _mapping(value, where)
+        act_id = str(data.get("id") or key)
+        match = dict(_mapping(data.get("match", {}), where + ".match"))
+        proposition = dict(
+            _mapping(data.get("proposition", {}), where + ".proposition")
+        )
+        reactions = tuple(
+            str(item)
+            for item in _sequence(
+                data.get("reactions", []), where + ".reactions"
+            )
+        )
+        taboo = tuple(
+            str(item)
+            for item in _sequence(
+                data.get("taboo", []), where + ".taboo"
+            )
+        )
+        acts[str(key)] = SocialActSpec(
+            id=act_id,
+            label=str(data.get("label") or act_id),
+            match=match,
+            proposition=proposition,
+            validity=_social_atoms(
+                data.get("validity"), where + ".validity"
+            ),
+            taboo=taboo,
+            reactions=reactions,
+        )
+    reactions: Dict[str, ReactionSpec] = {}
+    for key, value in reactions_raw.items():
+        where = "social.reactions.%s" % key
+        data = _mapping(value, where)
+        reaction_id = str(data.get("id") or key)
+        effect = dict(_mapping(data.get("effect", {}), where + ".effect"))
+        kind = str(effect.get("type") or "")
+        if kind and kind not in EFFECT_TYPES:
+            raise DialogueError(
+                "%s.effect.type: неизвестный %r" % (where, kind)
+            )
+        reactions[str(key)] = ReactionSpec(
+            id=reaction_id,
+            label=str(data.get("label") or reaction_id),
+            effect=effect,
+            conditions=_social_atoms(
+                data.get("conditions"), where + ".conditions"
+            ),
+            priority=int(data.get("priority") or 0),
+            construction=str(data.get("construction") or ""),
+        )
+    commitments = dict(
+        _mapping(raw.get("commitments", {}), "social.commitments")
+    )
+    return SocialCatalog(
+        acts=acts,
+        reactions=reactions,
+        commitments=commitments,
+    )
 
 
 def load_world(path: Path) -> Mapping[str, Any]:
@@ -456,6 +664,9 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
     synthesis = load_synthesis(root / "synthesis.json")
     state = load_state(root / "state.json")
     personas = load_personas(root / "personas.json")
+    feature_schema = load_features(root / "features.json")
+    styles = load_styles(root / "styles.json", feature_schema)
+    social = load_social(root / "social.json")
     world = load_world(root / "world.json")
     raw = {
         "directory": str(root),
@@ -478,6 +689,15 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
             "fragments": len(state.get("fragments") or ()),
         },
         "personas": {"count": len(personas)},
+        "features": {"count": len(feature_schema.dimensions)},
+        "styles": {
+            "default": styles.default,
+            "count": len(styles.styles),
+        },
+        "social": {
+            "acts": len(social.acts),
+            "reactions": len(social.reactions),
+        },
     }
     return DialogueCatalog(
         ontology=ontology,
@@ -491,6 +711,9 @@ def load_dialogue(directory: Path | str | None = None) -> DialogueCatalog:
         synthesis=synthesis,
         state=state,
         personas=personas,
+        styles=styles,
+        features=feature_schema,
+        social=social,
         world=world,
         raw=raw,
     )

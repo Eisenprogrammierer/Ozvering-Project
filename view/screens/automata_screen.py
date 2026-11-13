@@ -14,6 +14,7 @@ LEFT_RECT = pygame.Rect(24, TOP_H, 344, 520)
 MID_RECT = pygame.Rect(388, TOP_H, 420, 520)
 RIGHT_RECT = pygame.Rect(828, TOP_H, 428, 520)
 BOTTOM_RECT = pygame.Rect(24, 646, 1232, 54)
+CHAT_RECT = pygame.Rect(1136, 14, 120, 40)
 ACTION_ROW_H = 56
 DESCRIPTION_H = 112
 PANEL_BG = (18, 23, 33, 238)
@@ -346,6 +347,9 @@ class AutomataScreen(BaseScreen):
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         pos = event.pos
+        if self._chat_rect().collidepoint(pos):
+            self._open_chat()
+            return
         if self._execute_rect().collidepoint(pos):
             self._execute_selected()
             return
@@ -420,6 +424,10 @@ class AutomataScreen(BaseScreen):
             40,
         )
 
+    def _chat_rect(self):
+        """Кнопка «СВЯЗЬ»: свободная область сверху справа."""
+        return CHAT_RECT
+
     def _open_network(self):
         from .automata_network import AutomataNetworkScreen
 
@@ -431,6 +439,14 @@ class AutomataScreen(BaseScreen):
         from .campaign_codex import CampaignCodexScreen
 
         self.app.manager.push(CampaignCodexScreen(self.app))
+
+    def _open_chat(self):
+        """Открыть чат: выбор собеседника и стиля — внутри экрана чата."""
+
+        from .dialogue_chat import DialogueChatScreen
+
+        logger.info("Открытие чата из экрана автоматов")
+        self.app.manager.push(DialogueChatScreen(self.app))
 
     def _finish_rect(self):
         return pygame.Rect(
@@ -478,6 +494,14 @@ class AutomataScreen(BaseScreen):
             screen.blit(
                 self.app.font_small.render(subtitle, True, ACCENT), (24, 74)
             )
+
+        self._draw_button(
+            screen,
+            self._chat_rect(),
+            "СВЯЗЬ",
+            enabled=True,
+            accent=True,
+        )
 
         _panel(screen, LEFT_RECT)
         screen.blit(

@@ -1,0 +1,15 @@
+{
+  "day_start_seconds": 25200,
+  "day_end_seconds": 79200,
+  "night_end_seconds": 21600,
+  "default_action_memory_seconds": 1800,
+  "order_planning_seconds_per_order": 300,
+  "mandatory_scenes": {
+    "morning": "morning_inspection",
+    "evening": "evening_inspection"
+  },
+  "fatigue": {
+    "base": 0.004,
+    "k": 48.0
+  }
+}

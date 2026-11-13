@@ -8,6 +8,10 @@
 Память ограничена одной игровой сессией. Она сериализуется в сейв, не
 меняет кампанию и BDI и не хранит сырые транскрипты: только значимые
 факты, сущности, общий фонд и краткие сводки.
+
+D4 добавляет ``commitments`` — обязательства и отказы из речевых
+действий. Это социальное состояние разговора, а не факт мира: диалог
+по-прежнему read-only по отношению к кампании и BDI.
 """
 
 from __future__ import annotations
@@ -252,6 +256,7 @@ class DialogueMemory:
         self.facts: Dict[str, Dict[str, Any]] = {}
         self.summaries: List[Dict[str, Any]] = []
         self.common_ground: Dict[str, Dict[str, Any]] = {}
+        self.realizations: List[str] = []
 
     @classmethod
     def from_dict(
@@ -280,6 +285,11 @@ class DialogueMemory:
             record = _ground_record(str(key), item)
             if record is not None:
                 memory.common_ground[str(key)] = record
+        memory.realizations = [
+            str(item)
+            for item in raw.get("realizations") or ()
+            if str(item)
+        ][-8:]
         memory.prune()
         return memory
 
@@ -305,7 +315,23 @@ class DialogueMemory:
                 key: _ordered_record(record)
                 for key, record in sorted(self.common_ground.items())
             },
+            "realizations": list(self.realizations[-8:]),
         }
+
+    def recent_constructions(self) -> List[str]:
+        """Последние использованные конструкции — для антиповтора."""
+
+        return list(self.realizations[-8:])
+
+    def note_construction(self, construction_id: str) -> None:
+        """Запомнить выбранную конструкцию, не раздувая сейв."""
+
+        construction_id = _text(construction_id)
+        if not construction_id:
+            return
+        self.realizations.append(construction_id)
+        if len(self.realizations) > 16:
+            del self.realizations[: len(self.realizations) - 16]
 
     def observe_clock(self, clock: int) -> None:
         clock = _integer(clock)
@@ -645,6 +671,7 @@ class ConversationState:
         memory: Optional[DialogueMemory] = None,
         run_id: str = "campaign",
         clock: int = 0,
+        social: Any = None,
     ):
         self.policy = policy
         self.entities = entities
@@ -652,6 +679,7 @@ class ConversationState:
         self.memory = memory or DialogueMemory(
             policy, run_id=run_id, clock=clock
         )
+        self.social = social
         self.clock = _integer(clock)
         self.turn = 0
         self.qud: List[Dict[str, Any]] = []
@@ -659,6 +687,7 @@ class ConversationState:
         self.last_sem: Optional[Any] = None
         self.last_answer: Dict[str, Any] = {}
         self.common_ground: Dict[str, Dict[str, Any]] = {}
+        self.commitments: List[Dict[str, Any]] = []
         self._seed_from_memory()
 
     # --- жизненный цикл ---------------------------------------------
@@ -699,6 +728,61 @@ class ConversationState:
             record["salience"] = _number(record.get("salience")) * decay
             if record["salience"] < minimum:
                 del self.referents[identifier]
+
+    # --- социальные эффекты -----------------------------------------
+
+    def apply_effect(self, effect: Mapping[str, Any]) -> None:
+        """Записать социальный эффект в состояние разговора.
+
+        Эффекты типизированы: ``commitment``/``refusal``/``evasion``/
+        ``counter_offer``/``clarification``. Добавление нового типа — это
+        новая ветка здесь и запись в ``social.commitments.kinds``; новый
+        акт с существующим эффектом сюда не доходит. Мир и BDI не
+        меняются: только социальное состояние разговора.
+        """
+
+        if not isinstance(effect, Mapping):
+            return
+        kind = str(effect.get("type") or "")
+        base = {
+            "kind": kind,
+            "subject": str(effect.get("subject") or ""),
+            "object": str(effect.get("object") or ""),
+            "turn": int(self.turn),
+        }
+        if kind in ("commitment", "refusal", "counter_offer"):
+            if kind == "counter_offer":
+                base["condition"] = str(effect.get("condition") or "")
+            self.commitments.append(base)
+            self._prune_commitments()
+            return
+        # evasion / clarification состояния не меняют
+
+    def _prune_commitments(self) -> None:
+        """Снять обязательства старше TTL из политики ``social.json``."""
+
+        ttl = 0
+        social = getattr(self, "social", None)
+        if social is not None:
+            try:
+                ttl = int(
+                    getattr(social, "commitments", {}).get("ttl_turns")
+                    or 0
+                )
+            except (TypeError, ValueError):
+                ttl = 0
+        if ttl <= 0:
+            return
+        threshold = int(self.turn) - ttl
+        self.commitments = [
+            item for item in self.commitments
+            if int(item.get("turn", 0)) > threshold
+        ]
+
+    def commitments_snapshot(self) -> Tuple[Mapping[str, Any], ...]:
+        """Срез обязательств для отладки и тестов."""
+
+        return tuple(dict(item) for item in self.commitments)
 
     # --- референты и местоимения ------------------------------------
 
@@ -1242,4 +1326,5 @@ def build_state(
         memory=memory,
         run_id=_text(getattr(knowledge, "run_id", "")) or "campaign",
         clock=_integer(getattr(knowledge, "clock", 0)),
+        social=getattr(catalog, "social", None),
     )

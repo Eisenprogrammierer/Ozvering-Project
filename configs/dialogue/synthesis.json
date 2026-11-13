@@ -1,604 +1,1107 @@
 {
-  "schema": 2,
-  "word_forms": {
-    "adj:illegal": {
-      "nom_m": "незаконный",
-      "nom_f": "незаконная",
-      "nom_n": "незаконное",
-      "nom_pl": "незаконные",
-      "acc_m": "незаконный",
-      "acc_f": "незаконную",
-      "acc_n": "незаконное",
-      "acc_pl": "незаконные",
-      "ins_m": "незаконным",
-      "ins_f": "незаконной",
-      "ins_n": "незаконным",
-      "ins_pl": "незаконными"
-    },
-    "adj:own": {
-      "nom_m": "собственный",
-      "nom_f": "собственная",
-      "nom_n": "собственное",
-      "nom_pl": "собственные",
-      "acc_m": "собственный",
-      "acc_f": "собственную",
-      "acc_n": "собственное",
-      "acc_pl": "собственные",
-      "ins_m": "собственным",
-      "ins_f": "собственной",
-      "ins_n": "собственным",
-      "ins_pl": "собственными"
-    },
-    "adj:legitimate": {
-      "short_m": "легитимен",
-      "short_f": "легитимна",
-      "short_n": "легитимно",
-      "short_pl": "легитимны"
-    },
-    "verb:begin": {
-      "present_sg3": "начинается",
-      "present_pl3": "начинаются",
-      "past_m": "начался",
-      "past_f": "началась",
-      "past_n": "началось",
-      "past_pl": "начались"
-    }
+ "schema": 2,
+ "word_forms": {
+  "adj:illegal": {
+   "nom_m": "незаконный",
+   "nom_f": "незаконная",
+   "nom_n": "незаконное",
+   "nom_pl": "незаконные",
+   "acc_m": "незаконный",
+   "acc_f": "незаконную",
+   "acc_n": "незаконное",
+   "acc_pl": "незаконные",
+   "ins_m": "незаконным",
+   "ins_f": "незаконной",
+   "ins_n": "незаконным",
+   "ins_pl": "незаконными"
   },
-  "morphology": {
-    "gender": "m",
-    "number": "sg"
+  "adj:own": {
+   "nom_m": "собственный",
+   "nom_f": "собственная",
+   "nom_n": "собственное",
+   "nom_pl": "собственные",
+   "acc_m": "собственный",
+   "acc_f": "собственную",
+   "acc_n": "собственное",
+   "acc_pl": "собственные",
+   "ins_m": "собственным",
+   "ins_f": "собственной",
+   "ins_n": "собственным",
+   "ins_pl": "собственными"
   },
-  "value_lexicon": {
-    "illegal": "adj:illegal"
+  "adj:legitimate": {
+   "short_m": "легитимен",
+   "short_f": "легитимна",
+   "short_n": "легитимно",
+   "short_pl": "легитимны"
   },
-  "constructions": {
-    "clause_believe": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:believe", "form": "present", "agreement": "subject"},
-        {"kind": "np", "source": "object", "case": "acc"},
-        {"kind": "adj", "entry_from": "value_lexicon", "source": "value", "case": "ins", "gender_from": "object"}
-      ],
-      "end": "."
-    },
-    "clause_alliance": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "lex", "entry": "noun:ally", "case": "nom"},
-        {"kind": "np", "source": "object", "case": "gen"}
-      ],
-      "end": "."
-    },
-    "clause_threaten": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:threaten", "form": "present", "agreement": "subject"},
-        {"kind": "np", "source": "object", "case": "dat"}
-      ],
-      "end": "."
-    },
-    "clause_enemy": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:believe", "form": "present", "agreement": "subject"},
-        {"kind": "np", "source": "object", "case": "acc"},
-        {"kind": "lex", "entry": "noun:enemy", "case": "ins"}
-      ],
-      "end": "."
-    },
-    "clause_depend": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:depend", "form": "present", "agreement": "subject"},
-        {"kind": "literal", "text": "от"},
-        {"kind": "np", "source": "object", "case": "gen"}
-      ],
-      "end": "."
-    },
-    "clause_defend": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:defend", "form": "present", "agreement": "subject"},
-        {"kind": "np", "source": "object", "case": "acc"}
-      ],
-      "end": "."
-    },
-    "clause_legitimate": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "adj", "entry": "adj:legitimate", "form": "short", "gender_from": "subject", "number_from": "subject"}
-      ],
-      "end": "."
-    },
-    "clause_myth": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:believe_in", "form": "present", "agreement": "subject"},
-        {"kind": "literal", "text": "в"},
-        {"kind": "adj", "entry": "adj:own", "case": "acc", "gender": "m"},
-        {"kind": "np", "source": "myth", "case": "acc"}
-      ],
-      "end": "."
-    },
-    "clause_fight": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:fight", "form": "present", "agreement": "subject"},
-        {"kind": "literal", "text": "с"},
-        {"kind": "np", "source": "object", "case": "ins"}
-      ],
-      "end": "."
-    },
-    "clause_war_reason": {
-      "parts": [
-        {"kind": "np", "source": "a", "case": "nom"},
-        {"kind": "lex", "entry": "verb:fight", "form": "present", "agreement": "a"},
-        {"kind": "literal", "text": "с"},
-        {"kind": "np", "source": "b", "case": "ins"},
-        {"kind": "literal", "text": "из-за"},
-        {"kind": "np", "source": "dispute", "case": "gen"},
-        {"kind": "literal", "text": "о"},
-        {"kind": "np", "source": "reason", "case": "prep"}
-      ],
-      "end": "."
-    },
-    "clause_has_organ": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "lex", "entry": "verb:have", "form": "present"},
-        {"kind": "lex", "entry": "noun:organ", "case": "nom"},
-        {"kind": "np", "source": "item", "case": "nom"}
-      ],
-      "end": "."
-    },
-    "clause_has_work": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "lex", "entry": "verb:have", "form": "present"},
-        {"kind": "lex", "entry": "noun:work", "case": "nom"},
-        {"kind": "np", "source": "item", "case": "nom"}
-      ],
-      "end": "."
-    },
-    "clause_asset": {
-      "parts": [
-        {"kind": "np", "source": "label", "case": "nom"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "number", "source": "value"}
-      ],
-      "end": "."
-    },
-    "clause_located": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:locate", "form": "present", "agreement": "subject"},
-        {"kind": "text", "source": "place"}
-      ],
-      "end": "."
-    },
-    "clause_started": {
-      "parts": [
-        {"kind": "np", "source": "subject", "case": "nom"},
-        {"kind": "lex", "entry": "verb:begin", "form": "past", "agreement": "subject"},
-        {"kind": "text", "source": "time"}
-      ],
-      "end": "."
-    },
-    "last_work_intro": {
-      "parts": [
-        {"kind": "literal", "text": "Последний ход"},
-        {"kind": "np", "source": "owner", "case": "gen"}
-      ],
-      "end": ":"
-    },
-    "last_work_success": {
-      "parts": [
-        {"kind": "text", "source": "label"},
-        {"kind": "literal", "text": "— успех"}
-      ],
-      "end": "."
-    },
-    "last_work_failure": {
-      "parts": [
-        {"kind": "text", "source": "label"},
-        {"kind": "literal", "text": "— неудача"}
-      ],
-      "end": "."
-    },
-    "last_work_empty": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "нет записанных работ за последний ход"}
-      ],
-      "end": "."
-    }
-  },
-  "statements": {
-    "considers_outlaw": {
-      "construction": "clause_believe",
-      "args": {"subject": 0, "object": 1},
-      "consts": {"value": "illegal"}
-    },
-    "allied_with": {
-      "construction": "clause_alliance",
-      "args": {"subject": 0, "object": 1}
-    },
-    "threatens": {
-      "construction": "clause_threaten",
-      "args": {"subject": 0, "object": 1}
-    },
-    "enemy": {
-      "construction": "clause_enemy",
-      "args": {"subject": 0, "object": 1}
-    },
-    "depends_on": {
-      "construction": "clause_depend",
-      "args": {"subject": 0, "object": 1}
-    },
-    "protects": {
-      "construction": "clause_defend",
-      "args": {"subject": 0, "object": 1}
-    },
-    "legitimate": {
-      "construction": "clause_legitimate",
-      "args": {"subject": 0}
-    },
-    "myth": {
-      "construction": "clause_myth",
-      "args": {"subject": 0},
-      "consts": {"myth": "concept:myth"}
-    },
-    "at_war_with": {
-      "construction": "clause_fight",
-      "args": {"subject": 0, "object": 1}
-    },
-    "war_reason": {
-      "construction": "clause_war_reason",
-      "args": {"a": 0, "b": 1, "reason": 2},
-      "consts": {"dispute": "concept:dispute"}
-    },
-    "has_organ": {
-      "construction": "clause_has_organ",
-      "args": {"owner": 0, "item": 1}
-    },
-    "has_work": {
-      "construction": "clause_has_work",
-      "args": {"owner": 0, "item": 1}
-    },
-    "asset": {
-      "construction": "clause_asset",
-      "args": {"owner": 0, "key": 1, "value": 2},
-      "label_prefix": "asset:"
-    },
-    "located_at": {
-      "construction": "clause_located",
-      "args": {"subject": 0, "place": 1}
-    },
-    "started_at": {
-      "construction": "clause_started",
-      "args": {"subject": 0, "time": 1}
-    }
-  },
-  "collections": {
-    "assets": {
-      "kind": "numbered",
-      "relation": "asset",
-      "pattern": ["$self", "$key", "$value"],
-      "key": "$key",
-      "value": "$value",
-      "label_prefix": "asset:",
-      "format": "{label} {value}",
-      "join": ", ",
-      "sort": true
-    },
-    "organs": {
-      "kind": "items",
-      "relation": "has_organ",
-      "pattern": ["$self", "$item"],
-      "var": "$item",
-      "case": "nom",
-      "join": ", ",
-      "sort": true
-    },
-    "allies": {
-      "kind": "items",
-      "relation": "allied_with",
-      "pattern": ["$self", "$item"],
-      "var": "$item",
-      "case": "nom",
-      "join": ", ",
-      "sort": true
-    },
-    "wars": {
-      "kind": "items",
-      "relation": "at_war_with",
-      "pattern": ["$self", "$item"],
-      "var": "$item",
-      "case": "nom",
-      "join": ", ",
-      "sort": true
-    },
-    "beliefs": {
-      "kind": "beliefs",
-      "separator": "; "
-    }
-  },
-  "entity_fields": {
-    "faction": {
-      "description": {"kind": "relation", "relation": "description", "pattern": ["$self", "$text"], "fields": {"description": {"var": "$text"}}},
-      "leader": {"kind": "relation", "relation": "leader", "pattern": ["$self", "$character", "$post", "$person"], "fields": {"post": {"var": "$post", "case": "nom"}, "person": {"var": "$person"}}},
-      "assets": {"kind": "collection", "collection": "assets"},
-      "organs": {"kind": "collection", "collection": "organs"},
-      "allies": {"kind": "collection", "collection": "allies"},
-      "wars": {"kind": "collection", "collection": "wars"},
-      "beliefs": {"kind": "collection", "collection": "beliefs"}
-    },
-    "organ": {
-      "description": {"kind": "relation", "relation": "description", "pattern": ["$self", "$text"], "fields": {"description": {"var": "$text"}}},
-      "owner": {"kind": "relation", "relation": "has_organ", "pattern": ["$owner", "$self"], "fields": {"owner": {"var": "$owner"}}},
-      "integrity": {"kind": "relation", "relation": "organ_integrity", "pattern": ["$self", "$value"], "fields": {"integrity": {"var": "$value", "format": "number"}}}
-    },
-    "post": {
-      "owner": {"kind": "relation", "relation": "post_info", "pattern": ["$self", "$owner", "$post", "$person", "$organ"], "fields": {"owner": {"var": "$owner"}, "person": {"var": "$person"}}}
-    },
-    "character": {
-      "owner": {"kind": "relation", "relation": "character_info", "pattern": ["$self", "$owner", "$name", "$post"], "fields": {"owner": {"var": "$owner"}}},
-      "post": {"kind": "relation", "relation": "character_info", "pattern": ["$self", "$owner", "$name", "$post"], "fields": {"post": {"var": "$post"}}}
-    },
-    "asset": {
-      "description": {"kind": "relation", "relation": "description", "pattern": ["$self", "$text"], "fields": {"description": {"var": "$text"}}}
-    },
-    "concept": {
-      "description": {"kind": "relation", "relation": "description", "pattern": ["$self", "$text"], "fields": {"description": {"var": "$text"}}},
-      "started": {"kind": "relation", "relation": "started_at", "pattern": ["$self", "$time"], "fields": {"started": {"var": "$time"}}}
-    },
-    "work": {
-      "label": {"kind": "relation", "relation": "work_label", "pattern": ["$self", "$label"], "fields": {"label": {"var": "$label"}}},
-      "owner": {"kind": "relation", "relation": "has_work", "pattern": ["$owner", "$self"], "fields": {"owner": {"var": "$owner"}}},
-      "description": {"kind": "relation", "relation": "description", "pattern": ["$self", "$text"], "fields": {"description": {"var": "$text"}}}
-    }
-  },
-  "phrases": {
-    "identity": {
-      "requires": ["name", "type_label"],
-      "parts": [
-        {"kind": "text", "source": "name"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "text", "source": "type_label"}
-      ],
-      "end": "."
-    },
-    "description": {
-      "requires": ["description"],
-      "parts": [{"kind": "text", "source": "description"}],
-      "end": "."
-    },
-    "leader": {
-      "requires": ["owner", "post"],
-      "parts": [
-        {"kind": "lex", "entry": "noun:leader", "case": "nom"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "np", "source": "post", "case": "nom"},
-        {"kind": "text", "source": "person", "prefix": "(", "suffix": ")"}
-      ],
-      "end": "."
-    },
-    "organ_identity": {
-      "requires": ["owner"],
-      "parts": [
-        {"kind": "text", "source": "name"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "text", "source": "type_label"},
-        {"kind": "np", "source": "owner", "case": "gen"}
-      ],
-      "end": "."
-    },
-    "integrity_line": {
-      "requires": ["integrity"],
-      "parts": [
-        {"kind": "literal", "text": "Целостность:"},
-        {"kind": "text", "source": "integrity"}
-      ],
-      "end": "."
-    },
-    "post_identity": {
-      "requires": ["owner"],
-      "parts": [
-        {"kind": "text", "source": "name"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "text", "source": "type_label"},
-        {"kind": "np", "source": "owner", "case": "gen"}
-      ],
-      "end": "."
-    },
-    "holder_line": {
-      "requires": ["person"],
-      "parts": [
-        {"kind": "literal", "text": "Носитель:"},
-        {"kind": "text", "source": "person"}
-      ],
-      "end": "."
-    },
-    "character_position": {
-      "requires": ["post"],
-      "parts": [
-        {"kind": "literal", "text": "Должность:"},
-        {"kind": "text", "source": "post"}
-      ],
-      "end": "."
-    },
-    "character_faction": {
-      "requires": ["owner"],
-      "parts": [
-        {"kind": "literal", "text": "Фракция:"},
-        {"kind": "np", "source": "owner", "case": "nom"}
-      ],
-      "end": "."
-    },
-    "beginning_line": {
-      "requires": ["started"],
-      "parts": [
-        {"kind": "literal", "text": "Начало:"},
-        {"kind": "text", "source": "started"}
-      ],
-      "end": "."
-    },
-    "work_identity": {
-      "requires": ["label"],
-      "parts": [
-        {"kind": "text", "source": "label"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "text", "source": "type_label"},
-        {"kind": "np", "source": "owner", "case": "gen"}
-      ],
-      "end": "."
-    },
-    "leader_answer": {
-      "requires": ["owner", "post"],
-      "parts": [
-        {"kind": "lex", "entry": "noun:leader", "case": "nom"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "—"},
-        {"kind": "np", "source": "post", "case": "nom"},
-        {"kind": "text", "source": "person", "prefix": "(", "suffix": ")"}
-      ],
-      "end": "."
-    },
-    "organs_intro": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "есть органы"}
-      ],
-      "end": ":"
-    },
-    "organs_empty": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "нет органов"}
-      ],
-      "end": "."
-    },
-    "allies_intro": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "есть союзники"}
-      ],
-      "end": ":"
-    },
-    "allies_empty": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "нет союзников"}
-      ],
-      "end": "."
-    },
-    "works_intro": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "есть работы"}
-      ],
-      "end": ":"
-    },
-    "works_empty": {
-      "parts": [
-        {"kind": "literal", "text": "У"},
-        {"kind": "np", "source": "owner", "case": "gen"},
-        {"kind": "literal", "text": "нет работ"}
-      ],
-      "end": "."
-    },
-    "assets_line": {
-      "kind": "list",
-      "collection": "assets",
-      "label": "Активы",
-      "separator": ", ",
-      "empty": "нет данных",
-      "end": "."
-    },
-    "organs_line": {
-      "kind": "list",
-      "collection": "organs",
-      "label": "Органы",
-      "separator": ", ",
-      "empty": "нет",
-      "end": "."
-    },
-    "allies_line": {
-      "kind": "list",
-      "collection": "allies",
-      "label": "Союзники",
-      "separator": ", ",
-      "empty": "нет",
-      "end": "."
-    },
-    "wars_line": {
-      "kind": "list",
-      "collection": "wars",
-      "label": "Война",
-      "separator": ", ",
-      "empty": "нет",
-      "end": "."
-    },
-    "beliefs_line": {
-      "kind": "sentences",
-      "collection": "beliefs",
-      "label": "Убеждения",
-      "separator": "; ",
-      "empty": "нет",
-      "end": "."
-    }
-  },
-  "answers": {
-    "value": {"construction": "clause_asset"},
-    "leader": {"phrase": "leader_answer"},
-    "last_work_intro": {"construction": "last_work_intro"},
-    "last_work_success": {"construction": "last_work_success"},
-    "last_work_failure": {"construction": "last_work_failure"},
-    "last_work_empty": {"construction": "last_work_empty"}
-  },
-  "lists": {
-    "organs": {"intro": "organs_intro", "empty": "organs_empty", "separator": ", "},
-    "allies": {"intro": "allies_intro", "empty": "allies_empty", "separator": ", "},
-    "works": {"intro": "works_intro", "empty": "works_empty", "separator": ", "}
-  },
-  "describe": {
-    "faction": ["identity", "description", "leader"],
-    "organ": ["organ_identity", "description", "integrity_line"],
-    "post": ["post_identity", "holder_line"],
-    "character": ["identity", "character_position", "character_faction"],
-    "asset": ["identity", "description"],
-    "concept": ["identity", "description", "beginning_line"],
-    "need": ["identity"],
-    "work": ["work_identity", "description"]
-  },
-  "summary": {
-    "faction": [
-      "identity",
-      "description",
-      "leader",
-      "assets_line",
-      "organs_line",
-      "allies_line",
-      "wars_line",
-      "beliefs_line"
-    ],
-    "organ": ["organ_identity", "description", "integrity_line"],
-    "post": ["post_identity", "holder_line"],
-    "character": ["identity", "character_position", "character_faction"],
-    "asset": ["identity", "description"],
-    "concept": ["identity", "description", "beginning_line"],
-    "need": ["identity"],
-    "work": ["work_identity", "description"]
+  "verb:begin": {
+   "present_sg3": "начинается",
+   "present_pl3": "начинаются",
+   "past_m": "начался",
+   "past_f": "началась",
+   "past_n": "началось",
+   "past_pl": "начались"
   }
+ },
+ "morphology": {
+  "gender": "m",
+  "number": "sg"
+ },
+ "value_lexicon": {
+  "illegal": "adj:illegal"
+ },
+ "constructions": {
+  "clause_believe": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:believe", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "acc"},
+    {"kind": "adj", "entry_from": "value_lexicon", "source": "value", "case": "ins", "gender_from": "object"}
+   ],
+   "end": ".",
+   "relation": "considers_outlaw"
+  },
+  "clause_alliance": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "lex", "entry": "noun:ally", "case": "nom"},
+    {"kind": "np", "source": "object", "case": "gen"}
+   ],
+   "end": ".",
+   "relation": "allied_with"
+  },
+  "clause_threaten": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:threaten", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "dat"}
+   ],
+   "end": ".",
+   "relation": "threatens"
+  },
+  "clause_enemy": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:believe", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "acc"},
+    {"kind": "lex", "entry": "noun:enemy", "case": "ins"}
+   ],
+   "end": ".",
+   "relation": "enemy"
+  },
+  "clause_depend": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:depend", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "от"},
+    {"kind": "np", "source": "object", "case": "gen"}
+   ],
+   "end": ".",
+   "relation": "depends_on"
+  },
+  "clause_defend": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:defend", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "acc"}
+   ],
+   "end": ".",
+   "relation": "protects"
+  },
+  "clause_legitimate": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "adj", "entry": "adj:legitimate", "form": "short", "gender_from": "subject", "number_from": "subject"}
+   ],
+   "end": ".",
+   "relation": "legitimate"
+  },
+  "clause_myth": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:believe_in", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "в"},
+    {"kind": "adj", "entry": "adj:own", "case": "acc", "gender": "m"},
+    {"kind": "np", "source": "myth", "case": "acc"}
+   ],
+   "end": ".",
+   "relation": "myth"
+  },
+  "clause_fight": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:fight", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "с"},
+    {"kind": "np", "source": "object", "case": "ins"}
+   ],
+   "end": ".",
+   "relation": "at_war_with"
+  },
+  "clause_war_reason": {
+   "parts": [
+    {"kind": "np", "source": "a", "case": "nom"},
+    {"kind": "lex", "entry": "verb:fight", "form": "present", "agreement": "a"},
+    {"kind": "literal", "text": "с"},
+    {"kind": "np", "source": "b", "case": "ins"},
+    {"kind": "literal", "text": "из-за"},
+    {"kind": "np", "source": "dispute", "case": "gen"},
+    {"kind": "literal", "text": "о"},
+    {"kind": "np", "source": "reason", "case": "prep"}
+   ],
+   "end": ".",
+   "relation": "war_reason"
+  },
+  "clause_has_organ": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "lex", "entry": "verb:have", "form": "present"},
+    {"kind": "lex", "entry": "noun:organ", "case": "nom"},
+    {"kind": "np", "source": "item", "case": "nom"}
+   ],
+   "end": ".",
+   "relation": "has_organ"
+  },
+  "clause_has_work": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "lex", "entry": "verb:have", "form": "present"},
+    {"kind": "lex", "entry": "noun:work", "case": "nom"},
+    {"kind": "np", "source": "item", "case": "nom"}
+   ],
+   "end": ".",
+   "relation": "has_work"
+  },
+  "clause_asset": {
+   "parts": [
+    {"kind": "np", "source": "label", "case": "nom"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "number", "source": "value"}
+   ],
+   "end": ".",
+   "relation": "asset"
+  },
+  "clause_located": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:locate", "form": "present", "agreement": "subject"},
+    {"kind": "text", "source": "place"}
+   ],
+   "end": ".",
+   "relation": "located_at"
+  },
+  "clause_started": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:begin", "form": "past", "agreement": "subject"},
+    {"kind": "text", "source": "time"}
+   ],
+   "end": ".",
+   "relation": "started_at"
+  },
+  "last_work_intro": {
+   "parts": [
+    {"kind": "literal", "text": "Последний ход"},
+    {"kind": "np", "source": "owner", "case": "gen"}
+   ],
+   "end": ":",
+   "relation": "recent_work_intro"
+  },
+  "last_work_success": {
+   "parts": [
+    {"kind": "text", "source": "label"},
+    {"kind": "literal", "text": "— успех"}
+   ],
+   "end": ".",
+   "relation": "recent_work_success"
+  },
+  "last_work_failure": {
+   "parts": [
+    {"kind": "text", "source": "label"},
+    {"kind": "literal", "text": "— неудача"}
+   ],
+   "end": ".",
+   "relation": "recent_work_failure"
+  },
+  "last_work_empty": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "нет записанных работ за последний ход"}
+   ],
+   "end": ".",
+   "relation": "recent_work_empty"
+  },
+  "clause_fight_official": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:conduct", "form": "present", "agreement": "subject"},
+    {"kind": "lex", "entry": "noun:war", "case": "acc"},
+    {"kind": "literal", "text": "с"},
+    {"kind": "np", "source": "object", "case": "ins"}
+   ],
+   "end": ".",
+   "features": {"formality": "high", "nominalization": "high"},
+   "priority": 10
+  },
+  "clause_fight_report": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:locate", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "в состоянии войны с"},
+    {"kind": "np", "source": "object", "case": "ins"}
+   ],
+   "end": ".",
+   "features": {"authority": "high", "nominalization": "medium"},
+   "priority": 20
+  },
+  "clause_believe_official": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:recognize", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "acc"},
+    {"kind": "adj", "entry_from": "value_lexicon", "source": "value", "case": "ins", "gender_from": "object"}
+   ],
+   "end": ".",
+   "features": {"formality": "high", "nominalization": "high"},
+   "priority": 10
+  },
+  "clause_alliance_official": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:consist", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "в союзе с"},
+    {"kind": "np", "source": "object", "case": "ins"}
+   ],
+   "end": ".",
+   "features": {"formality": "high"},
+   "priority": 10
+  },
+  "clause_alliance_friendly": {
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "entry": "verb:befriend", "form": "present", "agreement": "subject"},
+    {"kind": "literal", "text": "с"},
+    {"kind": "np", "source": "object", "case": "ins"}
+   ],
+   "end": ".",
+   "features": {"distance": "near"},
+   "priority": 10
+  },
+  "clause_has_organ_official": {
+   "parts": [
+    {"kind": "literal", "text": "В составе"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "lex", "entry": "verb:exist", "form": "present", "agreement": "item"},
+    {"kind": "lex", "entry": "noun:organ", "case": "nom"},
+    {"kind": "np", "source": "item", "case": "nom"}
+   ],
+   "end": ".",
+   "features": {"formality": "high"},
+   "priority": 10
+  },
+  "clause_war_reason_official": {
+   "parts": [
+    {"kind": "literal", "text": "Причиной войны между"},
+    {"kind": "np", "source": "a", "case": "ins"},
+    {"kind": "literal", "text": "и"},
+    {"kind": "np", "source": "b", "case": "ins"},
+    {"kind": "lex", "entry": "verb:serve", "form": "present", "agreement": "dispute"},
+    {"kind": "lex", "entry": "noun:dispute", "case": "nom"},
+    {"kind": "literal", "text": "о"},
+    {"kind": "np", "source": "reason", "case": "prep"}
+   ],
+   "end": ".",
+   "features": {"formality": "high", "nominalization": "high"},
+   "priority": 10
+  },
+  "clause_believe_featured": {
+   "relation": "considers_outlaw",
+   "features": {"formality": "high"},
+   "priority": 5,
+   "parts": [
+    {"kind": "np", "source": "subject", "case": "nom"},
+    {"kind": "lex", "concept": "believe", "form": "present", "agreement": "subject"},
+    {"kind": "np", "source": "object", "case": "acc"},
+    {"kind": "adj", "entry_from": "value_lexicon", "source": "value", "case": "ins", "gender_from": "object"}
+   ],
+   "end": "."
+  },
+  "act_confirm_preposed": {
+   "act": "confirm",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "confirm"},
+    {"kind": "act", "source": "claim"}
+   ],
+   "end": "."
+  },
+  "act_confirm_direct": {
+   "act": "confirm",
+   "features": {"directness": "direct"},
+   "priority": 2,
+   "parts": [
+    {"kind": "marker", "concept": "confirm"},
+    {"kind": "act", "source": "claim"}
+   ],
+   "end": "."
+  },
+  "act_confirm_postposed": {
+   "act": "confirm",
+   "features": {"directness": "indirect"},
+   "priority": 5,
+   "parts": [
+    {"kind": "act", "source": "claim"},
+    {"kind": "marker", "concept": "confirm"}
+   ],
+   "end": "."
+  },
+  "act_deny": {
+   "act": "deny",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "deny"}
+   ],
+   "end": "."
+  },
+  "act_unknown": {
+   "act": "unknown",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "unknown"}
+   ],
+   "end": "."
+  },
+  "act_clarify": {
+   "act": "clarify",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "clarify"},
+    {"kind": "literal", "text": ":", "glue": "before"},
+    {"kind": "text", "source": "message"}
+   ],
+   "end": "."
+  },
+  "act_list": {
+   "act": "list",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "list"},
+    {"kind": "literal", "text": ":", "glue": "before"},
+    {"kind": "items", "source": "items"}
+   ],
+   "end": "."
+  },
+  "act_value_plain": {
+   "act": "value",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "np", "source": "label", "case": "nom"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "number", "source": "value"}
+   ],
+   "end": "."
+  },
+  "act_value_official": {
+   "act": "value",
+   "features": {"formality": "high"},
+   "priority": 5,
+   "parts": [
+    {"kind": "literal", "text": "Уровень"},
+    {"kind": "np", "source": "label", "case": "gen"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "составляет"},
+    {"kind": "number", "source": "value"}
+   ],
+   "end": "."
+  },
+  "act_text": {
+   "act": "text",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "text", "source": "message"}
+   ],
+   "end": "."
+  },
+  "act_leader": {
+   "act": "leader",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "lex", "entry": "noun:leader", "case": "nom"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "np", "source": "post", "case": "nom"},
+    {"kind": "text", "source": "person", "prefix": "(", "suffix": ")"}
+   ],
+   "end": "."
+  },
+  "act_address_post": {
+   "act": "address_wrap",
+   "features": {"address_mode": "post"},
+   "priority": 5,
+   "parts": [
+    {"kind": "act", "source": "inner"},
+    {"kind": "literal", "text": ",", "glue": "before"},
+    {"kind": "address"}
+   ],
+   "end": "."
+  },
+  "act_address_call": {
+   "act": "address_wrap",
+   "features": {"address_mode": "pre"},
+   "priority": 5,
+   "parts": [
+    {"kind": "address"},
+    {"kind": "literal", "text": ",", "glue": "before"},
+    {"kind": "marker", "concept": "attention"},
+    {"kind": "literal", "text": ":", "glue": "before"},
+    {"kind": "act", "source": "inner"}
+   ],
+   "end": "."
+  },
+  "act_deny_reason": {
+   "act": "deny_reason",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "deny"},
+    {"kind": "text", "source": "claim"}
+   ],
+   "end": "."
+  },
+  "social_accept": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "accept"}
+   ],
+   "end": "."
+  },
+  "social_accept_official": {
+   "act": "social",
+   "features": {"formality": "high"},
+   "priority": 10,
+   "parts": [
+    {"kind": "marker", "concept": "accept"}
+   ],
+   "end": "."
+  },
+  "social_reject": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "refuse"}
+   ],
+   "end": "."
+  },
+  "social_reject_official": {
+   "act": "social",
+   "features": {"formality": "high"},
+   "priority": 10,
+   "parts": [
+    {"kind": "marker", "concept": "refuse"}
+   ],
+   "end": "."
+  },
+  "social_evade": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "evade"}
+   ],
+   "end": "."
+  },
+  "social_counter": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "counter"}
+   ],
+   "end": "."
+  },
+  "social_clarify": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "clarify_social"}
+   ],
+   "end": "."
+  }
+ },
+ "statements": {
+  "considers_outlaw": {
+   "construction": "clause_believe",
+   "args": {"subject": 0, "object": 1},
+   "consts": {"value": "illegal"}
+  },
+  "allied_with": {
+   "construction": "clause_alliance",
+   "args": {"subject": 0, "object": 1}
+  },
+  "threatens": {
+   "construction": "clause_threaten",
+   "args": {"subject": 0, "object": 1}
+  },
+  "enemy": {
+   "construction": "clause_enemy",
+   "args": {"subject": 0, "object": 1}
+  },
+  "depends_on": {
+   "construction": "clause_depend",
+   "args": {"subject": 0, "object": 1}
+  },
+  "protects": {
+   "construction": "clause_defend",
+   "args": {"subject": 0, "object": 1}
+  },
+  "legitimate": {
+   "construction": "clause_legitimate",
+   "args": {"subject": 0}
+  },
+  "myth": {
+   "construction": "clause_myth",
+   "args": {"subject": 0},
+   "consts": {"myth": "concept:myth"}
+  },
+  "at_war_with": {
+   "construction": "clause_fight",
+   "args": {"subject": 0, "object": 1}
+  },
+  "war_reason": {
+   "construction": "clause_war_reason",
+   "args": {"a": 0, "b": 1, "reason": 2},
+   "consts": {"dispute": "concept:dispute"}
+  },
+  "has_organ": {
+   "construction": "clause_has_organ",
+   "args": {"owner": 0, "item": 1}
+  },
+  "has_work": {
+   "construction": "clause_has_work",
+   "args": {"owner": 0, "item": 1}
+  },
+  "asset": {
+   "construction": "clause_asset",
+   "args": {"owner": 0, "key": 1, "value": 2},
+   "label_prefix": "asset:"
+  },
+  "located_at": {
+   "construction": "clause_located",
+   "args": {"subject": 0, "place": 1}
+  },
+  "started_at": {
+   "construction": "clause_started",
+   "args": {"subject": 0, "time": 1}
+  }
+ },
+ "collections": {
+  "assets": {
+   "kind": "numbered",
+   "relation": "asset",
+   "pattern": ["$self", "$key", "$value"],
+   "key": "$key",
+   "value": "$value",
+   "label_prefix": "asset:",
+   "format": "{label} {value}",
+   "join": ", ",
+   "sort": true
+  },
+  "organs": {
+   "kind": "items",
+   "relation": "has_organ",
+   "pattern": ["$self", "$item"],
+   "var": "$item",
+   "case": "nom",
+   "join": ", ",
+   "sort": true
+  },
+  "allies": {
+   "kind": "items",
+   "relation": "allied_with",
+   "pattern": ["$self", "$item"],
+   "var": "$item",
+   "case": "nom",
+   "join": ", ",
+   "sort": true
+  },
+  "wars": {
+   "kind": "items",
+   "relation": "at_war_with",
+   "pattern": ["$self", "$item"],
+   "var": "$item",
+   "case": "nom",
+   "join": ", ",
+   "sort": true
+  },
+  "beliefs": {
+   "kind": "beliefs",
+   "separator": "; "
+  }
+ },
+ "entity_fields": {
+  "faction": {
+   "description": {
+    "kind": "relation",
+    "relation": "description",
+    "pattern": ["$self", "$text"],
+    "fields": {"description": {"var": "$text"}}
+   },
+   "leader": {
+    "kind": "relation",
+    "relation": "leader",
+    "pattern": ["$self", "$character", "$post", "$person"],
+    "fields": {
+     "post": {"var": "$post", "case": "nom"},
+     "person": {"var": "$person"}
+    }
+   },
+   "assets": {"kind": "collection", "collection": "assets"},
+   "organs": {"kind": "collection", "collection": "organs"},
+   "allies": {"kind": "collection", "collection": "allies"},
+   "wars": {"kind": "collection", "collection": "wars"},
+   "beliefs": {"kind": "collection", "collection": "beliefs"}
+  },
+  "organ": {
+   "description": {
+    "kind": "relation",
+    "relation": "description",
+    "pattern": ["$self", "$text"],
+    "fields": {"description": {"var": "$text"}}
+   },
+   "owner": {
+    "kind": "relation",
+    "relation": "has_organ",
+    "pattern": ["$owner", "$self"],
+    "fields": {"owner": {"var": "$owner"}}
+   },
+   "integrity": {
+    "kind": "relation",
+    "relation": "organ_integrity",
+    "pattern": ["$self", "$value"],
+    "fields": {"integrity": {"var": "$value", "format": "number"}}
+   }
+  },
+  "post": {
+   "owner": {
+    "kind": "relation",
+    "relation": "post_info",
+    "pattern": ["$self", "$owner", "$post", "$person", "$organ"],
+    "fields": {
+     "owner": {"var": "$owner"},
+     "person": {"var": "$person"}
+    }
+   }
+  },
+  "character": {
+   "owner": {
+    "kind": "relation",
+    "relation": "character_info",
+    "pattern": ["$self", "$owner", "$name", "$post"],
+    "fields": {"owner": {"var": "$owner"}}
+   },
+   "post": {
+    "kind": "relation",
+    "relation": "character_info",
+    "pattern": ["$self", "$owner", "$name", "$post"],
+    "fields": {"post": {"var": "$post"}}
+   }
+  },
+  "asset": {
+   "description": {
+    "kind": "relation",
+    "relation": "description",
+    "pattern": ["$self", "$text"],
+    "fields": {"description": {"var": "$text"}}
+   }
+  },
+  "concept": {
+   "description": {
+    "kind": "relation",
+    "relation": "description",
+    "pattern": ["$self", "$text"],
+    "fields": {"description": {"var": "$text"}}
+   },
+   "started": {
+    "kind": "relation",
+    "relation": "started_at",
+    "pattern": ["$self", "$time"],
+    "fields": {"started": {"var": "$time"}}
+   }
+  },
+  "work": {
+   "label": {
+    "kind": "relation",
+    "relation": "work_label",
+    "pattern": ["$self", "$label"],
+    "fields": {"label": {"var": "$label"}}
+   },
+   "owner": {
+    "kind": "relation",
+    "relation": "has_work",
+    "pattern": ["$owner", "$self"],
+    "fields": {"owner": {"var": "$owner"}}
+   },
+   "description": {
+    "kind": "relation",
+    "relation": "description",
+    "pattern": ["$self", "$text"],
+    "fields": {"description": {"var": "$text"}}
+   }
+  }
+ },
+ "phrases": {
+  "identity": {
+   "requires": ["name", "type_label"],
+   "parts": [
+    {"kind": "text", "source": "name"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "text", "source": "type_label"}
+   ],
+   "end": "."
+  },
+  "description": {
+   "requires": ["description"],
+   "parts": [{"kind": "text", "source": "description"}],
+   "end": "."
+  },
+  "leader": {
+   "requires": ["owner", "post"],
+   "parts": [
+    {"kind": "lex", "entry": "noun:leader", "case": "nom"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "np", "source": "post", "case": "nom"},
+    {"kind": "text", "source": "person", "prefix": "(", "suffix": ")"}
+   ],
+   "end": "."
+  },
+  "organ_identity": {
+   "requires": ["owner"],
+   "parts": [
+    {"kind": "text", "source": "name"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "text", "source": "type_label"},
+    {"kind": "np", "source": "owner", "case": "gen"}
+   ],
+   "end": "."
+  },
+  "integrity_line": {
+   "requires": ["integrity"],
+   "parts": [
+    {"kind": "literal", "text": "Целостность:"},
+    {"kind": "text", "source": "integrity"}
+   ],
+   "end": "."
+  },
+  "post_identity": {
+   "requires": ["owner"],
+   "parts": [
+    {"kind": "text", "source": "name"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "text", "source": "type_label"},
+    {"kind": "np", "source": "owner", "case": "gen"}
+   ],
+   "end": "."
+  },
+  "holder_line": {
+   "requires": ["person"],
+   "parts": [
+    {"kind": "literal", "text": "Носитель:"},
+    {"kind": "text", "source": "person"}
+   ],
+   "end": "."
+  },
+  "character_position": {
+   "requires": ["post"],
+   "parts": [
+    {"kind": "literal", "text": "Должность:"},
+    {"kind": "text", "source": "post"}
+   ],
+   "end": "."
+  },
+  "character_faction": {
+   "requires": ["owner"],
+   "parts": [
+    {"kind": "literal", "text": "Фракция:"},
+    {"kind": "np", "source": "owner", "case": "nom"}
+   ],
+   "end": "."
+  },
+  "beginning_line": {
+   "requires": ["started"],
+   "parts": [
+    {"kind": "literal", "text": "Начало:"},
+    {"kind": "text", "source": "started"}
+   ],
+   "end": "."
+  },
+  "work_identity": {
+   "requires": ["label"],
+   "parts": [
+    {"kind": "text", "source": "label"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "text", "source": "type_label"},
+    {"kind": "np", "source": "owner", "case": "gen"}
+   ],
+   "end": "."
+  },
+  "leader_answer": {
+   "requires": ["owner", "post"],
+   "parts": [
+    {"kind": "lex", "entry": "noun:leader", "case": "nom"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "—"},
+    {"kind": "np", "source": "post", "case": "nom"},
+    {"kind": "text", "source": "person", "prefix": "(", "suffix": ")"}
+   ],
+   "end": "."
+  },
+  "organs_intro": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "есть органы"}
+   ],
+   "end": ":"
+  },
+  "organs_empty": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "нет органов"}
+   ],
+   "end": "."
+  },
+  "allies_intro": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "есть союзники"}
+   ],
+   "end": ":"
+  },
+  "allies_empty": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "нет союзников"}
+   ],
+   "end": "."
+  },
+  "works_intro": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "есть работы"}
+   ],
+   "end": ":"
+  },
+  "works_empty": {
+   "parts": [
+    {"kind": "literal", "text": "У"},
+    {"kind": "np", "source": "owner", "case": "gen"},
+    {"kind": "literal", "text": "нет работ"}
+   ],
+   "end": "."
+  },
+  "assets_line": {
+   "kind": "list",
+   "collection": "assets",
+   "label": "Активы",
+   "separator": ", ",
+   "empty": "нет данных",
+   "end": "."
+  },
+  "organs_line": {
+   "kind": "list",
+   "collection": "organs",
+   "label": "Органы",
+   "separator": ", ",
+   "empty": "нет",
+   "end": "."
+  },
+  "allies_line": {
+   "kind": "list",
+   "collection": "allies",
+   "label": "Союзники",
+   "separator": ", ",
+   "empty": "нет",
+   "end": "."
+  },
+  "wars_line": {
+   "kind": "list",
+   "collection": "wars",
+   "label": "Война",
+   "separator": ", ",
+   "empty": "нет",
+   "end": "."
+  },
+  "beliefs_line": {
+   "kind": "sentences",
+   "collection": "beliefs",
+   "label": "Убеждения",
+   "separator": "; ",
+   "empty": "нет",
+   "end": "."
+  }
+ },
+ "answers": {
+  "value": {"construction": "clause_asset"},
+  "leader": {"phrase": "leader_answer"},
+  "last_work_intro": {"construction": "last_work_intro"},
+  "last_work_success": {"construction": "last_work_success"},
+  "last_work_failure": {"construction": "last_work_failure"},
+  "last_work_empty": {"construction": "last_work_empty"},
+  "social_accept": {"construction": "social_accept"},
+  "social_reject": {"construction": "social_reject"},
+  "social_evade": {"construction": "social_evade"},
+  "social_counter": {"construction": "social_counter"},
+  "social_clarify": {"construction": "social_clarify"}
+ },
+ "lists": {
+  "organs": {"intro": "organs_intro", "empty": "organs_empty", "separator": ", "},
+  "allies": {"intro": "allies_intro", "empty": "allies_empty", "separator": ", "},
+  "works": {"intro": "works_intro", "empty": "works_empty", "separator": ", "}
+ },
+ "describe": {
+  "faction": ["identity", "description", "leader"],
+  "organ": ["organ_identity", "description", "integrity_line"],
+  "post": ["post_identity", "holder_line"],
+  "character": ["identity", "character_position", "character_faction"],
+  "asset": ["identity", "description"],
+  "concept": ["identity", "description", "beginning_line"],
+  "need": ["identity"],
+  "work": ["work_identity", "description"]
+ },
+ "summary": {
+  "faction": ["identity", "description", "leader", "assets_line", "organs_line", "allies_line", "wars_line", "beliefs_line"],
+  "organ": ["organ_identity", "description", "integrity_line"],
+  "post": ["post_identity", "holder_line"],
+  "character": ["identity", "character_position", "character_faction"],
+  "asset": ["identity", "description"],
+  "concept": ["identity", "description", "beginning_line"],
+  "need": ["identity"],
+  "work": ["work_identity", "description"]
+ },
+ "markers": {
+  "marker:confirm_neutral": {"text": "Да.", "features": {}, "priority": 0, "concept": "confirm"},
+  "marker:confirm_official": {"text": "Настоящим подтверждается.", "features": {"formality": "high"}, "priority": 5, "concept": "confirm"},
+  "marker:confirm_report": {"text": "Так точно.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "confirm"},
+  "marker:confirm_command": {"text": "Подтверждаю.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "confirm"},
+  "marker:confirm_friendly": {"text": "Ага.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "confirm"},
+  "marker:confirm_intimate": {"text": "Да.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "confirm"},
+  "marker:confirm_hostile": {"text": "Да. И что?", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "confirm"},
+  "marker:confirm_mentor": {"text": "Верно.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "confirm"},
+  "marker:deny_neutral": {"text": "Нет.", "features": {}, "priority": 0, "concept": "deny"},
+  "marker:deny_official": {"text": "Подтверждения не имеется.", "features": {"formality": "high"}, "priority": 5, "concept": "deny"},
+  "marker:deny_report": {"text": "Никак нет.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "deny"},
+  "marker:deny_command": {"text": "Отказываю.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "deny"},
+  "marker:deny_friendly": {"text": "Не-а.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "deny"},
+  "marker:deny_intimate": {"text": "Увы, нет.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "deny"},
+  "marker:deny_hostile": {"text": "Нет. И не надейся.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "deny"},
+  "marker:deny_mentor": {"text": "Не совсем.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "deny"},
+  "marker:unknown_neutral": {"text": "Не знаю.", "features": {}, "priority": 0, "concept": "unknown"},
+  "marker:unknown_official": {"text": "Сведениями по данному предмету не располагаю.", "features": {"formality": "high"}, "priority": 5, "concept": "unknown"},
+  "marker:unknown_report": {"text": "Данных по данному вопросу не имею.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "unknown"},
+  "marker:unknown_command": {"text": "Сведений нет. Ждать нечего.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "unknown"},
+  "marker:unknown_friendly": {"text": "Честно говоря, не знаю.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "unknown"},
+  "marker:unknown_intimate": {"text": "Прости, я не знаю.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "unknown"},
+  "marker:unknown_hostile": {"text": "Мне это неизвестно. И не спрашивай.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "unknown"},
+  "marker:unknown_mentor": {"text": "Я не знаю. Но это повод разобраться.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "unknown"},
+  "marker:clarify_neutral": {"text": "Уточню", "features": {}, "priority": 0, "concept": "clarify"},
+  "marker:clarify_official": {"text": "Уточните", "features": {"formality": "high"}, "priority": 5, "concept": "clarify"},
+  "marker:clarify_report": {"text": "Уточняю", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "clarify"},
+  "marker:clarify_command": {"text": "Повторяю вопрос", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "clarify"},
+  "marker:clarify_friendly": {"text": "Слушай", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "clarify"},
+  "marker:clarify_intimate": {"text": "Прости", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "clarify"},
+  "marker:clarify_hostile": {"text": "Говори яснее", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "clarify"},
+  "marker:clarify_mentor": {"text": "Подумай", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "clarify"},
+  "marker:list_neutral": {"text": "Список", "features": {}, "priority": 0, "concept": "list"},
+  "marker:list_official": {"text": "Перечень", "features": {"formality": "high"}, "priority": 5, "concept": "list"},
+  "marker:list_report": {"text": "Перечень", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "list"},
+  "marker:list_command": {"text": "Слушай перечень", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "list"},
+  "marker:list_friendly": {"text": "Смотри", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "list"},
+  "marker:list_intimate": {"text": "Вот", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "list"},
+  "marker:list_hostile": {"text": "Запоминай", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "list"},
+  "marker:list_mentor": {"text": "Запомни перечень", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "list"},
+  "marker:attention_friendly": {"text": "слушай", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "attention"},
+  "marker:attention_intimate": {"text": "послушай", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "attention"},
+  "marker:attention_hostile": {"text": "слушай сюда", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "attention"},
+  "marker:attention_mentor": {"text": "запомни", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "attention"},
+  "marker:accept_neutral": {"text": "Принято.", "features": {}, "priority": 0, "concept": "accept"},
+  "marker:accept_official": {"text": "Принято к исполнению.", "features": {"formality": "high"}, "priority": 5, "concept": "accept"},
+  "marker:accept_report": {"text": "Есть.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "accept"},
+  "marker:accept_command": {"text": "Согласен.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "accept"},
+  "marker:accept_friendly": {"text": "Договорились.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "accept"},
+  "marker:accept_intimate": {"text": "Хорошо, милый.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "accept"},
+  "marker:accept_hostile": {"text": "Ладно. Но это в последний раз.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "accept"},
+  "marker:accept_mentor": {"text": "Разумно.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "accept"},
+  "marker:refuse_neutral": {"text": "Отказываюсь.", "features": {}, "priority": 0, "concept": "refuse"},
+  "marker:refuse_official": {"text": "Вынужден отказать.", "features": {"formality": "high"}, "priority": 5, "concept": "refuse"},
+  "marker:refuse_report": {"text": "Никак нет.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "refuse"},
+  "marker:refuse_command": {"text": "Не выполню.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "refuse"},
+  "marker:refuse_friendly": {"text": "Не могу, извини.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "refuse"},
+  "marker:refuse_intimate": {"text": "Прости, я не могу.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "refuse"},
+  "marker:refuse_hostile": {"text": "Нет. И не проси.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "refuse"},
+  "marker:refuse_mentor": {"text": "Нет, и вот почему.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "refuse"},
+  "marker:evade_neutral": {"text": "Не могу обсуждать.", "features": {}, "priority": 0, "concept": "evade"},
+  "marker:evade_official": {"text": "Это вне моей компетенции.", "features": {"formality": "high"}, "priority": 5, "concept": "evade"},
+  "marker:evade_report": {"text": "Сведения закрыты.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "evade"},
+  "marker:evade_command": {"text": "Не твоё дело.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "evade"},
+  "marker:evade_friendly": {"text": "Давай не будем.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "evade"},
+  "marker:evade_intimate": {"text": "Не сейчас, милый.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "evade"},
+  "marker:evade_hostile": {"text": "Молчи и не спрашивай.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "evade"},
+  "marker:evade_mentor": {"text": "Не всё сразу, ученик.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "evade"},
+  "marker:counter_neutral": {"text": "При условии.", "features": {}, "priority": 0, "concept": "counter"},
+  "marker:counter_official": {"text": "С учётом оговорки.", "features": {"formality": "high"}, "priority": 5, "concept": "counter"},
+  "marker:counter_report": {"text": "При условии выполнения.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "counter"},
+  "marker:counter_command": {"text": "Только если сам.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "counter"},
+  "marker:counter_friendly": {"text": "Только если ты тоже.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "counter"},
+  "marker:counter_intimate": {"text": "Если ты рядом.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "counter"},
+  "marker:counter_hostile": {"text": "Сначала ты.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "counter"},
+  "marker:counter_mentor": {"text": "При условии, что ты подумаешь.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "counter"},
+  "marker:clarify_social_neutral": {"text": "Уточните.", "features": {}, "priority": 0, "concept": "clarify_social"},
+  "marker:clarify_social_official": {"text": "Прошу уточнить.", "features": {"formality": "high"}, "priority": 5, "concept": "clarify_social"},
+  "marker:clarify_social_report": {"text": "Требую уточнения.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "clarify_social"},
+  "marker:clarify_social_command": {"text": "Повтори.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "clarify_social"},
+  "marker:clarify_social_friendly": {"text": "Не понял, повтори.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "clarify_social"},
+  "marker:clarify_social_intimate": {"text": "Что ты хочешь, милый?", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "clarify_social"},
+  "marker:clarify_social_hostile": {"text": "Чего?", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "clarify_social"},
+  "marker:clarify_social_mentor": {"text": "Поясни.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "clarify_social"}
+ },
+ "lexical_groups": {
+  "believe": ["verb:believe", "verb:recognize", "verb:consider"],
+  "address": [
+   "noun:sovereign_m",
+   "noun:sovereign_f",
+   "noun:interlocutor",
+   "noun:interlocutor_f",
+   "noun:friend",
+   "noun:friend_f",
+   "noun:beloved",
+   "noun:beloved_f",
+   "noun:student",
+   "noun:student_f",
+   "noun:opponent",
+   "noun:opponent_f"
+  ]
+ }
 }

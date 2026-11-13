@@ -81,7 +81,11 @@
     "work_essence": 2,
     "work_label": 2,
     "work_organ": 2,
-    "work_target": 2
+    "work_target": 2,
+    "has_authority": 2,
+    "has_leverage": 2,
+    "trusts": 2,
+    "taboo_topic": 1
   },
   "belief_predicates": {
     "considers_illegitimate": {

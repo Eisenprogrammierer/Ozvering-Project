@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "dimensions": {
+    "formality": {
+      "values": ["low", "neutral", "high"],
+      "default": "neutral"
+    },
+    "distance": {
+      "values": ["near", "neutral", "far", "intimate"],
+      "default": "neutral"
+    },
+    "authority": {
+      "values": ["low", "neutral", "high"],
+      "default": "neutral"
+    },
+    "affect": {
+      "values": ["cold", "neutral", "warm", "intimate"],
+      "default": "neutral"
+    },
+    "directness": {
+      "values": ["direct", "indirect"],
+      "default": "direct"
+    },
+    "nominalization": {
+      "values": ["low", "medium", "high"],
+      "default": "low"
+    },
+    "address_mode": {
+      "values": ["none", "pre", "post"],
+      "default": "none"
+    },
+    "register": {
+      "values": [
+        "neutral",
+        "official",
+        "military",
+        "command",
+        "friendly",
+        "intimate",
+        "hostile",
+        "mentor"
+      ],
+      "default": "neutral"
+    }
+  }
+}

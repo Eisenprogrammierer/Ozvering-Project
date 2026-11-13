@@ -1,9 +1,11 @@
 """Сессия диалога: разбор фразы → состояние → план → ответ.
 
 D2 добавляет к read-only слою QUD, активные референты, разрешение
-местоимений, декларативный эллипсис и память партии. Состояние разговора
-не меняет кампанию и BDI: оно лишь читает снимок знания и хранит следы
-беседы для связности.
+местоимений, декларативный эллипсис и память партии. D4 добавляет
+речевые действия: эффект реакции из ``social.json`` записывается в
+``ConversationState.commitments``. Состояние разговора не меняет
+кампанию и BDI: оно лишь читает снимок знания и хранит следы беседы
+для связности.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
 from .parser import ChartParser
 from .state import DialogueMemory, build_state
+from .style import StyleEngine
 
 
 @dataclass(frozen=True)
@@ -40,18 +43,30 @@ class DialogueSession:
         knowledge: AgentKnowledge,
         persona_id: Optional[str] = None,
         memory: Optional[DialogueMemory] = None,
+        style_id: Optional[str] = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.parser = ChartParser(catalog)
         self.persona = _select_persona(catalog, persona_id, knowledge.side)
-        self.planner = AnswerPlanner(catalog, knowledge, self.persona)
+        self.style_engine = StyleEngine(catalog)
+        self.style_id = self.style_engine.resolve(
+            style_id, self.persona
+        )
         self.morphology = Morphology(catalog.synthesis)
         self.memory = memory or DialogueMemory(
             catalog.state,
             run_id=knowledge.run_id,
             clock=knowledge.clock,
         )
+        self.planner = AnswerPlanner(
+            catalog,
+            knowledge,
+            self.persona,
+            style_engine=self.style_engine,
+            memory=self.memory,
+        )
+        self.planner.set_style(self._profile())
         self.state = build_state(
             catalog,
             knowledge,
@@ -61,6 +76,16 @@ class DialogueSession:
 
     def ask(self, text: str) -> Answer:
         return self.respond(text).answer
+
+    def set_style(self, style_id: Optional[str]) -> str:
+        """Сменить регистровый профиль; неизвестный стиль безопасен."""
+
+        self.style_id = self.style_engine.resolve(style_id, self.persona)
+        self.planner.set_style(self._profile())
+        return self.style_id
+
+    def _profile(self):
+        return self.style_engine.profile(self.style_id, self.persona)
 
     def respond(self, text: str) -> Turn:
         self.state.begin_turn(self.knowledge.clock)
@@ -72,10 +97,28 @@ class DialogueSession:
             return self._clarification(text, parse, source, "no_referent")
         sem = self.state.apply_question_intent(sem, text)
         mentioned = self.state.observe_sem(sem)
-        answer = self.planner.plan(sem)
+        answer = self.planner.plan(sem, style=self._profile())
+        if answer.kind == "social":
+            effect = (answer.data or {}).get("effect")
+            if isinstance(effect, Mapping):
+                self.state.apply_effect(effect)
         self.state.push_turn(sem, answer)
         self.state.remember(sem, answer, mentioned)
         return Turn(text, parse, answer, sem, source, self.state_snapshot())
+
+    def _meta_answer(self, kind: str, message: str, reason: str = "") -> Answer:
+        """Ответить мета-репликой в выбранном регистре."""
+
+        text = self.planner.realizer.realize_answer(
+            kind,
+            {"message": message, "reason": reason},
+            fallback=message,
+            keys=(
+                "answer_%s:%s" % (kind, reason),
+                "answer_" + kind,
+            ),
+        )
+        return Answer(kind, text, reason)
 
     def state_snapshot(self) -> Mapping[str, Any]:
         """Краткий срез состояния для отладки и тестов."""
@@ -85,6 +128,7 @@ class DialogueSession:
             "qud": len(self.state.qud),
             "referents": sorted(self.state.referents),
             "common_ground": len(self.state.common_ground),
+            "commitments": len(self.state.commitments),
             "memory_turns": self.memory.turns,
         }
 
@@ -111,7 +155,7 @@ class DialogueSession:
                 or self.persona.unknown
                 or "Не понял."
             )
-            answer = Answer("unknown", message, "parse")
+            answer = self._meta_answer("unknown", message, "parse")
             self.state.push_turn(None, answer)
             return Turn(
                 text, parse, answer, None, source, self.state_snapshot()
@@ -124,7 +168,9 @@ class DialogueSession:
             or self.persona.unknown
             or "Не понял."
         )
-        answer = Answer("clarification", message, "state:%s" % reason)
+        answer = self._meta_answer(
+            "clarification", message, "state:%s" % reason
+        )
         self.state.push_turn(None, answer)
         return Turn(text, parse, answer, None, source, self.state_snapshot())
 
