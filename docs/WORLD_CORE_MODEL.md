@@ -11,7 +11,7 @@ BDI/не-BDI, реальное время и отображение старых
 **Дата:** 2026-10-28
 
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
-[`WORLD.md`](WORLD.md), [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md).
+[`WORLD.md`](WORLD.md), [`history/WORLD_MODEL_REVIEW.md`](history/WORLD_MODEL_REVIEW.md).
 
 ---
 
@@ -31,7 +31,7 @@ BDI/не-BDI, реальное время и отображение старых
 
 1. принятые решения;
 2. рабочую формализацию 4-2-1 и принятые решения;
-3. расширенное раскрытие вопросов 3 и 4 из `WORLD_MODEL_REVIEW.md`;
+3. расширенное раскрытие вопросов 3 и 4 из `history/WORLD_MODEL_REVIEW.md`;
 4. открытые вопросы, которые нужно закрыть до полной реализации.
 
 ---
@@ -904,8 +904,9 @@ train/serve совпадают с активной игрой; `--no-with-env` �
 `vacancy_board()` отдаёт плоский список вакансий; `office_options()`
 сохраняет поле `competition` и добавляет `generation`/`refresh_in`.
 
-**Сохранения.** `SAVE_VERSION = 2`. `migrate_save()` аддитивно переводит
-версию 1 → 2 (`node_strategy_state`, `environment_plan`), неизвестную
+**Сохранения.** `SAVE_VERSION = 3`. `migrate_save()` аддитивно переводит
+версию 1 → 2 (`node_strategy_state`, `environment_plan`) и 2 → 3
+(память диалога партии), неизвестную
 будущую версию возвращает как есть с предупреждением. `save_game()`
 всегда пишет контейнеры текущей версии; `load_game()` мигрирует старый
 файл до отдачи в `view.app`.

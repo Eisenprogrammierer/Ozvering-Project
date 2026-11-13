@@ -34,7 +34,7 @@ pip install .
 не поддерживается — используйте editable-установку или сборку из п. 3.
 Универсальный резолвер данных (пользовательский каталог + `importlib.resources`)
 запланирован отдельным пунктом в
-[`docs/RELEASE_READINESS.md`](../docs/RELEASE_READINESS.md).
+[`docs/history/RELEASE_READINESS.md`](../docs/history/RELEASE_READINESS.md).
 
 ## 3. Настольный дистрибутив (PyInstaller)
 

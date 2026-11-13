@@ -18,7 +18,7 @@
 
 Python-код и документация ведутся вместе. Публичные модули, классы и функции
 сопровождаются docstrings; тематические описания собраны в [`docs/`](../docs/).
-Исторический справочник символов — [`code/README.md`](code/README.md).
+Исторический справочник символов — [`history/code/README.md`](history/code/README.md).
 Форматирование — `black` и `pycodestyle` (длина строки 79, конфигурация в
 `pyproject.toml` и `setup.cfg`). Правило зафиксировано в
 [`CONTRIBUTING.md`](../CONTRIBUTING.md).

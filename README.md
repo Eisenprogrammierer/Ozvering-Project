@@ -423,7 +423,7 @@ Held-out кампании — одна строка «политика прот�
 
 Точный справочник текущих алгоритмов арены и Duel-MLP (порядок такта, формулы, 30 признаков, TD(0), чекпойнты и известные расхождения) — [`docs/ALGORITHMS.md`](docs/ALGORITHMS.md).
 
-Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). Модули и публичные API сопровождаются docstrings, а перенесённые заметки собраны в [`docs/code/README.md`](docs/code/README.md) и [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md). Форматирование — `pycodestyle` с длиной строки 79 (настройки в `setup.cfg`).
+Подробная документация механики, формул, параметров калибровки и протокола такта — в [`docs/MODEL.md`](docs/MODEL.md). Модули и публичные API сопровождаются docstrings, а перенесённые заметки собраны в историческом справочнике [`docs/history/code/README.md`](docs/history/code/README.md) и [`docs/history/code/INLINE_NOTES.md`](docs/history/code/INLINE_NOTES.md). Форматирование — `pycodestyle` с длиной строки 79 (настройки в `setup.cfg`).
 
 Краткая выжимка по всему проекту (онтология, законы, слои, статус) — [`docs/SUMMARY.md`](docs/SUMMARY.md).
 Карта входа по потребностям — [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
@@ -435,7 +435,7 @@ Data-Driven расширение покрывает сюжетные арки (`
 (`configs/environments/`) и рынок труда (`labor_market` в мире). Для
 стратегий, среды и рынка труда данные добавляются JSON-файлами: каталоги
 `configs/strategy/` и `configs/environments/` в поставке пусты. Сохранения
-версионированы (`SAVE_VERSION = 2`) и мигрируют аддитивно.
+версионированы (`SAVE_VERSION = 3`) и мигрируют аддитивно.
 Графический редактор автоматов — [`docs/AUTOMATA.md`](docs/AUTOMATA.md).
 
 # Новые слои (MVP, выключены по умолчанию)

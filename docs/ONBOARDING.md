@@ -291,7 +291,8 @@ GUI существует и играется, но это **рабочий пе�
   отсутствует, поэтому `AssetLoader` использует процедурные заглушки;
   реальные JPG/PNG не обязательны для запуска.
 * **Нет экрана «Как играть».** Правила и горячие клавиши не объясняются
-  внутри `view/`; это задача B3 из [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
+  внутри `view/`; это задача B3 из исторического среза
+  [`history/RELEASE_READINESS.md`](history/RELEASE_READINESS.md).
 * **Настройки `view/` не применяются полностью.** Часть тумблеров меняет
   локальные флаги, но не сохраняется/не влияет на звук, полный экран и
   анимации (B7).
@@ -735,7 +736,7 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`NAMING.md`](NAMING.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | профильные инструменты и слои |
 | [`WORLD.md`](WORLD.md), [`STRATEGY.md`](STRATEGY.md) | мир должностного лица и легаси-стратегия |
 | [`SUMMARY.md`](SUMMARY.md) | сжатая карта, но проверяйте по коду |
-| [`TODO.md`](TODO.md), [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | что открыто и что считать готовностью |
+| [`TODO.md`](TODO.md) | что открыто и что делать дальше |
 | [`HOWTO.md`](HOWTO.md) | практические команды: игра, обучение, вклад |
 
 ---

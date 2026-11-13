@@ -10,7 +10,7 @@
 числа ниже **воспроизводимы по seed** и получены на текущем `simulation.py`.
 
 Коды возврата/числа этой страницы — точка отсчёта для калибровки. Исторические
-прогоны из `docs/FIX_HYPOTHESIS.md` и `docs/history/PR_schmitt_hysteresis.md`
+прогоны из `docs/history/FIX_HYPOTHESIS.md` и `docs/history/PR_schmitt_hysteresis.md`
 («RL 9–10/10») относятся к модели ДО среды-автомата и больше не воспроизводятся.
 
 ## Как воспроизвести

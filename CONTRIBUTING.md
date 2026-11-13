@@ -55,10 +55,10 @@
 
 * Публичные модули, классы и функции сопровождаются docstrings; inline-комментарии
   не используются — причины решений переносятся в docstrings и тематические
-  документы, а старые заметки собраны в [`docs/code/INLINE_NOTES.md`](docs/code/INLINE_NOTES.md).
+  документы, а старые заметки собраны в [`docs/history/code/INLINE_NOTES.md`](docs/history/code/INLINE_NOTES.md).
 * Тематические документы (`WORLD_CORE_MODEL.md`, `BASELINE.md`, `CONTENT.md`,
   `CAMPAIGN_UI.md` и т.п.) описывают контракты, формулы и границы;
-  исторический справочник символов — [`docs/code/`](docs/code/README.md).
+  исторический справочник символов — [`docs/history/code/`](docs/history/code/README.md).
 * Форматирование — `black --line-length 79`; стиль — `pycodestyle` с
   настройками из `setup.cfg`. Исключения `E402`, `E203`, `W503` зафиксированы
   из-за bootstrap-импортов в экспериментах и совместимости с `black`.

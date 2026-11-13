@@ -77,7 +77,7 @@
 ## 3. Модель мира
 
 > Критический разбор формул, эксперименты и открытые вопросы:
-> [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md).
+> [`history/WORLD_MODEL_REVIEW.md`](history/WORLD_MODEL_REVIEW.md).
 >
 > Ядро модели 4-2-1, решения обсуждения и расширение вопросов 3–4:
 > [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md).

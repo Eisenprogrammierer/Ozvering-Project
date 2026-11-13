@@ -22,8 +22,8 @@
    и тесты, пока код не переведён на целевую модель.
 4. **Текущий кампанийный поток** — [`WORLD.md`](WORLD.md); это описание
    текущей реализации, а не целевой мир.
-5. **История и обзоры** — [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md),
-   [`history/`](history/); они фиксируют прошлое и не являются каноном.
+5. **История и обзоры** — [`history/`](history/); они фиксируют прошлое и
+   не являются каноном.
 
 Нельзя молча менять код под документ или документ под код. Изменение канона —
 это отдельное изменение: сначала этот документ и/или
@@ -45,8 +45,8 @@
 | Понять, что за проект и какая у него онтология | §1–§3 этого документа; [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) |
 | Понять, где текущая реализация, где цель, а где легаси | §4 и таблица статусов в §6 |
 | Понять, как считаются формулы | [`FORMULAS.md`](FORMULAS.md); [`ALGORITHMS.md`](ALGORITHMS.md) |
-| Понять, что уже сделано и что открыто | §7 (только открытые пункты), §9; [`TODO.md`](TODO.md); [`RELEASE_READINESS.md`](RELEASE_READINESS.md) |
-| Увидеть историю решений, не канон | [`history/`](history/); [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md); [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md); [`docs/code/`](code/) |
+| Понять, что уже сделано и что открыто | §7 (только открытые пункты), §9; [`TODO.md`](TODO.md) |
+| Увидеть историю решений, не канон | [`history/`](history/) |
 
 ### 0.2. Запустить и увидеть игру
 
@@ -609,9 +609,6 @@ BDI — не третий тип и не отдельная онтология. 
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
 | [`TODO.md`](TODO.md) | открытые задачи | трекер |
-| [`RELEASE_READINESS.md`](RELEASE_READINESS.md) | оценка масштаба работ до релиза | трекер, срез 2026-11-01 |
-| [`code/README.md`](code/README.md) | справочник по модулям | карта кода |
-| [`code/INLINE_NOTES.md`](code/INLINE_NOTES.md) | заметки, перенесённые из inline-комментариев | историческая карта кода |
 
 ### 6.2. Легаси и исторические документы
 
@@ -622,11 +619,12 @@ BDI — не третий тип и не отдельная онтология. 
 | Документ | Роль | Статус |
 |---|---|---|
 | [`STRATEGY.md`](STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
-| [`WORLD_MODEL_REVIEW.md`](WORLD_MODEL_REVIEW.md) | критика движка и эксперименты | обзор, не канон |
-| [`FIX_HYPOTHESIS.md`](FIX_HYPOTHESIS.md) | проверка гипотезы H-A | исторический |
-| [`code/ANALYSIS.md`](code/ANALYSIS.md) | поэтапный разбор кода | исторический анализ |
-| [`code/DOCS_ANALYSIS.md`](code/DOCS_ANALYSIS.md) | аудит документации | исторический анализ |
-| [`code/*.md`](code/) (кроме `README.md` и `INLINE_NOTES.md`) | справочник по пакетам до очистки комментариев | исторический |
+| [`history/RELEASE_READINESS.md`](history/RELEASE_READINESS.md) | оценка масштаба работ до релиза | исторический срез 2026-11-01 |
+| [`history/WORLD_MODEL_REVIEW.md`](history/WORLD_MODEL_REVIEW.md) | критика движка и эксперименты | обзор, не канон |
+| [`history/FIX_HYPOTHESIS.md`](history/FIX_HYPOTHESIS.md) | проверка гипотезы H-A | исторический |
+| [`history/code/ANALYSIS.md`](history/code/ANALYSIS.md) | поэтапный разбор кода | исторический анализ |
+| [`history/code/DOCS_ANALYSIS.md`](history/code/DOCS_ANALYSIS.md) | аудит документации | исторический анализ |
+| [`history/code/`](history/code/) | справочник по пакетам ранней версии, включая `INLINE_NOTES.md` | исторический |
 | [`history/`](history/) | история решений и PR | заморожено |
 
 **Правило статусов.** Документ из §6.2 не является каноном и не обязан
@@ -681,10 +679,11 @@ BDI — не третий тип и не отдельная онтология. 
 7. Если целевая модель противоречит текущему коду, для дизайна побеждает
    целевая модель; текущий код остаётся легаси до миграции.
 8. В коде не должно быть inline-комментариев. Значимое объяснение живёт в
-   документации (`docs/`, docstrings, `docs/code/INLINE_NOTES.md`), а не в
+   документации (`docs/`, docstrings, `docs/history/code/INLINE_NOTES.md`), а не в
    строке кода.
-9. Исторические документы (`docs/code/*`, `docs/history/`,
-   `FIX_HYPOTHESIS.md`, `WORLD_MODEL_REVIEW.md`, `GAME_ENGINE_CHANGES.md`) не
+9. Исторические документы (`docs/history/`, включая `history/code/`,
+   `history/FIX_HYPOTHESIS.md`, `history/WORLD_MODEL_REVIEW.md`,
+   `GAME_ENGINE_CHANGES.md`) не
    переписываются под текущий код. Их выводы относятся к своей дате.
 10. `yet_another_project/` не трогать; `*.pdf` остаются в `.gitignore`.
 

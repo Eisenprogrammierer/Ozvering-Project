@@ -1,4 +1,4 @@
-"""E2E-смоук игрового GUI (задача D3/B1 из docs/RELEASE_READINESS.md).
+"""E2E-смоук игрового GUI (задача D3/B1 из docs/history/RELEASE_READINESS.md).
 
 Раньше все pygame-тесты проверяли отдельные экраны поштучно, но живой
 главный цикл `view.App.run()` (события → update → draw → flip) не
