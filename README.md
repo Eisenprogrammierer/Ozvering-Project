@@ -419,7 +419,7 @@ Held-out кампании — одна строка «политика прот�
 ограничения — [`docs/AGENTS.md`](docs/AGENTS.md); активные сцены больше не
 импортируют `simulation.py`. Сохранения и настройки —
 в `saves/` (в репозиторий не попадают). Подробности сценного слоя —
-[`docs/UI.md`](docs/UI.md), история движка — [`GAME_ENGINE_CHANGES.md`](GAME_ENGINE_CHANGES.md).
+[`docs/UI.md`](docs/UI.md), история движка — [`docs/history/GAME_ENGINE_CHANGES.md`](docs/history/GAME_ENGINE_CHANGES.md).
 
 Точный справочник текущих алгоритмов арены и Duel-MLP (порядок такта, формулы, 30 признаков, TD(0), чекпойнты и известные расхождения) — [`docs/ALGORITHMS.md`](docs/ALGORITHMS.md).
 

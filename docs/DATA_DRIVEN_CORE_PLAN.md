@@ -130,7 +130,7 @@ JSON Schema из `configs/schemas/` — открыто; golden-тесты сни
      `essence`, `event`, `subfaction`;
    * предупреждение о неизвестных ключах (whitelist по схеме);
    * вывод: `файл:путь: сообщение`.
-3. CLI: `venv/bin/python -m campaign.lint` (код возврата ≠ 0 при ошибках).
+3. CLI: `venv/bin/python -m campaign.content_lint` (код возврата ≠ 0 при ошибках).
 4. Добавить `schema_version` в снимок кампании; чтение старых снимков
    без поля — как версия 1.
 5. Golden-тесты: сериализовать снимок текущей кампании до и после

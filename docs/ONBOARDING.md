@@ -734,7 +734,7 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`NAMING.md`](NAMING.md), [`SYSTEMS.md`](SYSTEMS.md), [`INTERACTION.md`](INTERACTION.md) | профильные инструменты и слои |
-| [`WORLD.md`](WORLD.md), [`STRATEGY.md`](STRATEGY.md) | мир должностного лица и легаси-стратегия |
+| [`WORLD.md`](WORLD.md), [`history/STRATEGY.md`](history/STRATEGY.md) | мир должностного лица и легаси-стратегия |
 | [`SUMMARY.md`](SUMMARY.md) | сжатая карта, но проверяйте по коду |
 | [`TODO.md`](TODO.md) | что открыто и что делать дальше |
 | [`HOWTO.md`](HOWTO.md) | практические команды: игра, обучение, вклад |

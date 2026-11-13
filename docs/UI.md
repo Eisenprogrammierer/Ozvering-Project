@@ -30,8 +30,10 @@ python3 -m ui --scene game    # сразу открыть экран игры (�
 
 Кампанийный UI-каркас `view/` (лагерные сцены, интерактивная 2-D
 изометрическая RTS-карта, приказы, документы и нарратив) открывается по
-умолчанию (`python3 main.py`, он же `--view`); его состояние строится на
-`warfare.py`, а не на `simulation.py`. Подробности — [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
+умолчанию (`python3 main.py`, он же `--view`). Его состояние строят
+`campaign.world.WorldEngine` (режим мира) и `campaign.automata.AutomataCampaign`
+(режим кампании автоматов), а не `simulation.py`; `warfare.py` остаётся
+легаси-опорой RTS-сцены. Подробности — [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md).
 
 `game_engine.py` по-прежнему запускается автономно (`python3 game_engine.py`) —
 это прежний одиночный экран «арена + HUD». Сценный слой встраивает тот же

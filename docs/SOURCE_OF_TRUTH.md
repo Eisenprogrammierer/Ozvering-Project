@@ -586,12 +586,14 @@ BDI — не третий тип и не отдельная онтология. 
 | [`FORMULAS.md`](FORMULAS.md) | формулы ядра, арены, кампании и легаси: обозначения, единицы, примеры | справочник текущего кода + целевых констант |
 | [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация |
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы | текущая реализация |
+| [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия автоматов: расстояния, углы, ориентация из JSON | текущая реализация (этап A) + план |
 | [`AGENTS.md`](AGENTS.md) | слой обучаемых агентов и RL-срез `core41` | текущая реализация |
 | [`ALGORITHMS.md`](ALGORITHMS.md) | точный справочник алгоритмов: такт, формулы, признаки, Duel-MLP, обучение | текущая реализация |
 | [`MODEL.md`](MODEL.md) | спецификация `simulation.py` | канон текущего легаси-кода |
 | [`BASELINE.md`](BASELINE.md) | воспроизводимая база `simulation.py` | база легаси |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, папки и загрузчики | руководство |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции | руководство |
+| [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по лору: предикаты, сути, работы, органы, автоматы | проектный документ + источник контента |
 | [`NAMING.md`](NAMING.md) | имена, культуры, фракционные политики | текущая реализация |
 | [`ORGANIZATIONS.md`](ORGANIZATIONS.md) | организации, 16 потребностей, runtime | текущая реализация |
 | [`SYSTEMS.md`](SYSTEMS.md) | среда, события, драматург | текущая реализация |
@@ -618,7 +620,8 @@ BDI — не третий тип и не отдельная онтология. 
 
 | Документ | Роль | Статус |
 |---|---|---|
-| [`STRATEGY.md`](STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
+| [`history/STRATEGY.md`](history/STRATEGY.md) | гражданская гранд-стратегия «Хартия Агоры» | легаси-поток |
+| [`history/GAME_ENGINE_CHANGES.md`](history/GAME_ENGINE_CHANGES.md) | хронология правок `game_engine.py` на 2026-10-17 | исторический |
 | [`history/RELEASE_READINESS.md`](history/RELEASE_READINESS.md) | оценка масштаба работ до релиза | исторический срез 2026-11-01 |
 | [`history/WORLD_MODEL_REVIEW.md`](history/WORLD_MODEL_REVIEW.md) | критика движка и эксперименты | обзор, не канон |
 | [`history/FIX_HYPOTHESIS.md`](history/FIX_HYPOTHESIS.md) | проверка гипотезы H-A | исторический |
@@ -683,7 +686,7 @@ BDI — не третий тип и не отдельная онтология. 
    строке кода.
 9. Исторические документы (`docs/history/`, включая `history/code/`,
    `history/FIX_HYPOTHESIS.md`, `history/WORLD_MODEL_REVIEW.md`,
-   `GAME_ENGINE_CHANGES.md`) не
+   `history/GAME_ENGINE_CHANGES.md`) не
    переписываются под текущий код. Их выводы относятся к своей дате.
 10. `yet_another_project/` не трогать; `*.pdf` остаются в `.gitignore`.
 

@@ -216,7 +216,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/CONTENT.md` | JSON-контент и папки: добавление, правка, удаление, проверка |
 | `docs/CONTENT_BDI_DIVISIONS_EVENTS.md` | BDI, 15 делений, события и производные активы фракции: контент и рантайм |
 | `docs/AUTOMATA_CAMPAIGN.md` | кампании четырёх фракций-автоматов: работы, сеть органов, производные активы, темп и исходы |
-| `docs/STRATEGY.md` | легаси-гражданская гранд-стратегия «Хартия Агоры»: три поля, сущности, действия, последствия, снимки |
+| `docs/history/STRATEGY.md` | легаси-гражданская гранд-стратегия «Хартия Агоры»: три поля, сущности, действия, последствия, снимки |
 | `core41/` | **целевой 4-2-1-срез**: `Automaton` (одна универсальная энергия `E`, сила `F`, здоровье `H`), runtime арены (`ArenaAgent`/`ArenaMatch`), `DuelEnv`, секундный `SimulationClock`, актор среды `ArenaEnvironment`; без pygame |
 | `agents/` | **обучаемые политики**: `BDIPolicy`/`QTablePolicy`/`MLPPolicy` (22 признака) и аренный `DuelMLPPolicy` (30 признаков), `PolicyAgent` (легаси-мост), обучение `python -m agents.train`, автопоиск чекпойнтов `agents/checkpoints.py`; спецификация — [`AGENTS.md`](AGENTS.md), точные алгоритмы — [`ALGORITHMS.md`](ALGORITHMS.md) |
 | `configs/storylines/` | сюжеты четырёх фракций и их сцены (`empire`, `republic`, `cult`, `corporation`); новые добавляются JSON-файлами |
@@ -228,7 +228,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/DESIGN_ADVANCED.md` | решения по lossy/LOD/энтропии, границы MVP, открытые задачи |
 | `docs/BASELINE.md` | воспроизводимая базовая линия и ограничения |
 | `docs/TODO.md` | трекер отложенных задач: P0/P1/P2, F1–F5, G1/G2, O1/E1/E2/L1/L2/C1, диалоговый D6 |
-| `docs/UI.md`, `GAME_ENGINE_CHANGES.md` | слои UI/движка |
+| `docs/UI.md`, `docs/history/GAME_ENGINE_CHANGES.md` | слои UI/движка |
 | `CONTRIBUTING.md`, `.github/` | процесс, CI, PR-чек-лист |
 
 ## 8. Запуск и проверки

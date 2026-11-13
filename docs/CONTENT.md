@@ -171,18 +171,31 @@
 }
 ```
 
-### Сюжет (`configs/storylines/mini.json`)
+### Сюжет (`configs/storylines/<id>.json`)
+
+Основной файл сюжета; `*_char.json` и `*_scenes.json` — связанные файлы
+персонажа и сцен. Сокращённый пример реального `empire_campaign.json`:
 
 ```json
 {
-  "storyline_id": "mini",
-  "title": "Мини-сюжет",
-  "world_path": "configs/worlds/mini_world.json",
-  "character_creation": "mini_char",
-  "scenes": "mini_scenes",
-  "identity_editor": false
+  "storyline_id": "empire_campaign",
+  "title": "Империя: порядок против хаоса",
+  "description": "Кампания за Империю: удержать монополию на законность...",
+  "campaign_template": "configs/campaigns/empire_campaign.json",
+  "campaign_seed": 11,
+  "identity_editor": true,
+  "scenes": "empire_campaign_scenes",
+  "win_conditions": [{"type": "automata_outcome", "value": "win"}],
+  "lose_conditions": [{"type": "automata_outcome", "value": "lose"}],
+  "win_scene": {"slides": [{"image": "campaign/empire_win", "text": "..."}]},
+  "lose_scene": {"slides": [{"image": "campaign/empire_lose", "text": "..."}]}
 }
 ```
+
+`character_creation` и `scenes` — это **id соседних файлов** в
+`configs/storylines/` (`mini_char` → `mini_char.json`), а не пути к мирам.
+Необязательные поля основного файла: `world_path`, `strategy_path`,
+`biography_path`, `scenario_path`, `adjutant_orders`.
 
 `list_storylines()` показывает только основные файлы и пропускает
 `*_char.json`/`*_scenes.json`. Если `character_creation` или `scenes`

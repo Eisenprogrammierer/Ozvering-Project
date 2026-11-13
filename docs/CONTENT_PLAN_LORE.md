@@ -7,7 +7,9 @@
 > подфракций. Каталог работ ниже остаётся верхней целью: работы
 > добавляются волнами, начиная с существующих органов.
 >
-> **Источник:** [`docs/лор.pdf`](лор.pdf) (22 стр., 951 строка текста).
+> **Источник:** `docs/лор.pdf` (22 стр., 951 строка текста). PDF лежит
+> только локально и не отслеживается git (`*.pdf` в `.gitignore`);
+> на него нельзя ссылаться как на файл репозитория.
 > Список автоматов в PDF **неполный и поверхностный** — он используется
 > как нижняя граница, а не как исчерпывающий перечень.
 >
@@ -635,20 +637,39 @@ reconnaissance). Требования и тексты пишутся при ре
 
 ### 5.4. Схема файлов
 
+Текущий каталог плоский, у каждого файла `schema: 2` и `id` вида
+`faction.empire`, `organ.care`, `subfaction.orthodox`:
+
 ```
 configs/campaigns/base/automata/
-  faction.empire.json
-  faction.republic.json
-  faction.cult.json
-  faction.trade.json
-  subfaction.empire.orthodox.json
-  ...
-  organ.empire.panzerwaffe.json
+  faction_default.json
+  faction_empire.json
+  faction_republic.json
+  faction_cult.json
+  faction_trade.json
+  subfaction_default.json
+  subfaction_orthodox.json
+  subfaction_moderate.json
+  subfaction_revisionist.json
+  organ_default.json
+  organ_command.json
+  organ_coercion.json
   ...
 ```
 
-Индекс — `configs/campaigns/base/automata/index.json` со списком файлов и
-владельцев. Загрузчик читает индекс, линтер проверяет ссылки.
+Целевые файлы этого плана (добавляются по мере готовности):
+
+```
+  organ.empire.panzerwaffe.json
+  organ.republic.cyber.json
+  organ.cult.synedrion.json
+  ...
+```
+
+Индекса нет: `campaign.state_machine.load_catalog()` читает все `*.json`
+из каталога, а вид и владельца определяет поле `id`, не имя файла.
+`campaign.content_lint` проверяет ссылки; отдельный `index.json` загрузчику
+не нужен и не читается.
 
 ---
 
@@ -898,7 +919,7 @@ configs/campaigns/base/automata/
 
 ### 11.3. Инструменты
 
-* `python -m campaign.lint` — схема, ссылки, неизвестные ключи.
+* `python -m campaign.content_lint` — схема, ссылки, неизвестные ключи.
 * `pytest tests/test_content_pipeline.py` — загрузка.
 * `pytest tests/test_bdi.py` — 16 потребностей.
 * Новый `tests/test_data_driven_core.py` — сценарии из §6
@@ -939,7 +960,9 @@ configs/campaigns/base/
 ```
 
 `factions_path` в шаблоне кампании указывает на индекс; загрузчик
-поддерживает и одиночный файл (совместимость).
+поддерживает и одиночный файл (совместимость). Это предложение на будущее:
+сейчас `factions_path` указывает на `base/lore_factions.json`, а каталог
+`automata/` читается целиком и индекса не требует.
 
 ---
 
