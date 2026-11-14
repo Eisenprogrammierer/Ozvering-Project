@@ -4133,6 +4133,30 @@
    "semantic": {"kind": "particle", "id": "although"}
   },
   {
+   "id": "concept:despite",
+   "type": "particle",
+   "cat": "SCONJ",
+   "lemma": "несмотря на",
+   "forms": ["несмотря на", "невзирая на"],
+   "semantic": {"kind": "particle", "id": "despite"}
+  },
+  {
+   "id": "quote:open",
+   "type": "particle",
+   "cat": "QUOTE",
+   "lemma": "«",
+   "forms": ["«", "\""],
+   "semantic": {"kind": "particle", "id": "quote_open"}
+  },
+  {
+   "id": "quote:close",
+   "type": "particle",
+   "cat": "QUOTE_END",
+   "lemma": "»",
+   "forms": ["»", "\""],
+   "semantic": {"kind": "particle", "id": "quote_close"}
+  },
+  {
    "id": "concept:that",
    "type": "particle",
    "cat": "COMP",

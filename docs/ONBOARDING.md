@@ -6,7 +6,7 @@
 > быстро найти нужный из них.
 >
 > **Дата сверки:** 2026-11-14. Проверялось по коду и тестам, а не только
-> по README. Полный набор — 1300 тестов, прогон зелёный. Если документ
+> по README. Полный набор — 1304 теста, прогон зелёный. Если документ
 > расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
 > исправлять.
 >
@@ -256,7 +256,7 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный набор 2026-11-14: **1300 тестов**, зелёный.
+* Полный набор 2026-11-14: **1304 теста**, зелёный.
 * Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
@@ -264,8 +264,8 @@ GUI существует и играется, но это **рабочий пе�
 * Для D3.2 (контрфакты), D6.2a (отрицание), D6.2b («то»-клауза) и
   D6.2c (`predicate_relations`) есть `tests/test_d3_counterfactual.py`
   (17 тестов).
-* Для D6.2d (условия, уступки, косвенная речь) —
-  `tests/test_d6_grammar.py` (12 тестов).
+* Для D6.2d (условия, уступки, косвенная/прямая речь) —
+  `tests/test_d6_grammar.py` (16 тестов).
 * Для D6.3 (раскрытие и ложь) — `tests/test_d6_disclosure.py`
   (19 тестов).
 * Полный путь «Новая игра → роль → новелла → кампания автоматов →
@@ -314,13 +314,14 @@ GUI существует и играется, но это **рабочий пе�
   D5.2 (автовыбор регистра в API сессии), D5.3 (агрегация, анафора,
   тема-рема), D5.4 (механизм абзаца через `topics`), D3.2 (движок
   контрфактов), D6.2a (отрицание), D6.2b («то»-клауза), D6.2c
-  (`predicate_relations`), D6.2d (условия, уступки, косвенная речь),
+  (`predicate_relations`), D6.2d (условия, уступки, косвенная и прямая
+  речь),
   D6.3 (политика раскрытия и детерминированная ложь).
   Сквозные контрфакты достижимы: `believe → considers_outlaw`,
   `have → has_organ`, `fight → at_war_with` дают `changed`. В чате стиль
   выбирается вручную; авто-режим `DialogueSession(style_id=None)`
-  доступен только через API сессии. Открыто: хвосты D6.2d (цитаты,
-  «несмотря на», beam), D6.4 (планировщик и мост к действиям), D7
+  доступен только через API сессии. Открыто: хвост D6.2d (beam,
+  корпус парафраз), D6.4 (планировщик и мост к действиям), D7
   (текстовая RPG) и аудит лексикона.
 
 ---
@@ -613,10 +614,12 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   `remove`/`add`; `concept:then` и `consequent` как цель сравнения;
   `predicate_relations` с исходным фактом `remove` для производных
   отношений. Тесты — `tests/test_d3_counterfactual.py`;
-* **D6.2d — условия, уступки, косвенная речь**: `s_conditional`
-  (`если … то …`), `s_concessive` (`хотя …`), `s_indirect_speech`
-  (`NP сказал, что S`), лексемы `concept:although`/`concept:that`/
-  `verb:say`. Тесты — `tests/test_d6_grammar.py`;
+* **D6.2d — условия, уступки, косвенная и прямая речь**:
+  `s_conditional` (`если … то …`), `s_concessive` (`хотя …`,
+  «несмотря на»), `s_indirect_speech` (`NP сказал, что S`),
+  `s_direct_speech` (цитата в «…»), лексемы `concept:although`/
+  `concept:despite`/`concept:that`/`quote:*`/`verb:say`. Тесты —
+  `tests/test_d6_grammar.py`;
 * **D6.3 — политика раскрытия и ложь**: `disclosure.json` с политиками
   `honest/partial/withhold/evasive/lie`, `disclosure` и
   `lie_probability` у персоны, SHA-256-бросок от seed/хода/темы,
@@ -637,9 +640,9 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
   речевого действия;
 * статус: **D0, D1, D1.5, D2, D3.1, D3.2, D4, D5.1–D5.4, D6.2a–d
-  (ядро), D6.3 — сделаны**. Открыто: хвосты D6.2d (цитаты,
-  «несмотря на», beam), D6.1 (аудит лексикона), D6.4 (планировщик и
-  мост к действиям), D7 (текстовая RPG).
+  (ядро), D6.3 — сделаны**. Открыто: хвост D6.2d (beam, корпус
+  парафраз), D6.1 (аудит лексикона), D6.4 (планировщик и мост к
+  действиям), D7 (текстовая RPG).
 
 Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
@@ -702,7 +705,7 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | Диалог D5.2–D5.3 | `test_d5_registers.py` | регистры, автовыбор по контексту, явный стиль побеждает, пустой каталог |
 | Диалог D5.3–D5.4 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора, тема-рема, `topics` и порядок 4+ ходов |
 | Диалог D6.2a–c | `test_d3_counterfactual.py` | разбор `NEG`, обмен `remove`/`add`, «то»-клауза, маппинг предикатов |
-| Диалог D6.2d | `test_d6_grammar.py` | условия, уступки, косвенная речь, JSON-only, детерминизм |
+| Диалог D6.2d | `test_d6_grammar.py` | условия, уступки, косвенная/прямая речь, JSON-only, детерминизм |
 | Диалог D6.3 | `test_d6_disclosure.py` | политики, исходы, детерминированная ложь, тема, read-only |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |

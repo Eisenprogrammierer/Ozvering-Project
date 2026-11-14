@@ -130,11 +130,14 @@
   `tests/test_d6_grammar.py`.
 
 **Сделано 2026-11-14:** `s_conditional` (`если … то …`),
-`s_concessive` (`хотя …`), `s_indirect_speech` (`NP сказал, что S`);
-лексемы `concept:although` (`SCONJ`), `concept:that` (`COMP`),
-`verb:say`. Семантика: `conditional` / `concessive` / `report`.
-Тесты — `tests/test_d6_grammar.py` (12 тестов). Открыто: цитаты,
-«несмотря на», beam и корпус парафраз.
+`s_concessive` (`хотя …`, «несмотря на»), `s_indirect_speech`
+(`NP сказал, что S`) и `s_direct_speech` (цитата в «…»); лексемы
+`concept:although` (`SCONJ`), `concept:despite` (`SCONJ`),
+`concept:that` (`COMP`), `quote:open`/`quote:close` (`QUOTE`/
+`QUOTE_END`), `verb:say`. Семантика: `conditional` / `concessive` /
+`report` с `mode: direct|indirect`. Токенизатор сохраняет кавычки.
+Тесты — `tests/test_d6_grammar.py` (16 тестов). Открыто: beam и
+корпус парафраз.
 
 ### 1.4. D6.3 — политика раскрытия и ложь (средний риск, 3 дня) — сделано
 
@@ -254,11 +257,12 @@
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
   `test_d5_registers.py`, `test_d5_discourse_paragraph.py`).
 - [x] `tests/test_d3_counterfactual.py` — 17 тестов, зелёные.
-- [x] `tests/test_d6_grammar.py` — 12 тестов (условия, уступки,
-  косвенная речь), зелёные.
+- [x] `tests/test_d6_grammar.py` — 16 тестов (условия, уступки,
+  косвенная/прямая речь), зелёные.
 - [x] `tests/test_d6_disclosure.py` — 19 тестов, зелёные.
-- [x] Диалоговый поднабор с новыми файлами: **232 теста**, зелёный.
-- [x] Полный прогон после D6.2d: **1300 тестов**, зелёный (10:02).
+- [x] Диалоговый поднабор с новыми файлами: **236 тестов**, зелёный.
+- [x] Полный прогон после цитат/«несмотря на»: **1304 теста**,
+  зелёный (9:42).
 - [ ] Коммит и пуш после ревизии документации.
 - [ ] После коммита — прогнать `venv/bin/python -m campaign.dialogue.lint`
   и `git diff --check`.
@@ -267,5 +271,5 @@
 
 1. **D6.4** — цели разговора и действия (3–5 дней). **Здесь
    начинается текстовая RPG.**
-2. **D6.2d-хвосты** — цитаты, «несмотря на», beam и корпус парафраз.
+2. **D6.2d-хвост** — детерминированный beam и корпус парафраз.
 3. **D7.0–D7.4** — текстовая RPG (5–7 дней после D6.4).

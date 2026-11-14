@@ -633,6 +633,25 @@
       ],
       "sem": {
         "kind": "report",
+        "mode": "indirect",
+        "speaker": "$speaker",
+        "predicate": "$verb",
+        "body": "$body"
+      }
+    },
+    {
+      "id": "s_direct_speech",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "speaker"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "QUOTE", "as": "open"},
+        {"cat": "S", "as": "body"},
+        {"cat": "QUOTE_END", "as": "close"}
+      ],
+      "sem": {
+        "kind": "report",
+        "mode": "direct",
         "speaker": "$speaker",
         "predicate": "$verb",
         "body": "$body"

@@ -513,9 +513,9 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты хвосты D6.2d (цитаты/«несмотря на»/beam), D6.4
-  (планировщик и мост к действиям), D7 (текстовая RPG); D6.3
-  (раскрытие и ложь) закрыт.
+* Открыты хвост D6.2d (beam/корпус парафраз), D6.4 (планировщик и
+  мост к действиям), D7 (текстовая RPG); D6.3 (раскрытие и ложь)
+  закрыт.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py` — D6.2d, `tests/test_d6_disclosure.py` —
   D6.3. Headless-теста `DialogueChatScreen` по-прежнему нет.

@@ -11,7 +11,7 @@ import unicodedata
 from typing import List
 
 _TOKEN = re.compile(
-    r"[A-Za-zА-Яа-яЁё0-9]+(?:-[A-Za-zА-Яа-яЁё0-9]+)*"
+    r"[A-Za-zА-Яа-яЁё0-9]+(?:-[A-Za-zА-Яа-яЁё0-9]+)*|[«»\"]"
 )
 
 
@@ -21,6 +21,8 @@ def normalize_text(text: str) -> str:
     value = unicodedata.normalize("NFC", str(text or ""))
     value = value.replace("Ё", "Е").replace("ё", "е")
     value = value.replace("—", " ").replace("–", " ")
+    value = value.replace("“", "«").replace("”", "»")
+    value = value.replace("„", "«")
     value = value.strip().lower()
     return value
 

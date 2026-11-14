@@ -16,6 +16,7 @@ from campaign.dialogue.engine import DialogueSession
 from campaign.dialogue.knowledge import AgentKnowledge, Fact
 from campaign.dialogue.lint import lint_directory
 from campaign.dialogue.loader import DEFAULT_DIR, load_dialogue
+from campaign.dialogue.morphology import tokenize
 from campaign.dialogue.parser import ChartParser
 
 
@@ -142,6 +143,17 @@ def test_concessive_uses_data_lexeme(tmp_path):
     assert [item for item in parses if item.rule == "s_concessive"]
 
 
+def test_despite_parsed_as_concessive():
+    sem = _sem(
+        "Несмотря на Империя воюет с Республикой, "
+        "Республика не воюет с Империей",
+        "s_concessive",
+    )
+    assert sem["kind"] == "concessive"
+    assert sem["concession"]["subject"]["head"]["entity"] == "faction:red"
+    assert sem["clause"]["negated"] is True
+
+
 # --- косвенная речь -------------------------------------------------
 
 
@@ -151,10 +163,29 @@ def test_indirect_speech_parsed():
         "s_indirect_speech",
     )
     assert sem["kind"] == "report"
+    assert sem["mode"] == "indirect"
     assert sem["predicate"] == "say"
     assert sem["speaker"]["head"]["entity"] == "post:red:leader"
     assert sem["body"]["predicate"] == "fight"
     assert sem["body"]["subject"]["head"]["entity"] == "faction:red"
+
+
+def test_direct_speech_quotes_parsed():
+    sem = _sem(
+        "Император сказал: «Империя воюет с Республикой»",
+        "s_direct_speech",
+    )
+    assert sem["kind"] == "report"
+    assert sem["mode"] == "direct"
+    assert sem["speaker"]["head"]["entity"] == "post:red:leader"
+    assert sem["body"]["predicate"] == "fight"
+
+
+def test_unquoted_speech_is_not_direct():
+    parses = ChartParser(load_dialogue(DEFAULT_DIR)).parse(
+        "Император сказал Империя воюет с Республикой"
+    )
+    assert not [item for item in parses if item.rule == "s_direct_speech"]
 
 
 def test_report_keeps_embedded_question():
@@ -167,6 +198,11 @@ def test_report_keeps_embedded_question():
 
 
 # --- детерминизм и регрессии ---------------------------------------
+
+
+def test_quote_tokens_are_preserved():
+    assert tokenize("«Слово»") == ["«", "слово", "»"]
+    assert tokenize('"Слово"') == ['"', "слово", '"']
 
 
 def test_parses_are_deterministic():
