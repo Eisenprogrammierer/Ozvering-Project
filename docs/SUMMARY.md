@@ -505,20 +505,22 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   отношений удаляет исходный факт (`belief`), а не derived-атом.
   `believe`, `have` и `fight` дают `cf_changed`; `has_organ` входит в
   whitelist.
-* **D6.2d (ядро) и D6.3 закрыты.** Разбираются `если … то …`,
-  `хотя …` и «сказал, что …»; политики раскрытия и детерминированная
-  ложь заданы данными.
+* **D6.2d и D6.3 закрыты.** Разбираются `если … то …`,
+  `хотя …`/«несмотря на», косвенная и прямая речь; лучший разбор
+  выбирает детерминированный beam по `parsing.json`. Политики
+  раскрытия и ложь заданы данными.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты хвост D6.2d (beam/корпус парафраз), D6.4 (планировщик и
+* Открыты хвост D6.2d (корпус парафраз), D6.4 (планировщик и
   мост к действиям), D7 (текстовая RPG); D6.3 (раскрытие и ложь)
   закрыт.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
-  `tests/test_d6_grammar.py` — D6.2d, `tests/test_d6_disclosure.py` —
-  D6.3. Headless-теста `DialogueChatScreen` по-прежнему нет.
+  `tests/test_d6_grammar.py` и `tests/test_d6_parse_beam.py` —
+  D6.2d, `tests/test_d6_disclosure.py` — D6.3. Headless-теста
+  `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 

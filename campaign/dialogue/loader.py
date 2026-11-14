@@ -752,6 +752,17 @@ def load_disclosure(root: Path) -> Mapping[str, Any]:
     return raw
 
 
+def load_parsing(root: Path) -> Mapping[str, Any]:
+    """Загрузить детерминированный beam-профиль из ``parsing.json``."""
+
+    path = root / "parsing.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -785,6 +796,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     comparison = load_comparison(root)
     counterfactual = load_counterfactual(root)
     disclosure = load_disclosure(root)
+    parsing = load_parsing(root)
     world = load_world(root)
     plans = load_plans(root)
     max_depth = _int(
@@ -811,6 +823,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
         comparison=comparison,
         counterfactual=counterfactual,
         disclosure=disclosure,
+        parsing=parsing,
         world=world,
         raw={
             "ontology": ontology.raw,
@@ -818,5 +831,6 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
             "synthesis": synthesis,
             "state": state,
             "disclosure": disclosure,
+            "parsing": parsing,
         },
     )

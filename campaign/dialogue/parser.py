@@ -107,6 +107,66 @@ class ChartParser:
         parses = self.parse(text)
         return parses[0] if parses else None
 
+    def _parse_depth(self, parse: Parse) -> int:
+        """Глубина дерева: больше правил — более специфичный разбор."""
+
+        if not parse.children:
+            return 0
+        return 1 + max(self._parse_depth(child) for child in parse.children)
+
+    def _rank_key(self, parse: Parse, index: int) -> Tuple[Any, ...]:
+        """Детерминированный ключ приоритета разбора.
+
+        Никаких вероятностей: порядок видов берётся из
+        ``parsing.json``; при равном виде сохраняется канонический
+        порядок чарта. ``prefer_depth`` — необязательный data-флаг,
+        который поднимает более специфичные деревья.
+        """
+
+        spec = self.catalog.parsing or {}
+        priority = [str(item) for item in spec.get("kind_priority") or ()]
+        kind = (
+            str(parse.sem.get("kind") or "")
+            if isinstance(parse.sem, Mapping)
+            else ""
+        )
+        try:
+            rank = priority.index(kind)
+        except ValueError:
+            rank = len(priority)
+        depth = (
+            self._parse_depth(parse)
+            if spec.get("prefer_depth", False)
+            else 0
+        )
+        return (rank, -depth, index)
+
+    def parse_beam(self, text: str) -> Tuple[Parse, ...]:
+        """Детерминированный beam: лучшие ``beam_width`` разборов."""
+
+        parses = self.parse(text)
+        if not parses:
+            return ()
+        spec = self.catalog.parsing or {}
+        try:
+            width = int(spec.get("beam_width") or 16)
+        except (TypeError, ValueError):
+            width = 16
+        width = max(1, width)
+        ranked = sorted(
+            enumerate(parses),
+            key=lambda pair: self._rank_key(pair[1], pair[0]),
+        )
+        return tuple(parse for _, parse in ranked[:width])
+
+    def parse_best(self, text: str) -> Optional[Parse]:
+        """Лучший разбор по данным ``parsing.json`` (или канонический)."""
+
+        if not self.catalog.parsing:
+            return self.parse_one(text)
+        beam = self.parse_beam(text)
+        return beam[0] if beam else None
+
     def _seed(
         self,
         tokens: Sequence[str],

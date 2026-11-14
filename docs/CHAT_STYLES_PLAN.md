@@ -182,9 +182,9 @@ venv/bin/python -m pytest -q
   `tests/test_d3_counterfactual.py`.
 - [x] D6.2b–c — «то»-клауза и `predicate_relations`.
 - [x] D6.3 — политика раскрытия и ложь.
-- [x] D6.2d (ядро) — условия, уступки, косвенная и прямая речь;
-  `tests/test_d6_grammar.py`.
-- [ ] Хвост D6.2d — детерминированный beam и корпус парафраз.
+- [x] D6.2d — условия, уступки, косвенная и прямая речь, beam;
+  `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py`.
+- [ ] Хвост D6.2d — корпус парафраз.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

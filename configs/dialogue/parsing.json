@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "beam_width": 16,
+  "kind_priority": [
+    "counterfactual",
+    "question",
+    "conditional",
+    "concessive",
+    "report",
+    "assert",
+    "social",
+    "request",
+    "greeting",
+    "farewell",
+    "smalltalk"
+  ],
+  "prefer_depth": false
+}

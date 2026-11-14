@@ -162,7 +162,7 @@ class DialogueSession:
         }
 
     def _interpret(self, text: str):
-        parse = self.parser.parse_one(text)
+        parse = self.parser.parse_best(text)
         if parse is not None:
             return parse.sem, parse, "parser"
         sem, fragment_id, reason = self.state.fragment(text)

@@ -435,5 +435,6 @@ class DialogueCatalog:
         default_factory=CounterfactualSpec
     )
     disclosure: Mapping[str, Any] = field(default_factory=dict)
+    parsing: Mapping[str, Any] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

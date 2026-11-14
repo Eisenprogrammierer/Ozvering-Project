@@ -987,6 +987,39 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _parsing_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить детерминированный beam-профиль разбора."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "parsing", None) or {}
+    if not spec:
+        return problems
+    try:
+        width = int(spec.get("beam_width", 16))
+    except (TypeError, ValueError):
+        width = 0
+    if width < 1:
+        problems.append("parsing.beam_width: ожидалось целое >= 1")
+    priority = spec.get("kind_priority") or ()
+    if not isinstance(priority, (list, tuple)):
+        problems.append("parsing.kind_priority: ожидался список")
+        return problems
+    seen: Set[str] = set()
+    for item in priority:
+        kind = str(item or "")
+        if not kind:
+            problems.append("parsing.kind_priority: пустой вид")
+            continue
+        if kind in seen:
+            problems.append(
+                "parsing.kind_priority: повтор вида %r" % kind
+            )
+        seen.add(kind)
+    if not isinstance(spec.get("prefer_depth", True), bool):
+        problems.append("parsing.prefer_depth: ожидался bool")
+    return problems
+
+
 def _disclosure_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить политики раскрытия и ссылки персон на них."""
 
@@ -1736,6 +1769,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_anaphora_problems(catalog))
     problems.extend(_comparison_problems(catalog, known))
     problems.extend(_counterfactual_problems(catalog, known))
+    problems.extend(_parsing_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 
