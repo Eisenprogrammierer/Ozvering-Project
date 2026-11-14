@@ -71,6 +71,32 @@
       }
     },
     {
+      "id": "cf_explain_with",
+      "priority": 84,
+      "match": {
+        "kind": "counterfactual",
+        "antecedent": {
+          "kind": "assert",
+          "predicate": "$rel",
+          "subject": {"head": {"entity": "$subject"}},
+          "object": {
+            "kind": "pp",
+            "prep": "with",
+            "object": {"head": {"entity": "$object"}}
+          }
+        }
+      },
+      "answer": {
+        "type": "counterfactual",
+        "relation": "$rel",
+        "args": ["$subject", "$object"],
+        "remove": [
+          {"rel": "$rel", "args": ["$subject", "$object"]}
+        ],
+        "target": "$subject"
+      }
+    },
+    {
       "id": "cf_explain_yesno",
       "priority": 84,
       "match": {

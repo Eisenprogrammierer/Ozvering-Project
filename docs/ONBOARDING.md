@@ -6,7 +6,7 @@
 > быстро найти нужный из них.
 >
 > **Дата сверки:** 2026-11-14. Проверялось по коду и тестам, а не только
-> по README. Полный набор — 1252 теста, прогон зелёный. Если документ
+> по README. Полный набор — 1288 тестов, прогон зелёный. Если документ
 > расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
 > исправлять.
 >
@@ -14,8 +14,7 @@
 > приоритетов документов описан в его начале.
 >
 > **Дата обновления §3.2, §3.3, §4.1, §4.3, §5.9, §5.10, §6:**
-> 2026-11-14 (после D3.2, D5.4 и D6.2a; ограничения сквозных сценариев
-> см. в §5.9).
+> 2026-11-14 (после D3.2, D5.4 и D6.2a–c).
 
 ---
 
@@ -185,7 +184,7 @@ venv/bin/python main.py
 main.py
   ├─ view/        современный GUI + сюжет
   │    ├─ campaign/  мир, пресеты, кампания автоматов
-  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.4, D3.2, D6.2a)
+  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.4, D3.2, D6.2a–c)
   │    │    └─ warfare.py / core41
   │    ├─ view/support/  адаптеры, сейвы, время, эффекты
   │    └─ view/ui/       менеджер экранов, HUD, виджеты, ассеты
@@ -257,13 +256,16 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный набор 2026-11-14: **1252 теста**, зелёный.
+* Полный набор 2026-11-14: **1288 тестов**, зелёный.
 * Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
   `test_d5_registers.py`, `test_d5_discourse_paragraph.py`.
-* Для D3.2 (контрфакты) и D6.2a (отрицание) отдельных тестовых файлов
-  пока нет; это зафиксировано в [`TODO.md`](TODO.md) §2.
+* Для D3.2 (контрфакты), D6.2a (отрицание), D6.2b («то»-клауза) и
+  D6.2c (`predicate_relations`) есть `tests/test_d3_counterfactual.py`
+  (17 тестов).
+* Для D6.3 (раскрытие и ложь) — `tests/test_d6_disclosure.py`
+  (19 тестов).
 * Полный путь «Новая игра → роль → новелла → кампания автоматов →
   бюджет действий → сеть → чат → исход» исполнен headless без исключений.
 
@@ -303,24 +305,20 @@ GUI существует и играется, но это **рабочий пе�
 * **Баланс и полировка — первый срез.** Кампания автоматов проходится, но
   субъективный баланс, читаемость HUD и длинная прогрессия ещё не
   откалиброваны как «игра для игрока».
-* **Диалоговый слой — D6.2a на уровне механизмов.** Сделаны: D0
-  (лексикон и разбор), D1 (вопросы о мире), D1.5 (композиционный
-  синтез), D2 (QUD, референты, память), D3.1 (сравнения, расширенное
-  «почему»), D4 (речевые действия), D5.1 (дискурсивный планировщик),
-  D5.2 (автовыбор регистра в API сессии), D5.3 (агрегация, анафора,
-  тема-рема), D5.4 (механизм абзаца через `topics`), D3.2 (движок
-  контрфактов), D6.2a (отрицание в разборе и семантике).
-  Сквозные сценарии контрфактов и отрицания пока ограничены: в
-  production-лексиконе предикат не совпадает с отношением мира
-  (`believe` против `considers_outlaw`, `have` против `has_organ`), а
-  `has_organ` не входит в whitelist `counterfactual.json`. Поэтому
-  типовой ответ сейчас — `unknown`/`unchanged`, а `cf_changed`
-  практически недостижим до D6.2c (`predicate_relations`). В чате стиль
+* **Диалоговый слой — D6.2a–c и D6.3 закрыты.** Сделаны: D0 (лексикон и
+  разбор), D1 (вопросы о мире), D1.5 (композиционный синтез), D2 (QUD,
+  референты, память), D3.1 (сравнения, расширенное «почему»), D4
+  (речевые действия), D5.1 (дискурсивный планировщик), D5.2 (автовыбор
+  регистра в API сессии), D5.3 (агрегация, анафора, тема-рема), D5.4
+  (механизм абзаца через `topics`), D3.2 (движок контрфактов), D6.2a
+  (отрицание), D6.2b («то»-клауза), D6.2c (`predicate_relations`),
+  D6.3 (политика раскрытия и детерминированная ложь).
+  Сквозные контрфакты достижимы: `believe → considers_outlaw`,
+  `have → has_organ`, `fight → at_war_with` дают `changed`. В чате стиль
   выбирается вручную; авто-режим `DialogueSession(style_id=None)`
-  доступен только через API сессии. Открыто: D6.2b–D6.2d (грамматика,
-  «то»-клауза, `predicate_relations`), D6.3 (политика раскрытия и ложь),
-  D6.4 (планировщик и мост к действиям), D7 (текстовая RPG), аудит
-  лексикона и тесты D3.2/D6.2a.
+  доступен только через API сессии. Открыто: D6.2d (условия, уступки,
+  косвенная речь), D6.4 (планировщик и мост к действиям), D7
+  (текстовая RPG) и аудит лексикона.
 
 ---
 
@@ -601,21 +599,22 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 * **D3.2 — контрфакты**: `counterfactual.py`
   (`CounterfactualEngine.with_facts`/`compare`/`_differences`),
   `counterfactual.json` (whitelist `belief`/`asset`/`at_war_with`/
-  `considers_outlaw`, `max_steps`, `outcomes`), планы `cf_explain` и
-  `cf_explain_yesno`, грамматика `s_counterfactual` /
-  `s_counterfactual_short`. Разбираются формы «Что если …?» и
-  «Что, если бы …?»; конструкция «Что было бы, если бы …?» пока не
-  имеет правила. Сквозной путь ограничен: `cf_explain` подставляет
-  предикат разбора (`believe`, `fight`, `have`) вместо отношения мира,
-  а `cf_explain_yesno` удаляет `has_organ`, которого нет в whitelist,
-  поэтому `cf_changed` в production практически не достигается до
-  D6.2c (`predicate_relations`);
-* **D6.2a — отрицание**: `part:not` в категории `NEG`, правила
-  `np_neg_v_np*`, `negated: true` в семантике и обмен `remove`/`add`
-  в `_answer_counterfactual`. Это механизм разбора и семантики; из-за
-  той же несогласованности предиката и отношения отрицательный
-  контрфакт в production тоже обычно даёт `unknown`. Отдельного теста
-  пока нет;
+  `considers_outlaw`/`has_organ`, `max_steps`, `outcomes`), планы
+  `cf_explain`, `cf_explain_with` и `cf_explain_yesno`; грамматика
+  `s_counterfactual*` включая consequent и past forms. Разбираются
+  «Что если …?», «Что, если бы …?», «Что было бы, если бы …?» и
+  «…, то …». `world.predicate_relations` резолвит предикат разбора в
+  отношение мира, поэтому `believe`, `have` и `fight` дают `changed`;
+* **D6.2a–c — отрицание, следствие и маппинг предикатов**:
+  `part:not` в `NEG`, правила `np_neg_v_np*`, `negated: true` и обмен
+  `remove`/`add`; `concept:then` и `consequent` как цель сравнения;
+  `predicate_relations` с исходным фактом `remove` для производных
+  отношений. Тесты — `tests/test_d3_counterfactual.py`;
+* **D6.3 — политика раскрытия и ложь**: `disclosure.json` с политиками
+  `honest/partial/withhold/evasive/lie`, `disclosure` и
+  `lie_probability` у персоны, SHA-256-бросок от seed/хода/темы,
+  трассировка `lied`/`truth_text` в `Answer.data`. Тесты —
+  `tests/test_d6_disclosure.py`;
 * речевые действия: `social.json` — акты (`command/promise/threat/
   offer/apology`), реакции (`accept/reject/evade/counter/clarify`),
   условия (`AtomSpec`), эффекты (`commitment/refusal/evasion/
@@ -630,13 +629,10 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   `Answer.data["discourse_trace"]` — трасса дискурсивного слоя
   (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
   речевого действия;
-* статус: **D0, D1, D1.5, D2, D3.1, D4, D5.1–D5.4 — сделаны;
-  D3.2 и D6.2a — сделаны на уровне механизма, сквозной контрфакт ждёт
-  D6.2c**. Открыто: D6.2b («то»-клауза), D6.2c
-  (`predicate_relations`), D6.2d (условия, уступки, косвенная речь),
-  D6.1 (аудит лексикона), D6.3 (политика раскрытия и ложь), D6.4
-  (планировщик и мост к действиям), D7 (текстовая RPG), тесты D3.2 и
-  D6.2a.
+* статус: **D0, D1, D1.5, D2, D3.1, D3.2, D4, D5.1–D5.4, D6.2a–c,
+  D6.3 — сделаны**. Открыто: D6.2d (условия, уступки, косвенная речь),
+  D6.1 (аудит лексикона), D6.4 (планировщик и мост к действиям), D7
+  (текстовая RPG).
 
 Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
@@ -693,12 +689,13 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | Диалог D1.5 | `test_d1_5_synthesis.py` | композиционный синтез, морфология, расширяемость JSON-ом |
 | Диалог D2 | `test_d2_state.py` | QUD, местоимения, эллипсис, память партии, сейв |
 | Диалог D3.1 (сравнения) | `test_d3_comparison.py` | greater/less/equal/unknown, key_prefix, max_premises |
-| Диалог D3.2 (контрфакты) | отдельных тестов нет | движок, whitelist и планы `cf_*`; покрытие — в [`TODO.md`](TODO.md) §2 |
+| Диалог D3.2 (контрфакты) | `test_d3_counterfactual.py` | исходы, whitelist, read-only, `predicate_relations`, consequent |
 | Диалог D4 | `test_d4_social.py` | акты, реакции, условия, эффекты, `commitments`, JSON-only расширение |
 | Диалог D5.1 | `test_d5_discourse.py` | moves, patterns, connectives, нейтральный путь, антиповтор связок |
 | Диалог D5.2–D5.3 | `test_d5_registers.py` | регистры, автовыбор по контексту, явный стиль побеждает, пустой каталог |
 | Диалог D5.3–D5.4 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора, тема-рема, `topics` и порядок 4+ ходов |
-| Диалог D6.2a (отрицание) | отдельных тестов нет | разбор `NEG`, `negated: true`, обмен `remove`/`add`; ждёт D6.2c |
+| Диалог D6.2a–c | `test_d3_counterfactual.py` | разбор `NEG`, обмен `remove`/`add`, «то»-клауза, маппинг предикатов |
+| Диалог D6.3 | `test_d6_disclosure.py` | политики, исходы, детерминированная ложь, тема, read-only |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |
 | Контент | `test_content_pipeline.py`, `test_story_arcs.py`, `test_docs_sync.py` | загрузка/правка/удаление JSON, ссылки |

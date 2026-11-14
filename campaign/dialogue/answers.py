@@ -15,10 +15,13 @@ D3.2 добавляет тип ответа ``counterfactual``.
 D5.4 добавляет порядок абзаца через ``topics: [...]``.
 D6.2a добавляет отрицание (``negated: true``) в антецеденте
 контрфакта: ``remove`` и ``add`` из плана меняются местами.
+D6.3 добавляет политику раскрытия (``disclosure.json``) и
+детерминированную ложь с трассировкой в ``Answer.data``.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
@@ -147,24 +150,13 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
-def _fact_from(spec: Mapping[str, Any], captures: Mapping[str, str]) -> Fact:
-    """Собрать ``Fact`` из описания в плане с подстановкой захватов."""
-
-    rel = str(spec.get("rel") or "")
-    raw_args = spec.get("args") or ()
-    args = tuple(_resolve(str(item), captures) for item in raw_args)
-    return Fact(rel, args)
-
-
-def _fact_from_values(
-    spec: Mapping[str, Any], values: Mapping[str, str]
-) -> Fact:
+def _fact_from(spec: Mapping[str, Any], values: Mapping[str, Any]) -> Fact:
     """Собрать ``Fact`` из описания в плане с подстановкой значений.
 
-    Отличие от ``_fact_from``: ``values`` — это результат матчинга
-    плюс захваты, где ``$rel`` уже разрешён в конкретное имя
-    отношения. Используется в контрфакте, когда ``$rel`` приходит из
-    антецедента.
+    ``values`` — захваты шаблона плюс служебные значения вроде
+    ``$speaker`` и уже разрешённого ``$rel``. Имя отношения тоже может
+    быть переменной: в контрфакте оно приходит из антецедента и
+    резолвится через ``predicate_relations``.
     """
 
     rel = str(spec.get("rel") or "")
@@ -173,6 +165,36 @@ def _fact_from_values(
     raw_args = spec.get("args") or ()
     args = tuple(_resolve(str(item), values) for item in raw_args)
     return Fact(rel, args)
+
+
+def _nested_entity(value: Any) -> str:
+    """Найти сущность в логической форме (``np``/``pp``/``topic``).
+
+    D6.2c/D6.2b: антецедент и следствие приходят как вложенные структуры
+    разбора. Нам нужен только идентификатор сущности, чтобы передать его
+    в ``CounterfactualEngine.compare``. Строка возвращается как есть,
+    чтобы поддерживать и «плоские» семантические формы.
+    """
+
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            found = _nested_entity(item)
+            if found:
+                return found
+        return ""
+    if isinstance(value, Mapping):
+        for key in ("entity", "head", "object", "topic"):
+            if key in value:
+                found = _nested_entity(value[key])
+                if found:
+                    return found
+        for item in value.values():
+            found = _nested_entity(item)
+            if found:
+                return found
+    return ""
 
 
 class AnswerPlanner:
@@ -189,6 +211,7 @@ class AnswerPlanner:
         self.catalog = catalog
         self.knowledge = knowledge
         self.persona = persona
+        self.memory = memory
         self.engine = InferenceEngine(catalog, knowledge)
         self.style_engine = style_engine or StyleEngine(catalog)
         self.social_engine = SocialEngine(
@@ -276,7 +299,161 @@ class AnswerPlanner:
         )
         if handler is None:
             return self._unknown(selected.id)
-        return handler(selected, captures)
+        answer = handler(selected, captures)
+        return self._disclose(answer, selected, captures)
+
+    # --- раскрытие и ложь (D6.3) ------------------------------------
+
+    _DISCLOSURE_KINDS = frozenset(
+        {
+            "yes",
+            "no",
+            "explanation",
+            "value",
+            "list",
+            "description",
+            "summary",
+            "located",
+            "started",
+            "last_works",
+            "entity",
+        }
+    )
+
+    def _disclosure_topic(
+        self, answer: Answer, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> str:
+        """Тема раскрытия: отношение ответа или план-источник."""
+
+        data = answer.data or {}
+        for key in ("relation", "predicate", "topic"):
+            value = str(data.get(key) or "")
+            if value:
+                return value
+        relation = _resolve(
+            str(plan.answer.get("relation") or ""), captures
+        )
+        return relation or str(plan.id)
+
+    def _disclosure_policy(self, topic: str) -> str:
+        """Политика персоны для темы; честность — безопасный умолчал."""
+
+        spec = self.catalog.disclosure or {}
+        persona = self.persona.disclosure or {}
+        on_topic = persona.get("on_topic") or {}
+        if not isinstance(on_topic, Mapping):
+            on_topic = {}
+        for value in (
+            on_topic.get(topic),
+            persona.get("default"),
+            spec.get("default"),
+            "honest",
+        ):
+            policy = str(value or "")
+            if policy:
+                return policy
+        return "honest"
+
+    def _lie_score(self, topic: str, args: Any) -> float:
+        """Детерминированный бросок в [0, 1] по seed-у кампании.
+
+        Это не статистика и не обучение: одинаковые run_id, ход, тема и
+        аргументы всегда дают один и тот же результат.
+        """
+
+        spec = self.catalog.disclosure or {}
+        salt = str(spec.get("salt") or "disclosure")
+        turns = getattr(self.memory, "turns", 0) if self.memory else 0
+        payload = "|".join(
+            (
+                salt,
+                str(self.knowledge.run_id),
+                str(self.knowledge.speaker_id),
+                str(turns),
+                str(topic),
+                ",".join(str(item) for item in args or ()),
+            )
+        )
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return int(digest[:8], 16) / float(0xFFFFFFFF)
+
+    def _disclose(
+        self, answer: Answer, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Применить политику раскрытия к информативному ответу.
+
+        D6.3. Политика выбирается по теме из ``persona.disclosure``;
+        исход и тексты заданы в ``disclosure.json``. Ложь включается
+        только при ``score < lie_probability`` и всегда оставляет в
+        ``Answer.data`` истинный ответ и признак ``lied``.
+        """
+
+        if answer.kind not in self._DISCLOSURE_KINDS:
+            return answer
+        spec = self.catalog.disclosure or {}
+        policies = spec.get("policies") or {}
+        if not policies:
+            return answer
+        topic = self._disclosure_topic(answer, plan, captures)
+        policy_id = self._disclosure_policy(topic)
+        if policy_id == "honest":
+            return answer
+        policy = policies.get(policy_id)
+        if not isinstance(policy, Mapping):
+            return answer
+        outcome = str(policy.get("outcome") or "truth")
+        data = dict(answer.data or {})
+        data["disclosure"] = policy_id
+        data["disclosure_topic"] = topic
+        if outcome == "truth":
+            return answer
+        if outcome == "partial":
+            prefix = str(policy.get("prefix") or "")
+            text = (prefix + answer.text).strip()
+            data["partial"] = True
+            return Answer(
+                answer.kind, text, answer.plan_id, answer.proof, data
+            )
+        if outcome in ("withhold", "evade"):
+            text = str(policy.get("text") or "")
+            if not text:
+                return answer
+            data["truth_text"] = answer.text
+            data["truth_kind"] = answer.kind
+            data["withheld"] = outcome == "withhold"
+            data["evaded"] = outcome == "evade"
+            return Answer(answer.kind, text, answer.plan_id, (), data)
+        if outcome != "lie":
+            return answer
+        probability = max(
+            0.0, min(1.0, float(self.persona.lie_probability or 0.0))
+        )
+        score = self._lie_score(topic, data.get("args") or ())
+        data["lie_score"] = score
+        data["lie_probability"] = probability
+        if score >= probability:
+            data["lied"] = False
+            return Answer(
+                answer.kind, answer.text, answer.plan_id, answer.proof, data
+            )
+        if answer.kind == "yes":
+            key = "yes"
+        elif answer.kind == "no":
+            key = "no"
+        else:
+            key = "other"
+        text = str(
+            policy.get(key)
+            or policy.get("other")
+            or self.answers.get("no")
+            or "Нет."
+        )
+        data["truth_text"] = answer.text
+        data["truth_kind"] = answer.kind
+        data["truth_relation"] = str(data.get("relation") or "")
+        data["truth_args"] = tuple(data.get("args") or ())
+        data["lied"] = True
+        return Answer(answer.kind, text, answer.plan_id, (), data)
 
     # --- дискурсивный слой -----------------------------------------
 
@@ -574,7 +751,12 @@ class AnswerPlanner:
                     fallback=no,
                     keys=("answer_no:" + relation, "answer_no"),
                 )
-                return Answer("no", text, plan.id)
+                return Answer(
+                    "no",
+                    text,
+                    plan.id,
+                    data={"relation": relation, "args": args},
+                )
             return self._unknown(plan.id)
         solution = solutions[0]
         statement = self._statement(relation, args)
@@ -767,38 +949,125 @@ class AnswerPlanner:
             return str(spec.greater or ""), "greater"
         return str(spec.less or ""), "less"
 
+    def _predicate_mapping(self, predicate: str) -> Mapping[str, Any]:
+        """Спецификация ``predicate → relation`` из ``world.json``."""
+
+        table = (self.knowledge.world or {}).get(
+            "predicate_relations"
+        ) or {}
+        spec = table.get(str(predicate or ""))
+        if isinstance(spec, str):
+            return {"relation": spec}
+        if isinstance(spec, Mapping):
+            return spec
+        return {}
+
+    def _predicate_relation(
+        self, predicate: str, fallback: str = ""
+    ) -> str:
+        """Имя отношения мира для предиката разбора (D6.2c).
+
+        Если маппинга нет, возвращается исходное имя — так сохраняется
+        прежнее поведение для уже согласованных предикатов.
+        """
+
+        relation = str(
+            self._predicate_mapping(predicate).get("relation") or ""
+        )
+        if relation:
+            return relation
+        return str(fallback or predicate or "")
+
+    def _assertion_target(
+        self, assertion: Any
+    ) -> Tuple[str, Tuple[str, ...]]:
+        """Цель сравнения из утверждения (антецедент/следствие).
+
+        D6.2b: следствие «то …» задаёт, что именно проверять в
+        контрмодели. Предикат проходит через ``predicate_relations``;
+        ``have`` даёт ``has_organ``, остальные — пару
+        «субъект, объект». Свойства без объекта возвращают один
+        аргумент.
+        """
+
+        if not isinstance(assertion, Mapping):
+            return "", ()
+        if bool(assertion.get("have")):
+            predicate = "have"
+        elif bool(assertion.get("copula")):
+            return "", ()
+        else:
+            predicate = str(assertion.get("predicate") or "")
+        if not predicate:
+            return "", ()
+        relation = self._predicate_relation(predicate)
+        subject = _nested_entity(assertion.get("subject"))
+        obj = _nested_entity(assertion.get("object"))
+        args: List[str] = []
+        if subject:
+            args.append(subject)
+        if obj:
+            args.append(obj)
+        return relation, tuple(args)
+
     def _answer_counterfactual(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:
         """Построить контрфакт по антецеденту и цели из плана.
 
+        D6.2c: предикат разбора резолвится в отношение мира через
+        ``world.predicate_relations``. Если у маппинга задан исходный
+        факт (``remove``), подменяется он, а не производное отношение:
+        ``considers_outlaw`` доказывается из ``belief``, поэтому
+        удалять надо именно ``belief``.
+
+        D6.2b: если в форме есть ``consequent`` («…, то …»), его
+        отношение и аргументы становятся целью сравнения; антецедент
+        остаётся подменой фактов.
+
         D6.2a: если антецедент отрицательный (``negated: true``),
-        ``remove`` и ``add`` из плана меняются местами: отрицание
-        означает «добавить то, чего не было», а не «убрать то, что
-        есть». План при этом остаётся тем же.
+        ``remove`` и ``add`` меняются местами: отрицание означает
+        «добавить то, чего не было», а не «убрать то, что есть».
         """
 
         if not self.counterfactual.enabled():
             return self._unknown(plan.id)
-        relation = _resolve(
+        values: Dict[str, Any] = dict(captures)
+        values["$speaker"] = self.knowledge.speaker_id
+        predicate = _resolve(
             str(plan.answer.get("relation") or ""), captures
         )
+        relation = self._predicate_relation(predicate)
         args = _resolve_args(plan.answer.get("args") or (), captures)
         negated = False
+        consequent: Any = None
         sem = captures.get("$sem")
         if isinstance(sem, Mapping):
             antecedent = sem.get("antecedent")
             if isinstance(antecedent, Mapping):
                 negated = bool(antecedent.get("negated"))
+            consequent = sem.get("consequent")
+        consequent_relation, consequent_args = self._assertion_target(
+            consequent
+        )
+        if consequent_relation:
+            relation = consequent_relation
+            args = consequent_args
         remove_spec = plan.answer.get("remove") or ()
         add_spec = plan.answer.get("add") or ()
-        remove = [
-            _fact_from(item, captures)
-            for item in remove_spec
-            if isinstance(item, Mapping)
-        ]
+        mapping = self._predicate_mapping(predicate)
+        source = mapping.get("remove")
+        values["$rel"] = relation
+        if isinstance(source, Mapping):
+            remove = [_fact_from(source, values)]
+        else:
+            remove = [
+                _fact_from(item, values)
+                for item in remove_spec
+                if isinstance(item, Mapping)
+            ]
         add = [
-            _fact_from(item, captures)
+            _fact_from(item, values)
             for item in add_spec
             if isinstance(item, Mapping)
         ]
@@ -815,6 +1084,7 @@ class AnswerPlanner:
         data: Dict[str, Any] = {
             "relation": relation,
             "args": args,
+            "predicate": predicate,
             "outcome": result.outcome,
             "differences": result.differences,
             "removed": result.removed,
@@ -825,6 +1095,8 @@ class AnswerPlanner:
             ),
             "negated": negated,
         }
+        if consequent is not None:
+            data["consequent"] = consequent
         text = self.realizer.construction(result.construction, data)
         if not text:
             return self._unknown(plan.id)

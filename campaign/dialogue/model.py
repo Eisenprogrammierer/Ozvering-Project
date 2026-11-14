@@ -153,6 +153,8 @@ class Persona:
     max_list_items: int = 20
     max_discourse_moves: int = 3
     default_style: str = ""
+    disclosure: Mapping[str, Any] = field(default_factory=dict)
+    lie_probability: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -432,5 +434,6 @@ class DialogueCatalog:
     counterfactual: CounterfactualSpec = field(
         default_factory=CounterfactualSpec
     )
+    disclosure: Mapping[str, Any] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

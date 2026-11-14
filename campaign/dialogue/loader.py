@@ -120,6 +120,13 @@ def _int(value: Any, default: int) -> int:
         return default
 
 
+def _float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _load_forms(value: Any) -> Tuple[LexForm, ...]:
     forms: List[LexForm] = []
     if isinstance(value, Mapping):
@@ -410,6 +417,8 @@ def _persona_from(data: Mapping[str, Any], key: str) -> Persona:
             data.get("max_discourse_moves"), 3
         ),
         default_style=_text(data.get("default_style")),
+        disclosure=_mapping(data.get("disclosure")),
+        lie_probability=_float(data.get("lie_probability"), 0.0),
     )
 
 
@@ -732,6 +741,17 @@ def load_counterfactual(root: Path) -> CounterfactualSpec:
 # --- мир --------------------------------------------------------------
 
 
+def load_disclosure(root: Path) -> Mapping[str, Any]:
+    """Загрузить политики раскрытия из ``disclosure.json``."""
+
+    path = root / "disclosure.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -764,6 +784,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     style_context = load_style_context(root)
     comparison = load_comparison(root)
     counterfactual = load_counterfactual(root)
+    disclosure = load_disclosure(root)
     world = load_world(root)
     plans = load_plans(root)
     max_depth = _int(
@@ -789,11 +810,13 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
         style_context=style_context,
         comparison=comparison,
         counterfactual=counterfactual,
+        disclosure=disclosure,
         world=world,
         raw={
             "ontology": ontology.raw,
             "realization": realization,
             "synthesis": synthesis,
             "state": state,
+            "disclosure": disclosure,
         },
     )

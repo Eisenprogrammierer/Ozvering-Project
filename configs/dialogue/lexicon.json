@@ -1983,6 +1983,22 @@
    "semantic": {"kind": "predicate", "id": "have"}
   },
   {
+   "id": "verb:issue",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "издать",
+   "forms": ["издает", "издаёт", "издала", "издал", "издали", "издать", "издавать"],
+   "semantic": {"kind": "predicate", "id": "issue"}
+  },
+  {
+   "id": "verb:fall",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "пасть",
+   "forms": ["пала", "пал", "пало", "пали", "падет", "падёт", "пасть"],
+   "semantic": {"kind": "predicate", "id": "fall"}
+  },
+  {
    "id": "verb:tell",
    "type": "verb",
    "cat": "V",
@@ -2783,6 +2799,14 @@
    "lemma": "бы",
    "forms": ["бы", "б"],
    "semantic": {"kind": "particle", "id": "would"}
+  },
+  {
+   "id": "concept:then",
+   "type": "particle",
+   "cat": "TO",
+   "lemma": "то",
+   "forms": ["то"],
+   "semantic": {"kind": "particle", "id": "then"}
   },
   {
    "id": "cop:this",

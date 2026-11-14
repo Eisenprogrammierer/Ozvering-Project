@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "default": "honest",
+  "salt": "disclosure",
+  "policies": {
+    "honest": {
+      "outcome": "truth"
+    },
+    "partial": {
+      "outcome": "partial",
+      "prefix": "Кое-что я знаю, но не всё: "
+    },
+    "withhold": {
+      "outcome": "withhold",
+      "text": "Об этом я говорить не буду."
+    },
+    "evasive": {
+      "outcome": "evade",
+      "text": "Смотря что считать ответом."
+    },
+    "lie": {
+      "outcome": "lie",
+      "yes": "Нет, это не так.",
+      "no": "Да, это так.",
+      "other": "Нет, это не так."
+    }
+  }
+}

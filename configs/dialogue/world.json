@@ -87,6 +87,66 @@
     "trusts": 2,
     "taboo_topic": 1
   },
+  "predicate_relations": {
+    "believe": {
+      "relation": "considers_outlaw",
+      "remove": {
+        "rel": "belief",
+        "args": [
+          "$speaker",
+          "$subject",
+          "considers_illegitimate",
+          "$object"
+        ]
+      }
+    },
+    "befriend": {
+      "relation": "allied_with",
+      "remove": {
+        "rel": "belief",
+        "args": ["$speaker", "$subject", "allied_with", "$object"]
+      }
+    },
+    "fight": {
+      "relation": "at_war_with"
+    },
+    "have": {
+      "relation": "has_organ"
+    },
+    "threaten": {
+      "relation": "threatens",
+      "remove": {
+        "rel": "belief",
+        "args": ["$speaker", "$subject", "sees_as_threat", "$object"]
+      }
+    },
+    "defend": {
+      "relation": "protects",
+      "remove": {
+        "rel": "belief",
+        "args": ["$speaker", "$subject", "protects", "$object"]
+      }
+    },
+    "depend": {
+      "relation": "depends_on",
+      "remove": {
+        "rel": "belief",
+        "args": ["$speaker", "$subject", "depends_on", "$object"]
+      }
+    },
+    "rule": {
+      "relation": "leader"
+    },
+    "locate": {
+      "relation": "located_at"
+    },
+    "begin": {
+      "relation": "started_at"
+    },
+    "do": {
+      "relation": "recent_work"
+    }
+  },
   "belief_predicates": {
     "considers_illegitimate": {
       "relation": "considers_outlaw",

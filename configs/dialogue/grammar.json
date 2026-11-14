@@ -405,6 +405,120 @@
       }
     },
     {
+      "id": "s_counterfactual_consequent",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "S", "as": "body"},
+        {"cat": "TO", "as": "then"},
+        {"cat": "S", "as": "consequent"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body",
+        "consequent": "$consequent"
+      }
+    },
+    {
+      "id": "s_counterfactual_consequent_would",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "S", "as": "body"},
+        {"cat": "TO", "as": "then"},
+        {"cat": "S", "as": "consequent"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body",
+        "consequent": "$consequent"
+      }
+    },
+    {
+      "id": "s_counterfactual_past",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "V", "features": {"lemma": "быть"}},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "PART", "as": "cond_part", "features": {"lemma": "бы"}},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body"
+      }
+    },
+    {
+      "id": "s_counterfactual_past_consequent",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "WH", "as": "wh"},
+        {"cat": "V", "features": {"lemma": "быть"}},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "COND", "as": "cond"},
+        {"cat": "PART", "as": "cond_part", "features": {"lemma": "бы"}},
+        {"cat": "S", "as": "body"},
+        {"cat": "TO", "as": "then"},
+        {"cat": "S", "as": "consequent"}
+      ],
+      "sem": {
+        "kind": "counterfactual",
+        "antecedent": "$body",
+        "consequent": "$consequent"
+      }
+    },
+    {
+      "id": "s_assert_np_part_v",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "V", "as": "verb"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj"
+      }
+    },
+    {
+      "id": "s_assert_np_part_v_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "V", "as": "verb"},
+        {"cat": "NP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
+      "id": "s_assert_np_part_v_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subj"},
+        {"cat": "PART", "as": "part", "features": {"lemma": "бы"}},
+        {"cat": "V", "as": "verb"},
+        {"cat": "PP", "as": "obj"}
+      ],
+      "sem": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "object": "$obj"
+      }
+    },
+    {
       "id": "s_request_tell",
       "lhs": "S",
       "rhs": [

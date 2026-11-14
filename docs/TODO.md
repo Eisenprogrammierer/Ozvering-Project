@@ -6,34 +6,40 @@
 
 ## 0. Закрыто
 
-### 0.1. D3.2 — контрфакты (механизм закрыт 2026-11-14)
+### 0.1. D3.2 — контрфакты (механизм и сквозной сценарий закрыты 2026-11-14)
 
-- **Грамматика.** `s_counterfactual` и `s_counterfactual_short` в
-  `configs/dialogue/grammar.json`; лексемы `concept:if` (`COND`) и
-  `part:would` (`PART`) в `lexicon.json`. Разбираются «Что если …?» и
-  «Что, если бы …?»; «Что было бы, если бы …?» пока не разбирается.
+- **Грамматика.** `s_counterfactual`, `s_counterfactual_short`,
+  `s_counterfactual_neg`, `s_counterfactual_consequent[_would]`,
+  `s_counterfactual_past[_consequent]` и `s_assert_np_part_v*` в
+  `configs/dialogue/grammar.json`. Разбираются «Что если …?»,
+  «Что, если бы …?», «Что было бы, если бы …?» и «…, то …».
+- **Лексемы.** `concept:if` (`COND`), `part:would` (`PART`),
+  `concept:then` (`TO`), `verb:issue`, `verb:fall`.
 - **Движок.** `campaign/dialogue/counterfactual.py`
   (`CounterfactualEngine.with_facts` / `compare`). `_differences` —
   первый расходящийся шаг сверху вниз; при `None` с одной стороны —
   голова доказанной ветки.
 - **Данные.** `configs/dialogue/counterfactual.json` (whitelist
-  `belief`/`asset`/`at_war_with`/`considers_outlaw`, `max_steps: 2`),
-  конструкции `cf_changed`/`cf_unchanged`/`cf_unknown` в
-  `synthesis.json`.
-- **Планы.** `cf_explain` (обобщённый: `relation`/`args`/`remove` из
-  антецедента, `rel: "$rel"`) и `cf_explain_yesno` (`has_organ`) в
-  `plans.json`.
-- **Линтер.** `_counterfactual_problems`; `counterfactual` в
-  `_ANSWER_TYPES` и `_DISCOURSE_KINDS`; `_plan_problems` пропускает
-  `$`-значения в `remove`/`add`.
-- **Сквозное ограничение.** `cf_explain` подставляет предикат разбора
-  (`believe`/`fight`/`have`) в поле отношения, а whitelist содержит
-  `belief`/`asset`/`at_war_with`/`considers_outlaw`.
-  `cf_explain_yesno` удаляет `has_organ`, которого нет в whitelist,
-  поэтому удаление игнорируется. В production типовой исход —
-  `unknown`/`unchanged`; `cf_changed` практически недостижим до D6.2c.
-- **Тесты.** Отдельного файла `tests/test_d3_counterfactual.py` нет;
-  поведение проверяется косвенно линтером и ручными прогонами.
+  `belief`/`asset`/`at_war_with`/`considers_outlaw`/`has_organ`,
+  `max_steps: 2`), `world.json: predicate_relations`, конструкции
+  `cf_changed`/`cf_unchanged`/`cf_unknown` в `synthesis.json`.
+- **Планы.** `cf_explain` (прямой NP-объект), `cf_explain_with`
+  (PP-объект: «воюет с …»), `cf_explain_yesno` (`have → has_organ`).
+- **D6.2c.** Предикат разбора резолвится в отношение мира через
+  `world.predicate_relations`. Для производных отношений (`believe →
+  considers_outlaw`) удаляется исходный факт (`belief`) через
+  `remove`, а не сам derived-атом.
+- **D6.2b.** `consequent` («…, то …») становится целью сравнения;
+  антецедент остаётся подменой фактов.
+- **D6.2a.** `negated: true` меняет `remove`/`add` местами; разбор
+  `NEG` закреплён тестом.
+- **Линтер.** `_counterfactual_problems`; `_world_problems` проверяет
+  `predicate_relations` (строка/объект, `relation`, `remove`);
+  `counterfactual` в `_ANSWER_TYPES` и `_DISCOURSE_KINDS`;
+  `_plan_problems` пропускает `$`-значения в `remove`/`add`.
+- **Тесты.** `tests/test_d3_counterfactual.py` (17 тестов): исходы,
+  whitelist, read-only, `predicate_relations`, отрицание, consequent,
+  битая ссылка в линтере.
 
 **Долг, вынесенный из D3.2 в D6.2:**
 
@@ -85,35 +91,34 @@
   `$sem.antecedent.negated` и меняет `remove`/`add` местами.
 - `plans.json`, `lint.py`, `model.py`, `loader.py`, `parser.py` —
   не тронуты.
-- **Сквозное ограничение.** Из-за отсутствия `predicate_relations`
-  (D6.2c) отрицательный контрфакт в production обычно даёт `unknown`.
-- **Тесты.** Отдельных тестов D6.2a нет; покрытие — в §2.
+- **Сквозной сценарий.** После D6.2c отрицательный контрфакт
+  резолвит предикат в отношение мира, поэтому `remove`/`add` больше
+  не теряются на несогласованном имени.
+- **Тесты.** `tests/test_d3_counterfactual.py`: разбор `NEG`,
+  `negated: true` и перестановка `remove`/`add`.
 
 ## 1. Диалог: следующий шаг
 
-### 1.1. D6.2c — `predicate_relations` (низкий риск, 1 день)
+### 1.1. D6.2c — `predicate_relations` (закрыто 2026-11-14)
 
-- В `world.json` добавить блок `predicate_relations`:
-  `believe → considers_outlaw`, `fight → at_war_with`,
-  `threaten → threatens`, `rule → leader`, `defend → protects`,
-  `depend → depends_on`, `locate → located_at`, `begin → started_at`,
-  `do → recent_work`, `know → …` (по факту).
-- `_answer_counterfactual` резолвит `$rel` из `predicate_relations`,
-  если ключ есть; иначе оставляет как есть.
-- Линтер: `predicate_relations` ссылаются на существующие
-  `world.relations`.
-- Тесты: контрфакт по любому убеждению, не только
-  `considers_outlaw`.
+- `world.json` содержит `predicate_relations` для `believe`, `befriend`,
+  `fight`, `have`, `threaten`, `defend`, `depend`, `rule`, `locate`,
+  `begin`, `do`.
+- `_answer_counterfactual` резолвит `$rel` через таблицу; для
+  производных отношений использует исходный факт из `remove`.
+- Линтер проверяет `relation` и `remove` в `predicate_relations`.
+- Сквозной сценарий проверен: «Империя считает Республику незаконной» →
+  `considers_outlaw`, `changed`; «Империя имеет Абвер» → `has_organ`,
+  `changed`; «Империя воюет с Республикой» → `at_war_with`, `changed`.
 
-### 1.2. D6.2b — «то»-клауза контрфакта (низкий риск, 1 день)
+### 1.2. D6.2b — «то»-клауза контрфакта (закрыто 2026-11-14)
 
-- `s_counterfactual_consequent`: `[WH][COND][PART][S], [TO][S]` →
-  `antecedent` + `consequent`.
-- `CounterfactualEngine.compare` умеет проверять `consequent` как
-  цель, если он задан.
-- Лексема `concept:then` (`TO`) в `lexicon.json`.
-- Тесты: «Что было бы, если бы Империя не издала эдикт, то
-  Республика бы пала?».
+- `s_counterfactual_consequent[_would]`,
+  `s_counterfactual_past[_consequent]` и `concept:then` (`TO`).
+- `consequent` становится целью сравнения; антецедент остаётся
+  подменой фактов.
+- Тесты: разбор «Что было бы, если бы Империя не издала эдикт, то
+  Республика бы пала?» и проверка consequent как цели.
 
 ### 1.3. D6.2d — условия, уступки, косвенная речь (высокий риск, 3–5 дней)
 
@@ -124,14 +129,17 @@
 - Тесты: `tests/test_dialogue.py` (golden-разборы), новый
   `tests/test_d6_grammar.py`.
 
-### 1.4. D6.3 — политика раскрытия и ложь (средний риск, 3 дня)
+### 1.4. D6.3 — политика раскрытия и ложь (средний риск, 3 дня) — сделано
 
-- `configs/dialogue/disclosure.json`: `honest/partial/evasive/lie`.
-- `lie_probability` в `personas.json` как параметр персоны.
-- Детерминированная ложь: при заданном seed и политике выбирается
-  конкретная ложная пропозиция из допустимых.
-- Трассировка помечает ложь.
-- Тесты: `tests/test_d6_disclosure.py`.
+- `configs/dialogue/disclosure.json`: политики `honest`, `partial`,
+  `withhold`, `evasive`, `lie` с исходами и текстами.
+- `lie_probability` и `disclosure`/`on_topic` в персонах.
+- Детерминированная ложь: SHA-256 от seed/хода/темы/аргументов;
+  ложь только при `score < lie_probability`.
+- Трассировка: `disclosure`, `disclosure_topic`, `lied`,
+  `lie_score`, `truth_text`/`truth_kind`/`truth_args`.
+- Линтер `_disclosure_problems`; тесты —
+  `tests/test_d6_disclosure.py` (19 тестов).
 
 ### 1.5. D6.4 — цели разговора и действия (средний риск, 3–5 дней)
 
@@ -196,14 +204,15 @@
 - **D5.1 антиповтор.** `avoid_recent` ограничен N ходами; проверить,
   что он не даёт выбрать неожиданный регистр в длинном диалоге.
 - **D3.2 cf-конструкции.** Не используют `differences`/`removed`/
-  `added`. Полноценное «изменилось бы потому, что …» — D6.2/D6.4.
-- **D3.2 whitelist.** 4 отношения; расширять по мере P8/P9.
+  `added`. Полноценное «изменилось бы потому, что …» — D6.4.
+- **D3.2 whitelist.** 5 отношений; расширять по мере P8/P9.
 - **D6.2a `s_counterfactual_neg`.** Дублирует `s_counterfactual`;
   удалить или оставить как документирующий алиас.
-- **Тесты D3.2.** Нет `tests/test_d3_counterfactual.py`: нужны
-  исходы changed/unchanged/unknown, whitelist и read-only.
-- **Тесты D6.2a.** Нет тестов разбора `NEG`, `negated: true` и
-  обмена `remove`/`add`.
+- **Тесты D3.2.** `tests/test_d3_counterfactual.py` покрывает исходы
+  changed/unchanged/unknown, whitelist, read-only, `predicate_relations`,
+  отрицание и consequent.
+- **Тесты D6.2a.** Разбор `NEG`, `negated: true` и обмен
+  `remove`/`add` покрыты там же.
 - **Тесты `DialogueChatScreen`.** Нет headless-теста экрана чата:
   выбор фракции/персонажа, ручной стиль, отправка, память.
 - **Автостиль в чате.** `DialogueChatScreen` всегда передаёт
@@ -216,17 +225,17 @@
 
 ## 3. Документация
 
-- [x] `DIALOGUE_NLG.md` — D0–D5.4, D3.2 и D6.2a отражены; границы
-  сквозных контрфактов зафиксированы.
+- [x] `DIALOGUE_NLG.md` — D0–D5.4, D3.2, D6.2a–c отражены; границы
+  сквозных контрфактов сняты.
 - [x] `CHAT_STYLES_PLAN.md` — вынесен обратно в отдельный файл.
 - [x] `ONBOARDING.md` — §3, §4, §5.9, §5.10, §6 обновлены.
 - [x] `SOURCE_OF_TRUTH.md` — диалог добавлен в навигатор, карты
   пакетов/конфигов/тестов и §4/§9; ссылка на
   `CHAT_STYLES_PLAN.md` добавлена.
 - [x] `DATA_DRIVEN_CORE_GAPS.md` — G-20…G-23, G-19 D3.2; статусы
-  D3.2/D5.4/D6.2a выровнены с кодом.
-- [x] `DATA_DRIVEN_CORE_PLAN.md` — P10: D3.2, D5.4, D6.2a; открытые
-  D6.2b–d/D6.3/D6.4.
+  D3.2/D5.4/D6.2a–c выровнены с кодом.
+- [x] `DATA_DRIVEN_CORE_PLAN.md` — P10: D3.2, D5.4, D6.2a–c, D6.3;
+  открытые D6.2d/D6.4.
 - [x] `TODO.md` — этот файл.
 - [ ] `SCALING_ANALYSIS.md` — личный документ, в проектную иерархию
   не входит.
@@ -237,19 +246,17 @@
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
   `test_d5_registers.py`, `test_d5_discourse_paragraph.py`).
-- [ ] Отдельные тесты D3.2 и D6.2a — см. §2.
-- [x] Полный прогон: **1252 теста**, зелёный (по подтверждению
-  пользователя; повторно не запускался).
+- [x] `tests/test_d3_counterfactual.py` — 17 тестов, зелёные.
+- [x] `tests/test_d6_disclosure.py` — 19 тестов, зелёные.
+- [x] Диалоговый поднабор с новыми файлами: **220 тестов**, зелёный.
+- [x] Полный прогон после D6.3: **1288 тестов**, зелёный (9:59).
 - [ ] Коммит и пуш после ревизии документации.
 - [ ] После коммита — прогнать `venv/bin/python -m campaign.dialogue.lint`
   и `git diff --check`.
 
 ## 5. Приоритет на ближайшую неделю
 
-1. **D6.2c** — `predicate_relations` (1 день).
-2. **D6.2b** — «то»-клауза (1 день).
-3. **D6.2d** — грамматика (3–5 дней).
-4. **D6.3** — раскрытие и ложь (3 дня).
-5. **D6.4** — цели разговора и действия (3–5 дней). **Здесь
+1. **D6.2d** — условия, уступки, косвенная речь (3–5 дней).
+2. **D6.4** — цели разговора и действия (3–5 дней). **Здесь
    начинается текстовая RPG.**
-6. **D7.0–D7.4** — текстовая RPG (5–7 дней после D6.4).
+3. **D7.0–D7.4** — текстовая RPG (5–7 дней после D6.4).

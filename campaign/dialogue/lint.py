@@ -916,6 +916,41 @@ def _world_problems(catalog: DialogueCatalog) -> List[str]:
                 "world.belief_predicates.%s: отношение %r не объявлено"
                 % (predicate, relation)
             )
+    for predicate, spec in (
+        catalog.world.get("predicate_relations") or {}
+    ).items():
+        where = "world.predicate_relations.%s" % predicate
+        if isinstance(spec, str):
+            spec = {"relation": spec}
+        if not isinstance(spec, Mapping):
+            problems.append(
+                "%s: ожидалась строка или объект" % where
+            )
+            continue
+        relation = str(spec.get("relation") or "")
+        if not relation:
+            problems.append("%s: пустое relation" % where)
+        elif relation not in relations:
+            problems.append(
+                "%s: отношение %r не объявлено в world.relations"
+                % (where, relation)
+            )
+        source = spec.get("remove")
+        if source is None:
+            continue
+        if not isinstance(source, Mapping):
+            problems.append(
+                "%s.remove: ожидался объект {rel, args}" % where
+            )
+            continue
+        args = tuple(str(item) for item in source.get("args") or ())
+        problems.extend(
+            _atom_problems(
+                AtomSpec(str(source.get("rel") or ""), args),
+                relations,
+                where + ".remove",
+            )
+        )
     return problems
 
 
@@ -949,6 +984,78 @@ def _persona_problems(catalog: DialogueCatalog) -> List[str]:
                 "persona %s: неизвестный default_style %r"
                 % (key, persona.default_style)
             )
+    return problems
+
+
+def _disclosure_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить политики раскрытия и ссылки персон на них."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "disclosure", None) or {}
+    if not spec:
+        return problems
+    policies = spec.get("policies") or {}
+    if not isinstance(policies, Mapping) or not policies:
+        return ["disclosure.policies: пусто"]
+    default = str(spec.get("default") or "")
+    if default and default not in policies:
+        problems.append(
+            "disclosure.default: политика %r отсутствует" % default
+        )
+    for key, raw in policies.items():
+        where = "disclosure.policies.%s" % key
+        policy = raw if isinstance(raw, Mapping) else {}
+        if not policy:
+            problems.append("%s: ожидался объект" % where)
+            continue
+        outcome = str(policy.get("outcome") or "")
+        if outcome not in ("truth", "partial", "withhold", "evade", "lie"):
+            problems.append(
+                "%s.outcome: неизвестный исход %r" % (where, outcome)
+            )
+            continue
+        if outcome in ("withhold", "evade") and not str(
+            policy.get("text") or ""
+        ).strip():
+            problems.append("%s.text: пусто" % where)
+        if outcome == "partial" and not str(
+            policy.get("prefix") or ""
+        ).strip():
+            problems.append("%s.prefix: пусто" % where)
+        if outcome == "lie" and not any(
+            str(policy.get(name) or "").strip()
+            for name in ("yes", "no", "other")
+        ):
+            problems.append(
+                "%s: нужен хотя бы один текст yes/no/other" % where
+            )
+    for key, persona in catalog.personas.items():
+        probability = float(persona.lie_probability or 0.0)
+        if probability < 0.0 or probability > 1.0:
+            problems.append(
+                "persona %s: lie_probability вне [0, 1]" % key
+            )
+        disclosure = persona.disclosure or {}
+        if not disclosure:
+            continue
+        policy_id = str(disclosure.get("default") or "")
+        if policy_id and policy_id not in policies:
+            problems.append(
+                "persona %s: default disclosure %r отсутствует"
+                % (key, policy_id)
+            )
+        on_topic = disclosure.get("on_topic") or {}
+        if not isinstance(on_topic, Mapping):
+            problems.append(
+                "persona %s: disclosure.on_topic ожидался объект" % key
+            )
+            continue
+        for topic, policy_id in on_topic.items():
+            if str(policy_id) not in policies:
+                problems.append(
+                    "persona %s: disclosure.on_topic.%s: политика %r "
+                    "отсутствует" % (key, topic, policy_id)
+                )
     return problems
 
 
@@ -1629,6 +1736,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_anaphora_problems(catalog))
     problems.extend(_comparison_problems(catalog, known))
     problems.extend(_counterfactual_problems(catalog, known))
+    problems.extend(_disclosure_problems(catalog))
     return problems
 
 

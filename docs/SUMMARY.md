@@ -461,7 +461,7 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 [`WORLD.md`](WORLD.md); тесты — `tests/test_campaign.py`,
 `tests/test_world.py`, `tests/test_view_world.py`.
 
-## 13. Диалоговый слой (D0–D5.4, D6.2a)
+## 13. Диалоговый слой (D0–D5.4, D3.2, D6.2a–c)
 
 Игрок говорит с агентами мира обычной русской фразой; ответ строится
 детерминированно и остаётся белым ящиком: разбор → логическая форма →
@@ -488,32 +488,33 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 | D1.5 | композиционный синтез, морфология, fallback |
 | D2 | QUD, референты, общий фонд, местоимения, эллипсис, память партии |
 | D3.1 | сравнения и расширенное «почему» |
-| D3.2 | контрфакты: whitelist отношений, `cf_changed`/`cf_unchanged`/`cf_unknown` |
+| D3.2 | контрфакты: whitelist, `cf_changed`/`cf_unchanged`/`cf_unknown` |
 | D4 | речевые акты, реакции, обязательства |
 | D5.1 | дискурсивный планировщик 1–3 ходов |
 | D5.2 | автовыбор регистра по контексту |
 | D5.3 | агрегация, анафора, тема-рема |
 | D5.4 | абзац 4+ хода через `DiscoursePattern.topics` |
 | D6.2a | отрицание в антецеденте контрфакта |
+| D6.2b | «то»-клауза как цель сравнения |
+| D6.2c | `predicate_relations`: предикат → отношение мира |
 
 Границы — не путать механизм с готовым сценарием:
 
-* **D3.2 и D6.2a закрыты на уровне механизма, но не сквозного сценария.**
-  `cf_explain` берёт предикат разбора (`believe`/`fight`/`have`) как
-  отношение мира, а whitelist допускает `belief`/`asset`/`at_war_with`/
-  `considers_outlaw`; `has_organ` в whitelist нет. Поэтому типичный
-  production-ответ — `cf_unknown`/`unchanged`. Нужен D6.2c
-  (`predicate → relation` через `world.belief_predicates`) и расширение
+* **D3.2, D6.2a–c закрыты, включая сквозной сценарий.** `cf_explain`
+  резолвит предикат через `world.predicate_relations`; для производных
+  отношений удаляет исходный факт (`belief`), а не derived-атом.
+  `believe`, `have` и `fight` дают `cf_changed`; `has_organ` входит в
   whitelist.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты D6.2b (следствие), D6.2c (маппинг предикатов), D6.2d
-  (условия/уступки/косвенная речь), D6.3 (раскрытие и ложь), D6.4
-  (планировщик и мост к действиям), D7 (текстовая RPG).
-* Отдельных тестов D3.2, D6.2a и `DialogueChatScreen` пока нет.
+* Открыты D6.2d (условия/уступки/косвенная речь), D6.4 (планировщик и
+  мост к действиям), D7 (текстовая RPG); D6.3 (раскрытие и ложь)
+  закрыт.
+* `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
+  headless-теста `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 
