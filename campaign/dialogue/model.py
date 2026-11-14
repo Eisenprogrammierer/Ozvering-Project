@@ -220,6 +220,7 @@ class SocialActSpec:
     label: str
     match: Mapping[str, Any]
     proposition: Mapping[str, Any] = field(default_factory=dict)
+    interaction: str = ""
     validity: Tuple[AtomSpec, ...] = ()
     taboo: Tuple[str, ...] = ()
     reactions: Tuple[str, ...] = ()

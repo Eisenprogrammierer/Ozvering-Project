@@ -501,6 +501,7 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 | D6.3 | раскрытие и детерминированная ложь |
 | D6.4 | цели разговора, планировщик, мост к действиям, императивы и псевдонимы |
 | D7.0 | headless-текстовик: история, откат, подсказки, команды |
+| D7.1 | речевые акты как действия: `interaction`, гейты authority/trusts |
 
 Границы — не путать механизм с готовым сценарием:
 
@@ -522,19 +523,27 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   `save_snapshot`/`load_snapshot`, командами и подсказками из
   `actions.json`; команды/сообщения — в `console.json`. CLI —
   `python -m campaign.dialogue.textgame`.
+* **D7.1 сделан.** `social.json` связывает акты с
+  `character_interactions` (`social_command`, `social_promise`,
+  `social_threat`, `social_offer`, `social_apology`). `SocialEngine`
+  проверяет `has_authority`/`trusts`; `ActionBridge.perform_social`
+  вызывает публичный метод кампании только при `allow_actions=True`,
+  `TextGame` направляет social-фразы в `act`. `has_leverage` пока не
+  выводится.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
 * Открыты D6.1 (аудит лексикона), расширение доменных псевдонимов по
-  мере контента и D7.1–D7.4.
+  мере контента и D7.2–D7.4.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
   `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_disclosure.py`
   — D6.3, `tests/test_d6_planner.py`, `tests/test_d6_bridge.py` и
   `tests/test_d6_actions.py` — D6.4, `tests/test_d7_console.py` —
-  D7.0. Headless-теста `DialogueChatScreen` по-прежнему нет.
+  D7.0, `tests/test_d7_social.py` — D7.1. Headless-теста
+  `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 

@@ -576,6 +576,15 @@
       "sem": {"kind": "social", "act": "promise", "object": "$object"}
     },
     {
+      "id": "s_social_threat",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "угрожать"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "threat", "object": "$object"}
+    },
+    {
       "id": "s_social_offer",
       "lhs": "S",
       "rhs": [

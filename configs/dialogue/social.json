@@ -9,6 +9,7 @@
       "validity": [
         {"rel": "has_authority", "args": ["$speaker", "$listener"]}
       ],
+      "interaction": "social_command",
       "taboo": [],
       "reactions": ["accept", "reject", "counter", "clarify"]
     },
@@ -17,7 +18,10 @@
       "label": "обещание",
       "match": {"kind": "social", "act": "promise"},
       "proposition": {"speaker": "$speaker", "object": "$object"},
-      "validity": [],
+      "validity": [
+        {"rel": "trusts", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_promise",
       "taboo": [],
       "reactions": ["accept", "evade", "counter", "clarify"]
     },
@@ -31,6 +35,7 @@
         "consequence": "$consequence"
       },
       "validity": [],
+      "interaction": "social_threat",
       "taboo": [],
       "reactions": ["reject", "counter", "evade", "clarify"]
     },
@@ -39,7 +44,10 @@
       "label": "предложение",
       "match": {"kind": "social", "act": "offer"},
       "proposition": {"speaker": "$speaker", "object": "$object"},
-      "validity": [],
+      "validity": [
+        {"rel": "trusts", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_offer",
       "taboo": [],
       "reactions": ["accept", "reject", "counter", "clarify"]
     },
@@ -49,6 +57,7 @@
       "match": {"kind": "social", "act": "apology"},
       "proposition": {"speaker": "$speaker", "object": "$object"},
       "validity": [],
+      "interaction": "social_apology",
       "taboo": [],
       "reactions": ["accept", "reject", "clarify"]
     }

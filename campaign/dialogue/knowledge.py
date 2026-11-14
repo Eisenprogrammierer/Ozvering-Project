@@ -463,7 +463,11 @@ def build_knowledge(
         getattr(player_character, "campaign_id", "")
     )
     if player_entity and speaker_id and player_entity != speaker_id:
-        add(_authority_fact(player_character, speaker, player_entity, speaker_id))
+        add(
+            _authority_fact(
+                player_character, speaker, player_entity, speaker_id
+            )
+        )
         if _allied(player_character, speaker):
             add(_fact(rel("trusts"), player_entity, speaker_id))
 
@@ -522,9 +526,15 @@ def _allied(player: Any, speaker: Any) -> bool:
 
     player_faction = getattr(player, "campaign_faction", None)
     speaker_faction = getattr(speaker, "campaign_faction", None)
-    if player_faction is None or speaker_faction is None:
-        return False
-    return player_faction is speaker_faction
+    if player_faction is not None and speaker_faction is not None:
+        return player_faction is speaker_faction
+    player_faction = str(
+        getattr(player, "campaign_faction_id", "") or ""
+    )
+    speaker_faction = str(
+        getattr(speaker, "campaign_faction_id", "") or ""
+    )
+    return bool(player_faction) and player_faction == speaker_faction
 
 
 def _clock(campaign: Any) -> int:

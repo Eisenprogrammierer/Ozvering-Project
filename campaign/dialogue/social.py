@@ -39,6 +39,7 @@ class SocialDecision:
     bindings: Mapping[str, str] = field(default_factory=dict)
     trace: Tuple[Mapping[str, Any], ...] = ()
     reason: str = ""
+    admissible: bool = True
 
 
 def _resolve(template: Any, bindings: Mapping[str, str]) -> Any:
@@ -160,7 +161,8 @@ class SocialEngine:
                 {"kind": "taboo", "topic": taboo_hit}
             )
             return self._reaction(
-                act, "evade", bound, trace, reason="taboo:%s" % taboo_hit
+                act, "evade", bound, trace, reason="taboo:%s" % taboo_hit,
+                admissible=False,
             )
 
         invalid = self._validity_failure(act, bound, trace)
@@ -169,7 +171,8 @@ class SocialEngine:
                 {"kind": "invalid", "reason": invalid}
             )
             return self._reaction(
-                act, "reject", bound, trace, reason=invalid
+                act, "reject", bound, trace, reason=invalid,
+                admissible=False,
             )
 
         for reaction_id in act.reactions:
@@ -265,6 +268,7 @@ class SocialEngine:
         bindings: Mapping[str, str],
         trace: List[Mapping[str, Any]],
         reason: str = "",
+        admissible: bool = True,
     ) -> SocialDecision:
         reaction = self.social.reaction(reaction_id)
         if reaction is None:
@@ -275,6 +279,7 @@ class SocialEngine:
                 reaction_id="",
                 trace=tuple(trace),
                 reason="missing_reaction",
+                admissible=False,
             )
         effect = _resolve(reaction.effect, bindings)
         return SocialDecision(
@@ -285,6 +290,7 @@ class SocialEngine:
             bindings=dict(bindings),
             trace=tuple(trace),
             reason=reason,
+            admissible=admissible,
         )
 
 
@@ -309,10 +315,28 @@ def social_bindings(
     for key in ("speaker", "subject", "object", "verb", "consequence"):
         value = body.get(key)
         if isinstance(value, Mapping):
-            head = value.get("object") or value.get("head") or {}
-            entity = head.get("entity") if isinstance(head, Mapping) else ""
+            entity = _nested_entity(value)
             if entity:
                 bindings[key] = str(entity)
         elif isinstance(value, str) and value:
             bindings[key] = value
     return bindings
+
+
+def _nested_entity(value: Any) -> str:
+    """Достать ``entity`` из вложенной NP/PP, не зацикливаясь."""
+
+    seen = set()
+    current: Any = value
+    while isinstance(current, Mapping) and id(current) not in seen:
+        seen.add(id(current))
+        entity = current.get("entity")
+        if isinstance(entity, str) and entity:
+            return entity
+        nested = current.get("head")
+        if not isinstance(nested, Mapping):
+            nested = current.get("object")
+        if not isinstance(nested, Mapping):
+            return ""
+        current = nested
+    return ""

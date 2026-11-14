@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Mapping, Optional
 
 from .planner import GoalPlan, GoalPlanner, Intent, intent_from_sem
+from .social import SocialDecision, social_bindings
 
 
 @dataclass(frozen=True)
@@ -50,11 +51,15 @@ class ActionBridge:
         campaign: Any = None,
         side: str = "",
         allow_actions: bool = False,
+        social: Any = None,
+        listener: str = "",
     ):
         self.catalog = catalog
         self.campaign = campaign
         self.side = str(side or "")
         self.allow_actions = bool(allow_actions)
+        self.social = social
+        self.listener = str(listener or "")
         self.planner = GoalPlanner(catalog)
 
     def intent(
@@ -137,9 +142,12 @@ class ActionBridge:
         self,
         intent: Intent,
         checks: Optional[Mapping[str, Any]] = None,
+        sem: Any = None,
     ) -> ActionResult:
         """Выполнить действие, если мост включён и проверки пройдены."""
 
+        if intent.kind == "social" and not intent.action_id:
+            return self.perform_social(intent, checks=checks, sem=sem)
         if not self.allow_actions:
             return ActionResult(
                 ok=False,
@@ -233,6 +241,189 @@ class ActionBridge:
             performed=ok,
             reason=str(data.get("reason") or ""),
             action_id=intent.action_id,
+            target=intent.target,
+            intent=intent,
+            plan=plan,
+            result=data,
+        )
+
+    # --- D7.1: речевые действия как действия ------------------------
+
+    def social_act(self, intent: Intent, sem: Any = None):
+        """Найти акт ``social.json`` по форме или id намерения."""
+
+        social = getattr(self.catalog, "social", None)
+        if social is None:
+            return None
+        if sem is not None and self.social is not None:
+            found = self.social.act_for(sem)
+            if found is not None:
+                return found
+        acts = getattr(social, "acts", {}) or {}
+        for act in acts.values():
+            if intent.act and act.id == intent.act:
+                return act
+        return None
+
+    def social_decision(
+        self, sem: Any
+    ) -> Optional[SocialDecision]:
+        """Решение ``SocialEngine`` без выполнения действия."""
+
+        if self.social is None or sem is None:
+            return None
+        bindings = social_bindings(sem, self.social.knowledge)
+        return self.social.decide(sem, bindings)
+
+    @staticmethod
+    def _social_snapshot(
+        act: Any, decision: Optional[SocialDecision]
+    ) -> dict:
+        data = {
+            "act_id": str(getattr(act, "id", "") or ""),
+            "act_label": str(getattr(act, "label", "") or ""),
+            "interaction_id": str(getattr(act, "interaction", "") or ""),
+        }
+        if decision is not None:
+            data.update(
+                {
+                    "reaction_id": decision.reaction_id,
+                    "effect": dict(decision.effect or {}),
+                    "bindings": dict(decision.bindings or {}),
+                    "trace": [
+                        dict(item) for item in decision.trace
+                    ],
+                    "reason": decision.reason,
+                    "admissible": bool(decision.admissible),
+                }
+            )
+        return data
+
+    def perform_social(
+        self,
+        intent: Intent,
+        checks: Optional[Mapping[str, Any]] = None,
+        sem: Any = None,
+    ) -> ActionResult:
+        """Провести речевое действие и применить взаимодействие кампании.
+
+        Гейты (``has_authority``/``trusts``) проверяет ``SocialEngine``
+        по снимку знания; кампанию меняет только публичный
+        ``perform_character_interaction``. Отказ по гейту не трогает мир.
+        """
+
+        plan = None
+        if not self.allow_actions:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="actions_disabled",
+                target=intent.target,
+                intent=intent,
+            )
+        if self.campaign is None:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_campaign",
+                target=intent.target,
+                intent=intent,
+            )
+        if not self.side:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_side",
+                target=intent.target,
+                intent=intent,
+            )
+        if self.social is None:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_social_engine",
+                target=intent.target,
+                intent=intent,
+            )
+        act = self.social_act(intent, sem)
+        if act is None:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="not_social_act",
+                target=intent.target,
+                intent=intent,
+            )
+        interaction_id = str(getattr(act, "interaction", "") or "")
+        if not interaction_id:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_interaction",
+                target=intent.target,
+                intent=intent,
+                result={"social": self._social_snapshot(act, None)},
+            )
+        decision = self.social_decision(sem)
+        snapshot = self._social_snapshot(act, decision)
+        if decision is None:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="not_social_act",
+                action_id=interaction_id,
+                target=intent.target,
+                intent=intent,
+                result={"social": snapshot},
+            )
+        if not decision.admissible:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason=decision.reason or "social_rejected",
+                action_id=interaction_id,
+                target=intent.target,
+                intent=intent,
+                result={"social": snapshot},
+            )
+        listener = str(
+            decision.bindings.get("listener")
+            or self.listener
+            or getattr(self.social.knowledge, "speaker_id", "")
+            or ""
+        )
+        if not listener:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_listener",
+                action_id=interaction_id,
+                target=intent.target,
+                intent=intent,
+                result={"social": snapshot},
+            )
+        try:
+            result = self.campaign.perform_character_interaction(
+                self.side, listener, interaction_id
+            )
+        except AttributeError:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="no_campaign",
+                action_id=interaction_id,
+                target=intent.target,
+                intent=intent,
+                result={"social": snapshot},
+            )
+        data = dict(result or {})
+        data["social"] = snapshot
+        ok = bool(data.get("ok"))
+        return ActionResult(
+            ok=ok,
+            performed=ok,
+            reason="" if ok else str(data.get("reason") or ""),
+            action_id=interaction_id,
             target=intent.target,
             intent=intent,
             plan=plan,

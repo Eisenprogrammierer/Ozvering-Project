@@ -346,6 +346,56 @@
       "morale": -8.0,
       "cooldown": 3,
       "allow_self": false
+    },
+    {
+      "id": "social_command",
+      "label": "Приказ",
+      "description": "Прямой приказ повышает тревогу и снижает статусные притязания, но не требует ресурсов.",
+      "needs": {"anxiety": 0.04, "status": -0.02},
+      "morale": -2.0,
+      "cooldown": 1,
+      "allow_self": false
+    },
+    {
+      "id": "social_promise",
+      "label": "Обещание",
+      "description": "Обещание повышает доверие и мораль, но связывает говорящего обязательством.",
+      "needs": {"anxiety": -0.04},
+      "personality": {"loyalty": 0.02},
+      "morale": 4.0,
+      "cooldown": 2,
+      "allow_self": false
+    },
+    {
+      "id": "social_threat",
+      "label": "Угроза",
+      "description": "Угроза повышает страх и тревогу и подрывает лояльность.",
+      "needs": {"fear": 0.15, "anxiety": 0.1},
+      "personality": {"loyalty": -0.04},
+      "morale": -6.0,
+      "cooldown": 3,
+      "allow_self": false
+    },
+    {
+      "id": "social_offer",
+      "label": "Предложение",
+      "description": "Предложение сделки повышает мораль и лояльность, расходуя влияние фракции.",
+      "cost": {"influence": 0.02},
+      "needs": {"status": -0.05},
+      "personality": {"loyalty": 0.03},
+      "morale": 5.0,
+      "cooldown": 2,
+      "allow_self": false
+    },
+    {
+      "id": "social_apology",
+      "label": "Извинение",
+      "description": "Извинение снижает страх и тревогу и возвращает лояльность.",
+      "needs": {"fear": -0.05, "anxiety": -0.08},
+      "personality": {"loyalty": 0.03},
+      "morale": 4.0,
+      "cooldown": 2,
+      "allow_self": false
     }
   ]
 }

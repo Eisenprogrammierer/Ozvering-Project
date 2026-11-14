@@ -86,6 +86,8 @@ class DialogueSession:
             campaign=campaign,
             side=knowledge.side,
             allow_actions=allow_actions,
+            social=self.planner.social_engine,
+            listener=knowledge.speaker_id,
         )
 
     @property
@@ -145,16 +147,40 @@ class DialogueSession:
         ``allow_actions=False`` (по умолчанию) всегда возвращает
         ``actions_disabled`` и не меняет кампанию. ``ask``/``respond``
         остаются read-only независимо от флага.
+
+        D7.1: речевое действие (``kind: social``) уходит в
+        ``ActionBridge.perform_social``: гейты проверяет ``SocialEngine``,
+        эффект реакции пишется в ``ConversationState``, а взаимодействие
+        применяет публичный метод кампании.
         """
 
-        found = self.intent(text, action_id=action_id)
+        parse = self.parser.parse_best(text)
+        if parse is None:
+            return ActionResult(
+                ok=False, performed=False, reason="not_an_intent"
+            )
+        found = self.bridge.intent(
+            parse.sem, phrase=text, action_id=action_id
+        )
         if found is None:
             return ActionResult(
                 ok=False, performed=False, reason="not_an_intent"
             )
         merged = {"authority": self._authority()}
         merged.update(checks or {})
-        return self.bridge.perform(found, checks=merged)
+        result = self.bridge.perform(
+            found, checks=merged, sem=parse.sem
+        )
+        if result.performed:
+            social = (result.result or {}).get("social")
+            effect = (
+                social.get("effect")
+                if isinstance(social, Mapping)
+                else None
+            )
+            if isinstance(effect, Mapping):
+                self.state.apply_effect(effect)
+        return result
 
     def set_style(self, style_id: Optional[str]) -> str:
         """Сменить регистровый профиль.
@@ -200,7 +226,9 @@ class DialogueSession:
         self.state.remember(sem, answer, mentioned)
         return Turn(text, parse, answer, sem, source, self.state_snapshot())
 
-    def _meta_answer(self, kind: str, message: str, reason: str = "") -> Answer:
+    def _meta_answer(
+        self, kind: str, message: str, reason: str = ""
+    ) -> Answer:
         """Ответить мета-репликой в выбранном регистре."""
 
         text = self.planner.realizer.realize_answer(

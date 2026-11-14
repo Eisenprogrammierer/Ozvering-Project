@@ -2,7 +2,7 @@
 
 > **Статус:** проектный документ. Фиксирует глубинную потребность,
 > архитектуру, фактический прогресс D0–D5.4, D3.2, D6.2a–d, D6.3,
-> D6.4 и D7.0, поэтапный план до D7.
+> D6.4 и D7.0–D7.1, поэтапный план до D7.
 >
 > **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 > [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
@@ -770,14 +770,14 @@ whitelist по P8/P9.
   запрет по умолчанию, реальное действие, цель, бюджет, read-only
   `ask`, псевдонимы и императивы.
 - Открыто: расширение доменных псевдонимов по мере роста контента;
-  текстовый UI — D7.0 (сделано).
+  текстовый UI — D7.0–D7.1 (сделано).
 
-### D7. Текстовая RPG — D7.0 сделано
+### D7. Текстовая RPG — D7.0–D7.1 сделано
 
 - `campaign/dialogue/console.py`: `TextGame` и `ConsoleEntry`.
   Реплика либо уходит в `DialogueSession.act`, если у намерения есть
-  `action_id`, либо в read-only `respond`. Действие по-прежнему
-  требует `allow_actions=True`.
+  `action_id` или это речевое действие при `allow_actions=True`, либо
+  в read-only `respond`.
 - История реплик и откат: снимок `ConversationState` (вместе с
   памятью) и `AutomataCampaign.save_snapshot`/`load_snapshot`; откат
   возвращает и диалог, и кампанию, включая состояние ГСЧ.
@@ -789,8 +789,22 @@ whitelist по P8/P9.
 - CLI: `python -m campaign.dialogue.textgame --allow-actions`.
 - Тесты: `tests/test_d7_console.py` (19) — история, откат состояния и
   кампании, подсказки, команды, лимит истории, детерминизм, линтер.
-- Открыты D7.1–D7.4: речевые действия в конвейере работ, перемещение,
-  время/ходы и нарративный слой.
+- **D7.1. Речевые действия как действия.** `social.json` получил
+  поле `interaction`: `command → social_command`,
+  `promise → social_promise`, `threat → social_threat`,
+  `offer → social_offer`, `apology → social_apology`. Сами
+  взаимодействия — данные `character_interactions` в
+  `configs/campaigns/base/automata_defaults.json` и
+  `lore_factions.json`. `SocialEngine` проверяет `has_authority`
+  (приказ) и `trusts` (обещание/предложение); отказ по гейту не
+  трогает мир. `ActionBridge.perform_social` вызывает публичный
+  `perform_character_interaction` только при `allow_actions=True`,
+  `DialogueSession.act` пишет эффект реакции в `ConversationState`.
+  `has_leverage` объявлен, но факты пока не выводятся.
+- Тесты: `tests/test_d7_social.py` (19) — пять interactions, гейты
+  authority/trusts, отказ без кампании и при выключенных действиях,
+  TextGame-маршрутизация, откат, линтер.
+- Открыты D7.2–D7.4: перемещение, время/ходы и нарративный слой.
 
 Остальное открыто:
 
@@ -802,7 +816,7 @@ whitelist по P8/P9.
 * Использование `differences` в тексте контрфакта («изменилось бы
   потому, что …»).
 * Императивные фразы и псевдонимы действий расширяются данными;
-  открыты D7.1–D7.4.
+  открыты D7.2–D7.4.
 
 ---
 
@@ -902,6 +916,6 @@ style_context.json` (автовыбор).
   whitelist отношений, никаких изменений кампании;
 * детерминизм и отладка — обязательные контракты.
 
-D0–D5.4, D3.2, D6.2d, D6.3 и D6.4 закрыты; D7.0 (текстовый цикл,
-история, откат, подсказки) сделан. Дальше — D7.1–D7.4; доменные
+D0–D5.4, D3.2, D6.2d, D6.3, D6.4 и D7.0–D7.1 закрыты; текстовая RPG
+получила речевые действия через мост. Дальше — D7.2–D7.4; доменные
 псевдонимы действий расширяются данными.

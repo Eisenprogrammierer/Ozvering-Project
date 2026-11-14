@@ -192,6 +192,9 @@ venv/bin/python -m pytest -q
 - [x] D7.0 — headless-текстовик (`console.py`, `TextGame`), история,
   откат, подсказки и команды (`console.json`);
   `tests/test_d7_console.py`.
+- [x] D7.1 — речевые акты как interactions кампании (`social.json`,
+  `character_interactions`), гейты authority/trusts, мост
+  `perform_social`; `tests/test_d7_social.py`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

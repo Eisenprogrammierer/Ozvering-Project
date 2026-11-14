@@ -645,6 +645,7 @@ def load_social(root: Path) -> SocialCatalog:
             label=_text(data.get("label"), str(key)),
             match=_mapping(data.get("match")),
             proposition=_mapping(data.get("proposition")),
+            interaction=_text(data.get("interaction")),
             validity=tuple(
                 _atom(atom) for atom in _list(data.get("validity"))
             ),

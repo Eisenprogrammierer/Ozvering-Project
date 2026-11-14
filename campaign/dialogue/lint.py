@@ -1462,6 +1462,14 @@ def _social_problems(
             problems.append("%s.match: пустой шаблон" % where)
         if not act.reactions:
             problems.append("%s.reactions: пусто" % where)
+        interaction = str(act.interaction or "")
+        if interaction and not re.fullmatch(
+            r"[a-z][a-z0-9_]*", interaction
+        ):
+            problems.append(
+                "%s.interaction: %r не идентификатор кампании"
+                % (where, interaction)
+            )
         for reaction_id in act.reactions:
             if reaction_id not in social.reactions:
                 problems.append(

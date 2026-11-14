@@ -134,9 +134,19 @@ class TextGame:
         snapshot = self._state_snapshot()
         self._push_undo(snapshot)
         found = self.session.intent(value)
-        if found is not None and found.action_id:
+        bridge = getattr(self.session, "bridge", None)
+        social_action = bool(
+            found is not None
+            and found.kind == "social"
+            and getattr(bridge, "allow_actions", False)
+        )
+        if found is not None and (found.action_id or social_action):
             result = self.session.act(value)
-            label = self._label(result.action_id)
+            social = (result.result or {}).get("social") or {}
+            label = (
+                str(social.get("act_label") or "")
+                or self._label(result.action_id)
+            )
             if result.performed:
                 reply = self._message("action_done") % label
             else:
