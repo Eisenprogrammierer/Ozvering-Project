@@ -774,6 +774,17 @@ def load_paraphrases(root: Path) -> Mapping[str, Any]:
     return raw
 
 
+def load_goals(root: Path) -> Mapping[str, Any]:
+    """Загрузить цели разговора и действий из ``goals.json``."""
+
+    path = root / "goals.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -809,6 +820,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     disclosure = load_disclosure(root)
     parsing = load_parsing(root)
     paraphrases = load_paraphrases(root)
+    goals = load_goals(root)
     world = load_world(root)
     plans = load_plans(root)
     max_depth = _int(
@@ -837,6 +849,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
         disclosure=disclosure,
         parsing=parsing,
         paraphrases=paraphrases,
+        goals=goals,
         world=world,
         raw={
             "ontology": ontology.raw,
@@ -846,5 +859,6 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
             "disclosure": disclosure,
             "parsing": parsing,
             "paraphrases": paraphrases,
+            "goals": goals,
         },
     )

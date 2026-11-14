@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "description": "Цели разговора и действий D6.4. Шаги идут в объявленном порядке, без вероятностей.",
+  "goals": [
+    {
+      "id": "answer",
+      "when": {
+        "kinds": [
+          "question",
+          "request",
+          "assert",
+          "counterfactual",
+          "conditional",
+          "concessive",
+          "report",
+          "greeting",
+          "farewell",
+          "smalltalk"
+        ]
+      },
+      "steps": [
+        {"id": "reply", "op": "answer", "label": "ответить"}
+      ]
+    },
+    {
+      "id": "social",
+      "when": {"kinds": ["social"]},
+      "steps": [
+        {
+          "id": "authority",
+          "op": "check",
+          "requires": "authority",
+          "label": "проверить право говорить"
+        },
+        {
+          "id": "act",
+          "op": "social",
+          "label": "совершить речевое действие"
+        }
+      ]
+    },
+    {
+      "id": "action",
+      "when": {"kinds": ["order"]},
+      "steps": [
+        {
+          "id": "available",
+          "op": "check",
+          "requires": "available",
+          "label": "проверить доступность действия"
+        },
+        {
+          "id": "perform",
+          "op": "action",
+          "label": "выполнить действие"
+        }
+      ]
+    }
+  ]
+}

@@ -18,10 +18,12 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional
 
 from .answers import Answer, AnswerPlanner
+from .bridge import ActionBridge, ActionResult
 from .knowledge import AgentKnowledge
 from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
 from .parser import ChartParser
+from .planner import GoalPlan, Intent
 from .state import DialogueMemory, build_state
 from .style import StyleEngine
 
@@ -48,6 +50,8 @@ class DialogueSession:
         persona_id: Optional[str] = None,
         memory: Optional[DialogueMemory] = None,
         style_id: Optional[str] = None,
+        allow_actions: bool = False,
+        campaign: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
@@ -77,6 +81,12 @@ class DialogueSession:
             self.memory,
             morphology=self.morphology,
         )
+        self.bridge = ActionBridge(
+            catalog,
+            campaign=campaign,
+            side=knowledge.side,
+            allow_actions=allow_actions,
+        )
 
     @property
     def style_id(self) -> str:
@@ -88,6 +98,63 @@ class DialogueSession:
 
     def ask(self, text: str) -> Answer:
         return self.respond(text).answer
+
+    def _authority(self) -> bool:
+        """Есть ли у игрока полномочия по фактам знания."""
+
+        for fact in self.knowledge.facts_for("has_authority"):
+            if fact.args and fact.args[0] and fact.args[1]:
+                return True
+        return False
+
+    def intent(self, text: str, action_id: str = "") -> Optional[Intent]:
+        """Разобрать фразу в намерение, не трогая мир."""
+
+        parse = self.parser.parse_best(text)
+        if parse is None:
+            return None
+        return self.bridge.intent(
+            parse.sem, phrase=text, action_id=action_id
+        )
+
+    def plan_goal(
+        self,
+        text: str,
+        action_id: str = "",
+        checks: Optional[Mapping[str, Any]] = None,
+    ) -> Optional[GoalPlan]:
+        """Построить план цели с проверками, не выполняя действие."""
+
+        found = self.intent(text, action_id=action_id)
+        if found is None:
+            return None
+        merged = {"authority": self._authority()}
+        merged.update(checks or {})
+        return self.bridge.plan(
+            found, checks=self.bridge.checks(found, merged)
+        )
+
+    def act(
+        self,
+        text: str,
+        action_id: str = "",
+        checks: Optional[Mapping[str, Any]] = None,
+    ) -> ActionResult:
+        """Выполнить действие из фразы, если мост включён.
+
+        ``allow_actions=False`` (по умолчанию) всегда возвращает
+        ``actions_disabled`` и не меняет кампанию. ``ask``/``respond``
+        остаются read-only независимо от флага.
+        """
+
+        found = self.intent(text, action_id=action_id)
+        if found is None:
+            return ActionResult(
+                ok=False, performed=False, reason="not_an_intent"
+            )
+        merged = {"authority": self._authority()}
+        merged.update(checks or {})
+        return self.bridge.perform(found, checks=merged)
 
     def set_style(self, style_id: Optional[str]) -> str:
         """Сменить регистровый профиль.

@@ -1076,6 +1076,71 @@ def _paraphrase_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+_GOAL_OPS = frozenset({"answer", "social", "action", "check"})
+
+
+def _goal_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить цели и шаги D6.4."""
+
+    spec = getattr(catalog, "goals", None) or {}
+    if not spec:
+        return []
+    problems: List[str] = []
+    entries = spec.get("goals")
+    if not isinstance(entries, (list, tuple)) or not entries:
+        return ["goals.goals: ожидался непустой список"]
+    seen: Set[str] = set()
+    for index, goal in enumerate(entries):
+        where = "goals.goals[%d]" % index
+        if not isinstance(goal, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        goal_id = str(goal.get("id") or "")
+        if not goal_id:
+            problems.append("%s.id: пусто" % where)
+        elif goal_id in seen:
+            problems.append("%s.id: повтор %r" % (where, goal_id))
+        seen.add(goal_id)
+        when = goal.get("when") or {}
+        if not isinstance(when, Mapping):
+            problems.append("%s.when: ожидался объект" % where)
+        else:
+            for key in ("kinds", "acts"):
+                value = when.get(key)
+                if value is None:
+                    continue
+                if not isinstance(value, (list, tuple)):
+                    problems.append("%s.when.%s: ожидался список"
+                                    % (where, key))
+                    continue
+                if any(not str(item or "") for item in value):
+                    problems.append("%s.when.%s: пустой элемент"
+                                    % (where, key))
+        steps = goal.get("steps")
+        if not isinstance(steps, (list, tuple)) or not steps:
+            problems.append("%s.steps: ожидался непустой список" % where)
+            continue
+        step_ids: Set[str] = set()
+        for offset, step in enumerate(steps):
+            step_where = "%s.steps[%d]" % (where, offset)
+            if not isinstance(step, Mapping):
+                problems.append("%s: ожидался объект" % step_where)
+                continue
+            step_id = str(step.get("id") or "")
+            op = str(step.get("op") or "")
+            if not step_id:
+                problems.append("%s.id: пусто" % step_where)
+            elif step_id in step_ids:
+                problems.append("%s.id: повтор %r" % (step_where, step_id))
+            step_ids.add(step_id)
+            if op not in _GOAL_OPS:
+                problems.append("%s.op: неизвестная операция %r"
+                                % (step_where, op))
+            if op == "check" and not str(step.get("requires") or ""):
+                problems.append("%s.requires: пусто у check" % step_where)
+    return problems
+
+
 def _disclosure_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить политики раскрытия и ссылки персон на них."""
 
@@ -1827,6 +1892,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_counterfactual_problems(catalog, known))
     problems.extend(_parsing_problems(catalog))
     problems.extend(_paraphrase_problems(catalog))
+    problems.extend(_goal_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 
