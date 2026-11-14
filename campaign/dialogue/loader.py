@@ -796,6 +796,17 @@ def load_actions(root: Path) -> Mapping[str, Any]:
     return raw
 
 
+def load_console(root: Path) -> Mapping[str, Any]:
+    """Загрузить настройки текстового интерфейса из ``console.json``."""
+
+    path = root / "console.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -833,6 +844,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     paraphrases = load_paraphrases(root)
     goals = load_goals(root)
     actions = load_actions(root)
+    console = load_console(root)
     world = load_world(root)
     plans = load_plans(root)
     max_depth = _int(
@@ -863,6 +875,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
         paraphrases=paraphrases,
         goals=goals,
         actions=actions,
+        console=console,
         world=world,
         raw={
             "ontology": ontology.raw,
@@ -874,5 +887,6 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
             "paraphrases": paraphrases,
             "goals": goals,
             "actions": actions,
+            "console": console,
         },
     )

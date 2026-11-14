@@ -5,22 +5,26 @@
     {
       "id": "show_of_force",
       "label": "Провести демонстрацию силы",
-      "aliases": ["show_force"]
+      "aliases": ["show_force"],
+      "phrases": ["Покажи силу", "Покажи силу против Республики"]
     },
     {
       "id": "garrison_network",
       "label": "Укрепить гарнизонную сеть",
-      "aliases": ["fortify_garrison"]
+      "aliases": ["fortify_garrison"],
+      "phrases": ["Укрепи гарнизон"]
     },
     {
       "id": "staff_plan",
       "label": "Согласовать план Ставки",
-      "aliases": ["coordinate_plan"]
+      "aliases": ["coordinate_plan"],
+      "phrases": ["Согласуй план"]
     },
     {
       "id": "imperial_edict",
       "label": "Опубликовать имперский эдикт",
-      "aliases": ["publish_edict"]
+      "aliases": ["publish_edict"],
+      "phrases": ["Опубликуй эдикт"]
     }
   ]
 }

@@ -28,6 +28,7 @@ def build_session(
     template: str = "",
     seed: int = 13,
     character: str = "",
+    allow_actions: bool = False,
 ) -> DialogueSession:
     template_id = template or DEFAULT_TEMPLATES.get(side, "empire_campaign")
     generator = CampaignPresetGenerator(
@@ -42,7 +43,12 @@ def build_session(
     knowledge = build_knowledge(
         catalog, campaign, side, character or None
     )
-    return DialogueSession(catalog, knowledge)
+    return DialogueSession(
+        catalog,
+        knowledge,
+        allow_actions=allow_actions,
+        campaign=campaign,
+    )
 
 
 def main(argv=None) -> int:

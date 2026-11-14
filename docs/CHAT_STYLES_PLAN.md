@@ -189,6 +189,9 @@ venv/bin/python -m pytest -q
   действиям, императивы и псевдонимы (`actions.json`);
   `tests/test_d6_planner.py`, `tests/test_d6_bridge.py`,
   `tests/test_d6_actions.py`.
+- [x] D7.0 — headless-текстовик (`console.py`, `TextGame`), история,
+  откат, подсказки и команды (`console.json`);
+  `tests/test_d7_console.py`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

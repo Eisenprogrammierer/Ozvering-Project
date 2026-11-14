@@ -1182,6 +1182,13 @@ def _action_problems(catalog: DialogueCatalog) -> List[str]:
             problems.append("%s.aliases: ожидался непустой список"
                             % where)
             continue
+        phrases = item.get("phrases")
+        if phrases is not None:
+            if not isinstance(phrases, (list, tuple)) or not phrases:
+                problems.append("%s.phrases: ожидался непустой список"
+                                % where)
+            elif any(not str(value or "").strip() for value in phrases):
+                problems.append("%s.phrases: пустая фраза" % where)
         for alias in aliases:
             value = str(alias or "")
             if not value:
@@ -1200,6 +1207,66 @@ def _action_problems(catalog: DialogueCatalog) -> List[str]:
                     "%s.aliases: псевдоним %r не объявлен в лексиконе"
                     % (where, value)
                 )
+    return problems
+
+
+_CONSOLE_MESSAGES = frozenset(
+    {
+        "empty",
+        "unknown",
+        "undo_empty",
+        "undo_done",
+        "history_empty",
+        "hint_empty",
+        "hint_prefix",
+        "action_done",
+        "action_failed",
+        "quit",
+    }
+)
+
+
+def _console_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить настройки текстового интерфейса D7.0."""
+
+    spec = getattr(catalog, "console", None) or {}
+    if not spec:
+        return []
+    problems: List[str] = []
+    limit = spec.get("history_limit", 50)
+    try:
+        value = int(limit)
+    except (TypeError, ValueError):
+        value = 0
+    if value < 1:
+        problems.append("console.history_limit: ожидалось целое >= 1")
+    messages = spec.get("messages")
+    if not isinstance(messages, Mapping):
+        problems.append("console.messages: ожидался объект")
+    else:
+        missing = sorted(_CONSOLE_MESSAGES - set(messages))
+        for key in missing:
+            problems.append("console.messages.%s: отсутствует" % key)
+        for key, item in messages.items():
+            if not str(item or "").strip():
+                problems.append("console.messages.%s: пусто" % key)
+    commands = spec.get("commands")
+    if not isinstance(commands, Mapping) or not commands:
+        problems.append("console.commands: ожидался непустой объект")
+    else:
+        for key, item in commands.items():
+            if not str(item or "").strip():
+                problems.append("console.commands.%s: пусто" % key)
+        aliases = spec.get("aliases")
+        if not isinstance(aliases, Mapping):
+            problems.append("console.aliases: ожидался объект")
+        else:
+            for key, item in aliases.items():
+                if str(item or "") not in commands:
+                    problems.append(
+                        "console.aliases.%s: неизвестная команда %r"
+                        % (key, item)
+                    )
     return problems
 
 
@@ -1956,6 +2023,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_paraphrase_problems(catalog))
     problems.extend(_goal_problems(catalog))
     problems.extend(_action_problems(catalog))
+    problems.extend(_console_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 

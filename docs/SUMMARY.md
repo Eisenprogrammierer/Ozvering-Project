@@ -500,6 +500,7 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 | D6.2d | условия, уступки, косвенная/прямая речь, beam, корпус парафраз |
 | D6.3 | раскрытие и детерминированная ложь |
 | D6.4 | цели разговора, планировщик, мост к действиям, императивы и псевдонимы |
+| D7.0 | headless-текстовик: история, откат, подсказки, команды |
 
 Границы — не путать механизм с готовым сценарием:
 
@@ -516,19 +517,24 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   действий — в `actions.json`; мост к действиям выключен по умолчанию
   и включается только явным `allow_actions=True`. Императивы
   разбираются правилами `s_imperative_v_np*`.
+* **D7.0 сделан.** `console.py` (`TextGame`/`ConsoleEntry`) даёт
+  headless-цикл с историей, откатом состояния и кампании через
+  `save_snapshot`/`load_snapshot`, командами и подсказками из
+  `actions.json`; команды/сообщения — в `console.json`. CLI —
+  `python -m campaign.dialogue.textgame`.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
 * Открыты D6.1 (аудит лексикона), расширение доменных псевдонимов по
-  мере контента и D7 (текстовая RPG).
+  мере контента и D7.1–D7.4.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
   `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_disclosure.py`
   — D6.3, `tests/test_d6_planner.py`, `tests/test_d6_bridge.py` и
-  `tests/test_d6_actions.py` — D6.4. Headless-теста
-  `DialogueChatScreen` по-прежнему нет.
+  `tests/test_d6_actions.py` — D6.4, `tests/test_d7_console.py` —
+  D7.0. Headless-теста `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 

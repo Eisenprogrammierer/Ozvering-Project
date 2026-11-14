@@ -2,6 +2,7 @@
 
 from .answers import Answer, AnswerPlanner
 from .bridge import ActionBridge, ActionResult
+from .console import ConsoleEntry, TextGame
 from .engine import DialogueSession, Turn
 from .errors import DialogueError
 from .inference import InferenceEngine, ProofStep, Solution
@@ -9,6 +10,7 @@ from .knowledge import AgentKnowledge, Fact, build_knowledge
 from .loader import (
     DEFAULT_DIR,
     load_actions,
+    load_console,
     load_dialogue,
     load_goals,
     load_styles,
@@ -47,6 +49,7 @@ __all__ = [
     "AnswerPlanner",
     "ChartParser",
     "ConversationState",
+    "ConsoleEntry",
     "DEFAULT_DIR",
     "DialogueCatalog",
     "DialogueError",
@@ -72,6 +75,7 @@ __all__ = [
     "StyleCatalog",
     "StyleEngine",
     "StyleSpec",
+    "TextGame",
     "Turn",
     "build_knowledge",
     "build_state",
@@ -79,6 +83,7 @@ __all__ = [
     "features_match",
     "flatten",
     "load_actions",
+    "load_console",
     "load_dialogue",
     "load_goals",
     "load_styles",
