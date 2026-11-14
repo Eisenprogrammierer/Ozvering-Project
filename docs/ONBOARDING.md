@@ -6,7 +6,7 @@
 > быстро найти нужный из них.
 >
 > **Дата сверки:** 2026-11-14. Проверялось по коду и тестам, а не только
-> по README. Полный набор — 1315 тестов, прогон зелёный. Если документ
+> по README. Полный набор — 1347 тестов, прогон зелёный. Если документ
 > расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
 > исправлять.
 >
@@ -256,7 +256,7 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный набор 2026-11-14: **1315 тестов**, зелёный.
+* Полный набор 2026-11-14: **1347 тестов**, зелёный.
 * Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
@@ -268,6 +268,8 @@ GUI существует и играется, но это **рабочий пе�
   `tests/test_d6_grammar.py` (16 тестов).
 * Для beam D6.2d — `tests/test_d6_parse_beam.py` (11 тестов):
   приоритет видов, ширина, детерминизм, канонический порядок.
+* Для корпуса парафраз D6.2d — `tests/test_d6_paraphrases.py`
+  (32 теста, 26 фраз в `configs/dialogue/paraphrases.json`).
 * Для D6.3 (раскрытие и ложь) — `tests/test_d6_disclosure.py`
   (19 тестов).
 * Полный путь «Новая игра → роль → новелла → кампания автоматов →
@@ -322,9 +324,8 @@ GUI существует и играется, но это **рабочий пе�
   Сквозные контрфакты достижимы: `believe → considers_outlaw`,
   `have → has_organ`, `fight → at_war_with` дают `changed`. В чате стиль
   выбирается вручную; авто-режим `DialogueSession(style_id=None)`
-  доступен только через API сессии. Открыто: корпус парафраз
-  (хвост D6.2d), D6.4 (планировщик и мост к действиям), D7
-  (текстовая RPG) и аудит лексикона.
+  доступен только через API сессии. Открыто: D6.4 (планировщик и
+  мост к действиям), D7 (текстовая RPG) и аудит лексикона.
 
 ---
 
@@ -621,8 +622,10 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   «несмотря на»), `s_indirect_speech` (`NP сказал, что S`),
   `s_direct_speech` (цитата в «…»), лексемы `concept:although`/
   `concept:despite`/`concept:that`/`quote:*`/`verb:say`; beam —
-  `parsing.json` (`beam_width`, `kind_priority`, `prefer_depth`).
-  Тесты — `tests/test_d6_grammar.py` и `tests/test_d6_parse_beam.py`;
+  `parsing.json` (`beam_width`, `kind_priority`, `prefer_depth`);
+  корпус парафраз — `paraphrases.json`.
+  Тесты — `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py`
+  и `tests/test_d6_paraphrases.py`;
 * **D6.3 — политика раскрытия и ложь**: `disclosure.json` с политиками
   `honest/partial/withhold/evasive/lie`, `disclosure` и
   `lie_probability` у персоны, SHA-256-бросок от seed/хода/темы,
@@ -643,9 +646,8 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
   речевого действия;
 * статус: **D0, D1, D1.5, D2, D3.1, D3.2, D4, D5.1–D5.4, D6.2a–d,
-  D6.3 — сделаны**. Открыто: корпус парафраз (хвост D6.2d), D6.1
-  (аудит лексикона), D6.4 (планировщик и мост к действиям), D7
-  (текстовая RPG).
+  D6.3 — сделаны**. Открыто: D6.1 (аудит лексикона), D6.4
+  (планировщик и мост к действиям), D7 (текстовая RPG).
 
 Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
@@ -708,7 +710,7 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | Диалог D5.2–D5.3 | `test_d5_registers.py` | регистры, автовыбор по контексту, явный стиль побеждает, пустой каталог |
 | Диалог D5.3–D5.4 | `test_d5_discourse_paragraph.py` | mode plain/clause, анафора, тема-рема, `topics` и порядок 4+ ходов |
 | Диалог D6.2a–c | `test_d3_counterfactual.py` | разбор `NEG`, обмен `remove`/`add`, «то»-клауза, маппинг предикатов |
-| Диалог D6.2d | `test_d6_grammar.py`, `test_d6_parse_beam.py` | условия, уступки, косвенная/прямая речь, beam, JSON-only, детерминизм |
+| Диалог D6.2d | `test_d6_grammar.py`, `test_d6_parse_beam.py`, `test_d6_paraphrases.py` | условия, уступки, косвенная/прямая речь, beam, корпус парафраз, JSON-only, детерминизм |
 | Диалог D6.3 | `test_d6_disclosure.py` | политики, исходы, детерминированная ложь, тема, read-only |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |

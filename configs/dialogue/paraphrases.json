@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "description": "Стартовый корпус парафраз D6.2d: ожидаемый вид и ключевые поля разбора.",
+  "phrases": [
+    {
+      "id": "greeting_hello",
+      "text": "Привет.",
+      "kind": "greeting"
+    },
+    {
+      "id": "farewell_bye",
+      "text": "До свидания.",
+      "kind": "farewell"
+    },
+    {
+      "id": "request_tell",
+      "text": "Расскажи о Республике.",
+      "kind": "request",
+      "expect": {"action": "tell"}
+    },
+    {
+      "id": "yesno_belief",
+      "text": "Считает ли Империя Республику незаконной?",
+      "kind": "question",
+      "expect": {
+        "wh": "yesno",
+        "body.predicate": "believe",
+        "body.value": "illegal"
+      }
+    },
+    {
+      "id": "yesno_have_organ",
+      "text": "Есть ли у Империи Абвер?",
+      "kind": "question",
+      "expect": {"wh": "yesno", "body.have": true}
+    },
+    {
+      "id": "wh_ruler",
+      "text": "Кто правит Империей?",
+      "kind": "question",
+      "expect": {"wh": "who", "body.predicate": "rule"}
+    },
+    {
+      "id": "wh_what",
+      "text": "Что такое Абвер?",
+      "kind": "question",
+      "expect": {"wh": "what"}
+    },
+    {
+      "id": "wh_where",
+      "text": "Где находится Торговая планета?",
+      "kind": "question",
+      "expect": {"wh": "where", "body.predicate": "locate"}
+    },
+    {
+      "id": "wh_when",
+      "text": "Когда началась война?",
+      "kind": "question",
+      "expect": {"wh": "when", "body.predicate": "begin"}
+    },
+    {
+      "id": "wh_how_many",
+      "text": "Сколько законности у Империи?",
+      "kind": "question",
+      "expect": {"wh": "how_many"}
+    },
+    {
+      "id": "wh_organs",
+      "text": "Какие органы есть у Империи?",
+      "kind": "question",
+      "expect": {
+        "wh": "which",
+        "body.have": true,
+        "body.object.head.entity": "noun:organ"
+      }
+    },
+    {
+      "id": "wh_works",
+      "text": "Какие работы у Империи?",
+      "kind": "question",
+      "expect": {"wh": "which"}
+    },
+    {
+      "id": "wh_knowledge",
+      "text": "Что ты знаешь о Республике?",
+      "kind": "question",
+      "expect": {"wh": "what", "body.predicate": "know"}
+    },
+    {
+      "id": "wh_why",
+      "text": "Почему Империя считает Республику незаконной?",
+      "kind": "question",
+      "expect": {"wh": "why", "body.predicate": "believe"}
+    },
+    {
+      "id": "wh_how_are_you",
+      "text": "Как дела?",
+      "kind": "question",
+      "expect": {"wh": "how"}
+    },
+    {
+      "id": "assert_fight",
+      "text": "Империя воюет с Республикой.",
+      "kind": "assert",
+      "expect": {
+        "predicate": "fight",
+        "subject.head.entity": "faction:red",
+        "object.object.head.entity": "faction:blue"
+      }
+    },
+    {
+      "id": "assert_negated_fight",
+      "text": "Империя не воюет с Республикой.",
+      "kind": "assert",
+      "expect": {"negated": true, "predicate": "fight"}
+    },
+    {
+      "id": "assert_belief",
+      "text": "Император считает Республику незаконной.",
+      "kind": "assert",
+      "expect": {"predicate": "believe", "value": "illegal"}
+    },
+    {
+      "id": "counterfactual_short",
+      "text": "Что если Империя воюет с Республикой?",
+      "kind": "counterfactual",
+      "expect": {"antecedent.predicate": "fight"}
+    },
+    {
+      "id": "counterfactual_negated",
+      "text": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала?",
+      "kind": "counterfactual",
+      "expect": {
+        "antecedent.negated": true,
+        "antecedent.predicate": "issue",
+        "consequent.predicate": "fall"
+      }
+    },
+    {
+      "id": "conditional_plain",
+      "text": "Если Империя воюет с Республикой, то Республика воюет с Империей.",
+      "kind": "conditional",
+      "expect": {
+        "antecedent.predicate": "fight",
+        "consequent.predicate": "fight"
+      }
+    },
+    {
+      "id": "conditional_negated",
+      "text": "Если Империя не издает эдикт, то Республика падет.",
+      "kind": "conditional",
+      "expect": {
+        "antecedent.negated": true,
+        "antecedent.predicate": "issue",
+        "consequent.predicate": "fall"
+      }
+    },
+    {
+      "id": "concessive_though",
+      "text": "Хотя Империя воюет с Республикой, Республика не воюет с Империей.",
+      "kind": "concessive",
+      "expect": {
+        "concession.predicate": "fight",
+        "clause.negated": true
+      }
+    },
+    {
+      "id": "concessive_despite",
+      "text": "Несмотря на Империя воюет с Республикой, Республика не воюет с Империей.",
+      "kind": "concessive",
+      "expect": {"concession.predicate": "fight", "clause.negated": true}
+    },
+    {
+      "id": "report_indirect",
+      "text": "Император сказал, что Империя воюет с Республикой.",
+      "kind": "report",
+      "expect": {
+        "mode": "indirect",
+        "predicate": "say",
+        "body.predicate": "fight"
+      }
+    },
+    {
+      "id": "report_direct",
+      "text": "Император сказал: «Империя воюет с Республикой».",
+      "kind": "report",
+      "expect": {
+        "mode": "direct",
+        "predicate": "say",
+        "body.predicate": "fight"
+      }
+    }
+  ]
+}

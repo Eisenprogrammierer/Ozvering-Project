@@ -1020,6 +1020,62 @@ def _parsing_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _paraphrase_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить стартовый корпус парафраз D6.2d."""
+
+    spec = getattr(catalog, "paraphrases", None) or {}
+    if not spec:
+        return []
+    problems: List[str] = []
+    entries = spec.get("phrases")
+    if not isinstance(entries, (list, tuple)) or not entries:
+        return ["paraphrases.phrases: ожидался непустой список"]
+    kinds = {
+        str(rule.sem.get("kind"))
+        for rule in catalog.grammar.rules
+        if isinstance(rule.sem, Mapping) and rule.sem.get("kind")
+    }
+    ids: Set[str] = set()
+    texts: Set[str] = set()
+    for index, entry in enumerate(entries):
+        where = "paraphrases.phrases[%d]" % index
+        if not isinstance(entry, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        entry_id = str(entry.get("id") or "")
+        text = str(entry.get("text") or "").strip()
+        kind = str(entry.get("kind") or "")
+        if not entry_id:
+            problems.append("%s.id: пусто" % where)
+        elif entry_id in ids:
+            problems.append("%s.id: повтор %r" % (where, entry_id))
+        ids.add(entry_id)
+        if not text:
+            problems.append("%s.text: пусто" % where)
+        elif text in texts:
+            problems.append("%s.text: повтор %r" % (where, text))
+        texts.add(text)
+        if not kind:
+            problems.append("%s.kind: пусто" % where)
+        elif kinds and kind not in kinds:
+            problems.append("%s.kind: неизвестный вид %r" % (where, kind))
+        expect = entry.get("expect")
+        if expect is None:
+            continue
+        if not isinstance(expect, Mapping):
+            problems.append("%s.expect: ожидался объект" % where)
+            continue
+        for path, value in expect.items():
+            if not str(path or ""):
+                problems.append("%s.expect: пустой путь" % where)
+            if isinstance(value, (Mapping, list, tuple)):
+                problems.append(
+                    "%s.expect.%s: ожидалось скалярное значение"
+                    % (where, path)
+                )
+    return problems
+
+
 def _disclosure_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить политики раскрытия и ссылки персон на них."""
 
@@ -1770,6 +1826,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_comparison_problems(catalog, known))
     problems.extend(_counterfactual_problems(catalog, known))
     problems.extend(_parsing_problems(catalog))
+    problems.extend(_paraphrase_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 
