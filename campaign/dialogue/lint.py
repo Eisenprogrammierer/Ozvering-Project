@@ -1076,7 +1076,7 @@ def _paraphrase_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
-_GOAL_OPS = frozenset({"answer", "social", "action", "check"})
+_GOAL_OPS = frozenset({"answer", "social", "action", "move", "check"})
 
 
 def _goal_problems(catalog: DialogueCatalog) -> List[str]:
@@ -1530,6 +1530,104 @@ def _social_problems(
         problems.append(
             "social.commitments.ttl_turns: ожидалось целое >= 1"
         )
+    return problems
+
+
+def _movement_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить данные перемещения: места, пороги и сообщения."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "movement", None)
+    if not spec:
+        return problems
+    defaults = spec.get("defaults")
+    if not isinstance(defaults, Mapping) or not defaults:
+        problems.append("movement.defaults: пусто")
+    else:
+        for side, node in defaults.items():
+            if not str(side).strip() or not str(node or "").strip():
+                problems.append(
+                    "movement.defaults.%s: пустая сторона или узел"
+                    % side
+                )
+    places = spec.get("places")
+    if not isinstance(places, Mapping) or not places:
+        problems.append("movement.places: пусто")
+        places = {}
+    for entity_id, mapping in places.items():
+        where = "movement.places.%s" % entity_id
+        if not isinstance(mapping, Mapping) or not mapping:
+            problems.append("%s: пустое соответствие" % where)
+            continue
+        for side, node in mapping.items():
+            if not str(side).strip():
+                problems.append("%s: пустая сторона" % where)
+            if not str(node or "").strip():
+                problems.append("%s.%s: пустой узел" % (where, side))
+    for entry in catalog.lexicon:
+        if entry.type != "organ" or not entry.id.startswith("organ:"):
+            continue
+        parts = entry.id.split(":")
+        if len(parts) != 3:
+            continue
+        side, node = parts[1], parts[2]
+        mapping = places.get(entry.id)
+        if not isinstance(mapping, Mapping):
+            problems.append(
+                "movement.places.%s: нет места для органа" % entry.id
+            )
+        elif str(mapping.get(side) or "") != node:
+            problems.append(
+                "movement.places.%s: ожидался узел %r для стороны %r"
+                % (entry.id, node, side)
+            )
+    bands = spec.get("bands")
+    if not isinstance(bands, list) or not bands:
+        problems.append("movement.bands: пусто")
+    else:
+        previous = None
+        for index, band in enumerate(bands):
+            where = "movement.bands[%d]" % index
+            if not isinstance(band, Mapping):
+                problems.append("%s: не объект" % where)
+                continue
+            if not str(band.get("id") or "").strip():
+                problems.append("%s.id: пусто" % where)
+            if not str(band.get("label") or "").strip():
+                problems.append("%s.label: пусто" % where)
+            maximum = band.get("max")
+            if maximum is None:
+                continue
+            try:
+                value = float(maximum)
+            except (TypeError, ValueError):
+                problems.append("%s.max: не число" % where)
+                continue
+            if previous is not None and value <= previous:
+                problems.append(
+                    "%s.max: пороги должны возрастать" % where
+                )
+            previous = value
+    messages = spec.get("messages")
+    if not isinstance(messages, Mapping) or not messages:
+        problems.append("movement.messages: пусто")
+    else:
+        required = (
+            "arrived",
+            "route",
+            "already",
+            "disabled",
+            "unknown",
+            "no_path",
+            "no_geometry",
+            "no_start",
+            "not_move",
+        )
+        for key in required:
+            if not str(messages.get(key) or "").strip():
+                problems.append(
+                    "movement.messages.%s: пусто" % key
+                )
     return problems
 
 
@@ -2032,6 +2130,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_goal_problems(catalog))
     problems.extend(_action_problems(catalog))
     problems.extend(_console_problems(catalog))
+    problems.extend(_movement_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 

@@ -135,6 +135,18 @@ class TextGame:
         self._push_undo(snapshot)
         found = self.session.intent(value)
         bridge = getattr(self.session, "bridge", None)
+        if found is not None and found.kind == "move":
+            result = self.session.travel(value)
+            return self._append(
+                ConsoleEntry(
+                    "move",
+                    value,
+                    result.text,
+                    action_id=result.node,
+                    performed=result.moved,
+                    reason=result.reason,
+                )
+            )
         social_action = bool(
             found is not None
             and found.kind == "social"

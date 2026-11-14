@@ -78,6 +78,7 @@ class AgentKnowledge:
         player_faction: str = "",
         player_side: str = "",
         player_gender: str = "",
+        player_organ_id: str = "",
     ):
         self.catalog = catalog
         self.facts = tuple(facts)
@@ -94,6 +95,7 @@ class AgentKnowledge:
         self.player_faction = player_faction
         self.player_side = player_side
         self.player_gender = player_gender
+        self.player_organ_id = player_organ_id
         self.world = world
         self.clock = clock
         self.run_id = run_id or "campaign"
@@ -490,6 +492,9 @@ def build_knowledge(
         player_faction=player_faction,
         player_side=player_side,
         player_gender=player_gender,
+        player_organ_id=_text(
+            getattr(player_character, "campaign_organ_id", "")
+        ),
     )
 
 

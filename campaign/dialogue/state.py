@@ -712,6 +712,7 @@ class ConversationState:
         self.social = social
         self.clock = _integer(clock)
         self.turn = 0
+        self.location = ""
         self.qud: List[Dict[str, Any]] = []
         self.referents: Dict[str, Dict[str, Any]] = {}
         self.last_sem: Optional[Any] = None

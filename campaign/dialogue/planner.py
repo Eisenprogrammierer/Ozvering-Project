@@ -150,6 +150,8 @@ def intent_from_sem(
         return None
     target = _entity(sem.get("object"))
     if not target:
+        target = _entity(sem.get("destination"))
+    if not target:
         target = _entity(sem.get("target"))
     resolved_action = str(action_id or "")
     if not resolved_action and kind == "order":

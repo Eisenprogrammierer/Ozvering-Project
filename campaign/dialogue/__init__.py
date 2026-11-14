@@ -17,6 +17,7 @@ from .loader import (
     load_synthesis,
 )
 from .morph import Morphology
+from .movement import MovementGuide, MoveResult
 from .model import (
     DialogueCatalog,
     Grammar,
@@ -66,6 +67,8 @@ __all__ = [
     "Intent",
     "LexEntry",
     "Morphology",
+    "MoveResult",
+    "MovementGuide",
     "Ontology",
     "Parse",
     "Persona",

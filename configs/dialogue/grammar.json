@@ -558,6 +558,24 @@
       "sem": {"kind": "farewell", "id": "bye"}
     },
     {
+      "id": "s_move_go_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "идти"}},
+        {"cat": "PP", "as": "destination"}
+      ],
+      "sem": {"kind": "move", "destination": "$destination"}
+    },
+    {
+      "id": "s_move_depart_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "отправляться"}},
+        {"cat": "PP", "as": "destination"}
+      ],
+      "sem": {"kind": "move", "destination": "$destination"}
+    },
+    {
       "id": "s_social_command",
       "lhs": "S",
       "rhs": [

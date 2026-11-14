@@ -40,6 +40,17 @@
       ]
     },
     {
+      "id": "move",
+      "when": {"kinds": ["move"]},
+      "steps": [
+        {
+          "id": "route",
+          "op": "move",
+          "label": "построить маршрут и переместиться"
+        }
+      ]
+    },
+    {
       "id": "action",
       "when": {"kinds": ["order"]},
       "steps": [

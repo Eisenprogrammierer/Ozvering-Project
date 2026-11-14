@@ -22,6 +22,7 @@ from .bridge import ActionBridge, ActionResult
 from .knowledge import AgentKnowledge
 from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
+from .movement import MovementGuide, MoveResult
 from .parser import ChartParser
 from .planner import GoalPlan, Intent
 from .state import DialogueMemory, build_state
@@ -81,6 +82,14 @@ class DialogueSession:
             self.memory,
             morphology=self.morphology,
         )
+        defaults = (catalog.movement or {}).get("defaults") or {}
+        if not self.state.location:
+            map_side = getattr(knowledge, "player_side", "") or knowledge.side
+            self.state.location = str(
+                getattr(knowledge, "player_organ_id", "")
+                or defaults.get(map_side)
+                or ""
+            )
         self.bridge = ActionBridge(
             catalog,
             campaign=campaign,
@@ -182,6 +191,40 @@ class DialogueSession:
                 self.state.apply_effect(effect)
         return result
 
+    def travel(self, text: str) -> MoveResult:
+        """Построить маршрут и переместиться, если действия разрешены.
+
+        D7.2: расстояние, путь и «рядом/далеко» читаются из геометрии
+        стороны; места и сообщения — из ``movement.json``. Меняется
+        только ``ConversationState.location``, не кампания.
+        """
+
+        found = self.intent(text)
+        if found is None or found.kind != "move":
+            guide = MovementGuide(
+                self.catalog,
+                self.knowledge,
+                campaign=self.bridge.campaign,
+                state=self.state,
+                allow_actions=self.bridge.allow_actions,
+            )
+            return MoveResult(
+                ok=False,
+                moved=False,
+                reason="not_move",
+                text=guide.message(
+                    "not_move", "Это не команда перемещения."
+                ),
+            )
+        guide = MovementGuide(
+            self.catalog,
+            self.knowledge,
+            campaign=self.bridge.campaign,
+            state=self.state,
+            allow_actions=self.bridge.allow_actions,
+        )
+        return guide.move(found.target)
+
     def set_style(self, style_id: Optional[str]) -> str:
         """Сменить регистровый профиль.
 
@@ -251,6 +294,7 @@ class DialogueSession:
             "referents": sorted(self.state.referents),
             "common_ground": len(self.state.common_ground),
             "commitments": len(self.state.commitments),
+            "location": self.state.location,
             "memory_turns": self.memory.turns,
             "style_id": self.style_id,
             "style_auto": self.is_auto(),

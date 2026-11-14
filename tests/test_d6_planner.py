@@ -58,7 +58,7 @@ def test_goals_loaded(tmp_path):
     catalog = _catalog(_copy_configs(tmp_path))
     planner = GoalPlanner(catalog)
     ids = [str(item.get("id")) for item in planner.goals()]
-    assert ids == ["answer", "social", "action"]
+    assert ids == ["answer", "social", "move", "action"]
 
 
 def test_lint_goals_clean(tmp_path):
