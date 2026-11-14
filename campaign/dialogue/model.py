@@ -438,5 +438,6 @@ class DialogueCatalog:
     parsing: Mapping[str, Any] = field(default_factory=dict)
     paraphrases: Mapping[str, Any] = field(default_factory=dict)
     goals: Mapping[str, Any] = field(default_factory=dict)
+    actions: Mapping[str, Any] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

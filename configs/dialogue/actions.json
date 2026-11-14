@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "description": "Псевдонимы действий D6.4: логическая форма императива -> id действия кампании. Никаких вероятностей; порядок объявления не важен, id и aliases уникальны.",
+  "actions": [
+    {
+      "id": "show_of_force",
+      "label": "Провести демонстрацию силы",
+      "aliases": ["show_force"]
+    },
+    {
+      "id": "garrison_network",
+      "label": "Укрепить гарнизонную сеть",
+      "aliases": ["fortify_garrison"]
+    },
+    {
+      "id": "staff_plan",
+      "label": "Согласовать план Ставки",
+      "aliases": ["coordinate_plan"]
+    },
+    {
+      "id": "imperial_edict",
+      "label": "Опубликовать имперский эдикт",
+      "aliases": ["publish_edict"]
+    }
+  ]
+}

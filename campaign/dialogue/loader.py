@@ -785,6 +785,17 @@ def load_goals(root: Path) -> Mapping[str, Any]:
     return raw
 
 
+def load_actions(root: Path) -> Mapping[str, Any]:
+    """Загрузить псевдонимы действий из ``actions.json``."""
+
+    path = root / "actions.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -821,6 +832,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     parsing = load_parsing(root)
     paraphrases = load_paraphrases(root)
     goals = load_goals(root)
+    actions = load_actions(root)
     world = load_world(root)
     plans = load_plans(root)
     max_depth = _int(
@@ -850,6 +862,7 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
         parsing=parsing,
         paraphrases=paraphrases,
         goals=goals,
+        actions=actions,
         world=world,
         raw={
             "ontology": ontology.raw,
@@ -860,5 +873,6 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
             "parsing": parsing,
             "paraphrases": paraphrases,
             "goals": goals,
+            "actions": actions,
         },
     )

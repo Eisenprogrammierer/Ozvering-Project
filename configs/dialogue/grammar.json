@@ -594,6 +594,30 @@
       "sem": {"kind": "social", "act": "apology", "object": "$topic"}
     },
     {
+      "id": "s_imperative_v_np",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"mood": "imperative"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "order", "action": "$verb", "instrument": "$object"}
+    },
+    {
+      "id": "s_imperative_v_np_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"mood": "imperative"}},
+        {"cat": "NP", "as": "object"},
+        {"cat": "PP", "as": "target"}
+      ],
+      "sem": {
+        "kind": "order",
+        "action": "$verb",
+        "instrument": "$object",
+        "target": "$target"
+      }
+    },
+    {
       "id": "s_conditional",
       "lhs": "S",
       "rhs": [

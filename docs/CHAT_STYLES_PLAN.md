@@ -185,8 +185,10 @@ venv/bin/python -m pytest -q
 - [x] D6.2d — условия, уступки, косвенная и прямая речь, beam,
   корпус парафраз; `tests/test_d6_grammar.py`,
   `tests/test_d6_parse_beam.py`, `tests/test_d6_paraphrases.py`.
-- [x] D6.4 — цели разговора (`goals.json`), планировщик и мост к
-  действиям; `tests/test_d6_planner.py`, `tests/test_d6_bridge.py`.
+- [x] D6.4 — цели разговора (`goals.json`), планировщик, мост к
+  действиям, императивы и псевдонимы (`actions.json`);
+  `tests/test_d6_planner.py`, `tests/test_d6_bridge.py`,
+  `tests/test_d6_actions.py`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

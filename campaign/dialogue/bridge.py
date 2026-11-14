@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Mapping, Optional
 
 from .planner import GoalPlan, GoalPlanner, Intent, intent_from_sem
@@ -63,7 +63,33 @@ class ActionBridge:
         phrase: str = "",
         action_id: str = "",
     ) -> Optional[Intent]:
-        return intent_from_sem(sem, phrase=phrase, action_id=action_id)
+        found = intent_from_sem(sem, phrase=phrase, action_id=action_id)
+        if found is None or not found.action_id:
+            return found
+        resolved = self.resolve(found.action_id)
+        if resolved == found.action_id:
+            return found
+        return replace(found, action_id=resolved)
+
+    def resolve(self, action_id: str) -> str:
+        """Привести псевдоним действия к id кампании по ``actions.json``."""
+
+        requested = str(action_id or "")
+        if not requested:
+            return ""
+        spec = getattr(self.catalog, "actions", None) or {}
+        for item in spec.get("actions") or ():
+            if not isinstance(item, Mapping):
+                continue
+            canonical = str(item.get("id") or "")
+            if requested == canonical:
+                return canonical
+            aliases = [
+                str(alias) for alias in (item.get("aliases") or ())
+            ]
+            if requested in aliases:
+                return canonical
+        return requested
 
     def plan(
         self,
@@ -149,6 +175,9 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
             )
+        resolved = self.resolve(intent.action_id)
+        if resolved != intent.action_id:
+            intent = replace(intent, action_id=resolved)
         option = self._option(intent.action_id)
         if not option:
             return ActionResult(

@@ -1141,6 +1141,68 @@ def _goal_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _action_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить псевдонимы действий D6.4."""
+
+    spec = getattr(catalog, "actions", None) or {}
+    if not spec:
+        return []
+    problems: List[str] = []
+    entries = spec.get("actions")
+    if not isinstance(entries, (list, tuple)) or not entries:
+        return ["actions.actions: ожидался непустой список"]
+    lexical: Set[str] = set()
+    for entry in catalog.lexicon:
+        semantic = entry.semantic
+        if isinstance(semantic, Mapping):
+            value = str(semantic.get("id") or "")
+            if value:
+                lexical.add(value)
+    seen_ids: Set[str] = set()
+    seen_aliases: Set[str] = set()
+    declared_ids = {
+        str(item.get("id") or "")
+        for item in entries
+        if isinstance(item, Mapping)
+    }
+    declared_ids.discard("")
+    for index, item in enumerate(entries):
+        where = "actions.actions[%d]" % index
+        if not isinstance(item, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        action_id = str(item.get("id") or "")
+        if not action_id:
+            problems.append("%s.id: пусто" % where)
+        elif action_id in seen_ids:
+            problems.append("%s.id: повтор %r" % (where, action_id))
+        seen_ids.add(action_id)
+        aliases = item.get("aliases")
+        if not isinstance(aliases, (list, tuple)) or not aliases:
+            problems.append("%s.aliases: ожидался непустой список"
+                            % where)
+            continue
+        for alias in aliases:
+            value = str(alias or "")
+            if not value:
+                problems.append("%s.aliases: пустой псевдоним" % where)
+                continue
+            if value in seen_aliases:
+                problems.append("%s.aliases: повтор %r" % (where, value))
+            seen_aliases.add(value)
+            if value in declared_ids:
+                problems.append(
+                    "%s.aliases: псевдоним совпадает с id %r"
+                    % (where, value)
+                )
+            if value not in lexical:
+                problems.append(
+                    "%s.aliases: псевдоним %r не объявлен в лексиконе"
+                    % (where, value)
+                )
+    return problems
+
+
 def _disclosure_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить политики раскрытия и ссылки персон на них."""
 
@@ -1893,6 +1955,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_parsing_problems(catalog))
     problems.extend(_paraphrase_problems(catalog))
     problems.extend(_goal_problems(catalog))
+    problems.extend(_action_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 

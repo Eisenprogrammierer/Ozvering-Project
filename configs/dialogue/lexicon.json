@@ -1124,6 +1124,38 @@
    "features": {"gender": "m"}
   },
   {
+   "id": "concept:force",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "сила",
+   "forms": {
+    "nom": ["сила"],
+    "gen": ["силы"],
+    "dat": ["силе"],
+    "acc": ["силу"],
+    "ins": ["силой"],
+    "prep": ["силе"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "concept:force"},
+   "features": {"gender": "f"}
+  },
+  {
+   "id": "concept:garrison",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "гарнизон",
+   "forms": {
+    "nom": ["гарнизон"],
+    "gen": ["гарнизона"],
+    "dat": ["гарнизону"],
+    "acc": ["гарнизон"],
+    "ins": ["гарнизоном"],
+    "prep": ["гарнизоне"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "concept:garrison"},
+   "features": {"gender": "m"}
+  },
+  {
    "id": "concept:reform",
    "type": "concept",
    "cat": "N",
@@ -1989,6 +2021,50 @@
    "lemma": "издать",
    "forms": ["издает", "издаёт", "издала", "издал", "издали", "издать", "издавать"],
    "semantic": {"kind": "predicate", "id": "issue"}
+  },
+  {
+   "id": "verb:show",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "показать",
+   "forms": [
+    {"text": "покажи", "features": {"mood": "imperative"}},
+    {"text": "покажите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "show_force"}
+  },
+  {
+   "id": "verb:fortify",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "укрепить",
+   "forms": [
+    {"text": "укрепи", "features": {"mood": "imperative"}},
+    {"text": "укрепите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "fortify_garrison"}
+  },
+  {
+   "id": "verb:coordinate",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "согласовать",
+   "forms": [
+    {"text": "согласуй", "features": {"mood": "imperative"}},
+    {"text": "согласуйте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "coordinate_plan"}
+  },
+  {
+   "id": "verb:publish",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "опубликовать",
+   "forms": [
+    {"text": "опубликуй", "features": {"mood": "imperative"}},
+    {"text": "опубликуйте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "publish_edict"}
   },
   {
    "id": "verb:fall",
