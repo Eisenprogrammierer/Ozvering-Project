@@ -461,7 +461,7 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 [`WORLD.md`](WORLD.md); тесты — `tests/test_campaign.py`,
 `tests/test_world.py`, `tests/test_view_world.py`.
 
-## 13. Диалоговый слой (D0–D5.4, D3.2, D6.2a–c)
+## 13. Диалоговый слой (D0–D5.4, D3.2, D6.2a–d, D6.3)
 
 Игрок говорит с агентами мира обычной русской фразой; ответ строится
 детерминированно и остаётся белым ящиком: разбор → логическая форма →
@@ -505,16 +505,20 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   отношений удаляет исходный факт (`belief`), а не derived-атом.
   `believe`, `have` и `fight` дают `cf_changed`; `has_organ` входит в
   whitelist.
+* **D6.2d (ядро) и D6.3 закрыты.** Разбираются `если … то …`,
+  `хотя …` и «сказал, что …»; политики раскрытия и детерминированная
+  ложь заданы данными.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты D6.2d (условия/уступки/косвенная речь), D6.4 (планировщик и
-  мост к действиям), D7 (текстовая RPG); D6.3 (раскрытие и ложь)
-  закрыт.
+* Открыты хвосты D6.2d (цитаты/«несмотря на»/beam), D6.4
+  (планировщик и мост к действиям), D7 (текстовая RPG); D6.3
+  (раскрытие и ложь) закрыт.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
-  headless-теста `DialogueChatScreen` по-прежнему нет.
+  `tests/test_d6_grammar.py` — D6.2d, `tests/test_d6_disclosure.py` —
+  D6.3. Headless-теста `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 

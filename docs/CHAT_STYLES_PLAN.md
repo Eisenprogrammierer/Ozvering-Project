@@ -178,11 +178,13 @@ venv/bin/python -m pytest -q
 - [x] D5.4 — дискурсивная агрегация абзаца (4+ хода): механизм
   `topics` + линтер + тесты. Production-паттерна с `topics` нет.
 - [x] D6.2a — отрицание в антецеденте: `NEG` в лексиконе, правила
-  `np_neg_v_np*`, `negated: true`, обмен `remove`/`add`. Отдельного
-  теста нет; сквозной сценарий ждёт D6.2c.
+  `np_neg_v_np*`, `negated: true`, обмен `remove`/`add`; покрыто
+  `tests/test_d3_counterfactual.py`.
+- [x] D6.2b–c — «то»-клауза и `predicate_relations`.
 - [x] D6.3 — политика раскрытия и ложь.
-- [ ] D6.2b–D6.2d — «то»-клауза, `predicate_relations`, условия,
-  уступки, косвенная речь.
+- [x] D6.2d (ядро) — условия, уступки, косвенная речь;
+  `tests/test_d6_grammar.py`.
+- [ ] Хвосты D6.2d — цитаты, «несмотря на», beam.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

@@ -4123,6 +4123,33 @@
    "forms": {"nom": ["Директор медицинской службы"]},
    "aliases": ["директор медицинской службы"],
    "semantic": {"kind": "entity", "type": "post", "id": "post:amber:medicine"}
+  },
+  {
+   "id": "concept:although",
+   "type": "particle",
+   "cat": "SCONJ",
+   "lemma": "хотя",
+   "forms": ["хотя", "хоть"],
+   "semantic": {"kind": "particle", "id": "although"}
+  },
+  {
+   "id": "concept:that",
+   "type": "particle",
+   "cat": "COMP",
+   "lemma": "что",
+   "forms": ["что"],
+   "semantic": {"kind": "particle", "id": "that"}
+  },
+  {
+   "id": "verb:say",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "сказать",
+   "forms": [
+    "сказал", "сказала", "сказали", "сказать", "скажет", "скажут",
+    "говорит", "говорят", "говорил", "говорила", "говорили", "говорить"
+   ],
+   "semantic": {"kind": "predicate", "id": "say"}
   }
  ]
 }

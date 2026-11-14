@@ -592,6 +592,51 @@
         {"cat": "PP", "as": "topic"}
       ],
       "sem": {"kind": "social", "act": "apology", "object": "$topic"}
+    },
+    {
+      "id": "s_conditional",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "COND", "as": "cond"},
+        {"cat": "S", "as": "antecedent"},
+        {"cat": "TO", "as": "then"},
+        {"cat": "S", "as": "consequent"}
+      ],
+      "sem": {
+        "kind": "conditional",
+        "antecedent": "$antecedent",
+        "consequent": "$consequent"
+      }
+    },
+    {
+      "id": "s_concessive",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "SCONJ", "as": "concession"},
+        {"cat": "S", "as": "first"},
+        {"cat": "S", "as": "clause"}
+      ],
+      "sem": {
+        "kind": "concessive",
+        "concession": "$first",
+        "clause": "$clause"
+      }
+    },
+    {
+      "id": "s_indirect_speech",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "speaker"},
+        {"cat": "V", "as": "verb"},
+        {"cat": "COMP", "as": "comp"},
+        {"cat": "S", "as": "body"}
+      ],
+      "sem": {
+        "kind": "report",
+        "speaker": "$speaker",
+        "predicate": "$verb",
+        "body": "$body"
+      }
     }
   ]
 }
