@@ -537,20 +537,28 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   только `ConversationState.location`. `TextGame` отдаёт
   `ConsoleEntry(kind="move")`, откат восстанавливает локацию. Фразы
   «Иду к Абверу», «Отправляюсь в столицу» — правила `s_move_*`.
+* **D7.3 сделан.** `time.json` задаёт длительность короткого
+  ожидания, фазы суток, направления темпа и сообщения. `TimeGuide`
+  двигает `AutomataCampaign.advance_time` только при
+  `allow_actions=True`; «Жду» продвигает ход, «Жду до утра» считает
+  ближайшую фазу, «Ускоряю/Замедляю/Сбрасываю» управляют темпом.
+  `TextGame` отдаёт записи `wait`/`speed`, откат восстанавливает
+  время и темп.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
 * Открыты D6.1 (аудит лексикона), расширение доменных псевдонимов по
-  мере контента и D7.3–D7.4.
+  мере контента и D7.4.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
   `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_disclosure.py`
   — D6.3, `tests/test_d6_planner.py`, `tests/test_d6_bridge.py` и
   `tests/test_d6_actions.py` — D6.4, `tests/test_d7_console.py` —
   D7.0, `tests/test_d7_social.py` — D7.1, `tests/test_d7_movement.py`
-  — D7.2. Headless-теста `DialogueChatScreen` по-прежнему нет.
+  — D7.2, `tests/test_d7_time.py` — D7.3. Headless-теста
+  `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:
 

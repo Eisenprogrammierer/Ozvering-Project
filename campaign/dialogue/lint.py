@@ -1631,6 +1631,83 @@ def _movement_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _time_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить длительности, фазы, темп и сообщения ``time.json``."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "time", None)
+    if not spec:
+        return problems
+    for key in ("wait_seconds", "cycle_seconds"):
+        try:
+            value = float(spec.get(key))
+        except (TypeError, ValueError):
+            problems.append("time.%s: не число" % key)
+            continue
+        if value <= 0.0:
+            problems.append("time.%s: должно быть больше нуля" % key)
+    phases = spec.get("phases")
+    if not isinstance(phases, Mapping) or not phases:
+        problems.append("time.phases: пусто")
+        phases = {}
+    entity_ids = set()
+    for entry in catalog.lexicon:
+        semantic = entry.semantic
+        if isinstance(semantic, Mapping) and semantic.get("kind") == "entity":
+            entity_ids.add(str(semantic.get("id") or ""))
+    for entity_id, entry in phases.items():
+        where = "time.phases.%s" % entity_id
+        if not isinstance(entry, Mapping):
+            problems.append("%s: не объект" % where)
+            continue
+        if str(entity_id) not in entity_ids:
+            problems.append("%s: нет такой сущности в лексиконе" % where)
+        try:
+            hour = float(entry.get("hour"))
+        except (TypeError, ValueError):
+            problems.append("%s.hour: не число" % where)
+        else:
+            if hour < 0.0 or hour >= 24.0:
+                problems.append("%s.hour: вне 0..23" % where)
+        if not str(entry.get("label") or "").strip():
+            problems.append("%s.label: пусто" % where)
+    speeds = spec.get("speeds")
+    if not isinstance(speeds, Mapping) or not speeds:
+        problems.append("time.speeds: пусто")
+        speeds = {}
+    for direction in ("up", "down", "reset"):
+        where = "time.speeds.%s" % direction
+        entry = speeds.get(direction)
+        if not isinstance(entry, Mapping):
+            problems.append("%s: нет направления" % where)
+            continue
+        for key in ("label", "done", "limit"):
+            if not str(entry.get(key) or "").strip():
+                problems.append("%s.%s: пусто" % (where, key))
+    messages = spec.get("messages")
+    if not isinstance(messages, Mapping) or not messages:
+        problems.append("time.messages: пусто")
+    else:
+        required = (
+            "waited",
+            "planned_wait",
+            "arrived",
+            "planned_phase",
+            "unknown_phase",
+            "speed_done",
+            "speed_planned",
+            "speed_limit",
+            "no_campaign",
+            "finished",
+            "finished_during",
+            "not_time",
+        )
+        for key in required:
+            if not str(messages.get(key) or "").strip():
+                problems.append("time.messages.%s: пусто" % key)
+    return problems
+
+
 def _anaphora_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить анафору: типы, роды, местоимения, min_length."""
 
@@ -2131,6 +2208,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_action_problems(catalog))
     problems.extend(_console_problems(catalog))
     problems.extend(_movement_problems(catalog))
+    problems.extend(_time_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 

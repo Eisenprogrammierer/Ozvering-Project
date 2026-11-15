@@ -15,6 +15,7 @@ from .loader import (
     load_goals,
     load_styles,
     load_synthesis,
+    load_time,
 )
 from .morph import Morphology
 from .movement import MovementGuide, MoveResult
@@ -41,6 +42,7 @@ from .state import (
     build_state,
 )
 from .style import StyleEngine
+from .timeflow import TimeGuide, TimeResult
 
 __all__ = [
     "ActionBridge",
@@ -79,6 +81,8 @@ __all__ = [
     "StyleEngine",
     "StyleSpec",
     "TextGame",
+    "TimeGuide",
+    "TimeResult",
     "Turn",
     "build_knowledge",
     "build_state",
@@ -91,6 +95,7 @@ __all__ = [
     "load_goals",
     "load_styles",
     "load_synthesis",
+    "load_time",
     "merge_features",
     "normalize_text",
     "predicate_id",

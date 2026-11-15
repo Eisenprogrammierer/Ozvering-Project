@@ -198,6 +198,9 @@ venv/bin/python -m pytest -q
 - [x] D7.2 — перемещение через текст (`movement.json`,
   `MovementGuide`), маршрут по геометрии игрока, read-only по
   умолчанию; `tests/test_d7_movement.py`.
+- [x] D7.3 — время через текст (`time.json`, `TimeGuide`),
+  ожидание и фазы суток, темп, read-only по умолчанию;
+  `tests/test_d7_time.py`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 

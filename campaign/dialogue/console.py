@@ -147,6 +147,18 @@ class TextGame:
                     reason=result.reason,
                 )
             )
+        if found is not None and found.kind in ("wait", "speed"):
+            result = self.session.time(value)
+            return self._append(
+                ConsoleEntry(
+                    found.kind,
+                    value,
+                    result.text,
+                    action_id=result.target or result.direction,
+                    performed=result.performed,
+                    reason=result.reason,
+                )
+            )
         social_action = bool(
             found is not None
             and found.kind == "social"

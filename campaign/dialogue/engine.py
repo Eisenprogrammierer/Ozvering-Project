@@ -27,6 +27,7 @@ from .parser import ChartParser
 from .planner import GoalPlan, Intent
 from .state import DialogueMemory, build_state
 from .style import StyleEngine
+from .timeflow import TimeGuide, TimeResult
 
 
 @dataclass(frozen=True)
@@ -224,6 +225,34 @@ class DialogueSession:
             allow_actions=self.bridge.allow_actions,
         )
         return guide.move(found.target)
+
+    def time(self, text: str) -> TimeResult:
+        """Подождать или сменить темп, если действия разрешены.
+
+        D7.3: длительности, фазы и направления темпа — данные
+        ``time.json``. В read-only режиме возвращается план без
+        изменения ``AutomataCampaign``.
+        """
+
+        found = self.intent(text)
+        guide = TimeGuide(
+            self.catalog,
+            self.knowledge,
+            campaign=self.bridge.campaign,
+            allow_actions=self.bridge.allow_actions,
+        )
+        if found is None or found.kind not in ("wait", "speed"):
+            return TimeResult(
+                ok=False,
+                performed=False,
+                reason="not_time",
+                text=guide.message(
+                    "not_time", "Это не команда времени."
+                ),
+            )
+        if found.kind == "speed":
+            return guide.speed(found.direction)
+        return guide.wait(found.target)
 
     def set_style(self, style_id: Optional[str]) -> str:
         """Сменить регистровый профиль.

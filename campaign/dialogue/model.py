@@ -442,5 +442,6 @@ class DialogueCatalog:
     actions: Mapping[str, Any] = field(default_factory=dict)
     console: Mapping[str, Any] = field(default_factory=dict)
     movement: Mapping[str, Any] = field(default_factory=dict)
+    time: Mapping[str, Any] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

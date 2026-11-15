@@ -23,6 +23,7 @@ class Intent:
     target: str = ""
     action_id: str = ""
     phrase: str = ""
+    direction: str = ""
 
     def snapshot(self) -> Dict[str, Any]:
         return {
@@ -30,6 +31,7 @@ class Intent:
             "act": self.act,
             "target": self.target,
             "action_id": self.action_id,
+            "direction": self.direction,
         }
 
 
@@ -153,6 +155,8 @@ def intent_from_sem(
         target = _entity(sem.get("destination"))
     if not target:
         target = _entity(sem.get("target"))
+    if not target:
+        target = _entity(sem.get("until"))
     resolved_action = str(action_id or "")
     if not resolved_action and kind == "order":
         resolved_action = str(sem.get("action") or "")
@@ -162,6 +166,7 @@ def intent_from_sem(
         target=target,
         action_id=resolved_action,
         phrase=str(phrase or ""),
+        direction=str(sem.get("direction") or ""),
     )
 
 

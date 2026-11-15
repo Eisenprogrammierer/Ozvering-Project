@@ -2481,8 +2481,32 @@
    "type": "verb",
    "cat": "V",
    "lemma": "ждать",
-   "forms": ["ждать", "жду", "ждём", "ждёшь", "ждёте", "ждёт", "ждут", "ждал", "ждала", "ждало", "ждали", "жди", "ждите"],
+   "forms": ["ждать", "жду", "ждём", "ждем", "ждёшь", "ждешь", "ждёте", "ждете", "ждёт", "ждет", "ждут", "ждал", "ждала", "ждало", "ждали", "жди", "ждите", "подожду", "подождём", "подождем", "подожди", "подождите", "подождать"],
    "semantic": {"kind": "predicate", "id": "wait"}
+  },
+  {
+   "id": "verb:speed_up",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "ускорить",
+   "forms": ["ускорить", "ускоряю", "ускоряем", "ускоряешь", "ускоряете", "ускоряет", "ускоряют", "ускорял", "ускоряла", "ускоряли", "ускорь", "ускорьте"],
+   "semantic": {"kind": "predicate", "id": "speed_up"}
+  },
+  {
+   "id": "verb:speed_down",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "замедлить",
+   "forms": ["замедлить", "замедляю", "замедляем", "замедляешь", "замедляете", "замедляет", "замедляют", "замедлял", "замедляла", "замедляли", "замедли", "замедлите", "медленнее"],
+   "semantic": {"kind": "predicate", "id": "speed_down"}
+  },
+  {
+   "id": "verb:speed_reset",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "сбросить",
+   "forms": ["сбросить", "сбрасываю", "сбрасываем", "сбрасываешь", "сбрасываете", "сбрасывает", "сбрасывают", "сбрасывал", "сбрасывала", "сбрасывали", "сбрось", "сбросьте"],
+   "semantic": {"kind": "predicate", "id": "speed_reset"}
   },
   {
    "id": "verb:rely",
@@ -2853,6 +2877,14 @@
    "semantic": {"kind": "prep", "id": "of"}
   },
   {
+   "id": "prep:until",
+   "type": "preposition",
+   "cat": "P",
+   "lemma": "до",
+   "forms": ["до"],
+   "semantic": {"kind": "prep", "id": "until"}
+  },
+  {
    "id": "prep:because_of",
    "type": "preposition",
    "cat": "P",
@@ -3111,6 +3143,54 @@
    },
    "semantic": {"kind": "entity", "type": "concept", "id": "noun:union"},
    "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:morning",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "утро",
+   "forms": {
+    "nom": ["утро"],
+    "gen": ["утра"],
+    "dat": ["утру"],
+    "acc": ["утро"],
+    "ins": ["утром"],
+    "prep": ["утре"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:morning"},
+   "features": {"gender": "n"}
+  },
+  {
+   "id": "noun:evening",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "вечер",
+   "forms": {
+    "nom": ["вечер"],
+    "gen": ["вечера"],
+    "dat": ["вечеру"],
+    "acc": ["вечер"],
+    "ins": ["вечером"],
+    "prep": ["вечере"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:evening"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:night",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "ночь",
+   "forms": {
+    "nom": ["ночь"],
+    "gen": ["ночи"],
+    "dat": ["ночи"],
+    "acc": ["ночь"],
+    "ins": ["ночью"],
+    "prep": ["ночи"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:night"},
+   "features": {"gender": "f"}
   },
   {
    "id": "noun:state",
