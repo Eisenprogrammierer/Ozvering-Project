@@ -138,6 +138,18 @@ def test_imperative_with_target_pp(catalog):
     assert intent.target == "faction:blue"
 
 
+def test_every_declared_phrase_parses_to_its_action(catalog):
+    parser = ChartParser(catalog)
+    bridge = ActionBridge(catalog)
+    for item in catalog.actions["actions"]:
+        for phrase in item.get("phrases") or ():
+            parse = parser.parse_best(phrase)
+            assert parse is not None, phrase
+            intent = bridge.intent(parse.sem, phrase=phrase)
+            assert intent is not None, phrase
+            assert intent.action_id == item["id"], (phrase, intent.action_id)
+
+
 def test_session_intent_resolves_alias(catalog, campaign):
     session = DialogueSession(
         catalog,

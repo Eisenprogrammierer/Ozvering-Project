@@ -2066,6 +2066,149 @@
    "semantic": {"kind": "predicate", "id": "publish_edict"}
   },
   {
+   "id": "verb:demonstrate",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "продемонстрировать",
+   "forms": [
+    {"text": "продемонстрируй", "features": {"mood": "imperative"}},
+    {"text": "продемонстрируйте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "show_force"}
+  },
+  {
+   "id": "verb:reinforce",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "усилить",
+   "forms": [
+    {"text": "усиль", "features": {"mood": "imperative"}},
+    {"text": "усильте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "fortify_garrison"}
+  },
+  {
+   "id": "verb:approve",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "утвердить",
+   "forms": [
+    {"text": "утверди", "features": {"mood": "imperative"}},
+    {"text": "утвердите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "coordinate_plan"}
+  },
+  {
+   "id": "verb:publish_imperative",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "издать",
+   "forms": [
+    {"text": "издай", "features": {"mood": "imperative"}},
+    {"text": "издайте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "publish_edict"}
+  },
+  {
+   "id": "verb:appoint",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "назначить",
+   "forms": [
+    {"text": "назначь", "features": {"mood": "imperative"}},
+    {"text": "назначьте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "appoint_enemy"}
+  },
+  {
+   "id": "verb:convene",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "созвать",
+   "forms": [
+    {"text": "созови", "features": {"mood": "imperative"}},
+    {"text": "созовите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "convene_cathedral"}
+  },
+  {
+   "id": "verb:deploy",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "развернуть",
+   "forms": [
+    {"text": "разверни", "features": {"mood": "imperative"}},
+    {"text": "разверните", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "deploy_hospitals"}
+  },
+  {
+   "id": "verb:protect",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "защитить",
+   "forms": [
+    {"text": "защити", "features": {"mood": "imperative"}},
+    {"text": "защитите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "protect_ciphers"}
+  },
+  {
+   "id": "verb:hold",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "провести",
+   "forms": [
+    {"text": "проведи", "features": {"mood": "imperative"}},
+    {"text": "проведите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "hold_parade"}
+  },
+  {
+   "id": "verb:cleanse",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "очистить",
+   "forms": [
+    {"text": "очисти", "features": {"mood": "imperative"}},
+    {"text": "очистите", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "purge_officers"}
+  },
+  {
+   "id": "verb:arrange",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "устроить",
+   "forms": [
+    {"text": "устрой", "features": {"mood": "imperative"}},
+    {"text": "устройте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "arrange_sabotage"}
+  },
+  {
+   "id": "verb:breach",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "вскрыть",
+   "forms": [
+    {"text": "вскрой", "features": {"mood": "imperative"}},
+    {"text": "вскройте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "breach_network"}
+  },
+  {
+   "id": "verb:open",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "открыть",
+   "forms": [
+    {"text": "открой", "features": {"mood": "imperative"}},
+    {"text": "откройте", "features": {"mood": "imperative"}}
+   ],
+   "semantic": {"kind": "predicate", "id": "open_hospitals"}
+  },
+  {
    "id": "verb:fall",
    "type": "verb",
    "cat": "V",
@@ -3068,6 +3211,182 @@
    },
    "semantic": {"kind": "entity", "type": "concept", "id": "noun:enemy"},
    "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:cathedral",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "собор",
+   "forms": {
+    "nom": ["собор"],
+    "gen": ["собора"],
+    "dat": ["собору"],
+    "acc": ["собор"],
+    "ins": ["собором"],
+    "prep": ["соборе"],
+    "nom_pl": ["соборы"],
+    "gen_pl": ["соборов"],
+    "dat_pl": ["соборам"],
+    "acc_pl": ["соборы"],
+    "ins_pl": ["соборами"],
+    "prep_pl": ["соборах"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:cathedral"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:hospital",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "госпиталь",
+   "forms": {
+    "nom": ["госпиталь"],
+    "gen": ["госпиталя"],
+    "dat": ["госпиталю"],
+    "acc": ["госпиталь"],
+    "ins": ["госпиталем"],
+    "prep": ["госпитале"],
+    "nom_pl": ["госпитали"],
+    "gen_pl": ["госпиталей"],
+    "dat_pl": ["госпиталям"],
+    "acc_pl": ["госпитали"],
+    "ins_pl": ["госпиталями"],
+    "prep_pl": ["госпиталях"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:hospital"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:cipher",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "шифр",
+   "forms": {
+    "nom": ["шифр"],
+    "gen": ["шифра"],
+    "dat": ["шифру"],
+    "acc": ["шифр"],
+    "ins": ["шифром"],
+    "prep": ["шифре"],
+    "nom_pl": ["шифры"],
+    "gen_pl": ["шифров"],
+    "dat_pl": ["шифрам"],
+    "acc_pl": ["шифры"],
+    "ins_pl": ["шифрами"],
+    "prep_pl": ["шифрах"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:cipher"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:parade",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "парад",
+   "forms": {
+    "nom": ["парад"],
+    "gen": ["парада"],
+    "dat": ["параду"],
+    "acc": ["парад"],
+    "ins": ["парадом"],
+    "prep": ["параде"],
+    "nom_pl": ["парады"],
+    "gen_pl": ["парадов"],
+    "dat_pl": ["парадам"],
+    "acc_pl": ["парады"],
+    "ins_pl": ["парадами"],
+    "prep_pl": ["парадах"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:parade"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:corps",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "корпус",
+   "forms": {
+    "nom": ["корпус"],
+    "gen": ["корпуса"],
+    "dat": ["корпусу"],
+    "acc": ["корпус"],
+    "ins": ["корпусом"],
+    "prep": ["корпусе"],
+    "nom_pl": ["корпуса"],
+    "gen_pl": ["корпусов"],
+    "dat_pl": ["корпусам"],
+    "acc_pl": ["корпуса"],
+    "ins_pl": ["корпусами"],
+    "prep_pl": ["корпусах"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:corps"},
+   "features": {"gender": "m"}
+  },
+  {
+   "id": "noun:sabotage",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "диверсия",
+   "forms": {
+    "nom": ["диверсия"],
+    "gen": ["диверсии"],
+    "dat": ["диверсии"],
+    "acc": ["диверсию"],
+    "ins": ["диверсией"],
+    "prep": ["диверсии"],
+    "nom_pl": ["диверсии"],
+    "gen_pl": ["диверсий"],
+    "dat_pl": ["диверсиям"],
+    "acc_pl": ["диверсии"],
+    "ins_pl": ["диверсиями"],
+    "prep_pl": ["диверсиях"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:sabotage"},
+   "features": {"gender": "f"}
+  },
+  {
+   "id": "noun:network",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "сеть",
+   "forms": {
+    "nom": ["сеть"],
+    "gen": ["сети"],
+    "dat": ["сети"],
+    "acc": ["сеть"],
+    "ins": ["сетью"],
+    "prep": ["сети"],
+    "nom_pl": ["сети"],
+    "gen_pl": ["сетей"],
+    "dat_pl": ["сетям"],
+    "acc_pl": ["сети"],
+    "ins_pl": ["сетями"],
+    "prep_pl": ["сетях"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:network"},
+   "features": {"gender": "f"}
+  },
+  {
+   "id": "noun:clinic",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "больница",
+   "forms": {
+    "nom": ["больница"],
+    "gen": ["больницы"],
+    "dat": ["больнице"],
+    "acc": ["больницу"],
+    "ins": ["больницей"],
+    "prep": ["больнице"],
+    "nom_pl": ["больницы"],
+    "gen_pl": ["больниц"],
+    "dat_pl": ["больницам"],
+    "acc_pl": ["больницы"],
+    "ins_pl": ["больницами"],
+    "prep_pl": ["больницах"]
+   },
+   "semantic": {"kind": "entity", "type": "concept", "id": "noun:clinic"},
+   "features": {"gender": "f"}
   },
   {
    "id": "concept:dispute",

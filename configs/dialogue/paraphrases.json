@@ -189,6 +189,179 @@
         "predicate": "say",
         "body.predicate": "fight"
       }
+    },
+    {
+      "id": "greeting_hello_alt",
+      "text": "Здравствуй.",
+      "kind": "greeting"
+    },
+    {
+      "id": "request_tell_war",
+      "text": "Расскажи о войне.",
+      "kind": "request",
+      "expect": {"action": "tell"}
+    },
+    {
+      "id": "yesno_belief_reverse",
+      "text": "Считает ли Республика Империю незаконной?",
+      "kind": "question",
+      "expect": {
+        "wh": "yesno",
+        "body.predicate": "believe",
+        "body.value": "illegal"
+      }
+    },
+    {
+      "id": "yesno_have_organ_reverse",
+      "text": "Есть ли у Республики Абвер?",
+      "kind": "question",
+      "expect": {"wh": "yesno", "body.have": true}
+    },
+    {
+      "id": "wh_ruler_reverse",
+      "text": "Кто правит Республикой?",
+      "kind": "question",
+      "expect": {"wh": "who", "body.predicate": "rule"}
+    },
+    {
+      "id": "wh_where_organ",
+      "text": "Где находится Абвер?",
+      "kind": "question",
+      "expect": {"wh": "where", "body.predicate": "locate"}
+    },
+    {
+      "id": "wh_why_reverse",
+      "text": "Почему Республика считает Империю незаконной?",
+      "kind": "question",
+      "expect": {"wh": "why", "body.predicate": "believe"}
+    },
+    {
+      "id": "assert_negated_belief",
+      "text": "Император не считает Республику незаконной.",
+      "kind": "assert",
+      "expect": {"negated": true, "predicate": "believe"}
+    },
+    {
+      "id": "counterfactual_past",
+      "text": "Что было бы, если бы Империя издала эдикт?",
+      "kind": "counterfactual",
+      "expect": {"antecedent.predicate": "issue"}
+    },
+    {
+      "id": "conditional_reverse",
+      "text": "Если Республика воюет с Империей, то Империя воюет с Республикой.",
+      "kind": "conditional",
+      "expect": {
+        "antecedent.predicate": "fight",
+        "consequent.predicate": "fight"
+      }
+    },
+    {
+      "id": "concessive_reverse",
+      "text": "Хотя Республика воюет с Империей, Империя не воюет с Республикой.",
+      "kind": "concessive",
+      "expect": {
+        "concession.predicate": "fight",
+        "clause.negated": true
+      }
+    },
+    {
+      "id": "report_indirect_reverse",
+      "text": "Император сказал, что Республика воюет с Империей.",
+      "kind": "report",
+      "expect": {
+        "mode": "indirect",
+        "predicate": "say",
+        "body.predicate": "fight"
+      }
+    },
+    {
+      "id": "report_direct_reverse",
+      "text": "Император сказал: «Республика воюет с Империей».",
+      "kind": "report",
+      "expect": {
+        "mode": "direct",
+        "predicate": "say",
+        "body.predicate": "fight"
+      }
+    },
+    {
+      "id": "imperative_show_synonym",
+      "text": "Продемонстрируй силу.",
+      "kind": "order",
+      "expect": {"action": "show_force"}
+    },
+    {
+      "id": "imperative_fortify_synonym",
+      "text": "Усиль гарнизон.",
+      "kind": "order",
+      "expect": {"action": "fortify_garrison"}
+    },
+    {
+      "id": "imperative_coordinate_synonym",
+      "text": "Утверди план.",
+      "kind": "order",
+      "expect": {"action": "coordinate_plan"}
+    },
+    {
+      "id": "imperative_publish_synonym",
+      "text": "Издай эдикт.",
+      "kind": "order",
+      "expect": {"action": "publish_edict"}
+    },
+    {
+      "id": "imperative_appoint_enemy",
+      "text": "Назначь врага.",
+      "kind": "order",
+      "expect": {"action": "appoint_enemy"}
+    },
+    {
+      "id": "imperative_convene_cathedral",
+      "text": "Созови собор.",
+      "kind": "order",
+      "expect": {"action": "convene_cathedral"}
+    },
+    {
+      "id": "imperative_deploy_hospitals",
+      "text": "Разверни госпитали.",
+      "kind": "order",
+      "expect": {"action": "deploy_hospitals"}
+    },
+    {
+      "id": "imperative_protect_ciphers",
+      "text": "Защити шифры.",
+      "kind": "order",
+      "expect": {"action": "protect_ciphers"}
+    },
+    {
+      "id": "imperative_hold_parade",
+      "text": "Проведи парад.",
+      "kind": "order",
+      "expect": {"action": "hold_parade"}
+    },
+    {
+      "id": "imperative_purge_officers",
+      "text": "Очисти корпус.",
+      "kind": "order",
+      "expect": {"action": "purge_officers"}
+    },
+    {
+      "id": "imperative_arrange_sabotage",
+      "text": "Устрой диверсию.",
+      "kind": "order",
+      "expect": {"action": "arrange_sabotage"}
+    },
+    {
+      "id": "imperative_breach_network",
+      "text": "Вскрой сеть.",
+      "kind": "order",
+      "expect": {"action": "breach_network"}
+    },
+    {
+      "id": "imperative_open_hospitals",
+      "text": "Открой больницы.",
+      "kind": "order",
+      "expect": {"action": "open_hospitals"}
     }
   ]
 }

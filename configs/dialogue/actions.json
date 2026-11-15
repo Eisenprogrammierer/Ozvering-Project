@@ -25,6 +25,60 @@
       "label": "Опубликовать имперский эдикт",
       "aliases": ["publish_edict"],
       "phrases": ["Опубликуй эдикт"]
+    },
+    {
+      "id": "enemy_of_state",
+      "label": "Назначить врага государства",
+      "aliases": ["appoint_enemy"],
+      "phrases": ["Назначь врага"]
+    },
+    {
+      "id": "imperial_church",
+      "label": "Созвать Имперский собор",
+      "aliases": ["convene_cathedral"],
+      "phrases": ["Созови собор"]
+    },
+    {
+      "id": "field_medicine",
+      "label": "Развернуть полевые госпитали",
+      "aliases": ["deploy_hospitals"],
+      "phrases": ["Разверни госпитали"]
+    },
+    {
+      "id": "cipher_protection",
+      "label": "Защитить шифры",
+      "aliases": ["protect_ciphers"],
+      "phrases": ["Защити шифры"]
+    },
+    {
+      "id": "guard_parade",
+      "label": "Провести парад гвардии",
+      "aliases": ["hold_parade"],
+      "phrases": ["Проведи парад"]
+    },
+    {
+      "id": "officer_purge",
+      "label": "Провести чистку офицерского корпуса",
+      "aliases": ["purge_officers"],
+      "phrases": ["Очисти корпус"]
+    },
+    {
+      "id": "abwehr_sabotage",
+      "label": "Провести диверсию Абвера",
+      "aliases": ["arrange_sabotage"],
+      "phrases": ["Устрой диверсию"]
+    },
+    {
+      "id": "cyber_osint",
+      "label": "Вскрыть чужую сеть связи",
+      "aliases": ["breach_network"],
+      "phrases": ["Вскрой сеть"]
+    },
+    {
+      "id": "church_hospitals",
+      "label": "Открыть церковные госпитали",
+      "aliases": ["open_hospitals"],
+      "phrases": ["Открой больницы"]
     }
   ]
 }
