@@ -1,0 +1,77 @@
+{
+  "storyline_id": "free_life",
+  "title": "Агора: свободная жизнь",
+  "description": "Вы — не лидер и не должностное лицо. У вас нет мандата и фракции: только имя, архетип и город, который живёт по своим правилам. Начните с улицы, школы, мастерской или другого места и посмотрите, куда приведёт обычная жизнь.",
+  "scenario_path": "scenarios/mvp.json",
+  "world_path": "configs/worlds/agora_world.json",
+  "biography_path": "configs/worlds/biography.json",
+  "campaign_seed": 7,
+  "identity_editor": true,
+  "scenes": "free_life_scenes",
+  "free_start": {
+    "street_musician": {
+      "node_id": "agora_street",
+      "office_id": "street_musician"
+    },
+    "school_student": {
+      "node_id": "knowledge_faculty_law",
+      "office_id": "student"
+    },
+    "temple_priest": {
+      "node_id": "lumen_parish_square",
+      "office_id": "reader"
+    },
+    "court_official": {
+      "node_id": "agora_watch",
+      "office_id": "clerk"
+    },
+    "artisan": {
+      "node_id": "provision_bakery",
+      "office_id": "workshop_apprentice"
+    },
+    "soldier": {
+      "node_id": "agora_precinct_port",
+      "office_id": "guard"
+    },
+    "merchant": {
+      "node_id": "exchange_shop",
+      "office_id": "market_vendor"
+    },
+    "aristocrat": {
+      "node_id": "status_house_agora",
+      "office_id": "house_scion"
+    }
+  },
+  "win_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "win"
+    }
+  ],
+  "lose_conditions": [
+    {
+      "type": "world_outcome",
+      "value": "lose"
+    }
+  ],
+  "win_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_square",
+        "text": "Вы выдержали в мире, который не давал вам ни мандата, ни защиты. Это не победа над Агорой — это место, которое вы заняли сами."
+      },
+      {
+        "image": "campaign/agora_charter",
+        "text": "В бумагах осталась должность. В памяти остался человек."
+      }
+    ]
+  },
+  "lose_scene": {
+    "slides": [
+      {
+        "image": "campaign/agora_port",
+        "text": "Город не заметил, как вы потеряли опору. Улица живёт дальше — но уже без вас."
+      }
+    ]
+  }
+}

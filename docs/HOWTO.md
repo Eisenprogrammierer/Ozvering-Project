@@ -131,8 +131,8 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
     --world tests/fixtures/content/configs/worlds/agora_world.json
 ```
 
-Флаг `--world` указывает JSON-мир. В поставке `configs/worlds/` пуст,
-поэтому без флага среда поднимает `WorldError`; тестовый мир на 43 узла
+Флаг `--world` указывает JSON-мир. Без флага среда берёт production-мир
+`configs/worlds/agora_world.json`; компактный тестовый мир на 43 узла
 лежит в `tests/fixtures/content/`.
 
 Кампанейские действия — `CampaignAction` (`END_DAY`, `TREAT_SELF` и обычные

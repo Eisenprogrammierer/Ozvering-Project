@@ -1,5 +1,13 @@
 from .errors import CampaignError
 from .actor import CAMPAIGN_ENERGY_MAX, CampaignActor
+from .avatar import (
+    AVATAR_SCHEMA_VERSION,
+    CONTROL_MODES,
+    AvatarError,
+    PlayerAvatar,
+    avatar_from_preset,
+    avatar_from_snapshot,
+)
 from .roles import (
     ROLE_ID_RE,
     RoleCatalog,
@@ -42,6 +50,12 @@ __all__ = [
     "CampaignEnv",
     "campaign_reward",
     "terminal_campaign_reward",
+    "AVATAR_SCHEMA_VERSION",
+    "CONTROL_MODES",
+    "AvatarError",
+    "PlayerAvatar",
+    "avatar_from_preset",
+    "avatar_from_snapshot",
     "RoleError",
     "RoleSpec",
     "RoleCatalog",

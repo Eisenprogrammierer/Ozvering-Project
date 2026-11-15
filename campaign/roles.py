@@ -1,14 +1,34 @@
+# campaign/roles.py
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
-from typing import Dict, Mapping, Tuple
+from typing import Dict, Iterable, Mapping, Optional, Tuple
 
 from .errors import CampaignError
 
 ROLE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+ENTITY_KINDS = (
+    "character",
+    "organization",
+    "item",
+    "place",
+    "deity",
+)
+
+SOCIAL_LAYERS = (
+    "street",
+    "school",
+    "temple",
+    "court",
+    "market",
+    "army",
+    "guild",
+    "free",
+)
 
 
 class RoleError(CampaignError):
@@ -39,11 +59,51 @@ def _tags(value):
     return tuple(str(item).strip() for item in value if str(item).strip())
 
 
+def _string_list(value):
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        text = value.strip()
+        return (text,) if text else ()
+    if not isinstance(value, Iterable):
+        return ()
+    result = []
+    for item in value:
+        text = str(item).strip()
+        if text:
+            result.append(text)
+    return tuple(result)
+
+
 def _as_int(value, default=0):
     try:
         return int(value)
     except (TypeError, ValueError):
         return int(default)
+
+
+def _entity_kind(value, role_id):
+    text = str(value or "").strip().lower()
+    if not text:
+        return "character"
+    if text not in ENTITY_KINDS:
+        raise RoleError(
+            "%s: entity_kind=%r не из %s"
+            % (role_id, text, ", ".join(ENTITY_KINDS))
+        )
+    return text
+
+
+def _social_layer(value, role_id):
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if text not in SOCIAL_LAYERS:
+        raise RoleError(
+            "%s: social_layer=%r не из %s"
+            % (role_id, text, ", ".join(SOCIAL_LAYERS))
+        )
+    return text
 
 
 @dataclass(frozen=True)
@@ -62,6 +122,15 @@ class RoleSpec:
     sort_order: int = 0
     grants: Mapping[str, object] = field(default_factory=dict)
     tags: Tuple[str, ...] = ()
+
+    entity_kind: str = "character"
+    social_layer: str = ""
+    start_offices: Tuple[str, ...] = ()
+    start_faction: str = ""
+    storyline_tags: Tuple[str, ...] = ()
+    playable: bool = True
+    identity_sections: Tuple[str, ...] = ()
+    archetype_id: str = ""
 
     def __post_init__(self):
         role_id = str(self.id or "").strip()
@@ -102,6 +171,35 @@ class RoleSpec:
         object.__setattr__(self, "grants", dict(self.grants))
         object.__setattr__(self, "tags", _tags(self.tags))
 
+        object.__setattr__(
+            self,
+            "entity_kind",
+            _entity_kind(self.entity_kind, role_id),
+        )
+        object.__setattr__(
+            self,
+            "social_layer",
+            _social_layer(self.social_layer, role_id),
+        )
+        object.__setattr__(
+            self, "start_offices", _string_list(self.start_offices)
+        )
+        object.__setattr__(
+            self, "start_faction", str(self.start_faction or "").strip()
+        )
+        object.__setattr__(
+            self, "storyline_tags", _string_list(self.storyline_tags)
+        )
+        object.__setattr__(self, "playable", bool(self.playable))
+        object.__setattr__(
+            self,
+            "identity_sections",
+            _string_list(self.identity_sections),
+        )
+        object.__setattr__(
+            self, "archetype_id", str(self.archetype_id or "").strip()
+        )
+
     @classmethod
     def from_data(cls, data, index=0):
         if not isinstance(data, Mapping):
@@ -120,6 +218,14 @@ class RoleSpec:
             sort_order=data.get("sort_order", index),
             grants=data.get("grants") or {},
             tags=data.get("tags") or (),
+            entity_kind=data.get("entity_kind", "character"),
+            social_layer=data.get("social_layer", ""),
+            start_offices=data.get("start_offices") or (),
+            start_faction=data.get("start_faction", ""),
+            storyline_tags=data.get("storyline_tags") or (),
+            playable=data.get("playable", True),
+            identity_sections=data.get("identity_sections") or (),
+            archetype_id=data.get("archetype_id", ""),
         )
 
     @property
@@ -129,6 +235,10 @@ class RoleSpec:
     @property
     def is_available(self):
         return bool(self.available)
+
+    @property
+    def is_playable(self):
+        return bool(self.playable)
 
     def as_dict(self):
         return {
@@ -145,6 +255,14 @@ class RoleSpec:
             "sort_order": self.sort_order,
             "grants": dict(self.grants),
             "tags": list(self.tags),
+            "entity_kind": self.entity_kind,
+            "social_layer": self.social_layer,
+            "start_offices": list(self.start_offices),
+            "start_faction": self.start_faction,
+            "storyline_tags": list(self.storyline_tags),
+            "playable": self.playable,
+            "identity_sections": list(self.identity_sections),
+            "archetype_id": self.archetype_id,
         }
 
 
@@ -236,9 +354,43 @@ class RoleCatalog:
             raise RoleError("роль %r недоступна" % (role_id,))
         return role
 
-    def available_roles(self):
+    def available_roles(
+        self,
+        entity_kind: Optional[str] = None,
+        social_layer: Optional[str] = None,
+        playable: Optional[bool] = None,
+        storyline_tag: Optional[str] = None,
+    ):
+        kind = (
+            str(entity_kind).strip().lower()
+            if entity_kind is not None
+            else None
+        )
+        layer = (
+            str(social_layer).strip().lower()
+            if social_layer is not None
+            else None
+        )
+        tag = (
+            str(storyline_tag).strip()
+            if storyline_tag is not None
+            else None
+        )
+        result = []
+        for role in self.roles.values():
+            if not role.available:
+                continue
+            if playable is not None and role.playable != bool(playable):
+                continue
+            if kind is not None and role.entity_kind != kind:
+                continue
+            if layer is not None and role.social_layer != layer:
+                continue
+            if tag is not None and tag not in role.storyline_tags:
+                continue
+            result.append(role)
         return sorted(
-            (role for role in self.roles.values() if role.available),
+            result,
             key=lambda role: (role.sort_order, role.label, role.id),
         )
 
@@ -282,6 +434,8 @@ def default_catalog():
 
 __all__ = [
     "ROLE_ID_RE",
+    "ENTITY_KINDS",
+    "SOCIAL_LAYERS",
     "RoleError",
     "RoleSpec",
     "RoleCatalog",

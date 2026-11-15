@@ -73,6 +73,48 @@ def test_unknown_intention_essence_is_reported(config):
     assert any("неизвестная суть" in item for item in problems)
 
 
+def test_archetypes_lint_reports_unknown_needs_and_traits(config):
+    data = {
+        "schema": 1,
+        "archetypes": [
+            {
+                "id": "test",
+                "label": "Тест",
+                "needs": {"nope": 0.1},
+                "priority_needs": ["also_nope"],
+                "traits": {"nope": 0.1},
+                "identity_sections": ["values"],
+            }
+        ],
+    }
+    problems = content_lint.lint_archetypes_data(data, config)
+    assert any("неизвестная потребность" in item for item in problems)
+    assert any("неизвестная черта" in item for item in problems)
+
+
+def test_archetypes_lint_reports_unknown_identity_section():
+    problems = content_lint.lint_archetypes_data(
+        {
+            "schema": 1,
+            "archetypes": [
+                {
+                    "id": "test",
+                    "label": "Тест",
+                    "identity_sections": ["nope"],
+                }
+            ],
+        }
+    )
+    assert any("identity_sections" in item for item in problems)
+
+
+def test_archetypes_lint_reports_invalid_catalog():
+    problems = content_lint.lint_archetypes_data(
+        {"schema": 1, "archetypes": [{"label": "Без id"}]}
+    )
+    assert any("пустой id" in item for item in problems)
+
+
 def test_unimplemented_effect_is_reported():
     problems = content_lint.check_effects(
         "work", {"self": {"legitimacy": 0.1}, "relations": {}}

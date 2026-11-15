@@ -12,7 +12,11 @@ import random
 import pygame
 
 import warfare as W
-from campaign.identity import IdentityError, load_identity_catalog
+from campaign.identity import (
+    IdentityError,
+    load_archetypes_catalog,
+    load_identity_catalog,
+)
 from naming.people import PersonNameGenerator
 
 from ..ui.screen_manager import BaseScreen
@@ -76,9 +80,10 @@ class IdentityEditorScreen(BaseScreen):
             logger.error("Личность недоступна: %s", exc)
             self.catalog = None
             self.message = str(exc)
+        self.sections = self._identity_sections()
         self.values = {}
         if self.catalog is not None:
-            for section in SECTION_ORDER:
+            for section in self.sections:
                 ids = self._ids(section)
                 if ids:
                     self.values[section] = ids[0]
@@ -146,6 +151,35 @@ class IdentityEditorScreen(BaseScreen):
         table = getattr(self.catalog, SECTION_TABLE[section], {})
         return tuple(table)
 
+    def _identity_sections(self):
+        archetype_id = str(
+            getattr(self.app, "selected_archetype_id", "") or ""
+        )
+        if not archetype_id:
+            role = getattr(self.app, "selected_role", None)
+            archetype_id = str(
+                getattr(role, "archetype_id", "") or ""
+            )
+        if not archetype_id:
+            return list(SECTION_ORDER)
+        try:
+            catalog = load_archetypes_catalog()
+        except IdentityError as exc:
+            logger.warning("Архетип недоступен: %s", exc)
+            return list(SECTION_ORDER)
+        if catalog is None:
+            return list(SECTION_ORDER)
+        archetype = catalog.get(archetype_id)
+        if archetype is None or not archetype.identity_sections:
+            return list(SECTION_ORDER)
+        allowed = set(archetype.identity_sections)
+        sections = [
+            section
+            for section in SECTION_ORDER
+            if SECTION_TABLE[section] in allowed
+        ]
+        return sections or list(SECTION_ORDER)
+
     def _option(self, section):
         if self.catalog is None:
             return None
@@ -177,7 +211,7 @@ class IdentityEditorScreen(BaseScreen):
         }
 
     def select_section(self, section):
-        if section not in SECTION_ORDER:
+        if section not in self.sections:
             return
         self.selected_section = section
         logger.debug("Раздел личности: %s", section)
@@ -217,7 +251,7 @@ class IdentityEditorScreen(BaseScreen):
         self.name_focus = False
 
     def randomize(self):
-        for section in SECTION_ORDER:
+        for section in self.sections:
             ids = self._ids(section)
             if ids:
                 self.values[section] = random.choice(ids)
@@ -229,7 +263,7 @@ class IdentityEditorScreen(BaseScreen):
             return {}
         data = dict(self.values)
         data["name"] = self.name.strip()
-        return self.catalog.build(data)
+        return self.catalog.build(data, sections=self.sections)
 
     def start(self):
         if self.started:
@@ -288,7 +322,7 @@ class IdentityEditorScreen(BaseScreen):
             if NAME_RECT.collidepoint(pos):
                 self.name_focus = True
                 return
-            for index, section in enumerate(SECTION_ORDER):
+            for index, section in enumerate(self.sections):
                 if self._category_rect(index).collidepoint(pos):
                     self.select_section(section)
                     return
@@ -343,7 +377,7 @@ class IdentityEditorScreen(BaseScreen):
             )
 
     def _draw_categories(self, screen):
-        for index, section in enumerate(SECTION_ORDER):
+        for index, section in enumerate(self.sections):
             rect = self._category_rect(index)
             selected = section == self.selected_section
             pygame.draw.rect(

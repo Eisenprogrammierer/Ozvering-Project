@@ -61,6 +61,18 @@ class _AutomataSaveState:
         return {"automata": self.snapshot}
 
 
+class _WorldSaveState:
+    """Адаптер свободного режима: состояние живёт в ``storyline.state``.
+
+    ``WorldEngine`` не требует военной кампании, поэтому сохранение не
+    должно требовать ``CampaignState``. Контейнер кампании помечает режим,
+    а полный снимок мира лежит в ``storyline.state.world``.
+    """
+
+    def to_snapshot(self):
+        return {"mode": "world"}
+
+
 def _build_logger(name):
     logger = logging.getLogger(name)
     if not logger.handlers:
@@ -148,6 +160,10 @@ class App:
             logger.warning("Роли не загружены: %s", exc)
             self.role_catalog = None
         self.selected_role = None
+        self.selected_archetype_id = ""
+        self.selected_player_character_id = ""
+        self.selected_player_character_label = ""
+        self.selected_archetype_label = ""
         self.selected_faction_id = None
         self.campaign_preset = None
         self.automata_campaign = None
@@ -290,6 +306,10 @@ class App:
         from .screens.role_select import RoleSelectScreen
 
         self.selected_role = None
+        self.selected_archetype_id = ""
+        self.selected_player_character_id = ""
+        self.selected_player_character_label = ""
+        self.selected_archetype_label = ""
         self.selected_faction_id = None
         self.campaign_preset = None
         self.automata_campaign = None
@@ -328,19 +348,29 @@ class App:
         )
         self.pending_storyline_outcome = None
         self.dialogue_memory = None
-        state = build_world(
-            scenario_path=self.scenario_path,
-            content=self.content,
-            seed=self._campaign_seed(storyline),
-        )
-        self.state = state
-        self.engine = CampaignEngine(state)
-        self.engine.engagements = state.engagements
-        self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(
-            state, engine=self.engine, app=self
-        )
-        self.engine.time_system = self.time_system
+        free_mode = bool(storyline.get("free_start"))
+        if free_mode:
+            # Свободный режим живёт на WorldEngine и не требует военного
+            # состояния, фракции или пресета. Это и есть P2: субъект
+            # отделён от кампании-автомата.
+            self.state = None
+            self.engine = None
+            self.player_idx = 0
+            self.time_system = None
+        else:
+            state = build_world(
+                scenario_path=self.scenario_path,
+                content=self.content,
+                seed=self._campaign_seed(storyline),
+            )
+            self.state = state
+            self.engine = CampaignEngine(state)
+            self.engine.engagements = state.engagements
+            self.player_idx = state.player_idx
+            self.time_system = CampaignTimeSystem(
+                state, engine=self.engine, app=self
+            )
+            self.engine.time_system = self.time_system
         from .ui.time_hud import TimeHUD
 
         self.time_hud = TimeHUD(self)
@@ -350,6 +380,11 @@ class App:
             interp.set_variable(str(key), value)
         interp.set_variable("player_role", role.id)
         interp.set_variable("player_role_label", role.label)
+        interp.set_variable(
+            "player_archetype_id",
+            (self.player_identity or {}).get("archetype_id", ""),
+        )
+        self._set_identity_variables(interp)
         self.world_config = load_world(storyline.get("world_path") or None)
         interp.set_variable(
             "world_title",
@@ -491,6 +526,12 @@ class App:
         Редактор личности передаёт сюда готовый профиль. Пресет меняет
         только игрового персонажа и подпись лидера, поэтому баланс, seed и
         состав фракций остаются прежними.
+
+        Если выбранная роль несёт ``archetype_id`` (P1/P2: гибкость
+        персонажа), он пробрасывается в ``player_identity`` до применения
+        личности, чтобы ``CampaignPreset.apply_player_identity`` перенёс
+        стартовую точку архетипа (социальный слой, стартовые работы,
+        теги сюжета) на игрового персонажа.
         """
         from campaign import CampaignPresetGenerator
         from view.support.storyline import StorylineInterpreter
@@ -502,6 +543,14 @@ class App:
         self.selected_role = role
         if faction_id is not None:
             self.selected_faction_id = faction_id
+        self.player_identity = dict(player_identity or {})
+        archetype_id = (
+            str(getattr(self, "selected_archetype_id", "") or "")
+            or getattr(role, "archetype_id", "")
+            or ""
+        )
+        if archetype_id and "archetype_id" not in self.player_identity:
+            self.player_identity["archetype_id"] = archetype_id
         if storyline.get("world_path"):
             self._start_world_storyline(storyline, role)
             return
@@ -518,7 +567,18 @@ class App:
             seed=self._campaign_seed(storyline),
             player_faction_id=self.selected_faction_id,
         )
-        self.player_identity = dict(player_identity or {})
+        selected_character_id = str(
+            getattr(self, "selected_player_character_id", "") or ""
+        )
+        if selected_character_id:
+            try:
+                self.campaign_preset.select_player_character(
+                    selected_character_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Выбранный персонаж недоступен: %s", exc
+                )
         if self.player_identity:
             self.campaign_preset.apply_player_identity(
                 self.player_identity
@@ -749,35 +809,104 @@ class App:
             getattr(engine, "day", "?"),
         )
 
+    def _free_start_entry(self, storyline, scene=None):
+        """Стартовая должность свободного режима по архетипу.
+
+        Данные живут в сюжете (``free_start``), а не в Python: новый
+        архетип добавляет точку входа одним JSON. Если архетип не выбран,
+        берётся архетип роли; если и его нет — игрок сам выберет должность.
+        """
+        data = (scene or {}).get("free_start") if scene else None
+        if not data:
+            data = (storyline or {}).get("free_start") or {}
+        if not isinstance(data, dict):
+            return {}
+        archetype_id = str(
+            getattr(self, "selected_archetype_id", "") or ""
+        )
+        if not archetype_id:
+            archetype_id = str(
+                (self.player_identity or {}).get("archetype_id") or ""
+            )
+        if not archetype_id:
+            archetype_id = str(
+                getattr(getattr(self, "selected_role", None), "archetype_id", "")
+                or ""
+            )
+        entry = data.get(archetype_id) or {}
+        if isinstance(entry, str):
+            return {"node_id": entry}
+        return dict(entry or {})
+
+    def _world_profile(self, storyline):
+        """Профиль мира из личности; не требует пресета и фракции."""
+        if self.player_profile is not None:
+            return self.player_profile
+        identity = dict(self.player_identity or {})
+        if not identity:
+            return None
+        from campaign.world import (
+            load_biography,
+            profile_from_identity,
+        )
+
+        try:
+            biography = load_biography(
+                (storyline or {}).get("biography_path") or None
+            )
+        except Exception as exc:
+            logger.warning("Биография мира недоступна: %s", exc)
+            biography = {}
+        self.player_profile = profile_from_identity(
+            identity,
+            biography=biography,
+            seed=self._campaign_seed(storyline or {}),
+        )
+        return self.player_profile
+
     def _play_world(self, scene):
         from campaign.world import WorldEngine, load_world
         from .screens.world_screen import WorldScreen
 
         interp = self.storyline_interpreter
+        storyline = (interp.storyline if interp else {}) or {}
         snapshot = (interp.state or {}).get("world") if interp else None
         config = self.world_config
         if config is None:
             path = scene.get("world_path")
             if not path and interp is not None:
-                path = (interp.storyline or {}).get("world_path")
+                path = storyline.get("world_path")
             config = load_world(path or None)
             self.world_config = config
         profile = self.player_profile
         if profile is None and snapshot:
             profile = snapshot.get("profile")
+        entry = self._free_start_entry(storyline, scene)
+        if profile is None and (self.player_identity or entry):
+            profile = self._world_profile(storyline)
+        node_id = str(scene.get("node_id") or entry.get("node_id") or "")
+        office_id = str(
+            scene.get("office_id") or entry.get("office_id") or ""
+        )
         if self.world is None:
             self.world = WorldEngine(
                 config,
                 profile=profile,
-                seed=self._campaign_seed(interp.storyline if interp else {}),
+                node_id=node_id,
+                office_id=office_id,
+                seed=self._campaign_seed(storyline),
                 snapshot=snapshot,
             )
+        if self.world.profile:
+            self.player_profile = self.world.profile
         self.music.request_category("ambient")
         self.manager.replace_all(WorldScreen(self, self.world))
         logger.info(
-            "Экран мира открыт: день=%d, прикреплён=%s",
+            "Экран мира открыт: день=%d, прикреплён=%s, узел=%s, должность=%s",
             self.world.day,
             self.world.attached,
+            self.world.player_node_id,
+            self.world.player_office_id,
         )
 
     def _play_visual_novel(self, scene):
@@ -1166,10 +1295,40 @@ class App:
         )
         return True
 
+    def _save_world_game(self, slot_name):
+        from view.support.save_system import save_game as do_save
+
+        storyline_snapshot = None
+        if self.storyline_interpreter is not None:
+            storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
+        if storyline_snapshot is None:
+            storyline_snapshot = {"state": {}}
+        world_payload = self.world.to_dict()
+        world_payload["saved_at"] = time.time()
+        storyline_snapshot.setdefault("state", {})["world"] = world_payload
+        path = do_save(
+            _WorldSaveState(),
+            None,
+            slot_name,
+            scenario_path=self.scenario_path,
+            storyline_snapshot=storyline_snapshot,
+            campaign_role=self.selected_role,
+            campaign_preset=None,
+            dialogue_snapshot=(
+                self.dialogue_memory.to_dict()
+                if self.dialogue_memory is not None
+                else None
+            ),
+        )
+        logger.info("Сохранение мира записано: слот=%s", slot_name)
+        return path
+
     def save_game(self, slot_name):
         campaign = getattr(self, "automata_campaign", None)
         if campaign is not None:
             return self._save_automata_game(slot_name, campaign)
+        if self.engine is None and self.world is not None:
+            return self._save_world_game(slot_name)
         if self.engine is None or self.time_system is None:
             return None
         self.engine.state.engagements = list(self.engine.engagements)
@@ -1281,39 +1440,20 @@ class App:
                 )
                 return True
             return False
-        state = build_world(
-            scenario_path=scenario_path,
-            campaign_snapshot=snapshot.get("campaign", {}),
-            content=self.content,
-            campaign_preset=preset,
-            campaign_role=self.selected_role,
-        )
-        self.state = state
-        self.engine = CampaignEngine(state)
-        self.engine.engagements = state.engagements
-        self.player_idx = state.player_idx
-        self.time_system = CampaignTimeSystem(
-            state, engine=self.engine, app=self
-        )
-        self.time_system.load_from_snapshot(snapshot.get("time_system", {}))
-        self.engine.time_system = self.time_system
-        from .ui.time_hud import TimeHUD
-
-        self.time_hud = TimeHUD(self)
         storyline_snapshot = snapshot.get("storyline", None)
         strategy_snapshot = None
         world_snapshot = None
-        if storyline_snapshot is not None:
-            from view.support.storyline import (
-                load_storyline,
-                StorylineInterpreter,
-            )
-
+        if isinstance(storyline_snapshot, dict):
             state_snapshot = storyline_snapshot.get("state") or {}
             strategy_snapshot = state_snapshot.get("strategy")
             world_snapshot = state_snapshot.get("world")
             storyline_id = storyline_snapshot.get("storyline_id")
             if storyline_id:
+                from view.support.storyline import (
+                    load_storyline,
+                    StorylineInterpreter,
+                )
+
                 storyline = load_storyline(storyline_id)
                 if storyline is not None:
                     self.storyline_interpreter = StorylineInterpreter(
@@ -1322,6 +1462,38 @@ class App:
                     self.storyline_interpreter.load_from_snapshot(
                         storyline_snapshot
                     )
+        if world_snapshot is not None:
+            # Свободный режим: состояние живёт в WorldEngine, а не в
+            # военной кампании. Не требуем CampaignState и пресет.
+            self.state = None
+            self.engine = None
+            self.player_idx = 0
+            self.time_system = None
+            from .ui.time_hud import TimeHUD
+
+            self.time_hud = TimeHUD(self)
+        else:
+            state = build_world(
+                scenario_path=scenario_path,
+                campaign_snapshot=snapshot.get("campaign", {}),
+                content=self.content,
+                campaign_preset=preset,
+                campaign_role=self.selected_role,
+            )
+            self.state = state
+            self.engine = CampaignEngine(state)
+            self.engine.engagements = state.engagements
+            self.player_idx = state.player_idx
+            self.time_system = CampaignTimeSystem(
+                state, engine=self.engine, app=self
+            )
+            self.time_system.load_from_snapshot(
+                snapshot.get("time_system", {})
+            )
+            self.engine.time_system = self.time_system
+            from .ui.time_hud import TimeHUD
+
+            self.time_hud = TimeHUD(self)
         if world_snapshot is not None or self._is_world_campaign():
             from campaign.world import WorldEngine, load_world
             from .screens.automaton_select import AutomatonSelectScreen

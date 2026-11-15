@@ -24,12 +24,19 @@ from collections.abc import Mapping
 from typing import Iterable, List, Sequence
 
 import bdi
+import character_traits as CT
 from .geometry import GeometryError, MetricGraph
+from .identity import (
+    IDENTITY_SECTIONS,
+    ArchetypeCatalog,
+    IdentityError,
+)
 from .state_machine import StateMachineDefinition, StateMachineError
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PATHS = (
     ROOT / "configs" / "characters" / "bdi.json",
+    ROOT / "configs" / "characters" / "archetypes.json",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
@@ -582,6 +589,51 @@ def check_defaults(defaults, factions=None):
     return problems
 
 
+def lint_archetypes_data(data, config=None):
+    """Проверить каталог архетипов и его ссылки на модели черт/потребностей.
+
+    Архетип — данные, поэтому опечатка в ``needs`` или ``identity_sections``
+    должна быть ошибкой линтера, а не тихо проигнорированной дельтой.
+    """
+    if not isinstance(data, Mapping) or "archetypes" not in data:
+        return []
+    try:
+        catalog = ArchetypeCatalog(data)
+    except IdentityError as error:
+        return [str(error)]
+    config = config or bdi.load_bdi()
+    needs = set(config.needs)
+    traits = set(CT.load_traits().traits)
+    sections = set(IDENTITY_SECTIONS)
+    problems: List[str] = []
+    for item in catalog.all():
+        for key in item.needs:
+            if key not in needs:
+                problems.append(
+                    "archetype %s: неизвестная потребность %r"
+                    % (item.id, key)
+                )
+        for key in item.priority_needs:
+            if key not in needs:
+                problems.append(
+                    "archetype %s: неизвестная потребность %r"
+                    % (item.id, key)
+                )
+        for key in item.traits:
+            if key not in traits:
+                problems.append(
+                    "archetype %s: неизвестная черта %r"
+                    % (item.id, key)
+                )
+        for section in item.identity_sections:
+            if section not in sections:
+                problems.append(
+                    "archetype %s: неизвестный раздел личности %r"
+                    % (item.id, section)
+                )
+    return problems
+
+
 def lint_factions_data(data, config):
     problems: List[str] = []
     factions = data.get("factions") if isinstance(data, Mapping) else data
@@ -693,6 +745,8 @@ def _problems_for(path, data, config, factions_data=None):
     problems: List[str] = []
     if isinstance(data, Mapping) and "needs" in data:
         problems.extend(check_bdi(config))
+    if isinstance(data, Mapping) and "archetypes" in data:
+        problems.extend(lint_archetypes_data(data, config))
     if isinstance(data, Mapping) and "factions" in data:
         problems.extend(lint_factions_data(data, config))
     if isinstance(data, Mapping) and "faction_state" in data:

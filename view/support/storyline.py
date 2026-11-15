@@ -136,6 +136,7 @@ def load_storyline(storyline_id, directory=None):
         "campaign_seed": main_data.get("campaign_seed", 7),
         "identity_editor": bool(main_data.get("identity_editor", False)),
         "character_creation": char_data,
+        "free_start": main_data.get("free_start") or {},
         "scenes": scenes_data.get("sequence", []),
         "win_conditions": main_data.get("win_conditions", []),
         "lose_conditions": main_data.get("lose_conditions", []),

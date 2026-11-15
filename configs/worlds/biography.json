@@ -1,0 +1,407 @@
+{
+  "default_name": "Новый герой",
+  "origins": {
+    "port": {
+      "label": "Порт Агоры",
+      "skills": {"trade": 0.12, "intrigue": 0.08, "diplomacy": 0.06},
+      "traits": ["портовый", "быстрый на слово"],
+      "connections": [
+        {"kind": "trade", "label": "Портовые грузчики и лоцманы", "strength": 0.32},
+        {"kind": "underworld", "label": "Ночные посредники", "strength": 0.18}
+      ],
+      "text": "Вы выросли среди грузов, солёного ветра и людей, которые считают прибыль быстрее, чем закон."
+    },
+    "old_quarter": {
+      "label": "Старый квартал",
+      "skills": {"diplomacy": 0.1, "administration": 0.08, "faith": 0.06},
+      "traits": ["местный", "упрямый"],
+      "connections": [
+        {"kind": "noble", "label": "Старые городские семьи", "strength": 0.28},
+        {"kind": "care", "label": "Соседская взаимопомощь", "strength": 0.18}
+      ],
+      "text": "Вы помните Агору до пожара: дворы, где знали всех, и улицы, где имя значило больше должности."
+    },
+    "frontier": {
+      "label": "Пограничная дорога",
+      "skills": {"command": 0.12, "administration": 0.06, "trade": 0.06},
+      "traits": ["закалённый", "недоверчивый"],
+      "connections": [
+        {"kind": "military", "label": "Пограничные ветераны", "strength": 0.32},
+        {"kind": "trade", "label": "Проводники и контрабандисты", "strength": 0.15}
+      ],
+      "text": "Вы выросли там, где власть заканчивается у заставы, а договор держится на честном слове и оружии."
+    },
+    "church_orphanage": {
+      "label": "Церковный приют",
+      "skills": {"faith": 0.12, "care": 0.08, "scholarship": 0.06},
+      "traits": ["терпеливый", "милосердный"],
+      "connections": [
+        {"kind": "church", "label": "Воспитатели и клирики", "strength": 0.34},
+        {"kind": "care", "label": "Бывшие воспитанники", "strength": 0.2}
+      ],
+      "text": "Вас воспитали молитвой, работой и чужой добротой. Вы знаете, как выглядит помощь, которую не замечают."
+    },
+    "merchant_house": {
+      "label": "Торговый дом",
+      "skills": {"trade": 0.12, "administration": 0.08, "diplomacy": 0.06},
+      "traits": ["расчётливый", "сдержанный"],
+      "connections": [
+        {"kind": "trade", "label": "Купеческие семьи", "strength": 0.34},
+        {"kind": "government", "label": "Писцы и сборщики пошлин", "strength": 0.16}
+      ],
+      "text": "Вы выросли среди счетов и обязательств. Для вас договор — не бумага, а способ удержать человека."
+    },
+    "army_camp": {
+      "label": "Военный лагерь",
+      "skills": {"command": 0.12, "care": 0.06, "administration": 0.06},
+      "traits": ["дисциплинированный", "прямой"],
+      "connections": [
+        {"kind": "military", "label": "Офицеры и ветераны", "strength": 0.34},
+        {"kind": "government", "label": "Военные канцелярии", "strength": 0.16}
+      ],
+      "text": "Вашими первыми учителями были устав, сапоги и люди, которые не любят объяснять дважды."
+    }
+  },
+  "families": {
+    "artisan": {
+      "label": "Ремесленная семья",
+      "skills": {"trade": 0.08, "administration": 0.04},
+      "traits": ["практичный"],
+      "connections": [{"kind": "trade", "label": "Ремесленные цеха", "strength": 0.2}],
+      "text": "В доме ценили сделанную вещь, а не громкое слово."
+    },
+    "clergy": {
+      "label": "Семья клириков",
+      "skills": {"faith": 0.1, "diplomacy": 0.04},
+      "traits": ["набожный"],
+      "connections": [{"kind": "church", "label": "Приходская родня", "strength": 0.24}],
+      "text": "Вас учили, что у каждого поступка есть свидетель — даже если это только совесть."
+    },
+    "officer": {
+      "label": "Семья офицеров",
+      "skills": {"command": 0.1, "administration": 0.04},
+      "traits": ["гордый"],
+      "connections": [{"kind": "military", "label": "Офицерские семьи", "strength": 0.24}],
+      "text": "В вашем доме ценили порядок, но не прощали унижения."
+    },
+    "merchant": {
+      "label": "Купеческая семья",
+      "skills": {"trade": 0.1, "diplomacy": 0.04},
+      "traits": ["расчётливый"],
+      "connections": [{"kind": "trade", "label": "Купеческие связи", "strength": 0.24}],
+      "text": "Вас учили считать не только деньги, но и людей."
+    },
+    "clerk": {
+      "label": "Семья писцов",
+      "skills": {"administration": 0.1, "scholarship": 0.04},
+      "traits": ["аккуратный"],
+      "connections": [{"kind": "government", "label": "Канцелярские связи", "strength": 0.2}],
+      "text": "Вы рано поняли: тот, кто держит бумаги, держит память власти."
+    },
+    "labor": {
+      "label": "Семья работников",
+      "skills": {"care": 0.06, "trade": 0.06, "intrigue": 0.04},
+      "traits": ["стойкий"],
+      "connections": [{"kind": "trade", "label": "Рабочие артели", "strength": 0.2}],
+      "text": "В вашем доме знали цену хлебу и не верили обещаниям без свидетелей."
+    }
+  },
+  "educations": {
+    "parish_school": {
+      "label": "Приходская школа",
+      "skills": {"faith": 0.1, "scholarship": 0.08, "care": 0.04},
+      "traits": ["грамотный"],
+      "connections": [{"kind": "church", "label": "Приходские учителя", "strength": 0.22}],
+      "text": "Вы выучились читать по Писанию и спорить о смысле каждого слова."
+    },
+    "guild_apprenticeship": {
+      "label": "Цеховое ученичество",
+      "skills": {"trade": 0.12, "administration": 0.04},
+      "traits": ["ремесленный"],
+      "connections": [{"kind": "trade", "label": "Цеховые мастера", "strength": 0.24}],
+      "text": "Вы знаете, как из сырья получается вещь и как из вещи получается обязательство."
+    },
+    "academy": {
+      "label": "Академия Агоры",
+      "skills": {"scholarship": 0.14, "media": 0.08, "diplomacy": 0.06},
+      "traits": ["образованный"],
+      "connections": [{"kind": "academy", "label": "Академические наставники", "strength": 0.26}],
+      "text": "Вы привыкли проверять утверждения и задавать вопросы, которые не любят власти."
+    },
+    "military_school": {
+      "label": "Военная школа",
+      "skills": {"command": 0.14, "administration": 0.06, "care": 0.04},
+      "traits": ["офицерский"],
+      "connections": [{"kind": "military", "label": "Однокашники-офицеры", "strength": 0.26}],
+      "text": "Вам дали карту, устав и привычку отвечать за чужие жизни."
+    },
+    "seminary": {
+      "label": "Семинария",
+      "skills": {"faith": 0.14, "diplomacy": 0.08, "scholarship": 0.06},
+      "traits": ["церковный"],
+      "connections": [{"kind": "church", "label": "Семинарские наставники", "strength": 0.26}],
+      "text": "Вы изучали догматы, но запомнили главное: люди приходят к вере со своей бедой."
+    },
+    "self_taught": {
+      "label": "Самообразование",
+      "skills": {"knowledge": 0.04, "intrigue": 0.06, "media": 0.08},
+      "traits": ["любопытный"],
+      "connections": [{"kind": "media", "label": "Книжники и переписчики", "strength": 0.16}],
+      "text": "Вы собирали знание по страницам, разговорам и ошибкам."
+    }
+  },
+  "formative_events": {
+    "harbor_fire": {
+      "label": "Пожар в порту",
+      "skills": {"care": 0.08, "administration": 0.08, "diplomacy": 0.06},
+      "traits": ["видел беду"],
+      "connections": [{"kind": "care", "label": "Погорельцы", "strength": 0.2}, {"kind": "trade", "label": "Портовые свидетели", "strength": 0.14}],
+      "text": "После пожара вы поняли, что порядок без помощи — это только дым."
+    },
+    "border_war": {
+      "label": "Пограничная война",
+      "skills": {"command": 0.1, "intrigue": 0.06, "care": 0.04},
+      "traits": ["знал войну"],
+      "connections": [{"kind": "military", "label": "Товарищи по окопу", "strength": 0.24}],
+      "text": "Вы видели, как приказ и голод делят людей на тех, кто выжил, и тех, кто прав."
+    },
+    "schism": {
+      "label": "Церковный раскол",
+      "skills": {"faith": 0.1, "diplomacy": 0.08, "intrigue": 0.04},
+      "traits": ["спорил о вере"],
+      "connections": [{"kind": "church", "label": "Сторонники обеих церквей", "strength": 0.18}],
+      "text": "Раскол научил вас: община может быть опаснее армии, если её ведёт слово."
+    },
+    "bread_riot": {
+      "label": "Хлебный бунт",
+      "skills": {"care": 0.08, "command": 0.06, "trade": 0.06},
+      "traits": ["помнит голод"],
+      "connections": [{"kind": "trade", "label": "Городские артели", "strength": 0.2}],
+      "text": "Вы видели, как цена хлеба становится политическим доводом."
+    },
+    "trial": {
+      "label": "Политический процесс",
+      "skills": {"scholarship": 0.08, "diplomacy": 0.08, "intrigue": 0.06},
+      "traits": ["осторожный"],
+      "connections": [{"kind": "government", "label": "Судебные писцы", "strength": 0.18}],
+      "text": "Вы поняли, что законы работают не сами, а через людей, которые умеют их читать."
+    },
+    "plague": {
+      "label": "Моровая година",
+      "skills": {"care": 0.1, "administration": 0.06, "faith": 0.04},
+      "traits": ["не боится беды"],
+      "connections": [{"kind": "care", "label": "Врачи и санитары", "strength": 0.22}],
+      "text": "В карантине вы узнали, что забота требует не жалости, а расписания."
+    }
+  },
+  "vocations": {
+    "state": {
+      "label": "Государственная служба",
+      "skills": {"administration": 0.14, "diplomacy": 0.08, "command": 0.04},
+      "traits": ["служащий"],
+      "connections": [{"kind": "government", "label": "Сослуживцы", "strength": 0.22}],
+      "text": "Вы выбрали службу, где решение всегда принимается в чьё-то отсутствие."
+    },
+    "church": {
+      "label": "Церковное служение",
+      "skills": {"faith": 0.14, "care": 0.08, "diplomacy": 0.06},
+      "traits": ["церковный"],
+      "connections": [{"kind": "church", "label": "Приход и клир", "strength": 0.24}],
+      "text": "Вы выбрали служение, которое измеряется не должностью, а доверием общины."
+    },
+    "army": {
+      "label": "Военная служба",
+      "skills": {"command": 0.14, "administration": 0.06, "care": 0.04},
+      "traits": ["военный"],
+      "connections": [{"kind": "military", "label": "Сослуживцы", "strength": 0.24}],
+      "text": "Вы выбрали службу, где приказ и ответственность почти всегда идут в разные стороны."
+    },
+    "trade": {
+      "label": "Торговля и снабжение",
+      "skills": {"trade": 0.14, "administration": 0.06, "intrigue": 0.04},
+      "traits": ["деловой"],
+      "connections": [{"kind": "trade", "label": "Партнёры и должники", "strength": 0.24}],
+      "text": "Вы выбрали дело, где слово стоит денег, а деньги стоят слова."
+    },
+    "knowledge": {
+      "label": "Знание и слово",
+      "skills": {"scholarship": 0.14, "media": 0.08, "administration": 0.04},
+      "traits": ["книжный"],
+      "connections": [{"kind": "academy", "label": "Коллеги и издатели", "strength": 0.22}],
+      "text": "Вы выбрали работу, где чужая мысль может стать вашим оружием."
+    },
+    "care": {
+      "label": "Забота и медицина",
+      "skills": {"care": 0.14, "faith": 0.06, "diplomacy": 0.04},
+      "traits": ["милосердный"],
+      "connections": [{"kind": "care", "label": "Врачи и сестры", "strength": 0.24}],
+      "text": "Вы выбрали дело, где победа — это ещё один день чужой жизни."
+    },
+    "media": {
+      "label": "Публичное слово",
+      "skills": {"media": 0.14, "diplomacy": 0.06, "intrigue": 0.04},
+      "traits": ["публичный"],
+      "connections": [{"kind": "media", "label": "Редакции и типографии", "strength": 0.24}],
+      "text": "Вы выбрали работу, где тираж важнее правоты, но правоту всё равно проверяют."
+    },
+    "underworld": {
+      "label": "Теневое ремесло",
+      "skills": {"intrigue": 0.14, "trade": 0.06, "command": 0.04},
+      "traits": ["осторожный"],
+      "connections": [{"kind": "underworld", "label": "Ночные знакомые", "strength": 0.24}],
+      "text": "Вы выбрали жизнь, где никто не подписывает договор, но все помнят долг."
+    }
+  },
+  "values": {
+    "order": {
+      "label": "Порядок",
+      "skills": {"administration": 0.06},
+      "traits": ["принципиальный"],
+      "text": "Вы верите, что без порядка милосердие превращается в произвол."
+    },
+    "freedom": {
+      "label": "Свобода",
+      "skills": {"diplomacy": 0.06},
+      "traits": ["свободолюбивый"],
+      "text": "Вы верите, что человек не должен просить разрешения на свою жизнь."
+    },
+    "faith": {
+      "label": "Вера",
+      "skills": {"faith": 0.06},
+      "traits": ["верующий"],
+      "text": "Вы верите, что у власти есть свидетель, перед которым она отвечает."
+    },
+    "knowledge": {
+      "label": "Знание",
+      "skills": {"scholarship": 0.06},
+      "traits": ["пытливый"],
+      "text": "Вы верите, что хорошо заданный вопрос опаснее готового ответа."
+    },
+    "mercy": {
+      "label": "Милосердие",
+      "skills": {"care": 0.06},
+      "traits": ["сострадательный"],
+      "text": "Вы верите, что цена порядка измеряется теми, кого он не заметил."
+    },
+    "profit": {
+      "label": "Выгода",
+      "skills": {"trade": 0.06},
+      "traits": ["прагматичный"],
+      "text": "Вы верите, что честная выгода держит мир лучше, чем красивые слова."
+    },
+    "honor": {
+      "label": "Честь",
+      "skills": {"command": 0.06},
+      "traits": ["гордый"],
+      "text": "Вы верите, что человек без слова опаснее человека без оружия."
+    }
+  },
+  "flaws": {
+    "ambition": {
+      "label": "Амбиция",
+      "skills": {"administration": 0.04, "intrigue": 0.04},
+      "traits": ["амбициозный"],
+      "text": "Вам мало места, которое вы занимаете."
+    },
+    "doubt": {
+      "label": "Сомнение",
+      "skills": {"scholarship": 0.04, "diplomacy": 0.04},
+      "traits": ["сомневающийся"],
+      "text": "Вы слишком хорошо видите цену каждого решения."
+    },
+    "greed": {
+      "label": "Жадность",
+      "skills": {"trade": 0.06, "intrigue": 0.04},
+      "traits": ["жадный"],
+      "text": "Вам трудно отдать то, что можно оставить себе."
+    },
+    "zeal": {
+      "label": "Фанатизм",
+      "skills": {"faith": 0.06, "media": 0.04},
+      "traits": ["фанатичный"],
+      "text": "Вы готовы сжечь мост, если он ведёт не туда."
+    },
+    "cruelty": {
+      "label": "Жёсткость",
+      "skills": {"command": 0.06, "intrigue": 0.04},
+      "traits": ["жёсткий"],
+      "text": "Вы умеете выбирать, кого принести в жертву общему делу."
+    },
+    "naivety": {
+      "label": "Наивность",
+      "skills": {"care": 0.06, "diplomacy": 0.04},
+      "traits": ["доверчивый"],
+      "text": "Вы всё ещё верите, что люди говорят то, что думают."
+    }
+  },
+  "patrons": {
+    "minister": {
+      "label": "Покровитель в правительстве",
+      "skills": {"administration": 0.04},
+      "connections": [{"kind": "government", "label": "Министерская поддержка", "strength": 0.36}],
+      "text": "Один из министров знает ваше имя и ждёт от вас полезности."
+    },
+    "bishop": {
+      "label": "Покровитель в церкви",
+      "skills": {"faith": 0.04},
+      "connections": [{"kind": "church", "label": "Епископская поддержка", "strength": 0.36}],
+      "text": "Епископ дал вам совет, который звучал как разрешение."
+    },
+    "guildmaster": {
+      "label": "Покровитель в гильдии",
+      "skills": {"trade": 0.04},
+      "connections": [{"kind": "trade", "label": "Гильдейская поддержка", "strength": 0.36}],
+      "text": "Гильдмейстер готов одолжить вам не только деньги, но и людей."
+    },
+    "officer": {
+      "label": "Покровитель в армии",
+      "skills": {"command": 0.04},
+      "connections": [{"kind": "military", "label": "Офицерская поддержка", "strength": 0.36}],
+      "text": "Старый офицер считает вас своим и не скрывает этого."
+    },
+    "editor": {
+      "label": "Покровитель в редакции",
+      "skills": {"media": 0.04},
+      "connections": [{"kind": "media", "label": "Редакционная поддержка", "strength": 0.36}],
+      "text": "Редактор готов дать вам страницу, если вы дадите ему повод."
+    },
+    "crime_boss": {
+      "label": "Покровитель в тени",
+      "skills": {"intrigue": 0.04},
+      "connections": [{"kind": "underworld", "label": "Ночная поддержка", "strength": 0.36}],
+      "text": "Ночной дом не забывает услуг — но и не прощает отказов."
+    },
+    "none": {
+      "label": "Без покровителя",
+      "skills": {"diplomacy": 0.04, "intrigue": 0.04},
+      "traits": ["сам по себе"],
+      "text": "У вас нет влиятельного покровителя. Это свобода и уязвимость одновременно."
+    }
+  },
+  "reputations": {
+    "respectable": {
+      "label": "Уважаемый",
+      "skills": {"diplomacy": 0.04, "administration": 0.02},
+      "traits": ["уважаемый"],
+      "text": "Вас знают как человека, который держит слово."
+    },
+    "controversial": {
+      "label": "Спорный",
+      "skills": {"media": 0.04, "intrigue": 0.04},
+      "traits": ["спорный"],
+      "text": "О вас говорят разное, но не проходят мимо."
+    },
+    "unknown": {
+      "label": "Неизвестный",
+      "skills": {"intrigue": 0.04},
+      "traits": ["незаметный"],
+      "text": "Ваше имя пока ничего не обещает и не угрожает."
+    },
+    "notorious": {
+      "label": "Скандальный",
+      "skills": {"media": 0.06, "intrigue": 0.06},
+      "traits": ["скандальный"],
+      "text": "За вами тянется история, которую одни называют смелостью, другие — бедой."
+    }
+  }
+}

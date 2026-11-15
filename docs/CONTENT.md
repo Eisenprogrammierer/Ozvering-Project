@@ -9,14 +9,15 @@
 > [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md).
 
 > **Поставка не пустая.** В `configs/` уже лежит рабочий контент: четыре
-> лорных шаблона кампаний, общие фракции/органы/работы, роли, сюжеты,
-> 12 черт характера, 16 желаний BDI, 15 делений, каталог личности, имена,
-> события и UI-контент.
-> Каталоги `configs/worlds/`, `configs/strategy/`,
-> `configs/environments/`, `configs/presets/`, `configs/classes/`,
-> `configs/view/` и корневой `campaigns/` пока содержат только `.gitkeep` —
-> это заготовки под свои данные. `tests/fixtures/content/` остаётся
-> изолированным набором для тестов и не является игровым контентом.
+> лорных шаблона кампаний, production-мир `agora_world.json`, общие
+> фракции/органы/работы, роли, сюжеты (включая свободный `free_life`),
+> 12 черт характера, 16 желаний BDI, 15 делений, каталог личности,
+> архетипы, имена, события и UI-контент.
+> Каталоги `configs/strategy/`, `configs/environments/`,
+> `configs/presets/`, `configs/classes/`, `configs/view/` и корневой
+> `campaigns/` пока содержат только `.gitkeep` — это заготовки под свои
+> данные. `tests/fixtures/content/` остаётся изолированным набором для
+> тестов и не является игровым контентом.
 
 ## 1. Правила
 
@@ -65,12 +66,13 @@
 | `configs/characters/bdi.json` | 16 желаний, состояния, предикаты убеждений, сути намерений | `bdi.load_bdi()` | желание в `needs`, предикат, суть | числа, `spillover`, `satisfaction`, `decision`, `conditions` | нельзя удалять 16 канонических желаний |
 | `configs/characters/divisions.json` | 15 ролевых делений и культурные пресеты | `campaign.divisions.load_divisions()` | значение в `dimensions.<key>.values`, пресет в `presets` | `label`/`summary`/`values` | значение/пресет (проверить ссылки) |
 | `configs/characters/identity.json` | варианты личности героя | `campaign.identity.load_identity_catalog()` | происхождение/призвание/ценность/слабость/пол в своей секции | `label`/`summary`/`text`, `needs`, `traits` | вариант (проверить, что на него не ссылаются сохранения) |
+| `configs/characters/archetypes.json` | стартовые архетипы: слой, должность, потребности, черты, разделы личности | `campaign.identity.load_archetypes_catalog()` | архетип в `archetypes` | `social_layer`/`start_offices`/`identity_sections` | архетип (проверить `traits`, `needs` и `free_start`) |
 | `configs/storylines/<id>.json` | основной сюжет | `view.support.storyline.load_storyline` | новый `<id>.json` | поля сюжета | файл |
 | `configs/storylines/<id>_char.json` | шаги создания персонажа | тот же, по полю `character_creation` | новый файл | `steps` | файл (и ссылку) |
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
-| `configs/worlds/*.json` | миры кампании | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
+| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 50 действий) | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
 | `configs/worlds/*_strategies.json` | долгосрочные стратегии узлов | `campaign.node_strategy.StrategyBook` | новый файл или поле `strategies` | селекторы/цель/веса | файл |
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
@@ -518,9 +520,10 @@ if storylines:
 * `load_world()` без пути ищет `configs/worlds/agora_world.json`; если его
   нет, берётся первый валидный `*.json` из `configs/worlds/`. Поэтому новый
   мир можно назвать как угодно — переименовывать файл под код не нужно.
-* В текущей поставке `configs/worlds/` пуст, поэтому «Быстрая кампания»
-  из главного меню просит добавить мир. Основной рабочий путь — «Новая
-  игра» с четырьмя лорными ролями и кампаниями автоматов.
+* В поставке есть production-мир `configs/worlds/agora_world.json`, поэтому
+  «Быстрая кампания» из главного меню запускается без дополнительных
+  действий. Основной путь — «Новая игра»: четыре лорные роли с кампаниями
+  автоматов или свободный житель с сюжетом `free_life`.
 * Если ролей нет, `App` ловит `RoleError`, `RoleSelectScreen` показывает
   пустое состояние, а `python3 -m campaign --list-roles` печатает
   сообщение вместо traceback.

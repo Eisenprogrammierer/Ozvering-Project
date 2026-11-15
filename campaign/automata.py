@@ -30,6 +30,12 @@ import warfare as W
 from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
 from systems.events import EventEngine, EventError
+from .avatar import (
+    AVATAR_SCHEMA_VERSION,
+    AvatarError,
+    avatar_from_preset,
+    avatar_from_snapshot,
+)
 from .conditions import asset_reason, check_conditions
 from .effects import apply_effects, apply_report
 from .work import build_interaction_work, build_work
@@ -667,6 +673,11 @@ class AutomataCampaign:
     def __init__(self, preset, seed=None, snapshot=None):
         data = _preset_data(preset)
         self.data = data
+        try:
+            self.avatar = avatar_from_preset(data)
+        except AvatarError as exc:
+            logger.warning("Аватар не создан: %s", exc)
+            self.avatar = None
         scenario = _as_mapping(data.get("scenario"))
         self.mode = str(scenario.get("mode") or "automata")
         self.title = str(data.get("title") or "Кампания автоматов")
@@ -1177,6 +1188,77 @@ class AutomataCampaign:
     @property
     def rival(self):
         return self.faction(self.rival_side)
+
+    def avatar_character(self):
+        """``Character`` аватара или ``None``.
+
+        Аватар может не иметь фракции (свободный режим); тогда персонаж
+        ищется по всем сторонам. Отсутствие аватара не ошибка: старые
+        снимки и сценарии без героя продолжают работать.
+        """
+        if self.avatar is None:
+            return None
+        if self.avatar.faction_id:
+            faction = self.faction(self.avatar.faction_id)
+            if faction is not None:
+                found = faction.character(self.avatar.character_id)
+                if found is not None:
+                    return found
+        for faction in self.factions.values():
+            found = faction.character(self.avatar.character_id)
+            if found is not None:
+                return found
+        return None
+
+    def assign_avatar_office(self, office_id):
+        """Сменить должность аватара; потеря поста — не поражение."""
+        if self.avatar is None:
+            return None
+        office_id = str(office_id or "").strip()
+        character = self.avatar_character()
+        if character is not None:
+            character.campaign_post_id = office_id
+            character.campaign_post = office_id
+        self.avatar = self.avatar.with_office(office_id)
+        return self.avatar
+
+    def move_avatar(self, scene_id):
+        """Перевести аватара в сцену. Сцена — данные, а не сторона."""
+        if self.avatar is None:
+            return None
+        scene_id = str(scene_id or "").strip()
+        character = self.avatar_character()
+        if character is not None:
+            character.scene_id = scene_id
+        self.avatar = self.avatar.with_scene(scene_id)
+        return self.avatar
+
+    def _sync_avatar_state(self):
+        """Сделать аватар источником истины для флагов персонажа.
+
+        Снимок хранит аватар отдельно, а ``FactionRuntime`` — записи
+        персонажей. После загрузки флаги ``campaign_is_player`` и
+        должность/сцена приводятся к аватару, иначе старый сейв мог бы
+        оставить игроком лидера.
+        """
+        if self.avatar is None:
+            return
+        for faction in self.factions.values():
+            for character in faction.characters:
+                character.campaign_is_player = (
+                    str(getattr(character, "campaign_id", "") or "")
+                    == self.avatar.character_id
+                )
+        character = self.avatar_character()
+        if character is None:
+            return
+        previous_id = str(
+            getattr(character, "campaign_post_id", "") or ""
+        )
+        if previous_id != self.avatar.office_id:
+            character.campaign_post = self.avatar.office_id
+        character.campaign_post_id = self.avatar.office_id
+        character.scene_id = self.avatar.scene_id
 
     def rival_of(self, side):
         side = str(side or "")
@@ -3094,6 +3176,10 @@ class AutomataCampaign:
             "score_streak": self.score_streak,
             "score_streak_side": self.score_streak_side,
             "player_side": self.player_side,
+            "avatar_schema": AVATAR_SCHEMA_VERSION,
+            "avatar": (
+                self.avatar.as_dict() if self.avatar is not None else None
+            ),
             "rival_side": self.rival_side,
             "outcome": self.outcome,
             "finished": self.finished,
@@ -3327,6 +3413,13 @@ class AutomataCampaign:
         )
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))
+        try:
+            restored = avatar_from_snapshot(snapshot, fallback_data=self.data)
+        except AvatarError as exc:
+            logger.warning("Аватар из снимка не восстановлен: %s", exc)
+        else:
+            if "avatar" in snapshot:
+                self.avatar = restored
         self._restore_machines(snapshot.get("machines"))
         rng_state = snapshot.get("rng_state")
         if rng_state:
@@ -3520,6 +3613,7 @@ class AutomataCampaign:
         self.log = list(snapshot.get("log") or [])
         if self.outcome:
             self.finished = True
+        self._sync_avatar_state()
 
     def audit(self):
         anomalies = []

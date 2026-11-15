@@ -341,9 +341,9 @@ venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
     --world tests/fixtures/content/configs/worlds/agora_world.json
 ```
 
-`--world` нужен, потому что в поставке `configs/worlds/` пуст; без флага
-`CampaignEnv` ищет мир в `configs/worlds/*.json` и поднимает `WorldError`.
-Тестовый мир — полноценный пример на 43 узла.
+`--world` задаёт JSON-мир явно; без флага `CampaignEnv` берёт
+production-мир `configs/worlds/agora_world.json`. Компактный тестовый мир
+на 43 узла лежит в `tests/fixtures/content/` и удобен для быстрых прогонов.
 
 Флаг `--campaign-career` (только для `--env campaign`) пробрасывает
 `career_actions=True` в `CampaignEnv`: карьерные действия `seek_promotion`,

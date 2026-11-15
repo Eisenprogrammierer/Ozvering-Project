@@ -1,0 +1,337 @@
+{
+  "schema": 1,
+  "label": "Архетипы персонажей",
+  "archetypes": [
+    {
+      "id": "street_musician",
+      "label": "Уличный музыкант",
+      "description": "Живёт подаянием и песней. Знает улицу, толпу и цену внимания.",
+      "entity_kind": "character",
+      "social_layer": "street",
+      "start_offices": [],
+      "start_faction": "",
+      "storyline_tags": [
+        "street",
+        "music",
+        "free"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "creativity",
+        "status",
+        "friendship"
+      ],
+      "traits": {
+        "creativity": 0.1,
+        "sociability": 0.06,
+        "ambition": 0.02
+      },
+      "scenes": [
+        "street",
+        "market",
+        "temple"
+      ],
+      "needs": {
+        "creativity": 0.08,
+        "status": 0.04,
+        "friendship": 0.03
+      }
+    },
+    {
+      "id": "school_student",
+      "label": "Школьник",
+      "description": "Учится, дружит, ошибается. Взрослые пока решают за него.",
+      "entity_kind": "character",
+      "social_layer": "school",
+      "start_offices": [],
+      "start_faction": "",
+      "storyline_tags": [
+        "school",
+        "study",
+        "free"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "knowledge",
+        "friendship",
+        "boredom"
+      ],
+      "traits": {
+        "curiosity": 0.1,
+        "sociability": 0.05,
+        "discipline": 0.02
+      },
+      "scenes": [
+        "school",
+        "street",
+        "market"
+      ],
+      "needs": {
+        "knowledge": 0.08,
+        "friendship": 0.04,
+        "boredom": 0.03
+      }
+    },
+    {
+      "id": "temple_priest",
+      "label": "Храмовый жрец",
+      "description": "Служит общине и божеству. Умеет говорить с теми, кого не слышат другие.",
+      "entity_kind": "character",
+      "social_layer": "temple",
+      "start_offices": [],
+      "start_faction": "faction_cult",
+      "storyline_tags": [
+        "temple",
+        "ritual",
+        "faith"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "vocations",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "spirituality",
+        "friendship",
+        "loneliness"
+      ],
+      "traits": {
+        "spirituality": 0.1,
+        "empathy": 0.06,
+        "fanaticism": 0.02
+      },
+      "scenes": [
+        "temple",
+        "street",
+        "court"
+      ],
+      "needs": {
+        "spirituality": 0.08,
+        "friendship": 0.04,
+        "loneliness": 0.03
+      }
+    },
+    {
+      "id": "court_official",
+      "label": "Чиновник",
+      "description": "Ведёт бумаги, знает процедуру и цену подписи.",
+      "entity_kind": "character",
+      "social_layer": "court",
+      "start_offices": [],
+      "start_faction": "faction_empire",
+      "storyline_tags": [
+        "court",
+        "law",
+        "service"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "vocations",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "status",
+        "knowledge",
+        "anxiety"
+      ],
+      "traits": {
+        "discipline": 0.08,
+        "ambition": 0.04,
+        "curiosity": 0.03
+      },
+      "scenes": [
+        "court",
+        "market",
+        "street"
+      ],
+      "needs": {
+        "status": 0.08,
+        "knowledge": 0.04,
+        "anxiety": 0.03
+      }
+    },
+    {
+      "id": "artisan",
+      "label": "Ремесленник",
+      "description": "Работает руками и держит слово. Уважает тех, кто умеет делать.",
+      "entity_kind": "character",
+      "social_layer": "market",
+      "start_offices": [],
+      "start_faction": "",
+      "storyline_tags": [
+        "market",
+        "craft",
+        "free"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "skill",
+        "hunger",
+        "friendship"
+      ],
+      "traits": {
+        "discipline": 0.06,
+        "curiosity": 0.04,
+        "loyalty": 0.03
+      },
+      "scenes": [
+        "market",
+        "street",
+        "school"
+      ],
+      "needs": {
+        "skill": 0.08,
+        "hunger": 0.04,
+        "friendship": 0.03
+      }
+    },
+    {
+      "id": "soldier",
+      "label": "Солдат",
+      "description": "Приказ, товарищи, окоп. Умеет ждать и не любит болтать.",
+      "entity_kind": "character",
+      "social_layer": "army",
+      "start_offices": [],
+      "start_faction": "faction_empire",
+      "storyline_tags": [
+        "army",
+        "service",
+        "front"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "health",
+        "friendship",
+        "fear"
+      ],
+      "traits": {
+        "courage": 0.08,
+        "discipline": 0.06,
+        "loyalty": 0.04
+      },
+      "scenes": [
+        "army",
+        "street",
+        "court"
+      ],
+      "needs": {
+        "health": 0.08,
+        "friendship": 0.04,
+        "fear": 0.03
+      }
+    },
+    {
+      "id": "merchant",
+      "label": "Торговец",
+      "description": "Считает лучше, чем говорит. Помнит все долги — свои и чужие.",
+      "entity_kind": "character",
+      "social_layer": "market",
+      "start_offices": [],
+      "start_faction": "faction_corporation",
+      "storyline_tags": [
+        "market",
+        "trade",
+        "service"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "vocations",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "skill",
+        "status",
+        "hunger"
+      ],
+      "traits": {
+        "ambition": 0.06,
+        "curiosity": 0.04,
+        "discipline": 0.03
+      },
+      "scenes": [
+        "market",
+        "street",
+        "court"
+      ],
+      "needs": {
+        "skill": 0.08,
+        "status": 0.04,
+        "hunger": 0.03
+      }
+    },
+    {
+      "id": "aristocrat",
+      "label": "Аристократ",
+      "description": "Род, обязанности, репутация. Умеет говорить от имени других.",
+      "entity_kind": "character",
+      "social_layer": "court",
+      "start_offices": [],
+      "start_faction": "faction_empire",
+      "storyline_tags": [
+        "court",
+        "status",
+        "service"
+      ],
+      "playable": true,
+      "identity_sections": [
+        "genders",
+        "origins",
+        "values",
+        "flaws"
+      ],
+      "priority_needs": [
+        "status",
+        "friendship",
+        "fear"
+      ],
+      "traits": {
+        "discipline": 0.06,
+        "loyalty": 0.04,
+        "ambition": 0.04
+      },
+      "scenes": [
+        "court",
+        "temple",
+        "market"
+      ],
+      "needs": {
+        "status": 0.08,
+        "friendship": 0.04,
+        "fear": 0.03
+      }
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+# campaign/preset.py
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ from systems.playwright import (
     PlaywrightConfig,
 )
 
+from .avatar import avatar_from_preset
 from .defaults import default_dict
 from .divisions import load_divisions
 from .errors import CampaignError
@@ -1092,6 +1094,63 @@ class CampaignPreset:
         return self.character(self.player_character_id)
 
     @property
+    def avatar(self):
+        """Явная ссылка на управляемого персонажа (P2).
+
+        Собирается из пресета, поэтому не расходится с
+        ``player_character_id``; режим по умолчанию — ``delegated``,
+        чтобы лорные кампании и старые сейвы вели себя как раньше.
+        """
+        return avatar_from_preset(
+            {
+                "player_character_id": self.player_character_id,
+                "player_faction_id": self.player_faction_id,
+                "characters": self.characters,
+            }
+        )
+
+    def select_player_character(self, character_id, control_mode="direct"):
+        """Сделать управляемым любого персонажа своей стороны (P2).
+
+        Лидер фракции остаётся лидером: меняется только тот, кем играет
+        игрок. Это позволяет выбрать школьника или музыканта внутри
+        фракции, не переписывая организации и не создавая «вторую игру».
+        """
+        record = self.character(character_id)
+        if record is None:
+            raise CampaignPresetError(
+                "нет персонажа %r" % (character_id,)
+            )
+        side = _text(record.get("side"))
+        if side and side != self.player_side:
+            raise CampaignPresetError(
+                "персонаж %r на стороне %r, а не %r"
+                % (character_id, side, self.player_side)
+            )
+        mode = _text(control_mode, "direct").strip().lower()
+        if mode not in ("direct", "delegated"):
+            raise CampaignPresetError(
+                "неизвестный режим управления %r" % (control_mode,)
+            )
+        for item in self.characters:
+            item["is_player"] = item.get("id") == character_id
+        record["control_mode"] = mode
+        self.player_character_id = _text(character_id)
+        self.player_faction_id = _text(record.get("faction_id")) or (
+            self.player_faction_id
+        )
+        return self
+
+    def available_player_characters(self):
+        """Кандидаты в аватар: все персонажи стороны игрока."""
+        side = self.player_side
+        return [
+            item
+            for item in self.characters
+            if _text(item.get("side")) == side
+        ]
+
+    @property
     def player_side(self):
         return _text(self.scenario.get("player_side"), "red")
 
@@ -1145,6 +1204,12 @@ class CampaignPreset:
         персонажа: имя, биографию, потребности и черты. Посты, активы и
         баланс фракций при этом не трогаются, поэтому один и тот же seed
         остаётся детерминированным.
+
+        Новое (P1/P2): если в ``identity`` передан ``archetype_id`` и
+        каталог архетипов ``configs/characters/archetypes.json`` содержит
+        запись, на игрового персонажа переносятся ``social_layer``,
+        ``start_offices``, ``start_faction`` и ``storyline_tags``
+        архетипа. Если каталога нет, поведение прежнее.
         """
         identity = dict(identity or {})
         if not identity:
@@ -1210,6 +1275,22 @@ class CampaignPreset:
             )
         player["personality"] = _round_mapping(personality)
 
+        archetype_id = _text(identity.get("archetype_id")).strip()
+        if archetype_id:
+            archetype = _apply_archetype(player, archetype_id)
+            if archetype is not None:
+                player["archetype_id"] = archetype.id
+
+        control_mode = _text(identity.get("control_mode")).strip().lower()
+        if control_mode in ("direct", "delegated"):
+            player["control_mode"] = control_mode
+        office_id = _text(identity.get("office_id")).strip()
+        if office_id:
+            player["office_id"] = office_id
+        scene_id = _text(identity.get("scene_id")).strip()
+        if scene_id:
+            player["scene_id"] = scene_id
+
         is_female = str(identity.get("gender") or "").strip().lower() in (
             "female",
             "f",
@@ -1262,6 +1343,7 @@ class CampaignPreset:
 
     def summary(self):
         events = self.events.get("hooks") or []
+        avatar = self.avatar
         return {
             "preset_id": self.preset_id,
             "title": self.title,
@@ -1269,6 +1351,7 @@ class CampaignPreset:
             "role_id": self.role.id,
             "player_faction_id": self.player_faction_id,
             "player_character_id": self.player_character_id,
+            "avatar": avatar.as_dict() if avatar is not None else None,
             "player_identity": dict(self.player_identity),
             "factions": len(self.factions),
             "characters": len(self.characters),
@@ -1309,6 +1392,9 @@ class CampaignPreset:
             },
             "player_faction_id": self.player_faction_id,
             "player_character_id": self.player_character_id,
+            "avatar": (
+                self.avatar.as_dict() if self.avatar is not None else None
+            ),
             "player_identity": dict(self.player_identity),
             "factions": list(self.factions),
             "characters": list(self.characters),
@@ -1384,6 +1470,66 @@ class CampaignPreset:
             self.seed,
             self.role.id,
         )
+
+
+def _apply_archetype(player, archetype_id):
+    """Перенести стартовую точку архетипа на игрового персонажа.
+
+    Мутирует ``player`` только по ключам архетипа. Ошибки каталога
+    (нет файла, битый JSON) не роняют кампанию: возвращается ``None``, и
+    ``apply_player_identity`` продолжает без архетипа.
+    """
+    try:
+        from .identity import load_archetypes_catalog
+
+        catalog = load_archetypes_catalog()
+    except Exception:
+        return None
+    if catalog is None:
+        return None
+    try:
+        archetype = catalog.require(archetype_id)
+    except Exception:
+        return None
+    player["archetype"] = archetype.id
+    player["social_layer"] = archetype.social_layer
+    player["start_offices"] = list(archetype.start_offices)
+    player["start_faction"] = archetype.start_faction
+    player["storyline_tags"] = list(archetype.storyline_tags)
+    player["archetype_scenes"] = list(archetype.scenes)
+    if archetype.priority_needs:
+        player["archetype_priority_needs"] = list(
+            archetype.priority_needs
+        )
+    if archetype.needs:
+        needs = {
+            str(key): _as_float(value, 0.0)
+            for key, value in _as_mapping(player.get("needs")).items()
+        }
+        for key, delta in archetype.needs.items():
+            key = str(key)
+            if key not in needs:
+                continue
+            needs[key] = max(0.0, min(1.0, needs[key] + _as_float(delta)))
+        player["needs"] = _round_mapping(needs)
+    if archetype.traits:
+        personality = {
+            str(key): _as_float(value, 0.0)
+            for key, value in _as_mapping(
+                player.get("personality")
+            ).items()
+        }
+        for key, delta in archetype.traits.items():
+            key = str(key)
+            if key not in personality:
+                continue
+            personality[key] = max(
+                0.0,
+                min(1.0, personality[key] + _as_float(delta)),
+            )
+        player["personality"] = _round_mapping(personality)
+        player["archetype_traits"] = dict(archetype.traits)
+    return archetype
 
 
 class CampaignPresetGenerator:

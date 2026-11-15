@@ -18,7 +18,15 @@
         "empire",
         "nominal",
         "leader"
-      ]
+      ],
+      "entity_kind": "character",
+      "social_layer": "court",
+      "start_offices": [],
+      "start_faction": "faction_empire",
+      "storyline_tags": ["lore", "empire", "leader", "court"],
+      "playable": true,
+      "identity_sections": ["genders", "origins", "vocations", "values", "flaws"],
+      "archetype_id": ""
     },
     {
       "id": "republic_leader",
@@ -37,7 +45,15 @@
         "republic",
         "nominal",
         "leader"
-      ]
+      ],
+      "entity_kind": "character",
+      "social_layer": "court",
+      "start_offices": [],
+      "start_faction": "faction_republic",
+      "storyline_tags": ["lore", "republic", "leader", "court"],
+      "playable": true,
+      "identity_sections": ["genders", "origins", "vocations", "values", "flaws"],
+      "archetype_id": ""
     },
     {
       "id": "cult_leader",
@@ -56,7 +72,15 @@
         "cult",
         "nominal",
         "leader"
-      ]
+      ],
+      "entity_kind": "character",
+      "social_layer": "temple",
+      "start_offices": [],
+      "start_faction": "faction_cult",
+      "storyline_tags": ["lore", "cult", "leader", "temple"],
+      "playable": true,
+      "identity_sections": ["genders", "origins", "vocations", "values", "flaws"],
+      "archetype_id": ""
     },
     {
       "id": "corporation_leader",
@@ -75,7 +99,47 @@
         "corporation",
         "nominal",
         "leader"
-      ]
+      ],
+      "entity_kind": "character",
+      "social_layer": "market",
+      "start_offices": [],
+      "start_faction": "faction_corporation",
+      "storyline_tags": ["lore", "corporation", "leader", "market"],
+      "playable": true,
+      "identity_sections": ["genders", "origins", "vocations", "values", "flaws"],
+      "archetype_id": ""
+    },
+    {
+      "id": "free_citizen",
+      "label": "Свободный житель",
+      "short_label": "Свободный житель",
+      "description": "У вас нет мандата, фракции и места в иерархии. Есть улица, работа, знакомые и право самому решать, кем стать в Агоре. Начните музыкантом, школьником, ремесленником или другим человеком из архетипов.",
+      "leadership": "none",
+      "faction_kind": "none",
+      "faction_slot": "none",
+      "faction_choice": false,
+      "storyline_id": "free_life",
+      "available": true,
+      "sort_order": 40,
+      "grants": {
+        "player_role": "free_citizen",
+        "leadership_mode": "none",
+        "faction_control": "none"
+      },
+      "tags": [
+        "free",
+        "civil",
+        "street",
+        "biography"
+      ],
+      "entity_kind": "character",
+      "social_layer": "free",
+      "start_offices": [],
+      "start_faction": "",
+      "storyline_tags": ["free", "street", "school", "market", "temple", "court", "army"],
+      "playable": true,
+      "identity_sections": ["genders", "origins", "vocations", "values", "flaws"],
+      "archetype_id": "street_musician"
     }
   ]
 }

@@ -1,0 +1,143 @@
+{
+  "id": "agora_strategies",
+  "title": "Долгосрочные цели структур Агоры",
+  "note": "Data-Driven контент: стратегии читаются WorldEngine и добавляют узлам горизонт нескольких дней. Селекторы nodes/target поддерживают ids, domains, levels, kinds, polities и tags.",
+  "strategies": [
+    {
+      "id": "order_consolidation",
+      "label": "Укрепить порядок",
+      "description": "Правительство и министерства доводят легитимность до устойчивого уровня.",
+      "nodes": {
+        "domains": ["order"],
+        "levels": ["government", "ministry"]
+      },
+      "target": {
+        "kinds": ["institution"]
+      },
+      "horizon_days": 8,
+      "bonus": 0.25,
+      "priority": 2,
+      "goal": {
+        "stat": "legitimacy",
+        "target": 0.78,
+        "direction": "increase"
+      },
+      "actions": {
+        "reform": 0.9,
+        "negotiate": 0.5,
+        "inspect": 0.3
+      },
+      "completion": {
+        "stats": {
+          "cohesion": 0.02
+        },
+        "text": "Порядок укрепился: структуры согласовали общий язык."
+      },
+      "expiry": {
+        "stats": {
+          "legitimacy": -0.01
+        },
+        "text": "Окно реформы упущено: доверие просело."
+      }
+    },
+    {
+      "id": "knowledge_reform",
+      "label": "Реформа знания",
+      "description": "Академия и департаменты наращивают влияние через исследования и публикации.",
+      "nodes": {
+        "domains": ["knowledge"]
+      },
+      "target": {
+        "domains": ["knowledge", "order", "status"]
+      },
+      "horizon_days": 7,
+      "bonus": 0.22,
+      "priority": 1,
+      "goal": {
+        "stat": "reach",
+        "target": 0.76
+      },
+      "actions": {
+        "research": 0.9,
+        "publish": 0.6,
+        "archive": 0.4
+      },
+      "completion": {
+        "stats": {
+          "capacity": 0.02
+        },
+        "text": "Знание стало опорой управления."
+      },
+      "expiry": {
+        "text": "Реформа знания не успела закрепиться."
+      }
+    },
+    {
+      "id": "care_response",
+      "label": "Ответ на нужду",
+      "description": "Структуры заботы расширяют охват и снижают давление нужды.",
+      "nodes": {
+        "domains": ["care"]
+      },
+      "target": {
+        "domains": ["care", "order", "provision"]
+      },
+      "horizon_days": 6,
+      "bonus": 0.24,
+      "priority": 1,
+      "goal": {
+        "stat": "capacity",
+        "target": 0.75
+      },
+      "actions": {
+        "treat": 0.9,
+        "relieve": 0.6,
+        "recruit_medics": 0.5
+      },
+      "completion": {
+        "stats": {
+          "legitimacy": 0.02
+        },
+        "text": "Город почувствовал, что забота — не формальность."
+      },
+      "expiry": {
+        "stats": {
+          "legitimacy": -0.01
+        },
+        "text": "Нужда пережила обещания."
+      }
+    },
+    {
+      "id": "exchange_stability",
+      "label": "Стабильный обмен",
+      "description": "Торговые структуры наращивают богатство и снижают риск срыва поставок.",
+      "nodes": {
+        "domains": ["exchange", "provision"]
+      },
+      "target": {
+        "domains": ["exchange", "provision"]
+      },
+      "horizon_days": 7,
+      "bonus": 0.20,
+      "priority": 0,
+      "goal": {
+        "stat": "wealth",
+        "target": 0.72
+      },
+      "actions": {
+        "invest": 0.7,
+        "contract": 0.6,
+        "price_fix": 0.4
+      },
+      "completion": {
+        "stats": {
+          "cohesion": 0.01
+        },
+        "text": "Обмен стабилизировался: поставки идут по расписанию."
+      },
+      "expiry": {
+        "text": "Торговое окно закрылось без выгоды."
+      }
+    }
+  ]
+}

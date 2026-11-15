@@ -218,8 +218,8 @@ main.py
 
 | Путь | Содержимое | Загрузчик |
 |---|---|---|
-| `configs/roles/roles.json` | четыре роли лорных кампаний | `campaign.roles.RoleCatalog` |
-| `configs/storylines/*.json` | сюжеты четырёх фракций и их сцены | `view.support.storyline` |
+| `configs/roles/roles.json` | четыре роли лорных кампаний и `free_citizen` | `campaign.roles.RoleCatalog` |
+| `configs/storylines/*.json` | сюжеты четырёх фракций, `free_life` и их сцены | `view.support.storyline` |
 | `configs/campaigns/*.json` | шаблоны кампаний автоматов | `campaign.preset` |
 | `configs/content/*.json` | приказы, документы, диалоги, время | `view.support.content.Content` |
 | `configs/characters/traits.json` | 12 черт, архетипы, влияние | `character_traits.load_traits()` |
@@ -292,10 +292,11 @@ GUI существует и играется, но это **рабочий пе�
 
 ### 4.3. Известные ограничения
 
-* **Быстрая кампания из меню не работает без мира.** В поставке
-  `configs/worlds/` пуст, поэтому экран показывает:
-  «Добавьте мир в configs/worlds/*.json». Основной путь «Новая игра» от
-  этого не зависит: он идёт через кампании автоматов.
+* **Быстрая кампания из меню использует production-мир.**
+  `configs/worlds/agora_world.json` входит в поставку, поэтому экран
+  запускается сразу. Если файл удалён, появится просьба добавить мир в
+  `configs/worlds/*.json`. «Новая игра» от этого не зависит: она идёт
+  через кампании автоматов или свободный режим `free_life`.
 * **Ассеты — плейсхолдеры.** `configs/view/presentation.json` в поставке
   отсутствует, поэтому `AssetLoader` использует процедурные заглушки;
   реальные JPG/PNG не обязательны для запуска.
@@ -380,7 +381,10 @@ GUI существует и играется, но это **рабочий пе�
   со ссылкой `storyline_id`;
 * общие фракции, органы и работы — `configs/campaigns/base/lore_factions.json`;
 * варианты личности героя — `configs/characters/identity.json`;
-* новый мир — `configs/worlds/*.json` (сейчас каталог пуст);
+* стартовые архетипы — `configs/characters/archetypes.json` и
+  `free_start` в `configs/storylines/free_life.json`;
+* новый мир — `configs/worlds/*.json` (production-пример —
+  `agora_world.json`; тестовый — в `tests/fixtures/content/`);
 * новый автомат для редактора — `configs/automata/*.json`;
 * события/среда/драматург — `configs/systems/*.json`;
 * имена — `configs/naming/*.json`;
@@ -515,7 +519,7 @@ venv/bin/python -m agents.train --episodes 500 --seed 0
 # дуэльный срез
 venv/bin/python -m agents.train --episodes 500 --seed 0 --env duel
 
-# дневная кампания (в поставке configs/worlds/ пуст, поэтому --world)
+# дневная кампания (production-мир; --world переопределяет путь)
 venv/bin/python -m agents.train --episodes 100 --seed 0 --env campaign \
   --policy bdi \
   --world tests/fixtures/content/configs/worlds/agora_world.json

@@ -197,7 +197,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `campaign/dialogue/` | **диалоговый слой**: разбор, вывод, план ответа, дискурс, стили, контрфакты, линтер; без LLM и pygame |
 | `configs/dialogue/` | 18 JSON диалога: онтология, лексикон, грамматика, факты, правила, планы, дискурс, синтез (schema 2), стили (schema 4), контрфакты |
 | `view/screens/dialogue_chat.py` | игровой чат «СВЯЗЬ»: фракция, персонаж, стиль ответа и память партии |
-| `configs/roles/`, `configs/worlds/`, `configs/campaigns/`, `configs/strategy/`, `campaigns/` | каталоги игрового JSON-контента. В поставке есть `configs/roles/roles.json`, `configs/campaigns/*.json` и `configs/campaigns/base/*.json`; `configs/worlds/` и `configs/strategy/` пока пусты (`.gitkeep`). Тестовый набор — в `tests/fixtures/content/` |
+| `configs/roles/`, `configs/worlds/`, `configs/campaigns/`, `configs/strategy/`, `campaigns/` | каталоги игрового JSON-контента. В поставке есть `configs/roles/roles.json`, `configs/campaigns/*.json`, `configs/campaigns/base/*.json` и production-мир `configs/worlds/` (`agora_world.json`, `agora_strategies.json`, `biography.json`); `configs/strategy/` пока пуст (`.gitkeep`). Тестовый набор — в `tests/fixtures/content/` |
 | `automata/` | **графический редактор автоматов**: состояния, переходы, холст, инспектор (без предметной спецификации) |
 | `interaction/` | **доменно-нейтральный фреймворк взаимодействий**: объекты, действия, шумные/скрытые/неизвестные исходы (без pygame) |
 | `ui/scenes/interaction.py` | экран из трёх панелей: объекты → действия → прогноз/фактический исход |
@@ -425,8 +425,8 @@ python3 -m naming --person --fantasy high_elf --count 3 --seed 7
   `available: false` скрывает роль из выбора.
 * **Мир должностного лица** — `campaign/world.py`, `configs/worlds/` и
   сюжет в `configs/storylines/` (четыре лорных сюжета уже есть, а
-  `configs/worlds/` в поставке пуст; тестовый мир лежит в
-  `tests/fixtures/content/`). Игрок
+  production-мир лежит в `configs/worlds/agora_world.json`; компактный
+  тестовый мир — в `tests/fixtures/content/`). Игрок
   создаёт человека, выбирает автомат и семантический уровень, занимает
   должность. Тестовый набор описывает семь доменов, несколько государств
   и церквей, узлы, должности и действия; каждый узел ходит раз в день, а

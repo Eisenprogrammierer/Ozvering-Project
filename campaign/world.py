@@ -692,6 +692,91 @@ def build_player_profile(variables, biography=None, seed=0):
     return profile
 
 
+def profile_from_identity(identity, biography=None, seed=0):
+    """Собрать профиль мира из личности, собранной редактором.
+
+    ``build_player_profile`` читает биографические таблицы по id. Личность
+    из ``configs/characters/identity.json`` использует собственные id,
+    поэтому часть разделов может не найтись в biography. В этом случае
+    профиль сохраняет подписи и текст личности, чтобы герой не терял
+    происхождение, призвание и ценность при переходе в мир.
+
+    Функция не требует фракции, должности или кампании: это точка входа
+    свободного режима.
+    """
+    identity = dict(identity or {})
+    variables = {
+        "name": identity.get("name"),
+        "gender": identity.get("gender"),
+        "origin": identity.get("origin"),
+        "vocation": identity.get("vocation"),
+        "value": identity.get("value"),
+        "value2": identity.get("value2"),
+        "flaw": identity.get("flaw"),
+    }
+    profile = build_player_profile(
+        variables,
+        biography=biography,
+        seed=seed,
+    )
+
+    labels = {
+        "origin": identity.get("origin_label"),
+        "vocation": identity.get("vocation_label"),
+        "flaw": identity.get("flaw_label"),
+    }
+    for key, label in labels.items():
+        if label and not profile.get(key):
+            profile[key] = _text(label)
+
+    value_labels = []
+    for key in ("value_label", "value2_label"):
+        label = _text(identity.get(key)).strip()
+        if label and label not in value_labels:
+            value_labels.append(label)
+    if value_labels:
+        profile["values"] = value_labels
+        value_ids = []
+        for key in ("value", "value2"):
+            value_id = _values.value_id(identity.get(key))
+            if value_id and value_id not in value_ids:
+                value_ids.append(value_id)
+        profile["value_ids"] = value_ids
+
+    trait_labels = []
+    try:
+        import character_traits as CT
+
+        trait_model = CT.load_traits()
+        trait_labels = [
+            trait_model.labels.get(str(key), str(key))
+            for key, amount in (identity.get("traits") or {}).items()
+            if _as_float(amount) > 0.0
+        ]
+    except Exception:
+        trait_labels = []
+    for label in trait_labels:
+        if label and label not in profile["traits"]:
+            profile["traits"].append(label)
+
+    biography_text = _text(identity.get("biography")).strip()
+    if biography_text:
+        profile["biography"] = [biography_text]
+    for key in (
+        "summary",
+        "gender_label",
+        "trait",
+        "trait_label",
+        "trait_summary",
+        "archetype_id",
+    ):
+        value = identity.get(key)
+        if value:
+            profile[key] = value
+    profile["seed"] = int(seed)
+    return profile
+
+
 def normalize_profile(profile):
     profile = dict(profile or {})
     profile.setdefault("name", "Новый герой")
@@ -6340,6 +6425,7 @@ __all__ = [
     "load_world",
     "normalize_profile",
     "office_profile_status",
+    "profile_from_identity",
     "validate_world",
 ]
 
