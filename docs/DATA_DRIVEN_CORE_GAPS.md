@@ -720,8 +720,9 @@ no-op. Для контента объёмом в тысячи строк это 
   `has_authority`/`trusts`, `ActionBridge.perform_social`,
   маршрутизация `TextGame`; покрытие — `tests/test_d7_social.py`.
   `has_leverage` объявлен, но факты пока не выводятся.
-* **D6.1** — аудит `lexicon.json` (сокращение дублей `aliases` ⊇
-  `forms`).
+* **D6.1** — аудит `lexicon.json` (**закрыто**): псевдоним больше не
+  дублирует собственную форму, линтер это проверяет; покрытие —
+  `tests/test_d6_lexicon.py`.
 
 ---
 

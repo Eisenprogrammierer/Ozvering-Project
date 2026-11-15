@@ -494,6 +494,7 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 | D5.2 | автовыбор регистра по контексту |
 | D5.3 | агрегация, анафора, тема-рема |
 | D5.4 | абзац 4+ хода через `DiscoursePattern.topics` |
+| D6.1 | аудит лексикона: псевдоним не дублирует собственную форму |
 | D6.2a | отрицание в антецеденте контрфакта |
 | D6.2b | «то»-клауза как цель сравнения |
 | D6.2c | `predicate_relations`: предикат → отношение мира |
@@ -518,6 +519,11 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   действий — в `actions.json`; мост к действиям выключен по умолчанию
   и включается только явным `allow_actions=True`. Императивы
   разбираются правилами `s_imperative_v_np*`.
+* **D6.1 закрыт.** Проверены 367 лексем: единственный псевдоним,
+  дублировавший собственную форму, — `дела` у `concept:affairs`; он
+  удалён. Полезные псевдонимы вроде `имперцы` у `faction:red`
+  сохранены. `lint_catalog` теперь отвергает псевдоним, совпадающий с
+  формой той же лексемы.
 * **D7.0 сделан.** `console.py` (`TextGame`/`ConsoleEntry`) даёт
   headless-цикл с историей, откатом состояния и кампании через
   `save_snapshot`/`load_snapshot`, командами и подсказками из
@@ -555,11 +561,12 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты D6.1 (аудит лексикона), расширение доменных псевдонимов по
-  мере контента и хвост `has_leverage`.
+* Открыты расширение доменных псевдонимов по мере контента и хвост
+  `has_leverage` (нужны данные/правило).
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
-  `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_disclosure.py`
+  `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_lexicon.py` —
+  D6.1, `tests/test_d6_disclosure.py`
   — D6.3, `tests/test_d6_planner.py`, `tests/test_d6_bridge.py` и
   `tests/test_d6_actions.py` — D6.4, `tests/test_d7_console.py` —
   D7.0, `tests/test_d7_social.py` — D7.1, `tests/test_d7_movement.py`

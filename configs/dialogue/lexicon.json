@@ -1574,7 +1574,6 @@
     "ins_pl": ["делами"],
     "prep_pl": ["делах"]
    },
-   "aliases": ["дела"],
    "semantic": {"kind": "entity", "type": "concept", "id": "concept:affairs"},
    "features": {"gender": "n"}
   },

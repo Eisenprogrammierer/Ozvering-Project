@@ -204,7 +204,8 @@ venv/bin/python -m pytest -q
 - [x] D7.4 — нарративный слой (`narrator.json`, `Narrator`),
   видимые story-события, работы из `log`, `/look`, read-only;
   `tests/test_d7_narrator.py`.
-- [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
+- [x] Аудит `lexicon.json` (D6.1): псевдоним не дублирует собственную
+  форму, линтер это проверяет; `tests/test_d6_lexicon.py`.
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 
 ## 9. Файловая карта

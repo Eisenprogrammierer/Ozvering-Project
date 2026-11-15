@@ -2308,6 +2308,13 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
             problems.append(
                 "лексема %s: нет ни одной поверхностной формы" % entry.id
             )
+        form_texts = {form.text for form in entry.forms}
+        for alias in entry.aliases:
+            if alias.text in form_texts:
+                problems.append(
+                    "лексема %s: псевдоним %r дублирует форму"
+                    % (entry.id, alias.text)
+                )
         semantic = entry.semantic
         if isinstance(semantic, Mapping):
             kind = semantic.get("kind")
