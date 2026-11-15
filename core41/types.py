@@ -9,6 +9,102 @@ class Work:
     duration: float = 1.0
 
 
+@dataclass
+class WorkReport:
+    """Отчёт получателя о работе: единый контракт ``receive``.
+
+    Заменяет плоский dict, который возвращал ``default_receive`` и
+    обработчики арены. Поля:
+
+    * ``accepted`` — принял ли получатель работу (форма совместима);
+    * ``success`` — успешен ли исход (если исход вообще есть);
+    * ``amount`` — объём работы (для сверки);
+    * ``efficiency`` — КПД канала/контекста (0..1);
+    * ``stored`` — сколько фактически попало в ``E`` получателя;
+    * ``loss`` — сколько потеряно на входе (не дошло до цели);
+    * ``entropy`` — сколько ушло в энтропию/отходы;
+    * ``effect`` — что получатель сделал с работой (например,
+      ``{"legitimacy": -0.035, "fear": 0.01}``); это не словарь
+      «эффектов работы», а результат обработчика;
+    * ``projections`` — что из этого следует записать в состояние
+      (обычно ``{"self": {...}, "target": {...}}`` для ``effects.py``);
+    * ``payload`` — что было доставлено (эхо, если получатель его прочитал);
+    * ``trace`` — свободная трассировка (в фазе 3 — ``WorkTrace``);
+    * ``extra`` — дополнительные поля обработчика (например,
+      ``{"was_open": True}``).
+
+    Для обратной совместимости с dict-контрактом ``WorkReport``
+    поддерживает ``report["accepted"]``, ``report.get("accepted")``,
+    ``"accepted" in report``, ``report.keys()``/``items()``/``values()``.
+    ``extra`` при этом раскрывается в плоском доступе: старый код,
+    читавший ``result["custom"]``, продолжает работать.
+
+    ``stored + loss + entropy == amount`` с точностью до округления —
+    инвариант, который проверяют тесты.
+    """
+
+    accepted: bool = False
+    success: bool = False
+    amount: float = 0.0
+    efficiency: float = 0.0
+    stored: float = 0.0
+    loss: float = 0.0
+    entropy: float = 0.0
+    effect: dict = field(default_factory=dict)
+    projections: dict = field(default_factory=dict)
+    payload: dict = field(default_factory=dict)
+    trace: dict = field(default_factory=dict)
+    extra: dict = field(default_factory=dict)
+
+    def as_dict(self):
+        data = {
+            "accepted": bool(self.accepted),
+            "success": bool(self.success),
+            "amount": round(float(self.amount), 6),
+            "efficiency": round(float(self.efficiency), 6),
+            "stored": round(float(self.stored), 6),
+            "loss": round(float(self.loss), 6),
+            "entropy": round(float(self.entropy), 6),
+            "effect": dict(self.effect or {}),
+            "projections": dict(self.projections or {}),
+            "payload": dict(self.payload or {}),
+            "trace": dict(self.trace or {}),
+        }
+        for key, value in (self.extra or {}).items():
+            data.setdefault(str(key), value)
+        return data
+
+    def _flat(self):
+        return self.as_dict()
+
+    def __getitem__(self, key):
+        data = self._flat()
+        if key in data:
+            return data[key]
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        return self._flat().get(key, default)
+
+    def __contains__(self, key):
+        return key in self._flat()
+
+    def __iter__(self):
+        return iter(self._flat())
+
+    def __len__(self):
+        return len(self._flat())
+
+    def keys(self):
+        return self._flat().keys()
+
+    def values(self):
+        return self._flat().values()
+
+    def items(self):
+        return self._flat().items()
+
+
 @dataclass(frozen=True)
 class Action:
     kind: str = "REST"

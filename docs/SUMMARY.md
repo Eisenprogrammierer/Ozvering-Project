@@ -4,9 +4,9 @@
 > быстрого входа и обзора. Это **не** источник истины. Главный источник
 > проектных решений — [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md); целевая
 > модель мира — [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md); спецификация
-> текущего `simulation.py` — [`MODEL.md`](MODEL.md); воспроизводимая база —
-> [`BASELINE.md`](BASELINE.md); задачи текущего кода — [`TODO.md`](TODO.md).
-> При расхождении верны они. Все формулы ниже описывают текущий `simulation.py`,
+> текущего `simulation.py` — [`history/MODEL.md`](history/MODEL.md); воспроизводимая база —
+> [`history/BASELINE.md`](history/BASELINE.md); задачи текущего кода — [`TODO.md`](TODO.md).
+> При расхождении верны они. Все формулы ниже описывают легаси-`simulation.py`,
 > а не целевую модель 4-2-1.
 >
 > **Дата:** 2026-11-14. Числа и статусы сверены с текущим кодом; полный
@@ -193,7 +193,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `ui/scenes/battlefield.py` | изометрический экран поля боя + HUD/диалоги (плейсхолдеры) |
 | `view/` | кампанийный UI: мир должностного лица, биография, выбор автомата и должности, новелла, документы, сюжет, выбор роли; легаси-стратегия и RTS |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
-| `campaign/` | **роли, мир, пресеты и кампания**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, генератор персонажей/фракций/организаций, `automata.py` с работами и производными активами, `fractal.py` с сетью органов, `faction_state.py` с формулами активов, `divisions.py` с 15 делениями, легаси `strategy.py`, хранилище и CLI; без pygame |
+| `campaign/` | **роли, мир, пресеты и кампания**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, генератор персонажей/фракций/организаций, `automata.py` с работами и производными активами, `work.py`/`handlers.py`/`work_trace.py` (capability → `Work` → обработчик → `WorkReport`), `effects.py` (движок проекций), `fractal.py` с сетью органов, `faction_state.py` с формулами активов, `divisions.py` с 15 делениями, легаси `strategy.py`, хранилище и CLI; без pygame |
 | `campaign/dialogue/` | **диалоговый слой**: разбор, вывод, план ответа, дискурс, стили, контрфакты, линтер; без LLM и pygame |
 | `configs/dialogue/` | 18 JSON диалога: онтология, лексикон, грамматика, факты, правила, планы, дискурс, синтез (schema 2), стили (schema 4), контрфакты |
 | `view/screens/dialogue_chat.py` | игровой чат «СВЯЗЬ»: фракция, персонаж, стиль ответа и память партии |
@@ -215,7 +215,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `docs/WORLD.md` | общий мир должностного лица: биография, семь доменов, иерархия, валидатор действий, ход мира, карьера и снимки |
 | `docs/CONTENT.md` | JSON-контент и папки: добавление, правка, удаление, проверка |
 | `docs/CONTENT_BDI_DIVISIONS_EVENTS.md` | BDI, 15 делений, события и производные активы фракции: контент и рантайм |
-| `docs/AUTOMATA_CAMPAIGN.md` | кампании четырёх фракций-автоматов: работы, сеть органов, производные активы, темп и исходы |
+| `docs/AUTOMATA_CAMPAIGN.md` | кампании четырёх фракций-автоматов: работы (capability → `Work` → обработчик), сеть органов, производные активы, темп и исходы; остаток миграции — `WORK_MECHANIC_PLAN.md` §0.5 |
 | `docs/history/STRATEGY.md` | легаси-гражданская гранд-стратегия «Хартия Агоры»: три поля, сущности, действия, последствия, снимки |
 | `core41/` | **целевой 4-2-1-срез**: `Automaton` (одна универсальная энергия `E`, сила `F`, здоровье `H`), runtime арены (`ArenaAgent`/`ArenaMatch`), `DuelEnv`, секундный `SimulationClock`, актор среды `ArenaEnvironment`; без pygame |
 | `agents/` | **обучаемые политики**: `BDIPolicy`/`QTablePolicy`/`MLPPolicy` (22 признака) и аренный `DuelMLPPolicy` (30 признаков), `PolicyAgent` (легаси-мост), обучение `python -m agents.train`, автопоиск чекпойнтов `agents/checkpoints.py`; спецификация — [`AGENTS.md`](AGENTS.md), точные алгоритмы — [`ALGORITHMS.md`](ALGORITHMS.md) |
@@ -223,12 +223,12 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `checkpoints/` | каталог production-чекпойнтов политик по умолчанию (`best.json` / `latest.json` / свежие `*.json`) |
 | `experiments/` | проверки (`exp_*.py`), единые `strategies.py`; `history/` — заморожено |
 | `tests/` | pytest: канон, скрипты-проверки, «доки ↔ код», F1-сторож, UI, новые слои |
-| `docs/MODEL.md` | спецификация механики текущего `simulation.py` (§1–19) |
+| `docs/history/MODEL.md` | историческая спецификация механики `simulation.py` (§1–19) |
 | `docs/WARFARE.md` | войсковые автоматы: персонажи/отделения/станы/приказы/заградотряды/подкрепления |
-| `docs/DESIGN_ADVANCED.md` | решения по lossy/LOD/энтропии, границы MVP, открытые задачи |
-| `docs/BASELINE.md` | воспроизводимая базовая линия и ограничения |
+| `docs/history/DESIGN_ADVANCED.md` | исторические решения по lossy/LOD/энтропии, границы MVP, открытые задачи |
+| `docs/history/BASELINE.md` | историческая воспроизводимая базовая линия и ограничения |
 | `docs/TODO.md` | трекер отложенных задач: P0/P1/P2, F1–F5, G1/G2, O1/E1/E2/L1/L2/C1, диалоговый D6 |
-| `docs/UI.md`, `docs/history/GAME_ENGINE_CHANGES.md` | слои UI/движка |
+| `docs/history/UI.md`, `docs/history/GAME_ENGINE_CHANGES.md` | исторические слои UI/движка |
 | `CONTRIBUTING.md`, `.github/` | процесс, CI, PR-чек-лист |
 
 ## 8. Запуск и проверки
@@ -299,6 +299,12 @@ pytest -q                        # весь набор (канон, провер
   production-планировщик сквозного цикла игрока. Устойчивые раны закрыты
   срезом A2 (`wound` в дуэли и кампании), собственные цели среды — срезом
   A1 (`env_window`).
+* **Работа кампании** приведена к канону: 65 capability без
+  `effects`/`failure`, сборка `campaign/work.py`, правила
+  `configs/campaigns/base/handlers/*.json`, `WorkReport` с
+  `stored/loss/entropy` и `trace` версии 1; арена идёт через
+  `_receive_channel`. Дневной мир, payload-реестр и квинтуплы — остаток
+  (см. [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §0.5).
 * **Кампанийный слой** (`view/`) не меняет канон. Поток `faction_leader`
   открывает гражданскую стратегию «Хартия Агоры»: игрок — конкретный
   человек, автоматы — аналитические модели, игровые поля — доступные
@@ -337,7 +343,7 @@ pytest -q                        # весь набор (канон, провер
 ## 10. Новые слои (MVP, флаги off)
 
 Три доработки вкатаны **выключенными по умолчанию**, поэтому канон `1/9/0`
-не меняется. Полные решения — [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md).
+не меняется. Полные решения — [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md).
 
 | Слой | Флаг | Что делает | Ограничение MVP |
 |---|---|---|---|

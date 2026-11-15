@@ -140,12 +140,12 @@ venv/bin/python main.py
 | Потребность | С чего начать | Ключевые файлы | Проверка |
 |---|---|---|---|
 | «Хочу просто поиграть» | §1.3, [`HOWTO.md`](HOWTO.md) §1 | `main.py`, `view/app.py` | `tests/test_gui_smoke.py` |
-| «Хочу запустить конкретный режим» | §1.4, [`UI.md`](UI.md), [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `main.py` | `tests/test_ui.py` |
+| «Хочу запустить конкретный режим» | §1.4, [`history/UI.md`](history/UI.md), [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `main.py` | `tests/test_ui.py` |
 | «Хочу понять модель мира» | §5.1, [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) | `core41/`, `campaign/`, `simulation.py`, `warfare.py` | `tests/test_core41.py`, `tests/test_canon.py` |
 | «Хочу понять формулы» | [`FORMULAS.md`](FORMULAS.md) | `core41/model.py`, `core41/arena.py`, `campaign/` | `tests/test_math_model.py`, профильные тесты |
 | «Хочу править контент без кода» | §5.2, [`CONTENT.md`](CONTENT.md) | `configs/` | `tests/test_content_pipeline.py` |
 | «Хочу править современный GUI» | §5.3, [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | `view/` | `tests/test_gui_smoke.py`, `tests/test_view_*.py` |
-| «Хочу править легаси-GUI» | §5.3, [`UI.md`](UI.md) | `ui/` | `tests/test_ui.py` |
+| «Хочу править легаси-GUI» | §5.3, [`history/UI.md`](history/UI.md) | `ui/` | `tests/test_ui.py` |
 | «Хочу менять кампанию автоматов» | §5.4, [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | `campaign/automata.py`, `campaign/fractal.py`, `campaign/geometry.py`, `configs/campaigns/` | `tests/test_automata_campaign.py`, `tests/test_automata_network.py`, `tests/test_geometry.py` |
 | «Хочу обучить агента» | §5.6, [`AGENTS.md`](AGENTS.md), [`HOWTO.md`](HOWTO.md) §2 | `agents/`, `core41/` | `tests/test_train_cli.py` |
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
@@ -349,7 +349,8 @@ GUI существует и играется, но это **рабочий пе�
    принятые решения и границы.
 2. [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) — детализация целевой
    модели мира.
-3. [`MODEL.md`](MODEL.md) — текущий легаси-канон `simulation.py`.
+3. [`history/MODEL.md`](history/MODEL.md) — историческая спецификация
+   легаси-`simulation.py`.
 4. [`WARFARE.md`](WARFARE.md) — персонажи, потребности, черты, отделения,
    мораль и паника.
 5. [`ALGORITHMS.md`](ALGORITHMS.md) — точные формулы арены, признаки
@@ -420,7 +421,7 @@ venv/bin/python -m pytest -q tests/test_docs_sync.py
    если нет — `hide_time_hud`/`show_time_hud = False`.
 
 Легаси-экран устроен похоже, но через `ui.scene.Scene` и
-`ui.scene.SceneManager`; см. [`UI.md`](UI.md).
+`ui.scene.SceneManager`; см. [`history/UI.md`](history/UI.md).
 
 Тесты:
 
@@ -457,7 +458,12 @@ venv/bin/python -m pytest -q tests/test_ui.py
   `campaign/identity.py`, экран `view/screens/identity_editor.py`.
 * Логика: `campaign/automata.py` (`AutomataCampaign`, работы, кулдауны,
   бюджет действий, исходы, взаимодействия с органами, персонажами и
-  команды автоматов друг другу), `campaign/fractal.py` (целостность и
+  команды автоматов друг другу), `campaign/work.py` (capability →
+  `WorkPlan`/`Work`), `campaign/handlers.py` (JSON-правила получателя по
+  `form`), `campaign/work_trace.py` (trace и баланс),
+  `campaign/effects.py` (движок проекций `apply_report`),
+  `configs/campaigns/base/handlers/*.json` (эффекты вместо `effects` в
+  записи), `campaign/fractal.py` (целостность и
   связи органов, `links`, downscale/upscale, урон), `campaign/geometry.py`
   (метрический граф без глобальных осей, локальные углы, кратчайшие пути,
   `distance`/`angle` в условиях), `campaign/faction_state.py` (производные
@@ -490,8 +496,9 @@ venv/bin/python -m pytest -q tests/test_gui_smoke.py
    для диалога — `test_d0*.py` … `test_d5_*.py`.
 3. Если поведение должно быть data-driven, сначала добавьте поле/схему в
    JSON и загрузчик, затем код.
-4. Обновите профильный документ и, если меняются константы, `MODEL.md`/
-   `ALGORITHMS.md` (это ловит `test_docs_sync.py`).
+4. Обновите профильный документ; для арены — `ALGORITHMS.md`, для
+   легаси-констант `simulation.py` — `history/MODEL.md` (это ловит
+   `test_docs_sync.py`).
 5. Прогоните `pytest -q` и `git diff --check`.
 
 Не добавляйте доменные ветки в ядро: `test_domain_audit.py` следит за
@@ -659,8 +666,9 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   D6.2a–d, D6.3, D6.4, D7.0–D7.4 — сделаны**. Открыто: расширение
   доменных псевдонимов и хвост `has_leverage` (нужны данные/правило).
 
-Связанные решения: G-18…G-23 в
-[`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
+Связанные решения: G-19…G-23 в
+[`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) (G-18 закрыт для
+арены и кампании), фаза P10 в
 [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md),
 [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) — архитектура стилевого
 слоя, автовыбор и дискурсивный слой.
@@ -748,11 +756,14 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 |---|---|
 | [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) | первый; цель, онтология, приоритет решений |
 | [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) | детализация целевой модели 4-2-1 |
-| [`MODEL.md`](MODEL.md) | текущий легаси-канон `simulation.py`, константы |
+| [`history/MODEL.md`](history/MODEL.md) | историческая спецификация легаси-`simulation.py`, константы |
+| [`history/BASELINE.md`](history/BASELINE.md), [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md) | исторические базовая линия и дизайн lossy/LOD/энтропии |
 | [`WARFARE.md`](WARFARE.md) | персонажи, потребности, черты, отделения |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | современный клиент `view/`, кампанийные потоки |
-| [`UI.md`](UI.md) | легаси-клиент `ui/`, сцены, сейвы, RTS |
-| [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании четырёх фракций-автоматов |
+| [`history/UI.md`](history/UI.md) | исторический легаси-клиент `ui/`, сцены, сейвы, RTS |
+| [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании четырёх фракций-автоматов, конвейер работы и правила обработчика |
+| [`history/WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) | исходный GAP-анализ работы как сообщения и статус закрытия (§0.1) |
+| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | план миграции, фактические фазы и остаток (§0.5) |
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия: метрический граф, локальные углы, пути |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
@@ -773,12 +784,14 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 
 ## 8. Инварианты и запреты
 
-* `yet_another_project/` — чужой/untracked каталог; не изменять и не
-  добавлять в коммиты.
 * `.gitignore` содержит правило для PDF (`лор.pdf` и подобные) — не
   удалять его.
+* Работа кампании идёт одним путём: capability → `campaign/work.py` →
+  `campaign/handlers.py` → `WorkReport` → `campaign/effects.apply_report`.
+  Не добавляйте `effects`/`failure` обратно в capability: эффект живёт в
+  `configs/campaigns/base/handlers/*.json`.
 * `simulation.py` — легаси-baseline: не менять его поведение без
-  обоснования и обновления `BASELINE.md`/`test_canon.py`.
+  обоснования и обновления `history/BASELINE.md`/`test_canon.py`.
 * `core41/` — целевое ядро; изменения физики арены требуют тестов и
   калибровки.
 * `campaign/` — дневной мир; не переписывайте аренные константы ради

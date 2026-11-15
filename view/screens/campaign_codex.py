@@ -5,6 +5,10 @@
 можно сразу усилить: для персонажа доступны повышение, награда, поддержка
 и допрос, для органа — усиление, реформа, чистка и снабжение. Действия
 тратят общий бюджет хода и не требуют перехода в сеть.
+
+В блоке действий показывается ожидаемый отчёт обработчика на текущем
+снимке (``build_interaction_work`` → ``handlers.receive``), без применения.
+Это превью: если контент без ``template``, честно помечается как legacy.
 """
 
 from __future__ import annotations
@@ -25,14 +29,15 @@ PANEL_RECT = pygame.Rect(30, 30, 1220, 660)
 LIST_RECT = pygame.Rect(56, 170, 390, 450)
 DETAIL_RECT = pygame.Rect(466, 170, 758, 450)
 ROW_H = 26
-ACTION_AREA_H = 94
+ACTION_AREA_H = 110
 ACTION_COL_GAP = 10
-ACTION_ROW_H = 25
+ACTION_ROW_H = 28
 TEXT = (226, 231, 239)
 MUTED = (150, 162, 180)
 DIM = (108, 120, 138)
 ACCENT = (80, 150, 220)
 GOOD = (110, 200, 150)
+BAD = (216, 106, 106)
 WARN = (230, 184, 96)
 PANEL_BORDER = (58, 70, 92)
 
@@ -42,6 +47,88 @@ KIND_LABELS = {
     "faction": "фракция",
     "organ": "орган",
 }
+ASSET_LABELS = {
+    "legitimacy": "законность",
+    "influence": "влияние",
+    "cohesion": "сплочённость",
+    "supply": "снабжение",
+    "fear": "страх",
+    "morale": "мораль",
+    "energy": "энергия",
+}
+
+
+def _effect_to_text(effect):
+    if not isinstance(effect, dict) or not effect:
+        return ""
+    parts = []
+    for key, value in effect.items():
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            parts.append("%s %s" % (ASSET_LABELS.get(key, key), value))
+            continue
+        parts.append(
+            "%s %+.3f" % (ASSET_LABELS.get(key, key), number)
+        )
+    return " · ".join(parts)
+
+
+def _projection_text(projections):
+    if not isinstance(projections, dict) or not projections:
+        return ""
+    parts = []
+    self_part = _effect_to_text(projections.get("self"))
+    target_part = _effect_to_text(projections.get("target"))
+    if self_part:
+        parts.append("вы: %s" % self_part)
+    if target_part:
+        parts.append("цель: %s" % target_part)
+    return "; ".join(parts)
+
+
+def _interaction_preview(campaign, kind, owner_id, interaction):
+    """Симулировать обработчик взаимодействия на текущем снимке.
+
+    ``kind`` — ``"character"`` или ``"organ"``. ``owner_id`` — id
+    персонажа/органа. Возвращает ``(plan, report_ok, report_fail)``
+    или ``None``. Ничего не применяет.
+    """
+    if campaign is None or interaction is None:
+        return None
+    faction = campaign.faction(campaign.player_side)
+    if faction is None:
+        return None
+    try:
+        from campaign.work import build_interaction_work
+        from campaign.handlers import receive as handler_receive
+    except Exception:
+        return None
+    record = dict(interaction)
+    if kind == "character":
+        record["character_id"] = str(owner_id)
+        plan = build_interaction_work(
+            record, "character_interaction", faction, faction, campaign
+        )
+    else:
+        record["organ_id"] = str(owner_id)
+        plan = build_interaction_work(
+            record, "organ_interaction", faction, faction, campaign
+        )
+    if plan is None:
+        return None
+    work = plan.to_work()
+    reports = {}
+    for success in (True, False):
+        try:
+            reports[success] = handler_receive(
+                work, plan, faction, faction, campaign, success=success
+            )
+        except Exception:
+            reports[success] = None
+    if reports.get(True) is None and reports.get(False) is None:
+        return None
+    return plan, reports.get(True), reports.get(False)
 
 
 class CampaignCodexScreen(BaseScreen):
@@ -267,7 +354,7 @@ class CampaignCodexScreen(BaseScreen):
         width = (
             DETAIL_RECT.width - 36 - ACTION_COL_GAP
         ) // 2
-        top = DETAIL_RECT.bottom - ACTION_AREA_H + 22
+        top = DETAIL_RECT.bottom - ACTION_AREA_H + 26
         layout = []
         for index, option in enumerate(options):
             column = index % 2
@@ -278,7 +365,17 @@ class CampaignCodexScreen(BaseScreen):
                 width,
                 ACTION_ROW_H,
             )
-            layout.append((rect, kind, owner_id, option))
+            preview = None
+            try:
+                preview = _interaction_preview(
+                    self.campaign,
+                    kind,
+                    owner_id,
+                    option.get("interaction"),
+                )
+            except Exception:
+                preview = None
+            layout.append((rect, kind, owner_id, option, preview))
         return layout
 
     def _sync_storyline(self):
@@ -382,8 +479,10 @@ class CampaignCodexScreen(BaseScreen):
                 index = self.scroll[self.tab] + row
                 self.select(index)
                 return
-            for rect, kind, owner_id, option in self._action_layout():
+            for entry in self._action_layout():
+                rect = entry[0]
                 if rect.collidepoint(pos):
+                    _rect, kind, owner_id, option, _preview = entry
                     self.apply_action(kind, owner_id, option["id"])
                     return
         for button in self.buttons:
@@ -708,6 +807,39 @@ class CampaignCodexScreen(BaseScreen):
             self._draw_automaton(screen, item)
         screen.set_clip(old_clip)
 
+    def _draw_preview_line(
+        self, screen, rect, preview
+    ):
+        """Одна строка превью под кнопкой действия."""
+        if preview is None:
+            text = "эффект: legacy-контент без template"
+            color = DIM
+        else:
+            plan, report_ok, _report_fail = preview
+            parts = ["форма: %s" % plan.form, "объём: %.3f" % plan.amount]
+            if report_ok is not None:
+                parts.append(
+                    "КПД: %.2f" % float(report_ok.efficiency or 0.0)
+                )
+                effect = _projection_text(report_ok.projections)
+                if not effect:
+                    effect = _effect_to_text(report_ok.effect)
+                if effect:
+                    parts.append(effect)
+            text = " · ".join(parts)
+            color = ACCENT
+        old_clip = screen.get_clip()
+        screen.set_clip(rect.inflate(-6, 0))
+        surf = self.app.font_tiny.render(text, True, color)
+        screen.blit(
+            surf,
+            (
+                rect.x + 4,
+                rect.bottom - surf.get_height() - 2,
+            ),
+        )
+        screen.set_clip(old_clip)
+
     def _draw_actions(self, screen):
         area = pygame.Rect(
             DETAIL_RECT.x,
@@ -745,9 +877,10 @@ class CampaignCodexScreen(BaseScreen):
                 note = "Нет доступных действий для выбранной записи."
             screen.blit(
                 self.app.font_tiny.render(note, True, DIM),
-                (area.x + 18, area.y + 28),
+                (area.x + 18, area.y + 30),
             )
-        for rect, kind, owner_id, option in layout:
+        for entry in layout:
+            rect, kind, owner_id, option, preview = entry
             enabled = bool(option.get("enabled"))
             pygame.draw.rect(
                 screen,
@@ -768,15 +901,16 @@ class CampaignCodexScreen(BaseScreen):
                     option.get("reason") or "недоступно"
                 )
             old_clip = screen.get_clip()
-            screen.set_clip(rect.inflate(-8, 0))
+            screen.set_clip(rect.inflate(-8, -12))
             surf = self.app.font_tiny.render(
                 label, True, TEXT if enabled else DIM
             )
             screen.blit(
                 surf,
-                (rect.x + 7, rect.centery - surf.get_height() // 2),
+                (rect.x + 7, rect.y + 4),
             )
             screen.set_clip(old_clip)
+            self._draw_preview_line(screen, rect, preview)
         if self.action_message:
             old_clip = screen.get_clip()
             screen.set_clip(area.inflate(-28, 0))

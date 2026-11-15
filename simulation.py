@@ -114,7 +114,7 @@ class Agent:
         if not allow_out_of_range and not (0.0 < p <= 1.0):
             raise ValueError(
                 f"профиль p={p} вне допустимого диапазона 0 < p ≤ 1 "
-                f"(docs/MODEL.md, раздел 2а)"
+                f"(docs/history/MODEL.md, раздел 2а)"
             )
         self.profile, self.p = norm, p
 

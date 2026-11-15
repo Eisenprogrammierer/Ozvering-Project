@@ -27,8 +27,8 @@
 
 ### 0.1. Три технических решения, на которых держится план
 
-1. **Один движок эффектов.** Сейчас эффекты размазаны: работы
-   (`_apply_branch`), взаимодействия персонажей,
+1. **Один движок эффектов.** На момент плана эффекты были размазаны:
+   работы (`_apply_branch`), взаимодействия персонажей,
    `faction_state`-драйверы. Нужен единственный `campaign/effects.py`,
    который понимает декларативный словарь эффектов и применяется везде.
    Иначе каждый новый слой контента потребует новой Python-ветки.
@@ -281,8 +281,9 @@ JSON Schema из `configs/schemas/` — открыто; golden-тесты сни
 
 ## 5. P3. Единый движок эффектов
 
-**Статус (2026-11-14): закрыто в `campaign/effects.py` и подключено к
-`_apply_branch`. Поддержаны `self`/`target`, `assets`, `needs`, `traits`,
+**Статус (2026-11-14): закрыто в `campaign/effects.py`; вход из работы —
+`apply_report` (с 2026-11-15), `_apply_branch` удалён. Поддержаны
+`self`/`target`, `assets`, `needs`, `traits`,
 `conditions`, `beliefs.add/remove`, `intentions.push/clear`, `organs`,
 `flags` и старый плоский формат. `relations` распознаётся, но отложена
 до P8 и не превращается в актив. Линтер принимает новый набор ключей.**
@@ -374,7 +375,7 @@ def apply_effects(campaign, scope, effects, *, scale=1.0, source=None):
 | Файл | Изменение |
 |---|---|
 | `campaign/effects.py` | новый модуль; единственная точка записи |
-| `campaign/automata.py:1969-1987` | `_apply_branch` → тонкая обёртка над `apply_effects` |
+| `campaign/automata.py` | `_apply_branch` → `apply_report`/`apply_effects` (выполнено; `_apply_branch` удалён) |
 | `campaign/automata.py` (взаимодействия персонажей) | применять `effects` через тот же движок |
 | `campaign/automata.py` (`_advance_story_events`) | **не** вызывает эффекты: событие только фиксируется в журнале |
 | `campaign/faction_state.py:296-370` | драйверы выразить как эффекты или оставить как оптимизацию |

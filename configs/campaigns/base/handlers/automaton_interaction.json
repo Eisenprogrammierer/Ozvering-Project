@@ -1,0 +1,111 @@
+{
+  "form": "automaton_interaction",
+  "rules": [
+    {
+      "when": {
+        "id": "coordinate"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$target_organ_id": {
+              "integrity": 0.08
+            }
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.008,
+        "organs": {
+          "$source_organ_id": {
+            "integrity": 0.01
+          }
+        }
+      },
+      "trace": {
+        "essence": "coordinate_automata"
+      }
+    },
+    {
+      "when": {
+        "id": "transfer"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$target_organ_id": {
+              "integrity": 0.12
+            }
+          }
+        }
+      },
+      "sender": {
+        "morale": 0.004,
+        "organs": {
+          "$source_organ_id": {
+            "integrity": -0.04
+          }
+        }
+      },
+      "trace": {
+        "essence": "transfer_reserve"
+      }
+    },
+    {
+      "when": {
+        "id": "directive"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$target_organ_id": {
+              "integrity": 0.1
+            }
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.006,
+        "organs": {
+          "$source_organ_id": {
+            "integrity": 0.008
+          }
+        }
+      },
+      "trace": {
+        "essence": "directive"
+      }
+    },
+    {
+      "when": {
+        "id": "escalate"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$target_organ_id": {
+              "integrity": -0.02
+            }
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.006,
+        "organs": {
+          "$source_organ_id": {
+            "integrity": 0.1
+          }
+        }
+      },
+      "trace": {
+        "essence": "escalate_support"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

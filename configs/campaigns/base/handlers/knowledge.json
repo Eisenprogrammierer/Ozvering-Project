@@ -1,0 +1,35 @@
+{
+  "form": "knowledge",
+  "rules": [
+    {
+      "when": {
+        "id": "catacomb_archive"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "influence": 0.02,
+        "knowledge": 0.02,
+        "is_secret": 1.0
+      },
+      "trace": {
+        "essence": "encrypt"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "knowledge": 0.01
+    }
+  }
+}

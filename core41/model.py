@@ -2,7 +2,7 @@ import copy
 import math
 from dataclasses import dataclass, field
 
-from .types import Work
+from .types import Work, WorkReport
 from .payload import (
     PayloadError,
     apply_payload,
@@ -120,6 +120,39 @@ def conversion_report(amount, form, stored, efficiency=None):
         "entropy": entropy,
         "efficiency": efficiency,
     }
+
+
+def _report_from_conversion(report, **extra):
+    """Собрать ``WorkReport`` из ответа ``conversion_report``.
+
+    ``extra`` — дополнительные поля (``accepted``/``success``/``effect``/
+    ``projections``/``payload``/``trace``/``extra``). Ключ ``extra``
+    раскрывается в плоский ``WorkReport.extra``: это нужно, чтобы старый
+    код, читавший ``report["payload_applied"]`` или ``report["damage"]``,
+    продолжал работать после перехода на dataclass. Если ``extra`` в
+    kwargs — это dict, его содержимое сливается с остатком kwargs.
+    Неизвестные ключи попадут в ``WorkReport.extra``.
+    """
+    payload_extra = extra.pop("extra", None)
+    flat_extra = {}
+    if isinstance(payload_extra, dict):
+        flat_extra.update(payload_extra)
+    known = {
+        "accepted": bool(extra.pop("accepted", True)),
+        "success": bool(extra.pop("success", True)),
+        "amount": float(report.get("amount", 0.0)),
+        "efficiency": float(report.get("efficiency", 0.0)),
+        "stored": float(report.get("stored", 0.0)),
+        "loss": float(report.get("loss", 0.0)),
+        "entropy": float(report.get("entropy", 0.0)),
+        "effect": dict(extra.pop("effect", {}) or {}),
+        "projections": dict(extra.pop("projections", {}) or {}),
+        "payload": dict(extra.pop("payload", {}) or {}),
+        "trace": dict(extra.pop("trace", {}) or {}),
+    }
+    flat_extra.update(extra)
+    known["extra"] = flat_extra
+    return WorkReport(**known)
 
 
 def sigmoid(value):
@@ -493,17 +526,25 @@ class Automaton:
         )
 
     def receive(self, work, source=None, world=None):
+        """Принять работу: обработчик канала или ``default_receive``.
+
+        Возвращает ``WorkReport``. Обработчик, зарегистрированный в
+        ``handlers[work.form]``, вызывается с ``(target, work, source,
+        world)`` и должен вернуть ``WorkReport``. Если обработчика нет —
+        работает ``default_receive``.
+        """
         handler = self.handlers.get(work.form)
         if handler is not None:
             return handler(self, work, source, world)
-        return self.default_receive(work)
+        return self.default_receive(work, source=source, world=world)
 
     def set_handler(self, form, handler):
         """Заменить обработчик канала во время жизни автомата.
 
         Обработчик — детерминированная функция `(target, work, source,
-        world) -> result`; стохастика живёт в резолвере (`world.rng`), а не
-        внутри обработчика. `None` возвращает канал к `default_receive`.
+        world) -> WorkReport`; стохастика живёт в резолвере
+        (`world.rng`), а не внутри обработчика. `None` возвращает канал
+        к `default_receive`.
         """
         form = str(form)
         if handler is not None and not callable(handler):
@@ -514,19 +555,21 @@ class Automaton:
             self.handlers[form] = handler
         return handler
 
-    def default_receive(self, work):
+    def default_receive(self, work, source=None, world=None):
+        """Обработчик по умолчанию: конверсия, давление, payload.
+
+        Возвращает ``WorkReport``. Внешние обработчики (JSON-правила
+        кампании, ``_receive_channel`` арены) возвращают тот же тип,
+        поэтому вызывающий код может не различать dict и dataclass.
+        """
         if not self.can_receive(work.form):
             report = conversion_report(work.amount, work.form, 0.0, 0.0)
-            report.update(
-                {
-                    "accepted": False,
-                    "success": False,
-                    "energy": 0.0,
-                    "force": 0.0,
-                    "pressure": 0.0,
-                }
+            return _report_from_conversion(
+                report,
+                accepted=False,
+                success=False,
+                extra={"rejected": True},
             )
-            return report
         efficiency = conversion_efficiency(work.form)
         transferred = work.amount * efficiency
         stored = self.add_energy(transferred * ENERGY_STORAGE_SHARE)
@@ -534,21 +577,26 @@ class Automaton:
         self.state["pressure"] = min(
             30.0, self.pressure() + work.amount * PRESSURE_PER_WORK
         )
-        report.update(
-            {
-                "accepted": True,
-                "success": True,
-                "energy": transferred,
-                "force": 0.0,
-                "pressure": work.amount * PRESSURE_PER_WORK,
-            }
-        )
         payload = getattr(work, "payload", ())
+        payload_data = {}
+        payload_extra = {}
         if payload:
             try:
                 normalized = normalize_payload(payload)
-                report["payload"] = payload_map(normalized)
-                report["payload_applied"] = apply_payload(self, normalized)
+                payload_data = payload_map(normalized)
+                applied = apply_payload(self, normalized)
+                payload_extra["payload_applied"] = applied
             except PayloadError as exc:
-                report["payload_error"] = str(exc)
-        return report
+                payload_extra["payload_error"] = str(exc)
+        return _report_from_conversion(
+            report,
+            accepted=True,
+            success=True,
+            extra={
+                "energy": transferred,
+                "force": 0.0,
+                "pressure": work.amount * PRESSURE_PER_WORK,
+                **payload_extra,
+            },
+            payload=payload_data,
+        )

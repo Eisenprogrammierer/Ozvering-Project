@@ -66,7 +66,7 @@ def test_codex_actions_target_own_character_and_organ():
     screen.select(character_index)
     layout = screen._action_layout()
     assert layout
-    rect, kind, owner_id, option = layout[0]
+    rect, kind, owner_id, option, preview = layout[0]
     assert kind == "character"
     assert option["enabled"] is True
 
@@ -88,7 +88,7 @@ def test_codex_actions_target_own_character_and_organ():
     screen.select(organ_index)
     layout = screen._action_layout()
     assert layout
-    rect, kind, owner_id, option = layout[0]
+    rect, kind, owner_id, option, preview = layout[0]
     assert kind == "organ"
     result = screen.apply_action(kind, owner_id, option["id"])
     assert result and result["ok"] is True
@@ -114,7 +114,7 @@ def test_codex_rejects_actions_against_player_character():
     screen.select(player_index)
     layout = screen._action_layout()
     assert layout
-    for _rect, kind, _owner_id, option in layout:
+    for _rect, kind, _owner_id, option, _preview in layout:
         assert kind == "character"
         assert option["enabled"] is False
         assert option["reason"] == "нельзя применять к самому себе"

@@ -1,0 +1,314 @@
+{
+  "form": "meaning",
+  "rules": [
+    {
+      "when": {
+        "id": "imperial_church"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "cohesion": 0.02,
+        "fear": -0.01,
+        "spirituality": 0.02
+      },
+      "trace": {
+        "essence": "ritualize"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "parliament_debate"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "cohesion": 0.02,
+        "status": 0.02
+      },
+      "trace": {
+        "essence": "legitimize"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "human_rights_court"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.025,
+        "fear": -0.02,
+        "anxiety": -0.02
+      },
+      "trace": {
+        "essence": "judge"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "constitutional_reform"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.03,
+        "cohesion": 0.02,
+        "anxiety": -0.02,
+        "subfactions": {
+          "moderate": {
+            "influence": 0.03,
+            "share": 0.01
+          },
+          "orthodox": {
+            "grievance": 0.03
+          }
+        }
+      },
+      "trace": {
+        "essence": "reform"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "sermon"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.04,
+            "cohesion": -0.03,
+            "spirituality": 0.03,
+            "anxiety": -0.01
+          },
+          "else": {
+            "legitimacy": -0.02,
+            "cohesion": -0.02,
+            "spirituality": 0.02
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "legitimacy": 0.01
+      },
+      "trace": {
+        "essence": "preach"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "earth_ritual"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "morale": 0.03,
+        "legitimacy": 0.01,
+        "spirituality": 0.03,
+        "anxiety": -0.02
+      },
+      "trace": {
+        "essence": "ritualize"
+      },
+      "failure": {
+        "sender": {
+          "morale": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "scriptorium_schools"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.03,
+        "cohesion": 0.02,
+        "knowledge": 0.03,
+        "spirituality": 0.02
+      },
+      "trace": {
+        "essence": "educate"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02,
+          "legitimacy": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "parallel_court"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.03,
+            "anxiety": 0.01
+          },
+          "else": {
+            "legitimacy": -0.04,
+            "anxiety": 0.02
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.03,
+        "cohesion": 0.02
+      },
+      "trace": {
+        "essence": "judge"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02,
+          "cohesion": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "relic_procession"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "cohesion": 0.03,
+        "morale": 0.02,
+        "spirituality": 0.02
+      },
+      "trace": {
+        "essence": "ritualize"
+      },
+      "failure": {
+        "sender": {
+          "morale": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "apocalyptic_prophecy"
+      },
+      "receiver": {
+        "accepts": [
+          "fear",
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "fear": {
+              "above": 0.4
+            }
+          },
+          "then": {
+            "fear": 0.04,
+            "legitimacy": -0.03,
+            "anxiety": 0.02
+          },
+          "else": {
+            "fear": 0.05,
+            "legitimacy": -0.04,
+            "anxiety": 0.03
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "radicalize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "neutral_hub"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "supply": 0.02
+      },
+      "trace": {
+        "essence": "negotiate"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.01
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "legitimacy": 0.01
+    }
+  }
+}

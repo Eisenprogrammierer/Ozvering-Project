@@ -4,7 +4,7 @@
 **Дата:** 2026-11-09
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
-[`MODEL.md`](MODEL.md), [`ALGORITHMS.md`](ALGORITHMS.md),
+[`history/MODEL.md`](history/MODEL.md), [`ALGORITHMS.md`](ALGORITHMS.md),
 [`FORMULAS.md`](FORMULAS.md).
 
 Точные формулы, порядок такта, признаки, гиперпараметры и известные

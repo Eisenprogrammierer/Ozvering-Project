@@ -3,8 +3,8 @@
 > **СТАТУС ДОКУМЕНТА:** тело PR ветки `review-code-and-documentation-1a6c7`.
 > Ветка закрывает живой трекер [`docs/TODO.md`](../TODO.md) (P0 №1, P0 №2, P1, P2)
 > и архитектурный этап «контекстный тип энергии». После влития в `main` документ
-> исторический: актуальная воспроизводимая база — [`docs/BASELINE.md`](../BASELINE.md),
-> спецификация модели — [`docs/MODEL.md`](../MODEL.md), живой трекер —
+> исторический: воспроизводимая база — [`docs/history/BASELINE.md`](BASELINE.md),
+> спецификация модели — [`docs/history/MODEL.md`](MODEL.md), живой трекер —
 > [`docs/TODO.md`](../TODO.md).
 
 **Ветка:** `review-code-and-documentation-1a6c7` → `main`
@@ -119,8 +119,8 @@ PRESSER. Структурный прототип (порог `W0`) при `N=40`
 
 ## 8. Документация и гигиена
 
-* Синхронизированы [`docs/MODEL.md`](../MODEL.md) (§2, §2а, §7, §14, §15),
-  [`docs/BASELINE.md`](../BASELINE.md) («Сила RL», «Нож-лезвие `K_EFFECT`»,
+* Синхронизированы [`docs/history/MODEL.md`](MODEL.md) (§2, §2а, §7, §14, §15),
+  [`docs/history/BASELINE.md`](BASELINE.md) («Сила RL», «Нож-лезвие `K_EFFECT`»,
   «Профиль: наблюдаемость», «Известные ограничения»),
   [`docs/TODO.md`](../TODO.md) (все пункты закрыты/решены) и
   [`experiments/README.md`](../../experiments/README.md).

@@ -1,0 +1,717 @@
+{
+  "form": "coercion",
+  "rules": [
+    {
+      "when": {
+        "id": "show_of_force"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "fear"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "fear": 0.02
+          },
+          "else": {
+            "cohesion": -0.05,
+            "fear": 0.03,
+            "anxiety": 0.01
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.03,
+        "cohesion": 0.015
+      },
+      "trace": {
+        "essence": "demonstrate"
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "cohesion": 0.01
+          }
+        },
+        "sender": {
+          "cohesion": -0.025
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "enemy_of_state"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.05,
+            "cohesion": -0.02,
+            "fear": 0.03
+          },
+          "else": {
+            "legitimacy": -0.03,
+            "cohesion": -0.01,
+            "fear": 0.02
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.035,
+        "cohesion": 0.02
+      },
+      "trace": {
+        "essence": "purge"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.03,
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "panzer_breakthrough"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "supply": -0.06,
+            "cohesion": -0.04
+          },
+          "else": {
+            "supply": -0.05,
+            "cohesion": -0.03
+          }
+        }
+      },
+      "sender": {
+        "supply": -0.02,
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "raid"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.04,
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "terror_bombing"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion",
+          "fear"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.03,
+            "fear": 0.05,
+            "cohesion": -0.03,
+            "anxiety": 0.02
+          },
+          "else": {
+            "legitimacy": -0.03,
+            "fear": 0.04,
+            "cohesion": -0.02
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.03
+      },
+      "trace": {
+        "essence": "terrorize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.03
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "abwehr_sabotage"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "supply": -0.05,
+            "cohesion": -0.04
+          },
+          "else": {
+            "supply": -0.04,
+            "cohesion": -0.04
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "subvert"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02,
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "siege_operation"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "supply": -0.07,
+            "cohesion": -0.03,
+            "fatigue": 0.02
+          },
+          "else": {
+            "supply": -0.06,
+            "cohesion": -0.03,
+            "fatigue": 0.02
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "besiege"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.04
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "officer_purge"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.05,
+            "legitimacy": -0.03
+          },
+          "else": {
+            "cohesion": -0.04,
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.03,
+        "fear": 0.03,
+        "subfactions": {
+          "orthodox": {
+            "influence": 0.02
+          },
+          "revisionist": {
+            "grievance": 0.04
+          }
+        }
+      },
+      "trace": {
+        "essence": "purge"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.04,
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "precision_strike"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "supply": -0.05,
+            "cohesion": -0.03
+          },
+          "else": {
+            "supply": -0.04,
+            "cohesion": -0.03
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.01
+      },
+      "trace": {
+        "essence": "strike"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02,
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "agent_network"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "supply"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "supply": -0.02,
+            "anxiety": 0.02
+          },
+          "else": {
+            "cohesion": -0.05,
+            "supply": -0.03,
+            "anxiety": 0.03
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "infiltrate"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.03,
+          "legitimacy": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "electronic_warfare"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "supply"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "supply": -0.02
+          },
+          "else": {
+            "cohesion": -0.03,
+            "supply": -0.03,
+            "anxiety": 0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "intercept"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "tank_raid"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "supply": -0.06,
+            "cohesion": -0.03
+          },
+          "else": {
+            "supply": -0.05,
+            "cohesion": -0.03
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "raid"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.03
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "knights_patrol"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "fear"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.03,
+            "fear": 0.02
+          },
+          "else": {
+            "cohesion": -0.04,
+            "fear": 0.03
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.03,
+        "cohesion": 0.02
+      },
+      "trace": {
+        "essence": "defend"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.04,
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "infiltration"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04
+          },
+          "else": {
+            "cohesion": -0.05,
+            "anxiety": 0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "infiltrate"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.03,
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "security_sweep"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion"
+        ],
+        "effect": {
+          "cohesion": -0.01,
+          "fear": 0.005
+        }
+      },
+      "sender": {
+        "cohesion": 0.04,
+        "legitimacy": 0.01,
+        "fear": 0.01
+      },
+      "trace": {
+        "essence": "purge"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.02,
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "embargo"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "supply": -0.07,
+            "cohesion": -0.03,
+            "hunger": 0.02
+          },
+          "else": {
+            "supply": -0.06,
+            "cohesion": -0.02,
+            "hunger": 0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "blockade"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.03,
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "port_control"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "supply": -0.06,
+            "cohesion": -0.03,
+            "hunger": 0.02
+          },
+          "else": {
+            "supply": -0.05,
+            "cohesion": -0.02,
+            "hunger": 0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03
+      },
+      "trace": {
+        "essence": "blockade"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.03,
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "bribe_official"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "legitimacy": -0.03
+          },
+          "else": {
+            "cohesion": -0.03,
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03,
+        "supply": 0.01
+      },
+      "trace": {
+        "essence": "bribe"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02,
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "mercenary_contract"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "fear"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "fear": 0.02
+          },
+          "else": {
+            "cohesion": -0.05,
+            "fear": 0.02
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "defend"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02,
+          "supply": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {
+        "cohesion": -0.02
+      }
+    },
+    "sender": {
+      "fear": 0.01
+    }
+  }
+}

@@ -16,7 +16,7 @@ RIGHT_RECT = pygame.Rect(828, TOP_H, 428, 520)
 BOTTOM_RECT = pygame.Rect(24, 646, 1232, 54)
 CHAT_RECT = pygame.Rect(1136, 14, 120, 40)
 ACTION_ROW_H = 56
-DESCRIPTION_H = 112
+DESCRIPTION_H = 160
 PANEL_BG = (18, 23, 33, 238)
 PANEL_BORDER = (58, 70, 92)
 TEXT = (225, 230, 238)
@@ -74,6 +74,80 @@ def _target_name(campaign, action):
                     faction = item
                     break
     return getattr(faction, "name", target)
+
+
+def _effect_to_text(effect):
+    """Плоский словарь эффекта в «ключ ±0.00 · ключ ±0.00»."""
+    if not isinstance(effect, dict) or not effect:
+        return ""
+    parts = []
+    for key, value in effect.items():
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            parts.append("%s %s" % (ASSET_LABELS.get(key, key), value))
+            continue
+        label = ASSET_LABELS.get(key, key)
+        parts.append(
+            "%s %+.3f" % (label, number)
+        )
+    return " · ".join(parts)
+
+
+def _projection_text(projections):
+    """Проекции ``{self: {...}, target: {...}}`` в читаемую строку."""
+    if not isinstance(projections, dict) or not projections:
+        return ""
+    parts = []
+    self_part = _effect_to_text(projections.get("self"))
+    target_part = _effect_to_text(projections.get("target"))
+    if self_part:
+        parts.append("вы: %s" % self_part)
+    if target_part:
+        parts.append("цель: %s" % target_part)
+    return "; ".join(parts)
+
+
+def _preview_report(campaign, action):
+    """Симулировать обработчик на текущем снимке для превью эффекта.
+
+    Строит ``WorkPlan`` через ``build_work`` и зовёт ``handlers.receive``
+    с ``success=True`` и ``success=False``. Возвращает
+    ``(plan, report_ok, report_fail)`` или ``None``, если ``template`` нет
+    (legacy-контент). Ничего не применяет.
+    """
+    actor = campaign.faction(campaign.player_side)
+    if actor is None:
+        return None
+    target_side = campaign._target_side(
+        campaign.player_side, action
+    )
+    target = campaign.faction(target_side)
+    if target is None:
+        return None
+    try:
+        from campaign.work import build_work
+        from campaign.handlers import receive as handler_receive
+    except Exception:
+        return None
+    try:
+        plan = build_work(action, actor, target, campaign)
+    except Exception:
+        plan = None
+    if plan is None:
+        return None
+    work = plan.to_work()
+    reports = {}
+    for success in (True, False):
+        try:
+            reports[success] = handler_receive(
+                work, plan, actor, target, campaign, success=success
+            )
+        except Exception:
+            reports[success] = None
+    if reports.get(True) is None and reports.get(False) is None:
+        return None
+    return plan, reports.get(True), reports.get(False)
 
 
 class AutomataScreen(BaseScreen):
@@ -468,6 +542,82 @@ class AutomataScreen(BaseScreen):
         text = self.app.font_small.render(label, True, TEXT)
         surface.blit(text, text.get_rect(center=rect.center))
 
+    def _draw_preview(self, screen, rect, action, preview, y):
+        """Отрисовать превью эффекта в блоке «Выбранная работа».
+
+        Если ``preview`` есть — показывает ожидаемый отчёт обработчика
+        на текущем снимке: форму, объём и эффект. Иначе — честную
+        пометку, что контент без ``template`` и превью legacy.
+        """
+        if preview is None:
+            line = (
+                "эффект: legacy-контент без template "
+                "(превью приблизительно)"
+            )
+            for text in wrap_text(
+                self.app.font_tiny, line, rect.width - 20
+            )[:1]:
+                screen.blit(
+                    self.app.font_tiny.render(text, True, DIM),
+                    (rect.x + 10, y),
+                )
+            return y + 14
+        plan, report_ok, report_fail = preview
+        header = "форма: %s · объём: %.3f" % (
+            plan.form,
+            plan.amount,
+        )
+        if report_ok is not None:
+            header += " · КПД: %.2f" % float(
+                report_ok.efficiency or 0.0
+            )
+        screen.blit(
+            self.app.font_tiny.render(header, True, ACCENT),
+            (rect.x + 10, y),
+        )
+        y += 16
+        ok_text = _projection_text(
+            report_ok.projections if report_ok is not None else {}
+        )
+        if not ok_text and report_ok is not None:
+            ok_text = _effect_to_text(report_ok.effect)
+        if ok_text:
+            for text in wrap_text(
+                self.app.font_tiny,
+                "при успехе: %s" % ok_text,
+                rect.width - 20,
+            )[:2]:
+                screen.blit(
+                    self.app.font_tiny.render(text, True, GOOD),
+                    (rect.x + 10, y),
+                )
+                y += 14
+        fail_text = _projection_text(
+            report_fail.projections if report_fail is not None else {}
+        )
+        if not fail_text and report_fail is not None:
+            fail_text = _effect_to_text(report_fail.effect)
+        if fail_text:
+            for text in wrap_text(
+                self.app.font_tiny,
+                "при провале: %s" % fail_text,
+                rect.width - 20,
+            )[:2]:
+                screen.blit(
+                    self.app.font_tiny.render(text, True, BAD),
+                    (rect.x + 10, y),
+                )
+                y += 14
+        if not ok_text and not fail_text:
+            screen.blit(
+                self.app.font_tiny.render(
+                    "эффект: обработчик не дал проекций", True, DIM
+                ),
+                (rect.x + 10, y),
+            )
+            y += 14
+        return y
+
     def draw(self, screen):
         player = self._player()
         title = self.campaign.title
@@ -630,7 +780,7 @@ class AutomataScreen(BaseScreen):
         if selected_option is None:
             hint = (
                 "Выберите работу в списке — здесь появятся её описание, "
-                "орган-исполнитель и цель."
+                "орган-исполнитель, цель и ожидаемый эффект."
             )
             for line_number, line in enumerate(
                 wrap_text(
@@ -679,20 +829,25 @@ class AutomataScreen(BaseScreen):
                 action.get("description")
                 or "Описание работы не задано."
             )
-            for line_number, line in enumerate(
-                wrap_text(
-                    self.app.font_tiny,
-                    description,
-                    description_rect.width - 20,
-                )[:4]
-            ):
+            y_text = description_rect.y + 62
+            for line in wrap_text(
+                self.app.font_tiny,
+                description,
+                description_rect.width - 20,
+            )[:3]:
                 screen.blit(
                     self.app.font_tiny.render(line, True, MUTED),
-                    (
-                        description_rect.x + 10,
-                        description_rect.y + 62 + line_number * 14,
-                    ),
+                    (description_rect.x + 10, y_text),
                 )
+                y_text += 14
+            preview = None
+            try:
+                preview = _preview_report(self.campaign, action)
+            except Exception:
+                preview = None
+            self._draw_preview(
+                screen, description_rect, action, preview, y_text + 4
+            )
 
         _panel(screen, RIGHT_RECT)
         screen.blit(
@@ -726,6 +881,38 @@ class AutomataScreen(BaseScreen):
                     (RIGHT_RECT.x + 12, y),
                 )
                 y += 22
+            trace = result.get("trace") if isinstance(
+                result.get("trace"), dict
+            ) else {}
+            if trace:
+                stats = "форма %s · объём %.3f · КПД %.2f" % (
+                    trace.get("form", "—"),
+                    float(trace.get("amount", 0.0)),
+                    float(trace.get("efficiency", 0.0)),
+                )
+                screen.blit(
+                    self.app.font_tiny.render(stats, True, ACCENT),
+                    (RIGHT_RECT.x + 12, y),
+                )
+                y += 16
+                balance = "stored %.3f · loss %.3f · entropy %.3f" % (
+                    float(trace.get("stored", 0.0)),
+                    float(trace.get("loss", 0.0)),
+                    float(trace.get("entropy", 0.0)),
+                )
+                screen.blit(
+                    self.app.font_tiny.render(balance, True, MUTED),
+                    (RIGHT_RECT.x + 12, y),
+                )
+                y += 16
+                if trace.get("essence"):
+                    screen.blit(
+                        self.app.font_tiny.render(
+                            "суть: %s" % trace["essence"], True, MUTED
+                        ),
+                        (RIGHT_RECT.x + 12, y),
+                    )
+                    y += 16
             chance = "шанс %.3f · бросок %.3f · %s" % (
                 float(result.get("chance", 0.0)),
                 float(result.get("roll", 0.0)),

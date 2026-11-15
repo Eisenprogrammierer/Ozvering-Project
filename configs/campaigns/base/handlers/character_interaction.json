@@ -1,0 +1,242 @@
+{
+  "form": "character_interaction",
+  "rules": [
+    {
+      "when": {
+        "id": "promote"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 6.0
+          },
+          "needs": {
+            "status": -0.15,
+            "anxiety": -0.03,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.04,
+            "character_id": "$character_id"
+          },
+          "organs": {
+            "$organ_id": {
+              "integrity": 0.02
+            }
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "promote"
+      }
+    },
+    {
+      "when": {
+        "id": "reward"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 10.0
+          },
+          "needs": {
+            "status": -0.1,
+            "fatigue": -0.05,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.02,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "reward"
+      }
+    },
+    {
+      "when": {
+        "id": "reassure"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 8.0
+          },
+          "needs": {
+            "fear": -0.12,
+            "anxiety": -0.15,
+            "loneliness": -0.05,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "reassure"
+      }
+    },
+    {
+      "when": {
+        "id": "interrogate"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": -8.0
+          },
+          "needs": {
+            "fear": 0.12,
+            "anxiety": 0.1,
+            "knowledge": -0.08,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": -0.05,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "interrogate"
+      }
+    },
+    {
+      "when": {
+        "id": "social_command"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": -2.0
+          },
+          "needs": {
+            "anxiety": 0.04,
+            "status": -0.02,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "social_command"
+      }
+    },
+    {
+      "when": {
+        "id": "social_promise"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 4.0
+          },
+          "needs": {
+            "anxiety": -0.04,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.02,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "social_promise"
+      }
+    },
+    {
+      "when": {
+        "id": "social_threat"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": -6.0
+          },
+          "needs": {
+            "fear": 0.15,
+            "anxiety": 0.1,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": -0.04,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "social_threat"
+      }
+    },
+    {
+      "when": {
+        "id": "social_offer"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 5.0
+          },
+          "needs": {
+            "status": -0.05,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.03,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "social_offer"
+      }
+    },
+    {
+      "when": {
+        "id": "social_apology"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 4.0
+          },
+          "needs": {
+            "fear": -0.05,
+            "anxiety": -0.08,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.03,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "social_apology"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

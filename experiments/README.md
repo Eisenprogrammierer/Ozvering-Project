@@ -14,7 +14,7 @@ python3 experiments/exp_balance_ci.py      # CI-тест баланса: дом�
 python3 experiments/exp_schmitt_suite.py   # пороги Шмитта, матрица дуэлей, дребезг
 python3 experiments/exp_hypotheses.py      # конкурентные гипотезы H1-H3 о провалах RL
 python3 experiments/exp_fix.py             # проверка лечения H-A (сетка ON_FRAC x DECAY_ADOPT)
-python3 experiments/exp_environment.py     # среда как IPO-автомат (гипотеза B, §12-13 MODEL.md)
+python3 experiments/exp_environment.py     # среда как IPO-автомат (гипотеза B, §12-13 history/MODEL.md)
 python3 experiments/exp_hierarchy.py       # суперсистемы: эмерджентность и самоподобие (§14)
 python3 experiments/exp_hierarchy_depth.py # автотест ГЛУБИНЫ Environment (код 0/1)
 python3 experiments/exp_rl_strength.py     # P0 №1: сила RL против UtilityAI (диагноз winner-take-all)
@@ -36,7 +36,7 @@ python3 experiments/exp_warfare.py              # войсковые автом�
 - `exp_balance_ci.py` — CI-тест критерия «конкурентные стратегии не доминируют,
   контроли не обыгрывают конкурентных, зеркальные роли симметричны»; красный код
   возврата — цель калибровки. Актуальные числа — в
-  [`docs/BASELINE.md`](../docs/BASELINE.md).
+  [`docs/history/BASELINE.md`](../docs/history/BASELINE.md).
 - `exp_rl_strength.py` — диагноз прежнего winner-take-all канона RL-vs-UtilityAI и
   замер усиления (сброс физического состояния между партиями + annealing разведки
   по общему опыту). Показывает также не-доминантность UtilityAI (PRESSER его
@@ -56,15 +56,15 @@ python3 experiments/exp_warfare.py              # войсковые автом�
 - `exp_hidden_marginal.py` — замер фактического маргинала скрытой выходной фазы
   `hidden` (A1): показывает коллизию `REST→0 = FIRE→0` и зависимость маргинала от
   политики адресата. Обоснование трактовки равномерности как **априора наблюдателя**
-  (см. `docs/MODEL.md` §2).
+  (см. `docs/history/MODEL.md` §2).
 - `exp_retaliation_faithful.py` — автотест верности оценки возмездия (A3, код 0/1):
   `Agent.committed_work`/`Agent.defense_after` совпадают с фактическим результатом
-  `commit` на 100% атакующих тактов канона (см. `docs/MODEL.md` §7).
+  `commit` на 100% атакующих тактов канона (см. `docs/history/MODEL.md` §7).
 - `exp_env_double_loading.py` — замер двойного нагружения входа среды-суперсистемы
   (A6): при `members=[rl,ai]` прямой удар и агрегат `member_output` учитывают один
   и тот же труд (агрегат ≈ 0.94 от суммы ударов), возмездие тоже нагружает вход
   среды (≈22% прямого давления). Замер: вход среды +76%, окно 68%→77% тактов, но
-  исходы канона не меняются (см. `docs/MODEL.md` §14).
+  исходы канона не меняются (см. `docs/history/MODEL.md` §14).
 - `exp_rl_sensitivity.py` — замер чувствительности канона RL-vs-UtilityAI к
   гиперпараметрам Q-learning (A5): доля побед RL устойчиво в меньшинстве, заметно
   реагирует лишь на горизонт разведки `EPS_DECAY_STEPS` (3000 → 13%; 6000 → 27%);
@@ -76,7 +76,7 @@ python3 experiments/exp_warfare.py              # войсковые автом�
   ветка ЗАМЕЧАЮТСЯ) плюс **слепота** модели (неиспользуемый индекс инертен).
   Роль и границы — в докстроке скрипта: свидетельство здесь, определение и
   сторож регрессий — `tests/test_domain_audit.py` (см. `docs/TODO.md` → F1,
-  `docs/BASELINE.md`).
+  `docs/history/BASELINE.md`).
 - `exp_warfare.py` — проверка войсковых автоматов (код 0/1): две стороны,
   отделения из персонажей, паники/отходы, банзай-атаки, заградотряд, выход
   резерва из стана и подкрепление с задержкой. Спецификация — `docs/WARFARE.md`,

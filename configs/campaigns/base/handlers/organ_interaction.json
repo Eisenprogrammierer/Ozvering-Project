@@ -1,0 +1,92 @@
+{
+  "form": "organ_interaction",
+  "rules": [
+    {
+      "when": {
+        "id": "reinforce"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$organ_id": {
+              "integrity": 0.12
+            }
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.015
+      },
+      "trace": {
+        "essence": "reinforce_organ"
+      }
+    },
+    {
+      "when": {
+        "id": "reform"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$organ_id": {
+              "integrity": 0.07
+            }
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.012
+      },
+      "trace": {
+        "essence": "reform_organ"
+      }
+    },
+    {
+      "when": {
+        "id": "purge"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$organ_id": {
+              "integrity": -0.15
+            }
+          }
+        }
+      },
+      "sender": {
+        "fear": 0.02,
+        "legitimacy": 0.01
+      },
+      "trace": {
+        "essence": "purge_organ"
+      }
+    },
+    {
+      "when": {
+        "id": "resupply"
+      },
+      "receiver": {
+        "effect": {
+          "organs": {
+            "$organ_id": {
+              "integrity": 0.18
+            }
+          }
+        }
+      },
+      "sender": {
+        "morale": 0.01
+      },
+      "trace": {
+        "essence": "resupply_organ"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

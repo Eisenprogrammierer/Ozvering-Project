@@ -1,0 +1,517 @@
+{
+  "form": "information",
+  "rules": [
+    {
+      "when": {
+        "id": "imperial_edict"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.035,
+            "fear": 0.02
+          },
+          "else": {
+            "legitimacy": -0.01,
+            "fear": 0.005
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.025,
+        "fear": 0.02
+      },
+      "trace": {
+        "essence": "legitimize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "cyber_osint"
+      },
+      "receiver": {
+        "accepts": [
+          "influence",
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "influence": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "legitimacy": -0.03,
+            "cohesion": -0.03,
+            "anxiety": 0.02
+          },
+          "else": {
+            "legitimacy": -0.02,
+            "cohesion": -0.01
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03,
+        "legitimacy": 0.01
+      },
+      "trace": {
+        "essence": "analyze"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "myth_campaign"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.05,
+            "doubts_myth": 0.7
+          },
+          "else": {
+            "legitimacy": -0.03,
+            "doubts_myth": 0.5
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02
+      },
+      "trace": {
+        "essence": "legitimize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "guard_parade"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "fear"
+        ],
+        "effect": {
+          "cohesion": -0.01,
+          "fear": 0.005
+        }
+      },
+      "sender": {
+        "cohesion": 0.03,
+        "fear": 0.02,
+        "legitimacy": 0.01,
+        "status": 0.02
+      },
+      "trace": {
+        "essence": "demonstrate"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "information_campaign"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.04,
+            "cohesion": -0.02,
+            "anxiety": 0.02
+          },
+          "else": {
+            "legitimacy": -0.02,
+            "cohesion": -0.01
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.015,
+        "cohesion": 0.015
+      },
+      "trace": {
+        "essence": "delegitimize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.015
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "cyber_leak"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.45
+            }
+          },
+          "then": {
+            "legitimacy": -0.05,
+            "cohesion": -0.03,
+            "anxiety": 0.03
+          },
+          "else": {
+            "legitimacy": -0.04,
+            "cohesion": -0.02,
+            "anxiety": 0.02
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "expose"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "underground_radio"
+      },
+      "receiver": {
+        "accepts": [
+          "influence",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.03,
+            "legitimacy": -0.02,
+            "knowledge": 0.02
+          },
+          "else": {
+            "cohesion": -0.04,
+            "legitimacy": -0.03,
+            "knowledge": 0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "educate"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "rights_documentation"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.05,
+            "is_outlaw": 0.8
+          },
+          "else": {
+            "legitimacy": -0.03
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02
+      },
+      "trace": {
+        "essence": "expose"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "martyr_narrative"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.03,
+            "fear": 0.03,
+            "cohesion": -0.02
+          },
+          "else": {
+            "legitimacy": -0.04,
+            "fear": 0.04,
+            "cohesion": -0.03
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.02
+      },
+      "trace": {
+        "essence": "martyrize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "underground_printing"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.02,
+            "legitimacy": -0.02
+          },
+          "else": {
+            "cohesion": -0.03,
+            "legitimacy": -0.03,
+            "doubts_myth": 0.6
+          }
+        }
+      },
+      "sender": {
+        "cohesion": 0.02
+      },
+      "trace": {
+        "essence": "disinform"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "media_narrative"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.04,
+            "anxiety": 0.02
+          },
+          "else": {
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "deceive"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "buy_silence"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.03,
+            "is_compromised": 0.7
+          },
+          "else": {
+            "legitimacy": -0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "bribe"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "blackmail_operation"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion",
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.4
+            }
+          },
+          "then": {
+            "cohesion": -0.04,
+            "legitimacy": -0.02,
+            "is_compromised": 0.8
+          },
+          "else": {
+            "cohesion": -0.03,
+            "legitimacy": -0.03,
+            "is_compromised": 0.7
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03
+      },
+      "trace": {
+        "essence": "blackmail"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "information_broker"
+      },
+      "receiver": {
+        "effect": {
+          "cohesion": -0.03
+        }
+      },
+      "sender": {
+        "influence": 0.03,
+        "supply": 0.01
+      },
+      "trace": {
+        "essence": "analyze"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {
+        "legitimacy": -0.02
+      }
+    },
+    "sender": {
+      "legitimacy": 0.01
+    }
+  }
+}

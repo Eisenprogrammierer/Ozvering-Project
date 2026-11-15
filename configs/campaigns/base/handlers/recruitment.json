@@ -1,0 +1,51 @@
+{
+  "form": "recruitment",
+  "rules": [
+    {
+      "when": {
+        "id": "convert_officer"
+      },
+      "receiver": {
+        "accepts": [
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "cohesion": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "cohesion": -0.03,
+            "is_disillusioned": 0.6
+          },
+          "else": {
+            "cohesion": -0.04,
+            "is_disillusioned": 0.7
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03
+      },
+      "trace": {
+        "essence": "convert"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {
+        "cohesion": -0.02
+      }
+    },
+    "sender": {
+      "influence": 0.01
+    }
+  }
+}

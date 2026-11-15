@@ -6,7 +6,7 @@
 сегодня, включая известные расхождения и ограничения.
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
-[`AGENTS.md`](AGENTS.md), [`MODEL.md`](MODEL.md),
+[`AGENTS.md`](AGENTS.md), [`history/MODEL.md`](history/MODEL.md),
 [`FORMULAS.md`](FORMULAS.md) — простое объяснение тех же формул с примерами.
 
 ---
@@ -35,7 +35,7 @@
 |---|---|---|
 | Входы `I` | `inputs=("force", "info")` | `Automaton.inputs` |
 | Выходы `O` | `outputs=("force", "info")` | `Automaton.outputs` |
-| Обработчики `P` | `_force_handler` / `_info_handler` → `_receive_work` | `core41/arena.py` |
+| Обработчики `P` | `_force_handler` / `_info_handler` → `_receive_channel` | `core41/arena.py` |
 | Состояние `S` | `state["pressure"]`, здоровье, болезнь, рана | `Automaton` |
 | Сила `F` | `force`, целевая шкала | `Automaton.force` |
 | Энергия `E` | одна универсальная `energy` | `Automaton.energy` |

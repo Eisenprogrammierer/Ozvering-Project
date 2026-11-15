@@ -6,7 +6,7 @@
 `agents` и диалоговый слой `campaign/dialogue/`; полная миграция мира ещё не
 завершена.
 
-**Дата:** 2026-11-14.
+**Дата:** 2026-11-15.
 
 **Формулы:** точные формулы, единицы, примеры и ссылки на код собраны в
 [`FORMULAS.md`](FORMULAS.md). Этот документ даёт только сводку и маршрут к
@@ -18,8 +18,10 @@
 1. **Проектные решения и целевая онтология** — этот документ.
 2. **Детализация целевой модели мира** — [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
    если она не противоречит этому документу.
-3. **Текущее поведение кода** — [`MODEL.md`](MODEL.md), [`BASELINE.md`](BASELINE.md)
-   и тесты, пока код не переведён на целевую модель.
+3. **Текущее поведение легаси-кода** —
+   [`history/MODEL.md`](history/MODEL.md),
+   [`history/BASELINE.md`](history/BASELINE.md) и тесты, пока код не
+   переведён на целевую модель.
 4. **Текущий кампанийный поток** — [`WORLD.md`](WORLD.md); это описание
    текущей реализации, а не целевой мир.
 5. **История и обзоры** — [`history/`](history/); они фиксируют прошлое и
@@ -96,6 +98,7 @@
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
 | Фракции, органы, работы | кампания | `campaign/automata.py`, `campaign/preset.py` · `configs/campaigns/*.json`, `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
+| Работа: capability → `Work` → обработчик | кампания | `campaign/work.py`, `campaign/handlers.py`, `campaign/work_trace.py`, `campaign/effects.py` · `configs/campaigns/base/handlers/*.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3 |
 | Сеть органов и взаимодействия | кампания | `campaign/fractal.py` · поле `links` в `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.2 |
 | Производные активы фракции | кампания | `campaign/faction_state.py` · `faction_state` в `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §3 |
 | BDI персонажей | кампания | `bdi.py`, `warfare.py` (`Character`) · `configs/characters/bdi.json` · `test_bdi.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
@@ -156,7 +159,7 @@
 | Потребность | Куда идти |
 |---|---|
 | Кампанийный UI `view/` | `view/app.py`, `view/screens/`, `view/ui/`; [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md); тесты `test_view.py`, `test_view_world.py` |
-| Сценный UI `ui/` | `ui/app.py`, `ui/scenes/`, `ui/battlefield.py`; [`UI.md`](UI.md); тесты `test_ui.py`, `test_battlefield.py` |
+| Сценный UI `ui/` | `ui/app.py`, `ui/scenes/`, `ui/battlefield.py`; [`history/UI.md`](history/UI.md); тесты `test_ui.py`, `test_battlefield.py` |
 | Экран взаимодействий | `ui/scenes/interaction.py`, `interaction/`; [`INTERACTION.md`](INTERACTION.md); `test_interaction.py` |
 | Редактор автоматов | `automata/`; [`AUTOMATA.md`](AUTOMATA.md); `test_automata_ui.py` |
 | Ассеты и плейсхолдеры | `assets/`, `configs/view/presentation.json` (нет в поставке); `test_gui_smoke.py` |
@@ -187,7 +190,7 @@
 | `main.py` | единая точка входа | активный |
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
-| `campaign/` | кампании автоматов и дневной мир `world_actor` | активный |
+| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`) и дневной мир `world_actor` | активный |
 | `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
@@ -207,7 +210,7 @@
 |---|---|---|
 | `configs/roles/` | `roles.json` — 4 роли | `campaign/roles.py` |
 | `configs/storylines/` | 4 сюжета + сцены | `view/support/storyline.py` |
-| `configs/campaigns/` | 4 шаблона + `base/` | `campaign/preset.py`, `campaign/defaults.py` |
+| `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py` |
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
@@ -516,7 +519,8 @@ BDI — не третий тип и не отдельная онтология. 
 | Область | Сейчас | Цель |
 |---|---|---|
 | `simulation.py` | легаси-канон дуэлей, тики, `force`/`energy_pool`, контекстные фазы типа; активные сцены его не используют | не трогать без отдельного решения; целевой мир — 4-2-1 |
-| `core41/` | срез 4-2-1: `Work`, `Automaton`, `DuelWorld`, `DuelEnv`, `ArenaAgent`, `ArenaMatch`, `run_duel_tick`, `SimulationClock`; одна универсальная энергия, обработчики, логистический успех, здоровье/смерть, секундный тик и скорости | полный мир, кампанийный планировщик, конверсии с потерями |
+| `core41/` | срез 4-2-1: `Work`, `WorkReport`, `Automaton`, `DuelWorld`, `DuelEnv`, `ArenaAgent`, `ArenaMatch`, `run_duel_tick`, `SimulationClock`; одна универсальная энергия, обработчики, логистический успех, конверсии с потерями, здоровье/смерть, секундный тик и скорости | полный мир, кампанийный планировщик |
+| Кампания автоматов (работа) | `campaign/work.py` строит `WorkPlan`; `campaign/handlers.py` выбирает JSON-правило по `form`; `apply_report` применяет проекции; `trace` версии 1 | дневной мир на том же конвейере (фаза 4b), открытый payload-реестр |
 | `agents/` | `BDIPolicy`, `QTablePolicy`, `ArenaAgent`-политики, `PolicyAgent` как легаси-мост, `load_policy`, online-обновление и CLI обучения; у BDI отдельные `campaign_weights` | production-модель, оценка и кампанийная загрузка чекпойнтов |
 | Здоровье | `H=100`, отдых `+0.78/тик`, голод `-0.20/тик`, переполнение урона с коэффициентом `0.25` после `F=0`; факторы `aging/illness/stress/care`; болезнь `sickness ∈ [0,1]` с прогрессом, уроном, отдыхом, `treat()` и шестым действием `TREAT`; контактная передача `CONTAGION_*`; средовой резервуар болезни и острые раны `ArenaEnvironment`; кампанийная передача в одном узле; `condition_state()` и сейв текущих `health`/`sickness`; дневной срез болезни/смерти/распада в кампании; калибровка §2.3.2–2.3.5 | production-планировщик сквозного цикла игрока |
 | `campaign/world.py` | дневной ход; тестовый мир `tests/fixtures/content/configs/worlds/agora_world.json` содержит 43 узла (в поставке `configs/worlds/` пуст); `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day` | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
@@ -585,12 +589,11 @@ BDI — не третий тип и не отдельная онтология. 
 | [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) | целевая модель 4-2-1, реестр закрытых решений и открытых пунктов (§7.0) | канон целевой модели |
 | [`FORMULAS.md`](FORMULAS.md) | формулы ядра, арены, кампании и легаси: обозначения, единицы, примеры | справочник текущего кода + целевых констант |
 | [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация |
-| [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы | текущая реализация |
+| [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы, конвейер работы | текущая реализация |
+| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | план закрытия GAP: фазы, флаги, DoD, фактический статус (§0.5) | план + отчёт о выполнении |
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия автоматов: расстояния, углы, ориентация из JSON | текущая реализация (этап A) + план |
 | [`AGENTS.md`](AGENTS.md) | слой обучаемых агентов и RL-срез `core41` | текущая реализация |
 | [`ALGORITHMS.md`](ALGORITHMS.md) | точный справочник алгоритмов: такт, формулы, признаки, Duel-MLP, обучение | текущая реализация |
-| [`MODEL.md`](MODEL.md) | спецификация `simulation.py` | канон текущего легаси-кода |
-| [`BASELINE.md`](BASELINE.md) | воспроизводимая база `simulation.py` | база легаси |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, папки и загрузчики | руководство |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции | руководство |
 | [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по лору: предикаты, сути, работы, органы, автоматы | проектный документ + источник контента |
@@ -601,12 +604,10 @@ BDI — не третий тип и не отдельная онтология. 
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов | текущий инструмент |
 | [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
-| [`UI.md`](UI.md) | сценный UI `ui/` | текущая реализация |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, фазы D0–D6, прогресс D0–D5.4/D3.2/D6.2a | текущая реализация + план |
 | [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит G-1…G-23: что в коде мешает контенту быть данными | аудит, не канон |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | фазы P0–P10 перевода ядра на данные | план |
-| [`DESIGN_ADVANCED.md`](DESIGN_ADVANCED.md) | lossy/LOD/энтропия | текущий код |
 | [`ONBOARDING.md`](ONBOARDING.md) | карта проекта по потребностям | руководство |
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
@@ -629,10 +630,17 @@ BDI — не третий тип и не отдельная онтология. 
 | [`history/code/DOCS_ANALYSIS.md`](history/code/DOCS_ANALYSIS.md) | аудит документации | исторический анализ |
 | [`history/code/`](history/code/) | справочник по пакетам ранней версии, включая `INLINE_NOTES.md` | исторический |
 | [`history/`](history/) | история решений и PR | заморожено |
+| [`history/MODEL.md`](history/MODEL.md) | спецификация легаси-`simulation.py` | исторический |
+| [`history/BASELINE.md`](history/BASELINE.md) | воспроизводимая база легаси-`simulation.py` | исторический |
+| [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md) | дизайн lossy/LOD/энтропии в легаси-`simulation.py` | исторический |
+| [`history/UI.md`](history/UI.md) | легаси-клиент `ui/`: сцены, сейвы, RTS | исторический |
+| [`history/WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) | GAP-анализ работы как сообщения и статус закрытия (§0.1) | исторический аудит |
 
 **Правило статусов.** Документ из §6.2 не является каноном и не обязан
 совпадать с кодом. Если его вывод нужен для решения, сначала проверьте
-актуальный код/тесты и §0–§5 этого документа.
+актуальный код/тесты и §0–§5 этого документа. Перенос в `history/`
+меняет только расположение и относительные ссылки; содержание
+исторических документов не актуализируется.
 
 ---
 
@@ -682,8 +690,9 @@ D7.4 (описание сцены из story/log/events).
    решения и обновления baseline.
 5. Если документ противоречит этому источнику, побеждает этот документ;
    противоречие нужно исправить, а не игнорировать.
-6. Если код противоречит `MODEL.md`, для текущего поведения побеждают код и
-   тесты; `MODEL.md` нужно исправить.
+6. Если код противоречит `history/MODEL.md`, для текущего поведения
+   побеждают код и тесты; расхождение относится к историческому снимку,
+   а активные документы описывают актуальный путь.
 7. Если целевая модель противоречит текущему коду, для дизайна побеждает
    целевая модель; текущий код остаётся легаси до миграции.
 8. В коде не должно быть inline-комментариев. Значимое объяснение живёт в
@@ -693,7 +702,8 @@ D7.4 (описание сцены из story/log/events).
    `history/FIX_HYPOTHESIS.md`, `history/WORLD_MODEL_REVIEW.md`,
    `history/GAME_ENGINE_CHANGES.md`) не
    переписываются под текущий код. Их выводы относятся к своей дате.
-10. `yet_another_project/` не трогать; `*.pdf` остаются в `.gitignore`.
+10. `*.pdf` остаются в `.gitignore`; удалённые легаси-каталоги (включая
+    `yet_another_project/`) не восстанавливаются.
 
 ---
 
@@ -710,6 +720,19 @@ D7.4 (описание сцены из story/log/events).
   работы, двухтактную подготовку сильного удара, туман наблюдения
   (`core41/intel.py`) и разведку `info` со слабой точкой; легаси-пара
   `DuelWorld`/`DuelEnv` сохраняет последовательное разрешение.
+- Работа кампании приведена к канону: `campaign/work.py` строит `Work`,
+  `campaign/handlers.py` выбирает JSON-правило получателя по `form`,
+  `WorkReport` считает `stored/loss/entropy`, а `campaign/effects.py::
+  apply_report` применяет проекции. Арена вызывает
+  `_receive_channel` из `resolve_work`. Дневной мир (фаза 4b), открытый
+  payload-реестр и квинтуплы остаются остатком —
+  [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §0.5.
+- Легаси-спецификации [`history/MODEL.md`](history/MODEL.md),
+  [`history/BASELINE.md`](history/BASELINE.md),
+  [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md),
+  [`history/UI.md`](history/UI.md) и GAP-аудит
+  [`history/WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md)
+  перенесены в `docs/history/`; карта §6 и ссылки обновлены.
 - Реализовано здоровье как отдельное состояние в дуэльном срезе `core41`:
   смерть при `health <= 0`, переполнение урона после `F=0`, отдых/голод и
   множители `aging/illness/stress/care`; дуэльный срез откалиброван

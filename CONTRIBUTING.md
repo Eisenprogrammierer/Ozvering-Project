@@ -3,7 +3,7 @@
 Документ отвечает на процессные вопросы ревью (пункт D5) и фиксирует уже
 сложившуюся практику. Правки механики/архитектуры описываются в
 [`docs/WORLD_CORE_MODEL.md`](docs/WORLD_CORE_MODEL.md), воспроизводимая
-базовая линия — в [`docs/BASELINE.md`](docs/BASELINE.md). Карта проекта по
+базовая линия легаси-слоя — в [`docs/history/BASELINE.md`](docs/history/BASELINE.md). Карта проекта по
 потребностям (что запускать, где лежит нужный слой, какие тесты читать) — в
 [`docs/ONBOARDING.md`](docs/ONBOARDING.md). Пошаговый практический
 справочник (запуск, обучение, проверки) — в
@@ -22,7 +22,7 @@
 ## `CHANGELOG`
 
 * **Не ведётся** (проект пока рано вести журнал изменений). Роль журнала
-  выполняют `git log`, [`docs/BASELINE.md`](docs/BASELINE.md) и раздел «Журнал
+  выполняют `git log`, [`docs/history/BASELINE.md`](docs/history/BASELINE.md) и раздел «Журнал
   правок» заметки ревью (до её переноса в `TODO.md`).
 
 ## Ветки и согласованность параллельных работ
@@ -49,15 +49,17 @@
   детерминизм, отражение в доках).
 * Слияние — через PR с прогоном CI; изменение канонического результата
   (`run_batch(10)` = RL 1 / UtilityAI 9 / без захвата 0) обосновывается и
-  вносится в `BASELINE.md`.
+  вносится в `history/BASELINE.md`.
 
 ## Код и документация
 
 * Публичные модули, классы и функции сопровождаются docstrings; inline-комментарии
   не используются — причины решений переносятся в docstrings и тематические
   документы, а старые заметки собраны в [`docs/history/code/INLINE_NOTES.md`](docs/history/code/INLINE_NOTES.md).
-* Тематические документы (`WORLD_CORE_MODEL.md`, `BASELINE.md`, `CONTENT.md`,
+* Тематические документы (`WORLD_CORE_MODEL.md`, `CONTENT.md`,
   `CAMPAIGN_UI.md` и т.п.) описывают контракты, формулы и границы;
+  легаси-спецификации — в `docs/history/` (`MODEL.md`, `BASELINE.md`,
+  `UI.md`, `DESIGN_ADVANCED.md`);
   исторический справочник символов — [`docs/history/code/`](docs/history/code/README.md).
 * Форматирование — `black --line-length 79`; стиль — `pycodestyle` с
   настройками из `setup.cfg`. Исключения `E402`, `E203`, `W503` зафиксированы

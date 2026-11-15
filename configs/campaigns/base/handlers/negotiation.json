@@ -1,0 +1,89 @@
+{
+  "form": "negotiation",
+  "rules": [
+    {
+      "when": {
+        "id": "negotiation_offer"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "legitimacy": 0.02,
+            "cohesion": 0.02,
+            "anxiety": -0.01
+          },
+          "else": {
+            "legitimacy": 0.01,
+            "cohesion": 0.01,
+            "anxiety": -0.01
+          }
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02
+      },
+      "trace": {
+        "essence": "negotiate"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "close_channel"
+      },
+      "receiver": {
+        "accepts": [
+          "supply",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "below": 0.5
+            }
+          },
+          "then": {
+            "supply": -0.05,
+            "cohesion": -0.03,
+            "hunger": 0.02
+          },
+          "else": {
+            "supply": -0.04,
+            "cohesion": -0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "sanction"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.03
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "legitimacy": 0.01
+    }
+  }
+}

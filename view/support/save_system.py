@@ -8,7 +8,9 @@ from .log_journal import get_logger
 logger = get_logger("view.save")
 ROOT = Path(__file__).resolve().parents[2]
 SAVES_DIR = ROOT / "saves" / "campaign"
-SAVE_VERSION = 3
+SAVE_VERSION = 4
+CAPABILITY_SCHEMA_VERSION = 2
+WORK_TRACE_VERSION = 1
 
 
 def _migrate_v1_to_v2(data):
@@ -42,6 +44,30 @@ def _migrate_v2_to_v3(data):
     return data
 
 
+def _migrate_v3_to_v4(data):
+    """Миграция 3 → 4: capability v2 и trace работы.
+
+    Снимок кампании автоматов получает версии схемы
+    (``CAPABILITY_SCHEMA_VERSION``, ``WORK_TRACE_VERSION``). Старые
+    записи ``actions``/``log``/``events`` остаются как есть:
+    ``AutomataCampaign.load_snapshot`` умеет открывать снимок без
+    ``capability_id`` и без ``trace`` в логе. Другие режимы (стратегия,
+    мир) контейнер не получают — их поля не затронуты.
+    """
+    campaign = data.get("campaign")
+    if not isinstance(campaign, dict):
+        campaign = {}
+    automata = campaign.get("automata")
+    if isinstance(automata, dict):
+        automata.setdefault(
+            "capability_schema", CAPABILITY_SCHEMA_VERSION
+        )
+        automata.setdefault("work_trace_version", WORK_TRACE_VERSION)
+        campaign["automata"] = automata
+    data["campaign"] = campaign
+    return data
+
+
 def _ensure_containers(data):
     """Гарантировать контейнеры текущей версии даже у свежего сейва."""
     campaign = data.get("campaign")
@@ -49,6 +75,13 @@ def _ensure_containers(data):
         campaign = {}
     campaign.setdefault("node_strategy_state", {})
     campaign.setdefault("environment_plan", {})
+    automata = campaign.get("automata")
+    if isinstance(automata, dict):
+        automata.setdefault(
+            "capability_schema", CAPABILITY_SCHEMA_VERSION
+        )
+        automata.setdefault("work_trace_version", WORK_TRACE_VERSION)
+        campaign["automata"] = automata
     data["campaign"] = campaign
     if not isinstance(data.get("dialogue"), dict):
         data["dialogue"] = {}
@@ -58,6 +91,7 @@ def _ensure_containers(data):
 MIGRATIONS = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
+    3: _migrate_v3_to_v4,
 }
 
 COMPATIBLE_MODES = ("automata", "strategy", "world")

@@ -1,0 +1,159 @@
+{
+  "form": "exchange",
+  "rules": [
+    {
+      "when": {
+        "id": "channel_deal"
+      },
+      "receiver": {
+        "effect": {
+          "supply": 0.01
+        }
+      },
+      "sender": {
+        "supply": 0.03,
+        "influence": 0.02
+      },
+      "trace": {
+        "essence": "trade"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "trade_route"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "supply": 0.04,
+        "influence": 0.03,
+        "hunger": -0.02,
+        "skill": 0.02
+      },
+      "trace": {
+        "essence": "trade"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.015
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "credit_offer"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "legitimacy": {
+              "below": 0.4
+            }
+          },
+          "then": {
+            "legitimacy": 0.03,
+            "cohesion": -0.03
+          },
+          "else": {
+            "legitimacy": 0.02,
+            "cohesion": -0.02
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03
+      },
+      "trace": {
+        "essence": "invest"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.03
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "price_dumping"
+      },
+      "receiver": {
+        "accepts": [
+          "legitimacy",
+          "cohesion"
+        ],
+        "effect": {
+          "if": {
+            "supply": {
+              "above": 0.5
+            }
+          },
+          "then": {
+            "legitimacy": -0.02,
+            "cohesion": -0.03,
+            "anxiety": 0.02
+          },
+          "else": {
+            "legitimacy": -0.03,
+            "cohesion": -0.04,
+            "anxiety": 0.03
+          }
+        }
+      },
+      "sender": {
+        "influence": 0.03,
+        "supply": -0.02
+      },
+      "trace": {
+        "essence": "price_war"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.05,
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "insurance_scheme"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "influence": 0.03,
+        "legitimacy": 0.02,
+        "supply": 0.01,
+        "anxiety": -0.02
+      },
+      "trace": {
+        "essence": "insure"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {
+        "supply": 0.01
+      }
+    },
+    "sender": {
+      "supply": 0.02
+    }
+  }
+}

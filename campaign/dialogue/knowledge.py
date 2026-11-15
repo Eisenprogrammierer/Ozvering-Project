@@ -7,6 +7,12 @@
 D4 добавляет факты социального слоя: ``has_authority``, ``trusts``,
 ``has_leverage``. Они вычисляются из данных кампании, а не из BDI, и
 используются ``SocialEngine`` для проверки допустимости речевых актов.
+
+Работа как сообщение: ``work_essence`` берётся из ``trace.essence``
+последней работы этого действия (если в ``campaign.log`` есть trace),
+иначе — из ``hints.essence``/``action.essence``. Так диалог объясняет
+работу тем, что реально посчитал обработчик, а не тем, что записано в
+контенте.
 """
 
 from __future__ import annotations
@@ -52,6 +58,37 @@ def _nominal(entry: LexEntry) -> str:
         if form.text:
             return form.text
     return entry.lemma
+
+
+def _action_essence(campaign: Any, action: Mapping[str, Any]) -> str:
+    """Суть работы: trace последней записи, иначе hints/essence из записи.
+
+    Trace пишется в ``campaign.log`` в режиме ``apply``/``shadow`` и
+    содержит ``essence``, которую вернул обработчик. Если trace нет
+    (legacy), используется авторская подсказка из ``hints.essence`` или
+    ``essence`` — это совместимость, а не источник эффекта.
+    """
+    action_id = _text(action.get("id"))
+    if action_id and campaign is not None:
+        log = getattr(campaign, "log", ()) or ()
+        for entry in reversed(list(log)):
+            if not isinstance(entry, Mapping):
+                continue
+            if _text(entry.get("action_id")) != action_id:
+                continue
+            trace = entry.get("trace")
+            if not isinstance(trace, Mapping):
+                continue
+            essence = _text(trace.get("essence"))
+            if essence:
+                return essence
+            break
+    hints = action.get("hints")
+    if isinstance(hints, Mapping):
+        essence = _text(hints.get("essence"))
+        if essence:
+            return essence
+    return _text(action.get("essence"))
 
 
 class AgentKnowledge:
@@ -397,7 +434,7 @@ def build_knowledge(
                 _fact(
                     rel("work_essence"),
                     entity_id,
-                    action.get("essence", ""),
+                    _action_essence(campaign, action),
                 )
             )
             add(

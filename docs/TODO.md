@@ -1,8 +1,8 @@
 # TODO: что открыто и в каком порядке
 
-> **Дата:** 2026-11-14. Основано на `DIALOGUE_NLG.md` §10,
-> `CHAT_STYLES_PLAN.md` §8 и личном `SCALING_ANALYSIS.md`
-> (не часть проекта).
+> **Дата:** 2026-11-15. Основано на `DIALOGUE_NLG.md` §10,
+> `CHAT_STYLES_PLAN.md` §8, `WORK_MECHANIC_PLAN.md` §0.5 и личном
+> `SCALING_ANALYSIS.md` (не часть проекта).
 
 ## 0. Закрыто
 
@@ -96,6 +96,27 @@
   не теряются на несогласованном имени.
 - **Тесты.** `tests/test_d3_counterfactual.py`: разбор `NEG`,
   `negated: true` и перестановка `remove`/`add`.
+
+### 0.5. Работа кампании: единый `Work`-конвейер (закрыто 2026-11-15)
+
+- **Сборка.** `campaign/work.py` (`WorkPlan`, `build_work`,
+  `build_interaction_work`) переводит capability/взаимодействие в
+  `core41.types.Work`; `cost` конвертируется в `amount`.
+- **Обработчик.** `campaign/handlers.py` выбирает правило по `form` из
+  `configs/campaigns/base/handlers/*.json`; правила несут
+  `receiver`/`sender`, ветку `failure` и `trace.essence`.
+- **Применение.** `campaign/effects.py::apply_report` — единственный вход
+  из работы в состояние; `apply_effects` остался движком проекций.
+- **Баланс и след.** `campaign/work_trace.py` (`WORK_TRACE_VERSION = 1`)
+  отдаёт `amount/efficiency/stored/loss/entropy/chance/roll/success`,
+  `balance_error` проверяет сходимость.
+- **Арена.** `core41.arena.resolve_work` вызывает `_receive_channel`;
+  дублирующий `ArenaAgent._receive_work` удалён.
+- **Контент.** 65 работ переведены на `template`/`hints`/`chance` без
+  `effects`/`failure`; 17 взаимодействий идут тем же путём.
+- **Сейвы.** `work_shadow` удалён из снимка и миграции.
+- **Остаток.** Дневной мир (4b), `PAYLOAD_KINDS`, квинтуплы и контекст
+  шанса — см. `history/WORK_MECHANIC_GAP.md` §0.1.
 
 ## 1. Диалог: следующий шаг
 
@@ -308,8 +329,19 @@
 - [x] `SOURCE_OF_TRUTH.md` — диалог добавлен в навигатор, карты
   пакетов/конфигов/тестов и §4/§9; ссылка на
   `CHAT_STYLES_PLAN.md` добавлена.
-- [x] `DATA_DRIVEN_CORE_GAPS.md` — G-20…G-23, G-19 D3.2; статусы
-  D3.2/D5.4/D6.1/D6.2a–d/D6.3/D6.4/D7.0–D7.4 выровнены с кодом.
+- [x] `DATA_DRIVEN_CORE_GAPS.md` — G-20…G-23, G-18 (закрыт для арены и
+  кампании), G-19 D3.2; статусы D3.2/D5.4/D6.1/D6.2a–d/D6.3/D6.4/
+  D7.0–D7.4 выровнены с кодом.
+- [x] `history/WORK_MECHANIC_GAP.md` — §0.1 со статусом GAP-01…GAP-14; §3
+  помечен как снимок до миграции.
+- [x] `WORK_MECHANIC_PLAN.md` — §0.5 с фактическим статусом фаз, DoD и
+  списком остатка.
+- [x] `AUTOMATA_CAMPAIGN.md` — §3/§3.0 описывают единый конвейер,
+  `chance`-блок и JSON-правила обработчика.
+- [x] `docs/history/` — `MODEL.md`, `BASELINE.md`, `DESIGN_ADVANCED.md`,
+  `UI.md`, `WORK_MECHANIC_GAP.md` перенесены как исторические; карта §6
+  `SOURCE_OF_TRUTH.md`, ссылки README/ONBOARDING/SUMMARY и тест
+  `test_docs_sync.py` обновлены.
 - [x] `DATA_DRIVEN_CORE_PLAN.md` — P10: D3.2, D5.4, D6.1, D6.2a–d,
   D6.3, D6.4 и D7.0–D7.4 (включая императивы и псевдонимы); открыт
   хвост `has_leverage`.
@@ -358,6 +390,10 @@
 - [x] Коммит и пуш после ревизии документации.
 - [x] После коммита — прогнать `venv/bin/python -m campaign.dialogue.lint`
   и `git diff --check`.
+- [x] Полный прогон после миграции работы: **1508 тестов**, зелёный.
+- [x] `venv/bin/python -m campaign.content_lint` — 22 файла, зелёный.
+- [x] Проверка сборки `Work` для всех 65 работ и 17 взаимодействий;
+  покрытие handler-id полное.
 
 ## 5. Приоритет на ближайшую неделю
 

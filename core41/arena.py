@@ -26,7 +26,7 @@ from .model import (
     success_probability,
     transmit_sickness,
 )
-from .types import Action, Observation, Transition, Work
+from .types import Action, Observation, Transition, Work, WorkReport
 
 FORMS = ("force", "info")
 FRACTIONS = (0.3, 0.7)
@@ -78,6 +78,13 @@ def _energy(agent):
     if value is None:
         value = agent.energy
     return float(value)
+
+
+def _report_dict(report):
+    """Привести ``WorkReport``/dict к плоскому dict для арены."""
+    if isinstance(report, WorkReport):
+        return report.as_dict()
+    return dict(report or {})
 
 
 def _wound_reward(me, before, other, other_before):
@@ -314,13 +321,17 @@ def resolve_work(
     rng,
     env_bonus=0.0,
     weak_point=0.0,
+    coefficients=None,
 ):
     """Разрешить работу против снимка защитника, не трогая здоровье атакующего.
 
-    Функция меняет переданные автоматы (обычно клоны снимка такта):
-    энергия/давление/рана цели и прирост силы атакующего. Штраф здоровья
-    атакующего (`tick_health`) накладывается отдельно, чтобы оба действия
-    такта считались от одного снимка.
+    Канонический путь — `_receive_channel(attacker, defender, work,
+    world)`: та же функция, что зарегистрирована в `Automaton.handlers`,
+    но вызванная явно. `_ResolveWorld` копит изменения, `flush` применяет
+    их к клонам, а `resolve_pair` раскладывает дельты по сторонам.
+    Обработчик возвращает `WorkReport`, который адаптер переводит в поля,
+    ожидаемые `ArenaMatch` (`damage/health/wound/gain/chance/was_open/
+    form/revealed/duration/infection`).
     """
     if not defender_unit.can_receive(work.form):
         return {
@@ -338,97 +349,155 @@ def resolve_work(
         was_open,
         env_bonus=env_bonus,
         weak_point=weak_point,
+        coefficients=coefficients,
     )
+    world = _ResolveWorld(
+        rng=rng,
+        chance=chance,
+        was_open=was_open,
+        weak_point=weak_point,
+        env_bonus=env_bonus,
+        attacker=attacker_unit,
+        defender=defender_unit,
+        work=work,
+    )
+    # ``Automaton.receive`` без ``handlers`` (clone_for_tick их стирает)
+    # ушёл бы в ``default_receive``. Для резолвера арены канонический
+    # обработчик известен явно — ``_receive_channel``. Это тот же путь,
+    # что зарегистрирован в ``ArenaAgent.unit.handlers``.
+    report = _receive_channel(
+        defender_unit, work, attacker_unit, world, work.form
+    )
+    world.flush(attacker_unit, defender_unit)
+    report_dict = _report_dict(report)
     form = work.form
     pressure_rate = (
         INFO_PRESSURE_PER_WORK if form == "info" else PRESSURE_PER_WORK
     )
-    pressure = work.amount * pressure_rate
-    success = rng.random() < chance
-    damage = 0.0
-    gain = 0.0
-    health_damage = 0.0
-    wound_severity = 0.0
-    infection = 0.0
-    if form == "info":
-        defender_unit.state["pressure"] = min(
-            PRESSURE_MAX,
-            defender_unit.pressure() + pressure,
-        )
-        return {
-            "accepted": True,
-            "success": bool(success),
-            "energy": 0.0,
-            "force": 0.0,
-            "damage": 0.0,
-            "health": 0.0,
-            "wound": 0.0,
-            "gain": 0.0,
-            "pressure": pressure,
-            "chance": chance,
-            "was_open": was_open,
-            "form": form,
-            "revealed": bool(success),
-            "duration": float(work.duration),
-        }
-    defender_unit.energy = min(
-        defender_unit.max_energy,
-        defender_unit.energy + work.amount * 0.12,
-    )
-    defender_unit.state["pressure"] = min(
-        PRESSURE_MAX,
-        defender_unit.pressure() + pressure,
-    )
-    if success:
-        charge = 1.0 + CHARGE_DAMAGE_BONUS * max(
-            0.0, float(work.duration) - 1.0
-        )
-        exploit = 1.0 + INTEL_DAMAGE_BONUS * min(
-            1.0, max(0.0, float(weak_point))
-        )
-        damage = max(
-            0.0,
-            work.amount
-            * (0.55 - 0.30 * defender_unit.resistance(form))
-            * charge
-            * exploit,
-        )
-        _absorbed, _overflow, health_damage = (
-            defender_unit.apply_force_damage(damage)
-        )
-        gain = min(
-            attacker_unit.max_force - attacker_unit.force,
-            damage * 0.20,
-        )
-        attacker_unit.force += max(0.0, gain)
-        if health_damage > 0.0:
-            wound_severity = min(
-                WOUND_MAX,
-                WOUND_HIT_SEVERITY * health_damage
-                / max(1.0, defender_unit.max_health),
-            )
-            if wound_severity > 0.0:
-                defender_unit.injure(wound_severity)
-        infection = transmit_sickness(
-            attacker_unit, defender_unit, rng, form
-        )
+    pressure = float(report_dict.get("pressure", work.amount * pressure_rate))
+    success = bool(report_dict.get("success", False))
+    was_info = form == "info"
     return {
-        "accepted": True,
-        "success": bool(success),
-        "energy": work.amount * 0.12,
-        "force": damage,
-        "damage": damage,
-        "health": health_damage,
-        "wound": wound_severity,
-        "gain": gain,
+        "accepted": bool(report_dict.get("accepted", success)),
+        "success": success,
+        "energy": float(report_dict.get("energy", 0.0)),
+        "force": float(report_dict.get("force", 0.0)),
+        "damage": float(
+            report_dict.get("damage", report_dict.get("force", 0.0))
+        ),
+        "health": float(report_dict.get("health", 0.0)),
+        "wound": float(report_dict.get("wound", 0.0)),
+        "gain": float(report_dict.get("gain", 0.0)),
         "pressure": pressure,
         "chance": chance,
         "was_open": was_open,
         "form": form,
-        "revealed": False,
+        "revealed": bool(was_info and success),
         "duration": float(work.duration),
-        "infection": infection,
+        "infection": float(report_dict.get("infection", 0.0)),
     }
+
+
+class _ResolveWorld:
+    """Минимальный `world` для `_receive_channel` из арены.
+
+    Детерминированный обработчик не бросает кубик сам; шанс и бросок
+    живут в резолвере. Этот объект передаёт обработчику уже посчитанный
+    шанс, открытость окна, `rng` и `work`, а изменения, которые хочет
+    внести обработчик (`force`, `damage`, `health`, `wound`, `gain`,
+    `infection`, `pressure`), копит и затем применяет к автоматам через
+    `flush`, сохраняя прежний контракт `resolve_work` (мутация
+    переданных единиц).
+
+    Обработчик **не должен** применять урон к ``target`` напрямую:
+    иначе эффект удвоится (один раз — в обработчике, второй — во
+    ``flush``). Канонические обработчики ``_receive_channel`` копят
+    в ``world``, а ``flush`` применяет.
+    """
+
+    def __init__(
+        self,
+        rng,
+        chance,
+        was_open,
+        weak_point=0.0,
+        env_bonus=0.0,
+        attacker=None,
+        defender=None,
+        work=None,
+    ):
+        self.rng = rng
+        self.chance = float(chance)
+        self.was_open = bool(was_open)
+        self.weak_point = float(weak_point)
+        self.env_bonus = float(env_bonus)
+        self.attacker = attacker
+        self.defender = defender
+        self.work = work
+        self.force = 0.0
+        self.damage = 0.0
+        self.health = 0.0
+        self.wound = 0.0
+        self.gain = 0.0
+        self.infection = 0.0
+        self.pressure = 0.0
+        self.extra = {}
+
+    def set(self, key, value):
+        self.extra[key] = value
+        return value
+
+    def add_force_damage(self, damage):
+        damage = max(0.0, float(damage))
+        self.damage += damage
+        self.force += damage
+        return damage
+
+    def add_gain(self, gain):
+        gain = max(0.0, float(gain))
+        self.gain += gain
+        return gain
+
+    def add_wound(self, severity):
+        severity = max(0.0, float(severity))
+        if severity > self.wound:
+            self.wound = severity
+        return self.wound
+
+    def add_infection(self, severity):
+        severity = max(0.0, float(severity))
+        self.infection = max(self.infection, severity)
+        return self.infection
+
+    def add_pressure(self, pressure):
+        pressure = max(0.0, float(pressure))
+        self.pressure += pressure
+        return self.pressure
+
+    def flush(self, attacker_unit, defender_unit):
+        if self.force > 0.0:
+            _absorbed, _overflow, health_damage = (
+                defender_unit.apply_force_damage(self.force)
+            )
+            self.health += float(health_damage)
+        elif self.health > 0.0:
+            defender_unit.health = max(
+                0.0, defender_unit.health - self.health
+            )
+        if self.wound > 0.0:
+            defender_unit.injure(self.wound)
+        if self.infection > 0.0:
+            defender_unit.infect(self.infection)
+        if self.gain > 0.0:
+            attacker_unit.force = min(
+                attacker_unit.max_force,
+                attacker_unit.force + self.gain,
+            )
+        if self.pressure > 0.0:
+            defender_unit.state["pressure"] = min(
+                PRESSURE_MAX,
+                defender_unit.pressure() + self.pressure,
+            )
 
 
 def _rest_effect(agent):
@@ -1184,87 +1253,152 @@ class ArenaAgent:
         self._last_opponent = None
 
     def _force_handler(self, target, work, source, world):
-        return self._receive_work(target, work, source, world, "force")
+        return _receive_force(target, work, source, world)
 
     def _info_handler(self, target, work, source, world):
-        return self._receive_work(target, work, source, world, "info")
+        return _receive_info(target, work, source, world)
 
-    def _receive_work(self, target, work, source, world, form):
-        if source is None:
-            return target.default_receive(work)
-        if not target.can_receive(form):
-            report = conversion_report(work.amount, form, 0.0, 0.0)
-            report.update(
-                {
-                    "accepted": False,
-                    "success": False,
-                    "energy": 0.0,
-                    "force": 0.0,
-                    "pressure": 0.0,
-                }
-            )
-            return report
-        was_open = target.is_open()
-        env = getattr(world, "env", None)
-        env_bonus = 0.0
-        if env is not None:
-            env_bonus = float(env.work_bonus())
-        chance = success_probability(
-            source, target, work, was_open, env_bonus=env_bonus
+
+def _receive_force(target, work, source, world):
+    """Канонический обработчик формы `force`.
+
+    Детерминированная функция `(target, work, source, world) -> WorkReport`:
+    стохастика (`rng`, `chance`) приходит из `world`, чтобы обработчик
+    оставался чистым. Возвращает `WorkReport` с полями, ожидаемыми
+    `resolve_work` (`accepted/success/energy/force/pressure/...`).
+
+    Урон **копится в ``world``**, а не применяется к ``target`` напрямую:
+    иначе `_ResolveWorld.flush` применит его второй раз. Это то же
+    разделение, что в легаси-ветке (`apply_force_damage` там внутри
+    `resolve_work`, а не в обработчике).
+    """
+    return _receive_channel(target, work, source, world, "force")
+
+
+def _receive_info(target, work, source, world):
+    """Канонический обработчик формы `info`: давление без урона.
+
+    Давление копится в ``world``; ``flush`` применит его к получателю.
+    """
+    return _receive_channel(target, work, source, world, "info")
+
+
+def _receive_channel(target, work, source, world, form):
+    """Общий канонический обработчик арены для `force`/`info`.
+
+    Сохраняет калибровку легаси-ветки один-в-один: `force` — урон
+    `0.55/0.30`, прирост `0.20`, энергия `0.12`; `info` — давление
+    `INFO_PRESSURE_PER_WORK`, без энергии и урона.
+
+    Ключевое отличие от легаси: обработчик **не применяет**
+    урон/давление/рану к ``target`` напрямую, а копит их в ``world``
+    (`add_force_damage`, `add_gain`, `add_wound`, `add_infection`,
+    `add_pressure`). ``_ResolveWorld.flush`` применит всё за один раз.
+    Это устраняет двойное применение урона и сохраняет golden.
+    """
+    from .model import _report_from_conversion
+
+    if not target.can_receive(form):
+        report = conversion_report(work.amount, form, 0.0, 0.0)
+        return _report_from_conversion(
+            report,
+            accepted=False,
+            success=False,
         )
-        rng = getattr(world, "rng", self.rng)
-        stored = target.add_energy(work.amount * RECEIVE_ENERGY_SHARE)
-        pressure = work.amount * PRESSURE_PER_WORK
-        target.state["pressure"] = min(
-            30.0, target.pressure() + pressure
-        )
-        if env is not None:
-            env.ingest(work.amount, getattr(work, "form", "force"))
-        success = rng.random() < chance
-        damage = 0.0
-        gain = 0.0
-        health_damage = 0.0
-        if success:
-            base = 0.55 if form == "force" else 0.30
-            scale = 0.30 if form == "force" else 0.15
-            damage = max(
-                0.0,
-                work.amount * (base - scale * target.resistance(form)),
-            )
-            _absorbed, _overflow, health_damage = target.apply_force_damage(
-                damage
-            )
-            gain = min(
-                source.max_force - source.force,
-                damage * FORCE_FEEDBACK_SHARE,
-            )
-            source.force += max(0.0, gain)
-        wound_severity = 0.0
-        if health_damage > 0.0:
-            wound_severity = min(
-                WOUND_MAX,
-                WOUND_HIT_SEVERITY * health_damage
-                / max(1.0, target.max_health),
-            )
-            if wound_severity > 0.0:
-                target.injure(wound_severity)
-        report = conversion_report(work.amount, form, stored)
-        report.update(
-            {
-                "accepted": True,
-                "success": success,
-                "energy": work.amount * RECEIVE_ENERGY_SHARE,
-                "force": damage,
-                "damage": damage,
-                "health": health_damage,
-                "wound": wound_severity,
-                "gain": gain,
+    chance = float(getattr(world, "chance", 0.0))
+    rng = getattr(world, "rng", None)
+    if rng is None:
+        rng = random.Random(0)
+    was_open = bool(getattr(world, "was_open", target.is_open()))
+    pressure_rate = (
+        INFO_PRESSURE_PER_WORK if form == "info" else PRESSURE_PER_WORK
+    )
+    pressure = work.amount * pressure_rate
+    success = rng.random() < chance
+    if form == "info":
+        world.add_pressure(pressure)
+        report = conversion_report(work.amount, form, 0.0)
+        return _report_from_conversion(
+            report,
+            accepted=True,
+            success=bool(success),
+            extra={
+                "energy": 0.0,
+                "force": 0.0,
+                "damage": 0.0,
+                "health": 0.0,
+                "wound": 0.0,
+                "gain": 0.0,
                 "pressure": pressure,
                 "chance": chance,
                 "was_open": was_open,
-            }
+            },
         )
-        return report
+    stored = target.add_energy(work.amount * 0.12)
+    damage = 0.0
+    gain = 0.0
+    health_damage = 0.0
+    wound_severity = 0.0
+    infection = 0.0
+    if success:
+        charge = 1.0 + CHARGE_DAMAGE_BONUS * max(
+            0.0, float(work.duration) - 1.0
+        )
+        weak_point = float(getattr(world, "weak_point", 0.0))
+        exploit = 1.0 + INTEL_DAMAGE_BONUS * min(
+            1.0, max(0.0, weak_point)
+        )
+        damage = max(
+            0.0,
+            work.amount
+            * (0.55 - 0.30 * target.resistance(form))
+            * charge
+            * exploit,
+        )
+        world.add_force_damage(damage)
+        if source is not None:
+            gain = min(
+                source.max_force - source.force,
+                damage * 0.20,
+            )
+            world.add_gain(gain)
+        if damage > 0.0:
+            wound_severity = min(
+                WOUND_MAX,
+                WOUND_HIT_SEVERITY * damage
+                / max(1.0, target.max_health),
+            )
+            if wound_severity > 0.0:
+                world.add_wound(wound_severity)
+        if source is not None:
+            infection = transmit_sickness(
+                source, target, rng, form
+            )
+            if infection > 0.0:
+                world.add_infection(infection)
+    world.add_pressure(pressure)
+    report = conversion_report(work.amount, form, stored)
+    extra = {
+        "energy": work.amount * 0.12,
+        "force": damage,
+        "damage": damage,
+        "health": health_damage,
+        "wound": wound_severity,
+        "gain": gain,
+        "pressure": pressure,
+        "chance": chance,
+        "was_open": was_open,
+        "infection": infection,
+    }
+    payload = getattr(work, "payload", ())
+    if payload:
+        extra["payload_received"] = True
+    return _report_from_conversion(
+        report,
+        accepted=True,
+        success=bool(success),
+        extra=extra,
+    )
 
 
 class ArenaMatch:

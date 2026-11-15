@@ -4,7 +4,7 @@ import re
 import simulation as S
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-MODEL_MD = ROOT / "docs" / "MODEL.md"
+MODEL_MD = ROOT / "docs" / "history" / "MODEL.md"
 README_MD = ROOT / "README.md"
 CONTENT_MD = ROOT / "docs" / "CONTENT.md"
 

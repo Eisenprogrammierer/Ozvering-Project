@@ -6,6 +6,18 @@ from __future__ import annotations
 симуляции — фракция-автомат: у неё есть состояние (assets), организация
 участников (``OrganizationRuntime``) и набор работ, которыми она действует
 на другие автоматы. Победа и поражение задаются данными шаблона.
+
+**Модель работы (фазы 3–4a
+[`WORK_MECHANIC_PLAN.md`](../docs/WORK_MECHANIC_PLAN.md)).**
+Каждая работа и каждое взаимодействие проходят один путь:
+
+``build_work``/``build_interaction_work`` → ``handlers.receive`` →
+``WorkReport`` → ``apply_report``.
+
+Capability хранит только шаблон работы (``template.amount/form/payload``),
+шанс (``chance``) и подсказки (``hints``). Результат вычисляет обработчик
+получателя; стохастика (бросок) остаётся в этом модуле и не попадает в
+обработчик. Legacy-ветки и флаги миграции удалены.
 """
 
 from dataclasses import dataclass, field
@@ -19,7 +31,10 @@ from organizations.model import OrganizationParameters
 from organizations.runtime import OrganizationRuntime
 from systems.events import EventEngine, EventError
 from .conditions import asset_reason, check_conditions
-from .effects import apply_effects
+from .effects import apply_effects, apply_report
+from .work import build_interaction_work, build_work
+from .work_trace import trace_from_report
+from .handlers import receive
 
 from .defaults import default_dict, default_list, default_section
 from .errors import CampaignError
@@ -64,6 +79,9 @@ from .state_machine import (
 )
 
 logger = logging.getLogger(__name__)
+
+WORK_TRACE_VERSION = 1
+CAPABILITY_SCHEMA_VERSION = 2
 
 
 class AutomataCampaignError(CampaignError):
@@ -731,6 +749,8 @@ class AutomataCampaign:
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
         self._story_progress = 0.0
+        self.capability_schema = CAPABILITY_SCHEMA_VERSION
+        self.work_trace_version = WORK_TRACE_VERSION
         self.machine_catalog = self._load_machine_catalog()
         self.faction_machines: Dict[str, StateMachine] = {}
         self.organ_machines: Dict[str, Dict[str, StateMachine]] = {}
@@ -1114,7 +1134,9 @@ class AutomataCampaign:
     def geometry(self, side):
         """Семантическая геометрия стороны или ``None``."""
         faction = self.faction(side)
-        return getattr(faction, "geometry", None) if faction is not None else None
+        if faction is None:
+            return None
+        return getattr(faction, "geometry", None)
 
     def geometry_distance(self, side, source, target):
         """Кратчайшее расстояние по сети стороны; ``inf`` без пути."""
@@ -1715,8 +1737,10 @@ class AutomataCampaign:
     ):
         """Повлиять на орган: усилить, реформировать, почистить, снабдить.
 
-        Изменение органа распространяется на фракцию через
-        ``spread_organ_effect``: это и есть самоподобный up-масштаб.
+        Взаимодействие проходит через ``build_interaction_work`` →
+        ``handlers.receive`` → ``apply_report``. После отчёта изменение
+        целостности органа проецируется на актив фракции тем же
+        ``spread_organ_effect``, что и в остальной модели.
         """
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
@@ -1748,15 +1772,48 @@ class AutomataCampaign:
             }
         interaction = option["interaction"]
         cost = _as_mapping(interaction.get("cost"))
+        record = dict(interaction)
+        record["organ_id"] = organ.id
+        plan = build_interaction_work(
+            record,
+            "organ_interaction",
+            faction,
+            faction,
+            self,
+        )
+        if plan is None:
+            return {
+                "ok": False,
+                "reason": "работа взаимодействия не собрана",
+            }
+        try:
+            report = receive(
+                plan.to_work(),
+                plan,
+                faction,
+                faction,
+                self,
+                success=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Обработчик organ_interaction не сработал: %s", exc
+            )
+            return {
+                "ok": False,
+                "reason": "обработчик взаимодействия: %s" % exc,
+            }
         for key, value in cost.items():
             faction.add_asset(key, -_number(value))
         before = organ.integrity
-        delta = strengthen_organ(
-            organ, _number(interaction.get("integrity"))
+        apply_report(
+            faction,
+            faction,
+            report,
+            scale=1.0,
+            source="organ_interaction",
         )
-        explicit = _as_mapping(interaction.get("faction"))
-        for key, value in explicit.items():
-            faction.add_asset(key, _number(value))
+        delta = organ.integrity - before
         spread = spread_organ_effect(
             faction, organ, delta, self.model
         )
@@ -1789,6 +1846,8 @@ class AutomataCampaign:
             "text": str(interaction.get("text") or option["description"]),
             "status": organ.status(),
         }
+        if report is not None:
+            result["report"] = report.as_dict()
         detail = (
             "ход %d: %s → орган «%s»: %s; целостность %.2f → %.2f"
             % (
@@ -1919,7 +1978,12 @@ class AutomataCampaign:
     def perform_automaton_interaction(
         self, side, source_organ_id, target_organ_id, interaction_id
     ):
-        """Провести команду одного автомата другому внутри своей сети."""
+        """Провести команду одного автомата другому внутри своей сети.
+
+        Команда проходит через ``build_interaction_work`` →
+        ``handlers.receive`` → ``apply_report``; изменения целостности
+        источника и цели проецируются на активы фракции.
+        """
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         gate = self._player_action_gate(side)
@@ -1960,19 +2024,51 @@ class AutomataCampaign:
             }
         interaction = option["interaction"]
         cost = _as_mapping(interaction.get("cost"))
+        record = dict(interaction)
+        record["source_organ_id"] = source.id
+        record["target_organ_id"] = target.id
+        plan = build_interaction_work(
+            record,
+            "automaton_interaction",
+            faction,
+            faction,
+            self,
+        )
+        if plan is None:
+            return {
+                "ok": False,
+                "reason": "работа взаимодействия не собрана",
+            }
+        try:
+            report = receive(
+                plan.to_work(),
+                plan,
+                faction,
+                faction,
+                self,
+                success=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Обработчик automaton_interaction не сработал: %s", exc
+            )
+            return {
+                "ok": False,
+                "reason": "обработчик взаимодействия: %s" % exc,
+            }
         for key, value in cost.items():
             faction.add_asset(key, -_number(value))
         source_before = source.integrity
         target_before = target.integrity
-        source_delta = strengthen_organ(
-            source, _number(interaction.get("source_integrity"))
+        apply_report(
+            faction,
+            faction,
+            report,
+            scale=1.0,
+            source="automaton_interaction",
         )
-        target_delta = strengthen_organ(
-            target, _number(interaction.get("target_integrity"))
-        )
-        explicit = _as_mapping(interaction.get("faction"))
-        for key, value in explicit.items():
-            faction.add_asset(key, _number(value))
+        source_delta = source.integrity - source_before
+        target_delta = target.integrity - target_before
         source_spread = spread_organ_effect(
             faction, source, source_delta, self.model
         )
@@ -2014,6 +2110,8 @@ class AutomataCampaign:
             "text": str(interaction.get("text") or option["description"]),
             "status": target.status(),
         }
+        if report is not None:
+            result["report"] = report.as_dict()
         detail = (
             "ход %d: %s → %s → %s: %s; цель %.2f → %.2f"
             % (
@@ -2141,7 +2239,14 @@ class AutomataCampaign:
     def perform_character_interaction(
         self, side, character_id, interaction_id
     ):
-        """Применить действие к выбранному персонажу."""
+        """Применить действие к выбранному персонажу.
+
+        Действие проходит через ``build_interaction_work`` →
+        ``handlers.receive`` → ``apply_report``. Обработчик адресует
+        потребности, черты и мораль конкретного персонажа через
+        ``meta.character_id``, а изменение органа проецируется на актив
+        фракции.
+        """
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         gate = self._player_action_gate(side)
@@ -2173,37 +2278,69 @@ class AutomataCampaign:
             }
         interaction = option["interaction"]
         cost = _as_mapping(interaction.get("cost"))
-        for key, value in cost.items():
-            faction.add_asset(key, -_number(value))
-        needs_before = {
-            str(key): _clamp(character.needs.get(key, 0.0))
-            for key in _as_mapping(interaction.get("needs"))
-        }
-        for key, value in _as_mapping(interaction.get("needs")).items():
-            if key in character.needs:
-                character.needs[key] = _clamp(
-                    character.needs.get(key, 0.0) + _number(value)
-                )
-        values = getattr(character.personality, "values", {})
-        for key, value in _as_mapping(
-            interaction.get("personality")
-        ).items():
-            if key in values:
-                values[key] = _clamp(values.get(key, 0.0) + _number(value))
-        morale_before = _number(character.morale)
-        character.morale = max(
-            0.0,
-            min(100.0, morale_before + _number(interaction.get("morale"))),
-        )
         organ = faction.organ(
             getattr(character, "campaign_organ_id", "")
         )
+        record = dict(interaction)
+        record["character_id"] = str(
+            getattr(character, "campaign_id", character_id)
+        )
+        record["organ_id"] = organ.id if organ is not None else ""
+        plan = build_interaction_work(
+            record,
+            "character_interaction",
+            faction,
+            faction,
+            self,
+        )
+        if plan is None:
+            return {
+                "ok": False,
+                "reason": "работа взаимодействия не собрана",
+            }
+        try:
+            report = receive(
+                plan.to_work(),
+                plan,
+                faction,
+                faction,
+                self,
+                success=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Обработчик character_interaction не сработал: %s", exc
+            )
+            return {
+                "ok": False,
+                "reason": "обработчик взаимодействия: %s" % exc,
+            }
+        for key, value in cost.items():
+            faction.add_asset(key, -_number(value))
+        needs_snapshot = {
+            str(key): _clamp(value)
+            for key, value in character.needs.items()
+        }
+        morale_before = _number(character.morale)
         organ_before = organ.integrity if organ is not None else None
+        apply_report(
+            faction,
+            faction,
+            report,
+            scale=1.0,
+            source="character_interaction",
+        )
+        needs_before = {}
+        for key, before_value in needs_snapshot.items():
+            after_value = _clamp(character.needs.get(key, 0.0))
+            if abs(after_value - before_value) > 1e-9:
+                needs_before[key] = before_value
         organ_delta = 0.0
-        integrity_delta = _number(interaction.get("organ_integrity"))
-        if organ is not None and integrity_delta:
-            organ_delta = strengthen_organ(organ, integrity_delta)
-            spread_organ_effect(faction, organ, organ_delta, self.model)
+        if organ is not None and organ_before is not None:
+            organ_delta = organ.integrity - organ_before
+            spread_organ_effect(
+                faction, organ, organ_delta, self.model
+            )
         cooldown = int(_number(interaction.get("cooldown"), 0))
         if cooldown > 0:
             character.campaign_cooldowns[
@@ -2248,6 +2385,8 @@ class AutomataCampaign:
                 interaction.get("text") or option["description"]
             ),
         }
+        if report is not None:
+            result["report"] = report.as_dict()
         detail = (
             "ход %d: %s → персонаж «%s» (%s): %s; мораль %.0f → %.0f"
             % (
@@ -2312,38 +2451,33 @@ class AutomataCampaign:
                 return item.side
         return self.rival_of(side)
 
-    def _apply_branch(self, actor, target, branch, scale=None):
-        """Тонкая обёртка над единым движком эффектов."""
-        if scale is None:
-            scale = self.model["effect_scale"]
-        return apply_effects(
-            actor,
-            branch,
-            target=target,
-            scale=scale,
-            source="work",
-        )
-
     def _log_work(self, result):
         self.log.append(result)
+        trace = result.get("trace")
+        if not isinstance(trace, Mapping):
+            trace = {}
         detail = (
-            "ход %d: %s → %s работой «%s» (%s); шанс %.3f, бросок %.3f, "
-            "успех=%s; атака %s=%.3f против %s=%.3f"
+            "ход %d: %s → %s работой «%s» (%s); amount=%.3f "
+            "eff=%.3f stored=%.3f loss=%.3f entropy=%.3f; "
+            "шанс %.3f, бросок %.3f, успех=%s"
             % (
                 result["turn"],
                 result["actor_name"],
                 result["target_name"],
                 result["label"],
                 result["form"],
+                _number(trace.get("amount"), 0.0),
+                _number(trace.get("efficiency"), 0.0),
+                _number(trace.get("stored"), 0.0),
+                _number(trace.get("loss"), 0.0),
+                _number(trace.get("entropy"), 0.0),
                 result["chance"],
                 result["roll"],
                 "да" if result["success"] else "нет",
-                result["attack_asset"],
-                result["attack_value"],
-                result["defense_asset"],
-                result["defense_value"],
             )
         )
+        if trace.get("essence"):
+            detail += "; суть=%s" % trace["essence"]
         if result.get("reason"):
             detail += "; причина: %s" % result["reason"]
         self.events.append(
@@ -2359,20 +2493,29 @@ class AutomataCampaign:
             self.events = self.events[-EVENT_LOG_LIMIT:]
 
     def _action_intention(self, action, actor, target_faction):
-        """Собрать дуплет намерения из ``essence``/``intention`` работы.
+        """Собрать дуплет намерения из подсказок capability.
 
-        ``intention.target`` может быть ``self``, ``rival`` или явным id.
+        Авторская метка живёт в ``hints.intention_essence`` (fallback —
+        ``hints.essence``), цель — в ``hints.intention_target``. Старый
+        блок ``intention`` читается только как совместимый fallback.
         Пустой/алиасный target разрешается в фактическую цель работы,
         поэтому один и тот же шаблон работает для любой стороны.
         """
         action = _as_mapping(action)
+        hints = _as_mapping(action.get("hints"))
         raw = _as_mapping(action.get("intention"))
         essence = str(
-            raw.get("essence") or action.get("essence") or ""
+            hints.get("intention_essence")
+            or hints.get("essence")
+            or raw.get("essence")
+            or action.get("essence")
+            or ""
         ).strip()
         if not essence:
             return None
-        target = str(raw.get("target") or "").strip()
+        target = str(
+            hints.get("intention_target") or raw.get("target") or ""
+        ).strip()
         if target == "self":
             target = actor.id
         elif target in (
@@ -2394,6 +2537,13 @@ class AutomataCampaign:
         return {"target": target, "essence": essence}
 
     def perform(self, side, action_id, target=None):
+        """Выполнить работу стороны.
+
+        Работа строится из capability (``build_work``), проходит через
+        ``handlers.receive`` и применяется как ``WorkReport.projections``
+        через ``apply_report``. Провал — это ветка ``failure`` в правиле
+        обработчика, а не отдельный словарь эффектов в capability.
+        """
         actor = self.faction(side)
         if actor is None or actor.dissolved:
             return {"ok": False, "reason": "фракция недоступна"}
@@ -2421,38 +2571,34 @@ class AutomataCampaign:
         if target_faction is None:
             return {"ok": False, "reason": "нет цели"}
         cost = _as_mapping(action.get("cost"))
-        for key, value in cost.items():
-            actor.add_asset(key, -_number(value))
-        attack_asset = str(action.get("attack_asset") or "influence")
-        defense_asset = str(action.get("defense_asset") or "cohesion")
+        chance_spec = _as_mapping(action.get("chance"))
+        attack_asset = str(
+            chance_spec.get("attack")
+            or action.get("attack_asset")
+            or "influence"
+        )
+        defense_asset = str(
+            chance_spec.get("defense")
+            or action.get("defense_asset")
+            or "cohesion"
+        )
         attack_value = actor.asset(attack_asset)
         defense_value = (
             actor.asset(defense_asset)
             if target_faction.side == actor.side
             else target_faction.asset(defense_asset)
         )
-        base = _number(action.get("base"), self.model["success_base"])
-        slope = _number(action.get("slope"), self.model["success_slope"])
+        base = _number(
+            chance_spec.get("base"),
+            _number(action.get("base"), self.model["success_base"]),
+        )
+        slope = _number(
+            chance_spec.get("slope"),
+            _number(action.get("slope"), self.model["success_slope"]),
+        )
         chance = _sigmoid(base + slope * (attack_value - defense_value))
         roll = self.rng.random()
         success = roll < chance
-        branch = action.get("effects") if success else action.get("failure")
-        intention = (
-            self._action_intention(action, actor, target_faction)
-            if success
-            else None
-        )
-        if intention is not None:
-            branch = dict(branch) if isinstance(branch, Mapping) else {}
-            self_scope = _as_mapping(branch.get("self"))
-            self_scope = dict(self_scope)
-            intentions = dict(_as_mapping(self_scope.get("intentions")))
-            pushed = list(intentions.get("push") or ())
-            if intention not in pushed:
-                pushed.append(intention)
-            intentions["push"] = pushed
-            self_scope["intentions"] = intentions
-            branch["self"] = self_scope
         organ_id = str(action.get("organ_id") or "")
         organ = actor.organ(organ_id) if organ_id else None
         readiness = readiness_scale(organ, self.model)
@@ -2466,12 +2612,63 @@ class AutomataCampaign:
         )
         decay = max(0.0, min(1.0, decay))
         repeat_scale = decay ** used_before if used_before > 0 else 1.0
-        self._apply_branch(
+
+        plan = build_work(action, actor, target_faction, self)
+        if plan is None:
+            return {
+                "ok": False,
+                "reason": "работа не собрана: нет template/amount",
+            }
+        try:
+            report = receive(
+                plan.to_work(),
+                plan,
+                actor,
+                target_faction,
+                self,
+                success=success,
+            )
+        except Exception as exc:
+            logger.warning("Обработчик работы не сработал: %s", exc)
+            return {
+                "ok": False,
+                "reason": "обработчик работы: %s" % exc,
+            }
+        for key, value in cost.items():
+            actor.add_asset(key, -_number(value))
+        apply_report(
             actor,
             target_faction,
-            branch,
+            report,
             scale=self.model["effect_scale"] * readiness * repeat_scale,
+            source="work",
         )
+        intention = (
+            self._action_intention(action, actor, target_faction)
+            if success
+            else None
+        )
+        trace_essence = str(
+            (report.trace or {}).get("essence")
+            or plan.essence_hint
+            or ""
+        )
+        if intention is not None:
+            if trace_essence:
+                intention = dict(intention, essence=trace_essence)
+            apply_effects(
+                actor,
+                {"self": {"intentions": {"push": [intention]}}},
+                target=None,
+                scale=1.0,
+                source="work",
+            )
+        try:
+            trace = trace_from_report(
+                plan, chance, roll, success, report
+            ).as_dict()
+        except Exception:
+            trace = None
         if organ is not None:
             if success:
                 gain = self.model["organ_action_gain"] * (
@@ -2524,7 +2721,7 @@ class AutomataCampaign:
                 organ.status() if organ is not None else "нет органа"
             ),
             "organ_readiness": round(readiness, 6),
-            "form": str(action.get("form") or "work"),
+            "form": str(plan.form),
             "attack_asset": attack_asset,
             "attack_value": round(attack_value, 6),
             "defense_asset": defense_asset,
@@ -2533,6 +2730,7 @@ class AutomataCampaign:
             "roll": round(roll, 6),
             "success": bool(success),
             "intention": dict(intention or {}),
+            "trace": trace,
             "cost": {
                 key: round(_number(value), 6)
                 for key, value in cost.items()
@@ -2545,13 +2743,9 @@ class AutomataCampaign:
                 key: round(_clamp(value), 6)
                 for key, value in target_faction.assets.items()
             },
-            "text": str(
-                (branch or {}).get("text")
-                if isinstance(branch, Mapping) and branch.get("text")
-                else action.get("text")
-                or ""
-            ),
+            "text": str(action.get("text") or ""),
         }
+        result["report"] = report.as_dict()
         self._log_work(result)
         return result
 
@@ -2573,8 +2767,13 @@ class AutomataCampaign:
             target_side = self._target_side(side, action)
             target = self.faction(target_side)
             if target is not None:
+                chance_spec = _as_mapping(action.get("chance"))
                 defense = target.asset(
-                    str(action.get("defense_asset") or "cohesion")
+                    str(
+                        chance_spec.get("defense")
+                        or action.get("defense_asset")
+                        or "cohesion"
+                    )
                 )
                 weight *= 1.0 + max(0.0, 0.5 - defense)
             weights.append(weight)
@@ -2873,6 +3072,14 @@ class AutomataCampaign:
         return {
             "preset_id": self.preset_id,
             "title": self.title,
+            "capability_schema": int(
+                getattr(
+                    self, "capability_schema", CAPABILITY_SCHEMA_VERSION
+                )
+            ),
+            "work_trace_version": int(
+                getattr(self, "work_trace_version", WORK_TRACE_VERSION)
+            ),
             "turn": self.turn,
             "max_turns": self.max_turns,
             "actions_per_turn": self.actions_per_turn,
@@ -2905,6 +3112,14 @@ class AutomataCampaign:
     def save_snapshot(self):
         """Полный снимок: журнал, организации и состояние ГСЧ."""
         data = stamp_snapshot(self.snapshot(), SCHEMA_VERSION)
+        data["capability_schema"] = int(
+            getattr(
+                self, "capability_schema", CAPABILITY_SCHEMA_VERSION
+            )
+        )
+        data["work_trace_version"] = int(
+            getattr(self, "work_trace_version", WORK_TRACE_VERSION)
+        )
         data["log"] = list(self.log)
         data["events"] = list(self.events)
         data["rng_state"] = _nested_tuple(self.rng.getstate())
@@ -3033,6 +3248,24 @@ class AutomataCampaign:
         if not snapshot:
             return
         ensure_supported_snapshot(snapshot)
+        self.capability_schema = max(
+            1,
+            int(
+                _number(
+                    snapshot.get("capability_schema"),
+                    1,
+                )
+            ),
+        )
+        self.work_trace_version = max(
+            0,
+            int(
+                _number(
+                    snapshot.get("work_trace_version"),
+                    0,
+                )
+            ),
+        )
         self.turn = int(_number(snapshot.get("turn"), self.turn))
         saved_max = snapshot.get("max_turns")
         if saved_max is None:
@@ -3348,6 +3581,7 @@ class AutomataCampaign:
 __all__ = [
     "AutomataCampaign",
     "AutomataCampaignError",
+    "CAPABILITY_SCHEMA_VERSION",
     "DEFAULT_ACTIONS_PER_TURN",
     "DEFAULT_CHARACTER_INTERACTIONS",
     "DEFAULT_RUN_TURNS",
@@ -3355,4 +3589,5 @@ __all__ = [
     "FactionRuntime",
     "MODEL_DEFAULTS",
     "REALTIME_DEFAULTS",
+    "WORK_TRACE_VERSION",
 ]

@@ -19,98 +19,311 @@
     "morale_scale": 100.0,
     "assets": {
       "legitimacy": [
-        {"metric": "characters.mean:satisfaction.status", "weight": 0.30},
-        {"metric": "characters.mean:satisfaction.spirituality", "weight": 0.12},
-        {"metric": "characters.mean:trait.loyalty", "weight": 0.13},
-        {"metric": "organs.kind:legitimacy", "weight": 0.20},
-        {"metric": "organization.willing_share", "weight": 0.13},
-        {"metric": "context.legitimacy", "weight": 0.12}
+        {
+          "metric": "characters.mean:satisfaction.status",
+          "weight": 0.3
+        },
+        {
+          "metric": "characters.mean:satisfaction.spirituality",
+          "weight": 0.12
+        },
+        {
+          "metric": "characters.mean:trait.loyalty",
+          "weight": 0.13
+        },
+        {
+          "metric": "organs.kind:legitimacy",
+          "weight": 0.2
+        },
+        {
+          "metric": "organization.willing_share",
+          "weight": 0.13
+        },
+        {
+          "metric": "context.legitimacy",
+          "weight": 0.12
+        }
       ],
       "cohesion": [
-        {"metric": "characters.mean:satisfaction.friendship", "weight": 0.25},
-        {"metric": "characters.mean:satisfaction.loneliness", "weight": 0.15},
-        {"metric": "characters.mean:satisfaction.love", "weight": 0.15},
-        {"metric": "organs.mean", "weight": 0.15},
-        {"metric": "organization.active_share", "weight": 0.15},
-        {"metric": "context.cohesion", "weight": 0.15}
+        {
+          "metric": "characters.mean:satisfaction.friendship",
+          "weight": 0.25
+        },
+        {
+          "metric": "characters.mean:satisfaction.loneliness",
+          "weight": 0.15
+        },
+        {
+          "metric": "characters.mean:satisfaction.love",
+          "weight": 0.15
+        },
+        {
+          "metric": "organs.mean",
+          "weight": 0.15
+        },
+        {
+          "metric": "organization.active_share",
+          "weight": 0.15
+        },
+        {
+          "metric": "context.cohesion",
+          "weight": 0.15
+        }
       ],
       "supply": [
-        {"metric": "characters.mean:satisfaction.hunger", "weight": 0.35},
-        {"metric": "characters.mean:satisfaction.thirst", "weight": 0.25},
-        {"metric": "organs.kind:maintenance", "weight": 0.20},
-        {"metric": "organization.active_share", "weight": 0.10},
-        {"metric": "context.supply", "weight": 0.10}
+        {
+          "metric": "characters.mean:satisfaction.hunger",
+          "weight": 0.35
+        },
+        {
+          "metric": "characters.mean:satisfaction.thirst",
+          "weight": 0.25
+        },
+        {
+          "metric": "organs.kind:maintenance",
+          "weight": 0.2
+        },
+        {
+          "metric": "organization.active_share",
+          "weight": 0.1
+        },
+        {
+          "metric": "context.supply",
+          "weight": 0.1
+        }
       ],
       "fear": [
-        {"metric": "characters.mean:need.fear", "weight": 0.40},
-        {"metric": "characters.mean:need.anxiety", "weight": 0.20},
-        {"metric": "organs.kind:coercion", "weight": 0.15},
-        {"metric": "characters.mean:condition.wound", "weight": 0.10},
-        {"metric": "context.fear", "weight": 0.15}
+        {
+          "metric": "characters.mean:need.fear",
+          "weight": 0.4
+        },
+        {
+          "metric": "characters.mean:need.anxiety",
+          "weight": 0.2
+        },
+        {
+          "metric": "organs.kind:coercion",
+          "weight": 0.15
+        },
+        {
+          "metric": "characters.mean:condition.wound",
+          "weight": 0.1
+        },
+        {
+          "metric": "context.fear",
+          "weight": 0.15
+        }
       ],
       "morale": [
-        {"metric": "characters.mean:morale", "weight": 0.35},
-        {"metric": "characters.mean:satisfaction.health", "weight": 0.15},
-        {"metric": "characters.mean:satisfaction.fatigue", "weight": 0.15},
-        {"metric": "characters.mean:satisfaction.boredom", "weight": 0.10},
-        {"metric": "organs.mean", "weight": 0.15},
-        {"metric": "context.morale", "weight": 0.10}
+        {
+          "metric": "characters.mean:morale",
+          "weight": 0.35
+        },
+        {
+          "metric": "characters.mean:satisfaction.health",
+          "weight": 0.15
+        },
+        {
+          "metric": "characters.mean:satisfaction.fatigue",
+          "weight": 0.15
+        },
+        {
+          "metric": "characters.mean:satisfaction.boredom",
+          "weight": 0.1
+        },
+        {
+          "metric": "organs.mean",
+          "weight": 0.15
+        },
+        {
+          "metric": "context.morale",
+          "weight": 0.1
+        }
       ],
       "influence": [
-        {"metric": "characters.mean:force", "weight": 0.22},
-        {"metric": "characters.mean:energy", "weight": 0.18},
-        {"metric": "organs.kind:intelligence", "weight": 0.18},
-        {"metric": "organs.kind:information", "weight": 0.12},
-        {"metric": "organization.willing_share", "weight": 0.15},
-        {"metric": "context.influence", "weight": 0.15}
+        {
+          "metric": "characters.mean:force",
+          "weight": 0.22
+        },
+        {
+          "metric": "characters.mean:energy",
+          "weight": 0.18
+        },
+        {
+          "metric": "organs.kind:intelligence",
+          "weight": 0.18
+        },
+        {
+          "metric": "organs.kind:information",
+          "weight": 0.12
+        },
+        {
+          "metric": "organization.willing_share",
+          "weight": 0.15
+        },
+        {
+          "metric": "context.influence",
+          "weight": 0.15
+        }
       ],
       "energy": [
-        {"metric": "characters.mean:energy", "weight": 0.35},
-        {"metric": "characters.mean:satisfaction.fatigue", "weight": 0.20},
-        {"metric": "characters.mean:satisfaction.health", "weight": 0.15},
-        {"metric": "organs.mean", "weight": 0.20},
-        {"metric": "context.energy", "weight": 0.10}
+        {
+          "metric": "characters.mean:energy",
+          "weight": 0.35
+        },
+        {
+          "metric": "characters.mean:satisfaction.fatigue",
+          "weight": 0.2
+        },
+        {
+          "metric": "characters.mean:satisfaction.health",
+          "weight": 0.15
+        },
+        {
+          "metric": "organs.mean",
+          "weight": 0.2
+        },
+        {
+          "metric": "context.energy",
+          "weight": 0.1
+        }
       ]
     },
     "drivers": {
       "legitimacy": [
-        {"target": "characters", "need": "status", "weight": -0.55},
-        {"target": "characters", "trait": "loyalty", "weight": 0.35},
-        {"target": "organs", "kind": "legitimacy", "weight": 0.65}
+        {
+          "target": "characters",
+          "need": "status",
+          "weight": -0.55
+        },
+        {
+          "target": "characters",
+          "trait": "loyalty",
+          "weight": 0.35
+        },
+        {
+          "target": "organs",
+          "kind": "legitimacy",
+          "weight": 0.65
+        }
       ],
       "cohesion": [
-        {"target": "characters", "need": "friendship", "weight": -0.50},
-        {"target": "characters", "need": "loneliness", "weight": -0.30},
-        {"target": "characters", "need": "love", "weight": -0.20},
-        {"target": "organs", "kind": "command", "weight": 0.30}
+        {
+          "target": "characters",
+          "need": "friendship",
+          "weight": -0.5
+        },
+        {
+          "target": "characters",
+          "need": "loneliness",
+          "weight": -0.3
+        },
+        {
+          "target": "characters",
+          "need": "love",
+          "weight": -0.2
+        },
+        {
+          "target": "organs",
+          "kind": "command",
+          "weight": 0.3
+        }
       ],
       "supply": [
-        {"target": "characters", "need": "hunger", "weight": -0.50},
-        {"target": "characters", "need": "thirst", "weight": -0.50},
-        {"target": "organs", "kind": "maintenance", "weight": 0.30}
+        {
+          "target": "characters",
+          "need": "hunger",
+          "weight": -0.5
+        },
+        {
+          "target": "characters",
+          "need": "thirst",
+          "weight": -0.5
+        },
+        {
+          "target": "organs",
+          "kind": "maintenance",
+          "weight": 0.3
+        }
       ],
       "fear": [
-        {"target": "characters", "need": "fear", "weight": 0.50},
-        {"target": "characters", "need": "anxiety", "weight": 0.30},
-        {"target": "characters", "condition": "wound", "weight": 0.20}
+        {
+          "target": "characters",
+          "need": "fear",
+          "weight": 0.5
+        },
+        {
+          "target": "characters",
+          "need": "anxiety",
+          "weight": 0.3
+        },
+        {
+          "target": "characters",
+          "condition": "wound",
+          "weight": 0.2
+        }
       ],
       "morale": [
-        {"target": "characters", "morale": 1.0},
-        {"target": "characters", "need": "fear", "weight": -0.20},
-        {"target": "characters", "need": "health", "weight": -0.10},
-        {"target": "organs", "kind": "coercion", "weight": 0.20}
+        {
+          "target": "characters",
+          "morale": 1.0
+        },
+        {
+          "target": "characters",
+          "need": "fear",
+          "weight": -0.2
+        },
+        {
+          "target": "characters",
+          "need": "health",
+          "weight": -0.1
+        },
+        {
+          "target": "organs",
+          "kind": "coercion",
+          "weight": 0.2
+        }
       ],
       "influence": [
-        {"target": "characters", "force": 0.40},
-        {"target": "characters", "energy": 0.20},
-        {"target": "characters", "need": "status", "weight": -0.25},
-        {"target": "organs", "kind": "intelligence", "weight": 0.40},
-        {"target": "organs", "kind": "information", "weight": 0.30}
+        {
+          "target": "characters",
+          "force": 0.4
+        },
+        {
+          "target": "characters",
+          "energy": 0.2
+        },
+        {
+          "target": "characters",
+          "need": "status",
+          "weight": -0.25
+        },
+        {
+          "target": "organs",
+          "kind": "intelligence",
+          "weight": 0.4
+        },
+        {
+          "target": "organs",
+          "kind": "information",
+          "weight": 0.3
+        }
       ],
       "energy": [
-        {"target": "characters", "energy": 0.50},
-        {"target": "characters", "need": "fatigue", "weight": -0.30},
-        {"target": "organs", "kind": "maintenance", "weight": 0.20}
+        {
+          "target": "characters",
+          "energy": 0.5
+        },
+        {
+          "target": "characters",
+          "need": "fatigue",
+          "weight": -0.3
+        },
+        {
+          "target": "organs",
+          "kind": "maintenance",
+          "weight": 0.2
+        }
       ]
     }
   },
@@ -119,7 +332,14 @@
     "action_interval_seconds": 80.0,
     "ai_interval_seconds": 80.0,
     "organization_interval_seconds": 240.0,
-    "speeds": [1, 2, 4, 8, 16, 32]
+    "speeds": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ]
   },
   "automata_model": {
     "success_base": 0.0,
@@ -146,16 +366,46 @@
     "organ_effect_floor": 0.55
   },
   "organ_kinds": {
-    "command": {"asset": "cohesion", "weight": 1.2},
-    "coercion": {"asset": "morale", "weight": 1.05},
-    "intelligence": {"asset": "influence", "weight": 1.0},
-    "information": {"asset": "influence", "weight": 1.0},
-    "maintenance": {"asset": "supply", "weight": 0.95},
-    "legitimacy": {"asset": "legitimacy", "weight": 1.1},
-    "care": {"asset": "morale", "weight": 0.9},
-    "meaning": {"asset": "morale", "weight": 0.9},
-    "exchange": {"asset": "supply", "weight": 0.95},
-    "support": {"asset": "cohesion", "weight": 1.0}
+    "command": {
+      "asset": "cohesion",
+      "weight": 1.2
+    },
+    "coercion": {
+      "asset": "morale",
+      "weight": 1.05
+    },
+    "intelligence": {
+      "asset": "influence",
+      "weight": 1.0
+    },
+    "information": {
+      "asset": "influence",
+      "weight": 1.0
+    },
+    "maintenance": {
+      "asset": "supply",
+      "weight": 0.95
+    },
+    "legitimacy": {
+      "asset": "legitimacy",
+      "weight": 1.1
+    },
+    "care": {
+      "asset": "morale",
+      "weight": 0.9
+    },
+    "meaning": {
+      "asset": "morale",
+      "weight": 0.9
+    },
+    "exchange": {
+      "asset": "supply",
+      "weight": 0.95
+    },
+    "support": {
+      "asset": "cohesion",
+      "weight": 1.0
+    }
   },
   "organ_status_thresholds": {
     "active": 0.65,
@@ -223,37 +473,65 @@
       "id": "reinforce",
       "label": "Усилить орган",
       "description": "Перебросить людей и ресурсы: целостность органа растёт.",
-      "cost": {"supply": 0.04},
-      "integrity": 0.12,
-      "faction": {"cohesion": 0.015},
-      "cooldown": 2
+      "cost": {
+        "supply": 0.04
+      },
+      "cooldown": 2,
+      "template": {
+        "amount": 0.04,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "reinforce_organ"
+      }
     },
     {
       "id": "reform",
       "label": "Реформировать",
       "description": "Изменить порядок работы органа ценой энергии.",
-      "cost": {"energy": 0.035},
-      "integrity": 0.07,
-      "faction": {"influence": 0.012},
-      "cooldown": 3
+      "cost": {
+        "energy": 0.035
+      },
+      "cooldown": 3,
+      "template": {
+        "amount": 0.035,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "reform_organ"
+      }
     },
     {
       "id": "purge",
       "label": "Провести чистку",
       "description": "Подчинить орган центру: страх растёт, целостность падает.",
-      "cost": {"influence": 0.05},
-      "integrity": -0.15,
-      "faction": {"fear": 0.02, "legitimacy": 0.01},
-      "cooldown": 3
+      "cost": {
+        "influence": 0.05
+      },
+      "cooldown": 3,
+      "template": {
+        "amount": 0.05,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "purge_organ"
+      }
     },
     {
       "id": "resupply",
       "label": "Наладить снабжение",
       "description": "Влить запас в орган: целостность и мораль растут.",
-      "cost": {"supply": 0.06},
-      "integrity": 0.18,
-      "faction": {"morale": 0.01},
-      "cooldown": 4
+      "cost": {
+        "supply": 0.06
+      },
+      "cooldown": 4,
+      "template": {
+        "amount": 0.06,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "resupply_organ"
+      }
     }
   ],
   "automaton_interactions": [
@@ -262,44 +540,68 @@
       "label": "Согласовать работу",
       "description": "Автомат-источник согласует работу с другим автоматом: цель получает поддержку, фракция — небольшую сплочённость.",
       "relation": "any",
-      "cost": {"influence": 0.02},
-      "source_integrity": 0.01,
-      "target_integrity": 0.08,
-      "faction": {"cohesion": 0.008},
-      "cooldown": 2
+      "cost": {
+        "influence": 0.02
+      },
+      "cooldown": 2,
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "coordinate_automata"
+      }
     },
     {
       "id": "transfer",
       "label": "Передать резерв",
       "description": "Источник отдаёт часть своих людей и запасов целевому автомату. Цель укрепляется, источник расходует целостность и снабжение.",
       "relation": "any",
-      "cost": {"supply": 0.03},
-      "source_integrity": -0.04,
-      "target_integrity": 0.12,
-      "faction": {"morale": 0.004},
-      "cooldown": 2
+      "cost": {
+        "supply": 0.03
+      },
+      "cooldown": 2,
+      "template": {
+        "amount": 0.03,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "transfer_reserve"
+      }
     },
     {
       "id": "directive",
       "label": "Отдать директиву",
       "description": "Директива связанному автомату сети: совместная работа укрепляет цель и законность фракции.",
       "relation": "linked",
-      "cost": {"influence": 0.03},
-      "source_integrity": 0.008,
-      "target_integrity": 0.1,
-      "faction": {"legitimacy": 0.006},
-      "cooldown": 3
+      "cost": {
+        "influence": 0.03
+      },
+      "cooldown": 3,
+      "template": {
+        "amount": 0.03,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "directive"
+      }
     },
     {
       "id": "escalate",
       "label": "Запросить поддержку",
       "description": "Автомат обращается к связанному узлу сети за поддержкой: источник укрепляется, сосед расходует часть целостности.",
       "relation": "linked",
-      "cost": {"influence": 0.02},
-      "source_integrity": 0.1,
-      "target_integrity": -0.02,
-      "faction": {"legitimacy": 0.006},
-      "cooldown": 3
+      "cost": {
+        "influence": 0.02
+      },
+      "cooldown": 3,
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "escalate_support"
+      }
     }
   ],
   "character_interactions": [
@@ -307,95 +609,144 @@
       "id": "promote",
       "label": "Повысить",
       "description": "Повышение закрывает потребность в статусе и повышает лояльность, но требует влияния.",
-      "cost": {"influence": 0.04},
-      "needs": {"status": -0.15, "anxiety": -0.03},
-      "personality": {"loyalty": 0.04},
-      "morale": 6.0,
-      "organ_integrity": 0.02,
+      "cost": {
+        "influence": 0.04
+      },
       "cooldown": 3,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.04,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "promote"
+      }
     },
     {
       "id": "reward",
       "label": "Наградить",
       "description": "Награда поднимает мораль и снижает усталость; ресурс расходуется из запаса фракции.",
-      "cost": {"supply": 0.03, "influence": 0.02},
-      "needs": {"status": -0.1, "fatigue": -0.05},
-      "personality": {"loyalty": 0.02},
-      "morale": 10.0,
+      "cost": {
+        "supply": 0.03,
+        "influence": 0.02
+      },
       "cooldown": 2,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.05,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "reward"
+      }
     },
     {
       "id": "reassure",
       "label": "Поддержать",
       "description": "Личная поддержка снижает страх, тревогу и одиночество, возвращая человеку устойчивость.",
-      "cost": {"energy": 0.02},
-      "needs": {"fear": -0.12, "anxiety": -0.15, "loneliness": -0.05},
-      "morale": 8.0,
+      "cost": {
+        "energy": 0.02
+      },
       "cooldown": 2,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "reassure"
+      }
     },
     {
       "id": "interrogate",
       "label": "Допросить",
       "description": "Жёсткая проверка повышает страх и тревогу, снижает лояльность, но даёт знание о настроениях.",
-      "cost": {"influence": 0.03, "energy": 0.02},
-      "needs": {"fear": 0.12, "anxiety": 0.1, "knowledge": -0.08},
-      "personality": {"loyalty": -0.05},
-      "morale": -8.0,
+      "cost": {
+        "influence": 0.03,
+        "energy": 0.02
+      },
       "cooldown": 3,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.05,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "interrogate"
+      }
     },
     {
       "id": "social_command",
       "label": "Приказ",
       "description": "Прямой приказ повышает тревогу и снижает статусные притязания, но не требует ресурсов.",
-      "needs": {"anxiety": 0.04, "status": -0.02},
-      "morale": -2.0,
       "cooldown": 1,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "social_command"
+      }
     },
     {
       "id": "social_promise",
       "label": "Обещание",
       "description": "Обещание повышает доверие и мораль, но связывает говорящего обязательством.",
-      "needs": {"anxiety": -0.04},
-      "personality": {"loyalty": 0.02},
-      "morale": 4.0,
       "cooldown": 2,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "social_promise"
+      }
     },
     {
       "id": "social_threat",
       "label": "Угроза",
       "description": "Угроза повышает страх и тревогу и подрывает лояльность.",
-      "needs": {"fear": 0.15, "anxiety": 0.1},
-      "personality": {"loyalty": -0.04},
-      "morale": -6.0,
       "cooldown": 3,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "social_threat"
+      }
     },
     {
       "id": "social_offer",
       "label": "Предложение",
       "description": "Предложение сделки повышает мораль и лояльность, расходуя влияние фракции.",
-      "cost": {"influence": 0.02},
-      "needs": {"status": -0.05},
-      "personality": {"loyalty": 0.03},
-      "morale": 5.0,
+      "cost": {
+        "influence": 0.02
+      },
       "cooldown": 2,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "social_offer"
+      }
     },
     {
       "id": "social_apology",
       "label": "Извинение",
       "description": "Извинение снижает страх и тревогу и возвращает лояльность.",
-      "needs": {"fear": -0.05, "anxiety": -0.08},
-      "personality": {"loyalty": 0.03},
-      "morale": 4.0,
       "cooldown": 2,
-      "allow_self": false
+      "allow_self": false,
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "social_apology"
+      }
     }
   ]
 }

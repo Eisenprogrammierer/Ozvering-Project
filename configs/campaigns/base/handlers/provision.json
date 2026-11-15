@@ -1,0 +1,173 @@
+{
+  "form": "provision",
+  "rules": [
+    {
+      "when": {
+        "id": "garrison_network"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "cohesion": 0.03
+      },
+      "trace": {
+        "essence": "fortify"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "staff_plan"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "cohesion": 0.04,
+        "supply": 0.02,
+        "legitimacy": 0.01,
+        "anxiety": -0.02,
+        "knowledge": 0.02
+      },
+      "trace": {
+        "essence": "coordinate"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "cipher_protection"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "cohesion": 0.02,
+        "influence": 0.02,
+        "is_secret": 1.0
+      },
+      "trace": {
+        "essence": "encrypt"
+      },
+      "failure": {
+        "sender": {
+          "influence": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "general_mobilization"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "supply": 0.03,
+        "cohesion": 0.04,
+        "legitimacy": -0.01,
+        "fatigue": 0.02,
+        "status": 0.02
+      },
+      "trace": {
+        "essence": "mobilize"
+      },
+      "failure": {
+        "sender": {
+          "cohesion": -0.03,
+          "legitimacy": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "emergency_powers"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "cohesion": 0.03,
+        "legitimacy": -0.01,
+        "anxiety": 0.02,
+        "subfactions": {
+          "revisionist": {
+            "influence": 0.03
+          },
+          "moderate": {
+            "grievance": 0.03
+          }
+        }
+      },
+      "trace": {
+        "essence": "centralize"
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.03,
+          "cohesion": -0.01
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "repair_hub"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "supply": 0.04,
+        "cohesion": 0.02,
+        "fatigue": -0.02
+      },
+      "trace": {
+        "essence": "repair"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "warehouse_reserves"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "supply": 0.04,
+        "cohesion": 0.02,
+        "hunger": -0.02
+      },
+      "trace": {
+        "essence": "hoard"
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "supply": 0.02
+    }
+  }
+}

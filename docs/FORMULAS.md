@@ -8,7 +8,7 @@
 
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) —
 навигатор и канон; [`ALGORITHMS.md`](ALGORITHMS.md) — точный порядок такта,
-признаки и обучение; [`MODEL.md`](MODEL.md) — легаси `simulation.py`;
+признаки и обучение; [`history/MODEL.md`](history/MODEL.md) — легаси `simulation.py`;
 [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) — кампанийный поток.
 
 **Как читать.** Каждая формула снабжена:
