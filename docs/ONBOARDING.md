@@ -6,7 +6,7 @@
 > быстро найти нужный из них.
 >
 > **Дата сверки:** 2026-11-15. Проверялось по коду и тестам, а не только
-> по README. Полный набор — 1459 тестов, прогон зелёный. Если документ
+> по README. Полный набор — 1477 тестов, прогон зелёный. Если документ
 > расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
 > исправлять.
 >
@@ -184,7 +184,7 @@ venv/bin/python main.py
 main.py
   ├─ view/        современный GUI + сюжет
   │    ├─ campaign/  мир, пресеты, кампания автоматов
-  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.4, D3.2, D6.2a–d, D6.3, D6.4, D7.0–D7.3)
+  │    │    ├─ campaign/dialogue/  диалоговый слой (D0–D5.4, D3.2, D6.2a–d, D6.3, D6.4, D7.0–D7.4)
   │    │    └─ warfare.py / core41
   │    ├─ view/support/  адаптеры, сейвы, время, эффекты
   │    └─ view/ui/       менеджер экранов, HUD, виджеты, ассеты
@@ -257,7 +257,7 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный набор 2026-11-15: **1459 тестов**, зелёный.
+* Полный набор 2026-11-15: **1477 тестов**, зелёный.
 * Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
@@ -328,12 +328,14 @@ GUI существует и играется, но это **рабочий пе�
   и другие interactions, гейты `has_authority`/`trusts`), D7.2
   (перемещение через текст: `movement.json`, маршрут по геометрии
   игрока, «рядом/далеко», read-only по умолчанию), D7.3 (время через
-  текст: `time.json`, ожидание и фазы суток, темп, read-only план).
+  текст: `time.json`, ожидание и фазы суток, темп, read-only план),
+  D7.4 (нарративный слой: `narrator.json`, видимые story-события,
+  работы из `log`, `/look`, read-only).
   Сквозные контрфакты достижимы: `believe → considers_outlaw`,
   `have → has_organ`, `fight → at_war_with` дают `changed`. В чате стиль
   выбирается вручную; авто-режим `DialogueSession(style_id=None)`
   доступен только через API сессии. Открыто: расширение доменных
-  псевдонимов по мере контента, D7.4 и аудит лексикона.
+  псевдонимов по мере контента, хвост `has_leverage` и аудит лексикона.
 
 ---
 
@@ -654,8 +656,8 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   (`connective`/`anaphora`); `Answer.data["social_trace"]` — трасса
   речевого действия;
 * статус: **D0, D1, D1.5, D2, D3.1, D3.2, D4, D5.1–D5.4, D6.2a–d,
-  D6.3, D6.4, D7.0–D7.3 — сделаны**. Открыто: D6.1 (аудит лексикона),
-  расширение доменных псевдонимов, D7.4.
+  D6.3, D6.4, D7.0–D7.4 — сделаны**. Открыто: D6.1 (аудит лексикона),
+  расширение доменных псевдонимов и хвост `has_leverage`.
 
 Связанные решения: G-18…G-23 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md), фаза P10 в
@@ -725,6 +727,7 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | D7.1 (social-действия) | `test_d7_social.py` | `interaction` у актов, пять interactions кампании, гейты authority/trusts, actions_disabled, TextGame-маршрутизация, откат |
 | D7.2 (перемещение) | `test_d7_movement.py` | `movement.json`, разбор `move`, маршрут и band по геометрии игрока, read-only, `already`/unknown/no path, TextGame и откат локации |
 | D7.3 (время) | `test_d7_time.py` | `time.json`, разбор `wait`/`speed`, ожидание и фазы суток, множитель темпа, лимиты, read-only, TextGame и откат времени |
+| D7.4 (описание) | `test_d7_narrator.py` | `narrator.json`, видимость story, работы из `log` без дубля, виды событий, fallback, важность/формы/исходы, лимит и хронология, read-only, `/look` |
 | GUI `view/` | `test_gui_smoke.py`, `test_campaign.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py` | живой цикл, экраны, навигация, отрисовка |
 | GUI `ui/` | `test_ui.py`, `test_battlefield.py` | сцены, пауза, сейвы, RTS-логика |
 | Контент | `test_content_pipeline.py`, `test_story_arcs.py`, `test_docs_sync.py` | загрузка/правка/удаление JSON, ссылки |

@@ -1708,6 +1708,139 @@ def _time_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _narrator_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить лимиты, шаблоны и подписи ``narrator.json``."""
+
+    problems: List[str] = []
+    spec = getattr(catalog, "narrator", None)
+    if not spec:
+        return problems
+    limit = spec.get("limit")
+    maximum = spec.get("max_limit")
+    try:
+        limit_value = int(limit)
+    except (TypeError, ValueError):
+        problems.append("narrator.limit: ожидалось целое >= 1")
+        limit_value = 0
+    try:
+        max_value = int(maximum)
+    except (TypeError, ValueError):
+        problems.append("narrator.max_limit: ожидалось целое >= 1")
+        max_value = 0
+    if limit_value < 1:
+        problems.append("narrator.limit: ожидалось целое >= 1")
+    if max_value < 1:
+        problems.append("narrator.max_limit: ожидалось целое >= 1")
+    if limit_value > 0 and max_value > 0 and limit_value > max_value:
+        problems.append("narrator.limit: больше max_limit")
+    if not isinstance(spec.get("visible_only"), bool):
+        problems.append("narrator.visible_only: ожидался bool")
+    if not isinstance(spec.get("line_prefix"), str):
+        problems.append("narrator.line_prefix: ожидалась строка")
+    sources = spec.get("sources")
+    if not isinstance(sources, Mapping) or not sources:
+        problems.append("narrator.sources: пусто")
+    else:
+        for source, value in sources.items():
+            try:
+                priority = int(value)
+            except (TypeError, ValueError):
+                problems.append(
+                    "narrator.sources.%s: не целое" % source
+                )
+                continue
+            if priority < 0:
+                problems.append(
+                    "narrator.sources.%s: отрицательный приоритет"
+                    % source
+                )
+    bands = spec.get("severity_bands")
+    if not isinstance(bands, (list, tuple)) or not bands:
+        problems.append("narrator.severity_bands: пусто")
+    else:
+        previous = None
+        terminal = False
+        for index, band in enumerate(bands):
+            where = "narrator.severity_bands[%d]" % index
+            if not isinstance(band, Mapping):
+                problems.append("%s: не объект" % where)
+                continue
+            if not str(band.get("label") or "").strip():
+                problems.append("%s.label: пусто" % where)
+            boundary = band.get("max")
+            if boundary is None:
+                if terminal:
+                    problems.append(
+                        "%s.max: None должен быть последним" % where
+                    )
+                terminal = True
+                continue
+            if terminal:
+                problems.append(
+                    "%s.max: значение после None" % where
+                )
+            try:
+                value = float(boundary)
+            except (TypeError, ValueError):
+                problems.append("%s.max: не число" % where)
+                continue
+            if previous is not None and value <= previous:
+                problems.append("%s.max: пороги должны возрастать" % where)
+            previous = value
+        if not terminal:
+            problems.append("narrator.severity_bands: нет последней полосы")
+    forms = spec.get("forms")
+    if not isinstance(forms, Mapping) or not forms:
+        problems.append("narrator.forms: пусто")
+    else:
+        for key, value in forms.items():
+            if not str(key).strip():
+                problems.append("narrator.forms: пустой ключ")
+            if not str(value or "").strip():
+                problems.append("narrator.forms.%s: пусто" % key)
+        if "work" not in forms:
+            problems.append("narrator.forms.work: отсутствует")
+    outcomes = spec.get("outcomes")
+    if not isinstance(outcomes, Mapping) or not outcomes:
+        problems.append("narrator.outcomes: пусто")
+    else:
+        for key in ("success", "failure"):
+            if not str(outcomes.get(key) or "").strip():
+                problems.append("narrator.outcomes.%s: пусто" % key)
+    kinds = spec.get("kinds")
+    if not isinstance(kinds, Mapping) or not kinds:
+        problems.append("narrator.kinds: пусто")
+        kinds = {}
+    for kind in ("story", "work", "organ", "automaton", "character"):
+        where = "narrator.kinds.%s" % kind
+        entry = kinds.get(kind)
+        if not isinstance(entry, Mapping):
+            problems.append("%s: отсутствует" % where)
+            continue
+        template = str(entry.get("template") or "")
+        if not template.strip():
+            problems.append("%s.template: пусто" % where)
+        elif "{text}" not in template:
+            problems.append("%s.template: нет {text}" % where)
+    fallback = spec.get("fallback")
+    if not isinstance(fallback, Mapping):
+        problems.append("narrator.fallback: ожидался объект")
+    else:
+        template = str(fallback.get("template") or "")
+        if not template.strip():
+            problems.append("narrator.fallback.template: пусто")
+        elif "{text}" not in template:
+            problems.append("narrator.fallback.template: нет {text}")
+    messages = spec.get("messages")
+    if not isinstance(messages, Mapping) or not messages:
+        problems.append("narrator.messages: пусто")
+    else:
+        for key in ("header", "empty", "no_campaign"):
+            if not str(messages.get(key) or "").strip():
+                problems.append("narrator.messages.%s: пусто" % key)
+    return problems
+
+
 def _anaphora_problems(catalog: DialogueCatalog) -> List[str]:
     """Проверить анафору: типы, роды, местоимения, min_length."""
 
@@ -2209,6 +2342,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_console_problems(catalog))
     problems.extend(_movement_problems(catalog))
     problems.extend(_time_problems(catalog))
+    problems.extend(_narrator_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
     return problems
 

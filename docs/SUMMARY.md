@@ -544,20 +544,27 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   ближайшую фазу, «Ускоряю/Замедляю/Сбрасываю» управляют темпом.
   `TextGame` отдаёт записи `wait`/`speed`, откат восстанавливает
   время и темп.
+* **D7.4 сделан.** `narrator.json` задаёт лимиты, порядок источников,
+  полосы важности, подписи форм и исходов, шаблоны видов и сообщения.
+  `Narrator` собирает видимые `story_events`, работы из `log` и
+  не-work `events` в хронологический текст; work-события из `events`
+  пропускаются как дубль. Read-only; `TextGame` получил `/look`,
+  `/l` и `/осмотреться`, `DialogueSession.narrate`.
 * В production-`discourse.json` нет `topics` и `explanation_detailed` —
   это осознанно, иначе длинный паттерн перехватывал бы обычное
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
 * Открыты D6.1 (аудит лексикона), расширение доменных псевдонимов по
-  мере контента и D7.4.
+  мере контента и хвост `has_leverage`.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
   `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_disclosure.py`
   — D6.3, `tests/test_d6_planner.py`, `tests/test_d6_bridge.py` и
   `tests/test_d6_actions.py` — D6.4, `tests/test_d7_console.py` —
   D7.0, `tests/test_d7_social.py` — D7.1, `tests/test_d7_movement.py`
-  — D7.2, `tests/test_d7_time.py` — D7.3. Headless-теста
+  — D7.2, `tests/test_d7_time.py` — D7.3,
+  `tests/test_d7_narrator.py` — D7.4. Headless-теста
   `DialogueChatScreen` по-прежнему нет.
 
 Проверка данных и ручные пробы:

@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "description": "D7.4: нарративный слой. Собирает story_events, log работ и события кампании в описание; мир не меняет.",
+  "limit": 5,
+  "max_limit": 20,
+  "visible_only": true,
+  "line_prefix": "— ",
+  "sources": {
+    "story": 0,
+    "log": 1,
+    "events": 2
+  },
+  "severity_bands": [
+    {"max": 0.35, "label": "слух"},
+    {"max": 0.65, "label": "новость"},
+    {"max": null, "label": "важное"}
+  ],
+  "forms": {
+    "care": "забота",
+    "coercion": "принуждение",
+    "exchange": "обмен",
+    "information": "сведения",
+    "knowledge": "знание",
+    "meaning": "слово",
+    "negotiation": "переговоры",
+    "provision": "снабжение",
+    "recruitment": "набор",
+    "work": "работа"
+  },
+  "outcomes": {
+    "success": "успех",
+    "failure": "неудача"
+  },
+  "kinds": {
+    "story": {
+      "template": "{severity_label}: «{title}» — {text}"
+    },
+    "work": {
+      "template": "Ход {turn}: {actor} → {target}, «{label}»; {form_label}; {outcome}. {text}"
+    },
+    "organ": {
+      "template": "Орган: {text}"
+    },
+    "automaton": {
+      "template": "Автомат: {text}"
+    },
+    "character": {
+      "template": "Персонаж: {text}"
+    }
+  },
+  "fallback": {
+    "template": "{text}"
+  },
+  "messages": {
+    "header": "Что видно:",
+    "empty": "Пока ничего не происходит.",
+    "no_campaign": "Нет кампании: нечего наблюдать."
+  }
+}

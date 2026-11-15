@@ -236,8 +236,22 @@ class TextGame:
             )
         if name == "hint":
             return ConsoleEntry("command", text, self.hint())
+        if name == "look":
+            return self.look()
         return ConsoleEntry(
             "command", text, self._message("unknown") % token
+        )
+
+    def look(self, limit: Optional[int] = None) -> ConsoleEntry:
+        """Описать последние события кампании, не меняя мир."""
+
+        narration = self.session.narrate(limit=limit)
+        return ConsoleEntry(
+            "narrate",
+            "/look",
+            narration.text,
+            performed=False,
+            reason=narration.reason,
         )
 
     def hint(self) -> str:

@@ -15,10 +15,11 @@
     "quit": "Выход."
   },
   "commands": {
-    "help": "команды: /help, /history, /undo, /hint, /quit",
+    "help": "команды: /help, /history, /undo, /hint, /look, /quit",
     "history": "последние реплики",
     "undo": "отменить последнюю реплику",
     "hint": "подсказать доступные фразы",
+    "look": "описать, что видно",
     "quit": "выйти"
   },
   "aliases": {
@@ -27,6 +28,8 @@
     "/hist": "history",
     "/u": "undo",
     "/i": "hint",
+    "/l": "look",
+    "/осмотреться": "look",
     "/q": "quit"
   }
 }

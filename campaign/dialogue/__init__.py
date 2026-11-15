@@ -13,12 +13,14 @@ from .loader import (
     load_console,
     load_dialogue,
     load_goals,
+    load_narrator,
     load_styles,
     load_synthesis,
     load_time,
 )
 from .morph import Morphology
 from .movement import MovementGuide, MoveResult
+from .narrator import Narration, Narrator, NarrationEntry
 from .model import (
     DialogueCatalog,
     Grammar,
@@ -71,6 +73,9 @@ __all__ = [
     "Morphology",
     "MoveResult",
     "MovementGuide",
+    "Narration",
+    "NarrationEntry",
+    "Narrator",
     "Ontology",
     "Parse",
     "Persona",
@@ -93,6 +98,7 @@ __all__ = [
     "load_console",
     "load_dialogue",
     "load_goals",
+    "load_narrator",
     "load_styles",
     "load_synthesis",
     "load_time",

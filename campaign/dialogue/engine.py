@@ -23,6 +23,7 @@ from .knowledge import AgentKnowledge
 from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
 from .movement import MovementGuide, MoveResult
+from .narrator import Narration, Narrator
 from .parser import ChartParser
 from .planner import GoalPlan, Intent
 from .state import DialogueMemory, build_state
@@ -253,6 +254,18 @@ class DialogueSession:
         if found.kind == "speed":
             return guide.speed(found.direction)
         return guide.wait(found.target)
+
+    def narrate(self, limit: Optional[int] = None) -> Narration:
+        """Описать последние события кампании, не меняя мир.
+
+        D7.4: источники, лимиты и шаблоны — данные ``narrator.json``.
+        ``story_events`` фильтруются по видимости, работы берутся из
+        ``log`` (богаче, чем ``events``), прочие ``events`` — как есть.
+        """
+
+        return Narrator(
+            self.catalog, campaign=self.bridge.campaign
+        ).describe(limit=limit)
 
     def set_style(self, style_id: Optional[str]) -> str:
         """Сменить регистровый профиль.

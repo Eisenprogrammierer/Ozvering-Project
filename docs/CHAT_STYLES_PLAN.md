@@ -201,6 +201,9 @@ venv/bin/python -m pytest -q
 - [x] D7.3 — время через текст (`time.json`, `TimeGuide`),
   ожидание и фазы суток, темп, read-only по умолчанию;
   `tests/test_d7_time.py`.
+- [x] D7.4 — нарративный слой (`narrator.json`, `Narrator`),
+  видимые story-события, работы из `log`, `/look`, read-only;
+  `tests/test_d7_narrator.py`.
 - [ ] Аудит `lexicon.json` (сокращение дублей `aliases` ⊇ `forms`).
 - [ ] D3.2: использование `differences` в тексте ответа; тесты D3.2.
 
