@@ -43,7 +43,6 @@ def _mode_text(role):
         "organization": "организация",
         "item": "предмет",
         "place": "место",
-        "deity": "божество",
     }.get(getattr(role, "entity_kind", "character"), "персонаж")
     layer = getattr(role, "social_layer", "") or "—"
     return "%s · %s" % (kind, layer)

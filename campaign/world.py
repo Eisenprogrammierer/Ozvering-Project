@@ -570,6 +570,17 @@ def validate_world(data):
                 days = _as_int(goal.get("days"), 1)
                 if days < 1:
                     raise WorldError("storyline.lose.days должен быть >= 1")
+    speeds = data.get("time_speeds")
+    if speeds is not None:
+        if not isinstance(speeds, list) or not speeds:
+            raise WorldError("time_speeds должен быть непустым списком")
+        for value in speeds:
+            try:
+                speed = float(value)
+            except (TypeError, ValueError):
+                raise WorldError("time_speeds: %r не число" % (value,))
+            if speed < 1.0:
+                raise WorldError("time_speeds: скорость не может быть < 1")
     try:
         strategies = StrategyBook.from_config(data)
         strategies.validate(
@@ -930,6 +941,17 @@ class WorldEngine:
         self.actions_per_day = max(
             1, _as_int(self.config.get("actions_per_day"), 3)
         )
+        self.sandbox = bool(self.config.get("sandbox", False))
+        self.realtime = bool(self.config.get("realtime", False))
+        speeds = []
+        for value in self.config.get("time_speeds") or (1, 2, 4, 8):
+            try:
+                speed = float(value)
+            except (TypeError, ValueError):
+                continue
+            if speed >= 1.0 and speed not in speeds:
+                speeds.append(speed)
+        self.time_speeds = tuple(sorted(speeds or [1.0]))
         self.skill_labels = dict(self.config.get("skill_labels") or {})
         self.stat_labels = dict(self.config.get("stat_labels") or {})
         self.domain_labels = {
@@ -4428,7 +4450,7 @@ class WorldEngine:
         Без блока `storyline` мир остаётся бесконечным, как раньше.
         """
         goals = self.config.get("storyline") or {}
-        if self.finished or not goals:
+        if self.finished or not goals or self.sandbox:
             return
         if self.day < _as_int(goals.get("min_day"), 0):
             return
@@ -5952,22 +5974,25 @@ class WorldEngine:
         events.extend(self._advance_coalitions())
         self.directives.prune(self.day)
         events.extend(self._run_intents(max_slot=SLOTS_MAX))
-        if self.infinite:
-            if self.day > self.days and not self.horizon_passed:
-                self.horizon_passed = True
-                self.log.append(
-                    {
-                        "day": self.day,
-                        "kind": "horizon",
-                        "text": "Сюжетный горизонт пройден; история "
-                        "продолжается.",
-                    }
+        if self.day > self.days and not self.sandbox:
+            if self.infinite:
+                if not self.horizon_passed:
+                    self.horizon_passed = True
+                    self.log.append(
+                        {
+                            "day": self.day,
+                            "kind": "horizon",
+                            "text": "Сюжетный горизонт пройден; история "
+                            "продолжается.",
+                        }
+                    )
+            elif self.outcome is None:
+                self.outcome = (
+                    "win"
+                    if self.player_resources["standing"] >= 0.35
+                    else "lose"
                 )
-        elif self.day > self.days and self.outcome is None:
-            self.outcome = (
-                "win" if self.player_resources["standing"] >= 0.35 else "lose"
-            )
-            self.finished = True
+                self.finished = True
         self._check_storyline()
         self._check_dismissal()
         self._schedule_autonomy()
@@ -6032,6 +6057,8 @@ class WorldEngine:
             "actions_left": self.actions_left,
             "force": self.player_force,
             "infinite": bool(self.infinite),
+            "sandbox": bool(self.sandbox),
+            "realtime": bool(self.realtime),
             "horizon_passed": bool(self.horizon_passed),
             "ending": self.ending,
             "dismissed": bool(self.dismissed),

@@ -72,7 +72,7 @@
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
-| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 50 действий) | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
+| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 50 действий, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
 | `configs/worlds/*_strategies.json` | долгосрочные стратегии узлов | `campaign.node_strategy.StrategyBook` | новый файл или поле `strategies` | селекторы/цель/веса | файл |
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |

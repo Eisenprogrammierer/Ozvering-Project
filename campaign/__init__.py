@@ -34,6 +34,7 @@ from .strategy import (
     build_strategy,
     load_strategy,
 )
+from .free_clock import DEFAULT_SPEEDS, MIN_SPEED, FreeClock, normalize_speeds
 from .env import (
     END_DAY,
     CampaignEnv,
@@ -75,4 +76,8 @@ __all__ = [
     "StrategyError",
     "build_strategy",
     "load_strategy",
+    "DEFAULT_SPEEDS",
+    "MIN_SPEED",
+    "FreeClock",
+    "normalize_speeds",
 ]

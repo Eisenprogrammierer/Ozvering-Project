@@ -16,7 +16,6 @@ ENTITY_KINDS = (
     "organization",
     "item",
     "place",
-    "deity",
 )
 
 SOCIAL_LAYERS = (

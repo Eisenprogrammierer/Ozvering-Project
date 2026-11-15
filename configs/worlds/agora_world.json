@@ -4,6 +4,10 @@
   "subtitle": "Семь сфер, несколько держав и церквей. Вы — должностное лицо.",
   "days": 30,
   "actions_per_day": 3,
+  "sandbox": true,
+  "realtime": true,
+  "seconds_per_day": 120,
+  "time_speeds": [1, 2, 4, 8],
   "strategies_path": "configs/worlds/agora_strategies.json",
   "labor_market": {
     "rivals": 2,
@@ -6198,20 +6202,6 @@
       "influence": 0.004,
       "standing": 0.001
     }
-  },
-  "storyline": {
-    "min_day": 10,
-    "deadline_day": 30,
-    "win": {
-      "standing_at_least": 0.6,
-      "text": "Хартия принята: город доверяет вам."
-    },
-    "lose": {
-      "standing_at_most": 0.12,
-      "days": 3,
-      "text": "Хартия провалена: город потерял доверие."
-    },
-    "neutral_text": "Срок истёк: хартия не принята, но провала нет."
   },
   "default_profile": {
     "name": "Новый герой",

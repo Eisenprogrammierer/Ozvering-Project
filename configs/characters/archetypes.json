@@ -87,7 +87,7 @@
     {
       "id": "temple_priest",
       "label": "Храмовый жрец",
-      "description": "Служит общине и божеству. Умеет говорить с теми, кого не слышат другие.",
+      "description": "Служит общине и её обрядам. Умеет говорить с теми, кого не слышат другие.",
       "entity_kind": "character",
       "social_layer": "temple",
       "start_offices": [],

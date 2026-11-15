@@ -1,6 +1,7 @@
 import pygame
 
 from campaign.clock import CampaignClock, background_pause_reason
+from campaign.free_clock import FreeClock
 from campaign.relations import asymmetry_rows
 from campaign.world import CHARACTER_CIRCLES, ORGANIZATION_CATEGORIES
 from ..support import world_text
@@ -68,10 +69,11 @@ class WorldScreen(BaseScreen):
     show_time_hud = False
     escape_action = "none"
 
-    def __init__(self, app, engine):
+    def __init__(self, app, engine, free_clock=None):
         super().__init__(app)
         self.engine = engine
         self.art = WorldArt(engine.config.get("id", "world"))
+        self.free_mode = bool(getattr(engine, "realtime", False))
         self.main_tab = "organizations"
         self.subtab_index = {
             "characters": 0,
@@ -99,6 +101,12 @@ class WorldScreen(BaseScreen):
             max_catchup_days=engine.max_offline_days,
             paused=True,
         )
+        if self.free_mode:
+            self.clock = free_clock or FreeClock(
+                seconds_per_day=engine.seconds_per_day,
+                max_catchup_days=engine.max_offline_days,
+                speeds=getattr(engine, "time_speeds", None),
+            )
         self.main_tab_rects = []
         self.subtab_rects = []
         self.entity_rows = []
@@ -456,6 +464,9 @@ class WorldScreen(BaseScreen):
                 self._autopilot_step()
             if engine.finished or not engine.attached:
                 return
+        if self.free_mode:
+            self._update_free_time(dt)
+            return
         if getattr(self.app, "active", True):
             self.clock.reset_accumulator()
             self.clock.resume()
@@ -489,6 +500,39 @@ class WorldScreen(BaseScreen):
             len(results),
             engine.day,
             engine.finished,
+        )
+
+    def _update_free_time(self, dt):
+        """RTS-время свободного режима: физические секунды без rewind."""
+        try:
+            seconds = float(dt)
+        except (TypeError, ValueError):
+            seconds = 0.0
+        seconds = max(0.0, seconds)
+        if seconds <= 0.0:
+            return
+        days = self.clock.advance(seconds)
+        slot_events = self.engine.tick(max_slot=self.clock.slot)
+        if days <= 0:
+            if slot_events:
+                self.message = "Внутри дня: событий — %d." % len(slot_events)
+                self._sync_storyline()
+            return
+        results = self.engine.advance_days(
+            days, max_days=self.clock.max_catchup_days
+        )
+        if not results:
+            return
+        self.last_result = self.engine.last_result
+        self.selected_action_id = None
+        self.message = "Время: прошло дней — %d." % len(results)
+        self._sync_storyline()
+        logger.info(
+            "RTS-время: %d дн.; день=%d, скорость=%s, завершено=%s",
+            len(results),
+            self.engine.day,
+            self.clock.speed_label(),
+            self.engine.finished,
         )
 
     def _choose_office(self):
@@ -567,7 +611,22 @@ class WorldScreen(BaseScreen):
             self.selected_character_id = None
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+        if self.free_mode and event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                self.clock.slow_down()
+                return
+            if event.key in (
+                pygame.K_EQUALS,
+                pygame.K_PLUS,
+                pygame.K_KP_PLUS,
+            ):
+                self.clock.speed_up()
+                return
+        if (
+            not self.free_mode
+            and event.type == pygame.KEYDOWN
+            and event.key == pygame.K_a
+        ):
             self._toggle_autopilot()
             return
         if event.type == pygame.MOUSEWHEEL:
@@ -601,7 +660,14 @@ class WorldScreen(BaseScreen):
             if self._office_rect().collidepoint(pos):
                 self._choose_office()
             return
-        if self._autopilot_rect().collidepoint(pos):
+        if self.free_mode:
+            if self._speed_down_rect().collidepoint(pos):
+                self.clock.slow_down()
+                return
+            if self._speed_up_rect().collidepoint(pos):
+                self.clock.speed_up()
+                return
+        if not self.free_mode and self._autopilot_rect().collidepoint(pos):
             self._toggle_autopilot()
             return
         if self._end_day_rect().collidepoint(pos):
@@ -648,6 +714,21 @@ class WorldScreen(BaseScreen):
     def _autopilot_rect(self):
         return pygame.Rect(
             BOTTOM_RECT.right - 430, BOTTOM_RECT.y + 3, 210, 30
+        )
+
+    def _speed_down_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.right - 400, BOTTOM_RECT.y + 3, 34, 30
+        )
+
+    def _speed_label_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.right - 362, BOTTOM_RECT.y + 3, 220, 30
+        )
+
+    def _speed_up_rect(self):
+        return pygame.Rect(
+            BOTTOM_RECT.right - 138, BOTTOM_RECT.y + 3, 34, 30
         )
 
     def _office_rect(self):
@@ -794,7 +875,15 @@ class WorldScreen(BaseScreen):
             ),
             (560, 38),
         )
-        if self.engine.infinite:
+        if self.free_mode:
+            day = "день %d · %s · %s · действия %d / %d" % (
+                self.engine.day,
+                self.clock.time_label(),
+                self.clock.speed_label(),
+                self.engine.actions_left,
+                self.engine.actions_per_day,
+            )
+        elif self.engine.infinite:
             day = "день %d · действия %d / %d" % (
                 self.engine.day,
                 self.engine.actions_left,
@@ -809,7 +898,11 @@ class WorldScreen(BaseScreen):
                 self.engine.actions_left,
                 self.engine.actions_per_day,
             )
-        if not getattr(self.app, "active", True) and not self.clock.paused:
+        if (
+            not self.free_mode
+            and not getattr(self.app, "active", True)
+            and not self.clock.paused
+        ):
             day += " · фон"
         pending = len(getattr(self.engine, "intents", ()) or ())
         if pending:
@@ -2183,6 +2276,11 @@ class WorldScreen(BaseScreen):
             "Вкладки — разделы · карточки — люди и структуры · "
             "колесо — прокрутка · A — автопилот · прогноз качественный."
         )
+        if self.free_mode:
+            hint = (
+                "Время идёт само · −/+ — скорость (не ниже 1x) · "
+                "карточки — люди и структуры · колесо — прокрутка."
+            )
         screen.blit(
             self.app.font_tiny.render(hint, True, MUTED),
             (BOTTOM_RECT.x + 12, BOTTOM_RECT.y + 11),
@@ -2206,19 +2304,42 @@ class WorldScreen(BaseScreen):
                 accent=True,
             )
         else:
-            self._draw_button(
-                screen,
-                self._autopilot_rect(),
-                "Автопилот: вкл" if self.autopilot else "Автопилот: выкл",
-                True,
-                accent=self.autopilot,
-            )
-            self._draw_button(
-                screen,
-                self._end_day_rect(),
-                "Завершить день",
-                True,
-            )
+            if self.free_mode:
+                self._draw_button(
+                    screen,
+                    self._speed_down_rect(),
+                    "−",
+                    self.clock.can_slow_down(),
+                )
+                label = "%s · %s" % (
+                    self.clock.speed_label(),
+                    self.clock.time_label(),
+                )
+                surface = self.app.font_small.render(label, True, TEXT)
+                screen.blit(
+                    surface,
+                    surface.get_rect(center=self._speed_label_rect().center),
+                )
+                self._draw_button(
+                    screen,
+                    self._speed_up_rect(),
+                    "+",
+                    self.clock.can_speed_up(),
+                )
+            else:
+                self._draw_button(
+                    screen,
+                    self._autopilot_rect(),
+                    "Автопилот: вкл" if self.autopilot else "Автопилот: выкл",
+                    True,
+                    accent=self.autopilot,
+                )
+                self._draw_button(
+                    screen,
+                    self._end_day_rect(),
+                    "Завершить день",
+                    True,
+                )
 
     def draw(self, screen):
         screen.fill((10, 13, 19))

@@ -121,13 +121,15 @@ def test_free_storyline_declares_start_for_every_archetype(storyline, world):
 
     assert storyline["world_path"] == "configs/worlds/agora_world.json"
     assert storyline["identity_editor"] is True
+    assert storyline.get("sandbox") is True
     assert storyline["free_start"]
-    assert storyline["win_conditions"] == [
-        {"type": "world_outcome", "value": "win"}
-    ]
-    assert storyline["lose_conditions"] == [
-        {"type": "world_outcome", "value": "lose"}
-    ]
+    assert storyline["win_conditions"] == []
+    assert storyline["lose_conditions"] == []
+    assert storyline["win_scene"] == {}
+    assert storyline["lose_scene"] == {}
+    assert world.get("sandbox") is True
+    assert world.get("realtime") is True
+    assert tuple(world.get("time_speeds")) == (1, 2, 4, 8)
     # Сюжет начинается с представления и заканчивается миром.
     assert storyline["scenes"][0]["type"] == "visual_novel"
     assert storyline["scenes"][-1]["type"] == "world"
@@ -252,7 +254,10 @@ def test_free_mode_save_and_load_returns_world_screen(monkeypatch, tmp_path):
 
     app = _free_app("street_musician")
     screen = _reach_world(app)
-    screen._end_day()
+    screen.clock.seconds_per_day = 1.0
+    screen.clock.speed_up()
+    screen.clock.speed_up()
+    screen.update(0.25)
     assert app.world.day == 2
     path = app.save_game("free-mode")
     assert path is not None and Path(path).exists()
@@ -269,27 +274,56 @@ def test_free_mode_save_and_load_returns_world_screen(monkeypatch, tmp_path):
     assert loaded.world.player_node_id == "agora_street"
     assert loaded.world.player_office_id == "street_musician"
     assert loaded.world.profile["name"] == "Лира"
+    assert loaded.world_clock.speed == 4.0
     assert loaded.manager.current.__class__.__name__ == "WorldScreen"
+    assert loaded.manager.current.clock.speed == 4.0
 
 
-def test_free_mode_world_outcome_drives_storyline():
+def test_free_mode_time_flows_and_speed_never_goes_below_one():
     app = _free_app("street_musician")
     screen = _reach_world(app)
 
+    assert screen.free_mode is True
+    assert screen.clock.paused is False
+    assert screen.clock.speed == 1.0
+    screen.clock.slow_down()
+    assert screen.clock.speed == 1.0
+
+    screen.clock.seconds_per_day = 1.0
+    before = app.world.day
+    screen.update(1.0)
+    assert app.world.day == before + 1
+
+    before = app.world.day
+    screen.update(-10.0)
+    assert app.world.day == before
+
+    screen.clock.speed_up()
+    assert screen.clock.speed == 2.0
+    before = app.world.day
+    screen.update(1.0)
+    assert app.world.day == before + 2
+
+
+def test_free_mode_is_endless_sandbox():
+    app = _free_app("street_musician")
+    screen = _reach_world(app)
+
+    assert app.world.sandbox is True
+    assert app.world.infinite is True
     app.world.outcome = "win"
     screen._sync_storyline()
-    assert app.storyline_interpreter.state["world"]["outcome"] == "win"
-    assert app.storyline_interpreter.check_win_conditions() is True
+    assert app.storyline_interpreter.check_win_conditions() is False
     assert app.storyline_interpreter.check_lose_conditions() is False
     app.check_storyline_end_of_day()
-    assert app.pending_storyline_outcome == "win"
-    assert app.storyline_interpreter.finished is True
+    assert app.pending_storyline_outcome is None
+    assert app.storyline_interpreter.finished is False
 
-    app = _free_app("street_musician")
-    screen = _reach_world(app)
-    app.world.outcome = "lose"
-    screen._sync_storyline()
-    assert app.storyline_interpreter.check_win_conditions() is False
-    assert app.storyline_interpreter.check_lose_conditions() is True
-    app.check_storyline_end_of_day()
-    assert app.pending_storyline_outcome == "lose"
+    app.world.outcome = None
+    app.world.day = 40
+    app.world._check_storyline()
+    assert app.world.finished is False
+    app.world.end_day()
+    assert app.world.finished is False
+    assert app.world.outcome is None
+    assert app.world.horizon_passed is False

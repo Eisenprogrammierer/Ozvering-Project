@@ -384,7 +384,9 @@ GUI существует и играется, но это **рабочий пе�
 * стартовые архетипы — `configs/characters/archetypes.json` и
   `free_start` в `configs/storylines/free_life.json`;
 * новый мир — `configs/worlds/*.json` (production-пример —
-  `agora_world.json`; тестовый — в `tests/fixtures/content/`);
+  `agora_world.json`; тестовый — в `tests/fixtures/content/`); для
+  свободного режима в мире задаются `sandbox`, `realtime`,
+  `seconds_per_day` и `time_speeds`;
 * новый автомат для редактора — `configs/automata/*.json`;
 * события/среда/драматург — `configs/systems/*.json`;
 * имена — `configs/naming/*.json`;

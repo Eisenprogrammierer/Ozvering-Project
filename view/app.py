@@ -149,6 +149,7 @@ class App:
         self.strategy_config = None
         self.world = None
         self.world_config = None
+        self.world_clock = None
         self.player_profile = None
         self.player_identity = None
 
@@ -318,6 +319,7 @@ class App:
         self.strategy_config = None
         self.world = None
         self.world_config = None
+        self.world_clock = None
         self.player_profile = None
         self.player_identity = None
         self.manager.push(RoleSelectScreen(self))
@@ -342,6 +344,7 @@ class App:
         self.strategy = None
         self.strategy_config = None
         self.world = None
+        self.world_clock = None
         self.player_profile = None
         self.scenario_path = storyline.get(
             "scenario_path", "scenarios/mvp.json"
@@ -454,6 +457,7 @@ class App:
         self.strategy = None
         self.strategy_config = None
         self.world = None
+        self.world_clock = None
         self.player_profile = None
         self.pending_storyline_outcome = None
         self.dialogue_memory = None
@@ -897,10 +901,24 @@ class App:
                 seed=self._campaign_seed(storyline),
                 snapshot=snapshot,
             )
+        if getattr(self.world, "realtime", False):
+            if self.world_clock is None:
+                from campaign.free_clock import FreeClock
+
+                self.world_clock = FreeClock.from_snapshot(
+                    (snapshot or {}).get("clock"),
+                    seconds_per_day=self.world.seconds_per_day,
+                    max_catchup_days=self.world.max_offline_days,
+                    speeds=getattr(self.world, "time_speeds", None),
+                )
+        else:
+            self.world_clock = None
         if self.world.profile:
             self.player_profile = self.world.profile
         self.music.request_category("ambient")
-        self.manager.replace_all(WorldScreen(self, self.world))
+        self.manager.replace_all(
+            WorldScreen(self, self.world, free_clock=self.world_clock)
+        )
         logger.info(
             "Экран мира открыт: день=%d, прикреплён=%s, узел=%s, должность=%s",
             self.world.day,
@@ -1110,6 +1128,7 @@ class App:
         self.strategy_config = None
         self.world = None
         self.world_config = None
+        self.world_clock = None
         self.player_profile = None
         self.music.request_category("overture")
         from .screens.main_menu import MainMenuScreen
@@ -1270,6 +1289,7 @@ class App:
         self.strategy_config = None
         self.world = None
         self.world_config = None
+        self.world_clock = None
         self.player_profile = None
         self.pending_storyline_outcome = None
         self.automata_campaign = AutomataCampaign(
@@ -1305,6 +1325,8 @@ class App:
             storyline_snapshot = {"state": {}}
         world_payload = self.world.to_dict()
         world_payload["saved_at"] = time.time()
+        if self.world_clock is not None:
+            world_payload["clock"] = self.world_clock.to_snapshot()
         storyline_snapshot.setdefault("state", {})["world"] = world_payload
         path = do_save(
             _WorldSaveState(),
@@ -1348,6 +1370,8 @@ class App:
                 storyline_snapshot = {"state": {}}
             world_payload = self.world.to_dict()
             world_payload["saved_at"] = time.time()
+            if self.world_clock is not None:
+                world_payload["clock"] = self.world_clock.to_snapshot()
             storyline_snapshot.setdefault("state", {})[
                 "world"
             ] = world_payload
@@ -1394,6 +1418,7 @@ class App:
         self.strategy_config = None
         self.world = None
         self.world_config = None
+        self.world_clock = None
         self.player_profile = None
         from campaign.preset import CampaignPreset
         from campaign.roles import RoleSpec
@@ -1517,10 +1542,25 @@ class App:
                 seed=self._campaign_seed(storyline),
                 snapshot=world_snapshot,
             )
+            if getattr(self.world, "realtime", False):
+                from campaign.free_clock import FreeClock
+
+                self.world_clock = FreeClock.from_snapshot(
+                    (world_snapshot or {}).get("clock"),
+                    seconds_per_day=self.world.seconds_per_day,
+                    max_catchup_days=self.world.max_offline_days,
+                    speeds=getattr(self.world, "time_speeds", None),
+                )
+            else:
+                self.world_clock = None
             self._apply_offline_progress(world_snapshot)
             self.music.request_category("ambient")
             if self.world.attached:
-                self.manager.replace_all(WorldScreen(self, self.world))
+                self.manager.replace_all(
+                    WorldScreen(
+                        self, self.world, free_clock=self.world_clock
+                    )
+                )
             else:
                 self.manager.replace_all(
                     AutomatonSelectScreen(
