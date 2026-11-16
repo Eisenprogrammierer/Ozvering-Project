@@ -271,6 +271,7 @@ def _apply_beliefs(faction, values, scale, applied, scope):
         for item in values.get("add") or ():
             data = dict(_as_mapping(item))
             data.setdefault("subject", _character_id(character))
+            data.setdefault("source", "effect")
             if "value" in data:
                 data["value"] = _clamp(
                     _number(data.get("value")) * scale

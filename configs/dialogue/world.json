@@ -42,6 +42,32 @@
     "intention": "intention",
     "recent_work": "recent_work"
   },
+  "perception": {
+    "channels": ["sight", "hearing", "reading", "memory", "inference"],
+    "default_scope": "visible",
+    "relations": {
+      "faction_name": "public",
+      "asset": "reading",
+      "leader": "public",
+      "speaks_for": "public",
+      "has_organ": "reading",
+      "organ_kind": "reading",
+      "organ_integrity": "faction",
+      "description": "public",
+      "character_info": "visible",
+      "post_info": "public",
+      "has_work": "reading",
+      "work_label": "reading",
+      "work_essence": "reading",
+      "work_target": "reading",
+      "work_organ": "reading",
+      "belief": "belief",
+      "intention": "intention",
+      "recent_work": "visible",
+      "has_authority": "self",
+      "trusts": "self"
+    }
+  },
   "assets": [
     "legitimacy",
     "influence",

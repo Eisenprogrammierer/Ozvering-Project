@@ -426,7 +426,18 @@ class BDIConfig:
         return str(item.get("need") or "")
 
     def validate_belief(self, belief):
+        already = isinstance(belief, Belief)
         belief = Belief.from_data(belief)
+        if not already and not belief.source:
+            belief = Belief(
+                belief.subject,
+                belief.predicate,
+                belief.object,
+                belief.value,
+                belief.confidence,
+                "content",
+                belief.ttl,
+            )
         if belief.predicate not in self.predicates:
             if self.strict_predicates:
                 raise BDIError(
@@ -1063,7 +1074,7 @@ class BDIState:
             if key in self.needs:
                 self.needs[key] = _clamp(value)
         self.beliefs = [
-            self.config.validate_belief(item)
+            self.config.validate_belief(Belief.from_data(item))
             for item in (state.get("beliefs") or ())
         ]
         self.intentions = [

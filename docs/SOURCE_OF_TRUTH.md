@@ -173,6 +173,7 @@
 | Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
 | Снимок мира и кампании автоматов | `SCHEMA_VERSION = 2` (аватар, `entity_ref`/обязательства, сцена); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
 | Контент без Python | `test_content_without_python.py`; `content_lint.lint_world_data`/`lint_storylines_data`/`lint_scenes_data`; `test_content_lint.py` |
+| Восприятие и провенанс | `campaign/perception.py`; `build_knowledge(view=...)`; `configs/dialogue/world.json` блок `perception`; `test_perception.py`, `test_provenance.py` |
 | Перенос `health/sickness/wound` | `core41/model.py` (`condition_state`, `load_condition`); `test_health.py`, `test_sickness.py` |
 | Версии чекпойнтов | `agents/policies.py`, `agents/checkpoints.py`; `test_checkpoints.py`; [`AGENTS.md`](AGENTS.md) §4 |
 
@@ -676,7 +677,7 @@ BDI — не третий тип и не отдельная онтология. 
 | §2.3.5 | план среды арены (A12) | связь кампанийных стратегий узлов с аренным планом |
 | §2.8 | `F/E/H` у персонажа, реестр проекций | полная миграция `power/cohesion/...` |
 | §2.10 | `relation_effect()` на приёме, `affinity` в автономии | полное влияние `trust/fear/respect` на обработчик и выход |
-| §5 №15, [`CHARACTER_ACTION_FLEXIBILITY_GAP.md`](CHARACTER_ACTION_FLEXIBILITY_GAP.md) F-23 | `bdi.Belief` хранит `value/confidence/source/ttl`; адаптер диалога читает кампанию | пайплайн восприятия: мир → призма агента → убеждения; разделение `world/belief/said` в `AgentKnowledge` и `DialogueMemory`; восприятие вместо флага `visible` |
+| §5 №15, [`CHARACTER_ACTION_FLEXIBILITY_GAP.md`](CHARACTER_ACTION_FLEXIBILITY_GAP.md) F-23 | **закрыто:** `campaign/perception.py` (`Signal`/`Perception`/`WorldView`), провенанс `Fact`/`DialogueMemory`, группы `perceived/believed/said`, opt-in `build_knowledge(view=...)`; `bdi.Belief.source` заполняется | narration по конкретному зрителю вместо флага `visible`; расширение каналов за пределы пяти |
 | [`AGENTS.md`](AGENTS.md) §5 | `IntentQueue`, слоты, `tick()` (A5) | production-планировщик: сквозной игровой цикл игрока |
 | [`AGENTS.md`](AGENTS.md) §5 | многофазный план и цели среды — фон | полноценная стратегическая политика среды (`force/defense/in_open`) |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) §10 | D0–D5.4, D3.2, D6.1, D6.2a–d, D6.3, D6.4 и D7.0–D7.4; контрфакты, отрицание, «то»-клауза, `predicate_relations`, условия/уступки/речь, beam, корпус парафраз, раскрытие и ложь, аудит лексикона, цели/мост/императивы/псевдонимы, история/откат/подсказки, social-действия, перемещение, ожидание и темп, описание сцены | хвост `has_leverage` |

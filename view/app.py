@@ -1233,9 +1233,15 @@ class App:
         if campaign is None:
             return None
         from campaign.dialogue import DialogueSession, build_knowledge
+        from campaign.perception import campaign_view
 
         catalog = self._dialogue_catalog()
-        knowledge = build_knowledge(catalog, campaign, side, character_id)
+        view = campaign_view(
+            campaign, character_id, world=catalog.world
+        )
+        knowledge = build_knowledge(
+            catalog, campaign, side, character_id, view=view
+        )
         memory = self._dialogue_store().memory(
             knowledge.speaker_id,
             knowledge.run_id,

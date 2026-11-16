@@ -56,6 +56,10 @@ def _integer(value: Any, default: int = 0) -> int:
         return default
 
 
+def _clamp01(value: Any, default: float = 1.0) -> float:
+    return min(1.0, max(0.0, _number(value, default)))
+
+
 def _text(value: Any, default: str = "") -> str:
     text = str(value or "").strip()
     return text if text else default
@@ -430,6 +434,12 @@ class DialogueMemory:
         args: Iterable[Any],
         clock: int,
         known_entities: Optional[set] = None,
+        *,
+        source: str = "dialogue",
+        channel: str = "memory",
+        speaker: str = "",
+        confidence: float = 1.0,
+        truth: str = "true",
     ) -> None:
         relation = _text(relation)
         arguments = tuple(_text(item) for item in args)
@@ -465,6 +475,11 @@ class DialogueMemory:
                 "first": clock,
                 "last": clock,
                 "pinned": pinned,
+                "source": _text(source, "dialogue"),
+                "channel": _text(channel, "memory"),
+                "speaker": _text(speaker),
+                "confidence": _clamp01(confidence),
+                "truth": _text(truth, "true"),
             }
             return
         record["weight"] = _number(record.get("weight")) + gain
@@ -472,6 +487,16 @@ class DialogueMemory:
         record["last"] = clock
         if pinned:
             record["pinned"] = True
+        if _text(source):
+            record["source"] = _text(source)
+        if _text(channel):
+            record["channel"] = _text(channel)
+        if _text(speaker):
+            record["speaker"] = _text(speaker)
+        if confidence is not None:
+            record["confidence"] = _clamp01(confidence)
+        if _text(truth):
+            record["truth"] = _text(truth)
 
     def note_summary(
         self,
@@ -649,6 +674,11 @@ def _fact_record(key: str, value: Any) -> Optional[Dict[str, Any]]:
         "first": _integer(data.get("first")),
         "last": _integer(data.get("last")),
         "pinned": bool(data.get("pinned")),
+        "source": _text(data.get("source"), "dialogue"),
+        "channel": _text(data.get("channel"), "memory"),
+        "speaker": _text(data.get("speaker")),
+        "confidence": _clamp01(data.get("confidence"), 1.0),
+        "truth": _text(data.get("truth"), "true"),
     }
 
 
@@ -1179,7 +1209,17 @@ class ConversationState:
         relation = _text(data.get("relation"))
         args = data.get("args") or ()
         if relation and isinstance(args, (list, tuple)):
-            self.memory.note_fact(relation, args, self.clock, known)
+            self.memory.note_fact(
+                relation,
+                args,
+                self.clock,
+                known,
+                source=_text(data.get("source"), "dialogue"),
+                channel=_text(data.get("channel"), "memory"),
+                speaker=_text(data.get("speaker")),
+                confidence=_number(data.get("confidence"), 1.0),
+                truth=_text(data.get("truth"), "true"),
+            )
             ground = _mapping(self.policy.get("common_ground"))
             if kind in {
                 str(item) for item in ground.get("kinds") or ()

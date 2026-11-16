@@ -26,13 +26,68 @@ from .model import DialogueCatalog, LexEntry
 
 @dataclass(frozen=True)
 class Fact:
-    """Факт предметной области: отношение и аргументы."""
+    """Факт предметной области: отношение, аргументы и провенанс.
+
+    Провенанс (F-23) отделяет мир от знания: ``channel`` говорит, как
+    факт вошёл в картину агента, ``source`` — откуда он взялся,
+    ``speaker`` — кто его сообщил, ``truth`` — считает ли агент факт
+    истинным. Легаси-факты остаются ``content``, поэтому ``key()`` и
+    прежнее сравнение по отношению и аргументам не меняются.
+    """
 
     rel: str
     args: Tuple[str, ...] = ()
+    source: str = "content"
+    channel: str = "content"
+    speaker: str = ""
+    confidence: float = 1.0
+    truth: str = "true"
+    day: int = 0
 
     def key(self) -> Tuple[str, Tuple[str, ...]]:
         return (self.rel, self.args)
+
+    @property
+    def group(self) -> str:
+        """Группа знания: ``perceived``/``believed``/``said``/``content``."""
+
+        if self.channel == "content":
+            return "content"
+        if self.speaker or self.channel == "hearing":
+            return "said"
+        if self.channel == "memory" or self.truth != "true":
+            return "believed"
+        if self.channel in ("sight", "reading", "inference"):
+            return "perceived"
+        return "perceived"
+
+    @property
+    def attribution(self) -> str:
+        """Как агент объясняет источник факта в разговоре."""
+
+        if self.group == "said":
+            return "мне сказали"
+        if self.group == "believed":
+            return "я так считаю"
+        return {
+            "sight": "я видел",
+            "reading": "я прочитал",
+            "memory": "я помню",
+            "inference": "я догадался",
+        }.get(self.channel, "")
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "rel": self.rel,
+            "args": list(self.args),
+            "source": self.source,
+            "channel": self.channel,
+            "speaker": self.speaker,
+            "confidence": self.confidence,
+            "truth": self.truth,
+            "day": self.day,
+            "group": self.group,
+        }
 
 
 @dataclass(frozen=True)
@@ -116,6 +171,8 @@ class AgentKnowledge:
         player_side: str = "",
         player_gender: str = "",
         player_organ_id: str = "",
+        view: Any = None,
+        perception: Any = None,
     ):
         self.catalog = catalog
         self.facts = tuple(facts)
@@ -136,6 +193,8 @@ class AgentKnowledge:
         self.world = world
         self.clock = clock
         self.run_id = run_id or "campaign"
+        self.view = view
+        self.perception = perception or getattr(view, "perception", None)
         self._by_rel: Dict[str, List[Fact]] = {}
         for fact in self.facts:
             self._by_rel.setdefault(fact.rel, []).append(fact)
@@ -143,6 +202,54 @@ class AgentKnowledge:
 
     def facts_for(self, relation: str) -> Tuple[Fact, ...]:
         return tuple(self._by_rel.get(str(relation), ()))
+
+    def facts_with_group(
+        self, relation: str, group: str
+    ) -> Tuple[Fact, ...]:
+        group = str(group)
+        return tuple(
+            fact
+            for fact in self.facts_for(relation)
+            if fact.group == group
+        )
+
+    def perceived_for(self, relation: str) -> Tuple[Fact, ...]:
+        return self.facts_with_group(relation, "perceived")
+
+    def believed_for(self, relation: str) -> Tuple[Fact, ...]:
+        return self.facts_with_group(relation, "believed")
+
+    def said_for(self, relation: str) -> Tuple[Fact, ...]:
+        return self.facts_with_group(relation, "said")
+
+    def content_for(self, relation: str) -> Tuple[Fact, ...]:
+        return self.facts_with_group(relation, "content")
+
+    def explain(self, relation: str, args: Iterable[Any]) -> Dict[str, Any]:
+        """Объяснить, знает ли агент факт и откуда."""
+
+        args = tuple(str(item) for item in args or ())
+        if self.perception is not None:
+            return self.perception.explain(relation, args)
+        for fact in self.facts_for(relation):
+            if fact.args == args:
+                data = fact.as_dict()
+                data["known"] = True
+                data["label"] = fact.attribution
+                return data
+        return {
+            "rel": str(relation),
+            "args": list(args),
+            "known": False,
+            "reason": "no-view",
+            "label": "не знаю",
+        }
+
+    def attribution(self, relation: str, args: Iterable[Any]) -> str:
+        """Короткая формула источника: «мне сказали», «я видел» и т.п."""
+
+        data = self.explain(relation, args)
+        return str(data.get("label") or "")
 
     def entity(self, entity_id: str) -> Optional[EntityInfo]:
         return self.entities.get(str(entity_id))
@@ -247,8 +354,15 @@ def build_knowledge(
     campaign: Any,
     side: str,
     character_id: Optional[str] = None,
+    view: Any = None,
 ) -> AgentKnowledge:
-    """Снять read-only снимок кампании для диалога с агентом стороны."""
+    """Снять read-only снимок кампании для диалога с агентом стороны.
+
+    ``view`` (F-23) — необязательная ``WorldView``/``Perception``. Без
+    него работает прежний прямой снимок кампании. С ним каждый факт
+    проходит призму: непережитое отбрасывается, пережитое получает
+    канал, источник, уверенность и истинностный статус.
+    """
 
     if side not in campaign.factions:
         raise DialogueError("в кампании нет стороны %r" % side)
@@ -295,13 +409,17 @@ def build_knowledge(
         )
 
     facts: List[Fact] = []
+    candidates: List[Tuple[Fact, bool]] = []
     seen: set = set()
 
-    def add(fact: Fact) -> None:
+    def add(fact: Fact, public: bool = False) -> None:
         key = fact.key()
         if key not in seen:
             seen.add(key)
-            facts.append(fact)
+            candidates.append((fact, public))
+
+    def public(fact: Fact) -> None:
+        add(fact, public=True)
 
     def add_entity(
         entity_id: str, type_name: str, name: str
@@ -320,7 +438,7 @@ def build_knowledge(
             )
 
     for spec in catalog.facts:
-        add(Fact(spec.rel, spec.args))
+        public(Fact(spec.rel, spec.args))
 
     for other_side, other in campaign.factions.items():
         other_entity = _text(
@@ -510,6 +628,29 @@ def build_knowledge(
         if _allied(player_character, speaker):
             add(_fact(rel("trusts"), player_entity, speaker_id))
 
+    perception = None
+    if view is not None:
+        from ..perception import Signal
+
+        perception = getattr(view, "perception", view)
+        day = _clock(campaign)
+        for fact, is_public in candidates:
+            if is_public:
+                signal = Signal(
+                    fact.rel,
+                    fact.args,
+                    channel="reading",
+                    source="axiom",
+                    day=day,
+                )
+            else:
+                signal = perception.signal_for(fact.rel, fact.args)
+            if signal is None:
+                continue
+            facts.append(perception.annotate(fact, signal))
+    else:
+        facts = [fact for fact, _ in candidates]
+
     return AgentKnowledge(
         catalog,
         facts,
@@ -532,6 +673,8 @@ def build_knowledge(
         player_organ_id=_text(
             getattr(player_character, "campaign_organ_id", "")
         ),
+        view=view,
+        perception=perception,
     )
 
 

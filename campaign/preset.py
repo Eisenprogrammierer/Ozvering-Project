@@ -455,6 +455,12 @@ def _make_character(
     beliefs = list(defaults.get("beliefs") or ()) + list(
         post_data.get("beliefs") or ()
     )
+    beliefs = [
+        dict(item, source=item.get("source") or "content")
+        if isinstance(item, Mapping)
+        else item
+        for item in beliefs
+    ]
     intentions = list(defaults.get("intentions") or ()) + list(
         post_data.get("intentions") or ()
     )

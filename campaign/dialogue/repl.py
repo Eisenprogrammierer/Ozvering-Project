@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from campaign.automata import AutomataCampaign
+from campaign.perception import campaign_view
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
 
@@ -40,8 +41,11 @@ def build_session(
     preset = generator.generate(seed=seed)
     campaign = AutomataCampaign(preset, seed=seed)
     catalog = load_dialogue()
+    view = campaign_view(
+        campaign, character or None, world=catalog.world
+    )
     knowledge = build_knowledge(
-        catalog, campaign, side, character or None
+        catalog, campaign, side, character or None, view=view
     )
     return DialogueSession(
         catalog,

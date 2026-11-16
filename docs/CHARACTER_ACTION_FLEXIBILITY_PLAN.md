@@ -437,6 +437,15 @@ legacy-действия без `form` остаются прямыми эффек
 
 **Закрывает:** F-12, F-13, F-14, F-15, F-16, F-17, F-23.
 
+**Статус (2026-11-16):** F-23 закрыт первым срезом. Добавлены
+`campaign/perception.py` (`Signal`/`Perception`/`WorldView`), провенанс
+`Fact`, группы `perceived`/`believed`/`said`, opt-in `build_knowledge(...,
+view=...)` и блок `perception` в `world.json`; тесты
+`test_perception.py`/`test_dialogue_adapters.py`/`test_provenance.py`
+проверяют «не знаю», «мне сказали» и неизменность мира при лжи. Остаются
+F-12…F-17: лексикон, грамматика, проекция `actions.json`, социальные акты,
+generic answer kinds и живой мост.
+
 **Работы:**
 
 1. **Лексикон и морфология:**

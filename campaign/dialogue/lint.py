@@ -907,6 +907,43 @@ def _world_problems(catalog: DialogueCatalog) -> List[str]:
                 "world.adapter.%s: отношение %r не объявлено"
                 % (role, relation)
             )
+    perception = catalog.world.get("perception")
+    if perception is not None:
+        from ..perception import SCOPES
+
+        if not isinstance(perception, Mapping):
+            problems.append(
+                "world.perception: ожидался объект"
+            )
+        else:
+            default_scope = str(
+                perception.get("default_scope") or "visible"
+            )
+            if default_scope not in SCOPES:
+                problems.append(
+                    "world.perception.default_scope: неизвестная "
+                    "область %r" % default_scope
+                )
+            rules = perception.get("relations") or {}
+            if not isinstance(rules, Mapping):
+                problems.append(
+                    "world.perception.relations: ожидался объект"
+                )
+            else:
+                adapter = catalog.world.get("adapter") or {}
+                for role, scope in rules.items():
+                    scope = str(scope or "")
+                    if scope not in SCOPES:
+                        problems.append(
+                            "world.perception.relations.%s: "
+                            "неизвестная область %r" % (role, scope)
+                        )
+                    if str(adapter.get(role, role)) not in relations:
+                        problems.append(
+                            "world.perception.relations.%s: "
+                            "отношение %r не объявлено"
+                            % (role, adapter.get(role, role))
+                        )
     for predicate, spec in (
         catalog.world.get("belief_predicates") or {}
     ).items():
