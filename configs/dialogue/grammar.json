@@ -764,6 +764,19 @@
       }
     },
     {
+      "id": "s_imperative_v_pp",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"mood": "imperative"}},
+        {"cat": "PP", "as": "target"}
+      ],
+      "sem": {
+        "kind": "order",
+        "action": "$verb",
+        "target": "$target"
+      }
+    },
+    {
       "id": "s_conditional",
       "lhs": "S",
       "rhs": [

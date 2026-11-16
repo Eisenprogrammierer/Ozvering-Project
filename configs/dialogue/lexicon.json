@@ -1910,6 +1910,78 @@
    "semantic": {"kind": "pronoun", "id": "they"}
   },
   {
+   "id": "pron:i",
+   "type": "pronoun",
+   "cat": "PRON",
+   "lemma": "я",
+   "forms": ["я", "меня", "мне", "мной", "обо мне"],
+   "semantic": {"kind": "pronoun", "id": "self"}
+  },
+  {
+   "id": "noun:place",
+   "type": "place",
+   "cat": "N",
+   "lemma": "место",
+   "forms": {"nom": ["место"], "gen": ["места"], "dat": ["месту"], "acc": ["место"], "ins": ["местом"], "prep": ["месте"]},
+   "semantic": {"kind": "entity", "type": "place", "id": "place"}
+  },
+  {
+   "id": "noun:street",
+   "type": "place",
+   "cat": "N",
+   "lemma": "улица",
+   "forms": {"nom": ["улица"], "gen": ["улицы"], "dat": ["улице"], "acc": ["улицу"], "ins": ["улицей"], "prep": ["улице"]},
+   "semantic": {"kind": "entity", "type": "place", "id": "place:street"}
+  },
+  {
+   "id": "noun:law",
+   "type": "norm",
+   "cat": "N",
+   "lemma": "закон",
+   "forms": {"nom": ["закон"], "gen": ["закона"], "dat": ["закону"], "acc": ["закон"], "ins": ["законом"], "prep": ["законе"]},
+   "semantic": {"kind": "entity", "type": "norm", "id": "norm:law"}
+  },
+  {
+   "id": "noun:norm",
+   "type": "norm",
+   "cat": "N",
+   "lemma": "норма",
+   "forms": {"nom": ["норма"], "gen": ["нормы"], "dat": ["норме"], "acc": ["норму"], "ins": ["нормой"], "prep": ["норме"]},
+   "semantic": {"kind": "entity", "type": "norm", "id": "norm:custom"}
+  },
+  {
+   "id": "noun:sacrifice",
+   "type": "gift",
+   "cat": "N",
+   "lemma": "жертва",
+   "forms": {"nom": ["жертва"], "gen": ["жертвы"], "dat": ["жертве"], "acc": ["жертву"], "ins": ["жертвой"], "prep": ["жертве"]},
+   "semantic": {"kind": "entity", "type": "gift", "id": "gift:sacrifice"}
+  },
+  {
+   "id": "noun:song",
+   "type": "concept",
+   "cat": "N",
+   "lemma": "песня",
+   "forms": {"nom": ["песня"], "gen": ["песни"], "dat": ["песне"], "acc": ["песню"], "ins": ["песней"], "prep": ["песне"]},
+   "semantic": {"kind": "entity", "type": "concept", "id": "concept:song"}
+  },
+  {
+   "id": "verb:accept_law",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "принять",
+   "forms": ["принять", "приму", "примем", "примешь", "примете", "примет", "примут", "принял", "приняла", "приняли", {"text": "прими", "features": {"mood": "imperative"}}, {"text": "примите", "features": {"mood": "imperative"}}],
+   "semantic": {"kind": "predicate", "id": "act_accept_law"}
+  },
+  {
+   "id": "verb:play_song",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "сыграть",
+   "forms": ["сыграть", "сыграю", "сыграем", "сыграешь", "сыграете", "сыграет", "сыграют", "сыграл", "сыграла", "сыграли", {"text": "сыграй", "features": {"mood": "imperative"}}, {"text": "сыграйте", "features": {"mood": "imperative"}}],
+   "semantic": {"kind": "predicate", "id": "act_perform_song"}
+  },
+  {
    "id": "verb:believe",
    "type": "verb",
    "cat": "V",
@@ -2711,7 +2783,7 @@
    "type": "verb",
    "cat": "V",
    "lemma": "успокоить",
-   "forms": ["успокоить", "успокаиваю", "успокаиваем", "успокаиваешь", "успокаиваете", "успокаивает", "успокаивают", "успокоил", "успокоила", "успокоили", "успокой", "успокойте"],
+   "forms": ["успокоить", "успокаиваю", "успокаиваем", "успокаиваешь", "успокаиваете", "успокаивает", "успокаивают", "успокоил", "успокоила", "успокоили", {"text": "успокой", "features": {"mood": "imperative"}}, {"text": "успокойте", "features": {"mood": "imperative"}}],
    "semantic": {"kind": "predicate", "id": "act_calm_crowd"}
   },
   {
@@ -2735,7 +2807,7 @@
    "type": "verb",
    "cat": "V",
    "lemma": "сослаться",
-   "forms": ["сослаться", "ссылаюсь", "ссылаемся", "ссылаешься", "ссылаетесь", "ссылается", "ссылаются", "сослался", "сослалась", "сослались"],
+   "forms": ["сослаться", "ссылаюсь", "ссылаемся", "ссылаешься", "ссылаетесь", "ссылается", "ссылаются", "сослался", "сослалась", "сослались", {"text": "сошлись", "features": {"mood": "imperative"}}],
    "semantic": {"kind": "predicate", "id": "act_cite_law"}
   },
   {
@@ -2759,7 +2831,15 @@
    "type": "verb",
    "cat": "V",
    "lemma": "пожертвовать",
-   "forms": ["пожертвовать", "жертвую", "жертвуем", "жертвуешь", "жертвуете", "жертвует", "жертвуют", "пожертвовал", "пожертвовала", "пожертвовали", "пожертвуй", "пожертвуйте"],
+   "forms": ["пожертвовать", "жертвую", "жертвуем", "жертвуешь", "жертвуете", "жертвует", "жертвуют", "пожертвовал", "пожертвовала", "пожертвовали", {"text": "пожертвуй", "features": {"mood": "imperative"}}, {"text": "пожертвуйте", "features": {"mood": "imperative"}}],
+   "semantic": {"kind": "predicate", "id": "act_offer_sacrifice"}
+  },
+  {
+   "id": "verb:bring_sacrifice",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "принести",
+   "forms": ["принести", "приношу", "приносим", "приносишь", "приносите", "приносит", "приносят", "принёс", "принесла", "принесли", {"text": "принеси", "features": {"mood": "imperative"}}, {"text": "принесите", "features": {"mood": "imperative"}}],
    "semantic": {"kind": "predicate", "id": "act_offer_sacrifice"}
   },
   {
@@ -2775,7 +2855,7 @@
    "type": "verb",
    "cat": "V",
    "lemma": "спеть",
-   "forms": ["спеть", "пою", "поём", "поёшь", "поёте", "поёт", "поют", "спел", "спела", "спели", "спой", "спойте"],
+   "forms": ["спеть", "пою", "поём", "поёшь", "поёте", "поёт", "поют", "спел", "спела", "спели", {"text": "спой", "features": {"mood": "imperative"}}, {"text": "спойте", "features": {"mood": "imperative"}}],
    "semantic": {"kind": "predicate", "id": "act_perform_song"}
   },
   {

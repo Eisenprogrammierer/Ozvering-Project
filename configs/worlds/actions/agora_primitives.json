@@ -5,7 +5,7 @@
       "id": "kiss",
       "label": "Поцеловать",
       "aliases": ["act_kiss"],
-      "phrases": ["Поцелуй его"],
+      "phrases": ["Поцелуй его", "Поцелуй меня"],
       "category": "Контакт",
       "description": "Телесный жест близости. Он доступен только при достаточном расположении и доверии человека.",
       "form": "contact",
@@ -118,6 +118,7 @@
       "id": "offer_sacrifice",
       "label": "Принести подношение",
       "aliases": ["act_offer_sacrifice"],
+      "phrases": ["Принеси жертву"],
       "category": "Обряд",
       "description": "Оставить дар месту или общине: не богу, а людям и памяти, которые держат это место.",
       "form": "ritual",
@@ -166,6 +167,61 @@
         "effects": {
           "node": {
             "cohesion": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "accept_law",
+      "label": "Принять закон",
+      "aliases": ["act_accept_law"],
+      "phrases": ["Прими закон"],
+      "category": "Право",
+      "description": "Принять уже предложенную норму и придать ей силу в общине. Это не издание нового правила, а согласие с тем, что уже названо.",
+      "form": "law",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "norm"
+        ]
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "order",
+          "action": "accept_law",
+          "target": "",
+          "priority": 0.6
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.78,
+      "success": {
+        "chance": 0.78,
+        "text": "Норма принята: теперь на неё можно сослаться, а несогласие становится спором о законе, а не о вкусе.",
+        "effects": {
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Закон не проходит: слов достаточно, но согласия в общине нет.",
+        "effects": {
+          "player": {
+            "standing": -0.01
           }
         }
       },
@@ -240,6 +296,7 @@
       "id": "perform_song",
       "label": "Спеть на улице",
       "aliases": ["act_perform_song"],
+      "phrases": ["Спой песню", "Сыграй на улице"],
       "category": "Искусство",
       "description": "Публичное выступление для улицы: работа, которая меняет настроение места и ваше положение.",
       "form": "art",
@@ -294,7 +351,7 @@
       "id": "teach_lesson",
       "label": "Провести урок",
       "aliases": ["act_teach_lesson"],
-      "phrases": ["Научи его"],
+      "phrases": ["Научи его", "Научи меня"],
       "category": "Обучение",
       "description": "Передать конкретному человеку проверенное знание и проверить, как оно усвоено.",
       "form": "education",

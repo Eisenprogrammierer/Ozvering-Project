@@ -1247,6 +1247,79 @@ def _action_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _sem_values(value, key):
+    """Собрать значения ``key`` из вложенной семантики правила."""
+
+    found = set()
+    if isinstance(value, Mapping):
+        item = value.get(key)
+        if isinstance(item, str) and item:
+            found.add(item)
+        for nested in value.values():
+            found.update(_sem_values(nested, key))
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            found.update(_sem_values(nested, key))
+    return found
+
+
+def _verb_path_problems(catalog: DialogueCatalog) -> List[str]:
+    """Каждый глагол действия обязан иметь реестр или речевой акт."""
+
+    problems: List[str] = []
+    entries = (getattr(catalog, "actions", None) or {}).get("actions") or ()
+    aliases = set()
+    for item in entries:
+        if isinstance(item, Mapping):
+            aliases.update(
+                str(alias) for alias in (item.get("aliases") or ())
+            )
+    try:
+        from .projection import projected_registry
+
+        projected, projection_problems, _ = projected_registry(
+            manual=catalog.actions
+        )
+    except Exception as exc:  # pragma: no cover - защита от битых данных
+        problems.append("projection: %s" % exc)
+        projected, projection_problems = [], []
+    for problem in projection_problems:
+        problems.append("projection: %s" % problem)
+    for item in projected.get("actions") or ():
+        if isinstance(item, Mapping):
+            aliases.update(
+                str(alias) for alias in (item.get("aliases") or ())
+            )
+    social_ids = set(getattr(catalog.social, "acts", {}) or {})
+    social_grammar = set()
+    for rule in catalog.grammar.rules:
+        social_grammar.update(
+            value
+            for value in _sem_values(rule.sem, "act")
+            if value
+        )
+    for entry in catalog.lexicon:
+        semantic = entry.semantic
+        if not isinstance(semantic, Mapping):
+            continue
+        if semantic.get("kind") != "predicate":
+            continue
+        value = str(semantic.get("id") or "")
+        if not value:
+            continue
+        if value.startswith("act_") and value not in aliases:
+            problems.append(
+                "лексема %s: действие %r отсутствует в actions.json"
+                % (entry.id, value)
+            )
+        elif value in social_ids and value not in social_grammar:
+            problems.append(
+                "лексема %s: речевой акт %r не покрыт грамматикой"
+                % (entry.id, value)
+            )
+    return problems
+
+
 _CONSOLE_MESSAGES = frozenset(
     {
         "empty",
@@ -2383,6 +2456,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_paraphrase_problems(catalog))
     problems.extend(_goal_problems(catalog))
     problems.extend(_action_problems(catalog))
+    problems.extend(_verb_path_problems(catalog))
     problems.extend(_console_problems(catalog))
     problems.extend(_movement_problems(catalog))
     problems.extend(_time_problems(catalog))
