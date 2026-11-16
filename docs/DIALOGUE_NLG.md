@@ -830,6 +830,18 @@ whitelist по P8/P9.
 - Тесты: `tests/test_d7_social.py` (19) — пять interactions, гейты
   authority/trusts, отказ без кампании и при выключенных действиях,
   TextGame-маршрутизация, откат, линтер.
+- **P5. Проекция действий и новые речевые акты.** `campaign/dialogue/
+  projection.py` собирает реестр `actions.json` из любого каталога
+  `ActionSpec` (`id`, `label`, `aliases`, явные `phrases`); ручные
+  записи остаются override, дубликат фразы не перехватывается.
+  Проекция opt-in и не меняет `load_dialogue` по умолчанию. Мирские
+  действия Агоры получили псевдонимы и императивы («Обними его»,
+  «Поцелуй его», «Научи его», «Утешь его», «Попроси его»).
+  `social.json` расширен до 12 актов: `flirt`, `confess`, `console`,
+  `bless`, `oath`, `beg_pardon`, `propose`; каждый ссылается на
+  существующий interaction, а грамматика и лексикон дают фразу.
+  Тесты: `tests/test_dialogue_projection.py` (10) и
+  `tests/test_d7_social_acts.py` (11).
 - **D7.2. Пространство и перемещение.** `configs/dialogue/movement.json`
   задаёт стартовый узел для каждой стороны, явные места
   `organ:<side>:<node>` и `noun:capital`, пороги

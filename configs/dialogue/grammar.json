@@ -662,6 +662,84 @@
       "sem": {"kind": "social", "act": "apology", "object": "$topic"}
     },
     {
+      "id": "s_social_flirt",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "флиртовать"}},
+        {"cat": "PP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "flirt", "object": "$object"}
+    },
+    {
+      "id": "s_social_confess",
+      "lhs": "S",
+      "rhs": [
+        {
+          "cat": "V",
+          "as": "verb",
+          "features": {"lemma": "признаваться"}
+        },
+        {"cat": "PP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "confess", "object": "$object"}
+    },
+    {
+      "id": "s_social_console",
+      "lhs": "S",
+      "rhs": [
+        {
+          "cat": "V",
+          "as": "verb",
+          "features": {"lemma": "сочувствовать"}
+        },
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "console", "object": "$object"}
+    },
+    {
+      "id": "s_social_bless",
+      "lhs": "S",
+      "rhs": [
+        {
+          "cat": "V",
+          "as": "verb",
+          "features": {"lemma": "благословлять"}
+        },
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "bless", "object": "$object"}
+    },
+    {
+      "id": "s_social_oath",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "клясться"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "oath", "object": "$object"}
+    },
+    {
+      "id": "s_social_beg_pardon",
+      "lhs": "S",
+      "rhs": [
+        {
+          "cat": "V",
+          "as": "verb",
+          "features": {"lemma": "извиняться"}
+        }
+      ],
+      "sem": {"kind": "social", "act": "beg_pardon"}
+    },
+    {
+      "id": "s_social_propose",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "свататься"}},
+        {"cat": "PP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "propose", "object": "$object"}
+    },
+    {
       "id": "s_imperative_v_np",
       "lhs": "S",
       "rhs": [

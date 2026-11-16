@@ -853,7 +853,10 @@ def load_world(root: Path) -> Mapping[str, Any]:
 # --- главный загрузчик ------------------------------------------------
 
 
-def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
+def load_dialogue(
+    directory: Optional[Path | str] = None,
+    project: bool = False,
+) -> DialogueCatalog:
     root = Path(directory) if directory is not None else DEFAULT_DIR
     if not root.exists():
         raise DialogueError("каталог диалога не найден: %s" % root)
@@ -878,6 +881,14 @@ def load_dialogue(directory: Optional[Path | str] = None) -> DialogueCatalog:
     paraphrases = load_paraphrases(root)
     goals = load_goals(root)
     actions = load_actions(root)
+    if project:
+        from .projection import projected_registry
+
+        actions, problems, _ = projected_registry(manual=actions)
+        if problems:
+            raise DialogueError(
+                "проекция действий: %s" % "; ".join(problems)
+            )
     console = load_console(root)
     movement = load_movement(root)
     time = load_time(root)

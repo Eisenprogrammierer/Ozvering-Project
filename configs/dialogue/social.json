@@ -60,6 +60,84 @@
       "interaction": "social_apology",
       "taboo": [],
       "reactions": ["accept", "reject", "clarify"]
+    },
+    "flirt": {
+      "id": "flirt",
+      "label": "флирт",
+      "match": {"kind": "social", "act": "flirt"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "interaction": "social_offer",
+      "taboo": [],
+      "reactions": ["accept", "reject", "evade", "clarify"]
+    },
+    "confess": {
+      "id": "confess",
+      "label": "признание",
+      "match": {"kind": "social", "act": "confess"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [
+        {"rel": "trusts", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_promise",
+      "taboo": [],
+      "reactions": ["accept", "reject", "evade", "clarify"]
+    },
+    "console": {
+      "id": "console",
+      "label": "утешение",
+      "match": {"kind": "social", "act": "console"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "interaction": "social_apology",
+      "taboo": [],
+      "reactions": ["accept", "reject", "clarify"]
+    },
+    "bless": {
+      "id": "bless",
+      "label": "благословение",
+      "match": {"kind": "social", "act": "bless"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [
+        {"rel": "has_authority", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_offer",
+      "taboo": [],
+      "reactions": ["accept", "reject", "clarify"]
+    },
+    "oath": {
+      "id": "oath",
+      "label": "присяга",
+      "match": {"kind": "social", "act": "oath"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [
+        {"rel": "trusts", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_promise",
+      "taboo": [],
+      "reactions": ["accept", "reject", "counter", "clarify"]
+    },
+    "beg_pardon": {
+      "id": "beg_pardon",
+      "label": "просьба о прощении",
+      "match": {"kind": "social", "act": "beg_pardon"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [],
+      "interaction": "social_apology",
+      "taboo": [],
+      "reactions": ["accept", "reject", "evade", "clarify"]
+    },
+    "propose": {
+      "id": "propose",
+      "label": "предложение руки",
+      "match": {"kind": "social", "act": "propose"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [
+        {"rel": "trusts", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_offer",
+      "taboo": [],
+      "reactions": ["accept", "reject", "counter", "clarify"]
     }
   },
   "reactions": {

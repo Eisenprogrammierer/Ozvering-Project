@@ -4,6 +4,8 @@
     {
       "id": "kiss",
       "label": "Поцеловать",
+      "aliases": ["act_kiss"],
+      "phrases": ["Поцелуй его"],
       "category": "Контакт",
       "description": "Телесный жест близости. Он доступен только при достаточном расположении и доверии человека.",
       "form": "contact",
@@ -63,6 +65,7 @@
     {
       "id": "embrace",
       "label": "Обнять",
+      "aliases": ["act_embrace"],
       "category": "Контакт",
       "description": "Простое объятие без требования близости: поддержка, а не притязание.",
       "form": "contact",
@@ -114,6 +117,7 @@
     {
       "id": "offer_sacrifice",
       "label": "Принести подношение",
+      "aliases": ["act_offer_sacrifice"],
       "category": "Обряд",
       "description": "Оставить дар месту или общине: не богу, а людям и памяти, которые держат это место.",
       "form": "ritual",
@@ -171,6 +175,7 @@
     {
       "id": "propose_law",
       "label": "Предложить норму",
+      "aliases": ["act_propose_law"],
       "category": "Право",
       "description": "Собрать правило из обычая и придать ему силу городской нормы.",
       "form": "law",
@@ -234,6 +239,7 @@
     {
       "id": "perform_song",
       "label": "Спеть на улице",
+      "aliases": ["act_perform_song"],
       "category": "Искусство",
       "description": "Публичное выступление для улицы: работа, которая меняет настроение места и ваше положение.",
       "form": "art",
@@ -287,6 +293,8 @@
     {
       "id": "teach_lesson",
       "label": "Провести урок",
+      "aliases": ["act_teach_lesson"],
+      "phrases": ["Научи его"],
       "category": "Обучение",
       "description": "Передать конкретному человеку проверенное знание и проверить, как оно усвоено.",
       "form": "education",
@@ -341,6 +349,8 @@
     {
       "id": "comfort_person",
       "label": "Утешить",
+      "aliases": ["act_comfort_person"],
+      "phrases": ["Утешь его"],
       "category": "Личная забота",
       "description": "Побыть рядом с человеком, которому плохо: снизить страх и вернуть немного сил.",
       "form": "personal_care",
@@ -396,6 +406,8 @@
     {
       "id": "ask_favor",
       "label": "Попросить об услуге",
+      "aliases": ["act_ask_favor"],
+      "phrases": ["Попроси его"],
       "category": "Обязательство",
       "description": "Договориться об услуге и запомнить, кто кому теперь должен. Это не долг из казны, а личное обязательство.",
       "form": "negotiation",

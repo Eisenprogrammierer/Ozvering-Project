@@ -34,6 +34,13 @@ from .model import (
 from .morphology import normalize_text, tokenize
 from .parser import ChartParser, features_match, merge_features
 from .planner import GoalPlan, GoalPlanner, GoalStep, Intent
+from .projection import (
+    ProjectedAction,
+    merge_actions,
+    project_action,
+    project_actions,
+    projected_registry,
+)
 from .realize import Realizer
 from .semantics import entity_id, flatten, predicate_id, substitute
 from .state import (
@@ -79,6 +86,7 @@ __all__ = [
     "Ontology",
     "Parse",
     "Persona",
+    "ProjectedAction",
     "ProofStep",
     "Realizer",
     "Solution",
@@ -103,8 +111,12 @@ __all__ = [
     "load_synthesis",
     "load_time",
     "merge_features",
+    "merge_actions",
     "normalize_text",
     "predicate_id",
+    "project_action",
+    "project_actions",
+    "projected_registry",
     "substitute",
     "tokenize",
 ]

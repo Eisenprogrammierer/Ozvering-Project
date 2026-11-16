@@ -437,14 +437,16 @@ legacy-действия без `form` остаются прямыми эффек
 
 **Закрывает:** F-12, F-13, F-14, F-15, F-16, F-17, F-23.
 
-**Статус (2026-11-16):** F-23 закрыт первым срезом. Добавлены
-`campaign/perception.py` (`Signal`/`Perception`/`WorldView`), провенанс
-`Fact`, группы `perceived`/`believed`/`said`, opt-in `build_knowledge(...,
-view=...)` и блок `perception` в `world.json`; тесты
-`test_perception.py`/`test_dialogue_adapters.py`/`test_provenance.py`
-проверяют «не знаю», «мне сказали» и неизменность мира при лжи. Остаются
-F-12…F-17: лексикон, грамматика, проекция `actions.json`, социальные акты,
-generic answer kinds и живой мост.
+**Статус (2026-11-16):** в P5 закрыты F-23, F-13 и F-14. F-23 — призма
+восприятия (`campaign/perception.py`, провенанс `Fact`, opt-in
+`build_knowledge(..., view=...)`). F-13 — `campaign/dialogue/projection.py`:
+реестр `actions.json` собирается из `ActionSpec`, ручные записи остаются
+override, дубликаты фраз не перехватываются. F-14 — 12 речевых актов:
+к пяти исходным добавлены `flirt`, `confess`, `console`, `bless`, `oath`,
+`beg_pardon`, `propose`; они ссылаются на существующие interactions, а
+грамматика и лексикон дают им поверхностную форму. Остаются F-12 (полный
+лексикон), F-15 (generic answer kinds), F-16 (адаптер мира) и F-17
+(живой мост).
 
 **Работы:**
 

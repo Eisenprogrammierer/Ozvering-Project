@@ -76,6 +76,13 @@ def test_social_acts_bind_campaign_interactions(catalog):
         "threat": "social_threat",
         "offer": "social_offer",
         "apology": "social_apology",
+        "flirt": "social_offer",
+        "confess": "social_promise",
+        "console": "social_apology",
+        "bless": "social_offer",
+        "oath": "social_promise",
+        "beg_pardon": "social_apology",
+        "propose": "social_offer",
     }
     actual = {
         key: act.interaction for key, act in catalog.social.acts.items()
