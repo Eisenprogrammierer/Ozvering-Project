@@ -856,6 +856,13 @@ whitelist по P8/P9.
   `_answer_kind_problems` проверяет, что каждый тип плана
   зарегистрирован, а каждый handler реализован. Тесты:
   `tests/test_answer_registry.py` (9).
+- **P5. Адаптеры мира.** `campaign/perception.py` расширен протоколом
+  `WorldView` (`entities`, `relations`, `perceived`, `believed`,
+  `recent_work`, `unknown`) и тремя мостами: `AutomataCampaignAdapter`,
+  `WorldEngineAdapter`, `SceneAdapter`; `adapter_for` выбирает мост по
+  форме источника. `configs/dialogue/world.json.adapters` объявляет
+  реализации, а `factions` остаётся необязательным override. Тесты:
+  `tests/test_world_adapters.py` (11).
 - **D7.2. Пространство и перемещение.** `configs/dialogue/movement.json`
   задаёт стартовый узел для каждой стороны, явные места
   `organ:<side>:<node>` и `noun:capital`, пороги

@@ -451,8 +451,12 @@ F-12 — лексикон и грамматика под DoD-фразы: мес�
 `family`/`romance`, линтер путей глаголов. F-15 — реестр
 `answer_kinds.json`: `answer.type` ссылается на обработчик, generic
 `entity`/`relation` доступны новым типам без Python-метода, линтер
-ловит незарегистрированный тип и нереализованный handler. Остаются
-F-16 (адаптер мира) и F-17 (живой мост).
+ловит незарегистрированный тип и нереализованный handler. F-16 —
+протокол `WorldView` (`entities`, `relations`, `perceived`, `believed`,
+`recent_work`, `unknown`) и адаптеры `AutomataCampaignAdapter`,
+`WorldEngineAdapter`, `SceneAdapter`; `world.json.adapters` объявляет
+реализации, `factions` — необязательный override. Остаётся F-17
+(живой мост).
 
 **Работы:**
 

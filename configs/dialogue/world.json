@@ -42,6 +42,22 @@
     "intention": "intention",
     "recent_work": "recent_work"
   },
+  "adapters": {
+    "automata_campaign": {
+      "kind": "automata_campaign",
+      "observer": "character_id",
+      "factions": "optional_overrides"
+    },
+    "world_engine": {
+      "kind": "world_engine",
+      "observer": "player"
+    },
+    "scene": {
+      "kind": "scene",
+      "observer": "player",
+      "scene": "current"
+    }
+  },
   "perception": {
     "channels": ["sight", "hearing", "reading", "memory", "inference"],
     "default_scope": "visible",

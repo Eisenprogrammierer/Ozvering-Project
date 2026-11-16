@@ -68,6 +68,15 @@ DEFAULT_SCOPES = {
 
 DEFAULT_SCOPE = "visible"
 
+# Реализации протокола ``WorldView``. Имена — данные для
+# ``world.json.adapters``; сам протокол не зависит от конкретной модели
+# мира.
+WORLD_ADAPTER_KINDS = (
+    "automata_campaign",
+    "world_engine",
+    "scene",
+)
+
 
 def _text(value: Any, default: str = "") -> str:
     text = str(value or "").strip()
@@ -402,6 +411,67 @@ class WorldView:
     def signals(self) -> Tuple[Signal, ...]:
         return self.perception.signals
 
+    @property
+    def perceived(self) -> Tuple[Signal, ...]:
+        """Факты, которые наблюдатель видел, прочитал или вывел."""
+
+        return self.perception.group("perceived")
+
+    @property
+    def believed(self) -> Tuple[Signal, ...]:
+        """Факты памяти и сомнительной истинности."""
+
+        return self.perception.group("believed")
+
+    @property
+    def said(self) -> Tuple[Signal, ...]:
+        """Факты, полученные через слух или речь."""
+
+        return self.perception.group("said")
+
+    @property
+    def relations(self) -> Dict[str, Tuple[Tuple[str, ...], ...]]:
+        """Известные отношения в виде ``rel -> args``."""
+
+        result: Dict[str, list] = {}
+        for signal in self.perception.known():
+            result.setdefault(signal.rel, []).append(signal.args)
+        return {rel: tuple(args) for rel, args in result.items()}
+
+    @property
+    def recent_work(self) -> Tuple[Signal, ...]:
+        """Последние работы, доступные наблюдателю."""
+
+        return self.perception.known("recent_work")
+
+    @property
+    def entities(self) -> Tuple[str, ...]:
+        """Идентификаторы видимых сцены и известных фактов."""
+
+        found: list = []
+
+        def add(value: Any) -> None:
+            text = _text(value)
+            if text and text not in found:
+                found.append(text)
+
+        for value in self.visible_nodes:
+            add(value)
+        for value in self.visible_characters:
+            add(value)
+        for value in self.perception.visible:
+            add(value)
+        for signal in self.perception.known():
+            for value in signal.args:
+                if ":" in value:
+                    add(value)
+        return tuple(found)
+
+    def unknown(self, rel: str, args: Iterable[Any]) -> bool:
+        """Истина, если факт недоступен наблюдателю."""
+
+        return self.signal_for(rel, args) is None
+
     def signal_for(
         self, rel: str, args: Iterable[Any]
     ) -> Optional[Signal]:
@@ -675,6 +745,134 @@ def world_view(
         visible_nodes=visible_nodes,
         visible_characters=tuple(visible_characters),
     )
+
+
+# --- адаптеры миров (F-16) -------------------------------------------
+
+
+class AutomataCampaignAdapter:
+    """Мост ``AutomataCampaign`` → ``WorldView``.
+
+    Кампания остаётся единственным владельцем истины; адаптер только
+    пропускает её состояние через ``Perception`` выбранного персонажа.
+    """
+
+    kind = "automata_campaign"
+
+    def __init__(
+        self,
+        campaign: Any,
+        world: Optional[Mapping[str, Any]] = None,
+    ):
+        self.campaign = campaign
+        self.world = world or {}
+
+    def view(
+        self,
+        observer_id: Optional[str] = None,
+        *,
+        side: str = "",
+        signals: Iterable[Signal] = (),
+        day: Optional[int] = None,
+        scene: str = "",
+        location: str = "",
+    ) -> WorldView:
+        return campaign_view(
+            self.campaign,
+            observer_id,
+            world=self.world,
+            side=side,
+            signals=signals,
+            day=day,
+            scene=scene,
+            location=location,
+        )
+
+
+class WorldEngineAdapter:
+    """Мост ``WorldEngine`` → ``WorldView``.
+
+    Работает с любым миром, который загрузил ``WorldEngine``: узлы,
+    персонажи, предметы, нормы и сцены берутся из самого движка, а не
+    из списка четырёх фракций.
+    """
+
+    kind = "world_engine"
+
+    def __init__(
+        self,
+        world: Any,
+        world_data: Optional[Mapping[str, Any]] = None,
+    ):
+        self.world = world
+        self.world_data = world_data or {}
+
+    def view(
+        self,
+        observer_id: str = "player",
+        *,
+        signals: Iterable[Signal] = (),
+        scene: str = "",
+    ) -> WorldView:
+        return world_view(
+            self.world,
+            observer_id,
+            world_data=self.world_data,
+            signals=signals,
+            scene=scene,
+        )
+
+
+class SceneAdapter(WorldEngineAdapter):
+    """Мост локальной сцены → ``WorldView``.
+
+    Сцена сужает видимость до узла и публики ``WorldEngine``; если
+    сцена не задана, используется текущая.
+    """
+
+    kind = "scene"
+
+    def view(
+        self,
+        observer_id: str = "player",
+        *,
+        signals: Iterable[Signal] = (),
+        scene: str = "",
+    ) -> WorldView:
+        current = scene
+        if not current and hasattr(self.world, "current_scene"):
+            try:
+                current = _text(getattr(self.world.current_scene(), "id", ""))
+            except Exception:
+                current = ""
+        return world_view(
+            self.world,
+            observer_id,
+            world_data=self.world_data,
+            signals=signals,
+            scene=current,
+        )
+
+
+def adapter_for(
+    source: Any,
+    kind: str = "",
+    world_data: Optional[Mapping[str, Any]] = None,
+) -> Any:
+    """Выбрать адаптер по явному ``kind`` или по форме источника."""
+
+    kind = _text(kind)
+    if kind == "automata_campaign":
+        return AutomataCampaignAdapter(source, world_data)
+    if kind == "world_engine":
+        return WorldEngineAdapter(source, world_data)
+    if kind == "scene":
+        return SceneAdapter(source, world_data)
+    if hasattr(source, "factions"):
+        return AutomataCampaignAdapter(source, world_data)
+    if hasattr(source, "nodes") and hasattr(source, "characters"):
+        return WorldEngineAdapter(source, world_data)
+    raise ValueError("не удалось выбрать адаптер мира")
 
 
 def _clock(source: Any) -> int:

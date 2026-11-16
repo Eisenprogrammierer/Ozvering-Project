@@ -907,6 +907,23 @@ def _world_problems(catalog: DialogueCatalog) -> List[str]:
                 "world.adapter.%s: отношение %r не объявлено"
                 % (role, relation)
             )
+    adapters = catalog.world.get("adapters")
+    if adapters is not None:
+        from ..perception import WORLD_ADAPTER_KINDS
+
+        if not isinstance(adapters, Mapping):
+            problems.append("world.adapters: ожидался объект")
+        else:
+            for name, spec in adapters.items():
+                where = "world.adapters.%s" % name
+                if not isinstance(spec, Mapping):
+                    problems.append("%s: ожидался объект" % where)
+                    continue
+                kind = str(spec.get("kind") or name)
+                if kind not in WORLD_ADAPTER_KINDS:
+                    problems.append(
+                        "%s.kind: неизвестный адаптер %r" % (where, kind)
+                    )
     perception = catalog.world.get("perception")
     if perception is not None:
         from ..perception import SCOPES
