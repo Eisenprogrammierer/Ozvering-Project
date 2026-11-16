@@ -194,6 +194,7 @@ KIND_LABELS = {
     "item": "предмет",
     "place": "место",
     "norm": "норма",
+    "obligation": "обязательство",
     "network": "сеть",
     "event": "событие",
 }
@@ -1134,6 +1135,8 @@ class WorldEngine:
             {key: 0.0 for key in PLAYER_STATS},
         )
         self.player_item_ids = []
+        self.granted_items = set()
+        self.consumed_items = set()
         self.day = 1
         self.actions_left = self.actions_per_day
         self.action_count = 0
@@ -1364,7 +1367,22 @@ class WorldEngine:
     def _entity_kind(self, entity):
         if entity is None:
             return ""
-        return self._entity_kinds.get(id(entity), "")
+        kind = self._entity_kinds.get(id(entity), "")
+        if kind:
+            return kind
+        if isinstance(entity, dict) and entity.get("creditor") is not None:
+            return "obligation"
+        if hasattr(entity, "creditor") and hasattr(entity, "debtor"):
+            return "obligation"
+        return ""
+
+    @staticmethod
+    def _entity_id(entity):
+        if entity is None:
+            return ""
+        if isinstance(entity, dict):
+            return _text(entity.get("id"))
+        return _text(getattr(entity, "id", ""))
 
     def entity(self, ref):
         """Найти сущность по универсальной ссылке ``kind/id``."""
@@ -1379,6 +1397,9 @@ class WorldEngine:
             return self.item_catalog.get(entity_id)
         if kind == "norm":
             return self.norms.get(entity_id)
+        if kind == "obligation":
+            obligation = self.obligations.get(entity_id)
+            return obligation.to_dict() if obligation is not None else None
         if kind in ("place", "organization", "institution", "asset"):
             node = self.node(entity_id)
             if node is None:
@@ -1393,7 +1414,7 @@ class WorldEngine:
         kind = self._entity_kind(entity)
         if not kind:
             return {}
-        return {"kind": kind, "id": _text(entity.get("id"))}
+        return {"kind": kind, "id": self._entity_id(entity)}
 
     def _kind_matches(self, actual, kinds):
         if not kinds:
@@ -1423,6 +1444,9 @@ class WorldEngine:
         for norm in self.norms.values():
             if self._kind_matches("norm", kinds):
                 result.append(self.entity_ref(norm))
+        for obligation in self.obligations:
+            if self._kind_matches("obligation", kinds):
+                result.append(self.entity_ref(obligation))
         return result
 
     def action_targets(self, action_id):
@@ -3068,6 +3092,11 @@ class WorldEngine:
         domain = node.get("domain", "")
         for item_id in self.item_order:
             item = self.item_catalog[item_id]
+            if (
+                item_id in self.consumed_items
+                and item_id not in self.granted_items
+            ):
+                continue
             domains = item.get("domains") or ()
             if item.get("always") or (domains and domain in domains):
                 self.player_item_ids.append(item_id)
@@ -3078,6 +3107,9 @@ class WorldEngine:
                 for key, value in min_skills.items()
             ):
                 self.player_item_ids.append(item_id)
+        for item_id in sorted(self.granted_items):
+            if item_id in self.item_catalog and item_id not in self.player_item_ids:
+                self.player_item_ids.append(item_id)
         limit = max(1, _as_int(self.config.get("max_items"), 6))
         self.player_item_ids = self.player_item_ids[:limit]
 
@@ -3087,6 +3119,10 @@ class WorldEngine:
             for item_id in self.player_item_ids
             if item_id in self.item_catalog
         ]
+
+    def item_label(self, item_id):
+        item = self.item_catalog.get(_text(item_id)) or {}
+        return _text(item.get("label"), _text(item_id))
 
     def skill_tree(self):
         raw_tree = self.config.get("skill_tree") or {}
@@ -3490,11 +3526,30 @@ class WorldEngine:
                         return "у цели мало ресурса «%s»" % self.stat_label(
                             key
                         )
+            if self._entity_kind(target) == "character":
+                for axis, key in (
+                    ("affinity_min", "affinity"),
+                    ("trust_min", "trust"),
+                    ("respect_min", "respect"),
+                ):
+                    minimum = requires.get(axis)
+                    if minimum is not None and _as_float(
+                        target.get(key), 0.0
+                    ) + 1e-9 < _as_float(minimum):
+                        return "человек ещё не готов к такому шагу"
+                maximum = requires.get("fear_max")
+                if maximum is not None and _as_float(
+                    target.get("fear"), 0.0
+                ) - 1e-9 > _as_float(maximum):
+                    return "человек слишком напуган"
             relation_min = requires.get("relation_min")
             if relation_min is not None:
                 value = self.relation(context["node"]["id"], target["id"])
                 if value + 1e-9 < _as_float(relation_min):
                     return "слишком плохие отношения с целью"
+        for item_id in requires.get("items") or ():
+            if _text(item_id) not in self.player_item_ids:
+                return "нужен предмет: %s" % self.item_label(item_id)
         return ""
 
     def _reason_cost(self, action, context):
@@ -3516,6 +3571,9 @@ class WorldEngine:
                         "недостаточно личного ресурса «%s»"
                         % self.stat_label(key)
                     )
+            for item_id in (action.get("cost") or {}).get("items") or ():
+                if _text(item_id) not in self.player_item_ids:
+                    return "нужен предмет: %s" % self.item_label(item_id)
         return ""
 
     def validate(
@@ -3632,6 +3690,8 @@ class WorldEngine:
             parts.append(
                 "%s −%.0f%%" % (self.stat_label(key), 100.0 * _as_float(value))
             )
+        for item_id in cost.get("items") or ():
+            parts.append("%s −1" % self.item_label(item_id))
         return ", ".join(parts) or "без прямой платы"
 
     def stat_label(self, key):
@@ -3735,7 +3795,7 @@ class WorldEngine:
         return changed
 
     def _apply_character_map(self, character, changes):
-        """Аддитивные эффекты на конкретного человека мира (P3)."""
+        """Аддитивные эффекты на конкретного человека мира (P3/P4)."""
         if character is None:
             return []
         changed = []
@@ -3759,6 +3819,29 @@ class WorldEngine:
                         delta,
                     )
                 )
+        for key, limit, label in (
+            ("health", HEALTH_MAX, "здоровье"),
+            ("sickness", SICKNESS_MAX, "болезнь"),
+            ("wound", CAMPAIGN_WOUND_MAX, "рана"),
+        ):
+            value = (changes or {}).get(key)
+            if value is None:
+                continue
+            before = _as_float(character.get(key), 0.0)
+            character[key] = _clamp(before + _as_float(value), 0.0, limit)
+            delta = character[key] - before
+            if abs(delta) > 1e-9:
+                changed.append(
+                    (
+                        "%s · %s"
+                        % (character.get("name", character["id"]), label),
+                        delta,
+                    )
+                )
+        if "health" in (changes or {}):
+            character["alive"] = _as_float(character.get("health"), 0.0) > 0.0
+        if hasattr(character, "sync"):
+            character.sync()
         return changed
 
     def _apply_player_map(self, changes):
@@ -4805,6 +4888,122 @@ class WorldEngine:
                 ),
             )
 
+    def _apply_item_effects(self, spec):
+        """Выдать или забрать предметы игрока (P4)."""
+        if not spec:
+            return []
+        entries = spec if isinstance(spec, list) else [spec]
+        for entry in entries:
+            if isinstance(entry, str):
+                action, item_id = "grant", entry
+            elif isinstance(entry, dict):
+                action = _text(entry.get("action"), "grant")
+                item_id = _text(entry.get("id") or entry.get("item_id"))
+            else:
+                continue
+            if not item_id or item_id not in self.item_catalog:
+                continue
+            if action in ("grant", "add"):
+                if item_id not in self.player_item_ids:
+                    self.player_item_ids.append(item_id)
+                    self.granted_items.add(item_id)
+                    self.consumed_items.discard(item_id)
+                    self.log.append(
+                        {
+                            "day": self.day,
+                            "kind": "item",
+                            "text": "получен предмет: %s"
+                            % self.item_label(item_id),
+                        }
+                    )
+            elif action in ("take", "consume", "remove"):
+                if item_id in self.player_item_ids:
+                    self.player_item_ids = [
+                        value
+                        for value in self.player_item_ids
+                        if value != item_id
+                    ]
+                    self.granted_items.discard(item_id)
+                    self.consumed_items.add(item_id)
+                    self.log.append(
+                        {
+                            "day": self.day,
+                            "kind": "item",
+                            "text": "израсходован предмет: %s"
+                            % self.item_label(item_id),
+                        }
+                    )
+        return []
+
+    def _apply_norm_effects(self, spec):
+        """Создать или изменить норму мира (P4)."""
+        if not spec:
+            return []
+        entries = spec if isinstance(spec, list) else [spec]
+        fields = ("label", "domain", "status", "scope", "description")
+        for entry in entries:
+            if isinstance(entry, str):
+                entry = {"id": entry}
+            if not isinstance(entry, dict):
+                continue
+            norm_id = _text(entry.get("id"))
+            if not norm_id:
+                continue
+            norm = self.norms.get(norm_id)
+            if norm is None:
+                norm = {
+                    "id": norm_id,
+                    "label": _text(entry.get("label"), norm_id),
+                    "domain": _text(entry.get("domain"), "order"),
+                    "status": _text(entry.get("status"), "active"),
+                    "scope": _text(entry.get("scope")),
+                    "description": _text(entry.get("description")),
+                }
+                self.norms[norm_id] = norm
+                self.norm_order.append(norm_id)
+                self._entity_kinds[id(norm)] = "norm"
+                text = "принята норма: %s" % norm["label"]
+            else:
+                for key in fields:
+                    if key in entry:
+                        norm[key] = _text(entry.get(key), norm.get(key, ""))
+                text = "изменена норма: %s" % norm.get("label", norm_id)
+            self.log.append({"day": self.day, "kind": "norm", "text": text})
+        return []
+
+    def _apply_obligation_effects(self, spec, target=None):
+        """Создать обязательство из эффекта действия (P4)."""
+        if not spec:
+            return []
+        entries = spec if isinstance(spec, list) else [spec]
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            creditor = _text(entry.get("creditor"), "player")
+            debtor = _text(entry.get("debtor"))
+            if not debtor and self._entity_kind(target) == "character":
+                debtor = _text(target.get("id"))
+            if not debtor or creditor == debtor:
+                continue
+            due_in_days = entry.get("due_in_days")
+            due_day = (
+                self.day + max(0, _as_int(due_in_days))
+                if due_in_days is not None
+                else None
+            )
+            try:
+                self.add_obligation(
+                    creditor,
+                    debtor,
+                    _text(entry.get("kind"), DEFAULT_OBLIGATION_KIND),
+                    _as_float(entry.get("amount"), 1.0),
+                    due_day=due_day,
+                    note=_text(entry.get("note")),
+                )
+            except CampaignError:
+                continue
+        return []
+
     def _apply_effects(self, effects, context, target, is_player=True):
         effects = effects or {}
         changed = []
@@ -4821,6 +5020,16 @@ class WorldEngine:
             )
         if is_player:
             changed.extend(self._apply_player_map(effects.get("player")))
+            self._apply_item_effects(
+                effects.get("item") or effects.get("items")
+            )
+            self._apply_norm_effects(
+                effects.get("norm") or effects.get("norms")
+            )
+            self._apply_obligation_effects(
+                effects.get("obligation") or effects.get("obligations"),
+                target,
+            )
         relation = _as_float(effects.get("relation"), 0.0)
         if (
             target is not None
@@ -4977,8 +5186,12 @@ class WorldEngine:
             )
         elif hasattr(target, "sync"):
             defender = target.sync()
-        else:
+        elif isinstance(target.get("stats"), dict):
             defender = self._unit_from_node(target)
+        else:
+            defender = self._unit_from_node(
+                context["node"], context.get("authority", 0.0)
+            )
         form = _text(action.get("form"), DEFAULT_RELATION_FORM)
         relation_shift = relation_effect(
             self._relation_axes_to_actor(target, context["node"]["id"]),
@@ -5007,6 +5220,19 @@ class WorldEngine:
                     self.player_resources[key] = _clamp(
                         self.player_resources[key] - _as_float(value)
                     )
+            paid_items = {
+                _text(item_id)
+                for item_id in (action.get("cost") or {}).get("items") or ()
+            }
+            if paid_items:
+                self.player_item_ids = [
+                    item_id
+                    for item_id in self.player_item_ids
+                    if item_id not in paid_items
+                ]
+                for item_id in paid_items:
+                    self.granted_items.discard(item_id)
+                    self.consumed_items.add(item_id)
 
     def _career_target_available(self, action, target):
         if not target:
@@ -6373,6 +6599,8 @@ class WorldEngine:
                 "resources": dict(self.player_resources),
                 "career_history": list(self.career_history),
                 "items": list(self.player_item_ids),
+                "granted_items": sorted(self.granted_items),
+                "consumed_items": sorted(self.consumed_items),
                 "health": float(self.player_health),
                 "sickness": float(self.player_sickness),
                 "wound": float(self.player_wound),
@@ -6517,6 +6745,17 @@ class WorldEngine:
                 for item_id in (player.get("items") or ())
                 if str(item_id) in self.item_catalog
             ]
+        if "granted_items" in player or "consumed_items" in player:
+            self.granted_items = {
+                str(item_id)
+                for item_id in (player.get("granted_items") or ())
+                if str(item_id) in self.item_catalog
+            }
+            self.consumed_items = {
+                str(item_id)
+                for item_id in (player.get("consumed_items") or ())
+                if str(item_id) in self.item_catalog
+            }
         for character_id, saved in (snapshot.get("characters") or {}).items():
             character = self.characters.get(character_id)
             if character is None:

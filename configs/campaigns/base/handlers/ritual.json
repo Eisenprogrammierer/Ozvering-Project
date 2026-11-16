@@ -1,0 +1,53 @@
+{
+  "form": "ritual",
+  "rules": [
+    {
+      "when": {
+        "id": "offer_sacrifice"
+      },
+      "receiver": {
+        "effect": {
+          "legitimacy": 0.01,
+          "cohesion": 0.02
+        }
+      },
+      "sender": {
+        "legitimacy": 0.01,
+        "morale": 0.01
+      },
+      "failure": {
+        "sender": {
+          "supply": -0.02
+        }
+      },
+      "trace": {
+        "essence": "offer"
+      }
+    },
+    {
+      "when": {
+        "id": "remember_dead"
+      },
+      "receiver": {
+        "effect": {
+          "cohesion": 0.02
+        }
+      },
+      "sender": {
+        "morale": 0.01,
+        "loneliness": -0.02
+      },
+      "trace": {
+        "essence": "mourn"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {
+        "cohesion": 0.01
+      }
+    },
+    "sender": {}
+  }
+}

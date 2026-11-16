@@ -259,6 +259,120 @@
         "legacy",
         "social"
       ]
+    },
+    {
+      "id": "contact",
+      "label": "Контакт",
+      "description": "Телесный жест: объятие, поцелуй, рукопожатие. Требует согласия и меняет отношения конкретного человека.",
+      "payload_kinds": [
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "character"
+      ],
+      "tags": [
+        "body",
+        "social"
+      ]
+    },
+    {
+      "id": "ritual",
+      "label": "Обрядовое действие",
+      "description": "Подношение, благословение, поминовение и другие символические работы без божества-адресата.",
+      "payload_kinds": [
+        "item",
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "place",
+        "institution",
+        "organization",
+        "character",
+        "norm"
+      ],
+      "tags": [
+        "meaning",
+        "community"
+      ]
+    },
+    {
+      "id": "law",
+      "label": "Право",
+      "description": "Черновик, принятие, исполнение и отмена нормы.",
+      "payload_kinds": [
+        "order",
+        "evidence",
+        "info"
+      ],
+      "target_kinds": [
+        "norm",
+        "organization",
+        "institution"
+      ],
+      "tags": [
+        "order",
+        "knowledge"
+      ]
+    },
+    {
+      "id": "art",
+      "label": "Искусство",
+      "description": "Игра, пение и публичное выступление для улицы, дома или заказчика.",
+      "payload_kinds": [
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "place",
+        "institution",
+        "organization",
+        "character"
+      ],
+      "tags": [
+        "meaning",
+        "status"
+      ]
+    },
+    {
+      "id": "education",
+      "label": "Обучение",
+      "description": "Урок, наставничество и экзамен: передача проверенного знания конкретному человеку.",
+      "payload_kinds": [
+        "info",
+        "evidence"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "place"
+      ],
+      "tags": [
+        "knowledge",
+        "status"
+      ]
+    },
+    {
+      "id": "personal_care",
+      "label": "Личная забота",
+      "description": "Накормить, утешить, перевязать и проводить. Меняет состояние человека, а не структуры.",
+      "payload_kinds": [
+        "item",
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "character",
+        "place",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "care",
+        "body"
+      ]
     }
   ]
 }

@@ -15,7 +15,7 @@
 
 * `world_actor` — основная роль новой игры. Сюжеты четырёх фракций уже
   лежат в `configs/storylines/`; production-мир —
-  `configs/worlds/agora_world.json` (44 узла, 72 должности, 54 действия
+  `configs/worlds/agora_world.json` (44 узла, 72 должности, 62 действия
   после слияния `action_catalogs`, `norms`, `sandbox`).
   Компактный тестовый мир по-прежнему лежит в
   `tests/fixtures/content/`.
@@ -112,7 +112,7 @@ production-мира, а компактный тестовый набор леж�
 | политии | 10 | государства, церкви, лиги, дома, ордена и городские структуры |
 | узлы | 44 | учреждения и имущество с иерархией, интересами и ресурсами |
 | должности | 72 | шаблоны должностей по домену и семантическому уровню |
-| действия | 54 | общие действия с данными проверки, цены и исходов; `actions` мира + `action_catalogs` |
+| действия | 62 | общие действия с данными проверки, цены и исходов; `actions` мира + `action_catalogs` |
 | персонажи | 20 | именованные люди в трёх кругах общения |
 | личные действия | 6 | разговоры и просьбы с отношениями и ресурсами |
 | нормы | 1 | «Хартия Агоры» — адресат `entity_ref` для ссылок на закон |
@@ -172,12 +172,26 @@ department -> workshop`, у обмена и статуса — свои уров
 
 `entity_ref` — универсальная ссылка `{"kind": "...", "id": "..."}`.
 Поддержаны `character`, `organization`, `organ`, `institution`, `asset`,
-`item`, `place` и `norm`. `validate()`, `execute()`, `action_options()` и
-`preview()` принимают `target_ref`; `action_targets()` перечисляет
-допустимых адресатов объявленного действия. Эффекты на персонажа меняют
-его `affinity/trust/fear/respect`, а не показатели узла. Импровизация
-`Intent → ActionSpec → WorkPlan` выключена по умолчанию и при включении
-помечает план `source: "improvised"`.
+`item`, `place`, `norm` и `obligation`. `validate()`, `execute()`,
+`action_options()` и `preview()` принимают `target_ref`;
+`action_targets()` перечисляет допустимых адресатов объявленного
+действия. Эффекты на персонажа меняют его
+`affinity/trust/fear/respect`, а также `health/sickness/wound`, а не
+показатели узла. Импровизация `Intent → ActionSpec → WorkPlan`
+выключена по умолчанию и при включении помечает план
+`source: "improvised"`.
+
+P4 добавляет шесть форм-примитивов: `contact` (поцелуй, объятие),
+`ritual` (подношение месту или общине), `law` (норма), `art`
+(выступление), `education` (урок) и `personal_care` (утешение). Каталог
+`configs/worlds/actions/agora_primitives.json` объявляет
+`kiss`/`embrace`/`offer_sacrifice`/`propose_law`/`perform_song`/
+`teach_lesson`/`comfort_person`/`ask_favor`. Согласие выражается полями
+`requires.affinity_min`/`trust_min`, цена может требовать предмет
+(`cost.items`), а успех — создавать `norm` или `obligation` и выдавать
+предмет. Израсходованный предмет записывается в `consumed_items` и не
+возвращается пересборкой инвентаря; старые сейвы без этих полей
+читаются как раньше.
 
 ### 4.3 Предметы и навыки
 

@@ -5,7 +5,8 @@
   "days": 30,
   "actions_per_day": 3,
   "action_catalogs": [
-    "configs/worlds/actions/agora_actions.json"
+    "configs/worlds/actions/agora_actions.json",
+    "configs/worlds/actions/agora_primitives.json"
   ],
   "sandbox": true,
   "realtime": true,

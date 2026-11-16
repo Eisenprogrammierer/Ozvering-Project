@@ -1,0 +1,457 @@
+{
+  "description": "Примитивы P4: контакт, обряд, право, искусство, обучение и личная забота. Действия адресуют конкретных людей, места, нормы и предметы, а не только структуры.",
+  "actions": [
+    {
+      "id": "kiss",
+      "label": "Поцеловать",
+      "category": "Контакт",
+      "description": "Телесный жест близости. Он доступен только при достаточном расположении и доверии человека.",
+      "form": "contact",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "requires": {
+        "affinity_min": 0.15,
+        "trust_min": 0.1
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "kiss",
+          "confidence": 0.8
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.82,
+      "success": {
+        "chance": 0.82,
+        "text": "Поцелуй принят: между вами становится на шаг меньше расстояния.",
+        "effects": {
+          "target": {
+            "affinity": 0.06,
+            "trust": 0.03
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.18,
+        "text": "Человек отстраняется: жест оказался слишком рано.",
+        "effects": {
+          "target": {
+            "affinity": -0.02,
+            "fear": 0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "embrace",
+      "label": "Обнять",
+      "category": "Контакт",
+      "description": "Простое объятие без требования близости: поддержка, а не притязание.",
+      "form": "contact",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "embrace",
+          "confidence": 0.7
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.86,
+      "success": {
+        "chance": 0.86,
+        "text": "Объятие выходит коротким, но человек не отступает.",
+        "effects": {
+          "target": {
+            "affinity": 0.03,
+            "trust": 0.04
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.14,
+        "text": "Человек вежливо освобождается из объятия.",
+        "effects": {
+          "target": {
+            "affinity": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "offer_sacrifice",
+      "label": "Принести подношение",
+      "category": "Обряд",
+      "description": "Оставить дар месту или общине: не богу, а людям и памяти, которые держат это место.",
+      "form": "ritual",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "place",
+          "institution"
+        ]
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "item",
+          "item_id": "personal_seal",
+          "quantity": 1.0
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        },
+        "items": [
+          "personal_seal"
+        ]
+      },
+      "success_chance": 0.8,
+      "success": {
+        "chance": 0.8,
+        "text": "Подношение принято: место становится чуть теплее к вам, а община запоминает жест.",
+        "effects": {
+          "node": {
+            "legitimacy": 0.02,
+            "cohesion": 0.01
+          },
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Подношение оставляют без внимания; вещь остаётся лежать там, где её положили.",
+        "effects": {
+          "node": {
+            "cohesion": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "propose_law",
+      "label": "Предложить норму",
+      "category": "Право",
+      "description": "Собрать правило из обычая и придать ему силу городской нормы.",
+      "form": "law",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "norm",
+          "institution",
+          "organization"
+        ]
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "order",
+          "action": "propose_law",
+          "target": "agora_charter",
+          "priority": 0.6
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.75,
+      "success": {
+        "chance": 0.75,
+        "text": "Норма получает имя и силу: теперь на неё можно ссылаться.",
+        "effects": {
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          },
+          "norm": {
+            "id": "street_charter",
+            "label": "Уличная хартия",
+            "domain": "order",
+            "status": "active",
+            "scope": "agora_street",
+            "description": "Правило, записанное по итогам городского схода."
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.25,
+        "text": "Предложение уходит в стол: слов достаточно, но силы за ними нет.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "perform_song",
+      "label": "Спеть на улице",
+      "category": "Искусство",
+      "description": "Публичное выступление для улицы: работа, которая меняет настроение места и ваше положение.",
+      "form": "art",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "place",
+          "institution"
+        ]
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "song",
+          "confidence": 0.7
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.8,
+      "success": {
+        "chance": 0.8,
+        "text": "Улица слушает: песня собирает людей и оставляет ваше имя в воздухе.",
+        "effects": {
+          "node": {
+            "cohesion": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Песня теряется в шуме; прохожие идут мимо.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "teach_lesson",
+      "label": "Провести урок",
+      "category": "Обучение",
+      "description": "Передать конкретному человеку проверенное знание и проверить, как оно усвоено.",
+      "form": "education",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "lesson",
+          "confidence": 0.75
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.78,
+      "success": {
+        "chance": 0.78,
+        "text": "Урок усвоен: человек смотрит на вас иначе — не как на говорящего, а как на того, кто научил.",
+        "effects": {
+          "target": {
+            "respect": 0.04,
+            "trust": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Объяснение не доходит: человек кивает, но не понимает.",
+        "effects": {
+          "target": {
+            "respect": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "comfort_person",
+      "label": "Утешить",
+      "category": "Личная забота",
+      "description": "Побыть рядом с человеком, которому плохо: снизить страх и вернуть немного сил.",
+      "form": "personal_care",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "comfort",
+          "confidence": 0.7
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.85,
+      "success": {
+        "chance": 0.85,
+        "text": "Человек выдыхает: страх отступает, а силы возвращаются хотя бы на сегодня.",
+        "effects": {
+          "target": {
+            "fear": -0.03,
+            "trust": 0.02,
+            "health": 0.05
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.15,
+        "text": "Слова не помогают; человек остаётся один на один с собой.",
+        "effects": {
+          "target": {
+            "fear": 0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "ask_favor",
+      "label": "Попросить об услуге",
+      "category": "Обязательство",
+      "description": "Договориться об услуге и запомнить, кто кому теперь должен. Это не долг из казны, а личное обязательство.",
+      "form": "negotiation",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "requires": {
+        "trust_min": 0.1
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0,
+        "payload": {
+          "kind": "order",
+          "action": "ask_favor",
+          "target": "",
+          "priority": 0.5
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.8,
+      "success": {
+        "chance": 0.8,
+        "text": "Человек соглашается: услуга обещана, и теперь у вас есть обязательство.",
+        "effects": {
+          "obligation": {
+            "creditor": "player",
+            "kind": "favor",
+            "amount": 1.0,
+            "note": "обещанная услуга"
+          },
+          "target": {
+            "trust": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Человек уходит от ответа: обещания не будет.",
+        "effects": {
+          "target": {
+            "trust": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    }
+  ]
+}

@@ -439,10 +439,14 @@ python3 -m naming --person --fantasy high_elf --count 3 --seed 7
   Снимок часов хранится вместе с миром. Подробности —
   [`FREE_MODE_RTS.md`](FREE_MODE_RTS.md).
 * **Открытые действия мира** — `campaign/actions.py` + `configs/campaigns/forms.json`
-  (13 форм) + `configs/worlds/actions/*.json`: действие описывается данными,
+  (19 форм) + `configs/worlds/actions/*.json`: действие описывается данными,
   каталоги сливаются по `id`, а `entity_ref` адресует персонажа, предмет,
-  норму или узел. Действия с `form` проходят манифест и линтер;
-  legacy-действия без `form` остаются прямыми эффектами. Импровизация
+  норму, обязательство или узел. Действия с `form` проходят манифест и
+  линтер; legacy-действия без `form` остаются прямыми эффектами.
+  Примитивы P4 (`contact`, `ritual`, `law`, `art`, `education`,
+  `personal_care`) дают поцелуй, объятие, подношение месту, норму,
+  выступление, урок и утешение; цена может требовать предмет, а эффекты —
+  создавать `norm`/`obligation`. Импровизация
   `Intent → ActionSpec → WorkPlan` выключена по умолчанию и помечает план
   `source: "improvised"`. Подробности — [`CONTENT.md`](CONTENT.md) и
   [`CHARACTER_ACTION_FLEXIBILITY_PLAN.md`](CHARACTER_ACTION_FLEXIBILITY_PLAN.md).

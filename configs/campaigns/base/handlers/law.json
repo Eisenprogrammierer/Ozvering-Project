@@ -1,0 +1,51 @@
+{
+  "form": "law",
+  "rules": [
+    {
+      "when": {
+        "id": "propose_law"
+      },
+      "receiver": {
+        "effect": {
+          "legitimacy": 0.01
+        }
+      },
+      "sender": {
+        "legitimacy": 0.02,
+        "respect": 0.01
+      },
+      "failure": {
+        "sender": {
+          "legitimacy": -0.01
+        }
+      },
+      "trace": {
+        "essence": "legislate"
+      }
+    },
+    {
+      "when": {
+        "id": "repeal_law"
+      },
+      "receiver": {
+        "effect": {
+          "legitimacy": -0.01
+        }
+      },
+      "sender": {
+        "legitimacy": 0.01
+      },
+      "trace": {
+        "essence": "repeal"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "legitimacy": 0.01
+    }
+  }
+}

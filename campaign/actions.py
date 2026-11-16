@@ -47,6 +47,7 @@ ENTITY_KINDS = (
     "item",
     "place",
     "norm",
+    "obligation",
 )
 
 

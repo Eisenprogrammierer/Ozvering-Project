@@ -1,0 +1,48 @@
+{
+  "form": "contact",
+  "rules": [
+    {
+      "when": {
+        "id": "kiss"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "friendship": 0.03,
+        "loneliness": -0.02
+      },
+      "failure": {
+        "sender": {
+          "loneliness": 0.01
+        }
+      },
+      "trace": {
+        "essence": "bond"
+      }
+    },
+    {
+      "when": {
+        "id": "embrace"
+      },
+      "receiver": {
+        "effect": {}
+      },
+      "sender": {
+        "friendship": 0.02,
+        "cohesion": 0.01
+      },
+      "trace": {
+        "essence": "comfort"
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {
+      "friendship": 0.01
+    }
+  }
+}
