@@ -29,7 +29,15 @@ from __future__ import annotations
 
 from .errors import CampaignError
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+
+# Что менялось между версиями. Миграции совместимы вперёд: загрузчики
+# заполняют отсутствующие поля значениями по умолчанию, поэтому явная
+# перестройка старых снимков не нужна.
+SNAPSHOT_NOTES = {
+    1: "отношения, раны, очередь намерений, стратегии узлов",
+    2: "аватар игрока, entity_ref/обязательства, локальная сцена",
+}
 
 
 PROJECTIONS = {
@@ -232,13 +240,29 @@ def ensure_supported_snapshot(snapshot, current=SCHEMA_VERSION):
     return version
 
 
+def migrate_snapshot(snapshot, current=SCHEMA_VERSION):
+    """Подготовить старый снимок к загрузке текущим кодом.
+
+    Отсутствующие поля не выдумываются здесь: `WorldEngine` и
+    `AutomataCampaign` знают свои значения по умолчанию и заполняют их в
+    `load_snapshot()`. Функция лишь отвергает снимок из будущего и
+    проставляет текущую версию, не мутируя исходный словарь.
+    """
+    data = dict(snapshot or {})
+    ensure_supported_snapshot(data, current)
+    data["schema_version"] = int(current)
+    return data
+
+
 __all__ = [
     "PROJECTIONS",
     "PROJECTION_NAMES",
     "SCHEMA_VERSION",
+    "SNAPSHOT_NOTES",
     "core_state",
     "describe_projection",
     "ensure_supported_snapshot",
+    "migrate_snapshot",
     "player_core_state",
     "player_projection_view",
     "projection",

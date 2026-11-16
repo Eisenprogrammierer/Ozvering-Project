@@ -22,6 +22,37 @@ def test_real_content_passes_lint():
     assert content_lint.lint() == []
 
 
+def test_world_lint_catches_unknown_scene_work():
+    from campaign.world import load_world
+
+    world = load_world()
+    world = dict(world)
+    world["scenes"] = list(world["scenes"]) + [
+        {
+            "id": "broken",
+            "location": world["nodes"][0]["id"],
+            "works": ["no_such_work"],
+        }
+    ]
+    problems = content_lint.lint_world_data(world)
+    assert any("неизвестные работы сцены" in item for item in problems)
+
+
+def test_storyline_lint_catches_missing_refs(tmp_path):
+    path = tmp_path / "mini.json"
+    data = {
+        "storyline_id": "other",
+        "storyline_tags": ["free", "free"],
+        "world_path": "missing_world.json",
+        "scenes": "missing_scenes",
+    }
+    problems = content_lint.lint_storylines_data(path, data)
+    assert any("storyline_id" in item for item in problems)
+    assert any("storyline_tags повторяются" in item for item in problems)
+    assert any("world_path" in item for item in problems)
+    assert any("scenes: файл не найден" in item for item in problems)
+
+
 def test_unknown_predicate_is_reported(config):
     problems = content_lint.check_beliefs(
         "actor",

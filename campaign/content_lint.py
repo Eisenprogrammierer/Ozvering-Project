@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import pathlib
 import sys
@@ -43,8 +44,10 @@ DEFAULT_PATHS = (
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
+    ROOT / "configs" / "worlds" / "agora_world.json",
     ROOT / "configs" / "worlds" / "actions",
     ROOT / "configs" / "worlds" / "scenes",
+    ROOT / "configs" / "storylines",
 )
 
 # Ключи, которые применяет `campaign/effects.py`.
@@ -752,19 +755,26 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         problems.extend(check_bdi(config))
     if isinstance(data, Mapping) and "forms" in data:
         problems.extend(lint_forms_data(data))
-    if (
+    is_world = _looks_like_world(data)
+    if is_world:
+        problems.extend(lint_world_data(data))
+    elif (
         isinstance(data, Mapping) and "actions" in data
     ) or isinstance(data, (list, tuple)):
         problems.extend(lint_actions_data(data, forms=forms))
     if isinstance(data, Mapping) and "archetypes" in data:
         problems.extend(lint_archetypes_data(data, config))
+    if isinstance(data, Mapping) and "storyline_id" in data:
+        problems.extend(lint_storylines_data(path, data))
     looks_like_scene_file = (
         isinstance(data, Mapping)
         and "id" in data
         and ("public" in data or "works" in data)
         and "actions" not in data
     )
-    has_scenes = isinstance(data, Mapping) and "scenes" in data
+    has_scenes = isinstance(data, Mapping) and isinstance(
+        data.get("scenes"), (list, tuple)
+    )
     if has_scenes or looks_like_scene_file:
         problems.extend(lint_scenes_data(data))
     if isinstance(data, Mapping) and "factions" in data:
@@ -828,6 +838,98 @@ def lint_forms_data(data):
             problems.append("%s: не задан payload_kinds" % form.id)
         if not form.target_kinds:
             problems.append("%s: не задан target_kinds" % form.id)
+    return problems
+
+
+def _looks_like_world(data):
+    return (
+        isinstance(data, Mapping)
+        and "nodes" in data
+        and "offices" in data
+        and "actions" in data
+        and "domains" in data
+    )
+
+
+def lint_world_data(data):
+    """Проверить мир целиком: ссылки, сцены, каталоги, формы."""
+    if not isinstance(data, Mapping):
+        return ["мир должен быть объектом"]
+    try:
+        from .errors import CampaignError
+        from .world import validate_world
+
+        validate_world(copy.deepcopy(data))
+    except CampaignError as exc:
+        return [str(exc)]
+    except (KeyError, TypeError, ValueError) as exc:
+        return ["некорректный мир: %s" % exc]
+    return []
+
+
+def _storyline_path(value):
+    path = pathlib.Path(str(value))
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
+def lint_storylines_data(path, data):
+    """Проверить основной сюжет: теги и ссылки на соседние данные."""
+    if not isinstance(data, Mapping):
+        return ["сюжет должен быть объектом"]
+    if not any(
+        key in data
+        for key in ("storyline_id", "world_path", "campaign_template")
+    ):
+        return []
+    path = pathlib.Path(path)
+    problems = []
+    storyline_id = str(data.get("storyline_id") or "")
+    if storyline_id and storyline_id != path.stem:
+        problems.append(
+            "storyline_id %r не совпадает с именем файла %r"
+            % (storyline_id, path.stem)
+        )
+    tags = data.get("storyline_tags")
+    if tags is not None:
+        if not isinstance(tags, (list, tuple)):
+            problems.append("storyline_tags должен быть списком")
+        else:
+            cleaned = [str(tag) for tag in tags if str(tag)]
+            if len(cleaned) != len(tags):
+                problems.append(
+                    "storyline_tags не может содержать пустые теги"
+                )
+            if len(set(cleaned)) != len(cleaned):
+                problems.append("storyline_tags повторяются")
+    for key in ("world_path", "campaign_template"):
+        value = data.get(key)
+        if value and not _storyline_path(value).is_file():
+            problems.append("%s: файл не найден: %s" % (key, value))
+    for key in ("character_creation", "scenes"):
+        value = data.get(key)
+        if not value:
+            continue
+        target = path.parent / ("%s.json" % value)
+        if not target.is_file():
+            problems.append("%s: файл не найден: %s" % (key, target.name))
+    free_start = data.get("free_start")
+    if isinstance(free_start, Mapping) and free_start:
+        from .identity import load_archetypes_catalog
+
+        catalog = load_archetypes_catalog()
+        if catalog is not None:
+            unknown = [
+                str(archetype_id)
+                for archetype_id in free_start
+                if catalog.get(str(archetype_id)) is None
+            ]
+            if unknown:
+                problems.append(
+                    "free_start: неизвестные архетипы %s"
+                    % ", ".join(sorted(unknown))
+                )
     return problems
 
 

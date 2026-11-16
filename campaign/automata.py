@@ -74,7 +74,7 @@ from .fractal import (
 from .geometry import GeometryError, MetricGraph
 from .projections import (
     SCHEMA_VERSION,
-    ensure_supported_snapshot,
+    migrate_snapshot,
     stamp_snapshot,
 )
 from .state_machine import (
@@ -3333,7 +3333,7 @@ class AutomataCampaign:
         snapshot = _as_mapping(snapshot)
         if not snapshot:
             return
-        ensure_supported_snapshot(snapshot)
+        snapshot = migrate_snapshot(snapshot)
         self.capability_schema = max(
             1,
             int(

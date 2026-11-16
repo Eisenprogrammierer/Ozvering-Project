@@ -78,7 +78,7 @@ from .relations import (
 from .success import resolve_success_coefficients, success_margin
 from .projections import (
     SCHEMA_VERSION,
-    ensure_supported_snapshot,
+    migrate_snapshot,
     player_projection_view,
 )
 
@@ -6936,7 +6936,7 @@ class WorldEngine:
     def load_snapshot(self, snapshot):
         if not snapshot:
             return
-        ensure_supported_snapshot(snapshot)
+        snapshot = migrate_snapshot(snapshot)
         self.seed = _as_int(snapshot.get("seed"), self.seed)
         self.day = max(1, _as_int(snapshot.get("day"), 1))
         self.days = max(1, _as_int(snapshot.get("days"), self.days))

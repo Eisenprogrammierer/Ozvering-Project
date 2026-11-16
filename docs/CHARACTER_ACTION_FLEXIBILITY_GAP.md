@@ -785,25 +785,30 @@ Python-зажимы**.
 
 #### F-21. Снимки, миграции и тесты закрепляют закрытость — S3
 
+**Статус 2026-11-16:** закрыт в P7. `SCHEMA_VERSION` поднят до `2`
+(аватар, `entity_ref`/обязательства, локальная сцена); `migrate_snapshot()`
+помечает старый снимок текущей версии в памяти и отвергает снимок из
+будущего, а `WorldEngine.load_snapshot()`/`AutomataCampaign.load_snapshot()`
+заполняют отсутствующие поля значениями по умолчанию. Линтер проверяет
+формы, действия, `target.kinds`, сцены, сюжеты и `free_start`; тест
+`test_content_without_python.py` добавляет форму, действие, сцену, архетип,
+сюжет, речевой акт и тип ответа только данными и выполняет действие.
+
 **Что умирает:** новые сущности, отношения, формы и действия потребуют
 расширения снимка; тесты проверяют добавление ролей/сюжетов/миров, но не
 произвольного персонажа внутри сюжета.
 
 **Доказательства:**
 
-- `campaign/projections.py:32` — `SCHEMA_VERSION = 1`;
-  `:209` — `stamp_snapshot`; `:220` — `ensure_supported_snapshot`.
-- `campaign/automata.py:84` — `CAPABILITY_SCHEMA_VERSION = 2`.
-- `campaign/automata.py:3114` — снимок штампуется версией.
-- `tests/test_content_pipeline.py` проверяет:
-  - парсинг всех JSON;
-  - добавление роли, сюжета, мира;
-  - загрузку каталогов.
-  Но не проверяет «новый персонаж + новое действие только данными» и не
-  фиксирует, что произвольная сущность может быть адресатом.
-
-**Причина разрыва:** контент-пайплайн тестирует расширяемость каталогов,
-но не расширяемость игрового пространства.
+- `campaign/projections.py` — `SCHEMA_VERSION = 2`, `SNAPSHOT_NOTES`,
+  `stamp_snapshot`, `ensure_supported_snapshot`, `migrate_snapshot`.
+- `campaign/automata.py` — `CAPABILITY_SCHEMA_VERSION = 2`, снимок
+  штампуется версией и читается через миграцию.
+- `tests/test_content_without_python.py` собирает мир, форму, действие,
+  сцену, архетип, сюжет, речевой акт и тип ответа и исполняет действие.
+- `tests/test_migrations.py`, `tests/test_regression_p7.py`,
+  `tests/test_content_lint.py` закрепляют старые снимки, 16 потребностей,
+  лорные кампании и мягкую обработку незнакомых эффектов.
 
 ---
 
@@ -901,8 +906,8 @@ P0 (канон) и P5 (реализация).
 | F-18 | WorldEngine легаси; production-мир добавлен, но поток остаётся дневным | S2 | `campaign/world.py`, `configs/worlds/agora_world.json` |
 | F-19 | character_actions ограничены | S3 | `world.py:868,2990` |
 | F-20 | Данные не покрывают архетипы — **работы P4 есть, оси отношений — P5/P6** | S3 | 16 needs, 7 assets, 34 relations |
-| F-21 | Снимки/тесты закрепляют закрытость | S3 | `SCHEMA_VERSION=1` |
-| F-22 | Нет локальной сцены | S2 | фракционный уровень кампании |
+| F-21 | Снимки/тесты закрепляют закрытость — закрыт в P7 | S3 | `SCHEMA_VERSION=2`, `migrate_snapshot`, `test_content_without_python.py` |
+| F-22 | Нет локальной сцены — закрыт в P6 | S2 | `campaign/scenes.py`, `configs/worlds/scenes/agora_scenes.json` |
 | F-23 | Мир попадает в знание напрямую, без призмы | S1 | `knowledge.py:322,455`; `state.py:636` |
 
 **Итого после P1–P4:** блокерами остаются F-03 и F-23; F-01/F-02

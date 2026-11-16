@@ -171,7 +171,8 @@
 | Потребность | Куда идти |
 |---|---|
 | Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
-| Снимок мира и кампании автоматов | `SCHEMA_VERSION = 1`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py` |
+| Снимок мира и кампании автоматов | `SCHEMA_VERSION = 2` (аватар, `entity_ref`/обязательства, сцена); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
+| Контент без Python | `test_content_without_python.py`; `content_lint.lint_world_data`/`lint_storylines_data`/`lint_scenes_data`; `test_content_lint.py` |
 | Перенос `health/sickness/wound` | `core41/model.py` (`condition_state`, `load_condition`); `test_health.py`, `test_sickness.py` |
 | Версии чекпойнтов | `agents/policies.py`, `agents/checkpoints.py`; `test_checkpoints.py`; [`AGENTS.md`](AGENTS.md) §4 |
 
