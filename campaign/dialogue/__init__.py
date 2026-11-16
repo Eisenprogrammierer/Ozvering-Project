@@ -1,6 +1,6 @@
 """Диалоговый слой: данные в JSON, код — интерпретатор."""
 
-from .answers import Answer, AnswerPlanner
+from .answers import Answer, AnswerPlanner, answer_handler_name
 from .bridge import ActionBridge, ActionResult
 from .console import ConsoleEntry, TextGame
 from .engine import DialogueSession, Turn
@@ -10,6 +10,7 @@ from .knowledge import AgentKnowledge, Fact, build_knowledge
 from .loader import (
     DEFAULT_DIR,
     load_actions,
+    load_answer_kinds,
     load_console,
     load_dialogue,
     load_goals,
@@ -97,12 +98,14 @@ __all__ = [
     "TimeGuide",
     "TimeResult",
     "Turn",
+    "answer_handler_name",
     "build_knowledge",
     "build_state",
     "entity_id",
     "features_match",
     "flatten",
     "load_actions",
+    "load_answer_kinds",
     "load_console",
     "load_dialogue",
     "load_goals",

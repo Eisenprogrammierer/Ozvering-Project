@@ -46,6 +46,27 @@ class Answer:
     data: Mapping[str, Any] = field(default_factory=dict)
 
 
+def answer_handler_name(
+    answer_type: str, answer_kinds: Mapping[str, Any]
+) -> str:
+    """Имя обработчика для ``answer.type`` по реестру.
+
+    Реестр ``answer_kinds.json`` отделяет тип плана от Python-метода:
+    новый тип может указать существующий generic-обработчик. Если типа
+    нет в реестре, возвращается сам тип — тогда ``_plan`` либо найдёт
+    старый метод, либо вернёт безопасное «не знаю».
+    """
+
+    kind = str(answer_type or "")
+    kinds = (answer_kinds or {}).get("kinds") or {}
+    spec = kinds.get(kind) if isinstance(kinds, Mapping) else None
+    if isinstance(spec, Mapping):
+        handler = str(spec.get("handler") or "").strip()
+        if handler:
+            return handler
+    return kind
+
+
 class PatternError(ValueError):
     """Некорректный шаблон вопроса в plans.json."""
 
@@ -294,9 +315,11 @@ class AnswerPlanner:
         ):
             captures = dict(captures)
             captures["$sem"] = sem
-        handler = getattr(
-            self, "_answer_" + str(selected.answer.get("type", "")), None
+        handler_name = answer_handler_name(
+            str(selected.answer.get("type", "")),
+            getattr(self.catalog, "answer_kinds", {}) or {},
         )
+        handler = getattr(self, "_answer_" + handler_name, None)
         if handler is None:
             return self._unknown(selected.id)
         answer = handler(selected, captures)
@@ -317,6 +340,7 @@ class AnswerPlanner:
             "started",
             "last_works",
             "entity",
+            "relation",
         }
     )
 
@@ -1324,6 +1348,55 @@ class AnswerPlanner:
             data={"owner": owner, **values},
         )
 
+    def _answer_entity(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Generic-ответ о сущности: цель плана или первый захват.
+
+        Новый тип ответа может ссылаться на этот обработчик в
+        ``answer_kinds.json`` и не добавлять Python-метод.
+        """
+
+        target = _resolve(str(plan.answer.get("target") or ""), captures)
+        if not target:
+            for key in ("$target", "$subject", "$object", "$owner"):
+                value = str(captures.get(key) or "")
+                if value:
+                    target = value
+                    break
+        if not target:
+            return self._unknown(plan.id)
+        text = self.realizer.describe(target)
+        if not text:
+            text = self.knowledge.surface(target, "nom")
+        if not text:
+            return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "description", {"message": text}, fallback=text
+        )
+        return Answer(
+            "entity",
+            text,
+            plan.id,
+            data={"target": target},
+        )
+
+    def _answer_relation(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Generic-ответ об отношении: доказать и произнести утверждение."""
+
+        relation = _resolve(
+            str(plan.answer.get("relation") or ""), captures
+        )
+        if not relation:
+            relation = str(captures.get("$relation") or "")
+        if not relation:
+            return self._unknown(plan.id)
+        return self._statement_answer(
+            plan, captures, relation, kind="relation"
+        )
+
     def _answer_describe(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:
@@ -1498,6 +1571,7 @@ class AnswerPlanner:
         plan: PlanSpec,
         captures: Mapping[str, str],
         relation: str,
+        kind: str = "explanation",
     ) -> Answer:
         args = _resolve_args(plan.answer.get("args") or (), captures)
         solution = self.engine.first(relation, *args)
@@ -1513,7 +1587,7 @@ class AnswerPlanner:
             fallback=statement,
         )
         return Answer(
-            "explanation",
+            kind,
             text,
             plan.id,
             proof=(solution.proof,),

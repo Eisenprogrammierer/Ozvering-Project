@@ -1320,6 +1320,61 @@ def _verb_path_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _answer_kind_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить реестр типов ответа и покрытие планов.
+
+    ``answer_kinds.json`` связывает ``plan.answer.type`` с Python-
+    обработчиком. Новый тип без записи в реестре — ошибка линтера, а не
+    молчаливое «не знаю».
+    """
+
+    registry = getattr(catalog, "answer_kinds", None) or {}
+    kinds = registry.get("kinds") if isinstance(registry, Mapping) else None
+    if not kinds:
+        return []
+    if not isinstance(kinds, Mapping):
+        return ["answer_kinds.kinds: ожидался объект"]
+    problems: List[str] = []
+    try:
+        from .answers import AnswerPlanner
+
+        implemented = {
+            name[len("_answer_"):]
+            for name in dir(AnswerPlanner)
+            if name.startswith("_answer_")
+        }
+    except Exception:  # pragma: no cover - защита от цикла импорта
+        implemented = set()
+    for kind, spec in kinds.items():
+        where = "answer_kinds.kinds.%s" % kind
+        if not isinstance(spec, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        handler = str(spec.get("handler") or "").strip()
+        if not handler:
+            problems.append("%s.handler: пусто" % where)
+        elif implemented and handler not in implemented:
+            problems.append(
+                "%s.handler: обработчик %r не реализован"
+                % (where, handler)
+            )
+        if "generic" in spec and not isinstance(spec.get("generic"), bool):
+            problems.append("%s.generic: ожидалось true/false" % where)
+    for index, plan in enumerate(getattr(catalog, "plans", ()) or ()):
+        answer = plan.answer if isinstance(plan.answer, Mapping) else {}
+        answer_type = str(answer.get("type") or "")
+        if not answer_type:
+            problems.append(
+                "plans.plans[%d].answer.type: пусто" % index
+            )
+        elif answer_type not in kinds:
+            problems.append(
+                "plans.plans[%d].answer.type: тип %r отсутствует "
+                "в answer_kinds.kinds" % (index, answer_type)
+            )
+    return problems
+
+
 _CONSOLE_MESSAGES = frozenset(
     {
         "empty",
@@ -2457,6 +2512,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_goal_problems(catalog))
     problems.extend(_action_problems(catalog))
     problems.extend(_verb_path_problems(catalog))
+    problems.extend(_answer_kind_problems(catalog))
     problems.extend(_console_problems(catalog))
     problems.extend(_movement_problems(catalog))
     problems.extend(_time_problems(catalog))

@@ -418,6 +418,7 @@ class DialogueCatalog:
     facts: Tuple[FactSpec, ...] = ()
     max_depth: int = 32
     plans: Tuple[PlanSpec, ...] = ()
+    answer_kinds: Mapping[str, Any] = field(default_factory=dict)
     realization: Mapping[str, Any] = field(default_factory=dict)
     synthesis: Mapping[str, Any] = field(default_factory=dict)
     state: Mapping[str, Any] = field(default_factory=dict)

@@ -146,6 +146,7 @@
 | Диалог: лексикон, грамматика, планы, стили, дискурс, контрфакты | `configs/dialogue/`; `campaign/dialogue/loader.py`; `test_dialogue.py`, `test_d5_registers.py`; [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) |
 | Реестр действий диалога | ручной `configs/dialogue/actions.json` + проекция `campaign/dialogue/projection.py`; `test_d6_actions.py`, `test_dialogue_projection.py` |
 | Речевые акты | `configs/dialogue/social.json`, `grammar.json`, `lexicon.json`; `test_d4_social.py`, `test_d7_social.py`, `test_d7_social_acts.py` |
+| Типы ответа диалога | `configs/dialogue/answer_kinds.json`; `campaign/dialogue/answers.py` (`answer_handler_name`); `test_answer_registry.py` |
 | Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
 
 ### 0.8. Изменить имена и политики имён

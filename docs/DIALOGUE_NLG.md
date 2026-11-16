@@ -848,6 +848,14 @@ whitelist по P8/P9.
   Тесты: `tests/test_dialogue_projection.py` (10),
   `tests/test_d7_social_acts.py` (11) и
   `tests/test_d6_flexible_grammar.py` (12).
+- **P5. Реестр типов ответа.** `configs/dialogue/answer_kinds.json`
+  связывает `plan.answer.type` с обработчиком. `AnswerPlanner` берёт
+  имя метода из реестра (`answer_handler_name`), поэтому новый тип
+  может ссылаться на generic `entity`/`relation`/`value`/`list`/
+  `explain`/`summary` без нового Python-метода. Линтер
+  `_answer_kind_problems` проверяет, что каждый тип плана
+  зарегистрирован, а каждый handler реализован. Тесты:
+  `tests/test_answer_registry.py` (9).
 - **D7.2. Пространство и перемещение.** `configs/dialogue/movement.json`
   задаёт стартовый узел для каждой стороны, явные места
   `organ:<side>:<node>` и `noun:capital`, пороги

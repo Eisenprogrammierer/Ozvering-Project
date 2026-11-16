@@ -332,6 +332,25 @@ def load_facts(root: Path) -> Tuple[FactSpec, ...]:
 # --- планы ------------------------------------------------------------
 
 
+def load_answer_kinds(root: Path) -> Mapping[str, Any]:
+    """Загрузить реестр типов ответа из ``answer_kinds.json``.
+
+    Файл необязателен: старые каталоги без реестра остаются загружаемыми,
+    а линтер предупреждает об отсутствии реестра только если в планах уже
+    есть ``answer.type``.
+    """
+
+    path = root / "answer_kinds.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    kinds = raw.get("kinds")
+    if not isinstance(kinds, Mapping):
+        raise DialogueError("%s: kinds должен быть объектом" % path)
+    return dict(raw)
+
+
 def load_plans(root: Path) -> Tuple[PlanSpec, ...]:
     path = root / "plans.json"
     if not path.exists():
@@ -895,6 +914,7 @@ def load_dialogue(
     narrator = load_narrator(root)
     world = load_world(root)
     plans = load_plans(root)
+    answer_kinds = load_answer_kinds(root)
     max_depth = _int(
         (ontology.raw or {}).get("max_depth"),
         32,
@@ -907,6 +927,7 @@ def load_dialogue(
         facts=facts,
         max_depth=max_depth,
         plans=plans,
+        answer_kinds=answer_kinds,
         realization=realization,
         synthesis=synthesis,
         state=state,
@@ -938,6 +959,7 @@ def load_dialogue(
             "paraphrases": paraphrases,
             "goals": goals,
             "actions": actions,
+            "answer_kinds": answer_kinds,
             "console": console,
             "movement": movement,
             "time": time,

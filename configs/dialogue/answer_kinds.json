@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "description": "Реестр типов ответа: plan.answer.type -> Python-обработчик. generic=true означает, что тип исполняется общим путём (entity/relation/value/list/explain/summary) и может быть переиспользован новым типом через handler без нового Python-метода.",
+  "kinds": {
+    "prove": {
+      "label": "доказательство",
+      "handler": "prove"
+    },
+    "explain": {
+      "label": "объяснение",
+      "handler": "explain",
+      "generic": true
+    },
+    "list": {
+      "label": "список",
+      "handler": "list",
+      "generic": true
+    },
+    "value": {
+      "label": "значение",
+      "handler": "value",
+      "generic": true
+    },
+    "entity": {
+      "label": "сущность",
+      "handler": "entity",
+      "generic": true
+    },
+    "relation": {
+      "label": "отношение",
+      "handler": "relation",
+      "generic": true
+    },
+    "summary": {
+      "label": "сводка",
+      "handler": "summary",
+      "generic": true
+    },
+    "describe": {
+      "label": "описание",
+      "handler": "describe"
+    },
+    "comparison": {
+      "label": "сравнение",
+      "handler": "comparison"
+    },
+    "counterfactual": {
+      "label": "контрфакт",
+      "handler": "counterfactual"
+    },
+    "leader": {
+      "label": "лидер",
+      "handler": "leader"
+    },
+    "located": {
+      "label": "местоположение",
+      "handler": "located"
+    },
+    "started": {
+      "label": "начало",
+      "handler": "started"
+    },
+    "last_works": {
+      "label": "последние работы",
+      "handler": "last_works"
+    },
+    "social": {
+      "label": "речевой акт",
+      "handler": "social"
+    },
+    "smalltalk": {
+      "label": "малая речь",
+      "handler": "smalltalk"
+    }
+  }
+}

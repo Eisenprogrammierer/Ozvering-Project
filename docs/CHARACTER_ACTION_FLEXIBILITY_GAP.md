@@ -126,7 +126,7 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │ ДИАЛОГ                                                               │
 │  лексикон/грамматика закрыты (F-12) · actions проецируются (F-13)   │
-│  12 social-актов (F-14) · answer kinds в Python (F-15)               │
+│  12 social-актов (F-14) · answer kinds в реестре (F-15)             │
 │  adapter под 4 фракции (F-16) · мост только к объявленному (F-17)    │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 │
@@ -615,21 +615,23 @@ opt-in (`projected_registry`/`merge_actions`) и не меняет
 
 #### F-15. `answers.py` — Python-реестр типов ответов — S3
 
-**Что умирает:** новый тип вопроса/ответа (о чувствах, теле, ритуале,
-законе, месте) требует нового Python-обработчика, а не JSON-плана.
+**Статус 2026-11-16:** закрыт в P5. `configs/dialogue/answer_kinds.json`
+связывает `plan.answer.type` с обработчиком; `AnswerPlanner` берёт имя
+метода из реестра, а не из типа напрямую. Добавлены generic-обработчики
+`entity` и `relation`; `value`, `list`, `explain`, `summary` уже были
+generic по данным плана. Новый тип можно объявить в реестре и направить
+на существующий generic-обработчик без нового Python-метода. Линтер
+`_answer_kind_problems` проверяет, что каждый тип плана зарегистрирован,
+а каждый `handler` реализован; неизвестный тип — понятная ошибка, а не
+молчаливое «не знаю».
 
-**Доказательства:**
+**Что умирает:** план ответа и его реализация больше не расходятся:
+`answer.type` — это запись реестра.
 
-- `campaign/dialogue/answers.py:239` — `plan()` вызывает `_plan()`.
-- `campaign/dialogue/answers.py:280` — `_plan` ищет план по `match`, затем
-  `:297` — `getattr(self, "_answer_" + selected.answer["type"])`.
-- В файле 15 именованных `_answer_*` обработчиков плюс inline-ветки
-  `yes`/`no` (`answers.py:439–441`).
-- `configs/dialogue/` хранит планы и конструкции, но не реализацию
-  обработчиков.
-
-**Причина разрыва:** план ответа — данные, а его исполнение — Python.
-Новый `type` без метода даёт `_unknown`.
+**Доказательства:** `configs/dialogue/answer_kinds.json`;
+`campaign/dialogue/answers.py` (`answer_handler_name`);
+`tests/test_answer_registry.py` (9) — покрытие планов, generic-alias,
+неизвестный тип и нереализованный handler.
 
 ---
 
@@ -894,7 +896,7 @@ P0 (канон) и P5 (реализация).
 | F-12 | Лексикон/грамматика — **закрыто для DoD в P5** | S2 | `lexicon.json`, `grammar.json`, `ontology.json`; `tests/test_d6_flexible_grammar.py` |
 | F-13 | `actions.json` — **проекция каталога в P5** | S2 | `campaign/dialogue/projection.py`; `tests/test_dialogue_projection.py` |
 | F-14 | `social.json` — **12 актов в P5** | S3 | `configs/dialogue/social.json`; `tests/test_d7_social_acts.py` |
-| F-15 | Answer kinds в Python | S3 | `answers.py:297` |
+| F-15 | `answer.type` — **реестр `answer_kinds.json` в P5** | S3 | `configs/dialogue/answer_kinds.json`; `tests/test_answer_registry.py` |
 | F-16 | Adapter под 4 фракции | S2 | `world.json` |
 | F-17 | Мост выключен, только declared | S2 | `bridge.py:53,151` |
 | F-18 | WorldEngine легаси; production-мир добавлен, но поток остаётся дневным | S2 | `campaign/world.py`, `configs/worlds/agora_world.json` |
@@ -906,9 +908,9 @@ P0 (канон) и P5 (реализация).
 
 **Итого после P1–P7 и P5:** F-01…F-23 закрыты в слое данных. В P5
 закрыты F-23 (призма восприятия), F-13 (проекция каталога действий),
-F-14 (12 речевых актов) и F-12 (лексикон/грамматика под DoD-фразы).
-Пользовательские хвосты (кампании автоматов, UI-адресация, диалоговый
-мост, эмоциональные оси, generic answer kinds F-15, адаптер мира F-16 и
+F-14 (12 речевых актов), F-12 (лексикон/грамматика под DoD-фразы) и
+F-15 (реестр типов ответа). Пользовательские хвосты (кампании автоматов,
+UI-адресация, диалоговый мост, эмоциональные оси, адаптер мира F-16 и
 живой мост F-17) отмечены в карточках ниже и остаются работами P5/P6.
 
 ---
