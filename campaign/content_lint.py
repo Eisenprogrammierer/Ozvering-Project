@@ -25,6 +25,7 @@ from typing import Iterable, List, Sequence
 
 import bdi
 import character_traits as CT
+from .actions import ActionError, FormCatalog, lint_action
 from .geometry import GeometryError, MetricGraph
 from .identity import (
     IDENTITY_SECTIONS,
@@ -37,9 +38,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PATHS = (
     ROOT / "configs" / "characters" / "bdi.json",
     ROOT / "configs" / "characters" / "archetypes.json",
+    ROOT / "configs" / "campaigns" / "forms.json",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
+    ROOT / "configs" / "worlds" / "actions",
 )
 
 # Ключи, которые применяет `campaign/effects.py`.
@@ -740,11 +743,17 @@ def check_automaton(data, source):
     return problems
 
 
-def _problems_for(path, data, config, factions_data=None):
+def _problems_for(path, data, config, factions_data=None, forms=None):
     path = pathlib.Path(path)
     problems: List[str] = []
     if isinstance(data, Mapping) and "needs" in data:
         problems.extend(check_bdi(config))
+    if isinstance(data, Mapping) and "forms" in data:
+        problems.extend(lint_forms_data(data))
+    if (
+        isinstance(data, Mapping) and "actions" in data
+    ) or isinstance(data, (list, tuple)):
+        problems.extend(lint_actions_data(data, forms=forms))
     if isinstance(data, Mapping) and "archetypes" in data:
         problems.extend(lint_archetypes_data(data, config))
     if isinstance(data, Mapping) and "factions" in data:
@@ -790,6 +799,49 @@ def _expand(paths):
     return files
 
 
+def lint_forms_data(data):
+    """Проверить манифест форм и наличие обработчиков."""
+    if not isinstance(data, Mapping):
+        return ["манифест форм должен быть объектом"]
+    entries = data.get("forms")
+    if not isinstance(entries, list) or not entries:
+        return ["forms должен быть непустым списком"]
+    try:
+        catalog = FormCatalog(entries, source="forms")
+        catalog.check_handlers()
+    except ActionError as exc:
+        return [str(exc)]
+    problems = []
+    for form in catalog:
+        if not form.payload_kinds:
+            problems.append("%s: не задан payload_kinds" % form.id)
+        if not form.target_kinds:
+            problems.append("%s: не задан target_kinds" % form.id)
+    return problems
+
+
+def lint_actions_data(data, forms=None):
+    """Проверить каталог действий по манифесту форм."""
+    if isinstance(data, Mapping):
+        entries = data.get("actions") or ()
+    elif isinstance(data, (list, tuple)):
+        entries = data
+    else:
+        return ["каталог действий должен быть объектом или списком"]
+    problems = []
+    seen = set()
+    for action in entries:
+        if not isinstance(action, Mapping):
+            problems.append("действие должно быть объектом")
+            continue
+        action_id = str(action.get("id") or "")
+        if action_id in seen:
+            problems.append("%s: действие объявлено дважды" % action_id)
+        seen.add(action_id)
+        problems.extend(lint_action(action, forms=forms, require_form=True))
+    return problems
+
+
 def lint(paths: Iterable = DEFAULT_PATHS, config=None):
     config = config or bdi.load_bdi()
     loaded = []
@@ -808,8 +860,24 @@ def lint(paths: Iterable = DEFAULT_PATHS, config=None):
         ),
         None,
     )
+    forms_data = next(
+        (
+            data
+            for _path, data in loaded
+            if isinstance(data, Mapping) and "forms" in data
+        ),
+        None,
+    )
+    forms = None
+    if isinstance(forms_data, Mapping):
+        try:
+            forms = FormCatalog(forms_data.get("forms") or ())
+        except ActionError:
+            forms = None
     for path, data in loaded:
-        problems.extend(_problems_for(path, data, config, factions_data))
+        problems.extend(
+            _problems_for(path, data, config, factions_data, forms)
+        )
     return problems
 
 

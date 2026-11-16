@@ -275,6 +275,22 @@ Character    ×    Scene/World       ×    ActionSpec → Work
 
 **Закрывает:** F-06, F-07, F-08, F-11.
 
+**Статус (2026-11-16):** закрыт для мира и свободного режима.
+Добавлены `campaign/actions.py` (`FormCatalog`, `normalize_action`,
+`lint_action`, `merge_action_catalogs`, `entity_ref`,
+`build_spec_work`, `improvised_work`), манифест
+`configs/campaigns/forms.json` (13 форм) и каталог
+`configs/worlds/actions/agora_actions.json`. `WorldEngine` сливает
+`action_catalogs` после собственных `actions`, принимает `target_ref`
+для персонажа, предмета, нормы и узла, хранит `norms` и отдаёт
+`action_targets()`. Действия с `form` проходят линтер и манифест;
+legacy-действия без `form` остаются прямыми эффектами. Импровизация
+выключена по умолчанию и при включении помечает план
+`source: "improvised"`. `python -m campaign.content_lint` проверяет
+25 файлов. Осталось на P4: новые формы `contact`/`ritual`/`law`/`art`/
+`education`/`personal_care`, сущности `obligation`/`item`-эффекты и
+примитивы телесности/ритуала/права.
+
 **Работы:**
 
 1. **Реестр форм.** Ввести `configs/campaigns/forms.json` (манифест):

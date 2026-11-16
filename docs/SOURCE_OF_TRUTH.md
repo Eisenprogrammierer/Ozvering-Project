@@ -113,7 +113,7 @@
 
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
-| Узлы, должности, действия мира | мир | `campaign/world.py` · `configs/worlds/agora_world.json`, `configs/worlds/agora_strategies.json`, фикстуры · `test_world.py`, `test_free_mode.py` · [`WORLD.md`](WORLD.md), [`CONTENT.md`](CONTENT.md) |
+| Узлы, должности, действия мира | мир | `campaign/world.py`, `campaign/actions.py` · `configs/worlds/agora_world.json`, `configs/worlds/actions/*.json`, `configs/campaigns/forms.json`, `configs/worlds/agora_strategies.json`, фикстуры · `test_world.py`, `test_action_catalog.py`, `test_free_mode.py` · [`WORLD.md`](WORLD.md), [`CONTENT.md`](CONTENT.md) |
 | Персонаж `E/F/H` и бюджет действий | мир | `campaign/actor.py`, `campaign/projections.py` · — · `test_projections.py`, `test_campaign_energy.py` · [`WORLD.md`](WORLD.md) |
 | Отношения и обязательства | мир | `campaign/relations.py`, `campaign/obligations.py` · — · `test_campaign_relations.py` · [`FORMULAS.md`](FORMULAS.md) §2.3 |
 | Ценности и коалиции | мир | `campaign/values.py`, `campaign/coalitions.py` · блоки `values`/`coalitions` мира · `test_campaign_values.py`, `test_campaign_coalitions.py` · [`FORMULAS.md`](FORMULAS.md) §8 |
@@ -192,7 +192,7 @@
 | `main.py` | единая точка входа | активный |
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
-| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`) и дневной мир `world_actor` | активный |
+| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`) и дневной мир `world_actor` | активный |
 | `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
@@ -212,13 +212,13 @@
 |---|---|---|
 | `configs/roles/` | `roles.json` — 5 ролей (4 лидера + `free_citizen`) | `campaign/roles.py` |
 | `configs/storylines/` | 5 сюжетов + сцены (4 лорных + `free_life`) | `view/support/storyline.py` |
-| `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py` |
+| `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы; `forms.json` — манифест 13 форм | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py`, `campaign/actions.py` |
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json`, `archetypes.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
 | `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, цели и шаги, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
-| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 50 действий), `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/node_strategy.py` |
+| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 54 действия после слияния каталогов, `norms`, `sandbox`), `actions/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/node_strategy.py` |
 | `configs/strategy/` | **пуст** | `campaign/strategy.py` |
 | `configs/automata/` | **пуст** | `automata/storage.py` |
 | `configs/environments/` | **пуст** | `core41/environment.py` |
@@ -524,10 +524,11 @@ BDI — не третий тип и не отдельная онтология. 
 |---|---|---|
 | `simulation.py` | легаси-канон дуэлей, тики, `force`/`energy_pool`, контекстные фазы типа; активные сцены его не используют | не трогать без отдельного решения; целевой мир — 4-2-1 |
 | `core41/` | срез 4-2-1: `Work`, `WorkReport`, `Automaton`, `DuelWorld`, `DuelEnv`, `ArenaAgent`, `ArenaMatch`, `run_duel_tick`, `SimulationClock`; одна универсальная энергия, обработчики, логистический успех, конверсии с потерями, здоровье/смерть, секундный тик и скорости | полный мир, кампанийный планировщик |
-| Кампания автоматов (работа) | `campaign/work.py` строит `WorkPlan`; `campaign/handlers.py` выбирает JSON-правило по `form`; `apply_report` применяет проекции; `trace` версии 1 | дневной мир на том же конвейере (фаза 4b), открытый payload-реестр |
+| Кампания автоматов (работа) | `campaign/work.py` строит `WorkPlan`; `campaign/handlers.py` выбирает JSON-правило по `form`; `apply_report` применяет проекции; `trace` версии 1 | дневной мир на том же конвейере (фаза 4b), примитивы P4 |
+| `campaign/actions.py` | манифест форм (`FormCatalog`), `ActionSpec`-нормализация и линтер, слияние каталогов по `id`, `entity_ref`, `build_spec_work`, выключенная по умолчанию импровизация | новые формы/сущности P4, UI-адресация P6 |
 | `agents/` | `BDIPolicy`, `QTablePolicy`, `ArenaAgent`-политики, `PolicyAgent` как легаси-мост, `load_policy`, online-обновление и CLI обучения; у BDI отдельные `campaign_weights` | production-модель, оценка и кампанийная загрузка чекпойнтов |
 | Здоровье | `H=100`, отдых `+0.78/тик`, голод `-0.20/тик`, переполнение урона с коэффициентом `0.25` после `F=0`; факторы `aging/illness/stress/care`; болезнь `sickness ∈ [0,1]` с прогрессом, уроном, отдыхом, `treat()` и шестым действием `TREAT`; контактная передача `CONTAGION_*`; средовой резервуар болезни и острые раны `ArenaEnvironment`; кампанийная передача в одном узле; `condition_state()` и сейв текущих `health`/`sickness`; дневной срез болезни/смерти/распада в кампании; калибровка §2.3.2–2.3.5 | production-планировщик сквозного цикла игрока |
-| `campaign/world.py` | дневной ход; production-мир `configs/worlds/agora_world.json` (44 узла, 72 должности, 50 действий), тестовый мир в `tests/fixtures/content/configs/worlds/`; `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; `profile_from_identity` собирает профиль свободного режима без фракции; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day`, `sandbox` отключает её | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
+| `campaign/world.py` | дневной ход; production-мир `configs/worlds/agora_world.json` (44 узла, 72 должности, 54 действия после слияния `action_catalogs`, `norms`), тестовый мир в `tests/fixtures/content/configs/worlds/`; `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; `entity_ref`/`target_ref` для персонажа, предмета, нормы и узла; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; `profile_from_identity` собирает профиль свободного режима без фракции; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day`, `sandbox` отключает её | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
 | `campaign/free_clock.py` | RTS-часы свободного режима: физические секунды, скорость `>= 1x`, без rewind, снимок часов | — |
 | `campaign/clock.py` | `CampaignClock`, `offline_days`, `background_pause_reason`; 120 с/день, догон не больше 7 дней | production-планировщик сквозного цикла игрока |
 | `campaign/dialogue/` | read-only диалог над BDI и кампанией: разбор, вывод, планы, синтез, стили и дискурс D5.1–D5.4, сравнения D3.1, контрфакты D3.2/D6.2a–c, условия/уступки/косвенная и прямая речь, beam и корпус парафраз D6.2d, раскрытие и ложь D6.3, речевые действия D4, память, цели/мост/императивы/псевдонимы D6.4, headless-текстовик D7.0, речевые акты как interactions кампании D7.1, перемещение по геометрии игрока D7.2, время и темп D7.3, описание сцены D7.4, аудит лексикона D6.1 | хвост `has_leverage` |

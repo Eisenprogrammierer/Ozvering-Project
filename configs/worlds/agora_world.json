@@ -4,6 +4,9 @@
   "subtitle": "Семь сфер, несколько держав и церквей. Вы — должностное лицо.",
   "days": 30,
   "actions_per_day": 3,
+  "action_catalogs": [
+    "configs/worlds/actions/agora_actions.json"
+  ],
   "sandbox": true,
   "realtime": true,
   "seconds_per_day": 120,
@@ -6203,6 +6206,16 @@
       "standing": 0.001
     }
   },
+  "norms": [
+    {
+      "id": "agora_charter",
+      "label": "Хартия Агоры",
+      "domain": "order",
+      "status": "active",
+      "scope": "agora",
+      "description": "Свод правил, на который можно сослаться в споре о должности, собственности и городском порядке."
+    }
+  ],
   "default_profile": {
     "name": "Новый герой",
     "skills": {

@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "description": "Манифест форм работы. Форма — это канал действия: обработчик и допустимые адресаты. Добавление формы не требует правки Python: достаточно записи здесь и JSON-обработчика.",
+  "forms": [
+    {
+      "id": "force",
+      "label": "Сила",
+      "description": "Прямое принуждение и физическое воздействие.",
+      "payload_kinds": [
+        "force"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "item",
+        "place"
+      ],
+      "default_handler": false,
+      "tags": [
+        "legacy",
+        "conflict"
+      ]
+    },
+    {
+      "id": "coercion",
+      "label": "Принуждение",
+      "description": "Угроза, демонстрация силы и давление без прямого удара.",
+      "payload_kinds": [
+        "force",
+        "order"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "legacy",
+        "conflict"
+      ]
+    },
+    {
+      "id": "information",
+      "label": "Сведения",
+      "description": "Наблюдение, огласка, донос и работа с документами.",
+      "payload_kinds": [
+        "info",
+        "evidence",
+        "order"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "item",
+        "place",
+        "norm"
+      ],
+      "tags": [
+        "legacy",
+        "knowledge"
+      ]
+    },
+    {
+      "id": "knowledge",
+      "label": "Знание",
+      "description": "Исследование, обучение и передача проверенного знания.",
+      "payload_kinds": [
+        "info",
+        "evidence"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "item",
+        "place",
+        "norm"
+      ],
+      "tags": [
+        "legacy",
+        "knowledge"
+      ]
+    },
+    {
+      "id": "negotiation",
+      "label": "Переговоры",
+      "description": "Сделка, уступка и поиск взаимного решения.",
+      "payload_kinds": [
+        "info",
+        "order"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "legacy",
+        "exchange"
+      ]
+    },
+    {
+      "id": "exchange",
+      "label": "Обмен",
+      "description": "Торговля, дар, оплата и передача предмета.",
+      "payload_kinds": [
+        "item",
+        "evidence",
+        "info"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "item"
+      ],
+      "tags": [
+        "legacy",
+        "exchange"
+      ]
+    },
+    {
+      "id": "provision",
+      "label": "Обеспечение",
+      "description": "Снабжение, работа и поддержание жизненных условий.",
+      "payload_kinds": [
+        "item",
+        "force"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "place"
+      ],
+      "tags": [
+        "legacy",
+        "provision"
+      ]
+    },
+    {
+      "id": "care",
+      "label": "Забота",
+      "description": "Утешение, лечение, поддержка и бытовая помощь.",
+      "payload_kinds": [
+        "info",
+        "item",
+        "force"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "place"
+      ],
+      "tags": [
+        "legacy",
+        "care"
+      ]
+    },
+    {
+      "id": "meaning",
+      "label": "Смысл",
+      "description": "Обряды, публичные речи и символические действия.",
+      "payload_kinds": [
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset",
+        "place",
+        "norm"
+      ],
+      "tags": [
+        "legacy",
+        "meaning"
+      ]
+    },
+    {
+      "id": "recruitment",
+      "label": "Вербовка",
+      "description": "Привлечение людей и переговоры о вступлении.",
+      "payload_kinds": [
+        "order",
+        "info"
+      ],
+      "target_kinds": [
+        "character",
+        "organization",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "legacy",
+        "status"
+      ]
+    },
+    {
+      "id": "organ_interaction",
+      "label": "Работа органа",
+      "description": "Усиление, реформа и координация внутреннего органа.",
+      "payload_kinds": [
+        "order",
+        "info"
+      ],
+      "target_kinds": [
+        "organization",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "legacy",
+        "organization"
+      ]
+    },
+    {
+      "id": "automaton_interaction",
+      "label": "Координация автоматов",
+      "description": "Согласование и передача работы между автоматами.",
+      "payload_kinds": [
+        "order",
+        "info"
+      ],
+      "target_kinds": [
+        "organization",
+        "institution",
+        "asset"
+      ],
+      "tags": [
+        "legacy",
+        "organization"
+      ]
+    },
+    {
+      "id": "character_interaction",
+      "label": "Взаимодействие с человеком",
+      "description": "Повышение, награда, допрос и другие акты с конкретным человеком.",
+      "payload_kinds": [
+        "order",
+        "info",
+        "force"
+      ],
+      "target_kinds": [
+        "character"
+      ],
+      "tags": [
+        "legacy",
+        "social"
+      ]
+    }
+  ]
+}

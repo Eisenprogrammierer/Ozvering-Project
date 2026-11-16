@@ -1,4 +1,16 @@
 from .errors import CampaignError
+from .actions import (
+    ENTITY_KINDS,
+    ActionError,
+    FormCatalog,
+    FormSpec,
+    build_spec_work,
+    improvised_work,
+    lint_action,
+    merge_action_catalogs,
+    normalize_action,
+    parse_entity_ref,
+)
 from .actor import CAMPAIGN_ENERGY_MAX, CampaignActor
 from .avatar import (
     AVATAR_SCHEMA_VERSION,
@@ -47,6 +59,16 @@ __all__ = [
     "CAMPAIGN_ENERGY_MAX",
     "CampaignActor",
     "CampaignError",
+    "ENTITY_KINDS",
+    "ActionError",
+    "FormCatalog",
+    "FormSpec",
+    "build_spec_work",
+    "improvised_work",
+    "lint_action",
+    "merge_action_catalogs",
+    "normalize_action",
+    "parse_entity_ref",
     "END_DAY",
     "CampaignEnv",
     "campaign_reward",

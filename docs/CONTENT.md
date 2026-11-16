@@ -72,11 +72,13 @@
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
-| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 50 действий, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира | файл |
+| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 54 действия после слияния каталогов, `norms`, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира, `action_catalogs`, `norms` | файл |
+| `configs/worlds/actions/*.json` | открытые каталоги мирских действий; подключаются полем `action_catalogs` и сливаются по `id` после `actions` мира | `campaign.actions.merge_action_catalogs` через `load_world` | новый `*.json` с `actions` | `form`/`target.kinds`/`effects` | файл (проверить `action_catalogs`) |
 | `configs/worlds/*_strategies.json` | долгосрочные стратегии узлов | `campaign.node_strategy.StrategyBook` | новый файл или поле `strategies` | селекторы/цель/веса | файл |
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
 | `configs/campaigns/*.json` | шаблоны пресетов | `campaign.preset.load_template()` | новый шаблон | фракции/сценарий | файл |
+| `configs/campaigns/forms.json` | манифест форм работы: `payload_kinds`, `target_kinds`, `default_handler`, теги | `campaign.actions.FormCatalog.load()` | форма в `forms` + обработчик `base/handlers/<id>.json` | адресаты/обработчик | форма (проверить обработчик и действия) |
 | `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы, взаимодействия и геометрия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions`, геометрия в `geometry.<side>` | цели, активы, титулы, органы, работы, взаимодействия, длины/углы | фракция/орган/работа/взаимодействие/геометрия (проверить `organ_id`, `links` и узлы геометрии) |
 | `configs/campaigns/base/automata_defaults.json` | базовые данные кампании автоматов | `campaign.defaults.load_defaults()` | секция в JSON | модель, интервалы реального времени, скорости, взаимодействия, потребности, бюджет | секция (ядро читает без хардкода) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |

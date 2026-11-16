@@ -193,7 +193,7 @@ sense(противник) → rotate_defense (no-op) → upkeep → tick_energy 
 | `ui/scenes/battlefield.py` | изометрический экран поля боя + HUD/диалоги (плейсхолдеры) |
 | `view/` | кампанийный UI: мир должностного лица, биография, выбор автомата и должности, новелла, документы, сюжет, выбор роли; легаси-стратегия и RTS |
 | `view/support/geometry.py` | производные фронт/фланг/тыл, окружение, фронтаж и потери |
-| `campaign/` | **роли, мир, пресеты и кампания**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, генератор персонажей/фракций/организаций, `automata.py` с работами и производными активами, `work.py`/`handlers.py`/`work_trace.py` (capability → `Work` → обработчик → `WorkReport`), `effects.py` (движок проекций), `fractal.py` с сетью органов, `faction_state.py` с формулами активов, `divisions.py` с 15 делениями, легаси `strategy.py`, хранилище и CLI; без pygame |
+| `campaign/` | **роли, мир, пресеты и кампания**: каталог ролей, `world.py` с доменами/узлами/должностями/валидатором, открытые формы и действия `actions.py`, генератор персонажей/фракций/организаций, `automata.py` с работами и производными активами, `work.py`/`handlers.py`/`work_trace.py` (capability → `Work` → обработчик → `WorkReport`), `effects.py` (движок проекций), `fractal.py` с сетью органов, `faction_state.py` с формулами активов, `divisions.py` с 15 делениями, легаси `strategy.py`, хранилище и CLI; без pygame |
 | `campaign/dialogue/` | **диалоговый слой**: разбор, вывод, план ответа, дискурс, стили, контрфакты, линтер; без LLM и pygame |
 | `configs/dialogue/` | 18 JSON диалога: онтология, лексикон, грамматика, факты, правила, планы, дискурс, синтез (schema 2), стили (schema 4), контрфакты |
 | `view/screens/dialogue_chat.py` | игровой чат «СВЯЗЬ»: фракция, персонаж, стиль ответа и память партии |
@@ -438,6 +438,14 @@ python3 -m naming --person --fantasy high_elf --count 3 --seed 7
   `world_outcome`, `realtime` и `time_speeds` задаются JSON-полями мира.
   Снимок часов хранится вместе с миром. Подробности —
   [`FREE_MODE_RTS.md`](FREE_MODE_RTS.md).
+* **Открытые действия мира** — `campaign/actions.py` + `configs/campaigns/forms.json`
+  (13 форм) + `configs/worlds/actions/*.json`: действие описывается данными,
+  каталоги сливаются по `id`, а `entity_ref` адресует персонажа, предмет,
+  норму или узел. Действия с `form` проходят манифест и линтер;
+  legacy-действия без `form` остаются прямыми эффектами. Импровизация
+  `Intent → ActionSpec → WorkPlan` выключена по умолчанию и помечает план
+  `source: "improvised"`. Подробности — [`CONTENT.md`](CONTENT.md) и
+  [`CHARACTER_ACTION_FLEXIBILITY_PLAN.md`](CHARACTER_ACTION_FLEXIBILITY_PLAN.md).
 * **Легаси-гражданский пресет** — `campaign/preset.py` и шаблон
   `configs/campaigns/*.json`. Генератор детерминирован по seed и
   создаёт две гражданские коалиции, именованных персонажей с невоенными

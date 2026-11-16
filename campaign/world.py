@@ -14,6 +14,14 @@ from .actor import (
     CampaignActor,
     campaign_success_chance,
 )
+from .actions import (
+    ActionError,
+    FormCatalog,
+    lint_action,
+    merge_action_catalogs,
+    normalize_action,
+    parse_entity_ref,
+)
 from .character import CampaignCharacter
 from . import logbook as _logbook
 from .lod import CampaignLod
@@ -180,6 +188,12 @@ KIND_LABELS = {
     "institution": "учреждение",
     "asset": "имущество",
     "person": "человек",
+    "character": "человек",
+    "organization": "организация",
+    "organ": "орган",
+    "item": "предмет",
+    "place": "место",
+    "norm": "норма",
     "network": "сеть",
     "event": "событие",
 }
@@ -349,6 +363,63 @@ def _read_json(path):
         raise WorldError("не удалось прочитать %s: %s" % (target, exc))
 
 
+def _resolve_config_path(value):
+    path = Path(str(value))
+    return path if path.is_absolute() else ROOT / path
+
+
+def _merge_world_action_catalogs(data):
+    """Подключить внешние каталоги действий к миру (P3).
+
+    Порядок: сначала собственные ``actions`` мира, затем
+    ``action_catalogs`` по порядку. Действие с тем же ``id`` из более
+    позднего источника переопределяет раннее; дубликат внутри одного
+    файла — ошибка.
+    """
+    catalogs = data.get("action_catalogs") or []
+    if not catalogs:
+        return data
+    sources = [
+        (
+            str(data.get("id") or "world"),
+            {"actions": list(data.get("actions") or [])},
+        )
+    ]
+    for item in catalogs:
+        if isinstance(item, str):
+            path = item
+        elif isinstance(item, dict):
+            path = item.get("path")
+        else:
+            path = None
+        if not path:
+            raise WorldError("action_catalogs: нужен путь к JSON")
+        catalog = _read_json(_resolve_config_path(path))
+        if not isinstance(catalog, dict):
+            raise WorldError(
+                "%s: каталог действий должен быть объектом" % path
+            )
+        sources.append((str(path), catalog))
+    actions, problems, overrides = merge_action_catalogs(sources)
+    if problems:
+        raise WorldError("; ".join(problems))
+    merged = dict(data)
+    merged["actions"] = actions
+    merged["action_catalog_overrides"] = overrides
+    merged.pop("action_catalogs", None)
+    return merged
+
+
+def _forms_for_world(data):
+    path = data.get("forms_path")
+    try:
+        return FormCatalog.load(
+            _resolve_config_path(path) if path else None
+        )
+    except ActionError as exc:
+        raise WorldError(str(exc))
+
+
 def load_world(path=None):
     """Загрузить мир из JSON.
 
@@ -428,6 +499,8 @@ def _validate_unique(items, label):
 
 def validate_world(data):
     data = dict(data)
+    if data.get("action_catalogs"):
+        data = _merge_world_action_catalogs(data)
     data["id"] = _text(data.get("id"), "world")
     data["title"] = _text(data.get("title"), data["id"])
     data["domains"] = list(data.get("domains") or [])
@@ -438,6 +511,7 @@ def validate_world(data):
     data["characters"] = list(data.get("characters") or [])
     data["character_actions"] = list(data.get("character_actions") or [])
     data["items"] = list(data.get("items") or [])
+    data["norms"] = list(data.get("norms") or [])
     data["skill_tree"] = dict(data.get("skill_tree") or {})
     _validate_unique(data["domains"], "domains")
     _validate_unique(data["polities"], "polities")
@@ -448,9 +522,34 @@ def validate_world(data):
         ("characters", "characters"),
         ("character_actions", "character_actions"),
         ("items", "items"),
+        ("norms", "norms"),
     ):
         if data[key]:
             _validate_unique(data[key], label)
+    forms = _forms_for_world(data)
+    for action in data["actions"]:
+        has_form = bool(
+            action.get("form") or (action.get("template") or {}).get("form")
+        )
+        try:
+            if has_form:
+                problems = lint_action(
+                    action, forms=forms, require_form=True
+                )
+                if problems:
+                    raise WorldError("; ".join(problems))
+            normalized = normalize_action(action, forms=forms)
+            action.clear()
+            action.update(normalized)
+        except ActionError as exc:
+            raise WorldError("%s: %s" % (data["id"], exc))
+    for action in data["character_actions"]:
+        try:
+            normalized = normalize_action(action, forms=forms)
+            action.clear()
+            action.update(normalized)
+        except ActionError as exc:
+            raise WorldError("%s: %s" % (data["id"], exc))
 
     domain_index = {item["id"]: item for item in data["domains"]}
     polity_index = {item["id"]: item for item in data["polities"]}
@@ -979,8 +1078,23 @@ class WorldEngine:
         self.item_catalog = {
             item["id"]: dict(item) for item in self.config["items"]
         }
+        self.norm_order = [item["id"] for item in self.config["norms"]]
+        self.norms = {
+            item["id"]: dict(item) for item in self.config["norms"]
+        }
         self.nodes = self._build_nodes()
         self.node_order = [item["id"] for item in self.config["nodes"]]
+        self._entity_kinds = {}
+        for character in self.characters.values():
+            self._entity_kinds[id(character)] = "character"
+        for node in self.nodes.values():
+            self._entity_kinds[id(node)] = _text(
+                node.get("kind"), "institution"
+            )
+        for item in self.item_catalog.values():
+            self._entity_kinds[id(item)] = "item"
+        for norm in self.norms.values():
+            self._entity_kinds[id(norm)] = "norm"
         self.strategies = StrategyBook.from_config(self.config)
         self.strategy_state = {}
         self.labor_market = _normalize_labor_market(
@@ -1246,6 +1360,81 @@ class WorldEngine:
     def node_label(self, node_id):
         node = self.node(node_id)
         return node["name"] if node else "—"
+
+    def _entity_kind(self, entity):
+        if entity is None:
+            return ""
+        return self._entity_kinds.get(id(entity), "")
+
+    def entity(self, ref):
+        """Найти сущность по универсальной ссылке ``kind/id``."""
+        try:
+            ref = parse_entity_ref(ref)
+        except ActionError:
+            return None
+        kind, entity_id = ref["kind"], ref["id"]
+        if kind == "character":
+            return self.characters.get(entity_id)
+        if kind == "item":
+            return self.item_catalog.get(entity_id)
+        if kind == "norm":
+            return self.norms.get(entity_id)
+        if kind in ("place", "organization", "institution", "asset"):
+            node = self.node(entity_id)
+            if node is None:
+                return None
+            if kind in ("institution", "asset") and node.get("kind") != kind:
+                return None
+            return node
+        return None
+
+    def entity_ref(self, entity):
+        """Обратная ссылка ``entity_ref`` для известной сущности."""
+        kind = self._entity_kind(entity)
+        if not kind:
+            return {}
+        return {"kind": kind, "id": _text(entity.get("id"))}
+
+    def _kind_matches(self, actual, kinds):
+        if not kinds:
+            return True
+        if actual in kinds:
+            return True
+        if actual in ("institution", "asset"):
+            return "place" in kinds or "organization" in kinds
+        if actual == "organ":
+            return "organization" in kinds
+        return False
+
+    def known_entities(self, kinds=None):
+        """Перечислить адресатов мира в виде ``entity_ref``."""
+        kinds = set(kinds or ())
+        result = []
+        for character in self.characters.values():
+            if self._kind_matches("character", kinds):
+                result.append(self.entity_ref(character))
+        for node in self.nodes.values():
+            actual = self._entity_kind(node)
+            if self._kind_matches(actual, kinds):
+                result.append(self.entity_ref(node))
+        for item in self.item_catalog.values():
+            if self._kind_matches("item", kinds):
+                result.append(self.entity_ref(item))
+        for norm in self.norms.values():
+            if self._kind_matches("norm", kinds):
+                result.append(self.entity_ref(norm))
+        return result
+
+    def action_targets(self, action_id):
+        """Все допустимые адресаты объявленного действия."""
+        action = self.actions.get(_text(action_id))
+        if action is None:
+            return []
+        target = action.get("target") or {}
+        if target.get("self"):
+            node = self.node(self.player_node_id)
+            return [self.entity_ref(node)] if node else []
+        return self.known_entities(target.get("kinds") or ())
 
     def node_path(self, node_id):
         node = self.node(node_id)
@@ -3217,15 +3406,18 @@ class WorldEngine:
             return ""
         if target is None:
             return "нужно выбрать цель"
+        actual = self._entity_kind(target)
         if spec.get("exclude_self") and target["id"] == context["node"]["id"]:
             return "нельзя выбрать собственную структуру"
         kinds = spec.get("kinds") or []
-        if kinds and target["kind"] not in kinds:
+        if kinds and not self._kind_matches(actual, kinds):
             return _text(
                 spec.get("invalid_kind_reason"),
                 "цель не того типа: нужно %s"
                 % ", ".join(self.kind_label(item) for item in kinds),
             )
+        if actual != "institution" and actual != "asset":
+            return ""
         domains = spec.get("domains") or []
         if domains and target["domain"] not in domains:
             return "цель относится к другой сфере: %s" % ", ".join(
@@ -3289,11 +3481,15 @@ class WorldEngine:
             ) + 1e-9 < _as_float(minimum):
                 return "у структуры мало ресурса «%s»" % self.stat_label(key)
         if target is not None:
-            for key, minimum in (requires.get("target") or {}).items():
-                if _as_float(target["stats"].get(key), 0.0) + 1e-9 < _as_float(
-                    minimum
-                ):
-                    return "у цели мало ресурса «%s»" % self.stat_label(key)
+            target_stats = target.get("stats")
+            if isinstance(target_stats, dict):
+                for key, minimum in (requires.get("target") or {}).items():
+                    if _as_float(
+                        target_stats.get(key), 0.0
+                    ) + 1e-9 < _as_float(minimum):
+                        return "у цели мало ресурса «%s»" % self.stat_label(
+                            key
+                        )
             relation_min = requires.get("relation_min")
             if relation_min is not None:
                 value = self.relation(context["node"]["id"], target["id"])
@@ -3322,14 +3518,22 @@ class WorldEngine:
                     )
         return ""
 
-    def validate(self, action_id, target_id=None, context=None):
+    def validate(
+        self, action_id, target_id=None, context=None, target_ref=None
+    ):
         action = self.actions.get(_text(action_id))
         context = context or self.player_context()
         if action is None:
             return False, "неизвестное действие"
         if context is None:
             return False, "сначала выберите должность"
-        target = self.node(target_id) if target_id else None
+        target = (
+            self.entity(target_ref)
+            if target_ref is not None
+            else (self.node(target_id) if target_id else None)
+        )
+        if target_ref is not None and target is None:
+            return False, "адресат не найден"
         if (action.get("target") or {}).get("self"):
             target = context["node"]
         reason = self._reason_actor(action, context)
@@ -3368,16 +3572,29 @@ class WorldEngine:
                 return False, "действие уже использовано"
         return True, ""
 
-    def action_options(self, target_id=None, include_disabled=True):
+    def action_options(
+        self, target_id=None, include_disabled=True, target_ref=None
+    ):
         context = self.player_context()
         if context is None:
             return []
         result = []
         for action in self.actions.values():
             self_target = bool((action.get("target") or {}).get("self"))
-            target = context["node"] if self_target else self.node(target_id)
+            target = (
+                context["node"]
+                if self_target
+                else (
+                    self.entity(target_ref)
+                    if target_ref is not None
+                    else self.node(target_id)
+                )
+            )
             enabled, reason = self.validate(
-                action["id"], target["id"] if target else None, context
+                action["id"],
+                target["id"] if target else None,
+                context,
+                target_ref=target_ref if not self_target else None,
             )
             if not enabled and not include_disabled:
                 continue
@@ -3390,15 +3607,18 @@ class WorldEngine:
                     "reason": reason,
                     "self": self_target,
                     "target_id": target["id"] if target else "",
+                    "target_ref": self.entity_ref(target) if target else {},
                     "cost": self._cost_text(action),
                 }
             )
         return result
 
-    def available_actions(self, target_id=None):
+    def available_actions(self, target_id=None, target_ref=None):
         return [
             item["id"]
-            for item in self.action_options(target_id, include_disabled=False)
+            for item in self.action_options(
+                target_id, include_disabled=False, target_ref=target_ref
+            )
         ]
 
     def _cost_text(self, action):
@@ -3441,7 +3661,7 @@ class WorldEngine:
                 )
         return lines
 
-    def preview(self, action_id, target_id=None):
+    def preview(self, action_id, target_id=None, target_ref=None):
         action = self.actions.get(_text(action_id))
         if action is None:
             return None
@@ -3449,17 +3669,32 @@ class WorldEngine:
         target = (
             context["node"]
             if action.get("target", {}).get("self") and context
-            else self.node(target_id)
+            else (
+                self.entity(target_ref)
+                if target_ref is not None
+                else self.node(target_id)
+            )
         )
         enabled, reason = self.validate(
-            action["id"], target["id"] if target else None, context
+            action["id"],
+            target["id"] if target else None,
+            context,
+            target_ref=(
+                None
+                if action.get("target", {}).get("self")
+                else target_ref
+            ),
         )
         success = action.get("success") or {}
         failure = action.get("failure") or {}
         return {
             "action": action,
             "target": target,
-            "target_label": target["name"] if target else "своя должность",
+            "target_label": (
+                target.get("name") or target.get("label")
+                if target
+                else "своя должность"
+            ),
             "enabled": enabled,
             "reason": reason,
             "cost": self._cost_text(action),
@@ -3483,16 +3718,46 @@ class WorldEngine:
     def _apply_stat_map(self, node, changes):
         if node is None:
             return []
+        stats = node.get("stats")
+        if not isinstance(stats, dict):
+            return []
         changed = []
         for key, value in (changes or {}).items():
-            if key not in node["stats"]:
+            if key not in stats:
                 continue
-            before = node["stats"][key]
-            node["stats"][key] = _clamp(before + _as_float(value))
-            delta = node["stats"][key] - before
+            before = stats[key]
+            stats[key] = _clamp(before + _as_float(value))
+            delta = stats[key] - before
             if abs(delta) > 1e-9:
                 changed.append(
                     ("%s · %s" % (node["name"], self.stat_label(key)), delta)
+                )
+        return changed
+
+    def _apply_character_map(self, character, changes):
+        """Аддитивные эффекты на конкретного человека мира (P3)."""
+        if character is None:
+            return []
+        changed = []
+        labels = {
+            "affinity": "близость",
+            "trust": "доверие",
+            "fear": "страх",
+            "respect": "уважение",
+        }
+        for key, value in (changes or {}).items():
+            if key not in labels:
+                continue
+            before = _as_float(character.get(key), 0.0)
+            character[key] = _clamp(before + _as_float(value), -1.0, 1.0)
+            delta = character[key] - before
+            if abs(delta) > 1e-9:
+                changed.append(
+                    (
+                        "%s · %s"
+                        % (character.get("name", character["id"]), labels[key]),
+                        delta,
+                    )
                 )
         return changed
 
@@ -4546,15 +4811,26 @@ class WorldEngine:
         changed.extend(
             self._apply_stat_map(context["node"], effects.get("node"))
         )
-        changed.extend(self._apply_stat_map(target, effects.get("target")))
+        if self._entity_kind(target) == "character":
+            changed.extend(
+                self._apply_character_map(target, effects.get("target"))
+            )
+        else:
+            changed.extend(
+                self._apply_stat_map(target, effects.get("target"))
+            )
         if is_player:
             changed.extend(self._apply_player_map(effects.get("player")))
         relation = _as_float(effects.get("relation"), 0.0)
-        if target is not None and (
-            abs(relation) > 1e-9
-            or effects.get("relation_back") is not None
-            or effects.get("relation_axes")
-            or effects.get("relation_axes_back")
+        if (
+            target is not None
+            and self._entity_kind(target) in ("institution", "asset")
+            and (
+                abs(relation) > 1e-9
+                or effects.get("relation_back") is not None
+                or effects.get("relation_axes")
+                or effects.get("relation_axes_back")
+            )
         ):
             source = context["node"]
             self._shift_relation(
@@ -4834,7 +5110,7 @@ class WorldEngine:
         )
         return "Новая должность: %s." % chosen["label"]
 
-    def execute(self, action_id, target_id=None):
+    def execute(self, action_id, target_id=None, target_ref=None):
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
         action = self.actions.get(_text(action_id))
@@ -4846,10 +5122,17 @@ class WorldEngine:
         target = (
             context["node"]
             if action.get("target", {}).get("self")
-            else self.node(target_id)
+            else (
+                self.entity(target_ref)
+                if target_ref is not None
+                else self.node(target_id)
+            )
         )
         enabled, reason = self.validate(
-            action["id"], target["id"] if target else None, context
+            action["id"],
+            target["id"] if target else None,
+            context,
+            target_ref=None if action.get("target", {}).get("self") else target_ref,
         )
         if not enabled:
             return {"ok": False, "reason": reason}
@@ -4913,7 +5196,11 @@ class WorldEngine:
             "action": action["id"],
             "action_label": _text(action.get("label"), action["id"]),
             "target": target["id"] if target else "",
-            "target_label": target["name"] if target else "своя должность",
+            "target_label": (
+                target.get("name") or target.get("label")
+                if target
+                else "своя должность"
+            ),
             "outcome": outcome,
             "chance": chance,
             "roll": roll,

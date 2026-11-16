@@ -115,6 +115,38 @@ def test_archetypes_lint_reports_invalid_catalog():
     assert any("пустой id" in item for item in problems)
 
 
+def test_forms_manifest_requires_handler_and_addresses():
+    problems = content_lint.lint_forms_data(
+        {
+            "forms": [
+                {
+                    "id": "missing_form",
+                    "payload_kinds": ["info"],
+                    "target_kinds": ["character"],
+                }
+            ]
+        }
+    )
+    assert any("нет обработчика" in item for item in problems)
+
+
+def test_action_catalog_reports_unknown_form():
+    problems = content_lint.lint_actions_data(
+        {
+            "actions": [
+                {
+                    "id": "calm",
+                    "form": "nope",
+                    "target": {"kinds": ["place"]},
+                    "effects": {},
+                }
+            ]
+        },
+        forms=content_lint.FormCatalog.load(),
+    )
+    assert any("неизвестная форма" in item for item in problems)
+
+
 def test_unimplemented_effect_is_reported():
     problems = content_lint.check_effects(
         "work", {"self": {"legitimacy": 0.1}, "relations": {}}

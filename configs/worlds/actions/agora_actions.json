@@ -1,0 +1,212 @@
+{
+  "description": "Открытый каталог мирских действий Агоры. Действия на существующих формах добавляются этим файлом и не требуют правки Python.",
+  "actions": [
+    {
+      "id": "calm_crowd",
+      "label": "Успокоить улицу",
+      "category": "Забота",
+      "description": "Слушать, говорить спокойно и возвращать улице дыхание. Это не приказ, а работа с людьми.",
+      "form": "care",
+      "actor": {},
+      "target": {
+        "required": false,
+        "kinds": [
+          "place",
+          "institution",
+          "asset"
+        ]
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "info",
+          "topic": "calm",
+          "confidence": 0.6
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.8,
+      "success": {
+        "chance": 0.8,
+        "text": "Улица слушает: напряжение спадает, а вас запоминают как человека, который умеет говорить.",
+        "effects": {
+          "node": {
+            "cohesion": 0.02
+          },
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Слова уходят в шум; кто-то уходит, не дослушав.",
+        "effects": {
+          "node": {
+            "cohesion": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "hug",
+      "label": "Обнять",
+      "category": "Забота",
+      "description": "Телесный жест поддержки. Он меняет отношение конкретного человека, а не структуры.",
+      "form": "care",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character"
+        ],
+        "exclude_self": true
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.85,
+      "success": {
+        "chance": 0.85,
+        "text": "Человек отвечает на жест — не словами, а тем, что остаётся рядом.",
+        "effects": {
+          "target": {
+            "affinity": 0.05,
+            "trust": 0.03
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.15,
+        "text": "Жест оказывается слишком рано; человек отступает на шаг.",
+        "effects": {
+          "target": {
+            "affinity": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "offer_gift",
+      "label": "Сделать подарок",
+      "category": "Обмен",
+      "description": "Передать вещь или знак внимания конкретному человеку либо оставить предмет как дар.",
+      "form": "exchange",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "character",
+          "item"
+        ],
+        "exclude_self": true
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "item",
+          "item_id": "personal_token",
+          "quantity": 1.0
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.8,
+      "success": {
+        "chance": 0.8,
+        "text": "Подарок принят: вещь остаётся вещью, но между вами появляется обязательство внимания.",
+        "effects": {
+          "target": {
+            "affinity": 0.04,
+            "trust": 0.02
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.2,
+        "text": "Подарок принимают вежливо, но без тепла.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "cite_law",
+      "label": "Сослаться на норму",
+      "category": "Сведения",
+      "description": "Назвать закон или обычай так, чтобы он стал аргументом в разговоре.",
+      "form": "information",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "norm"
+        ]
+      },
+      "template": {
+        "amount": 0.01,
+        "duration": 1.0,
+        "payload": {
+          "kind": "evidence",
+          "claim": "Хартия Агоры",
+          "strength": 0.4,
+          "subject": "agora_charter",
+          "source": "law"
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.01
+        }
+      },
+      "success_chance": 0.78,
+      "success": {
+        "chance": 0.78,
+        "text": "Норма звучит весомо: у ваших слов появляется опора, которую нельзя просто отмахнуть.",
+        "effects": {
+          "player": {
+            "evidence": 0.03,
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.22,
+        "text": "Ссылку переворачивают против вас: формально вы правы, но выглядите мелочно.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    }
+  ]
+}
