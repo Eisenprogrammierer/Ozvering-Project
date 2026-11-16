@@ -2,6 +2,14 @@
   "storyline_id": "cult_campaign",
   "title": "Культ Земли: энтропия во плоти",
   "description": "Кампания за Культ Земли: размывать лояльность государств и не потерять нарратив.",
+  "storyline_tags": [
+    "lore",
+    "cult",
+    "leader",
+    "temple",
+    "ritual",
+    "meaning"
+  ],
   "campaign_template": "configs/campaigns/cult_campaign.json",
   "campaign_seed": 7,
   "identity_editor": true,

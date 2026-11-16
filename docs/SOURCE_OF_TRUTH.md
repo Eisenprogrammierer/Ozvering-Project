@@ -133,7 +133,7 @@
 | Общая карта JSON и загрузчиков | [`CONTENT.md`](CONTENT.md) |
 | Роли игрока | `configs/roles/roles.json`, `configs/characters/archetypes.json`, `campaign/roles.py`, `campaign/identity.py`; тесты `test_campaign.py`, `test_archetypes.py` |
 | Управляемый персонаж (аватар) | `campaign/avatar.py`, `campaign/preset.py` (`select_player_character`), `campaign/automata.py` (`avatar_character`, снимок `avatar`), `view/screens/character_select.py`; тест `test_player_avatar.py` |
-| Сюжеты и сцены | `configs/storylines/`; `view/support/storyline.py`; тест `test_view_world.py` |
+| Сюжеты и сцены | `configs/storylines/` (`storyline_tags`), `configs/worlds/scenes/`; `view/support/storyline.py`, `campaign/scenes.py`; тесты `test_view_world.py`, `test_storyline_flex.py`, `test_scene.py` |
 | Миры кампании | `configs/worlds/agora_world.json` (production), `configs/worlds/agora_strategies.json`; `campaign/world.py::load_world` |
 | Биография и личность героя | `configs/worlds/biography.json`, `configs/characters/identity.json`, `configs/characters/archetypes.json`; `campaign/identity.py`, `campaign/world.py::profile_from_identity`, `test_identity.py`, `test_archetypes.py` |
 | Черты персонажей | `configs/characters/traits.json`; `character_traits.py`; `test_people.py` |
@@ -192,7 +192,7 @@
 | `main.py` | единая точка входа | активный |
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
-| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`) и дневной мир `world_actor` | активный |
+| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`), дневной мир `world_actor` и локальные сцены `scenes.py` | активный |
 | `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
@@ -211,14 +211,14 @@
 | Каталог | Что лежит в поставке | Загрузчик |
 |---|---|---|
 | `configs/roles/` | `roles.json` — 5 ролей (4 лидера + `free_citizen`) | `campaign/roles.py` |
-| `configs/storylines/` | 5 сюжетов + сцены (4 лорных + `free_life`) | `view/support/storyline.py` |
+| `configs/storylines/` | 5 сюжетов + сцены (4 лорных + `free_life`), у каждого `storyline_tags` | `view/support/storyline.py` |
 | `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы; `forms.json` — манифест 19 форм | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py`, `campaign/actions.py` |
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json`, `archetypes.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
 | `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, цели и шаги, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
-| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 62 действия после слияния каталогов, `norms`, `sandbox`), `actions/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/node_strategy.py` |
+| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 62 действия после слияния каталогов, 6 сцен, `norms`, `sandbox`), `actions/*.json`, `scenes/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/scenes.py`, `campaign/node_strategy.py` |
 | `configs/strategy/` | **пуст** | `campaign/strategy.py` |
 | `configs/automata/` | **пуст** | `automata/storage.py` |
 | `configs/environments/` | **пуст** | `core41/environment.py` |
@@ -233,8 +233,8 @@
 | Ядро и арена | `test_core41.py`, `test_health.py`, `test_sickness.py`, `test_payload.py`, `test_composite.py`, `test_environment.py`, `test_clock.py`, `test_math_model.py` |
 | Агенты | `test_train_cli.py`, `test_checkpoints.py`, `test_core41.py` |
 | Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
-| Дневной мир | `test_campaign.py`, `test_world.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
-| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_lore_characters.py` |
+| Дневной мир | `test_campaign.py`, `test_world.py`, `test_world_primitives.py`, `test_scene.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
+| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_storyline_flex.py`, `test_lore_characters.py` |
 | Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
 | UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |

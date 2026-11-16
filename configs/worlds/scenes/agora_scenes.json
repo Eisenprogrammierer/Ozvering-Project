@@ -1,0 +1,413 @@
+{
+  "schema": 1,
+  "description": "Локальные сцены Агоры: место, именованная публика, уместные работы и правила входа. Сцена не заменяет узел мира: она описывает, кто здесь и что здесь уместно.",
+  "scenes": [
+    {
+      "id": "street",
+      "label": "Улица Агоры",
+      "description": "Шумная улица между рынком и портом. Здесь поют, торгуются, ссорятся и мирятся без бумаг.",
+      "location": "agora_street",
+      "tags": [
+        "street",
+        "music",
+        "market",
+        "free"
+      ],
+      "public": [
+        {
+          "id": "street_piper",
+          "name": "Тим-дудочник",
+          "role": "уличный музыкант",
+          "description": "Играет на дудке у водостока и знает, какая песня собирает монеты.",
+          "tags": [
+            "музыка",
+            "улица"
+          ],
+          "affinity": 0.18,
+          "trust": 0.12,
+          "respect": 0.08
+        },
+        {
+          "id": "street_baker",
+          "name": "Тётушка Роса",
+          "role": "торговка лепёшками",
+          "description": "Держит жаровню на углу и кормит тех, кто не успел заработать.",
+          "tags": [
+            "забота",
+            "улица"
+          ],
+          "affinity": 0.24,
+          "trust": 0.2,
+          "respect": 0.14
+        },
+        {
+          "id": "street_orphan",
+          "name": "Кир",
+          "role": "беспризорник",
+          "description": "Носит воду и слушает больше, чем говорит.",
+          "tags": [
+            "улица",
+            "дети"
+          ],
+          "affinity": 0.1,
+          "trust": 0.06,
+          "fear": 0.12
+        }
+      ],
+      "works": [
+        "perform_song",
+        "kiss",
+        "embrace",
+        "comfort_person",
+        "ask_favor",
+        "calm_crowd",
+        "hug",
+        "offer_gift"
+      ],
+      "requires": {},
+      "exit": {},
+      "time": {
+        "slots": 3
+      }
+    },
+    {
+      "id": "school",
+      "label": "Школа права",
+      "description": "Класс с длинными столами и окнами во двор. Здесь спорят о законах и проверяют, кто действительно понял.",
+      "location": "knowledge_faculty_law",
+      "tags": [
+        "school",
+        "study",
+        "knowledge",
+        "free"
+      ],
+      "public": [
+        {
+          "id": "school_teacher",
+          "name": "Наставница Лея",
+          "role": "учитель права",
+          "description": "Требует точности в словах и терпения в выводах.",
+          "tags": [
+            "знание",
+            "школа"
+          ],
+          "affinity": 0.2,
+          "trust": 0.22,
+          "respect": 0.36
+        },
+        {
+          "id": "school_peer",
+          "name": "Вит",
+          "role": "ученик",
+          "description": "Спорит быстрее, чем читает, но запоминает чужие ошибки.",
+          "tags": [
+            "школа",
+            "друзья"
+          ],
+          "affinity": 0.14,
+          "trust": 0.1
+        },
+        {
+          "id": "school_scribe",
+          "name": "Гай",
+          "role": "писарь",
+          "description": "Переписывает решения и знает, где в них оставлены лазейки.",
+          "tags": [
+            "знание",
+            "документы"
+          ],
+          "affinity": 0.08,
+          "trust": 0.18,
+          "respect": 0.12
+        }
+      ],
+      "works": [
+        "teach_lesson",
+        "embrace",
+        "comfort_person",
+        "ask_favor",
+        "study",
+        "research",
+        "cite_law"
+      ],
+      "requires": {
+        "domains": [
+          "knowledge"
+        ]
+      },
+      "exit": {},
+      "time": {
+        "slots": 2
+      }
+    },
+    {
+      "id": "temple",
+      "label": "Храм Света",
+      "description": "Двор с колоннами, вода в чашах и тишина, которую занимают подношения и разговоры.",
+      "location": "lumen_parish_square",
+      "tags": [
+        "temple",
+        "ritual",
+        "meaning",
+        "free"
+      ],
+      "public": [
+        {
+          "id": "temple_keeper",
+          "name": "Ада-смотрительница",
+          "role": "смотрительница храма",
+          "description": "Следит за порядком обрядов и помнит все обещания, данные у чаши.",
+          "tags": [
+            "обряд",
+            "община"
+          ],
+          "affinity": 0.2,
+          "trust": 0.24,
+          "respect": 0.3
+        },
+        {
+          "id": "temple_singer",
+          "name": "Ина",
+          "role": "певчая",
+          "description": "Поёт на утренних службах и знает, когда молчание сильнее слова.",
+          "tags": [
+            "музыка",
+            "обряд"
+          ],
+          "affinity": 0.16,
+          "trust": 0.14,
+          "respect": 0.12
+        },
+        {
+          "id": "temple_beggar",
+          "name": "Ор",
+          "role": "нищий",
+          "description": "Приходит к храму за хлебом и остаётся слушать.",
+          "tags": [
+            "община",
+            "забота"
+          ],
+          "affinity": 0.1,
+          "trust": 0.08,
+          "fear": 0.18
+        }
+      ],
+      "works": [
+        "offer_sacrifice",
+        "propose_law",
+        "perform_song",
+        "comfort_person",
+        "teach_lesson",
+        "ask_favor",
+        "preach",
+        "consecrate"
+      ],
+      "requires": {
+        "domains": [
+          "meaning"
+        ]
+      },
+      "exit": {},
+      "time": {
+        "slots": 3
+      }
+    },
+    {
+      "id": "palace",
+      "label": "Дом правительства",
+      "description": "Коридоры, где закон ещё черновик, а слово весит больше печати.",
+      "location": "agora_government",
+      "tags": [
+        "court",
+        "order",
+        "law"
+      ],
+      "public": [
+        {
+          "id": "palace_clerk",
+          "name": "Секретарь Нум",
+          "role": "секретарь канцелярии",
+          "description": "Знает, чей доклад попадёт на стол первым.",
+          "tags": [
+            "документы",
+            "двор"
+          ],
+          "affinity": 0.12,
+          "trust": 0.16,
+          "respect": 0.1
+        },
+        {
+          "id": "palace_envoy",
+          "name": "Посланница Вера",
+          "role": "посланница",
+          "description": "Говорит от имени двух домов и ни одного человека.",
+          "tags": [
+            "двор",
+            "переговоры"
+          ],
+          "affinity": 0.08,
+          "trust": 0.1,
+          "respect": 0.2
+        }
+      ],
+      "works": [
+        "propose_law",
+        "ask_favor",
+        "teach_lesson",
+        "offer_sacrifice",
+        "appoint",
+        "audience",
+        "negotiate"
+      ],
+      "requires": {
+        "domains": [
+          "order",
+          "status"
+        ]
+      },
+      "exit": {},
+      "time": {
+        "slots": 2
+      }
+    },
+    {
+      "id": "market",
+      "label": "Рыночная площадь",
+      "description": "Прилавки, весы и слухи. Здесь всё имеет цену, включая молчание.",
+      "location": "exchange_shop",
+      "tags": [
+        "market",
+        "exchange",
+        "free"
+      ],
+      "public": [
+        {
+          "id": "market_trader",
+          "name": "Купец Даро",
+          "role": "торговец",
+          "description": "Считает не только монеты, но и людей, которые за ними стоят.",
+          "tags": [
+            "торговля",
+            "рынок"
+          ],
+          "affinity": 0.16,
+          "trust": 0.12
+        },
+        {
+          "id": "market_courier",
+          "name": "Гонец Лис",
+          "role": "посыльный",
+          "description": "Доставляет письма раньше, чем их успевают прочитать.",
+          "tags": [
+            "рынок",
+            "слухи"
+          ],
+          "affinity": 0.1,
+          "trust": 0.08
+        },
+        {
+          "id": "market_customer",
+          "name": "Покупательница Нора",
+          "role": "горожанка",
+          "description": "Торгуется за каждую меру и помнит цены прошлой недели.",
+          "tags": [
+            "рынок",
+            "город"
+          ],
+          "affinity": 0.06,
+          "trust": 0.05
+        }
+      ],
+      "works": [
+        "ask_favor",
+        "embrace",
+        "perform_song",
+        "comfort_person",
+        "offer_gift",
+        "contract",
+        "negotiate"
+      ],
+      "requires": {
+        "domains": [
+          "exchange"
+        ]
+      },
+      "exit": {},
+      "time": {
+        "slots": 3
+      }
+    },
+    {
+      "id": "barracks",
+      "label": "Портовая казарма",
+      "description": "Столы, оружие в стойках и люди, которые привыкли выполнять приказ до конца.",
+      "location": "agora_precinct_port",
+      "tags": [
+        "army",
+        "order",
+        "care"
+      ],
+      "public": [
+        {
+          "id": "barracks_sergeant",
+          "name": "Сержант Гром",
+          "role": "сержант стражи",
+          "description": "Ценит порядок и не любит объяснять дважды.",
+          "tags": [
+            "стража",
+            "порядок"
+          ],
+          "affinity": 0.12,
+          "trust": 0.18,
+          "respect": 0.26,
+          "fear": 0.08
+        },
+        {
+          "id": "barracks_recruit",
+          "name": "Новобранец Ким",
+          "role": "стражник",
+          "description": "Ещё не решил, хочет ли носить форму всю жизнь.",
+          "tags": [
+            "стража",
+            "молодость"
+          ],
+          "affinity": 0.14,
+          "trust": 0.1,
+          "fear": 0.06
+        },
+        {
+          "id": "barracks_medic",
+          "name": "Лекарь Соль",
+          "role": "полевой лекарь",
+          "description": "Перевязывает раны и запоминает, кто получил их по глупости.",
+          "tags": [
+            "забота",
+            "стража"
+          ],
+          "affinity": 0.16,
+          "trust": 0.2,
+          "respect": 0.18
+        }
+      ],
+      "works": [
+        "teach_lesson",
+        "comfort_person",
+        "ask_favor",
+        "embrace",
+        "treat",
+        "recruit_medics",
+        "garrison"
+      ],
+      "requires": {
+        "domains": [
+          "order",
+          "care"
+        ]
+      },
+      "exit": {},
+      "time": {
+        "slots": 2
+      }
+    }
+  ]
+}

@@ -2,6 +2,13 @@
   "storyline_id": "corporation_campaign",
   "title": "Торговая планета: канал без репутации",
   "description": "Кампания за Торговую планету: сохранить автономию, нейтралитет и канал.",
+  "storyline_tags": [
+    "lore",
+    "corporation",
+    "leader",
+    "market",
+    "exchange"
+  ],
   "campaign_template": "configs/campaigns/corporation_campaign.json",
   "campaign_seed": 23,
   "identity_editor": true,

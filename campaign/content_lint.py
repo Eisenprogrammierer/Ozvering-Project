@@ -32,6 +32,7 @@ from .identity import (
     ArchetypeCatalog,
     IdentityError,
 )
+from .scenes import SceneError, SceneSpec
 from .state_machine import StateMachineDefinition, StateMachineError
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -43,6 +44,7 @@ DEFAULT_PATHS = (
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
     ROOT / "configs" / "worlds" / "actions",
+    ROOT / "configs" / "worlds" / "scenes",
 )
 
 # Ключи, которые применяет `campaign/effects.py`.
@@ -756,6 +758,15 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         problems.extend(lint_actions_data(data, forms=forms))
     if isinstance(data, Mapping) and "archetypes" in data:
         problems.extend(lint_archetypes_data(data, config))
+    looks_like_scene_file = (
+        isinstance(data, Mapping)
+        and "id" in data
+        and ("public" in data or "works" in data)
+        and "actions" not in data
+    )
+    has_scenes = isinstance(data, Mapping) and "scenes" in data
+    if has_scenes or looks_like_scene_file:
+        problems.extend(lint_scenes_data(data))
     if isinstance(data, Mapping) and "factions" in data:
         problems.extend(lint_factions_data(data, config))
     if isinstance(data, Mapping) and "faction_state" in data:
@@ -817,6 +828,63 @@ def lint_forms_data(data):
             problems.append("%s: не задан payload_kinds" % form.id)
         if not form.target_kinds:
             problems.append("%s: не задан target_kinds" % form.id)
+    return problems
+
+
+def lint_scenes_data(data):
+    """Проверить каталог сцен без привязки к узлам и работам мира.
+
+    Ссылки на локации и работы проверяет ``validate_world``: вне мира у
+    сцены нет способа отличить опечатку от ссылки на другой мир.
+    """
+    if isinstance(data, Mapping):
+        entries = data.get("scenes")
+        if entries is None and "id" in data:
+            entries = [data]
+        if entries is None:
+            return []
+    elif isinstance(data, (list, tuple)):
+        entries = data
+    else:
+        return ["каталог сцен должен быть объектом или списком"]
+    if not isinstance(entries, (list, tuple)):
+        return ["scenes должен быть списком"]
+    problems = []
+    seen = set()
+    public_ids = set()
+    for index, raw in enumerate(entries):
+        if not isinstance(raw, Mapping):
+            problems.append("сцена[%d] должна быть объектом" % index)
+            continue
+        try:
+            scene = SceneSpec.from_dict(raw)
+        except SceneError as exc:
+            problems.append(str(exc))
+            continue
+        if scene.id in seen:
+            problems.append("%s: сцена объявлена дважды" % scene.id)
+        seen.add(scene.id)
+        if not scene.works:
+            problems.append("%s: не заданы работы сцены" % scene.id)
+        works = [item for item in scene.works if item]
+        if len(set(works)) != len(works):
+            problems.append("%s: работы сцены повторяются" % scene.id)
+        for person in scene.public:
+            if person.id in public_ids:
+                problems.append(
+                    "%s: публика %r объявлена в нескольких сценах"
+                    % (scene.id, person.id)
+                )
+            public_ids.add(person.id)
+        slots = scene.time.get("slots")
+        if slots is not None:
+            try:
+                if int(slots) < 1:
+                    problems.append(
+                        "%s: time.slots должен быть не меньше 1" % scene.id
+                    )
+            except (TypeError, ValueError):
+                problems.append("%s: time.slots должен быть числом" % scene.id)
     return problems
 
 

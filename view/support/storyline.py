@@ -72,7 +72,21 @@ def loss_limit_percent(storyline, default=DEFAULT_LOSS_LIMIT_PERCENT):
     return max(1, int(round(float(default))))
 
 
-def list_storylines(directory=None):
+def _storyline_tags(value):
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    return tuple(str(item) for item in value if str(item))
+
+
+def list_storylines(directory=None, tags=None):
+    """Список сюжетов; ``tags`` фильтрует по ``storyline_tags``.
+
+    Если ни один сюжет не совпал по тегам, возвращается полный список:
+    выбор сюжета не должен становиться пустым из-за новой роли или
+    опечатки в теге.
+    """
     root = os.path.abspath(directory or STORYLINES_DIR)
     storylines = []
     if not os.path.isdir(root):
@@ -93,8 +107,29 @@ def list_storylines(directory=None):
                 "storyline_id": data.get("storyline_id", stem),
                 "title": data.get("title", stem),
                 "description": data.get("description", ""),
+                "tags": list(_storyline_tags(data.get("storyline_tags"))),
             }
         )
+    wanted = set(_storyline_tags(tags))
+    if wanted:
+        matched = [
+            entry
+            for entry in storylines
+            if wanted.intersection(entry["tags"])
+        ]
+        if matched:
+            storylines = sorted(
+                matched,
+                key=lambda entry: -len(
+                    wanted.intersection(entry["tags"])
+                ),
+            )
+        else:
+            logger.info(
+                "list_storylines: нет сюжетов по тегам %s, "
+                "показан полный список",
+                ", ".join(sorted(wanted)),
+            )
     logger.info("list_storylines: найдено сюжетов: %d", len(storylines))
     return storylines
 
@@ -128,6 +163,9 @@ def load_storyline(storyline_id, directory=None):
         "storyline_id": storyline_id,
         "title": main_data.get("title", storyline_id),
         "description": main_data.get("description", ""),
+        "storyline_tags": list(
+            _storyline_tags(main_data.get("storyline_tags"))
+        ),
         "scenario_path": main_data.get("scenario_path", "scenarios/mvp.json"),
         "campaign_template": main_data.get("campaign_template", ""),
         "strategy_path": main_data.get("strategy_path", ""),

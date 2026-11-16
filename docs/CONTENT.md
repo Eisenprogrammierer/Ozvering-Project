@@ -67,13 +67,14 @@
 | `configs/characters/divisions.json` | 15 ролевых делений и культурные пресеты | `campaign.divisions.load_divisions()` | значение в `dimensions.<key>.values`, пресет в `presets` | `label`/`summary`/`values` | значение/пресет (проверить ссылки) |
 | `configs/characters/identity.json` | варианты личности героя | `campaign.identity.load_identity_catalog()` | происхождение/призвание/ценность/слабость/пол в своей секции | `label`/`summary`/`text`, `needs`, `traits` | вариант (проверить, что на него не ссылаются сохранения) |
 | `configs/characters/archetypes.json` | стартовые архетипы: слой, должность, потребности, черты, разделы личности | `campaign.identity.load_archetypes_catalog()` | архетип в `archetypes` | `social_layer`/`start_offices`/`identity_sections` | архетип (проверить `traits`, `needs` и `free_start`) |
-| `configs/storylines/<id>.json` | основной сюжет | `view.support.storyline.load_storyline` | новый `<id>.json` | поля сюжета | файл |
+| `configs/storylines/<id>.json` | основной сюжет; `storyline_tags` задают подбор по роли/архетипу | `view.support.storyline.load_storyline` | новый `<id>.json` | поля сюжета, `storyline_tags` | файл |
 | `configs/storylines/<id>_char.json` | шаги создания персонажа | тот же, по полю `character_creation` | новый файл | `steps` | файл (и ссылку) |
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
-| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 62 действия после слияния каталогов, `norms`, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира, `action_catalogs`, `norms` | файл |
+| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 62 действия после слияния каталогов, 6 сцен, `norms`, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира, `action_catalogs`, `scene_catalog`, `norms` | файл |
 | `configs/worlds/actions/*.json` | открытые каталоги мирских действий; подключаются полем `action_catalogs` и сливаются по `id` после `actions` мира | `campaign.actions.merge_action_catalogs` через `load_world` | новый `*.json` с `actions` | `form`/`target.kinds`/`effects` | файл (проверить `action_catalogs`) |
+| `configs/worlds/scenes/*.json` | локальные сцены: локация, публика, работы, вход/выход, время; подключаются полем `scene_catalog` | `campaign.scenes.SceneCatalog.load` через `load_world` | новый `*.json` с `scenes` | `location`/`public`/`works`/`requires`/`exit`/`time` | файл (проверить `scene_catalog`) |
 | `configs/worlds/*_strategies.json` | долгосрочные стратегии узлов | `campaign.node_strategy.StrategyBook` | новый файл или поле `strategies` | селекторы/цель/веса | файл |
 | `configs/environments/*.json` | многофазные планы среды арены | `core41.environment.load_environment_plan()` | новый файл | `goals`/`ratio`/`horizon` | файл |
 | `configs/worlds/biography.json` | таблицы биографии | `load_biography()` | таблицы | значения | файл (если не нужен) |
@@ -199,7 +200,10 @@
 `character_creation` и `scenes` — это **id соседних файлов** в
 `configs/storylines/` (`mini_char` → `mini_char.json`), а не пути к мирам.
 Необязательные поля основного файла: `world_path`, `strategy_path`,
-`biography_path`, `scenario_path`, `adjutant_orders`.
+`biography_path`, `scenario_path`, `adjutant_orders`,
+`storyline_tags`. Теги — свободные строки; `list_storylines(tags=...)`
+сортирует совпадения по числу общих тегов, а при нулевом совпадении
+возвращает полный список, чтобы выбор сюжета не был пустым.
 
 `list_storylines()` показывает только основные файлы и пропускает
 `*_char.json`/`*_scenes.json`. Если `character_creation` или `scenes`
@@ -207,6 +211,36 @@
 включает редактор личности перед стартом; сейчас так помечены четыре
 лорных сюжета (`empire_campaign`, `republic_campaign`, `cult_campaign`,
 `corporation_campaign`).
+
+### Сцена (`configs/worlds/scenes/<name>.json`)
+
+Сцена не заменяет узел мира: она говорит, кто здесь находится, что здесь
+уместно и по каким правилам сюда входят. `location` ссылается на узел,
+`works` — на существующие `ActionSpec` мира, `public` становится обычными
+персонажами `WorldEngine`.
+
+```json
+{
+  "id": "street",
+  "label": "Улица Агоры",
+  "location": "agora_street",
+  "tags": ["street", "music", "free"],
+  "public": [
+    {"id": "street_piper", "name": "Тим-дудочник", "trust": 0.12}
+  ],
+  "works": ["perform_song", "embrace", "ask_favor"],
+  "requires": {"domains": ["exchange"]},
+  "exit": {"after_days": 3},
+  "time": {"slots": 3}
+}
+```
+
+`requires` поддерживает `attached`, `office_ids`, `domains`,
+`has_office`, `day_min`/`day_max` и `tags_any`; `exit` — `when_detached` и
+`after_days`. `time.slots` — число действий в сцене, остальные поля времени
+берутся из мира. Сцены подключаются к миру полем `scene_catalog` (путь или
+список путей); линтер проверяет структуру, дубли и пустые работы,
+`validate_world()` — ссылки на узлы и действия.
 
 ### Контент UI (`configs/content/<name>.json`)
 

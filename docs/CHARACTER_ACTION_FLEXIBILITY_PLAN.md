@@ -539,12 +539,20 @@ legacy-действия без `form` остаются прямыми эффек
 **Цель:** дать место и историю любому персонажу, а не только лидеру
 фракции.
 
-**Статус (2026-11-15):** частично реализовано. Production-мир
-`agora_world.json` подключён, свободный режим идёт на `WorldEngine`,
-`free_life` — бесконечная песочница с `FreeClock` (скорость `>= 1x`, без
-rewind), глава и `world_outcome` отключены флагами `sandbox`/`realtime`.
-Остаются полноценный `SceneSpec` с локальной публикой, выбор сюжета по
-тегам и перевод `character_actions` на общий `ActionSpec`.
+**Статус (2026-11-16):** реализовано. Production-мир `agora_world.json`
+подключён, свободный режим идёт на `WorldEngine`, `free_life` — бесконечная
+песочница с `FreeClock` (скорость `>= 1x`, без rewind), глава и
+`world_outcome` отключены флагами `sandbox`/`realtime`.
+
+Слой сцены вынесен в `campaign/scenes.py`: `SceneSpec` описывает локацию,
+теги, локальную публику, работы, вход/выход и время; `SceneCatalog`
+загружает `configs/worlds/scenes/*.json`. В поставке шесть сцен — `street`,
+`school`, `temple`, `palace`, `market`, `barracks`; локальная публика
+становится обычными персонажами `WorldEngine` и адресуется через
+`entity_ref`. Работы сцены ссылаются на существующие `ActionSpec` мира, а не
+на второй движок. Сюжет выбирается по `storyline_tags` роли и архетипа через
+`list_storylines(tags=...)`; при отсутствии совпадений список остаётся
+полным. `character_actions` проходят общую нормализацию `ActionSpec`.
 
 **Закрывает:** F-18, F-19, F-22.
 
@@ -580,7 +588,11 @@ rewind), глава и `world_outcome` отключены флагами `sandbo
 - Сюжет для не-лидера добавляется JSON + сцена, без Python.
 - [x] `configs/worlds/` не пуст: production-мир `agora_world.json`
   добавлен; WorldEngine играбелен в свободном режиме.
-- [ ] Остаётся сцена «храм» с ритуалом и отдельные сюжеты по тегам.
+- [x] Сцена «храм» с ритуалом: `offer_sacrifice`, `propose_law`,
+  `perform_song` и локальная публика `temple_keeper`/`temple_singer`/
+  `temple_beggar`.
+- [x] Отдельные сюжеты по тегам: `free_life` и четыре лорных сюжета несут
+  `storyline_tags`; выбор фильтруется и не становится пустым.
 
 **Тесты:**
 

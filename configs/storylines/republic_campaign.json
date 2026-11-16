@@ -2,6 +2,13 @@
   "storyline_id": "republic_campaign",
   "title": "Республика: свобода против тирании",
   "description": "Кампания за Республику: разрушить миф Империи, сохранив процедуру и собственное лицо.",
+  "storyline_tags": [
+    "lore",
+    "republic",
+    "leader",
+    "court",
+    "order"
+  ],
   "campaign_template": "configs/campaigns/republic_campaign.json",
   "campaign_seed": 23,
   "identity_editor": true,

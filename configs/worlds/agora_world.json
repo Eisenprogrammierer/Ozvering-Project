@@ -8,6 +8,7 @@
     "configs/worlds/actions/agora_actions.json",
     "configs/worlds/actions/agora_primitives.json"
   ],
+  "scene_catalog": "configs/worlds/scenes/agora_scenes.json",
   "sandbox": true,
   "realtime": true,
   "seconds_per_day": 120,

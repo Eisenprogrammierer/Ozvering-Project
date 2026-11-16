@@ -25,6 +25,7 @@ from .actions import (
 from .character import CampaignCharacter
 from . import logbook as _logbook
 from .lod import CampaignLod
+from .scenes import SceneCatalog, SceneError, SceneSpec
 from .coalitions import (
     CoalitionBook,
     coalition_config,
@@ -421,6 +422,38 @@ def _forms_for_world(data):
         raise WorldError(str(exc))
 
 
+def _merge_world_scene_catalog(data):
+    """Подключить каталоги сцен к миру (P6).
+
+    ``scene_catalog`` — путь или список путей к JSON-файлам со сценами.
+    Сцены из более позднего файла переопределяют ранние по ``id``.
+    """
+    entry = data.get("scene_catalog")
+    if not entry:
+        return data
+    paths = [entry] if isinstance(entry, str) else list(entry)
+    merged = {}
+    for item in paths:
+        if isinstance(item, str):
+            path = item
+        elif isinstance(item, dict):
+            path = item.get("path")
+        else:
+            path = None
+        if not path:
+            raise WorldError("scene_catalog: нужен путь к JSON")
+        try:
+            catalog = SceneCatalog.load(_resolve_config_path(path))
+        except SceneError as exc:
+            raise WorldError(str(exc))
+        for scene_id, scene in catalog.scenes.items():
+            merged[scene_id] = scene
+    result = dict(data)
+    result["scenes"] = [scene.as_dict() for scene in merged.values()]
+    result.pop("scene_catalog", None)
+    return result
+
+
 def load_world(path=None):
     """Загрузить мир из JSON.
 
@@ -502,6 +535,8 @@ def validate_world(data):
     data = dict(data)
     if data.get("action_catalogs"):
         data = _merge_world_action_catalogs(data)
+    if data.get("scene_catalog"):
+        data = _merge_world_scene_catalog(data)
     data["id"] = _text(data.get("id"), "world")
     data["title"] = _text(data.get("title"), data["id"])
     data["domains"] = list(data.get("domains") or [])
@@ -513,6 +548,7 @@ def validate_world(data):
     data["character_actions"] = list(data.get("character_actions") or [])
     data["items"] = list(data.get("items") or [])
     data["norms"] = list(data.get("norms") or [])
+    data["scenes"] = list(data.get("scenes") or [])
     data["skill_tree"] = dict(data.get("skill_tree") or {})
     _validate_unique(data["domains"], "domains")
     _validate_unique(data["polities"], "polities")
@@ -524,6 +560,7 @@ def validate_world(data):
         ("character_actions", "character_actions"),
         ("items", "items"),
         ("norms", "norms"),
+        ("scenes", "scenes"),
     ):
         if data[key]:
             _validate_unique(data[key], label)
@@ -630,6 +667,36 @@ def validate_world(data):
             raise WorldError(
                 "%s: неизвестная структура %r" % (character["id"], node_id)
             )
+    action_ids = {item["id"] for item in data["actions"]}
+    public_ids = set()
+    for raw_scene in data["scenes"]:
+        try:
+            scene = SceneSpec.from_dict(raw_scene)
+        except SceneError as exc:
+            raise WorldError(str(exc))
+        if scene.location and scene.location not in node_ids:
+            raise WorldError(
+                "%s: неизвестная локация сцены %r"
+                % (scene.id, scene.location)
+            )
+        unknown = [item for item in scene.works if item not in action_ids]
+        if unknown:
+            raise WorldError(
+                "%s: неизвестные работы сцены: %s"
+                % (scene.id, ", ".join(sorted(unknown)))
+            )
+        for person in scene.public:
+            if person.id in public_ids:
+                raise WorldError(
+                    "%s: публика %r объявлена в нескольких сценах"
+                    % (scene.id, person.id)
+                )
+            public_ids.add(person.id)
+            if person.node_id and person.node_id not in node_ids:
+                raise WorldError(
+                    "%s: неизвестная структура публики %r"
+                    % (person.id, person.node_id)
+                )
     for action in data["character_actions"]:
         circles = action.get("circles") or ()
         for circle in circles:
@@ -1096,6 +1163,25 @@ class WorldEngine:
             self._entity_kinds[id(item)] = "item"
         for norm in self.norms.values():
             self._entity_kinds[id(norm)] = "norm"
+        self.scene_catalog = SceneCatalog.from_list(
+            self.config.get("scenes") or (), source=self.config["id"]
+        )
+        self.scene_public_ids = {}
+        for scene in self.scene_catalog:
+            ids = []
+            for person in scene.public:
+                if person.id not in self.characters:
+                    self.characters[person.id] = self._build_character(
+                        person.as_character(scene.location)
+                    )
+                    self.character_order.append(person.id)
+                ids.append(person.id)
+                self._entity_kinds[id(self.characters[person.id])] = (
+                    "character"
+                )
+            self.scene_public_ids[scene.id] = ids
+        self.scene_id = ""
+        self.scene_entered_day = 0
         self.strategies = StrategyBook.from_config(self.config)
         self.strategy_state = {}
         self.labor_market = _normalize_labor_market(
@@ -1448,6 +1534,153 @@ class WorldEngine:
             if self._kind_matches("obligation", kinds):
                 result.append(self.entity_ref(obligation))
         return result
+
+    def scene(self, scene_id=None):
+        """Найти сцену по id или текущую сцену игрока."""
+        if scene_id:
+            return self.scene_catalog.get(scene_id)
+        if self.scene_id:
+            scene = self.scene_catalog.get(self.scene_id)
+            if scene is not None:
+                return scene
+        return self.scene_catalog.for_node(self.player_node_id)
+
+    def scene_for_node(self, node_id):
+        return self.scene_catalog.for_node(node_id)
+
+    def current_scene(self):
+        return self.scene()
+
+    def scene_public(self, scene_id=None):
+        """Именованная публика сцены: локальные люди и жители узла."""
+        scene = self.scene(scene_id)
+        if scene is None:
+            return []
+        ids = list(self.scene_public_ids.get(scene.id) or ())
+        if scene.location:
+            for character_id, character in self.characters.items():
+                if character.get("node_id") != scene.location:
+                    continue
+                if character_id not in ids:
+                    ids.append(character_id)
+        return [
+            self.characters[character_id]
+            for character_id in ids
+            if character_id in self.characters
+        ]
+
+    def scene_actions(self, scene_id=None):
+        """Работы, уместные в сцене; пустой список — весь мир."""
+        scene = self.scene(scene_id)
+        if scene is None:
+            return []
+        work_ids = scene.works or tuple(self.actions)
+        return [
+            self.actions[action_id]
+            for action_id in work_ids
+            if action_id in self.actions
+        ]
+
+    def scene_action_options(self, scene_id=None):
+        scene = self.scene(scene_id)
+        if scene is None:
+            return []
+        allowed = {action["id"] for action in self.scene_actions(scene.id)}
+        return [
+            item
+            for item in self.action_options()
+            if item["id"] in allowed
+        ]
+
+    def scene_time(self, scene_id=None):
+        scene = self.scene(scene_id)
+        data = dict(scene.time) if scene is not None else {}
+        data.setdefault("seconds_per_day", self.seconds_per_day)
+        data.setdefault("actions_per_day", self.actions_per_day)
+        data.setdefault("scene_id", scene.id if scene else "")
+        return data
+
+    def scene_exit_reason(self, scene_id=None):
+        scene = self.scene(scene_id)
+        if scene is None:
+            return ""
+        entered = self.scene_entered_day or None
+        if scene.id == self.scene_id and not entered:
+            entered = self.day
+        return scene.exit_reason(
+            day=self.day, entered_day=entered, attached=self.attached
+        )
+
+    def can_enter_scene(self, scene_id):
+        scene = self.scene_catalog.get(scene_id)
+        if scene is None:
+            return False, "сцена не найдена"
+        if (
+            not scene.remote
+            and scene.location
+            and self.player_node_id
+            and scene.location != self.player_node_id
+        ):
+            return False, "сцена находится в другом месте"
+        office = self.offices.get(self.player_office_id) or {}
+        tags = tuple(office.get("tags") or ())
+        return scene.allows(
+            attached=bool(self.attached),
+            office=office,
+            day=self.day,
+            tags=tags,
+            has_office=bool(self.player_office_id),
+        )
+
+    def enter_scene(self, scene_id):
+        allowed, reason = self.can_enter_scene(scene_id)
+        if not allowed:
+            return {"ok": False, "reason": reason}
+        self.scene_id = _text(scene_id)
+        self.scene_entered_day = self.day
+        scene = self.scene(self.scene_id)
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "scene",
+                "text": "сцена: %s" % (scene.label if scene else scene_id),
+            }
+        )
+        return {
+            "ok": True,
+            "scene": self.scene_view(self.scene_id),
+        }
+
+    def leave_scene(self):
+        previous = self.scene_id
+        self.scene_id = ""
+        self.scene_entered_day = 0
+        if previous:
+            self.log.append(
+                {"day": self.day, "kind": "scene", "text": "сцена завершена"}
+            )
+        return {"ok": True, "scene": self.scene_view()}
+
+    def scene_view(self, scene_id=None):
+        scene = self.scene(scene_id)
+        if scene is None:
+            return {}
+        return {
+            "id": scene.id,
+            "label": scene.label,
+            "description": scene.description,
+            "location": scene.location,
+            "location_label": self.node_label(scene.location),
+            "tags": list(scene.tags),
+            "public": [
+                self.entity_ref(person)
+                for person in self.scene_public(scene.id)
+            ],
+            "works": [action["id"] for action in self.scene_actions(scene.id)],
+            "time": self.scene_time(scene.id),
+            "entered_day": int(self.scene_entered_day or 0),
+            "exit_reason": self.scene_exit_reason(scene.id),
+        }
 
     def action_targets(self, action_id):
         """Все допустимые адресаты объявленного действия."""
@@ -3108,7 +3341,10 @@ class WorldEngine:
             ):
                 self.player_item_ids.append(item_id)
         for item_id in sorted(self.granted_items):
-            if item_id in self.item_catalog and item_id not in self.player_item_ids:
+            if (
+                item_id in self.item_catalog
+                and item_id not in self.player_item_ids
+            ):
                 self.player_item_ids.append(item_id)
         limit = max(1, _as_int(self.config.get("max_items"), 6))
         self.player_item_ids = self.player_item_ids[:limit]
@@ -3815,7 +4051,10 @@ class WorldEngine:
                 changed.append(
                     (
                         "%s · %s"
-                        % (character.get("name", character["id"]), labels[key]),
+                        % (
+                            character.get("name", character["id"]),
+                            labels[key],
+                        ),
                         delta,
                     )
                 )
@@ -5358,7 +5597,11 @@ class WorldEngine:
             action["id"],
             target["id"] if target else None,
             context,
-            target_ref=None if action.get("target", {}).get("self") else target_ref,
+            target_ref=(
+                None
+                if action.get("target", {}).get("self")
+                else target_ref
+            ),
         )
         if not enabled:
             return {"ok": False, "reason": reason}
@@ -6591,6 +6834,10 @@ class WorldEngine:
             "days": self.days,
             "actions_left": self.actions_left,
             "action_count": self.action_count,
+            "scene": {
+                "id": self.scene_id,
+                "entered_day": int(self.scene_entered_day or 0),
+            },
             "profile": dict(self.profile),
             "player": {
                 "node_id": self.player_node_id,
@@ -6697,6 +6944,13 @@ class WorldEngine:
             snapshot.get("actions_left"), self.actions_per_day
         )
         self.action_count = _as_int(snapshot.get("action_count"), 0)
+        scene = snapshot.get("scene") or {}
+        if scene:
+            scene_id = _text(scene.get("id"))
+            self.scene_id = (
+                scene_id if self.scene_catalog.get(scene_id) else ""
+            )
+            self.scene_entered_day = _as_int(scene.get("entered_day"), 0)
         if snapshot.get("profile"):
             self.profile = normalize_profile(snapshot["profile"])
         player = snapshot.get("player") or {}

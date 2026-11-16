@@ -28,7 +28,8 @@ class StorylineSelectScreen(BaseScreen):
         super().__init__(app)
         self.panel = Panel((60, 60, 1160, 600))
         self.role = getattr(app, "selected_role", None)
-        storylines = list_storylines()[:MAX_VISIBLE_STORYLINES]
+        self.tags = self._storyline_tags()
+        storylines = list_storylines(tags=self.tags)[:MAX_VISIBLE_STORYLINES]
         self.storylines = storylines
         self.empty = not storylines
         self.selected_id = (
@@ -63,10 +64,30 @@ class StorylineSelectScreen(BaseScreen):
         )
         self.buttons.extend((self.continue_button, self.back_button))
         logger.info(
-            "Экран выбора сюжета: доступно сюжетов=%d, роль=%s",
+            "Экран выбора сюжета: доступно сюжетов=%d, роль=%s, теги=%s",
             len(storylines),
             getattr(self.role, "id", "—"),
+            ", ".join(self.tags) or "—",
         )
+
+    def _storyline_tags(self):
+        """Теги роли и выбранного архетипа: по ним подбирается сюжет."""
+        tags = list(getattr(self.role, "storyline_tags", ()) or ())
+        archetype_id = (
+            str(getattr(self.app, "selected_archetype_id", "") or "")
+            or str(getattr(self.role, "archetype_id", "") or "")
+        )
+        if archetype_id:
+            try:
+                from campaign.identity import load_archetypes_catalog
+
+                catalog = load_archetypes_catalog()
+                archetype = catalog.get(archetype_id)
+                if archetype is not None:
+                    tags.extend(archetype.storyline_tags)
+            except Exception as exc:  # каталог не должен ломать выбор
+                logger.warning("Теги архетипа недоступны: %s", exc)
+        return tuple(dict.fromkeys(str(tag) for tag in tags if str(tag)))
 
     @property
     def current_entry(self):
@@ -148,6 +169,14 @@ class StorylineSelectScreen(BaseScreen):
             (x + 20, y + 84, width - 40, height - 130),
             TEXT,
         )
+        tags = entry.get("tags") or ()
+        if tags:
+            screen.blit(
+                self.app.font_tiny.render(
+                    "Теги: %s" % ", ".join(tags), True, MUTED
+                ),
+                (x + 20, y + height - 52),
+            )
         screen.blit(
             self.app.font_tiny.render(
                 "Сюжет: %s" % entry["storyline_id"], True, DIM
@@ -166,6 +195,13 @@ class StorylineSelectScreen(BaseScreen):
                 "Роль: %s" % self.role.label, True, ACCENT
             )
             screen.blit(role_line, role_line.get_rect(center=(640, 128)))
+        if self.tags:
+            tag_line = self.app.font_tiny.render(
+                "Подобрано по тегам: %s" % ", ".join(self.tags),
+                True,
+                MUTED,
+            )
+            screen.blit(tag_line, tag_line.get_rect(center=(640, 152)))
         if self.empty:
             msg = self.app.font_small.render(
                 "Пока пусто", True, (150, 150, 160)
