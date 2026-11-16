@@ -55,6 +55,9 @@ class DialogueSession:
         style_id: Optional[str] = None,
         allow_actions: bool = False,
         campaign: Any = None,
+        engine: Any = None,
+        forms: Any = None,
+        allow_improvised: bool = False,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
@@ -99,6 +102,9 @@ class DialogueSession:
             allow_actions=allow_actions,
             social=self.planner.social_engine,
             listener=knowledge.speaker_id,
+            engine=engine,
+            forms=forms,
+            allow_improvised=allow_improvised,
         )
 
     @property

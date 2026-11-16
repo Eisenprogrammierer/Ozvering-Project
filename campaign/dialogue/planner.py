@@ -24,6 +24,8 @@ class Intent:
     action_id: str = ""
     phrase: str = ""
     direction: str = ""
+    form: str = ""
+    verb: str = ""
 
     def snapshot(self) -> Dict[str, Any]:
         return {
@@ -32,6 +34,8 @@ class Intent:
             "target": self.target,
             "action_id": self.action_id,
             "direction": self.direction,
+            "form": self.form,
+            "verb": self.verb,
         }
 
 
@@ -157,6 +161,11 @@ def intent_from_sem(
         target = _entity(sem.get("target"))
     if not target:
         target = _entity(sem.get("until"))
+    if not target:
+        # F-17: у императива «Обними его» адресат лежит в instrument,
+        # а не в object. Это тот же объект действия, просто грамматика
+        # `s_imperative_v_np` называет его инструментом.
+        target = _entity(sem.get("instrument"))
     resolved_action = str(action_id or "")
     if not resolved_action and kind == "order":
         resolved_action = str(sem.get("action") or "")
@@ -167,6 +176,8 @@ def intent_from_sem(
         action_id=resolved_action,
         phrase=str(phrase or ""),
         direction=str(sem.get("direction") or ""),
+        form=str(sem.get("form") or ""),
+        verb=str(sem.get("verb") or resolved_action or ""),
     )
 
 

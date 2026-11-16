@@ -863,6 +863,16 @@ whitelist по P8/P9.
   форме источника. `configs/dialogue/world.json.adapters` объявляет
   реализации, а `factions` остаётся необязательным override. Тесты:
   `tests/test_world_adapters.py` (11).
+- **P5. Живой мост действий.** При `allow_actions=True`
+  `ActionBridge` проходит путь `Intent → ActionSpec → validate → Work`.
+  Объявленное действие (`source: declared`) выполняется через
+  `AutomataCampaign.perform` или `WorldEngine.execute`, а его работа
+  собирается `build_spec_work`. Свободное действие (`source:
+  improvised`) собирается `improvised_work` только при явном
+  `allow_improvised=True` и требует существующую форму и совместимый
+  адресат. `ActionResult` хранит `work` и `trace` (глагол, акт, форма,
+  адресат, источник). `allow_actions=False` остаётся умолчанием.
+  Тесты: `tests/test_d6_bridge.py` (18).
 - **D7.2. Пространство и перемещение.** `configs/dialogue/movement.json`
   задаёт стартовый узел для каждой стороны, явные места
   `organ:<side>:<node>` и `noun:capital`, пороги

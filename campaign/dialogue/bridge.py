@@ -1,10 +1,15 @@
-"""D6.4: мост «фраза → намерение → действие».
+"""D6.4/F-17: мост «фраза → намерение → действие → работа».
 
 Диалог по умолчанию read-only. Мост включается только явным
 ``allow_actions=True`` и только для вызова ``act``: обычный ``ask``
-по-прежнему ничего не меняет. Действие проверяется по публичному
-``available_actions`` кампании, поэтому условия, бюджет и перезарядки
-остаются в одном месте — в ``AutomataCampaign``.
+по-прежнему ничего не меняет.
+
+При включённом мосте действие проходит путь ``Intent → ActionSpec →
+validate → Work``. Объявленное действие (``source: declared``) берётся
+из кампании или ``WorldEngine``; свободное действие (``source:
+improvised``) собирается через ``improvised_work`` только при явном
+``allow_improvised=True``. Каждая попытка оставляет трассировку: глагол,
+речевой акт, форма и адресат.
 """
 
 from __future__ import annotations
@@ -12,6 +17,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, Mapping, Optional
 
+from ..actions import (
+    ActionError,
+    build_spec_work,
+    improvised_work,
+    parse_entity_ref,
+)
 from .planner import GoalPlan, GoalPlanner, Intent, intent_from_sem
 from .social import SocialDecision, social_bindings
 
@@ -28,6 +39,9 @@ class ActionResult:
     intent: Optional[Intent] = None
     plan: Optional[GoalPlan] = None
     result: Mapping[str, Any] = field(default_factory=dict)
+    source: str = ""
+    work: Mapping[str, Any] = field(default_factory=dict)
+    trace: Mapping[str, Any] = field(default_factory=dict)
 
     def snapshot(self) -> dict:
         return {
@@ -36,8 +50,11 @@ class ActionResult:
             "reason": self.reason,
             "action_id": self.action_id,
             "target": self.target,
+            "source": self.source,
             "intent": self.intent.snapshot() if self.intent else None,
             "plan": self.plan.snapshot() if self.plan else None,
+            "work": dict(self.work),
+            "trace": dict(self.trace),
             "result": dict(self.result),
         }
 
@@ -53,6 +70,9 @@ class ActionBridge:
         allow_actions: bool = False,
         social: Any = None,
         listener: str = "",
+        engine: Any = None,
+        forms: Any = None,
+        allow_improvised: bool = False,
     ):
         self.catalog = catalog
         self.campaign = campaign
@@ -60,6 +80,9 @@ class ActionBridge:
         self.allow_actions = bool(allow_actions)
         self.social = social
         self.listener = str(listener or "")
+        self.engine = engine
+        self.forms = forms
+        self.allow_improvised = bool(allow_improvised)
         self.planner = GoalPlanner(catalog)
 
     def intent(
@@ -110,17 +133,62 @@ class ActionBridge:
     ) -> Mapping[str, Any]:
         """Публичные проверки цели: доступность действия плюс внешние."""
 
-        return self._checks(intent, checks)
+        return self._checks(intent, checks, self._target_ref(intent))
 
-    def _option(self, action_id: str) -> Mapping[str, Any]:
-        if self.campaign is None or not self.side:
+    def _option(
+        self,
+        action_id: str,
+        target_ref: Optional[Mapping[str, str]] = None,
+    ) -> Mapping[str, Any]:
+        if not action_id:
             return {}
-        try:
-            options = self.campaign.action_options(self.side)
-        except AttributeError:
-            return {}
-        for item in options or ():
-            if str(item.get("id")) == str(action_id):
+        if self.campaign is not None and self.side:
+            try:
+                options = self.campaign.action_options(self.side)
+            except AttributeError:
+                options = ()
+            for item in options or ():
+                if str(item.get("id")) == str(action_id):
+                    return item
+        if self.engine is not None:
+            try:
+                options = self.engine.action_options(
+                    target_ref=target_ref, include_disabled=True
+                )
+            except (AttributeError, TypeError):
+                options = ()
+            for item in options or ():
+                if str(item.get("id")) == str(action_id):
+                    return item
+            record = (getattr(self.engine, "actions", {}) or {}).get(
+                str(action_id)
+            )
+            if isinstance(record, Mapping):
+                try:
+                    enabled, reason = self.engine.validate(
+                        action_id, target_ref=target_ref
+                    )
+                except (AttributeError, TypeError):
+                    enabled, reason = True, ""
+                return {
+                    "id": str(action_id),
+                    "action": record,
+                    "enabled": bool(enabled),
+                    "reason": str(reason or ""),
+                }
+        return {}
+
+    def _record(self, action_id: str) -> Mapping[str, Any]:
+        option = self._option(action_id)
+        record = option.get("action")
+        if isinstance(record, Mapping):
+            return record
+        for item in (
+            getattr(self.catalog, "actions", {}) or {}
+        ).get("actions") or ():
+            if isinstance(item, Mapping) and str(item.get("id")) == str(
+                action_id
+            ):
                 return item
         return {}
 
@@ -128,15 +196,112 @@ class ActionBridge:
         self,
         intent: Intent,
         checks: Optional[Mapping[str, Any]],
+        target_ref: Optional[Mapping[str, str]] = None,
     ) -> Mapping[str, Any]:
         merged = dict(checks or {})
         merged["action"] = bool(intent.action_id)
-        if self.campaign is not None and intent.action_id:
-            option = self._option(intent.action_id)
+        if intent.action_id:
+            option = self._option(intent.action_id, target_ref)
             merged["available"] = bool(option.get("enabled"))
         else:
             merged["available"] = False
         return merged
+
+    def _form_catalog(self) -> Any:
+        if self.forms is not None:
+            return self.forms or None
+        try:
+            from ..actions import FormCatalog
+
+            self.forms = FormCatalog.load()
+        except Exception:
+            self.forms = False
+        return self.forms or None
+
+    @staticmethod
+    def _target_ref(intent: Intent) -> Optional[Mapping[str, str]]:
+        target = str(intent.target or "")
+        if not target or target in ("self", "me", "я"):
+            return None
+        try:
+            return parse_entity_ref(target)
+        except ActionError:
+            return None
+
+    @staticmethod
+    def _spec(record: Mapping[str, Any], action_id: str) -> dict:
+        """Собрать ``ActionSpec`` из записи кампании или движка.
+
+        Берутся только поля работы: id, label, form, template, cost и
+        hints. Адресат кампании (``rival``/``self``) не является
+        ``entity_ref`` и в спецификацию не попадает.
+        """
+
+        data = record if isinstance(record, Mapping) else {}
+        template = data.get("template")
+        template = dict(template) if isinstance(template, Mapping) else {}
+        form = str(data.get("form") or template.get("form") or "")
+        spec = {
+            "id": str(data.get("id") or action_id),
+            "label": str(data.get("label") or action_id),
+            "template": template,
+        }
+        if form:
+            spec["form"] = form
+            template.setdefault("form", form)
+        cost = data.get("cost")
+        if isinstance(cost, Mapping):
+            spec["cost"] = dict(cost)
+        hints = data.get("hints")
+        if isinstance(hints, Mapping):
+            spec["hints"] = dict(hints)
+        return spec
+
+    @staticmethod
+    def _trace(
+        intent: Intent,
+        source: str,
+        action_id: str,
+        form: str,
+        target_ref: Optional[Mapping[str, str]] = None,
+    ) -> dict:
+        token = intent.phrase.strip().split()
+        verb = token[0].lower() if token else str(intent.verb or "")
+        if verb.startswith("act_"):
+            verb = verb[4:]
+        target = str(intent.target or "")
+        if not target and target_ref:
+            target = "%s:%s" % (target_ref.get("kind"), target_ref.get("id"))
+        return {
+            "source": source,
+            "verb": verb,
+            "act": intent.act,
+            "action": action_id,
+            "form": form,
+            "target": target,
+            "phrase": intent.phrase,
+        }
+
+    def _execute(
+        self,
+        intent: Intent,
+        target_ref: Optional[Mapping[str, str]],
+    ) -> Mapping[str, Any]:
+        action_id = str(intent.action_id)
+        engine_actions = getattr(self.engine, "actions", {}) or {}
+        if self.engine is not None and action_id in engine_actions:
+            kwargs = {"target_ref": target_ref} if target_ref else {}
+            return dict(self.engine.execute(action_id, **kwargs) or {})
+        if self.campaign is not None and self.side:
+            return dict(
+                self.campaign.perform(
+                    self.side,
+                    action_id,
+                    target=intent.target or None,
+                )
+                or {}
+            )
+        return {"ok": False, "reason": "no_campaign"}
 
     def perform(
         self,
@@ -157,7 +322,7 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
             )
-        if self.campaign is None:
+        if self.campaign is None and self.engine is None:
             return ActionResult(
                 ok=False,
                 performed=False,
@@ -166,7 +331,7 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
             )
-        if not self.side:
+        if self.campaign is not None and not self.side:
             return ActionResult(
                 ok=False,
                 performed=False,
@@ -175,28 +340,91 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
             )
-        if not intent.action_id:
-            return ActionResult(
-                ok=False,
-                performed=False,
-                reason="no_action",
-                target=intent.target,
-                intent=intent,
+        if intent.action_id:
+            resolved = self.resolve(intent.action_id)
+            if resolved != intent.action_id:
+                intent = replace(intent, action_id=resolved)
+        target_ref = self._target_ref(intent)
+        option = (
+            self._option(intent.action_id, target_ref)
+            if intent.action_id
+            else {}
+        )
+        if option:
+            return self._perform_declared(
+                intent, option, checks=checks, target_ref=target_ref
             )
-        resolved = self.resolve(intent.action_id)
-        if resolved != intent.action_id:
-            intent = replace(intent, action_id=resolved)
-        option = self._option(intent.action_id)
-        if not option:
+        if not self.allow_improvised:
             return ActionResult(
                 ok=False,
                 performed=False,
-                reason="action_unknown",
+                reason="action_unknown" if intent.action_id else "no_action",
                 action_id=intent.action_id,
                 target=intent.target,
                 intent=intent,
             )
-        merged = self._checks(intent, checks)
+        if not intent.form:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="action_unknown" if intent.action_id else "no_action",
+                action_id=intent.action_id,
+                target=intent.target,
+                intent=intent,
+            )
+        return self._perform_improvised(
+            intent, checks=checks, target_ref=target_ref
+        )
+
+    def _perform_declared(
+        self,
+        intent: Intent,
+        option: Mapping[str, Any],
+        checks: Optional[Mapping[str, Any]] = None,
+        target_ref: Optional[Mapping[str, str]] = None,
+    ) -> ActionResult:
+        record = option.get("action")
+        if not isinstance(record, Mapping):
+            record = self._record(intent.action_id)
+        spec = self._spec(record, intent.action_id)
+        form = str(spec.get("form") or "")
+        work = None
+        try:
+            work = build_spec_work(spec, campaign=self.campaign)
+        except ActionError as exc:
+            trace = self._trace(
+                intent, "declared", intent.action_id, form, target_ref
+            )
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="work_invalid: %s" % exc,
+                action_id=intent.action_id,
+                target=intent.target,
+                intent=intent,
+                source="declared",
+                trace=trace,
+            )
+        trace = self._trace(
+            intent,
+            "declared",
+            intent.action_id,
+            form or (work.form if work is not None else ""),
+            target_ref,
+        )
+        work_data = work.as_dict() if work is not None else {}
+        if work is None and form:
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="work_not_built",
+                action_id=intent.action_id,
+                target=intent.target,
+                intent=intent,
+                source="declared",
+                trace=trace,
+            )
+        merged = self._checks(intent, checks, target_ref)
         plan = self.plan(intent, checks=merged)
         if plan is not None and plan.status == "blocked":
             return ActionResult(
@@ -207,6 +435,9 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
                 plan=plan,
+                source="declared",
+                work=work_data,
+                trace=trace,
             )
         if not option.get("enabled"):
             return ActionResult(
@@ -217,13 +448,12 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
                 plan=plan,
+                source="declared",
+                work=work_data,
+                trace=trace,
             )
         try:
-            result = self.campaign.perform(
-                self.side,
-                intent.action_id,
-                target=intent.target or None,
-            )
+            result = self._execute(intent, target_ref)
         except AttributeError:
             return ActionResult(
                 ok=False,
@@ -233,6 +463,9 @@ class ActionBridge:
                 target=intent.target,
                 intent=intent,
                 plan=plan,
+                source="declared",
+                work=work_data,
+                trace=trace,
             )
         data = dict(result or {})
         ok = bool(data.get("ok"))
@@ -245,6 +478,103 @@ class ActionBridge:
             intent=intent,
             plan=plan,
             result=data,
+            source="declared",
+            work=work_data,
+            trace=trace,
+        )
+
+    def _perform_improvised(
+        self,
+        intent: Intent,
+        checks: Optional[Mapping[str, Any]] = None,
+        target_ref: Optional[Mapping[str, str]] = None,
+    ) -> ActionResult:
+        """Собрать свободную работу, если политика её разрешает.
+
+        Импровизация не обходит проверки: нужна существующая форма и
+        совместимый адресат. План помечается ``source: improvised``.
+        Применение свободной работы выполняет исполнитель, если он
+        предоставляет ``execute_work``/``execute_spec``; иначе мост
+        возвращает готовый план для трассировки и не меняет мир.
+        """
+
+        action_id = intent.action_id or "improvised"
+        spec = {
+            "id": action_id,
+            "label": intent.phrase or "Свободное действие",
+            "form": intent.form,
+            "target": target_ref,
+        }
+        try:
+            work = improvised_work(
+                spec,
+                forms=self._form_catalog(),
+                campaign=self.campaign,
+                enabled=True,
+            )
+        except ActionError as exc:
+            trace = self._trace(
+                intent, "improvised", action_id, intent.form, target_ref
+            )
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="improvised_invalid: %s" % exc,
+                action_id=action_id,
+                target=intent.target,
+                intent=intent,
+                source="improvised",
+                trace=trace,
+            )
+        if work is None:
+            trace = self._trace(
+                intent, "improvised", action_id, intent.form, target_ref
+            )
+            return ActionResult(
+                ok=False,
+                performed=False,
+                reason="improvised_invalid",
+                action_id=action_id,
+                target=intent.target,
+                intent=intent,
+                source="improvised",
+                trace=trace,
+            )
+        trace = self._trace(
+            intent, "improvised", action_id, work.form, target_ref
+        )
+        work_data = work.as_dict()
+        result: Mapping[str, Any] = {
+            "ok": True,
+            "performed": False,
+            "source": "improvised",
+            "work": work_data,
+        }
+        executor = None
+        if self.engine is not None:
+            executor = getattr(self.engine, "execute_work", None)
+        if executor is None and self.campaign is not None:
+            executor = getattr(self.campaign, "execute_work", None)
+        if callable(executor):
+            try:
+                applied = dict(executor(work) or {})
+            except Exception as exc:  # pragma: no cover - защита моста
+                applied = {"ok": False, "reason": str(exc)}
+            result = dict(applied)
+            result.setdefault("source", "improvised")
+            result.setdefault("work", work_data)
+        performed = bool(result.get("performed", result.get("ok", False)))
+        return ActionResult(
+            ok=bool(result.get("ok", True)),
+            performed=performed,
+            reason=str(result.get("reason") or ""),
+            action_id=action_id,
+            target=intent.target,
+            intent=intent,
+            result=result,
+            source="improvised",
+            work=work_data,
+            trace=trace,
         )
 
     # --- D7.1: речевые действия как действия ------------------------

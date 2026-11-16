@@ -18,10 +18,12 @@ from campaign.dialogue.loader import DEFAULT_DIR, load_dialogue
 from campaign.dialogue.planner import Intent
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
+from campaign.world import WorldEngine, build_player_profile, load_world
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "configs" / "campaigns" / "empire_campaign.json"
 COMMAND = "Приказываю Республику."
+WORLDS = ROOT / "configs" / "worlds"
 
 
 @pytest.fixture
@@ -177,3 +179,146 @@ def test_session_plan_goal_reflects_checks(session):
     )
     assert blocked is not None and blocked.status == "blocked"
     assert allowed is not None and allowed.next_step().id == "act"
+
+
+# --- F-17: declared / improvised / trace -----------------------------
+
+
+def test_declared_result_carries_work_and_trace(catalog, campaign):
+    bridge = ActionBridge(
+        catalog,
+        campaign=campaign,
+        side="red",
+        allow_actions=True,
+    )
+    result = bridge.perform(
+        Intent(
+            kind="order",
+            action_id="show_of_force",
+            target="faction:blue",
+            phrase="Покажи силу",
+        )
+    )
+    assert result.ok is True
+    assert result.performed is True
+    assert result.source == "declared"
+    assert result.work["form"] == "coercion"
+    assert result.work["amount"] > 0
+    assert result.trace["source"] == "declared"
+    assert result.trace["verb"] == "покажи"
+    assert result.trace["action"] == "show_of_force"
+    assert result.trace["form"] == "coercion"
+    assert result.trace["target"] == "faction:blue"
+    assert result.snapshot()["trace"] == result.trace
+
+
+def test_improvised_requires_explicit_permission(catalog, campaign):
+    bridge = ActionBridge(
+        catalog,
+        campaign=campaign,
+        side="red",
+        allow_actions=True,
+    )
+    result = bridge.perform(
+        Intent(
+            kind="order",
+            action_id="act_hug",
+            form="contact",
+            target="character:mira",
+            phrase="Обними его",
+        )
+    )
+    assert result.ok is False
+    assert result.performed is False
+    assert result.reason == "action_unknown"
+    assert result.work == {}
+    bare = bridge.perform(
+        Intent(kind="order", form="contact", target="character:mira")
+    )
+    assert bare.ok is False
+    assert bare.reason == "no_action"
+    assert bare.work == {}
+
+
+def test_improvised_builds_work_when_allowed(catalog, campaign):
+    bridge = ActionBridge(
+        catalog,
+        campaign=campaign,
+        side="red",
+        allow_actions=True,
+        allow_improvised=True,
+    )
+    result = bridge.perform(
+        Intent(
+            kind="order",
+            action_id="act_hug",
+            form="contact",
+            target="character:mira",
+            phrase="Обними его",
+        )
+    )
+    assert result.ok is True
+    assert result.performed is False
+    assert result.source == "improvised"
+    assert result.work["form"] == "contact"
+    assert result.work["meta"]["source"] == "improvised"
+    assert result.trace["source"] == "improvised"
+    assert result.trace["verb"] == "обними"
+    assert result.trace["form"] == "contact"
+    assert result.trace["target"] == "character:mira"
+    assert result.result["source"] == "improvised"
+
+
+def test_improvised_rejects_incompatible_target(catalog, campaign):
+    bridge = ActionBridge(
+        catalog,
+        campaign=campaign,
+        side="red",
+        allow_actions=True,
+        allow_improvised=True,
+    )
+    result = bridge.perform(
+        Intent(
+            kind="order",
+            action_id="act_hug",
+            form="contact",
+            target="norm:agora_charter",
+            phrase="Обними закон",
+        )
+    )
+    assert result.ok is False
+    assert result.performed is False
+    assert "improvised_invalid" in result.reason
+    assert result.source == "improvised"
+
+
+def test_declared_world_engine_action_runs_through_bridge(catalog):
+    engine = WorldEngine(
+        load_world(WORLDS / "agora_world.json"),
+        profile=build_player_profile({"name": "Тест"}, seed=7),
+        node_id="agora_street",
+        office_id="street_musician",
+        seed=7,
+    )
+    assert engine.attach("agora_street", "street_musician")["ok"] is True
+    engine._roll = lambda token: 0.0
+    target = engine.action_targets("hug")[0]
+    bridge = ActionBridge(
+        catalog,
+        engine=engine,
+        allow_actions=True,
+    )
+    result = bridge.perform(
+        Intent(
+            kind="order",
+            action_id="hug",
+            target="%s:%s" % (target["kind"], target["id"]),
+            phrase="Обними его",
+        )
+    )
+    assert result.ok is True
+    assert result.performed is True
+    assert result.source == "declared"
+    assert result.trace["action"] == "hug"
+    assert result.trace["form"] == "care"
+    assert result.result["target_label"]

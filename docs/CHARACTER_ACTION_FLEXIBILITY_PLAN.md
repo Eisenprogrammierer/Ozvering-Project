@@ -437,9 +437,9 @@ legacy-действия без `form` остаются прямыми эффек
 
 **Закрывает:** F-12, F-13, F-14, F-15, F-16, F-17, F-23.
 
-**Статус (2026-11-16):** в P5 закрыты F-23, F-13, F-14, F-12 и F-15.
-F-23 — призма восприятия (`campaign/perception.py`, провенанс `Fact`,
-opt-in `build_knowledge(..., view=...)`). F-13 —
+**Статус (2026-11-16):** в P5 закрыты F-23, F-13, F-14, F-12, F-15,
+F-16 и F-17. F-23 — призма восприятия (`campaign/perception.py`,
+провенанс `Fact`, opt-in `build_knowledge(..., view=...)`). F-13 —
 `campaign/dialogue/projection.py`: реестр `actions.json` собирается из
 `ActionSpec`, ручные записи остаются override, дубликаты фраз не
 перехватываются. F-14 — 12 речевых актов: к пяти исходным добавлены
@@ -455,8 +455,11 @@ F-12 — лексикон и грамматика под DoD-фразы: мес�
 протокол `WorldView` (`entities`, `relations`, `perceived`, `believed`,
 `recent_work`, `unknown`) и адаптеры `AutomataCampaignAdapter`,
 `WorldEngineAdapter`, `SceneAdapter`; `world.json.adapters` объявляет
-реализации, `factions` — необязательный override. Остаётся F-17
-(живой мост).
+реализации, `factions` — необязательный override. F-17 — живой мост:
+при `allow_actions=True` путь `Intent → ActionSpec → validate → Work`,
+`source: declared` для кампании/`WorldEngine` и `source: improvised`
+через `improvised_work` при явном `allow_improvised=True`; трассировка
+хранит глагол, акт, форму и адресата.
 
 **Работы:**
 

@@ -127,7 +127,7 @@
 │ ДИАЛОГ                                                               │
 │  лексикон/грамматика закрыты (F-12) · actions проецируются (F-13)   │
 │  12 social-актов (F-14) · answer kinds в реестре (F-15)             │
-│  адаптеры мира (F-16) · мост только к объявленному (F-17)            │
+│  адаптеры мира (F-16) · мост declared/improvised (F-17)             │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼──────────────────────────────────────┐
@@ -660,22 +660,37 @@ override: произвольная сторона кампании работа�
 
 #### F-17. Мост к действиям выключен и принимает только объявленное — S2
 
-**Что умирает:** диалог не может стать основным способом действия; даже
-включённый мост не выполнит действие, которого нет в кампании.
+**Статус 2026-11-16:** закрыт в P5. `allow_actions=False` остаётся
+безопасным умолчанием, а при включении мост проходит путь
+`Intent → ActionSpec → validate → Work`:
 
-**Доказательства:**
+- объявленное действие (`source: declared`) берётся из кампании или
+  `WorldEngine` и по-прежнему проверяется публичным
+  `action_options`/`validate`, поэтому бюджет, перезарядки и условия
+  остаются в одном месте;
+- свободное действие (`source: improvised`) собирается
+  `improvised_work` только при явном `allow_improvised=True`; нужна
+  существующая форма, валидный `entity_ref` и совместимый адресат;
+- каждая попытка оставляет трассировку: глагол, речевой акт, форма,
+  адресат и `source`. `ActionResult.snapshot()` сохраняет `work` и
+  `trace`, так что мост можно аудировать без обращения к внутренностям
+  кампании.
 
-- `campaign/dialogue/bridge.py:53` — `allow_actions=False` по умолчанию.
-- `campaign/dialogue/bridge.py:151` и `:316` — проверки `allow_actions`.
-- `campaign/dialogue/engine.py:56` — `DialogueSession(allow_actions=False)`.
-- `campaign/dialogue/engine.py:158` — при выключенном мосте `act`
-  возвращает план, а не результат.
-- `campaign/dialogue/bridge.py` — `ActionBridge.resolve` идёт через
-  `actions.json` и `campaign.available_actions`.
+`WorldEngine` стал вторым исполнителем моста: объявленное действие мира
+выполняется через `execute`, а адресат передаётся как `entity_ref`.
+Свободная работа возвращает готовый план и меняет мир только при
+наличии явного исполнителя (`execute_work`/`execute_spec`).
 
-**Причина разрыва:** read-only по умолчанию — правильная политика
-безопасности, но обратная сторона — отсутствие пути «намерение →
-валидация → работа» для нового действия.
+**Что умирает:** включённый мост больше не ограничен ручным списком
+объявленных действий и не теряет след того, как фраза превратилась в
+работу.
+
+**Доказательства:** `campaign/dialogue/bridge.py` (`ActionResult.work`,
+`ActionResult.trace`, `_spec`, `_perform_declared`,
+`_perform_improvised`); `campaign/dialogue/planner.py` (`Intent.form`,
+`Intent.verb`, адресат из `instrument`); `tests/test_d6_bridge.py`
+(18) — disabled, declared, improvised при разрешении/запрете,
+несовместимый адресат, трассировка и живой `WorldEngine`.
 
 ---
 
@@ -892,13 +907,13 @@ P0 (канон) и P5 (реализация).
 | F-08 | Нет адресации любой сущности — **`entity_ref` (P3), UI — P6** | S1 | `campaign/actions.py`, `world.py` |
 | F-09 | Нет телесности/ритуала/закона/искусства — **закрыто для мира (P4)** | S1 | `agora_primitives.json`, `forms.json` |
 | F-10 | Эффекты — только проекции — **`item`/`norm`/`obligation` (P4)** | S3 | `world.py`, `effects.py` |
-| F-11 | Нет свободного действия из намерения — **`improvised_work` (P3), диалог — P5** | S2 | `bridge.py`, `available_actions` |
+| F-11 | Нет свободного действия из намерения — **`improvised_work` (P3), мост P5/F-17** | S2 | `bridge.py`, `available_actions` |
 | F-12 | Лексикон/грамматика — **закрыто для DoD в P5** | S2 | `lexicon.json`, `grammar.json`, `ontology.json`; `tests/test_d6_flexible_grammar.py` |
 | F-13 | `actions.json` — **проекция каталога в P5** | S2 | `campaign/dialogue/projection.py`; `tests/test_dialogue_projection.py` |
 | F-14 | `social.json` — **12 актов в P5** | S3 | `configs/dialogue/social.json`; `tests/test_d7_social_acts.py` |
 | F-15 | `answer.type` — **реестр `answer_kinds.json` в P5** | S3 | `configs/dialogue/answer_kinds.json`; `tests/test_answer_registry.py` |
 | F-16 | `world.json` — **адаптеры `WorldView` в P5** | S2 | `campaign/perception.py`; `configs/dialogue/world.json.adapters`; `tests/test_world_adapters.py` |
-| F-17 | Мост выключен, только declared | S2 | `bridge.py:53,151` |
+| F-17 | Мост — **declared/improvised + trace в P5** | S2 | `campaign/dialogue/bridge.py`; `tests/test_d6_bridge.py` |
 | F-18 | WorldEngine легаси; production-мир добавлен, но поток остаётся дневным | S2 | `campaign/world.py`, `configs/worlds/agora_world.json` |
 | F-19 | character_actions ограничены | S3 | `world.py:868,2990` |
 | F-20 | Данные не покрывают архетипы — **работы P4 есть, оси отношений — P5/P6** | S3 | 16 needs, 7 assets, 34 relations |
@@ -909,10 +924,10 @@ P0 (канон) и P5 (реализация).
 **Итого после P1–P7 и P5:** F-01…F-23 закрыты в слое данных. В P5
 закрыты F-23 (призма восприятия), F-13 (проекция каталога действий),
 F-14 (12 речевых актов), F-12 (лексикон/грамматика под DoD-фразы),
-F-15 (реестр типов ответа) и F-16 (адаптеры мира). Пользовательские
-хвосты (кампании автоматов, UI-адресация, диалоговый мост, эмоциональные
-оси и живой мост F-17) отмечены в карточках ниже и остаются работами
-P5/P6.
+F-15 (реестр типов ответа), F-16 (адаптеры мира) и F-17 (живой мост
+declared/improvised). Пользовательские хвосты (кампании автоматов,
+UI-адресация, эмоциональные оси) отмечены в карточках ниже и остаются
+работами P6.
 
 ---
 
