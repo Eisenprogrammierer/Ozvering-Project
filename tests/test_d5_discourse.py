@@ -95,6 +95,31 @@ def test_lint_discourse_clean(tmp_path):
     assert discourse_problems == []
 
 
+def test_lint_requires_reason_in_text_for_because(tmp_path):
+    directory = _copy_configs(tmp_path)
+    path = directory / "plans.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for plan in data["plans"]:
+        if plan["id"] == "belief_why":
+            plan["answer"].pop("reason_in_text", None)
+            break
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    problems = lint_directory(directory)
+    assert any("reason_in_text" in item for item in problems)
+
+
+def test_lint_rejects_lowercase_glue_on_plain_connective(tmp_path):
+    directory = _copy_configs(tmp_path)
+    path = directory / "discourse.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["connectives"]["connective:official_plain"][
+        "lowercase_glue"
+    ] = True
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    problems = lint_directory(directory)
+    assert any("lowercase_glue" in item for item in problems)
+
+
 # --- нейтральный путь -----------------------------------------------
 
 

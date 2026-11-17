@@ -312,6 +312,33 @@ def test_topic_can_be_disabled_json_only(tmp_path):
     assert moves[0]["id"] == "answer"
 
 
+def test_clause_connective_is_lowercased(tmp_path):
+    catalog = _catalog(_copy_configs(tmp_path))
+    planner = _planner(catalog, style_id="friendly")
+    result = planner._discourse(_answer_with_reason())
+    assert ", потому " in result.text
+    assert ", Потому " not in result.text
+
+
+def test_reason_in_text_skips_justify_move(tmp_path):
+    catalog = _catalog(_copy_configs(tmp_path))
+    planner = _planner(catalog, style_id="official")
+    answer = Answer(
+        "explanation",
+        "Империя сильна.",
+        "p1",
+        data={
+            "reason": "эдикт объявил её мятежом",
+            "reason_args": ("faction:red", "faction:blue"),
+            "reason_in_text": True,
+        },
+    )
+    result = planner._discourse(answer)
+    moves = (result.data or {}).get("moves") or ()
+    assert [move["id"] for move in moves] == ["answer"]
+    assert result.text.lower().count("эдикт объявил") == 0
+
+
 # --- D5.4: topics --------------------------------------------------
 
 

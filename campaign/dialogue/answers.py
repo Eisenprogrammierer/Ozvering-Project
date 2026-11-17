@@ -542,10 +542,14 @@ class AnswerPlanner:
             return []
         entities = self._answer_entities_for_anaphora(answer)
         ordered = self._ordered_moves(pattern)
+        data = dict(answer.data or {})
+        reason_in_text = bool(data.get("reason_in_text"))
         result: List[Dict[str, Any]] = []
         for move_id in ordered:
             spec = discourse.move(move_id)
             if spec is None:
+                continue
+            if reason_in_text and str(spec.source or "") == "reason":
                 continue
             text, act = self._move_text(spec, answer)
             if not text:
@@ -837,6 +841,7 @@ class AnswerPlanner:
         prefix = str(self.answers.get(prefix_key, "")) if prefix_key else ""
         max_premises = self._max_premises(plan)
         reasons = self._reasons_for(solution.proof, max_premises)
+        reason_in_text = bool(plan.answer.get("reason_in_text"))
         text = statement
         if str(plan.answer.get("explain_with") or "") == "because":
             if reasons:
@@ -858,6 +863,7 @@ class AnswerPlanner:
                 "reason": reasons[0] if reasons else "",
                 "reasons": tuple(reasons),
                 "reason_args": resolved,
+                "reason_in_text": reason_in_text,
             },
         )
 

@@ -231,7 +231,8 @@
         "missing": "unknown",
         "prefix_key": "why_prefix",
         "explain_with": "because",
-        "max_premises": 1
+        "max_premises": 1,
+        "reason_in_text": true
       }
     },
     {
@@ -306,7 +307,8 @@
         "statement": "war_reason",
         "missing": "unknown",
         "prefix_key": "",
-        "max_premises": 1
+        "max_premises": 1,
+        "reason_in_text": true
       }
     },
     {

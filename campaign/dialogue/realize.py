@@ -428,6 +428,12 @@ class Realizer:
             else:
                 glue = str(connective.get("text") or ".")
                 mode = str(connective.get("mode") or "plain")
+                if (
+                    mode == "clause"
+                    and bool(connective.get("lowercase_glue"))
+                    and glue[:1].isupper()
+                ):
+                    glue = glue[:1].lower() + glue[1:]
                 if bool(connective.get("lowercase_next")):
                     next_text = (
                         next_text[:1].lower() + next_text[1:]

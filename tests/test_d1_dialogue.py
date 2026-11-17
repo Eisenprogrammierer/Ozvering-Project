@@ -103,6 +103,30 @@ def test_war_reason_comes_from_rule(red):
     assert answer.proof[0].rule == "war_reason_legitimacy"
 
 
+@pytest.mark.parametrize("style", ["official", "friendly", "romantic"])
+@pytest.mark.parametrize(
+    "query,marker",
+    [
+        ("Почему Империя считает Республику незаконной?", "лидер фракции"),
+        ("Почему Империя воюет с Республикой?", "спора о законности"),
+    ],
+)
+def test_styled_explanation_does_not_repeat_reason(
+    catalog, campaign, style, query, marker
+):
+    session = DialogueSession(
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id=style,
+    )
+    answer = session.ask(query)
+    assert answer.kind == "explanation"
+    assert marker in answer.text.lower()
+    assert answer.text.lower().count(marker) == 1
+    moves = (answer.data or {}).get("moves") or ()
+    assert all(move["id"] != "justify" for move in moves)
+
+
 def test_organs_list_is_deterministic_and_named(red):
     first = red.ask("Какие органы есть у Империи?")
     second = red.ask("Какие органы есть у Империи?")

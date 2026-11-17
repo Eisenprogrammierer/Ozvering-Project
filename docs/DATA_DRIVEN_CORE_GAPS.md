@@ -44,9 +44,9 @@
 | G-18 | закрыто (арена и кампания); мир — 4b | `campaign/work.py` + `campaign/handlers.py` + `apply_report`; `core41.arena.resolve_work` → `_receive_channel`; остаток — [`WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) §0.1 |
 | G-19 | закрыто (D0–D5.4, D3.2, D6.2a–d, D6.3, D6.4) | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md): диалог без LLM; контрфакты сквозные |
 | G-20 | закрыто | `style_context.json`, `StyleEngine.resolve_for_context` |
-| G-21 | закрыто (для числовых) | `comparison.json`, `_answer_comparison` |
+| G-21 | закрыто | `comparison.json`, `_answer_comparison` (числа и шкала) |
 | G-22 | закрыто | `discourse.anaphora`, `_apply_anaphora` |
-| G-23 | закрыто (механизм) | `discourse.connectives.mode`, `pattern.topic`, `render_moves` |
+| G-23 | закрыто | `discourse.connectives.mode`, `pattern.topic`, `render_moves`, `reason_in_text`, `lowercase_glue` |
 
 Остальные находки (G-06, G-08 в части ширины контекста, G-10, G-11,
 G-13, G-14) остаются открытыми. Орган-в-органе по `parent_id` и петля
@@ -882,8 +882,8 @@ D5.2 закрывает разрыв: регистр выбирается по �
 
 ### G-23. Связки: `discourse.connectives.mode`
 
-**Low. Закрыто 2026-11-14 (D5.3) для механизма; остаётся долг на
-данные.**
+**Low. Закрыто 2026-11-14 (D5.3) для механизма и 2026-11-17 для
+формы `reason`.**
 
 До D5.3 дискурсивный слой склеивал ходы через связки, но все связки
 работали как разделитель предложений: `A. При этом B.` Не было способа
@@ -903,14 +903,20 @@ D5.2 закрывает разрыв: регистр выбирается по �
 * Линтер `_discourse_problems` проверяет `mode` и `topic`.
 * Тесты `tests/test_d5_discourse_paragraph.py`.
 
+**Что сделано 2026-11-17 (форма `reason`):**
+
+- `Answer.data.reason_in_text` — план объявляет, что причина уже
+  выражена в тексте ответа. `_build_moves` тогда пропускает ход
+  `justify`, и причина не дублируется. `explain_with: "because"`
+  требует `reason_in_text: true` (линтер).
+- `discourse.connectives[].lowercase_glue` — связка `mode: clause`
+  встраивается со строчной буквы: «…, потому что …»,
+  «…, следовательно …». Линтер разрешает поле только для `clause`.
+- Production-планы `belief_why` и `war_why` объявляют
+  `reason_in_text: true`: их statement уже содержит причину.
+
 **Что осталось разрывом:**
 
-- `because` в правилах вывода возвращает самостоятельное предложение
-  («Империя всегда побеждает»), а не клаузу. С `mode: clause` это
-  даёт «Империя сильна, потому что Империя всегда побеждает» — не
-  идеально грамматически. В D6 планируется валидация формы `reason`:
-  либо требовать клаузу (с явным союзом), либо оставлять
-  `mode: plain` для таких `reason`.
 - `topic` сейчас один на паттерн. Механизм `topics: [...]` для абзаца
   4+ ходов (D5.4) реализован и покрыт тестами, но production-паттерна
   с `topics` нет.

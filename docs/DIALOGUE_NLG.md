@@ -654,13 +654,17 @@ whitelist по P8/P9.
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 
 - `discourse.connectives[].mode: "plain" | "clause"`.
+- `discourse.connectives[].lowercase_glue` — для `clause` связка
+  встраивается со строчной буквы: «…, потому что …».
 - `discourse.patterns[].topic`.
+- `Answer.data.reason_in_text` — причина уже в тексте ответа, ход
+  `justify` пропускается (иначе она дублировалась).
 - `discourse.anaphora` — `enabled`, `types`, `kinds`, `pronouns`,
   `min_length`.
 - `_apply_anaphora` в `realize.py`.
 - `_answer_entities_for_anaphora`/`_fallback_entities` в `answers.py`.
 - Линтер `_anaphora_problems`.
-- Тесты `tests/test_d5_discourse_paragraph.py` — 16 тестов (D5.3 и D5.4).
+- Тесты `tests/test_d5_discourse_paragraph.py` — 18 тестов (D5.3 и D5.4).
 
 #### D5.4. Дискурсивная агрегация абзаца (4+ хода) — механизм закрыт
 
@@ -987,7 +991,7 @@ style_context.json` (автовыбор).
 | Комбинаторный взрыв разбора | Ограничения chart, beam по правилам, таймаут → уточнение |
 | Морфология не покрывает имена | `pymorphy3` + `synthesis.word_forms`, линтер ссылок |
 | Ответы звучат шаблонно | Регистровый реализатор + дискурсивный слой (D5.1–D5.4) |
-| `mode: clause` даёт грамматическую нестыковку, если `because` — самостоятельное предложение | В D5.3 `topic: justify` + регистрозависимая склейка; в D6 планируется валидация формы `reason` |
+| `mode: clause` даёт грамматическую нестыковку, если `because` — самостоятельное предложение | `lowercase_glue` и `reason_in_text`: причина либо в тексте ответа, либо отдельным ходом со строчной связкой |
 | Антиповтор связок может выбрать неожиданный регистр | `avoid_recent` ограничен N ходами, линтер проверяет |
 | Анафора заменяет имя в неожиданном месте | Сравнение регистронезависимое, только в ходе 2+, только в `kinds`, только `types` |
 | Новый домен требует правки Python | `world.adapter`, конструкции и поля в JSON, тест на новый домен |

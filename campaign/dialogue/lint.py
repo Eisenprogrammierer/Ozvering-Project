@@ -271,6 +271,24 @@ def _plan_problems(
                     problems.append(
                         "%s: max_premises должен быть >= 1" % where
                     )
+            explain_with = str(answer.get("explain_with") or "")
+            if explain_with not in ("", "because"):
+                problems.append(
+                    "%s: explain_with=%r, ожидается because"
+                    % (where, explain_with)
+                )
+            reason_in_text = answer.get("reason_in_text")
+            if reason_in_text is not None and not isinstance(
+                reason_in_text, bool
+            ):
+                problems.append(
+                    "%s: reason_in_text должен быть true/false" % where
+                )
+            if explain_with == "because" and not reason_in_text:
+                problems.append(
+                    "%s: explain_with=because встраивает reason в текст, "
+                    "нужен reason_in_text: true" % where
+                )
         if kind == "comparison":
             comparison_relation = str(answer.get("relation") or "")
             if not comparison_relation.startswith("$"):
@@ -2194,6 +2212,17 @@ def _discourse_problems(
             problems.append(
                 "%s.mode: неизвестный режим %r" % (where, mode)
             )
+        lowercase_glue = connective.get("lowercase_glue")
+        if lowercase_glue is not None:
+            if not isinstance(lowercase_glue, bool):
+                problems.append(
+                    "%s.lowercase_glue: ожидалось true/false" % where
+                )
+            elif mode != "clause":
+                problems.append(
+                    "%s.lowercase_glue: имеет смысл только для "
+                    "mode=clause" % where
+                )
     problems.extend(_anaphora_problems(catalog))
     return problems
 

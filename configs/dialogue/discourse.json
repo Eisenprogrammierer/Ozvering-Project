@@ -79,6 +79,7 @@
       "priority": 10,
       "position": "between",
       "mode": "clause",
+      "lowercase_glue": true,
       "lowercase_next": true
     },
     "connective:official_plain": {
@@ -102,6 +103,7 @@
       "priority": 10,
       "position": "between",
       "mode": "clause",
+      "lowercase_glue": true,
       "lowercase_next": true
     },
     "connective:report_basis": {
@@ -124,6 +126,7 @@
       "priority": 15,
       "position": "between",
       "mode": "clause",
+      "lowercase_glue": true,
       "lowercase_next": true
     },
     "connective:friendly_because": {
@@ -132,6 +135,7 @@
       "priority": 15,
       "position": "between",
       "mode": "clause",
+      "lowercase_glue": true,
       "lowercase_next": true
     },
     "connective:friendly_well": {
@@ -148,6 +152,7 @@
       "priority": 15,
       "position": "between",
       "mode": "clause",
+      "lowercase_glue": true,
       "lowercase_next": true
     },
     "connective:hostile_flat": {
