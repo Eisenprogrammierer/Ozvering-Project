@@ -244,7 +244,9 @@
   `TextGame`/`ConsoleEntry`, история реплик, откат через снимок
   состояния и `AutomataCampaign.save_snapshot/load_snapshot`,
   подсказки из `actions.json` по публичному `available_actions`.
-  Команды, сообщения и лимит истории — `configs/dialogue/console.json`.
+  Команды, сообщения и лимит истории — `configs/dialogue/console.json`;
+  `/смысл <фраза>` (`/sense`) — read-only подсказка по базе фактов
+  здравого смысла (акты, режимы, стиль).
   CLI: `python -m campaign.dialogue.textgame --allow-actions`.
   Тесты — `tests/test_d7_console.py`.
 - **D7.1. Речевые действия как действия. Сделано.** `social.json`
@@ -370,8 +372,8 @@
 - [x] `tests/test_d6_lexicon.py` — 4 теста (дубли `aliases` ⊇
   `forms`, линтер, удалённый лишний псевдоним, полезный псевдоним),
   зелёные.
-- [x] `tests/test_d7_console.py` — 19 тестов (история, откат,
-  подсказки, команды, lint), зелёные.
+- [x] `tests/test_d7_console.py` — 22 теста (история, откат,
+  подсказки, команды, `/смысл`, lint), зелёные.
 - [x] `tests/test_d7_social.py` — 19 тестов (гейты authority/trusts,
   пять interactions, TextGame-маршрутизация, откат, lint), зелёные.
 - [x] `tests/test_d7_movement.py` — 17 тестов (данные и lint,
@@ -416,8 +418,15 @@
 - [x] `campaign/commonsense.py`: загрузка, индекс, `classify`,
   `effects_of`, `classes_of`/`properties_of`/`uses_of`, `lookup`,
   `related`, линтер и CLI `python -m campaign.commonsense`.
-- [x] `tests/test_commonsense.py` — 14 тестов, зелёные.
-- [ ] Подключение к диалогу: использовать `classify` как источник
-  кандидатов для корпуса парафраз и подсказки режима/стиля. Решение
-  о месте хука — после расширения грамматики, чтобы не тащить
-  поверхностное совпадение в канонический разбор.
+- [x] `tests/test_commonsense.py` — 17 тестов, зелёные.
+- [x] Подключение к диалогу: `classify` даёт кандидатов для корпуса
+  парафраз (11 записей с `"source": "commonsense"`) и подсказку
+  режима/стиля. Команда консоли `/смысл <фраза>` (`/sense`) показывает
+  акты, режимы и стиль, не меняя мир; `schema.json.style_hints`
+  связывает режим со стилем ответа. Тесты — `test_d7_console.py`,
+  `test_d6_paraphrases.py`.
+- [ ] Runtime-хук стиля: применять `style_hints` к ответу, когда
+  разбор/классификация уверенно даёт режим разговора. Нужен явный
+  приоритет относительно `style_context.json`, чтобы не перебивать
+  отношения и полномочия. Поверхностное совпадение в канонический
+  разбор не тащим — место хука после расширения грамматики.

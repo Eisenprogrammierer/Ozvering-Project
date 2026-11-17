@@ -138,6 +138,27 @@ def test_help_and_aliases(game):
     assert "/undo" in game.submit("/?").reply
 
 
+def test_sense_command_reports_act_mode_and_style(game):
+    entry = game.submit("/смысл Прости меня, я был неправ")
+    assert entry.kind == "command"
+    assert "apology" in entry.reply
+    assert "режимы: consolation" in entry.reply
+    assert "подсказка стиля: friendly" in entry.reply
+    assert game.submit("/sense Ты дурак").reply.count("hostile") == 1
+
+
+def test_sense_command_requires_phrase(game):
+    entry = game.submit("/смысл")
+    assert entry.kind == "command"
+    assert "Напишите фразу" in entry.reply
+
+
+def test_sense_command_handles_unknown_phrase(game):
+    entry = game.submit("/смысл абракадабра")
+    assert entry.kind == "command"
+    assert "не распознано" in entry.reply
+
+
 def test_history_command(game):
     assert game.submit("/history").reply
     game.submit("Какие органы есть у Империи?")

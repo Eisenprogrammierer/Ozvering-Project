@@ -59,6 +59,14 @@
     "poetry",
     "quarrel"
   ],
+  "style_hints": {
+    "argument": "official",
+    "consolation": "friendly",
+    "flirtation": "romantic",
+    "insult": "hostile",
+    "poetry": "romantic",
+    "quarrel": "hostile"
+  },
   "languages": [
     "ru"
   ],

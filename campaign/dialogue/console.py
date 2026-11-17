@@ -12,6 +12,8 @@ import copy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
+from ..commonsense import CommonsenseError, default_factbase
+
 
 @dataclass(frozen=True)
 class ConsoleEntry:
@@ -64,6 +66,10 @@ class TextGame:
         self.entries: List[ConsoleEntry] = []
         self._undo: List[Dict[str, Any]] = []
         self.closed = False
+        try:
+            self.senses = default_factbase()
+        except CommonsenseError:
+            self.senses = None
 
     def _messages(self) -> Mapping[str, Any]:
         return self.spec.get("messages") or {}
@@ -236,6 +242,10 @@ class TextGame:
             )
         if name == "hint":
             return ConsoleEntry("command", text, self.hint())
+        if name == "sense":
+            parts = text.strip().split(None, 1)
+            phrase = parts[1].strip() if len(parts) > 1 else ""
+            return self.sense(phrase)
         if name == "look":
             return self.look()
         return ConsoleEntry(
@@ -270,6 +280,38 @@ class TextGame:
         if not phrases:
             return self._message("hint_empty")
         return self._message("hint_prefix") + "; ".join(phrases)
+
+    def sense(self, phrase: str) -> ConsoleEntry:
+        """Подсказать акты, режим и стиль фразы по фактам здравого смысла."""
+
+        value = str(phrase or "").strip()
+        if not value:
+            return ConsoleEntry(
+                "command", value, self._message("sense_empty")
+            )
+        if self.senses is None:
+            return ConsoleEntry(
+                "command", value, self._message("sense_unavailable")
+            )
+        reading = self.senses.classify(value)
+        if not reading.acts and not reading.modes:
+            return ConsoleEntry(
+                "command", value, self._message("sense_none")
+            )
+        lines = [self._message("sense_header") % value]
+        if reading.acts:
+            lines.append(
+                self._message("sense_acts") % ", ".join(reading.acts)
+            )
+        if reading.modes:
+            lines.append(
+                self._message("sense_modes") % ", ".join(reading.modes)
+            )
+        if reading.styles:
+            lines.append(
+                self._message("sense_style") % ", ".join(reading.styles)
+            )
+        return ConsoleEntry("command", value, "\n".join(lines))
 
     def history(self) -> Tuple[ConsoleEntry, ...]:
         return tuple(self.entries)

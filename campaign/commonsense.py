@@ -105,6 +105,7 @@ class Reading:
     text: str
     acts: Tuple[str, ...] = ()
     modes: Tuple[str, ...] = ()
+    styles: Tuple[str, ...] = ()
     evidence: Tuple[Fact, ...] = field(default_factory=tuple)
 
     def as_dict(self) -> Dict[str, Any]:
@@ -112,6 +113,7 @@ class Reading:
             "text": self.text,
             "acts": list(self.acts),
             "modes": list(self.modes),
+            "styles": list(self.styles),
             "evidence": [fact.as_dict() for fact in self.evidence],
         }
 
@@ -128,6 +130,7 @@ class FactBase:
         self.facts: Tuple[Fact, ...] = tuple(facts)
         self.acts = tuple(self.schema.get("acts") or ())
         self.modes = tuple(self.schema.get("modes") or ())
+        self.style_hints = dict(self.schema.get("style_hints") or {})
         self.relations = tuple(self.schema.get("relations") or ())
         self._by_subject: Dict[str, List[Fact]] = {}
         self._by_object: Dict[str, List[Fact]] = {}
@@ -211,6 +214,11 @@ class FactBase:
     def uses_of(self, entity: str) -> Tuple[Fact, ...]:
         return self.lookup(subject=entity, relation="UsedFor")
 
+    def style_for(self, mode: str) -> str:
+        """Подсказка стиля для режима разговора, если она объявлена."""
+
+        return str(self.style_hints.get(str(mode)) or "")
+
     def classify(self, text: str) -> Reading:
         """Распознать речевые акты и режимы по фразам-маркерам."""
 
@@ -243,6 +251,13 @@ class FactBase:
                 best_modes.items(), key=lambda item: (-item[1][0], item[0])
             )
         )
+        styles = tuple(
+            dict.fromkeys(
+                self.style_for(mode)
+                for mode in modes
+                if self.style_for(mode)
+            )
+        )
         evidence = tuple(
             dict.fromkeys(
                 [fact for _, fact in best_acts.values()]
@@ -253,6 +268,7 @@ class FactBase:
             text=str(text or ""),
             acts=acts,
             modes=modes,
+            styles=styles,
             evidence=evidence,
         )
 
@@ -295,6 +311,23 @@ def load_schema(directory: Optional[pathlib.Path] = None) -> Dict[str, Any]:
     for key in ("acts", "modes", "languages", "origins", "files"):
         if not isinstance(raw.get(key), (list, Mapping)) or not raw.get(key):
             raise CommonsenseError("%s: пустой %s" % (path, key))
+    hints = raw.get("style_hints")
+    if hints is not None:
+        if not isinstance(hints, Mapping):
+            raise CommonsenseError(
+                "%s: style_hints должен быть объектом" % path
+            )
+        unknown = sorted(set(hints) - set(raw.get("modes") or ()))
+        if unknown:
+            raise CommonsenseError(
+                "%s: style_hints ссылается на неизвестные режимы %s"
+                % (path, ", ".join(unknown))
+            )
+        for key, value in hints.items():
+            if not str(value or "").strip():
+                raise CommonsenseError(
+                    "%s: style_hints.%s пуст" % (path, key)
+                )
     return dict(raw)
 
 
@@ -407,6 +440,18 @@ def load_commonsense(
     return FactBase(facts, schema)
 
 
+_DEFAULT_BASE: Optional[FactBase] = None
+
+
+def default_factbase() -> FactBase:
+    """Ленивый общий экземпляр для консоли и утилит."""
+
+    global _DEFAULT_BASE
+    if _DEFAULT_BASE is None:
+        _DEFAULT_BASE = load_commonsense()
+    return _DEFAULT_BASE
+
+
 def lint_commonsense(
     directory: Optional[pathlib.Path] = None,
 ) -> List[str]:
@@ -459,6 +504,7 @@ def _print_reading(reading: Reading) -> None:
     print("фраза: %s" % reading.text)
     print("акты: %s" % (", ".join(reading.acts) or "—"))
     print("режимы: %s" % (", ".join(reading.modes) or "—"))
+    print("стиль: %s" % (", ".join(reading.styles) or "—"))
     if reading.evidence:
         print("основания:")
         for fact in reading.evidence:

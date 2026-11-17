@@ -216,3 +216,49 @@ def test_cli_check_and_classify(capsys):
 def test_normalize_handles_case_yo_and_spaces():
     assert normalize("  Ёлка   ПРИВЕТ  ") == "елка привет"
     assert normalize("«Спасибо!»") == "спасибо"
+
+
+def test_mode_styles_are_data_driven():
+    base = load_commonsense()
+    assert base.style_for("flirtation") == "romantic"
+    assert base.style_for("insult") == "hostile"
+    assert base.style_for("nonsense") == ""
+    assert base.classify("Ты жалкий дурак.").styles == ("hostile",)
+    assert base.classify("Не плачь, я рядом.").styles == ("friendly",)
+    assert base.classify(
+        "Мне нужен твой аргумент и доказательство."
+    ).styles == ("official",)
+
+
+def test_linter_reports_unknown_style_hint_mode(tmp_path):
+    target = _copy_data(tmp_path)
+    path = target / "schema.json"
+    schema = json.loads(path.read_text(encoding="utf-8"))
+    schema["style_hints"]["nonsense"] = "hostile"
+    path.write_text(
+        json.dumps(schema, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    problems = lint_commonsense(target)
+    assert any("неизвестные режимы" in item for item in problems)
+
+
+def test_paraphrase_corpus_takes_phrases_from_commonsense():
+    base = load_commonsense()
+    known = {
+        normalize(fact.s)
+        for fact in base.by_relation("IsA")
+        if fact.o in base.acts
+    }
+    corpus = json.loads(
+        (
+            ROOT / "configs" / "dialogue" / "paraphrases.json"
+        ).read_text(encoding="utf-8")
+    )
+    linked = [
+        entry
+        for entry in corpus["phrases"]
+        if entry.get("source") == "commonsense"
+    ]
+    assert len(linked) >= 10
+    for entry in linked:
+        assert normalize(entry["text"]) in known, entry["text"]

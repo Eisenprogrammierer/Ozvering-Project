@@ -362,6 +362,89 @@
       "text": "Открой больницы.",
       "kind": "order",
       "expect": {"action": "open_hospitals"}
+    },
+    {
+      "id": "greeting_zdravstvuyte",
+      "text": "Здравствуйте.",
+      "kind": "greeting",
+      "expect": {"id": "hello"},
+      "source": "commonsense"
+    },
+    {
+      "id": "greeting_good_evening",
+      "text": "Добрый вечер.",
+      "kind": "greeting",
+      "expect": {"id": "hello"},
+      "source": "commonsense"
+    },
+    {
+      "id": "greeting_good_morning",
+      "text": "Доброе утро.",
+      "kind": "greeting",
+      "expect": {"id": "hello"},
+      "source": "commonsense"
+    },
+    {
+      "id": "greeting_privetstvuyu",
+      "text": "Приветствую.",
+      "kind": "greeting",
+      "expect": {"id": "hello"},
+      "source": "commonsense"
+    },
+    {
+      "id": "farewell_proshchay",
+      "text": "Прощай.",
+      "kind": "farewell",
+      "expect": {"id": "bye"},
+      "source": "commonsense"
+    },
+    {
+      "id": "order_kiss",
+      "text": "Поцелуй меня.",
+      "kind": "order",
+      "expect": {"action": "act_kiss"},
+      "source": "commonsense"
+    },
+    {
+      "id": "social_beg_pardon",
+      "text": "Извиняюсь.",
+      "kind": "social",
+      "expect": {"act": "beg_pardon"},
+      "source": "commonsense"
+    },
+    {
+      "id": "social_oath_honor",
+      "text": "Клянусь честью.",
+      "kind": "social",
+      "expect": {
+        "act": "oath",
+        "object.head.entity": "noun:honor"
+      },
+      "source": "commonsense"
+    },
+    {
+      "id": "social_offer_deal",
+      "text": "Предлагаю сделку.",
+      "kind": "social",
+      "expect": {
+        "act": "offer",
+        "object.head.entity": "concept:deal"
+      },
+      "source": "commonsense"
+    },
+    {
+      "id": "assert_promise",
+      "text": "Я обещаю.",
+      "kind": "assert",
+      "expect": {"predicate": "promise", "subject.head": "self"},
+      "source": "commonsense"
+    },
+    {
+      "id": "assert_apology",
+      "text": "Я извиняюсь.",
+      "kind": "assert",
+      "expect": {"predicate": "beg_pardon", "subject.head": "self"},
+      "source": "commonsense"
     }
   ]
 }
