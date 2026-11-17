@@ -40,7 +40,8 @@
     "work_organ": "work_organ",
     "belief": "belief",
     "intention": "intention",
-    "recent_work": "recent_work"
+    "recent_work": "recent_work",
+    "has_leverage": "has_leverage"
   },
   "adapters": {
     "automata_campaign": {
@@ -82,6 +83,7 @@
       "recent_work": "visible",
       "has_authority": "self",
       "trusts": "self",
+      "has_leverage": "self",
       "romance_with": "self",
       "kin_of": "public",
       "ritual_bound_to": "visible",
@@ -97,6 +99,9 @@
     "morale",
     "energy"
   ],
+  "leverage": {
+    "kinds": ["debt", "evidence"]
+  },
   "relations": {
     "allied_with": 2,
     "asset": 3,

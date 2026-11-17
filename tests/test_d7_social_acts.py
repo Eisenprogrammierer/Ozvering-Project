@@ -56,6 +56,7 @@ def test_social_catalog_has_extended_acts(catalog):
         "command",
         "promise",
         "threat",
+        "blackmail",
         "offer",
         "apology",
         "flirt",

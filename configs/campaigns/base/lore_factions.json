@@ -92,7 +92,15 @@
           "title": "Начальник Генерального штаба",
           "archetype": "veteran",
           "force": 13.0,
-          "organ_id": "imperial_staff"
+          "organ_id": "imperial_staff",
+          "leverage": [
+            {
+              "creditor": "player",
+              "kind": "evidence",
+              "amount": 1.0,
+              "note": "Архивная расписка о поставках через посредника: компромат на начальника штаба."
+            }
+          ]
         },
         {
           "id": "justice",

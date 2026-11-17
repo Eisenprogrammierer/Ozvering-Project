@@ -625,6 +625,15 @@ def build_knowledge(
                 player_character, speaker, player_entity, speaker_id
             )
         )
+        add(
+            _leverage_fact(
+                rel("has_leverage"),
+                world,
+                campaign,
+                player_entity,
+                speaker_id,
+            )
+        )
         if _allied(player_character, speaker):
             add(_fact(rel("trusts"), player_entity, speaker_id))
 
@@ -704,6 +713,45 @@ def _authority_fact(
     if player_post and speaker_post and player_post != speaker_post:
         return _fact("has_authority", player_id, speaker_id)
     return _fact("has_authority", "", "")
+
+
+def _leverage_fact(
+    relation: str,
+    world: Mapping[str, Any],
+    campaign: Any,
+    player_id: str,
+    speaker_id: str,
+) -> Fact:
+    """Факт ``has_leverage(player, speaker)`` по журналу обязательств.
+
+    Рычаг — это открытое обязательство, где кредитор — герой, а должник —
+    собеседник. Виды обязательств, которые считаются рычагом, заданы
+    данными: ``world.leverage.kinds``. Пустой список видов означает «любой
+    вид». Без журнала или без подходящей записи факт не выставляется —
+    ``SocialEngine`` честно откажет по ``has_leverage``.
+    """
+
+    leverage = world.get("leverage")
+    leverage = leverage if isinstance(leverage, Mapping) else {}
+    kinds = {
+        _text(item)
+        for item in (leverage.get("kinds") or ())
+        if _text(item)
+    }
+    ledger = getattr(campaign, "obligations", None)
+    if ledger is None:
+        return _fact(relation, "", "")
+    player_refs = {value for value in (player_id, "player") if value}
+    for obligation in ledger.open():
+        creditor = _text(getattr(obligation, "creditor", ""))
+        debtor = _text(getattr(obligation, "debtor", ""))
+        kind = _text(getattr(obligation, "kind", ""))
+        if creditor not in player_refs or debtor != speaker_id:
+            continue
+        if kinds and kind not in kinds:
+            continue
+        return _fact(relation, player_id, speaker_id)
+    return _fact(relation, "", "")
 
 
 def _allied(player: Any, speaker: Any) -> bool:

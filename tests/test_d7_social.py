@@ -28,6 +28,7 @@ TEMPLATE = ROOT / "configs" / "campaigns" / "empire_campaign.json"
 COMMAND = "Приказываю атаку."
 PROMISE = "Обещаю сделку."
 THREAT = "Угрожаю Республике."
+BLACKMAIL = "Шантажирую тебя."
 OFFER = "Предлагаю переговоры."
 APOLOGY = "Сожалею о войне."
 
@@ -74,6 +75,7 @@ def test_social_acts_bind_campaign_interactions(catalog):
         "command": "social_command",
         "promise": "social_promise",
         "threat": "social_threat",
+        "blackmail": "social_threat",
         "offer": "social_offer",
         "apology": "social_apology",
         "flirt": "social_offer",
@@ -117,6 +119,85 @@ def test_trusts_fact_derived_for_own_faction(catalog):
     knowledge = build_knowledge(catalog, campaign, "red", "char_red_002")
     facts = [fact.args for fact in knowledge.facts_for("trusts")]
     assert ("char_red_001", "char_red_002") in facts
+
+
+def test_leverage_fact_derived_from_open_obligation(catalog):
+    campaign = _campaign()
+    knowledge = build_knowledge(catalog, campaign, "red", "char_red_002")
+    facts = [fact.args for fact in knowledge.facts_for("has_leverage")]
+    assert ("char_red_001", "char_red_002") in facts
+    entries = campaign.obligation_view("char_red_002")["entries"]
+    assert entries
+    assert entries[0]["kind"] == "evidence"
+    assert entries[0]["creditor"] == "player"
+    assert entries[0]["debtor"] == "char_red_002"
+
+
+def test_blackmail_performs_with_leverage(catalog):
+    campaign = _campaign()
+    result = _session(catalog, campaign).act(BLACKMAIL)
+    assert result.ok is True
+    assert result.performed is True
+    assert result.action_id == "social_threat"
+    social = result.result["social"]
+    assert social["act_id"] == "blackmail"
+    assert social["admissible"] is True
+    assert social["reaction_id"] == "accept"
+
+
+def test_blackmail_rejected_without_leverage(catalog):
+    campaign = _campaign()
+    before = campaign.snapshot()
+    session = _session(catalog, campaign, character_id="char_red_003")
+    result = session.act(BLACKMAIL)
+    assert result.performed is False
+    assert result.reason == "has_leverage"
+    assert campaign.snapshot() == before
+
+
+def test_blackmail_disappears_after_fulfillment(catalog):
+    campaign = _campaign()
+    entries = campaign.obligation_view("char_red_002")["entries"]
+    assert campaign.fulfill_obligation(entries[0]["id"]) is not None
+    knowledge = build_knowledge(catalog, campaign, "red", "char_red_002")
+    facts = [fact.args for fact in knowledge.facts_for("has_leverage")]
+    assert ("char_red_001", "char_red_002") not in facts
+    result = _session(catalog, campaign).act(BLACKMAIL)
+    assert result.performed is False
+    assert result.reason == "has_leverage"
+
+
+def test_leverage_ignores_non_leverage_kinds(catalog):
+    campaign = _campaign()
+    entries = campaign.obligation_view("char_red_002")["entries"]
+    assert campaign.cancel_obligation(entries[0]["id"]) is not None
+    campaign.add_obligation("player", "char_red_002", "favor")
+    knowledge = build_knowledge(catalog, campaign, "red", "char_red_002")
+    facts = [fact.args for fact in knowledge.facts_for("has_leverage")]
+    assert ("char_red_001", "char_red_002") not in facts
+    result = _session(catalog, campaign).act(BLACKMAIL)
+    assert result.performed is False
+    assert result.reason == "has_leverage"
+
+
+def test_obligations_roundtrip_and_old_save_clears(catalog):
+    campaign = _campaign()
+    generator = CampaignPresetGenerator(
+        catalog=RoleCatalog.load(ROOT / "configs" / "roles"),
+        template_path=TEMPLATE,
+    )
+    preset = generator.generate(seed=13)
+    payload = campaign.save_snapshot()
+    restored = AutomataCampaign(preset, snapshot=payload)
+    assert (
+        restored.obligation_view("char_red_002")["summary"]
+        == campaign.obligation_view("char_red_002")["summary"]
+    )
+    legacy = dict(payload)
+    legacy.pop("obligations", None)
+    old = AutomataCampaign(preset, snapshot=legacy)
+    assert len(old.obligations) == 0
+    assert old.obligation_view("char_red_002")["entries"] == []
 
 
 def test_lint_rejects_bad_interaction_id(tmp_path, catalog):

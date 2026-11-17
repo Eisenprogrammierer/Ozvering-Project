@@ -318,9 +318,39 @@ def social_bindings(
             entity = _nested_entity(value)
             if entity:
                 bindings[key] = str(entity)
+            elif key == "object" and _nested_head(value) in (
+                "you_sg",
+                "you_pl",
+            ):
+                listener = bindings.get("listener")
+                if listener:
+                    bindings[key] = listener
         elif isinstance(value, str) and value:
             bindings[key] = value
     return bindings
+
+
+def _nested_head(value: Any) -> str:
+    """Достать строковый заголовок NP (например, ``you_sg``)."""
+
+    seen = set()
+    current: Any = value
+    while isinstance(current, Mapping) and id(current) not in seen:
+        seen.add(id(current))
+        head = current.get("head")
+        if isinstance(head, str) and head:
+            return head
+        if isinstance(head, Mapping):
+            entity = head.get("entity")
+            if isinstance(entity, str) and entity:
+                return entity
+            current = head
+            continue
+        nested = current.get("object")
+        if not isinstance(nested, Mapping):
+            return ""
+        current = nested
+    return ""
 
 
 def _nested_entity(value: Any) -> str:

@@ -559,10 +559,13 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
 * **D7.1 сделан.** `social.json` связывает акты с
   `character_interactions` (`social_command`, `social_promise`,
   `social_threat`, `social_offer`, `social_apology`). `SocialEngine`
-  проверяет `has_authority`/`trusts`; `ActionBridge.perform_social`
-  вызывает публичный метод кампании только при `allow_actions=True`,
-  `TextGame` направляет social-фразы в `act`. `has_leverage` пока не
-  выводится.
+  проверяет `has_authority`/`trusts`/`has_leverage`;
+  `ActionBridge.perform_social` вызывает публичный метод кампании
+  только при `allow_actions=True`, `TextGame` направляет
+  social-фразы в `act`. `has_leverage` выводится из открытых
+  обязательств (`creditor=player`, `debtor=собеседник`), виды рычага
+  заданы в `world.json.leverage.kinds`, а `blackmail` переиспользует
+  `social_threat`.
 * **D7.2 сделан.** `movement.json` задаёт стартовые узлы, места
   (органы и `noun:capital`), пороги `near/middle/far` и сообщения.
   `MovementGuide` строит маршрут по `MetricGraph` стороны игрока,
@@ -588,8 +591,8 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
-* Открыты расширение доменных псевдонимов по мере контента и хвост
-  `has_leverage` (нужны данные/правило).
+* Открыты расширение доменных псевдонимов по мере контента и
+  runtime-хук стилевых подсказок; `has_leverage` закрыт.
 * `tests/test_d3_counterfactual.py` покрывает D3.2, D6.2a–c;
   `tests/test_d6_grammar.py`, `tests/test_d6_parse_beam.py` и
   `tests/test_d6_paraphrases.py` — D6.2d, `tests/test_d6_lexicon.py` —

@@ -829,14 +829,17 @@ whitelist по P8/P9.
   взаимодействия — данные `character_interactions` в
   `configs/campaigns/base/automata_defaults.json` и
   `lore_factions.json`. `SocialEngine` проверяет `has_authority`
-  (приказ) и `trusts` (обещание/предложение); отказ по гейту не
-  трогает мир. `ActionBridge.perform_social` вызывает публичный
-  `perform_character_interaction` только при `allow_actions=True`,
-  `DialogueSession.act` пишет эффект реакции в `ConversationState`.
-  `has_leverage` объявлен, но факты пока не выводятся.
-- Тесты: `tests/test_d7_social.py` (19) — пять interactions, гейты
-  authority/trusts, отказ без кампании и при выключенных действиях,
-  TextGame-маршрутизация, откат, линтер.
+  (приказ), `trusts` (обещание/предложение) и `has_leverage` (шантаж);
+  отказ по гейту не трогает мир. `ActionBridge.perform_social`
+  вызывает публичный `perform_character_interaction` только при
+  `allow_actions=True`, `DialogueSession.act` пишет эффект реакции в
+  `ConversationState`. `has_leverage` выводится из открытых
+  обязательств (`creditor=player`, `debtor=собеседник`), виды рычага
+  заданы в `world.json.leverage.kinds`, а акт `blackmail`
+  переиспользует interaction `social_threat`.
+- Тесты: `tests/test_d7_social.py` (26) — пять interactions, гейты
+  authority/trusts/leverage, отказ без кампании и при выключенных
+  действиях, TextGame-маршрутизация, откат, линтер.
 - **P5. Проекция действий, лексикон и новые речевые акты.**
   `campaign/dialogue/projection.py` собирает реестр `actions.json` из
   любого каталога `ActionSpec` (`id`, `label`, `aliases`, явные
@@ -929,7 +932,9 @@ whitelist по P8/P9.
   видимость, работы из `log` без дубля, виды событий, fallback,
   важность/формы/исходы, лимит и хронология, пустота/no campaign,
   read-only, `/look` и откат.
-- Открыт только хвост `has_leverage` (факты не выводятся с D7.1).
+- D7.1 закрыт полностью: `has_leverage` выводится из открытых
+  обязательств, акт `blackmail` проходит гейт и переиспользует
+  `social_threat`.
 
 Остальное открыто:
 
@@ -939,7 +944,6 @@ whitelist по P8/P9.
 * Производительность и лимиты.
 * Использование `differences` в тексте контрфакта («изменилось бы
   потому, что …»).
-* Хвост `has_leverage`: нужен явный источник данных и правило.
 * Императивные фразы и псевдонимы действий расширяются данными;
   текстовая RPG D7.0–D7.4 закрыта.
 
@@ -1044,4 +1048,4 @@ style_context.json` (автовыбор).
 D0–D5.4, D6.1, D3.2, D6.2d, D6.3, D6.4 и D7.0–D7.4 закрыты; текстовая RPG
 получила речевые действия, перемещение, время и описание сцены через мост.
 Дальше — дальнейшее расширение корпуса парафраз и доменных псевдонимов
-данными, а также хвост `has_leverage` (нужен явный источник и правило).
+данными.

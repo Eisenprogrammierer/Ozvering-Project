@@ -506,6 +506,12 @@
       "answer": {"type": "social", "act": "threat"}
     },
     {
+      "id": "social_blackmail",
+      "priority": 90,
+      "match": {"kind": "social", "act": "blackmail"},
+      "answer": {"type": "social", "act": "blackmail"}
+    },
+    {
       "id": "social_offer",
       "priority": 90,
       "match": {"kind": "social", "act": "offer"},

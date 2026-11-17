@@ -644,6 +644,15 @@
       "sem": {"kind": "social", "act": "threat", "object": "$object"}
     },
     {
+      "id": "s_social_blackmail",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "V", "as": "verb", "features": {"lemma": "шантажировать"}},
+        {"cat": "NP", "as": "object"}
+      ],
+      "sem": {"kind": "social", "act": "blackmail", "object": "$object"}
+    },
+    {
       "id": "s_social_offer",
       "lhs": "S",
       "rhs": [

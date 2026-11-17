@@ -523,6 +523,14 @@ def _make_character(
             item.as_dict() for item in character.bdi.intentions
         ],
         "deliberate_target": deliberate_target,
+        "leverage": [
+            dict(item)
+            for item in (
+                list(defaults.get("leverage") or ())
+                + list(post_data.get("leverage") or ())
+            )
+            if isinstance(item, Mapping)
+        ],
         "morale": round(morale, 3),
         "seed": int(char_seed),
         "is_player": bool(is_player),

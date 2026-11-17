@@ -39,6 +39,18 @@
       "taboo": [],
       "reactions": ["reject", "counter", "evade", "clarify"]
     },
+    "blackmail": {
+      "id": "blackmail",
+      "label": "шантаж",
+      "match": {"kind": "social", "act": "blackmail"},
+      "proposition": {"speaker": "$speaker", "object": "$object"},
+      "validity": [
+        {"rel": "has_leverage", "args": ["$speaker", "$listener"]}
+      ],
+      "interaction": "social_threat",
+      "taboo": [],
+      "reactions": ["accept", "reject", "counter", "clarify"]
+    },
     "offer": {
       "id": "offer",
       "label": "предложение",
@@ -203,6 +215,6 @@
   },
   "commitments": {
     "ttl_turns": 20,
-    "kinds": ["promise", "threat", "offer", "command"]
+    "kinds": ["promise", "threat", "offer", "command", "blackmail"]
   }
 }

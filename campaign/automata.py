@@ -72,6 +72,7 @@ from .fractal import (
     validate_organ_network,
 )
 from .geometry import GeometryError, MetricGraph
+from .obligations import DEFAULT_OBLIGATION_KIND, ObligationLedger
 from .projections import (
     SCHEMA_VERSION,
     migrate_snapshot,
@@ -228,6 +229,11 @@ def _as_mapping(value):
     return value if isinstance(value, Mapping) else {}
 
 
+def _text(value, default=""):
+    text = str(value or "").strip()
+    return text if text else default
+
+
 def _nested_tuple(value):
     """Вернуть вложенные списки JSON обратно в кортежи для ``random``."""
     if isinstance(value, (list, tuple)):
@@ -309,6 +315,11 @@ def _character_from_record(record, seed):
     character.campaign_role_id = record.get("campaign_role_id", "")
     character.campaign_leader = bool(record.get("is_faction_leader"))
     character.campaign_is_player = bool(record.get("is_player"))
+    character.campaign_leverage = [
+        dict(item)
+        for item in (record.get("leverage") or ())
+        if isinstance(item, Mapping)
+    ]
     character.campaign_cooldowns = {}
     return character
 
@@ -775,7 +786,9 @@ class AutomataCampaign:
         except Exception:
             logger.exception("не удалось поднять движок событий")
             self.story_engine = None
+        self.obligations = ObligationLedger()
         self._build_factions(data)
+        self._seed_obligations()
         self._build_machines()
         if snapshot:
             self.load_snapshot(snapshot)
@@ -837,6 +850,108 @@ class AutomataCampaign:
                 machines[str(organ.id)] = StateMachine(definition)
             if machines:
                 self.organ_machines[side] = machines
+
+    def _seed_obligations(self):
+        """Развернуть стартовые обязательства из постов персонажей.
+
+        Источник — ``post.leverage``/``character_defaults.leverage``:
+        каждая запись описывает рычаг, который герой имеет на персонажа.
+        По умолчанию кредитор — ``"player"``, должник — сам персонаж.
+        Невалидная запись пропускается: контент не должен ломать кампанию.
+        """
+
+        for faction in self.factions.values():
+            for character in getattr(faction, "characters", ()) or ():
+                seeds = getattr(character, "campaign_leverage", ()) or ()
+                debtor_default = _text(
+                    getattr(character, "campaign_id", "")
+                )
+                for raw in seeds:
+                    if not isinstance(raw, Mapping):
+                        continue
+                    creditor = _text(raw.get("creditor"), "player")
+                    debtor = _text(raw.get("debtor"), debtor_default)
+                    kind = _text(
+                        raw.get("kind"), DEFAULT_OBLIGATION_KIND
+                    )
+                    amount = _number(raw.get("amount"), 1.0)
+                    note = _text(raw.get("note"))
+                    try:
+                        self.obligations.add(
+                            creditor,
+                            debtor,
+                            kind,
+                            amount,
+                            created_day=self.turn,
+                            note=note,
+                        )
+                    except CampaignError as error:
+                        logger.warning(
+                            "Обязательство %s/%s пропущено: %s",
+                            debtor,
+                            kind,
+                            error,
+                        )
+
+    def add_obligation(
+        self,
+        creditor,
+        debtor,
+        kind=DEFAULT_OBLIGATION_KIND,
+        amount=1.0,
+        *,
+        due_day=None,
+        note="",
+    ):
+        """Создать обязательство: ``debtor`` должен ``creditor``."""
+
+        return self.obligations.add(
+            creditor,
+            debtor,
+            kind,
+            amount,
+            created_day=self.turn,
+            due_day=due_day,
+            note=note,
+        ).to_dict()
+
+    def fulfill_obligation(self, obligation_id, day=None):
+        """Отметить обязательство исполненным."""
+
+        obligation = self.obligations.fulfill(
+            obligation_id,
+            self.turn if day is None else day,
+        )
+        return None if obligation is None else obligation.to_dict()
+
+    def cancel_obligation(self, obligation_id, day=None):
+        """Отменить обязательство, не исполняя его."""
+
+        obligation = self.obligations.cancel(
+            obligation_id,
+            self.turn if day is None else day,
+        )
+        return None if obligation is None else obligation.to_dict()
+
+    def obligation_view(self, party=None, day=None):
+        """Срез журнала обязательств для UI и диалога."""
+
+        day = self.turn if day is None else int(_number(day, self.turn))
+        entries = (
+            self.obligations.for_party(party)
+            if party is not None
+            else list(self.obligations)
+        )
+        return {
+            "summary": self.obligations.summary(day),
+            "entries": [item.to_dict() for item in entries],
+            "due": [
+                item.to_dict() for item in self.obligations.due(day)
+            ],
+            "overdue": [
+                item.to_dict() for item in self.obligations.overdue(day)
+            ],
+        }
 
     def _machine_context(self, faction, organ=None, subfaction=None):
         character = faction.characters[0] if faction.characters else None
@@ -3191,6 +3306,7 @@ class AutomataCampaign:
             "story_events": list(self.story_events[-SNAPSHOT_TAIL:]),
             "machines": self._machines_snapshot(),
             "log": list(self.log[-SNAPSHOT_TAIL:]),
+            "obligations": self.obligations.to_list(),
         }
 
     to_dict = snapshot
@@ -3611,6 +3727,10 @@ class AutomataCampaign:
         self.events = list(snapshot.get("events") or [])
         self.story_events = list(snapshot.get("story_events") or [])
         self.log = list(snapshot.get("log") or [])
+        # Старый сейв без ``obligations`` очищает стартовые обязательства:
+        # снимок — источник истины, а не пресет.
+        self.obligations = ObligationLedger()
+        self.obligations.load(snapshot.get("obligations") or ())
         if self.outcome:
             self.finished = True
         self._sync_avatar_state()

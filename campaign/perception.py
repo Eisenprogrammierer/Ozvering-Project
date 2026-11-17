@@ -64,6 +64,7 @@ DEFAULT_SCOPES = {
     "recent_work": "visible",
     "has_authority": "self",
     "trusts": "self",
+    "has_leverage": "self",
 }
 
 DEFAULT_SCOPE = "visible"

@@ -117,7 +117,8 @@ G-13, G-14) остаются открытыми. Орган-в-органе по
 G-18 закрыт для арены и кампании автоматов (единый `Work`-конвейер);
 остаток — дневной мир, payload-реестр и квинтуплы (фаза 4b). Открыт G-19
 (диалог: D0–D5.4, D3.2/D6.2a–d, D6.1, D6.3, D6.4 и D7.0–D7.4 закрыты;
-доменные псевдонимы расширяются данными, открыт хвост `has_leverage`).
+доменные псевдонимы расширяются данными, `has_leverage`/`blackmail`
+закрыты).
 
 ---
 
@@ -746,9 +747,10 @@ no-op. Для контента объёмом в тысячи строк это 
   `tests/test_d7_console.py`.
 * **D7.1** — social-действия: поле `interaction` в `social.json`,
   пять `character_interactions` в кампанийных данных, гейты
-  `has_authority`/`trusts`, `ActionBridge.perform_social`,
-  маршрутизация `TextGame`; покрытие — `tests/test_d7_social.py`.
-  `has_leverage` объявлен, но факты пока не выводятся.
+  `has_authority`/`trusts`/`has_leverage`, `ActionBridge.perform_social`,
+  маршрутизация `TextGame`; `has_leverage` выводится из открытых
+  обязательств, `blackmail` переиспользует `social_threat`; покрытие —
+  `tests/test_d7_social.py`.
 * **D6.1** — аудит `lexicon.json` (**закрыто**): псевдоним больше не
   дублирует собственную форму, линтер это проверяет; покрытие —
   `tests/test_d6_lexicon.py`.
