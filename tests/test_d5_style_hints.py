@@ -369,6 +369,22 @@ def test_real_flirt_phrase_switches_register():
     assert turn.state["style_id"] == "romantic"
 
 
+def test_real_flirt_verb_switches_register():
+    catalog = _catalog()
+    session = _session(catalog, _neutral_knowledge(catalog))
+    turn = session.respond("Флиртую с тобой.")
+    assert turn.answer.kind == "social"
+    assert turn.state["style_id"] == "romantic"
+
+
+def test_real_console_phrase_switches_register():
+    catalog = _catalog()
+    session = _session(catalog, _neutral_knowledge(catalog))
+    turn = session.respond("Сочувствую тебе.")
+    assert turn.answer.kind == "social"
+    assert turn.state["style_id"] == "friendly"
+
+
 def test_relationship_beats_real_hint():
     catalog = _catalog()
     session = _session(catalog, _knowledge(catalog))

@@ -106,6 +106,21 @@ def test_classify_recognizes_modes():
         assert mode in reading.modes, (phrase, reading.modes)
 
 
+def test_classify_recognizes_live_mode_forms():
+    base = load_commonsense()
+    cases = {
+        "Флиртую с тобой.": "flirtation",
+        "Сочувствую тебе.": "consolation",
+        "Ты дурак.": "insult",
+        "Расскажи стихотворение.": "poetry",
+        "Мы ругаемся из-за пустяков.": "quarrel",
+        "Приведи аргументы.": "argument",
+    }
+    for phrase, mode in cases.items():
+        reading = base.classify(phrase)
+        assert mode in reading.modes, (phrase, reading.modes)
+
+
 def test_effects_of_and_entity_queries():
     base = load_commonsense()
     effects = {fact.o for fact in base.effects_of("оскорбление")}

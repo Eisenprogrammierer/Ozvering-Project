@@ -649,7 +649,7 @@ whitelist по P8/P9.
 - `DialogueSession(style_id=None)` — авто-режим.
 - Линтер `_style_context_problems`.
 - Тесты `tests/test_d5_registers.py` — 19 тестов.
-- Тесты `tests/test_d5_style_hints.py` — 22 теста.
+- Тесты `tests/test_d5_style_hints.py` — 24 теста.
 
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 
