@@ -1,6 +1,7 @@
 {
   "schema": 4,
   "default": "neutral",
+  "auto_label": "авто",
   "styles": {
     "neutral": {
       "id": "neutral",

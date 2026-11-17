@@ -287,6 +287,55 @@ def test_hint_threshold_is_data_driven(tmp_path):
     assert session.style_hint("флирт") == ""
 
 
+# --- объяснение выбора ---------------------------------------------
+
+
+def test_decision_explains_rule():
+    catalog = _catalog()
+    knowledge = _knowledge(catalog)
+    decision = _session(catalog, knowledge).style_decision()
+    assert decision.style_id == "friendly"
+    assert decision.source == "rule"
+    assert decision.rule_id == "same_faction_friendly"
+    assert decision.description
+
+
+def test_decision_explains_hint():
+    catalog = _catalog()
+    knowledge = _neutral_knowledge(catalog)
+    session = _session(
+        catalog, knowledge, senses=_Senses(weight=0.9)
+    )
+    session._hint_style = session.style_hint("флирт")
+    decision = session.style_decision()
+    assert decision.style_id == "romantic"
+    assert decision.source == "hint"
+
+
+def test_decision_explains_explicit():
+    catalog = _catalog()
+    session = _session(
+        catalog, _knowledge(catalog), style_id="mentor"
+    )
+    decision = session.style_decision()
+    assert decision.style_id == "mentor"
+    assert decision.source == "explicit"
+
+
+def test_decision_explains_default(tmp_path):
+    directory = _copy_configs(tmp_path)
+    path = directory / "style_context.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["rules"] = []
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    catalog = _catalog(directory)
+    decision = _session(catalog, _knowledge(catalog)).style_decision()
+    assert decision.style_id == catalog.styles.default
+    assert decision.source == "default"
+
+
 # --- совместимость --------------------------------------------------
 
 

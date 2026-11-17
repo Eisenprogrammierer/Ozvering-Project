@@ -159,6 +159,31 @@ def test_sense_command_handles_unknown_phrase(game):
     assert "не распознано" in entry.reply
 
 
+def test_style_command_reports_manual_choice(game):
+    entry = game.submit("/style")
+    assert entry.kind == "command"
+    assert "регистр: нейтрально" in entry.reply
+    assert "выбор: вручную" in entry.reply
+    assert "выбор игрока" in entry.reply
+    assert game.submit("/стиль").reply == entry.reply
+    assert game.submit("/регистр").reply == entry.reply
+
+
+def test_style_command_reports_auto_rule(catalog, campaign):
+    session = DialogueSession(
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        style_id=None,
+        campaign=campaign,
+    )
+    game = TextGame(session)
+    reply = game.submit("/style").reply
+    assert "регистр:" in reply
+    assert "выбор: авто" in reply
+    assert "причина:" in reply
+    assert session.style_id in ("friendly", "official")
+
+
 def test_history_command(game):
     assert game.submit("/history").reply
     game.submit("Какие органы есть у Империи?")

@@ -13,6 +13,7 @@ D5.2 добавляет автовыбор регистра по контекс�
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
 from .model import StyleCatalog, StyleSpec
@@ -82,6 +83,23 @@ def _substitute(value: Any, knowledge: Any) -> Any:
     return str(getattr(knowledge, field_name, "") or "")
 
 
+@dataclass(frozen=True)
+class StyleDecision:
+    """Выбранный регистр и объяснимая причина выбора.
+
+    ``source`` — машинный код причины: ``explicit``, ``persona``,
+    ``rule``, ``hint`` или ``default``. ``rule_id`` и ``description``
+    заполнены только для правил ``style_context.json``; подсказка
+    режима тоже несёт ``description``, чтобы интерфейс мог показать
+    «почему такой регистр» без знания Python-кода.
+    """
+
+    style_id: str
+    source: str = "default"
+    rule_id: str = ""
+    description: str = ""
+
+
 class StyleEngine:
     """Читает регистровые профили и отдаёт их реализатору."""
 
@@ -138,7 +156,26 @@ class StyleEngine:
         hint_style: Any = "",
         hint_priority: Optional[int] = None,
     ) -> str:
-        """Выбрать стиль с учётом контекста разговора.
+        """Выбрать стиль с учётом контекста разговора."""
+
+        return self.explain_for_context(
+            style_id,
+            persona,
+            knowledge,
+            hint_style=hint_style,
+            hint_priority=hint_priority,
+        ).style_id
+
+    def explain_for_context(
+        self,
+        style_id: Any = None,
+        persona: Any = None,
+        knowledge: Any = None,
+        *,
+        hint_style: Any = "",
+        hint_priority: Optional[int] = None,
+    ) -> StyleDecision:
+        """Выбрать стиль и объяснить причину выбора.
 
         Порядок строго фиксирован и объясним:
 
@@ -158,10 +195,10 @@ class StyleEngine:
 
         explicit = str(style_id or "")
         if explicit in self.styles:
-            return explicit
+            return StyleDecision(explicit, "explicit")
         default = str(getattr(persona, "default_style", "") or "")
         if default in self.styles:
-            return default
+            return StyleDecision(default, "persona")
         context = self.context
         enabled = bool(
             context is not None and getattr(context, "enabled", False)
@@ -178,6 +215,8 @@ class StyleEngine:
                         rule.id,
                         rule.style_id,
                         rule.conditions,
+                        rule.description,
+                        "rule",
                     )
                 )
         if hint:
@@ -186,20 +225,22 @@ class StyleEngine:
                     getattr(context, "hint_priority", 40)
                 )
             candidates.append(
-                (int(hint_priority), "", hint, ())
+                (int(hint_priority), "", hint, (), "", "hint")
             )
             candidates.sort(key=lambda item: (-item[0], item[1]))
-        for priority, _rule_id, style, conditions in candidates:
+        for priority, rule_id, style, conditions, description, source in (
+            candidates
+        ):
             if style not in self.styles:
                 continue
             if conditions and not self._conditions_met(
                 conditions, knowledge
             ):
                 continue
-            return style
+            return StyleDecision(style, source, rule_id, description)
         if self.catalog.default in self.styles:
-            return self.catalog.default
-        return next(iter(self.styles), "")
+            return StyleDecision(self.catalog.default, "default")
+        return StyleDecision(next(iter(self.styles), ""), "default")
 
     def _conditions_met(
         self,

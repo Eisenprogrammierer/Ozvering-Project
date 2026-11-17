@@ -200,10 +200,11 @@ class FeatureSchema:
 
 @dataclass(frozen=True)
 class StyleCatalog:
-    """Набор стилей и стиль по умолчанию."""
+    """Набор стилей, стиль по умолчанию и подпись авто-режима."""
 
     default: str = "neutral"
     styles: Mapping[str, StyleSpec] = field(default_factory=dict)
+    auto_label: str = "авто"
 
     def get(self, style_id: str) -> Any:
         return self.styles.get(str(style_id or ""))

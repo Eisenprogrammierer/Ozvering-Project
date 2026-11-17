@@ -128,7 +128,12 @@ class DialogueSession:
     def style_id(self) -> str:
         """Текущий стиль: явный, иначе вычисленный по контексту."""
 
-        return self.style_engine.resolve_for_context(
+        return self.style_decision().style_id
+
+    def style_decision(self):
+        """Текущий регистр и причина выбора для интерфейса."""
+
+        return self.style_engine.explain_for_context(
             self.explicit_style_id,
             self.persona,
             self.knowledge,

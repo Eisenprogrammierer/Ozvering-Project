@@ -19,14 +19,24 @@
     "sense_unavailable": "База фактов здравого смысла недоступна.",
     "action_done": "Действие выполнено: %s.",
     "action_failed": "Действие не выполнено: %s.",
-    "quit": "Выход."
+    "quit": "Выход.",
+    "style_header": "регистр: %s",
+    "style_auto": "выбор: авто",
+    "style_manual": "выбор: вручную",
+    "style_rule": "причина: %s",
+    "style_hint": "причина: режим разговора",
+    "style_persona": "причина: стиль персонажа",
+    "style_explicit": "причина: выбор игрока",
+    "style_default": "причина: стиль по умолчанию",
+    "style_unavailable": "Регистр недоступен."
   },
   "commands": {
-    "help": "команды: /help, /history, /undo, /hint, /sense, /look, /quit",
+    "help": "команды: /help, /history, /undo, /hint, /sense, /style, /look, /quit",
     "history": "последние реплики",
     "undo": "отменить последнюю реплику",
     "hint": "подсказать доступные фразы",
     "sense": "разобрать фразу: акт, режим, стиль",
+    "style": "текущий регистр и причина выбора",
     "look": "описать, что видно",
     "quit": "выйти"
   },
@@ -39,6 +49,8 @@
     "/l": "look",
     "/осмотреться": "look",
     "/смысл": "sense",
-    "/q": "quit"
+    "/q": "quit",
+    "/стиль": "style",
+    "/регистр": "style"
   }
 }

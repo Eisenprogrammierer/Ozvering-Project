@@ -645,7 +645,7 @@ whitelist по P8/P9.
 - `DialogueSession(style_id=None)` — авто-режим.
 - Линтер `_style_context_problems`.
 - Тесты `tests/test_d5_registers.py` — 19 тестов.
-- Тесты `tests/test_d5_style_hints.py` — 16 тестов.
+- Тесты `tests/test_d5_style_hints.py` — 20 тестов.
 
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 
@@ -820,17 +820,20 @@ whitelist по P8/P9.
 - Подсказки детерминированы: фразы из `actions.json`, отфильтрованные
   публичным `available_actions`; порядок — порядок данных.
 - `configs/dialogue/console.json`: команды (`help`, `history`, `undo`,
-  `hint`, `sense`, `look`, `quit`), сообщения, псевдонимы команд
-  (включая `/смысл → sense`) и `history_limit`. Линтер
-  `_console_problems` проверяет обязательные ключи и ссылки.
+  `hint`, `sense`, `style`, `look`, `quit`), сообщения, псевдонимы
+  команд (включая `/смысл → sense`, `/стиль` и `/регистр → style`) и
+  `history_limit`. Линтер `_console_problems` проверяет обязательные
+  ключи и ссылки.
 - `/смысл <фраза>` (`/sense`) — read-only подсказка по базе фактов
   здравого смысла: акты, режимы и стиль из `schema.json.style_hints`.
   Пустая фраза, недоступная база и нераспознанный текст дают отдельные
   сообщения; мир, откат и история не меняются.
+- `/style` (`/стиль`, `/регистр`) — текущий регистр, режим
+  авто/вручную и причина выбора из `StyleDecision`; мир не меняется.
 - CLI: `python -m campaign.dialogue.textgame --allow-actions`.
-- Тесты: `tests/test_d7_console.py` (22) — история, откат состояния и
-  кампании, подсказки, команды, `/смысл`, лимит истории, детерминизм,
-  линтер.
+- Тесты: `tests/test_d7_console.py` (24) — история, откат состояния и
+  кампании, подсказки, команды, `/смысл`, `/style`, лимит истории,
+  детерминизм, линтер.
 - **D7.1. Речевые действия как действия.** `social.json` получил
   поле `interaction`: `command → social_command`,
   `promise → social_promise`, `threat → social_threat`,

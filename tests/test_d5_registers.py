@@ -80,6 +80,11 @@ def test_style_context_loaded(tmp_path):
     assert "same_faction_friendly" in ids
 
 
+def test_styles_auto_label_loaded(tmp_path):
+    catalog = _catalog(_copy_configs(tmp_path))
+    assert catalog.styles.auto_label == "авто"
+
+
 def test_style_context_ordered_by_priority(tmp_path):
     catalog = _catalog(_copy_configs(tmp_path))
     rules = catalog.style_context.ordered()

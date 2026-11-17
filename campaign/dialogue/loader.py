@@ -496,6 +496,7 @@ def load_styles(root: Path) -> StyleCatalog:
     return StyleCatalog(
         default=_text(raw.get("default"), "neutral"),
         styles=styles,
+        auto_label=_text(raw.get("auto_label"), "авто"),
     )
 
 

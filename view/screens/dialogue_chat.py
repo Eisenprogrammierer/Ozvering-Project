@@ -80,11 +80,7 @@ class DialogueChatScreen(BaseScreen):
             self.style_engine = StyleEngine(self.catalog)
         except Exception as exc:
             logger.warning("Стили диалога не загружены: %s", exc)
-        self.style_id = (
-            self.style_engine.resolve(None, None)
-            if self.style_engine is not None
-            else ""
-        )
+        self.style_id = ""
         self.side = ""
         self.character_id = ""
         self.session = None
@@ -100,7 +96,7 @@ class DialogueChatScreen(BaseScreen):
             "Чат открыт: фракция=%s, персонаж=%s, стиль=%s",
             self.side,
             self.character_id,
-            self.style_id,
+            self.style_id or "авто",
         )
 
     # --- выбор собеседника -------------------------------------------
@@ -162,7 +158,11 @@ class DialogueChatScreen(BaseScreen):
         self._select_character(character_id)
 
     def _default_character(self, side, preferred=None):
-        options = [item for item in self._characters_for(side) if self._alive(item)]
+        options = [
+            item
+            for item in self._characters_for(side)
+            if self._alive(item)
+        ]
         if not options:
             return ""
         preferred = str(preferred or "")
@@ -179,7 +179,7 @@ class DialogueChatScreen(BaseScreen):
         self.character_scroll = 0
         self.session = self._session()
         if self.session is not None:
-            self.session.set_style(self.style_id)
+            self.session.set_style(self.style_id or None)
 
     def _select_faction(self, side):
         if side == self.side:
@@ -208,7 +208,7 @@ class DialogueChatScreen(BaseScreen):
         self.character_id = str(character_id)
         self.session = self._session()
         if self.session is not None:
-            self.session.set_style(self.style_id)
+            self.session.set_style(self.style_id or None)
         self.message = ""
         logger.info(
             "Чат: выбран персонаж %s (%s)", character_id, self.side
@@ -232,7 +232,7 @@ class DialogueChatScreen(BaseScreen):
             self.message = "Не удалось установить связь: %s" % exc
             return None
         if session is not None:
-            session.set_style(self.style_id)
+            session.set_style(self.style_id or None)
             self._sessions[key] = session
         return session
 
@@ -283,18 +283,52 @@ class DialogueChatScreen(BaseScreen):
     def _select_style(self, style_id):
         if self.style_engine is None:
             return
-        if not self.style_engine.has(style_id):
+        key = "" if style_id is None else str(style_id)
+        if key and not self.style_engine.has(key):
             return
-        self.style_id = str(style_id)
+        self.style_id = key
         if self.session is not None:
-            self.session.set_style(self.style_id)
+            self.session.set_style(self.style_id or None)
         self.message = ""
-        logger.info("Чат: выбран стиль %s", self.style_id)
+        logger.info(
+            "Чат: выбран стиль %s", self.style_id or "авто"
+        )
 
     def _style_spec(self):
-        if self.style_engine is None:
+        if self.style_engine is None or not self.style_id:
             return None
         return self.style_engine.styles.get(self.style_id)
+
+    def _auto_label(self):
+        if self.style_engine is None:
+            return "авто"
+        return str(
+            getattr(
+                self.style_engine.catalog, "auto_label", "авто"
+            )
+            or "авто"
+        )
+
+    def _style_reason(self):
+        """Короткая причина выбора регистра для панели чата."""
+
+        session = self.session
+        decision = getattr(session, "style_decision", None)
+        if not callable(decision):
+            return ""
+        try:
+            found = decision()
+        except Exception:
+            return ""
+        if found.source == "rule" and found.description:
+            return found.description
+        if found.source == "hint":
+            return "по режиму разговора"
+        if found.source == "persona":
+            return "стиль персонажа"
+        if found.source == "explicit":
+            return "выбран вручную"
+        return "стиль по умолчанию"
 
     # --- отправка ----------------------------------------------------
 
@@ -420,9 +454,9 @@ class DialogueChatScreen(BaseScreen):
             if rect.collidepoint(pos):
                 self._select_character_id(item.get("id"))
                 return
-        for rect, spec in self._style_rows():
+        for rect, style_id, _label in self._style_rows():
             if rect.collidepoint(pos):
-                self._select_style(spec.id)
+                self._select_style(style_id)
                 return
 
     # --- геометрия ---------------------------------------------------
@@ -474,14 +508,14 @@ class DialogueChatScreen(BaseScreen):
         if self.style_engine is None:
             return []
         specs = list(self.style_engine.specs())
-        if not specs:
-            return []
-        per_row = min(4, len(specs))
+        entries = [("", self._auto_label())]
+        entries.extend((spec.id, spec.label) for spec in specs)
+        per_row = min(4, len(entries))
         width = (
             RIGHT_RECT.width - 24 - 4 * (per_row - 1)
         ) // per_row
         rows = []
-        for index, spec in enumerate(specs):
+        for index, (style_id, label) in enumerate(entries):
             row = index // per_row
             column = index % per_row
             rect = pygame.Rect(
@@ -490,7 +524,7 @@ class DialogueChatScreen(BaseScreen):
                 width,
                 24,
             )
-            rows.append((rect, spec))
+            rows.append((rect, style_id, label))
         return rows
 
     def _style_description_y(self):
@@ -631,20 +665,20 @@ class DialogueChatScreen(BaseScreen):
             ),
             (RIGHT_RECT.x + 12, RIGHT_RECT.y + 52),
         )
-        for rect, spec in self._style_rows():
+        for rect, style_id, label in self._style_rows():
             _button(
                 screen,
                 rect,
-                spec.label,
+                label,
                 self.app.font_tiny,
-                active=spec.id == self.style_id,
+                active=style_id == self.style_id,
             )
         spec = self._style_spec()
-        if spec is not None:
+        reason = "" if self.style_id else self._style_reason()
+        caption = reason or (spec.description if spec is not None else "")
+        if caption:
             screen.blit(
-                self.app.font_tiny.render(
-                    spec.description, True, DIM
-                ),
+                self.app.font_tiny.render(caption, True, DIM),
                 (RIGHT_RECT.x + 12, self._style_description_y()),
             )
         self._draw_chat(screen)
@@ -698,7 +732,8 @@ class DialogueChatScreen(BaseScreen):
         blocks = self._message_blocks(rect)
         if not blocks:
             hint = [
-                "Свободный чат: спросите о мире, войне, фракции или персонаже.",
+                "Свободный чат: спросите о мире, войне, фракции "
+                "или персонаже.",
                 "Стиль меняет только форму ответа, но не факты и не вывод.",
                 "Enter — отправить, ESC — вернуться.",
             ]

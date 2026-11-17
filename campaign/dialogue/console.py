@@ -246,6 +246,8 @@ class TextGame:
             parts = text.strip().split(None, 1)
             phrase = parts[1].strip() if len(parts) > 1 else ""
             return self.sense(phrase)
+        if name == "style":
+            return self.style()
         if name == "look":
             return self.look()
         return ConsoleEntry(
@@ -312,6 +314,44 @@ class TextGame:
                 self._message("sense_style") % ", ".join(reading.styles)
             )
         return ConsoleEntry("command", value, "\n".join(lines))
+
+    def style(self) -> ConsoleEntry:
+        """Показать текущий регистр и причину его выбора (read-only)."""
+
+        session = self.session
+        engine = getattr(session, "style_engine", None)
+        decision = getattr(session, "style_decision", None)
+        if engine is None or not callable(decision):
+            return ConsoleEntry(
+                "command", "/style", self._message("style_unavailable")
+            )
+        found = decision()
+        spec = engine.styles.get(found.style_id)
+        label = (
+            str(spec.label or found.style_id)
+            if spec is not None
+            else str(found.style_id or "—")
+        )
+        lines = [
+            self._message("style_header") % label,
+            self._message(
+                "style_auto"
+                if getattr(session, "is_auto", lambda: True)()
+                else "style_manual"
+            ),
+        ]
+        if found.source == "rule":
+            lines.append(
+                self._message("style_rule")
+                % (found.description or found.rule_id)
+            )
+        elif found.source == "hint":
+            lines.append(self._message("style_hint"))
+        else:
+            lines.append(
+                self._message("style_" + str(found.source or "default"))
+            )
+        return ConsoleEntry("command", "/style", "\n".join(lines))
 
     def history(self) -> Tuple[ConsoleEntry, ...]:
         return tuple(self.entries)
