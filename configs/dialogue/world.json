@@ -81,7 +81,11 @@
       "intention": "intention",
       "recent_work": "visible",
       "has_authority": "self",
-      "trusts": "self"
+      "trusts": "self",
+      "romance_with": "self",
+      "kin_of": "public",
+      "ritual_bound_to": "visible",
+      "sworn_to": "public"
     }
   },
   "assets": [
@@ -127,6 +131,10 @@
     "has_authority": 2,
     "has_leverage": 2,
     "trusts": 2,
+    "romance_with": 2,
+    "kin_of": 2,
+    "ritual_bound_to": 2,
+    "sworn_to": 2,
     "taboo_topic": 1
   },
   "predicate_relations": {
@@ -187,6 +195,18 @@
     },
     "do": {
       "relation": "recent_work"
+    },
+    "love": {
+      "relation": "romance_with"
+    },
+    "marry": {
+      "relation": "kin_of"
+    },
+    "swear": {
+      "relation": "sworn_to"
+    },
+    "mourn": {
+      "relation": "ritual_bound_to"
     }
   },
   "belief_predicates": {

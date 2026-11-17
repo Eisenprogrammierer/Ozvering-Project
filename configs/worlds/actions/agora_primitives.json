@@ -42,7 +42,8 @@
         "effects": {
           "target": {
             "affinity": 0.06,
-            "trust": 0.03
+            "trust": 0.03,
+            "romance": 0.08
           },
           "player": {
             "standing": 0.01
@@ -55,7 +56,8 @@
         "effects": {
           "target": {
             "affinity": -0.02,
-            "fear": 0.01
+            "fear": 0.01,
+            "romance": -0.02
           }
         }
       },
@@ -98,7 +100,8 @@
         "effects": {
           "target": {
             "affinity": 0.03,
-            "trust": 0.04
+            "trust": 0.04,
+            "family": 0.02
           }
         }
       },
@@ -158,6 +161,9 @@
           },
           "player": {
             "standing": 0.02
+          },
+          "relation_axes": {
+            "ritual": 0.03
           }
         }
       },
@@ -384,7 +390,8 @@
         "effects": {
           "target": {
             "respect": 0.04,
-            "trust": 0.02
+            "trust": 0.02,
+            "vassalage": 0.02
           },
           "player": {
             "standing": 0.01
@@ -441,7 +448,8 @@
           "target": {
             "fear": -0.03,
             "trust": 0.02,
-            "health": 0.05
+            "health": 0.05,
+            "family": 0.02
           },
           "player": {
             "standing": 0.01

@@ -15,6 +15,12 @@ CHANCE_BANDS = (
 CHARACTER_STAT_LABELS = {
     "affinity": "расположение",
     "trust": "доверие",
+    "fear": "страх",
+    "respect": "уважение",
+    "romance": "романтика",
+    "family": "родство",
+    "ritual": "обрядовая связь",
+    "vassalage": "вассальная верность",
 }
 
 RELATION_AXIS_SHORT_LABELS = {
@@ -22,6 +28,10 @@ RELATION_AXIS_SHORT_LABELS = {
     "trust": "дов.",
     "fear": "страх",
     "respect": "уваж.",
+    "romance": "роман.",
+    "family": "род.",
+    "ritual": "обряд",
+    "vassalage": "васс.",
 }
 
 OUTCOME_LABELS = {
@@ -66,8 +76,9 @@ def relation_label(value):
     return "непримиримые"
 
 
-def relation_axis_label(axis):
-    return RELATION_AXIS_SHORT_LABELS.get(str(axis), str(axis or ""))
+def relation_axis_label(axis, labels=None):
+    table = labels or RELATION_AXIS_SHORT_LABELS
+    return table.get(str(axis), str(axis or ""))
 
 
 def scale_label(value):
@@ -146,21 +157,28 @@ def _effect_subject(section, character_name=""):
     return ""
 
 
-def _effect_stat_label(key, stat_labels, character_name=""):
-    if key in CHARACTER_STAT_LABELS:
-        return CHARACTER_STAT_LABELS[key]
+def _effect_stat_label(key, stat_labels, character_name="", labels=None):
+    table = labels or CHARACTER_STAT_LABELS
+    if key in table:
+        return table[key]
     return (stat_labels or {}).get(key, key)
 
 
-def format_effect_map(effects, stat_labels=None, character_name=""):
+def format_effect_map(
+    effects,
+    stat_labels=None,
+    character_name="",
+    character_labels=None,
+):
     effects = effects or {}
+    labels = character_labels or CHARACTER_STAT_LABELS
     lines = []
     sections = [
         (section, effects.get(section) or {})
         for section in ("character", "player", "node", "target")
     ]
     flat_character = {
-        key: effects[key] for key in CHARACTER_STAT_LABELS if key in effects
+        key: effects[key] for key in labels if key in effects
     }
     if flat_character:
         sections.insert(0, ("character", flat_character))
@@ -170,9 +188,11 @@ def format_effect_map(effects, stat_labels=None, character_name=""):
             if abs(amount) < 1e-9:
                 continue
             subject = _effect_subject(section, character_name)
-            stat = _effect_stat_label(key, stat_labels, character_name)
+            stat = _effect_stat_label(
+                key, stat_labels, character_name, labels
+            )
             word = magnitude_word(amount)
-            if key in CHARACTER_STAT_LABELS:
+            if key in labels:
                 vibe = _direction(
                     amount,
                     "%s улучшится" % word,

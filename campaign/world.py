@@ -72,8 +72,16 @@ from .obligations import (
 )
 from .relations import (
     DEFAULT_RELATION_FORM,
+    RELATION_AXES,
+    RELATION_AXIS_LABELS,
     asymmetry_rows,
+    normalize_relation_axes_config,
+    relation_axis_labels_from_config,
+    relation_axis_short_labels_from_config,
+    relation_axes_from_config,
     relation_effect,
+    relation_effect_limit_from_config,
+    relation_effect_weights_from_config,
 )
 from .success import resolve_success_coefficients, success_margin
 from .projections import (
@@ -209,13 +217,7 @@ ORGANIZATION_CATEGORIES = {
     "hostile": "враждебные",
     "neutral": "нейтральные",
 }
-CHARACTER_STAT_LABELS = {
-    "affinity": "расположение",
-    "trust": "доверие",
-    "fear": "страх",
-    "respect": "уважение",
-}
-RELATION_AXES = ("affinity", "trust", "fear", "respect")
+CHARACTER_STAT_LABELS = dict(RELATION_AXIS_LABELS)
 RELATION_BACK_SHARE = 0.5
 
 LABOR_NEGOTIATION_INFLUENCE = 0.03
@@ -550,6 +552,12 @@ def validate_world(data):
     data["norms"] = list(data.get("norms") or [])
     data["scenes"] = list(data.get("scenes") or [])
     data["skill_tree"] = dict(data.get("skill_tree") or {})
+    try:
+        data["relation_axes"] = normalize_relation_axes_config(
+            data.get("relation_axes")
+        )
+    except ValueError as exc:
+        raise WorldError(str(exc))
     _validate_unique(data["domains"], "domains")
     _validate_unique(data["polities"], "polities")
     _validate_unique(data["nodes"], "nodes")
@@ -1121,6 +1129,21 @@ class WorldEngine:
         self.time_speeds = tuple(sorted(speeds or [1.0]))
         self.skill_labels = dict(self.config.get("skill_labels") or {})
         self.stat_labels = dict(self.config.get("stat_labels") or {})
+        self.relation_axis_ids = relation_axes_from_config(self.config)
+        self.relation_axis_labels = relation_axis_labels_from_config(
+            self.config, self.relation_axis_ids
+        )
+        self.relation_axis_short_labels = (
+            relation_axis_short_labels_from_config(
+                self.config, self.relation_axis_ids
+            )
+        )
+        self.relation_effect_weights = relation_effect_weights_from_config(
+            self.config
+        )
+        self.relation_effect_limit = relation_effect_limit_from_config(
+            self.config
+        )
         self.domain_labels = {
             item["id"]: _text(item.get("label"), item["id"])
             for item in self.config["domains"]
@@ -1135,7 +1158,9 @@ class WorldEngine:
             item["id"] for item in self.config["characters"]
         ]
         self.characters = {
-            item["id"]: self._build_character(item)
+            item["id"]: self._build_character(
+                item, self.relation_axis_ids
+            )
             for item in self.config["characters"]
         }
         self.player_relations = {}
@@ -1172,7 +1197,8 @@ class WorldEngine:
             for person in scene.public:
                 if person.id not in self.characters:
                     self.characters[person.id] = self._build_character(
-                        person.as_character(scene.location)
+                        person.as_character(scene.location),
+                        self.relation_axis_ids,
                     )
                     self.character_order.append(person.id)
                 ids.append(person.id)
@@ -1383,21 +1409,17 @@ class WorldEngine:
         return nodes
 
     @staticmethod
-    def _build_character(raw):
+    def _build_character(raw, axes=RELATION_AXES):
         health = _clamp(
             _as_float(raw.get("health"), HEALTH_MAX),
             0.0,
             HEALTH_MAX,
         )
-        return CampaignCharacter({
+        character = CampaignCharacter({
             "id": raw["id"],
             "name": _text(raw.get("name"), raw["id"]),
             "role": _text(raw.get("role")),
             "circle": _text(raw.get("circle"), "acquaintance"),
-            "affinity": _clamp(raw.get("affinity", 0.0), -1.0, 1.0),
-            "trust": _clamp(raw.get("trust", 0.0), -1.0, 1.0),
-            "fear": _clamp(raw.get("fear", 0.0), -1.0, 1.0),
-            "respect": _clamp(raw.get("respect", 0.0), -1.0, 1.0),
             "health": health,
             "sickness": _clamp(
                 _as_float(raw.get("sickness"), 0.0),
@@ -1418,6 +1440,9 @@ class WorldEngine:
                 1, _as_int(raw.get("autonomy_period"), AUTONOMY_PERIOD)
             ),
         })
+        for axis in axes:
+            character[axis] = _clamp(raw.get(axis, 0.0), -1.0, 1.0)
+        return character
 
     def _opening(self):
         for text in self.config.get("opening_log") or ():
@@ -1721,7 +1746,7 @@ class WorldEngine:
         return _as_float((source.get("relations") or {}).get(target_id), 0.0)
 
     def relation_axes(self, source_id, target_id):
-        """Направленные оси R_ij: `affinity/trust/fear/respect`.
+        """Направленные оси R_ij: легаси + оси из конфига мира.
 
         Легаси-шкала `relations` — проекция `affinity`. Оси создаются
         лениво из текущей скалярной проекции, поэтому старые сейвы и
@@ -1729,19 +1754,19 @@ class WorldEngine:
         """
         source = self.node(source_id)
         if source is None:
-            return {axis: 0.0 for axis in RELATION_AXES}
+            return {axis: 0.0 for axis in self.relation_axis_ids}
         target_id = _text(target_id)
         store = source.setdefault("relation_axes", {})
         axes = store.get(target_id)
         if axes is None:
-            axes = {axis: 0.0 for axis in RELATION_AXES}
+            axes = {axis: 0.0 for axis in self.relation_axis_ids}
             axes["affinity"] = self.relation(source_id, target_id)
             store[target_id] = axes
         return {
             axis: _clamp(
                 _as_float(axes.get(axis), 0.0), -1.0, 1.0
             )
-            for axis in RELATION_AXES
+            for axis in self.relation_axis_ids
         }
 
     def set_relation_axes(self, source_id, target_id, values):
@@ -1751,7 +1776,7 @@ class WorldEngine:
         if source is None or target is None:
             return self.relation_axes(source_id, target_id)
         axes = self.relation_axes(source_id, target_id)
-        for axis in RELATION_AXES:
+        for axis in self.relation_axis_ids:
             if axis in values:
                 axes[axis] = _clamp(
                     _as_float(values.get(axis), axes[axis]), -1.0, 1.0
@@ -2430,10 +2455,10 @@ class WorldEngine:
         if character is None:
             return {
                 "character_to_player": {
-                    axis: 0.0 for axis in RELATION_AXES
+                    axis: 0.0 for axis in self.relation_axis_ids
                 },
                 "player_to_character": {
-                    axis: 0.0 for axis in RELATION_AXES
+                    axis: 0.0 for axis in self.relation_axis_ids
                 },
             }
         player_view = self.player_relations.get(character["id"]) or {}
@@ -2442,13 +2467,13 @@ class WorldEngine:
                 axis: _clamp(
                     _as_float(character.get(axis), 0.0), -1.0, 1.0
                 )
-                for axis in RELATION_AXES
+                for axis in self.relation_axis_ids
             },
             "player_to_character": {
                 axis: _clamp(
                     _as_float(player_view.get(axis), 0.0), -1.0, 1.0
                 )
-                for axis in RELATION_AXES
+                for axis in self.relation_axis_ids
             },
         }
 
@@ -2467,7 +2492,7 @@ class WorldEngine:
         """
         changed = []
         view = self.player_relations.setdefault(character["id"], {})
-        for axis in RELATION_AXES:
+        for axis in self.relation_axis_ids:
             key = "player_%s" % axis
             if key not in effects:
                 continue
@@ -2480,7 +2505,7 @@ class WorldEngine:
                 changed.append(
                     (
                         "вы · %s"
-                        % CHARACTER_STAT_LABELS.get(axis, axis),
+                        % self.relation_axis_labels.get(axis, axis),
                         delta,
                     )
                 )
@@ -2561,7 +2586,7 @@ class WorldEngine:
                         "%s · %s"
                         % (
                             character.get("name", character["id"]),
-                            CHARACTER_STAT_LABELS.get(axis, axis),
+                            self.relation_axis_labels.get(axis, axis),
                         ),
                         actual,
                     )
@@ -2601,7 +2626,7 @@ class WorldEngine:
                     % (
                         source.get("name", source_id),
                         target.get("name", target_id),
-                        CHARACTER_STAT_LABELS.get(axis, axis),
+                        self.relation_axis_labels.get(axis, axis),
                     ),
                     delta,
                 )
@@ -2637,7 +2662,7 @@ class WorldEngine:
                     changed.append(
                         (
                             "вы · %s"
-                            % CHARACTER_STAT_LABELS.get(axis, axis),
+                            % self.relation_axis_labels.get(axis, axis),
                             actual,
                         )
                     )
@@ -2657,7 +2682,7 @@ class WorldEngine:
                     changed.append(
                         (
                             "вы · %s"
-                            % CHARACTER_STAT_LABELS.get(axis, axis),
+                            % self.relation_axis_labels.get(axis, axis),
                             actual,
                         )
                     )
@@ -3405,7 +3430,7 @@ class WorldEngine:
         for key, minimum in (requires.get("character") or {}).items():
             current = _as_float(character.get(key), 0.0)
             if current + 1e-9 < _as_float(minimum):
-                label = CHARACTER_STAT_LABELS.get(key, key)
+                label = self.relation_axis_labels.get(key, key)
                 return "недостаточно: %s" % label
         for key, minimum in (requires.get("player") or {}).items():
             if _as_float(
@@ -3503,7 +3528,7 @@ class WorldEngine:
     def _apply_character_effects(self, effects, character):
         effects = effects or {}
         changed = []
-        for key in RELATION_AXES:
+        for key in self.relation_axis_ids:
             if key not in effects:
                 continue
             before = _as_float(character.get(key), 0.0)
@@ -3517,7 +3542,7 @@ class WorldEngine:
                         "%s · %s"
                         % (
                             character["name"],
-                            CHARACTER_STAT_LABELS.get(key, key),
+                            self.relation_axis_labels.get(key, key),
                         ),
                         delta,
                     )
@@ -3933,6 +3958,10 @@ class WorldEngine:
     def stat_label(self, key):
         return self.stat_labels.get(key, key)
 
+    def relation_stat_label(self, key):
+        """Подпись оси отношения или обычной шкалы мира."""
+        return self.relation_axis_labels.get(key, self.stat_label(key))
+
     def _effect_lines(self, effects):
         lines = []
         if not effects:
@@ -3950,7 +3979,7 @@ class WorldEngine:
                     "%s: %s %s%.0f%%"
                     % (
                         label,
-                        self.stat_label(key),
+                        self.relation_stat_label(key),
                         "+" if amount > 0 else "",
                         100.0 * amount,
                     )
@@ -4031,18 +4060,17 @@ class WorldEngine:
         return changed
 
     def _apply_character_map(self, character, changes):
-        """Аддитивные эффекты на конкретного человека мира (P3/P4)."""
+        """Аддитивные эффекты на конкретного человека мира (P3/P4).
+
+        F-20: набор осей берётся из конфига мира, поэтому романтическая,
+        семейная, обрядовая и вассальная оси не требуют правки Python.
+        """
         if character is None:
             return []
         changed = []
-        labels = {
-            "affinity": "близость",
-            "trust": "доверие",
-            "fear": "страх",
-            "respect": "уважение",
-        }
-        for key, value in (changes or {}).items():
-            if key not in labels:
+        for key in self.relation_axis_ids:
+            value = (changes or {}).get(key)
+            if value is None:
                 continue
             before = _as_float(character.get(key), 0.0)
             character[key] = _clamp(before + _as_float(value), -1.0, 1.0)
@@ -4053,7 +4081,7 @@ class WorldEngine:
                         "%s · %s"
                         % (
                             character.get("name", character["id"]),
-                            labels[key],
+                            self.relation_axis_labels.get(key, key),
                         ),
                         delta,
                     )
@@ -5403,7 +5431,7 @@ class WorldEngine:
         if hasattr(target, "sync"):
             return {
                 axis: _as_float(target.get(axis), 0.0)
-                for axis in RELATION_AXES
+                for axis in self.relation_axis_ids
             }
         return self.relation_axes(target_id, actor_id)
 
@@ -5435,6 +5463,8 @@ class WorldEngine:
         relation_shift = relation_effect(
             self._relation_axes_to_actor(target, context["node"]["id"]),
             form,
+            weights=self.relation_effect_weights,
+            limit=self.relation_effect_limit,
         )
         return campaign_success_chance(
             base + relation_shift,
@@ -6858,24 +6888,24 @@ class WorldEngine:
                 "max_force": float(self.player.max_force),
             },
             "characters": {
-                character_id: {
-                    "affinity": character["affinity"],
-                    "trust": character["trust"],
-                    "fear": float(_as_float(character.get("fear"), 0.0)),
-                    "respect": float(
-                        _as_float(character.get("respect"), 0.0)
-                    ),
-                    "health": float(character["health"]),
-                    "sickness": float(character["sickness"]),
-                    "wound": float(_as_float(character.get("wound"), 0.0)),
-                    "alive": bool(character["alive"]),
-                }
+                character_id: dict(
+                    {
+                        axis: float(
+                            _as_float(character.get(axis), 0.0)
+                        )
+                        for axis in self.relation_axis_ids
+                    },
+                    health=float(character["health"]),
+                    sickness=float(character["sickness"]),
+                    wound=float(_as_float(character.get("wound"), 0.0)),
+                    alive=bool(character["alive"]),
+                )
                 for character_id, character in self.characters.items()
             },
             "player_relations": {
                 character_id: {
                     axis: float(_as_float(view.get(axis), 0.0))
-                    for axis in RELATION_AXES
+                    for axis in self.relation_axis_ids
                 }
                 for character_id, view in self.player_relations.items()
             },
@@ -6886,7 +6916,7 @@ class WorldEngine:
                     "relation_axes": {
                         other_id: {
                             axis: float(_as_float(axes.get(axis), 0.0))
-                            for axis in RELATION_AXES
+                            for axis in self.relation_axis_ids
                         }
                         for other_id, axes in (
                             node.get("relation_axes") or {}
@@ -7014,22 +7044,12 @@ class WorldEngine:
             character = self.characters.get(character_id)
             if character is None:
                 continue
-            character["affinity"] = _clamp(
-                saved.get("affinity", character["affinity"]), -1.0, 1.0
-            )
-            character["trust"] = _clamp(
-                saved.get("trust", character["trust"]), -1.0, 1.0
-            )
-            character["fear"] = _clamp(
-                saved.get("fear", character.get("fear", 0.0)),
-                -1.0,
-                1.0,
-            )
-            character["respect"] = _clamp(
-                saved.get("respect", character.get("respect", 0.0)),
-                -1.0,
-                1.0,
-            )
+            for axis in self.relation_axis_ids:
+                character[axis] = _clamp(
+                    saved.get(axis, character.get(axis, 0.0)),
+                    -1.0,
+                    1.0,
+                )
             if "health" in saved:
                 character["health"] = _clamp(
                     _as_float(saved.get("health"), HEALTH_MAX),
@@ -7071,7 +7091,7 @@ class WorldEngine:
                     axis: _clamp(
                         _as_float(axes.get(axis), 0.0), -1.0, 1.0
                     )
-                    for axis in RELATION_AXES
+                    for axis in self.relation_axis_ids
                 }
                 node["relations"][other_id] = stored[other_id]["affinity"]
         self.player_relations = {}
@@ -7084,7 +7104,7 @@ class WorldEngine:
                 continue
             self.player_relations[character_id] = {
                 axis: _clamp(_as_float(view.get(axis), 0.0), -1.0, 1.0)
-                for axis in RELATION_AXES
+                for axis in self.relation_axis_ids
             }
         self.cooldowns = {
             str(key): _as_int(value)

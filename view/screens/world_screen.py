@@ -1209,13 +1209,17 @@ class WorldScreen(BaseScreen):
             (x, MID_RECT.y + 82),
         )
         axes_parts = []
-        for axis, forward, backward in asymmetry_rows(outgoing, incoming):
+        for axis, forward, backward in asymmetry_rows(
+            outgoing, incoming, self.engine.relation_axis_ids
+        ):
             if abs(forward) < 0.02 and abs(backward) < 0.02:
                 continue
             axes_parts.append(
                 "%s %+.2f/%+.2f"
                 % (
-                    world_text.relation_axis_label(axis),
+                    world_text.relation_axis_label(
+                        axis, self.engine.relation_axis_short_labels
+                    ),
                     forward,
                     backward,
                 )
@@ -1536,6 +1540,7 @@ class WorldScreen(BaseScreen):
             preview.get("success_effects_map"),
             self.engine.stat_labels,
             preview.get("target_label", ""),
+            self.engine.relation_axis_labels,
         )
         if effects:
             y = self._draw_wrapped(
@@ -1570,6 +1575,7 @@ class WorldScreen(BaseScreen):
             preview.get("failure_effects_map"),
             self.engine.stat_labels,
             preview.get("target_label", ""),
+            self.engine.relation_axis_labels,
         )
         if failure_effects:
             y = self._draw_wrapped(

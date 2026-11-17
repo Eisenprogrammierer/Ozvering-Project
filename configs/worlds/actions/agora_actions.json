@@ -89,7 +89,9 @@
         "effects": {
           "target": {
             "affinity": 0.05,
-            "trust": 0.03
+            "trust": 0.03,
+            "family": 0.02,
+            "romance": 0.01
           },
           "player": {
             "standing": 0.01
@@ -145,7 +147,8 @@
         "effects": {
           "target": {
             "affinity": 0.04,
-            "trust": 0.02
+            "trust": 0.02,
+            "romance": 0.02
           }
         }
       },

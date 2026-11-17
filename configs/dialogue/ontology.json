@@ -95,6 +95,11 @@
       "label": "близость",
       "plural": "близости",
       "summary": "Личная привязанность, флирт и признание."
+    },
+    "vassalage": {
+      "label": "вассалитет",
+      "plural": "вассальные связи",
+      "summary": "Личная верность и служба, связывающая человека с господином или общиной."
     }
   },
   "relations": {
@@ -180,6 +185,26 @@
       "label": "производит",
       "subject": "faction",
       "object": "asset"
+    },
+    "romance_with": {
+      "label": "в романтической близости с",
+      "subject": "character",
+      "object": "character"
+    },
+    "kin_of": {
+      "label": "в родстве с",
+      "subject": "character",
+      "object": "character"
+    },
+    "ritual_bound_to": {
+      "label": "связан обрядом с",
+      "subject": "character",
+      "object": "place"
+    },
+    "sworn_to": {
+      "label": "связан вассальной присягой с",
+      "subject": "character",
+      "object": "character"
     }
   },
   "question_types": {

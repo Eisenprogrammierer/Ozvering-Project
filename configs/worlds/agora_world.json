@@ -13,6 +13,136 @@
   "realtime": true,
   "seconds_per_day": 120,
   "time_speeds": [1, 2, 4, 8],
+  "relation_axes": {
+    "affinity": {
+      "label": "расположение",
+      "short": "расп."
+    },
+    "trust": {
+      "label": "доверие",
+      "short": "дов."
+    },
+    "fear": {
+      "label": "страх",
+      "short": "страх"
+    },
+    "respect": {
+      "label": "уважение",
+      "short": "уваж."
+    },
+    "romance": {
+      "label": "романтика",
+      "short": "роман."
+    },
+    "family": {
+      "label": "родство",
+      "short": "род."
+    },
+    "ritual": {
+      "label": "обрядовая связь",
+      "short": "обряд"
+    },
+    "vassalage": {
+      "label": "вассальная верность",
+      "short": "васс."
+    }
+  },
+  "relation_effect_weights": {
+    "force": {
+      "affinity": 0.02,
+      "trust": -0.02,
+      "fear": 0.1,
+      "respect": 0.08
+    },
+    "info": {
+      "affinity": 0.06,
+      "trust": 0.14,
+      "fear": -0.04,
+      "respect": 0.04
+    },
+    "contact": {
+      "affinity": 0.1,
+      "trust": 0.06,
+      "fear": -0.02,
+      "romance": 0.12
+    },
+    "care": {
+      "affinity": 0.08,
+      "trust": 0.08,
+      "fear": -0.03,
+      "family": 0.06
+    },
+    "personal_care": {
+      "affinity": 0.06,
+      "trust": 0.1,
+      "fear": -0.05,
+      "family": 0.05
+    },
+    "ritual": {
+      "trust": 0.03,
+      "respect": 0.06,
+      "ritual": 0.12
+    },
+    "law": {
+      "trust": 0.03,
+      "respect": 0.1,
+      "vassalage": 0.06
+    },
+    "education": {
+      "trust": 0.06,
+      "respect": 0.1,
+      "vassalage": 0.03
+    },
+    "art": {
+      "affinity": 0.06,
+      "trust": 0.03,
+      "respect": 0.05
+    },
+    "exchange": {
+      "affinity": 0.05,
+      "trust": 0.05,
+      "romance": 0.02
+    },
+    "negotiation": {
+      "trust": 0.08,
+      "respect": 0.04,
+      "vassalage": 0.02
+    },
+    "coercion": {
+      "trust": -0.06,
+      "fear": 0.08,
+      "respect": 0.04
+    },
+    "meaning": {
+      "respect": 0.04,
+      "ritual": 0.08
+    },
+    "knowledge": {
+      "trust": 0.06,
+      "respect": 0.06
+    },
+    "provision": {
+      "trust": 0.05,
+      "family": 0.04
+    },
+    "recruitment": {
+      "trust": 0.04,
+      "fear": 0.02,
+      "vassalage": 0.06
+    },
+    "character_interaction": {
+      "affinity": 0.04,
+      "trust": 0.04
+    },
+    "organ_interaction": {
+      "trust": 0.02,
+      "respect": 0.04
+    },
+    "automaton_interaction": {
+      "trust": 0.04,
+      "respect": 0.04
+    }
+  },
   "strategies_path": "configs/worlds/agora_strategies.json",
   "labor_market": {
     "rivals": 2,
@@ -6248,6 +6378,10 @@
       "circle": "close",
       "affinity": 0.84,
       "trust": 0.78,
+      "romance": 0.0,
+      "family": 0.9,
+      "ritual": 0.15,
+      "vassalage": 0.0,
       "node_id": "agora_ministry_finance",
       "tags": [
         "семья",
@@ -6262,6 +6396,10 @@
       "circle": "close",
       "affinity": 0.73,
       "trust": 0.69,
+      "romance": 0.0,
+      "family": 0.86,
+      "ritual": 0.1,
+      "vassalage": 0.2,
       "node_id": "agora_government",
       "tags": [
         "семья"
@@ -6275,6 +6413,10 @@
       "circle": "close",
       "affinity": 0.76,
       "trust": 0.72,
+      "romance": 0.02,
+      "family": 0.12,
+      "ritual": 0.15,
+      "vassalage": 0.0,
       "node_id": "knowledge_department_letters",
       "tags": [
         "друг"
@@ -6288,6 +6430,10 @@
       "circle": "close",
       "affinity": 0.68,
       "trust": 0.63,
+      "romance": 0.0,
+      "family": 0.05,
+      "ritual": 0.05,
+      "vassalage": 0.45,
       "node_id": "agora_watch",
       "tags": [
         "друг"
@@ -6301,6 +6447,10 @@
       "circle": "close",
       "affinity": 0.64,
       "trust": 0.61,
+      "romance": 0.0,
+      "family": 0.08,
+      "ritual": 0.3,
+      "vassalage": 0.15,
       "node_id": "knowledge_archive",
       "tags": [
         "наставник"
@@ -6314,6 +6464,10 @@
       "circle": "close",
       "affinity": 0.59,
       "trust": 0.54,
+      "romance": 0.0,
+      "family": 0.7,
+      "ritual": 0.2,
+      "vassalage": 0.0,
       "node_id": "agora_port",
       "tags": [
         "семья"
@@ -6327,6 +6481,10 @@
       "circle": "companion",
       "affinity": -0.18,
       "trust": -0.08,
+      "romance": -0.05,
+      "family": 0.0,
+      "ritual": 0.0,
+      "vassalage": 0.5,
       "node_id": "agora_government",
       "tags": [
         "соперник"
@@ -6340,6 +6498,10 @@
       "circle": "companion",
       "affinity": -0.24,
       "trust": -0.18,
+      "romance": 0.0,
+      "family": 0.0,
+      "ritual": 0.05,
+      "vassalage": 0.35,
       "node_id": "agora_ministry_interior",
       "tags": [
         "соперник"
@@ -6353,6 +6515,10 @@
       "circle": "companion",
       "affinity": 0.07,
       "trust": 0.09,
+      "romance": 0.05,
+      "family": 0.0,
+      "ritual": 0.05,
+      "vassalage": 0.0,
       "node_id": "knowledge_gazette",
       "tags": [
         "знакомая",
@@ -6367,6 +6533,10 @@
       "circle": "companion",
       "affinity": -0.37,
       "trust": -0.31,
+      "romance": 0.0,
+      "family": 0.0,
+      "ritual": 0.0,
+      "vassalage": 0.1,
       "node_id": "underworld_house",
       "tags": [
         "враг",
@@ -6534,7 +6704,9 @@
         "text": "Разговор получился теплее, чем вы рассчитывали.",
         "effects": {
           "affinity": 0.07,
-          "trust": 0.05
+          "trust": 0.05,
+          "romance": 0.03,
+          "family": 0.01
         }
       },
       "failure": {
@@ -6570,6 +6742,7 @@
         "effects": {
           "affinity": 0.05,
           "trust": 0.09,
+          "family": 0.01,
           "player": {
             "standing": 0.01
           }
@@ -6692,6 +6865,7 @@
         "effects": {
           "affinity": -0.1,
           "trust": -0.08,
+          "vassalage": 0.02,
           "player": {
             "favor": 0.09,
             "evidence": 0.04
@@ -6737,6 +6911,7 @@
         "effects": {
           "affinity": 0.09,
           "trust": 0.07,
+          "vassalage": 0.02,
           "player": {
             "standing": 0.02
           }
