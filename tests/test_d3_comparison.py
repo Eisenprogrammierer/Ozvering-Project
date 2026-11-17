@@ -268,6 +268,106 @@ def test_max_premises_can_be_increased(tmp_path):
     assert planner._max_premises(plan) == 3
 
 
+def _ordinal_catalog(tmp_path, scale):
+    directory = _copy_configs(tmp_path)
+    path = directory / "comparison.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["comparisons"]["asset"]["scale"] = list(scale)
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    return _catalog(directory)
+
+
+SCALE = ("низкая", "средняя", "высокая")
+
+
+def test_ordinal_scale_greater(tmp_path):
+    catalog = _ordinal_catalog(tmp_path, SCALE)
+    planner = _planner(
+        catalog,
+        facts=[
+            Fact("asset", ("faction:red", "influence", "высокая")),
+            Fact("asset", ("faction:blue", "influence", "низкая")),
+        ],
+    )
+    answer = planner.plan(_comparison_sem(
+        "faction:red", "faction:blue", "asset:influence"
+    ))
+    assert answer.data["outcome"] == "greater"
+    assert answer.data["left_value"] == 2.0
+    assert answer.data["right_value"] == 0.0
+
+
+def test_ordinal_scale_less(tmp_path):
+    catalog = _ordinal_catalog(tmp_path, SCALE)
+    planner = _planner(
+        catalog,
+        facts=[
+            Fact("asset", ("faction:red", "influence", "средняя")),
+            Fact("asset", ("faction:blue", "influence", "высокая")),
+        ],
+    )
+    answer = planner.plan(_comparison_sem(
+        "faction:red", "faction:blue", "asset:influence"
+    ))
+    assert answer.data["outcome"] == "less"
+
+
+def test_ordinal_scale_equal(tmp_path):
+    catalog = _ordinal_catalog(tmp_path, SCALE)
+    planner = _planner(
+        catalog,
+        facts=[
+            Fact("asset", ("faction:red", "influence", "Высокая")),
+            Fact("asset", ("faction:blue", "influence", "высокая")),
+        ],
+    )
+    answer = planner.plan(_comparison_sem(
+        "faction:red", "faction:blue", "asset:influence"
+    ))
+    assert answer.data["outcome"] == "equal"
+
+
+def test_ordinal_scale_unknown_value(tmp_path):
+    catalog = _ordinal_catalog(tmp_path, SCALE)
+    planner = _planner(
+        catalog,
+        facts=[
+            Fact("asset", ("faction:red", "influence", "неизвестно")),
+            Fact("asset", ("faction:blue", "influence", "высокая")),
+        ],
+    )
+    answer = planner.plan(_comparison_sem(
+        "faction:red", "faction:blue", "asset:influence"
+    ))
+    assert answer.data["outcome"] == "unknown_left"
+
+
+def test_lint_catches_short_scale(tmp_path):
+    directory = _copy_configs(tmp_path)
+    path = directory / "comparison.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["comparisons"]["asset"]["scale"] = ["одна"]
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    problems = lint_directory(directory)
+    assert any("scale: нужно минимум два" in item for item in problems)
+
+
+def test_lint_catches_duplicate_scale_value(tmp_path):
+    directory = _copy_configs(tmp_path)
+    path = directory / "comparison.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["comparisons"]["asset"]["scale"] = ["низкая", "Низкая"]
+    path.write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+    problems = lint_directory(directory)
+    assert any("повтор значения" in item for item in problems)
+
+
 # --- линтер -------------------------------------------------------
 
 

@@ -171,6 +171,18 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
+def _scale_rank(scale: Any, value: Any) -> Optional[float]:
+    """Позиция значения на упорядоченной шкале (низкая → высокая)."""
+
+    token = str(value or "").strip().casefold()
+    if not token:
+        return None
+    for rank, item in enumerate(scale or ()):
+        if str(item or "").strip().casefold() == token:
+            return float(rank)
+    return None
+
+
 def _fact_from(spec: Mapping[str, Any], values: Mapping[str, Any]) -> Fact:
     """Собрать ``Fact`` из описания в плане с подстановкой значений.
 
@@ -895,8 +907,13 @@ class AnswerPlanner:
             return self._unknown(plan.id)
         left_value = self._value_for(spec, left, key)
         right_value = self._value_for(spec, right, key)
-        left_number = _to_float(left_value) if left_value else None
-        right_number = _to_float(right_value) if right_value else None
+        scale = tuple(getattr(spec, "scale", ()) or ())
+        if scale:
+            left_number = _scale_rank(scale, left_value)
+            right_number = _scale_rank(scale, right_value)
+        else:
+            left_number = _to_float(left_value) if left_value else None
+            right_number = _to_float(right_value) if right_value else None
         data = {
             "relation": relation,
             "left": left,

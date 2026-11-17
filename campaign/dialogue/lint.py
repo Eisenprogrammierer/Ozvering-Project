@@ -2236,6 +2236,26 @@ def _comparison_problems(
                         "%s.args.%s: позиция %d вне арности %d"
                         % (where, arg_name, position, arity)
                     )
+        if spec.scale:
+            if len(spec.scale) < 2:
+                problems.append(
+                    "%s.scale: нужно минимум два значения" % where
+                )
+            seen_scale = set()
+            for index, item in enumerate(spec.scale):
+                token = str(item or "").strip().casefold()
+                if not token:
+                    problems.append(
+                        "%s.scale[%d]: пустое значение"
+                        % (where, index)
+                    )
+                    continue
+                if token in seen_scale:
+                    problems.append(
+                        "%s.scale[%d]: повтор значения %r"
+                        % (where, index, item)
+                    )
+                seen_scale.add(token)
         for name in (
             "greater",
             "less",

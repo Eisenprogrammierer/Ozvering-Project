@@ -387,6 +387,7 @@ class ComparisonSpec:
     unknown_left: str = ""
     unknown_right: str = ""
     both_unknown: str = ""
+    scale: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

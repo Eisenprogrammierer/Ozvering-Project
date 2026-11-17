@@ -738,6 +738,11 @@ def load_comparison(root: Path) -> ComparisonCatalog:
             unknown_left=_text(data.get("unknown_left")),
             unknown_right=_text(data.get("unknown_right")),
             both_unknown=_text(data.get("both_unknown")),
+            scale=tuple(
+                str(item)
+                for item in _list(data.get("scale"))
+                if str(item or "").strip()
+            ),
         )
     return ComparisonCatalog(comparisons=comparisons)
 
