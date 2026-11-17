@@ -6,7 +6,8 @@
   "actions_per_day": 3,
   "action_catalogs": [
     "configs/worlds/actions/agora_actions.json",
-    "configs/worlds/actions/agora_primitives.json"
+    "configs/worlds/actions/agora_primitives.json",
+    "configs/worlds/actions/agora_items.json"
   ],
   "scene_catalog": "configs/worlds/scenes/agora_scenes.json",
   "sandbox": true,
@@ -6934,7 +6935,36 @@
       "label": "Личная печать",
       "icon": "items/trade_seal",
       "always": true,
-      "description": "Небольшая печать с вашим знаком. Превращает слова в документ."
+      "description": "Небольшая печать с вашим знаком. Превращает слова в документ, а в трудный день может стать подношением.",
+      "automaton": {
+        "inputs": ["info"],
+        "outputs": ["order"],
+        "default_handler": "seal",
+        "handlers": {
+          "seal": {
+            "label": "Заверить",
+            "energy": 0.5,
+            "state": {"ink": -0.2},
+            "effects": {
+              "node": {"legitimacy": 0.01}
+            }
+          },
+          "offer": {
+            "label": "Оставить как подношение",
+            "energy": 1.0,
+            "state": {"ink": -0.1},
+            "effects": {
+              "node": {"cohesion": 0.01},
+              "relation_axes": {"ritual": 0.01}
+            }
+          }
+        },
+        "state": {"ink": 3.0},
+        "force": 4.0,
+        "max_force": 4.0,
+        "energy": 6.0,
+        "max_energy": 6.0
+      }
     },
     {
       "id": "sealed_orders",
@@ -6944,7 +6974,38 @@
         "order",
         "status"
       ],
-      "description": "Приказ, который можно открыть только в нужной комнате и при нужных свидетелях."
+      "description": "Приказ, который можно открыть только в нужной комнате и при нужных свидетелях.",
+      "automaton": {
+        "inputs": ["info", "force"],
+        "outputs": ["order"],
+        "default_handler": "open",
+        "handlers": {
+          "open": {
+            "label": "Вскрыть",
+            "energy": 0.3,
+            "state": {"seals": -1.0},
+            "effects": {
+              "node": {"legitimacy": 0.005}
+            }
+          },
+          "deliver": {
+            "label": "Доставить",
+            "energy": 0.5,
+            "force": 0.05,
+            "state": {"seals": -1.0},
+            "consume": true,
+            "effects": {
+              "node": {"capacity": 0.01},
+              "player": {"standing": 0.01}
+            }
+          }
+        },
+        "state": {"seals": 1.0},
+        "force": 2.0,
+        "max_force": 2.0,
+        "energy": 3.0,
+        "max_energy": 3.0
+      }
     },
     {
       "id": "open_ledger",
@@ -6954,7 +7015,27 @@
         "provision",
         "exchange"
       ],
-      "description": "Счета, накладные и пометки на полях, которые иногда важнее итоговой суммы."
+      "description": "Счета, накладные и пометки на полях, которые иногда важнее итоговой суммы.",
+      "automaton": {
+        "inputs": ["info"],
+        "outputs": ["info"],
+        "default_handler": "audit",
+        "handlers": {
+          "audit": {
+            "label": "Сверить счета",
+            "energy": 0.2,
+            "state": {"pages": -1.0},
+            "effects": {
+              "node": {"legitimacy": 0.003}
+            }
+          }
+        },
+        "state": {"pages": 10.0},
+        "force": 3.0,
+        "max_force": 3.0,
+        "energy": 5.0,
+        "max_energy": 5.0
+      }
     },
     {
       "id": "press_folder",
@@ -6963,7 +7044,32 @@
       "domains": [
         "knowledge"
       ],
-      "description": "Черновики, гранки и список тем, которые пока не решаются печатать."
+      "description": "Черновики, гранки и список тем, которые пока не решаются печатать.",
+      "automaton": {
+        "inputs": ["info"],
+        "outputs": ["info"],
+        "default_handler": "publish",
+        "handlers": {
+          "publish": {
+            "label": "Опубликовать",
+            "energy": 0.5,
+            "state": {"drafts": -1.0},
+            "effects": {
+              "node": {"reach": 0.01}
+            }
+          },
+          "edit": {
+            "label": "Править",
+            "energy": 0.2,
+            "state": {"drafts": 1.0}
+          }
+        },
+        "state": {"drafts": 2.0},
+        "force": 3.0,
+        "max_force": 3.0,
+        "energy": 4.0,
+        "max_energy": 4.0
+      }
     },
     {
       "id": "medical_bag",
@@ -6972,7 +7078,28 @@
       "domains": [
         "care"
       ],
-      "description": "Бинты, настойки и несколько инструментов для срочного случая."
+      "description": "Бинты, настойки и несколько инструментов для срочного случая.",
+      "automaton": {
+        "inputs": ["force", "info"],
+        "outputs": ["force"],
+        "default_handler": "treat",
+        "handlers": {
+          "treat": {
+            "label": "Перевязать",
+            "energy": 0.5,
+            "force": 0.1,
+            "state": {"supplies": -1.0},
+            "effects": {
+              "node": {"cohesion": 0.005}
+            }
+          }
+        },
+        "state": {"supplies": 3.0},
+        "force": 3.0,
+        "max_force": 3.0,
+        "energy": 4.0,
+        "max_energy": 4.0
+      }
     },
     {
       "id": "prayer_book",
@@ -6981,7 +7108,114 @@
       "domains": [
         "meaning"
       ],
-      "description": "Книга с закладками на местах, где легче говорить с людьми, чем с небом."
+      "description": "Книга с закладками на местах, где легче говорить с людьми, чем с небом.",
+      "automaton": {
+        "inputs": ["info"],
+        "outputs": ["info"],
+        "default_handler": "read",
+        "handlers": {
+          "read": {
+            "label": "Прочесть",
+            "energy": 0.2,
+            "state": {"bookmarks": -1.0},
+            "effects": {
+              "node": {"legitimacy": 0.004},
+              "player": {"standing": 0.002}
+            }
+          }
+        },
+        "state": {"bookmarks": 5.0},
+        "force": 2.0,
+        "max_force": 2.0,
+        "energy": 3.0,
+        "max_energy": 3.0
+      }
+    },
+    {
+      "id": "street_lute",
+      "label": "Уличная лютня",
+      "icon": "items/lute",
+      "domains": [
+        "status",
+        "knowledge"
+      ],
+      "description": "Инструмент, который кормит музыканта и собирает вокруг него людей.",
+      "automaton": {
+        "inputs": ["info", "force"],
+        "outputs": ["info"],
+        "default_handler": "play",
+        "handlers": {
+          "play": {
+            "label": "Сыграть",
+            "energy": 1.0,
+            "force": 0.05,
+            "state": {"wear": 0.03, "tuning": -0.02},
+            "effects": {
+              "node": {"cohesion": 0.015},
+              "player": {"standing": 0.004}
+            }
+          },
+          "tune": {
+            "label": "Настроить",
+            "energy": 0.2,
+            "state": {"wear": -0.02, "tuning": 0.05}
+          }
+        },
+        "state": {"wear": 0.0, "tuning": 1.0},
+        "force": 6.0,
+        "max_force": 6.0,
+        "energy": 8.0,
+        "max_energy": 8.0
+      }
+    },
+    {
+      "id": "charter_draft",
+      "label": "Черновик хартии",
+      "icon": "items/folder_open",
+      "domains": [
+        "order"
+      ],
+      "min_skills": {
+        "administration": 0.3
+      },
+      "description": "Ещё не закон: листы с формулировками, которые ждут печати и согласия.",
+      "automaton": {
+        "inputs": ["info", "force"],
+        "outputs": ["order"],
+        "default_handler": "seal",
+        "handlers": {
+          "seal": {
+            "label": "Заверить хартию",
+            "energy": 2.0,
+            "force": 0.2,
+            "state": {"clauses": -1.0},
+            "consume": true,
+            "effects": {
+              "node": {"legitimacy": 0.015},
+              "norm": {
+                "id": "sealed_charter",
+                "label": "Заверенная хартия",
+                "domain": "order",
+                "status": "active",
+                "description": "Хартия, которой можно сослаться, пока её не отменили."
+              }
+            }
+          },
+          "amend": {
+            "label": "Дополнить",
+            "energy": 0.5,
+            "state": {"clauses": 1.0},
+            "effects": {
+              "player": {"standing": 0.002}
+            }
+          }
+        },
+        "state": {"clauses": 3.0},
+        "force": 3.0,
+        "max_force": 3.0,
+        "energy": 5.0,
+        "max_energy": 5.0
+      }
     }
   ],
   "skill_tree": {

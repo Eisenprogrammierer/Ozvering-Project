@@ -23,6 +23,14 @@ from .actions import (
     parse_entity_ref,
 )
 from .character import CampaignCharacter
+from .item_automaton import (
+    apply_item_handler,
+    item_automaton_snapshot,
+    item_automaton_view,
+    item_handler_reason,
+    normalize_item_automaton,
+    restore_item_automaton,
+)
 from . import logbook as _logbook
 from .lod import CampaignLod
 from .scenes import SceneCatalog, SceneError, SceneSpec
@@ -1170,6 +1178,13 @@ class WorldEngine:
         self.item_order = [item["id"] for item in self.config["items"]]
         self.item_catalog = {
             item["id"]: dict(item) for item in self.config["items"]
+        }
+        self.item_automata = {
+            item_id: normalize_item_automaton(
+                item_id, item.get("automaton")
+            )
+            for item_id, item in self.item_catalog.items()
+            if item.get("automaton")
         }
         self.norm_order = [item["id"] for item in self.config["norms"]]
         self.norms = {
@@ -3375,11 +3390,31 @@ class WorldEngine:
         self.player_item_ids = self.player_item_ids[:limit]
 
     def player_items(self):
-        return [
-            dict(self.item_catalog[item_id])
-            for item_id in self.player_item_ids
-            if item_id in self.item_catalog
-        ]
+        result = []
+        for item_id in self.player_item_ids:
+            item = self.item_catalog.get(item_id)
+            if item is None:
+                continue
+            entry = dict(item)
+            automaton = self.item_automata.get(item_id)
+            if automaton is not None:
+                entry["automaton"] = item_automaton_view(automaton)
+            result.append(entry)
+        return result
+
+    def item_automaton(self, item_id):
+        """Публичное состояние автомата предмета для UI и проверок."""
+        automaton = self.item_automata.get(_text(item_id))
+        if automaton is None:
+            return None
+        return item_automaton_view(automaton)
+
+    def _reset_item_automaton(self, item_id):
+        item = self.item_catalog.get(_text(item_id)) or {}
+        spec = item.get("automaton")
+        if not spec:
+            return
+        self.item_automata[item_id] = normalize_item_automaton(item_id, spec)
 
     def norm_entries(self):
         """Нормы мира в порядке объявления, как данные для UI."""
@@ -3821,6 +3856,22 @@ class WorldEngine:
                         requires.get("invalid_status_reason"),
                         "норма не в подходящем состоянии",
                     )
+            item_handler = requires.get("item_handler")
+            if item_handler:
+                if self._entity_kind(target) != "item":
+                    return "цель не является предметом"
+                automaton = self.item_automata.get(
+                    _text(target.get("id"))
+                )
+                handler = "default" if item_handler == "default" else (
+                    _text(item_handler)
+                )
+                reason = item_handler_reason(
+                    automaton,
+                    "" if handler == "default" else handler,
+                )
+                if reason:
+                    return reason
             relation_min = requires.get("relation_min")
             if relation_min is not None:
                 value = self.relation(context["node"]["id"], target["id"])
@@ -5173,6 +5224,69 @@ class WorldEngine:
                 ),
             )
 
+    def _consume_item(self, item_id):
+        item_id = _text(item_id)
+        if item_id not in self.player_item_ids:
+            return False
+        self.player_item_ids = [
+            value for value in self.player_item_ids if value != item_id
+        ]
+        self.granted_items.discard(item_id)
+        self.consumed_items.add(item_id)
+        self.log.append(
+            {
+                "day": self.day,
+                "kind": "item",
+                "text": "израсходован предмет: %s"
+                % self.item_label(item_id),
+            }
+        )
+        return True
+
+    def _apply_item_work(self, spec, context, target):
+        """Запустить обработчик предмета-автомата (P4)."""
+        if not spec:
+            return []
+        entries = spec if isinstance(spec, list) else [spec]
+        changed = []
+        for entry in entries:
+            if isinstance(entry, str):
+                entry = {"handler": entry}
+            if not isinstance(entry, dict):
+                continue
+            item_id = _text(entry.get("id"))
+            if item_id in ("", "$target"):
+                if self._entity_kind(target) != "item":
+                    continue
+                item_id = _text(target.get("id"))
+            automaton = self.item_automata.get(item_id)
+            if automaton is None:
+                continue
+            handler = _text(entry.get("handler"))
+            payload, reason = apply_item_handler(
+                automaton, handler, self.day
+            )
+            if payload is None:
+                self.log.append(
+                    {
+                        "day": self.day,
+                        "kind": "item",
+                        "text": "предмет не сработал: %s (%s)"
+                        % (self.item_label(item_id), reason),
+                    }
+                )
+                continue
+            effects = dict(payload.get("effects") or {})
+            effects.pop("item_work", None)
+            changed.extend(
+                self._apply_effects(
+                    effects, context, target, is_player=True
+                )
+            )
+            if payload.get("consume"):
+                self._consume_item(item_id)
+        return changed
+
     def _apply_item_effects(self, spec):
         """Выдать или забрать предметы игрока (P4)."""
         if not spec:
@@ -5193,6 +5307,7 @@ class WorldEngine:
                     self.player_item_ids.append(item_id)
                     self.granted_items.add(item_id)
                     self.consumed_items.discard(item_id)
+                    self._reset_item_automaton(item_id)
                     self.log.append(
                         {
                             "day": self.day,
@@ -5316,6 +5431,11 @@ class WorldEngine:
             changed.extend(self._apply_player_map(effects.get("player")))
             self._apply_item_effects(
                 effects.get("item") or effects.get("items")
+            )
+            changed.extend(
+                self._apply_item_work(
+                    effects.get("item_work"), context, target
+                )
             )
             self._apply_norm_effects(
                 effects.get("norm") or effects.get("norms"), target
@@ -6905,6 +7025,10 @@ class WorldEngine:
                 "items": list(self.player_item_ids),
                 "granted_items": sorted(self.granted_items),
                 "consumed_items": sorted(self.consumed_items),
+                "item_automata": {
+                    item_id: item_automaton_snapshot(automaton)
+                    for item_id, automaton in self.item_automata.items()
+                },
                 "health": float(self.player_health),
                 "sickness": float(self.player_sickness),
                 "wound": float(self.player_wound),
@@ -7067,6 +7191,12 @@ class WorldEngine:
                 for item_id in (player.get("consumed_items") or ())
                 if str(item_id) in self.item_catalog
             }
+        saved_automata = player.get("item_automata") or {}
+        if isinstance(saved_automata, dict):
+            for item_id, automaton in self.item_automata.items():
+                saved = saved_automata.get(item_id)
+                if isinstance(saved, dict):
+                    restore_item_automaton(automaton, saved)
         for character_id, saved in (snapshot.get("characters") or {}).items():
             character = self.characters.get(character_id)
             if character is None:

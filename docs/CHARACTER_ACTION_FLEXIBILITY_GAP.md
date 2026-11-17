@@ -454,7 +454,10 @@ Python-зажимы**.
 Согласие в `contact` выражено явными
 `requires.affinity_min`/`trust_min`, жертва адресует место/общину и
 тратит предмет, закон создаёт норму, принимает её и отменяет
-(`requires.target_status` + эффект `$target`). Локальная сцена закрыта,
+(`requires.target_status` + эффект `$target`). Предметы описаны как
+автоматы `I/O/H/S/F/E/W`: `configs/worlds/actions/agora_items.json`
+запускает обработчик из данных предмета, а `campaign/item_automaton.py`
+хранит `F/E/S/W` и переживает снимок. Локальная сцена закрыта,
 кампании автоматов остаются за P6.
 
 **Что умирает:** именно те примеры пользователя, которые проверяют
@@ -714,8 +717,9 @@ override: произвольная сторона кампании работа�
 **Доказательства:**
 
 - `configs/worlds/` содержит `agora_world.json` (44 узла, 72 должности,
-  64 действия после слияния `action_catalogs`, `norms`), каталог
-  `actions/agora_actions.json`, `agora_strategies.json` и `biography.json`.
+  65 действий после слияния `action_catalogs`, `norms`, 8 предметов),
+  каталог `actions/agora_actions.json`, `agora_strategies.json` и
+  `biography.json`.
 - `campaign/world.py` — `validate_world` (`:429`),
   `WorldEngine` (`:753`), `load_world` (`:352`), `list_worlds` (`:376`).
 - `SOURCE_OF_TRUTH.md` и `SUMMARY.md` описывают WorldEngine как отдельный

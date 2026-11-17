@@ -1934,6 +1934,14 @@
    "semantic": {"kind": "entity", "type": "place", "id": "place:street"}
   },
   {
+   "id": "noun:item",
+   "type": "item",
+   "cat": "N",
+   "lemma": "предмет",
+   "forms": {"nom": ["предмет"], "gen": ["предмета"], "dat": ["предмету"], "acc": ["предмет"], "ins": ["предметом"], "prep": ["предмете"]},
+   "semantic": {"kind": "entity", "type": "item", "id": "item:thing"}
+  },
+  {
    "id": "noun:law",
    "type": "norm",
    "cat": "N",
@@ -1972,6 +1980,14 @@
    "lemma": "принять",
    "forms": ["принять", "приму", "примем", "примешь", "примете", "примет", "примут", "принял", "приняла", "приняли", {"text": "прими", "features": {"mood": "imperative"}}, {"text": "примите", "features": {"mood": "imperative"}}],
    "semantic": {"kind": "predicate", "id": "act_accept_law"}
+  },
+  {
+   "id": "verb:use_item",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "использовать",
+   "forms": ["использовать", "использую", "используем", "используешь", "используете", "использует", "используют", "использовал", "использовала", "использовали", "применить", "применяю", "применяем", "применяешь", "применяете", "применяет", "применяют", "применил", "применила", "применили", {"text": "используй", "features": {"mood": "imperative"}}, {"text": "используйте", "features": {"mood": "imperative"}}, {"text": "примени", "features": {"mood": "imperative"}}, {"text": "примените", "features": {"mood": "imperative"}}],
+   "semantic": {"kind": "predicate", "id": "act_use_item"}
   },
   {
    "id": "verb:repeal_law",

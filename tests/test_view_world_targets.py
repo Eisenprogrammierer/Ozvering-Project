@@ -106,6 +106,7 @@ def test_item_tab_addresses_personal_item():
     screen.draw(surface)
     options = _world_options(screen._action_options())
     assert options
+    assert "use_item" in {item["id"] for item in options}
     option = next(item for item in options if item["enabled"])
     assert option["target_ref"]["kind"] == "item"
     assert option["target_ref"]["id"] == item_id
