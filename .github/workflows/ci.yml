@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Установка тестовых зависимостей
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Компиляция (ядро, GUI, сценный слой, эксперименты)
         run: python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view automata interaction organizations experiments
