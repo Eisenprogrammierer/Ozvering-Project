@@ -43,6 +43,7 @@ WARN = (230, 184, 96)
 MAIN_TABS = (
     ("characters", "ПЕРСОНАЖИ"),
     ("organizations", "ОРГАНИЗАЦИИ"),
+    ("norms", "НОРМЫ"),
     ("personality", "ЛИЧНОСТЬ"),
 )
 SUB_TABS = {
@@ -55,6 +56,9 @@ SUB_TABS = {
         ("allied", "Союзные"),
         ("hostile", "Враждебные"),
         ("neutral", "Нейтральные"),
+    ),
+    "norms": (
+        ("active", "Действующие"),
     ),
     "personality": (
         ("stats", "Характеристики"),
@@ -78,14 +82,18 @@ class WorldScreen(BaseScreen):
         self.subtab_index = {
             "characters": 0,
             "organizations": 0,
+            "norms": 0,
             "personality": 0,
         }
         self.selected_target_id = self._initial_target_id(engine)
         self.selected_character_id = None
+        self.selected_norm_id = None
         self.selected_skill_id = None
         self.selected_item_id = None
         self.action_context = "organization"
         self.selected_action_id = None
+        self.selected_action_context = ""
+        self.selected_action_option = None
         self.list_scroll = 0
         self.action_scroll = 0
         self.message = ""
@@ -175,6 +183,9 @@ class WorldScreen(BaseScreen):
         circle = self._active_group_id("characters")
         return self.engine.characters_by_circle(circle)
 
+    def _active_norms(self):
+        return self.engine.norm_entries()
+
     def _visible_entity_rows(self):
         return max(1, (LEFT_RECT.height - 56) // LIST_ROW_H)
 
@@ -197,24 +208,64 @@ class WorldScreen(BaseScreen):
             return self._active_characters()
         if self.main_tab == "organizations":
             return self._active_organizations()
+        if self.main_tab == "norms":
+            return self._active_norms()
         return []
 
     def _action_options(self):
         if self.action_context == "character":
             if not self.selected_character_id:
                 return []
-            options = self.engine.character_action_options(
-                self.selected_character_id
+            options = [
+                dict(option, context="character")
+                for option in self.engine.character_action_options(
+                    self.selected_character_id
+                )
+            ]
+            options.extend(
+                self._world_options(
+                    {"kind": "character", "id": self.selected_character_id},
+                    "character",
+                )
+            )
+        elif self.action_context == "item":
+            if not self.selected_item_id:
+                return []
+            options = self._world_options(
+                {"kind": "item", "id": self.selected_item_id}, "item"
+            )
+        elif self.action_context == "norm":
+            if not self.selected_norm_id:
+                return []
+            options = self._world_options(
+                {"kind": "norm", "id": self.selected_norm_id}, "norm"
             )
         elif self.action_context == "organization":
             if not self.selected_target_id:
                 return []
-            options = self.engine.action_options(self.selected_target_id)
+            options = list(self.engine.action_options(self.selected_target_id))
         else:
             return []
         return sorted(
             options, key=lambda option: 0 if option.get("enabled") else 1
         )
+
+    def _world_options(self, ref, context):
+        """Объявленные действия, чей адресат совпадает с сущностью."""
+
+        kind = str((ref or {}).get("kind") or "")
+        if not kind:
+            return []
+        result = []
+        for option in self.engine.action_options(target_ref=ref):
+            action = option.get("action") or {}
+            kinds = (action.get("target") or {}).get("kinds") or ()
+            if kind not in kinds:
+                continue
+            result.append(
+                dict(option, context="world", action_context=context)
+            )
+        return result
 
     def _option_chance(self, option):
         action = option.get("action") or {}
@@ -256,6 +307,19 @@ class WorldScreen(BaseScreen):
         self.message = ""
         logger.debug("Собеседник выбран: %s", character_id)
 
+    def _select_norm(self, norm_id):
+        if norm_id == self.selected_norm_id and self.action_context == "norm":
+            return
+        self.main_tab = "norms"
+        self.action_context = "norm"
+        self.selected_norm_id = norm_id
+        self.selected_character_id = None
+        self.selected_action_id = None
+        self.action_scroll = 0
+        self.last_result = None
+        self.message = ""
+        logger.debug("Норма выбрана: %s", norm_id)
+
     def _select_skill(self, skill_id):
         self.main_tab = "personality"
         self.subtab_index["personality"] = 1
@@ -269,7 +333,7 @@ class WorldScreen(BaseScreen):
     def _select_item(self, item_id):
         self.main_tab = "personality"
         self.subtab_index["personality"] = 2
-        self.action_context = "personality"
+        self.action_context = "item"
         self.selected_item_id = item_id
         self.selected_skill_id = None
         self.selected_action_id = None
@@ -284,6 +348,10 @@ class WorldScreen(BaseScreen):
             )
             return
         self.selected_action_id = option["id"]
+        self.selected_action_context = str(
+            option.get("context") or self.action_context
+        )
+        self.selected_action_option = option
         self.last_result = None
         self.message = ""
         logger.debug("Действие мира выбрано: %s", option["id"])
@@ -292,7 +360,15 @@ class WorldScreen(BaseScreen):
         if not self.selected_action_id:
             return
         action_id = self.selected_action_id
-        if self.action_context == "character":
+        option = self.selected_action_option or {}
+        selected_context = str(
+            self.selected_action_context or self.action_context
+        )
+        if selected_context == "world":
+            result = self.engine.execute(
+                action_id, target_ref=option.get("target_ref") or {}
+            )
+        elif selected_context == "character":
             result = self.engine.execute_character_action(
                 action_id, self.selected_character_id
             )
@@ -304,8 +380,9 @@ class WorldScreen(BaseScreen):
             return
         self.last_result = result
         self.selected_action_id = None
+        self.selected_action_option = None
         self.message = ""
-        if self.action_context == "organization":
+        if selected_context == "organization":
             action = self.engine.actions.get(action_id) or {}
             if (
                 action.get("career") in ("promote", "transfer")
@@ -584,6 +661,8 @@ class WorldScreen(BaseScreen):
                 self.selected_item_id = None
             elif index == 2:
                 self.selected_skill_id = None
+                if self.selected_item_id:
+                    self.action_context = "item"
             else:
                 self.selected_skill_id = None
                 self.selected_item_id = None
@@ -600,6 +679,16 @@ class WorldScreen(BaseScreen):
             if not rows:
                 self.selected_character_id = None
             return
+        if self.main_tab == "norms":
+            self.action_context = "norm"
+            rows = self._active_norms()
+            ids = {item["id"] for item in rows}
+            if rows and self.selected_norm_id not in ids:
+                self.selected_norm_id = rows[0]["id"]
+            if not rows:
+                self.selected_norm_id = None
+            self.selected_character_id = None
+            return
         if self.main_tab == "organizations":
             self.action_context = "organization"
             rows = self._active_organizations()
@@ -609,6 +698,7 @@ class WorldScreen(BaseScreen):
             if not rows:
                 self.selected_target_id = None
             self.selected_character_id = None
+            self.selected_norm_id = None
 
     def handle_event(self, event):
         if self.free_mode and event.type == pygame.KEYDOWN:
@@ -689,6 +779,8 @@ class WorldScreen(BaseScreen):
                 continue
             if kind == "character":
                 self._select_character(entity_id)
+            elif kind == "norm":
+                self._select_norm(entity_id)
             else:
                 self._select_target(entity_id)
             return
@@ -932,7 +1024,7 @@ class WorldScreen(BaseScreen):
 
     def _draw_main_tabs(self, screen):
         gap = 8
-        tab_w = (WIDTH - 36 - gap * 2) // 3
+        tab_w = (WIDTH - 36 - gap * (len(MAIN_TABS) - 1)) // len(MAIN_TABS)
         self.main_tab_rects = []
         for index, (tab_id, label) in enumerate(MAIN_TABS):
             rect = pygame.Rect(
@@ -1010,6 +1102,8 @@ class WorldScreen(BaseScreen):
             )
             if kind == "character":
                 selected = entry["id"] == self.selected_character_id
+            elif kind == "norm":
+                selected = entry["id"] == self.selected_norm_id
             else:
                 selected = entry["id"] == self.selected_target_id
             fill = (38, 62, 88) if selected else (20, 26, 37)
@@ -1018,6 +1112,8 @@ class WorldScreen(BaseScreen):
                 pygame.draw.rect(screen, ACCENT, rect, 1, border_radius=5)
             if kind == "character":
                 self._draw_character_card(screen, rect, entry, selected)
+            elif kind == "norm":
+                self._draw_norm_card(screen, rect, entry, selected)
             else:
                 self._draw_organization_card(screen, rect, entry, selected)
             self.entity_rows.append((rect, kind, entry["id"]))
@@ -1124,6 +1220,52 @@ class WorldScreen(BaseScreen):
         elif node.get("kind") == "asset":
             screen.blit(
                 self.app.font_tiny.render("имущество", True, DIM),
+                (rect.x + 58, rect.y + 41),
+            )
+
+    def _draw_norm_card(self, screen, rect, norm, selected):
+        badge = pygame.Rect(rect.x + 6, rect.y + 6, 44, 44)
+        pygame.draw.rect(screen, (28, 36, 50), badge, border_radius=4)
+        pygame.draw.rect(screen, PANEL_BORDER, badge, 1, border_radius=4)
+        glyph = self.app.font_body.render("§", True, WARN)
+        screen.blit(glyph, glyph.get_rect(center=badge.center))
+        name_color = TEXT if selected else (205, 214, 228)
+        screen.blit(
+            self.app.font_small.render(
+                self._clip_text(
+                    self.app.font_small,
+                    norm.get("label", norm["id"]),
+                    rect.width - 66,
+                ),
+                True,
+                name_color,
+            ),
+            (rect.x + 58, rect.y + 5),
+        )
+        detail = " · ".join(
+            str(item)
+            for item in (
+                self.engine.domain_label(norm.get("domain", "")),
+                norm.get("status", ""),
+            )
+            if item
+        )
+        screen.blit(
+            self.app.font_tiny.render(
+                self._clip_text(self.app.font_tiny, detail, rect.width - 66),
+                True,
+                MUTED,
+            ),
+            (rect.x + 58, rect.y + 23),
+        )
+        scope = str(norm.get("scope") or "")
+        if scope:
+            screen.blit(
+                self.app.font_tiny.render(
+                    self._clip_text(self.app.font_tiny, scope, 180),
+                    True,
+                    DIM,
+                ),
                 (rect.x + 58, rect.y + 41),
             )
 
@@ -1280,6 +1422,71 @@ class WorldScreen(BaseScreen):
             screen, options, action_top, MID_RECT.bottom - 8
         )
 
+    def _draw_norm_content(self, screen):
+        rows = self._active_norms()
+        title = "НОРМЫ И ОБЫЧАИ"
+        self._draw_entity_list(screen, title, rows, "norm")
+        self._draw_norm_detail(screen)
+
+    def _draw_norm_detail(self, screen):
+        self._draw_panel(screen, MID_RECT, "НОРМА И ДЕЙСТВИЯ")
+        self.action_rows = []
+        norm = self.engine.norms.get(self.selected_norm_id)
+        if norm is None:
+            self._draw_wrapped(
+                screen,
+                "В мире пока нет объявленных норм.",
+                MID_RECT.x + 12,
+                MID_RECT.y + 48,
+                MID_RECT.width - 24,
+                DIM,
+                max_lines=3,
+            )
+            return
+        screen.blit(
+            self.app.font_body.render(
+                self._clip_text(
+                    self.app.font_body, norm.get("label", norm["id"]), 400
+                ),
+                True,
+                TEXT,
+            ),
+            (MID_RECT.x + 12, MID_RECT.y + 44),
+        )
+        detail = " · ".join(
+            str(item)
+            for item in (
+                self.engine.domain_label(norm.get("domain", "")),
+                norm.get("status", ""),
+                norm.get("scope", ""),
+            )
+            if item
+        )
+        screen.blit(
+            self.app.font_tiny.render(detail, True, ACCENT),
+            (MID_RECT.x + 12, MID_RECT.y + 70),
+        )
+        y = self._draw_wrapped(
+            screen,
+            norm.get("description", ""),
+            MID_RECT.x + 12,
+            MID_RECT.y + 92,
+            MID_RECT.width - 24,
+            MUTED,
+            max_lines=4,
+        )
+        action_top = max(y + 16, MID_RECT.y + 156)
+        screen.blit(
+            self.app.font_tiny.render(
+                "ДЕЙСТВИЯ · доступные и закрытые", True, WARN
+            ),
+            (MID_RECT.x + 12, action_top - 18),
+        )
+        options = self._action_options()
+        self._draw_action_list(
+            screen, options, action_top, MID_RECT.bottom - 8
+        )
+
     def _draw_character_content(self, screen):
         group_id = self._active_group_id("characters")
         rows = self._active_characters()
@@ -1379,7 +1586,7 @@ class WorldScreen(BaseScreen):
         action_top = MID_RECT.y + 136 + len(stat_rows) * 18 + 10
         screen.blit(
             self.app.font_tiny.render(
-                "РАЗГОВОР · доступные и закрытые", True, WARN
+                "РАЗГОВОР И ДЕЙСТВИЯ · доступные и закрытые", True, WARN
             ),
             (MID_RECT.x + 12, action_top - 18),
         )
@@ -1388,21 +1595,22 @@ class WorldScreen(BaseScreen):
             screen, options, action_top, MID_RECT.bottom - 8
         )
 
-    def _draw_action_list(self, screen, options, top, bottom):
+    def _draw_action_list(self, screen, options, top, bottom, rect=None):
         self.action_rows = []
+        panel = rect or MID_RECT
         if not options:
             screen.blit(
                 self.app.font_tiny.render("нет доступных действий", True, DIM),
-                (MID_RECT.x + 12, top + 8),
+                (panel.x + 12, top + 8),
             )
             return
         visible = max(1, (bottom - top) // ACTION_ROW_H)
         start = min(self.action_scroll, max(0, len(options) - visible))
         for index, option in enumerate(options[start : start + visible]):
             rect = pygame.Rect(
-                MID_RECT.x + 8,
+                panel.x + 8,
                 top + index * ACTION_ROW_H,
-                MID_RECT.width - 16,
+                panel.width - 16,
                 ACTION_ROW_H - 4,
             )
             selected = option["id"] == self.selected_action_id
@@ -1448,7 +1656,7 @@ class WorldScreen(BaseScreen):
                 self.app.font_tiny.render(
                     "колесо — прокрутка действий", True, DIM
                 ),
-                (MID_RECT.x + 12, MID_RECT.bottom - 14),
+                (panel.x + 12, panel.bottom - 14),
             )
 
     def _draw_wrapped(
@@ -1635,13 +1843,22 @@ class WorldScreen(BaseScreen):
     def _draw_forecast(self, screen):
         self._draw_panel(screen, RIGHT_RECT, "ПРОГНОЗ")
         y = RIGHT_RECT.y + 44
-        if self.selected_action_id and self.action_context in (
+        context = self.selected_action_context or self.action_context
+        if self.selected_action_id and context in (
             "organization",
             "character",
+            "norm",
+            "world",
         ):
-            if self.action_context == "character":
+            option = self.selected_action_option or {}
+            if context == "character":
                 preview = self.engine.character_preview(
                     self.selected_action_id, self.selected_character_id
+                )
+            elif context == "world":
+                preview = self.engine.preview(
+                    self.selected_action_id,
+                    target_ref=option.get("target_ref") or {},
                 )
             else:
                 preview = self.engine.preview(
@@ -1674,6 +1891,14 @@ class WorldScreen(BaseScreen):
                     "Шанс и последствия показаны качественно, без "
                     "точных процентов."
                 ) % node.get("name", "—")
+            elif self.action_context == "norm" and self.selected_norm_id:
+                norm = self.engine.norms.get(self.selected_norm_id) or {}
+                text = (
+                    "Выбрана норма: %s. Выберите, как на неё сослаться "
+                    "или что с ней сделать."
+                ) % norm.get("label", "—")
+            elif self.main_tab == "norms" and not self._active_norms():
+                text = "В мире пока нет объявленных норм."
             elif self.main_tab == "organizations" and not (
                 self._active_organizations()
             ):
@@ -1688,9 +1913,9 @@ class WorldScreen(BaseScreen):
                 text = "В этом круге пока никого нет."
             else:
                 text = (
-                    "Выберите человека или организацию, затем действие. "
-                    "Шанс и последствия показаны качественно, без "
-                    "точных процентов."
+                    "Выберите человека, структуру или норму, затем "
+                    "действие. Шанс и последствия показаны качественно, "
+                    "без точных процентов."
                 )
             y = self._draw_wrapped(
                 screen,
@@ -2143,6 +2368,28 @@ class WorldScreen(BaseScreen):
                     (190, 205, 220),
                     max_lines=5,
                 )
+                screen.blit(
+                    self.app.font_tiny.render(
+                        "ДЕЙСТВИЯ С ПРЕДМЕТОМ", True, WARN
+                    ),
+                    (RIGHT_RECT.x + 14, y + 8),
+                )
+                options = self._action_options()
+                self._draw_action_list(
+                    screen,
+                    options,
+                    y + 26,
+                    RIGHT_RECT.y + 322,
+                    rect=RIGHT_RECT,
+                )
+                if self.selected_action_id:
+                    self._draw_button(
+                        screen,
+                        self._execute_rect(),
+                        "Совершить",
+                        True,
+                        accent=True,
+                    )
         else:
             office = self.engine.player_office()
             screen.blit(
@@ -2275,6 +2522,12 @@ class WorldScreen(BaseScreen):
             )
         screen.blit(surf, surf.get_rect(center=rect.center))
 
+    @staticmethod
+    def _clock_flag(value):
+        """Флаг часов: свойство `FreeClock` или метод `CampaignClock`."""
+
+        return bool(value() if callable(value) else value)
+
     def _draw_bottom(self, screen):
         pygame.draw.rect(screen, (11, 15, 22), BOTTOM_RECT, border_radius=6)
         pygame.draw.rect(screen, PANEL_BORDER, BOTTOM_RECT, 1, border_radius=6)
@@ -2315,7 +2568,7 @@ class WorldScreen(BaseScreen):
                     screen,
                     self._speed_down_rect(),
                     "−",
-                    self.clock.can_slow_down(),
+                    self._clock_flag(self.clock.can_slow_down),
                 )
                 label = "%s · %s" % (
                     self.clock.speed_label(),
@@ -2330,7 +2583,7 @@ class WorldScreen(BaseScreen):
                     screen,
                     self._speed_up_rect(),
                     "+",
-                    self.clock.can_speed_up(),
+                    self._clock_flag(self.clock.can_speed_up),
                 )
             else:
                 self._draw_button(
@@ -2358,6 +2611,8 @@ class WorldScreen(BaseScreen):
             self._draw_character_content(screen)
         elif self.main_tab == "organizations":
             self._draw_organization_content(screen)
+        elif self.main_tab == "norms":
+            self._draw_norm_content(screen)
         else:
             self._draw_personality_content(screen)
         if self.main_tab == "personality":

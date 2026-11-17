@@ -3381,6 +3381,15 @@ class WorldEngine:
             if item_id in self.item_catalog
         ]
 
+    def norm_entries(self):
+        """Нормы мира в порядке объявления, как данные для UI."""
+
+        return [
+            dict(self.norms[norm_id])
+            for norm_id in self.norm_order
+            if norm_id in self.norms
+        ]
+
     def item_label(self, item_id):
         item = self.item_catalog.get(_text(item_id)) or {}
         return _text(item.get("label"), _text(item_id))
