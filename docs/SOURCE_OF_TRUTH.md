@@ -60,7 +60,7 @@
 | Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/agora_world.json` · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
 | Играть свободным жителем без мандата | мир | `configs/roles/roles.json` (`free_citizen`), `configs/storylines/free_life*.json`, `configs/characters/archetypes.json`, `view/screens/archetype_select.py` · `campaign/world.py` (`profile_from_identity`), `view/app.py` (`_free_start_entry`, `_save_world_game`) · `test_free_mode.py`, `test_archetypes.py`, `test_player_avatar.py` · [`WORLD.md`](WORLD.md) §1 |
 | Играть на арене | арена | `game_engine.py`, `core41/arena.py` · `configs/content/` · `test_health.py`, `test_core41.py` · [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) |
-| Говорить с агентом в чате | диалог | `view/screens/dialogue_chat.py`, `campaign/dialogue/` · `configs/dialogue/` · `test_dialogue.py`, `test_d1_dialogue.py`, `test_d5_registers.py` · [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md), [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) |
+| Говорить с агентом в чате | диалог | `view/screens/dialogue_chat.py`, `campaign/dialogue/` · `configs/dialogue/` · `test_dialogue.py`, `test_d1_dialogue.py`, `test_d5_registers.py`, `test_d5_style_hints.py`, `test_view_dialogue_chat.py` · [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md), [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) |
 
 `-m` принимает имя модуля через точку, а не путь. `python3 -m campaign`
 запускает CLI ролей/пресетов, `python3 -m core41` показывает справку и демо
@@ -245,7 +245,7 @@
 | Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
 | Дневной мир | `test_campaign.py`, `test_world.py`, `test_world_primitives.py`, `test_scene.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
 | Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_storyline_flex.py`, `test_lore_characters.py`, `test_commonsense.py` |
-| Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py` |
+| Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py`, `test_d5_style_hints.py`, `test_view_dialogue_chat.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
 | UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |
 | Легаси и прочее | `test_canon.py`, `test_strategy.py`, `test_warfare.py`, `test_advanced.py`, `test_breakthrough_balance.py`, `test_soak.py`, `test_checks.py`, `test_domain_audit.py` |
