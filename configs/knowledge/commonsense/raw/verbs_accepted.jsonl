@@ -1,0 +1,88 @@
+{"s": "похвастаться", "r": "Causes", "o": "недовольство", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "помочь", "r": "UsedFor", "o": "решение проблемы", "weight": 0.9125, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "обидеться", "r": "Causes", "o": "разлад в отношениях", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "пожениться", "r": "ResultsIn", "o": "союз", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "прогнать", "r": "Causes", "o": "отсутствие домашних животных", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "обсудить", "r": "UsedFor", "o": "разобраться в сложных ситуациях", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "обмануть", "r": "Causes", "o": "потеря доверия", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "помолчать", "r": "UsedFor", "o": "успокоение", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "приветствовать", "r": "UsedFor", "o": "подчеркнуть радость встречи", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "оскорбить", "r": "Causes", "o": "разлад в отношениях", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 0}}
+{"s": "пожаловаться", "r": "Causes", "o": "симпатию", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "похвалить", "r": "Increases", "o": "самоуважение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "уведомить", "r": "Informs", "o": "о проблеме", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "обмануть", "r": "Causes", "o": "разочарование", "weight": 0.8999999999999999, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "помочь", "r": "UsedFor", "o": "решить проблему", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "поговорить", "r": "UsedFor", "o": "обсуждение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "поклепать", "r": "Causes", "o": "неприязнь", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "оскорбить", "r": "Causes", "o": "разочарование", "weight": 0.9125, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "попросить", "r": "UsedFor", "o": "запрос", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "побеседовать", "r": "UsedFor", "o": "познакомиться", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 1}}
+{"s": "порадовать", "r": "Causes", "o": "радость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "оскорбить", "r": "Causes", "o": "обид", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "поддержать", "r": "UsedFor", "o": "моральное поддержанье", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "обвинить", "r": "Causes", "o": "обид", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "поблагодарить", "r": "Expresses", "o": "благодарность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "пообещать", "r": "UsedFor", "o": "обещание", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "оскорбить", "r": "Causes", "o": "гнев", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "поблагодарить", "r": "Expresses", "o": "уважение", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 2}}
+{"s": "пожаловаться", "r": "Causes", "o": "симпатии", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "поддержать", "r": "UsedFor", "o": "поддержку", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "помочь", "r": "Causes", "o": "улучшение положения", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "приветствовать", "r": "IsA", "o": "приветствие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "пренебречь", "r": "Causes", "o": "разочарование", "weight": 0.825, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "поблагодарить", "r": "UsedFor", "o": "утешение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "успокоить", "r": "Causes", "o": "спокойствие", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "обещать", "r": "UsedFor", "o": "надежды", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "обвинить", "r": "Causes", "o": "негативные эмоции", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 3}}
+{"s": "похвалить", "r": "Causes", "o": "уверение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "пригласить", "r": "UsedFor", "o": "встречу", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "забыть", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "обещать", "r": "UsedFor", "o": "утешение", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "умилостивить", "r": "Causes", "o": "милость", "weight": 0.92, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "разочаровать", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 4}}
+{"s": "обещать", "r": "UsedFor", "o": "надежду", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "умолять", "r": "UsedFor", "o": "получить уважение", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "угрожать", "r": "Causes", "o": "страх", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "поддерживать", "r": "UsedFor", "o": "обеспечить поддержку", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "оскорбить", "r": "Causes", "o": "оскорбление", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "поддерживать", "r": "IsA", "o": "оборотный процесс", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "разочаровывать", "r": "Causes", "o": "разочарование", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "успокоить", "r": "UsedFor", "o": "утешение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 5}}
+{"s": "улыбаться", "r": "Causes", "o": "радость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "поцеловать", "r": "UsedFor", "o": "утешение", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "уговаривать", "r": "Causes", "o": "изменение решений", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "выслушивать", "r": "UsedFor", "o": "понимание", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "помогать", "r": "Helps", "o": "решить проблему", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "пренебрегать", "r": "Causes", "o": "разочарование", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "радовать", "r": "Causes", "o": "радость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "рассуждать", "r": "UsedFor", "o": "достичь вывода", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "утешать", "r": "UsedFor", "o": "уменьшить стресс", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "похвастаться", "r": "Causes", "o": "неприязнь", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 6}}
+{"s": "поговорить", "r": "Causes", "o": "развитие отношений", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "порадовать", "r": "ResultsIn", "o": "радость", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "поранить", "r": "Causes", "o": "боль", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "помочь", "r": "UsedFor", "o": "решение проблем", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "поддержать", "r": "UsedFor", "o": "обеспечивание уверенности", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "подражать", "r": "ResultsIn", "o": "улучшение навыков", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "подозревать", "r": "Causes", "o": "неуверенность", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "поцеловать", "r": "UsedFor", "o": "выражение чувства", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "похвастать", "r": "Causes", "o": "недовольство", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "покарать", "r": "Causes", "o": "наказание", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 7}}
+{"s": "похвалить", "r": "Causes", "o": "уверенность", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "просить", "r": "UsedFor", "o": "получение", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "умолять", "r": "UsedFor", "o": "получение", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "подраться", "r": "Causes", "o": "конфликт", "weight": 0.925, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "примириться", "r": "UsedFor", "o": "урегулирование", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "выразить", "r": "UsedFor", "o": "поддержку", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "подражать", "r": "UsedFor", "o": "имитация", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "пренебречь", "r": "Causes", "o": "неуважение", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "уважать", "r": "UsedFor", "o": "уважение", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "принять", "r": "UsedFor", "o": "согласие", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 8}}
+{"s": "поцеловать", "r": "Causes", "o": "радость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "притвориться", "r": "UsedFor", "o": "заманить", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "поддержать", "r": "UsedFor", "o": "поддержка", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "оскорбить", "r": "Causes", "o": "раздражение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "пожаловаться", "r": "UsedFor", "o": "выразить недовольство", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "поддержать", "r": "Maintains", "o": "поддержка", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}
+{"s": "примириться", "r": "UsedFor", "o": "решить конфликт", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "verbs", "run": 9}}

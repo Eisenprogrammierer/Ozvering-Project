@@ -1,0 +1,132 @@
+{"s": "compliment", "r": "UsedIn", "o": "flirtation", "weight": 0.9199999999999999, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "insult", "r": "UsedIn", "o": "quarrel", "weight": 0.8333333333333334, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "provoke", "r": "Causes", "o": "quarrel", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "apologize", "r": "UsedIn", "o": "consolation", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "sympathize", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "poem", "r": "IsA", "o": "poetry", "weight": 0.9333333333333332, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "rhyme", "r": "UsedIn", "o": "poetry", "weight": 0.8666666666666667, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "argumentative", "r": "UsedFor", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "reason", "r": "UsedFor", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "reconcile", "r": "UsedFor", "o": "consolation", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 0}}
+{"s": "доброе утро", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "я тебя не люблю", "r": "UsedIn", "o": "insult", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "это поэма", "r": "IsA", "o": "poetry", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "как ты можешь?", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "ты не мой", "r": "UsedIn", "o": "quarrel", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "это позора", "r": "UsedIn", "o": "insult", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "я тебя уважаю", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "я не согласен", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "я тебя люблю", "r": "UsedIn", "o": "flirtation", "weight": 0.925, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "ты у меня слишком груб", "r": "UsedIn", "o": "insult", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 1}}
+{"s": "you're beautiful", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "why are you always so angry", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "you're a jerk", "r": "UsedIn", "o": "insult", "weight": 0.8666666666666667, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "let's settle this", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "rose, rose i", "r": "UsedIn", "o": "poetry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "i'm sorry", "r": "UsedIn", "o": "consolation", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "my heart aches for you", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "let's make up", "r": "UsedIn", "o": "consolation", "weight": 0.775, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "i'm here for you", "r": "UsedIn", "o": "consolation", "weight": 0.8937500000000002, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "you're so full of crap", "r": "UsedIn", "o": "insult", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 2}}
+{"s": "светит звезда", "r": "UsedIn", "o": "poetry", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "я никогда не прошу прощения", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "я хочу поговорить о важном", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "пойми, я говорю о любви", "r": "UsedIn", "o": "flirtation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "прости меня", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "я никогда тебя не забуду", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "ты уродливый", "r": "UsedIn", "o": "insult", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "почему ты так говоришь?", "r": "UsedIn", "o": "quarrel", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 3}}
+{"s": "я", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "я", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "ты", "r": "UsedIn", "o": "quarrel", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "ты", "r": "UsedIn", "o": "insult", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "я", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "солнце", "r": "UsedIn", "o": "flirtation", "weight": 0.8000000000000002, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "роза", "r": "UsedIn", "o": "poetry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "обидчик", "r": "UsedIn", "o": "insult", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "понимание", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "безрассудство", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 4}}
+{"s": "criticize", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 5}}
+{"s": "praise", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 5}}
+{"s": "argue", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 5}}
+{"s": "comfort", "r": "UsedIn", "o": "consolation", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 5}}
+{"s": "anger", "r": "UsedIn", "o": "quarrel", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 5}}
+{"s": "you're gorgeous", "r": "UsedIn", "o": "flirtation", "weight": 0.9166666666666666, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "why are you so annoying?", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "let's discuss this", "r": "UsedIn", "o": "argument", "weight": 0.8500000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "roses are red", "r": "UsedIn", "o": "poetry", "weight": 0.9166666666666666, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "my heart aches for you", "r": "UsedIn", "o": "poetry", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "life is but a dream", "r": "UsedIn", "o": "poetry", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "it's never too late", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 6}}
+{"s": "offensive word", "r": "UsedIn", "o": "insult", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "argumentative phrase", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "poetic phrase", "r": "UsedIn", "o": "poetry", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "comforting words", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "provocative statement", "r": "UsedIn", "o": "quarrel", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "affectionate term", "r": "UsedIn", "o": "flirtation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "disagreement", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "sincere apology", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 7}}
+{"s": "poetry", "r": "UsedIn", "o": "poetry", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "console", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "dispute", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "praise", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "criticize", "r": "UsedIn", "o": "insult", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "quarrelsome words", "r": "UsedIn", "o": "quarrel", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "poetic phrases", "r": "UsedIn", "o": "poetry", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 8}}
+{"s": "why are you so mean", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "why do you always have to be right", "r": "UsedIn", "o": "argument", "weight": 0.8166666666666668, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "when the world seems cold", "r": "UsedIn", "o": "poetry", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "i'm sorry for your loss", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "let's talk about it", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "can't we just get along", "r": "UsedIn", "o": "consolation", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 9}}
+{"s": "flattery", "r": "UsedIn", "o": "flirtation", "weight": 0.8500000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "curse", "r": "UsedIn", "o": "quarrel", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "argument", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "sonnet", "r": "UsedIn", "o": "poetry", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "solace", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "condolence", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "sympathy", "r": "UsedIn", "o": "consolation", "weight": 0.825, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 10}}
+{"s": "curse you", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 11}}
+{"s": "you're an idiot", "r": "UsedIn", "o": "insult", "weight": 0.8624999999999999, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 11}}
+{"s": "why are you so mean?", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 11}}
+{"s": "rose by the roadside", "r": "UsedIn", "o": "poetry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 11}}
+{"s": "let's talk this out", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 11}}
+{"s": "why are you so angry?", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 12}}
+{"s": "roses are red, violets are blue", "r": "UsedIn", "o": "poetry", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 12}}
+{"s": "why are you so annoying", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "rose petals", "r": "UsedIn", "o": "poetry", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "stars twinkle", "r": "UsedIn", "o": "poetry", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "it's not fair", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "life is hard", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "let's talk it out", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 13}}
+{"s": "what's the problem here?", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 14}}
+{"s": "i'm feeling down", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 14}}
+{"s": "i love you", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 14}}
+{"s": "my heart is a rose", "r": "UsedIn", "o": "poetry", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 14}}
+{"s": "милая", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "чёрт возьми", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "змеи", "r": "UsedIn", "o": "insult", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "обещание", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "смирение", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "перемирие", "r": "UsedIn", "o": "argument", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "романтика", "r": "UsedIn", "o": "flirtation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "поцелуй", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 15}}
+{"s": "клубок", "r": "UsedIn", "o": "insult", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "бруд", "r": "UsedIn", "o": "insult", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "почему", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "это неправо", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "поэзия", "r": "IsA", "o": "poetry", "weight": 1.0, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "расскажи мне о своей боль", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "возможно ты прав", "r": "UsedIn", "o": "consolation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "утешительные слова", "r": "IsA", "o": "consolation", "weight": 1.0, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 16}}
+{"s": "why are you so mean?", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 17}}
+{"s": "why do you always have to be right?", "r": "UsedIn", "o": "argument", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 17}}
+{"s": "rose", "r": "UsedIn", "o": "poetry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 17}}
+{"s": "my heart aches", "r": "UsedIn", "o": "poetry", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 17}}
+{"s": "criticism", "r": "UsedIn", "o": "argument", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 18}}
+{"s": "apology", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 18}}
+{"s": "provocation", "r": "UsedIn", "o": "quarrel", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 18}}
+{"s": "sarcasm", "r": "UsedIn", "o": "argument", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 18}}
+{"s": "apologetic", "r": "UsedIn", "o": "consolation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 18}}
+{"s": "let's talk it out", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 19}}
+{"s": "i'll never forget this", "r": "UsedIn", "o": "consolation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "mode_markers", "run": 19}}

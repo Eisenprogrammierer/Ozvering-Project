@@ -27,7 +27,7 @@ recursive-include ui *.py
 recursive-include view *.py
 
 recursive-include assets *
-recursive-include configs *.json *.md
+recursive-include configs *.json *.jsonl *.md
 recursive-include scenarios *.json *.md
 recursive-include campaigns *.json *.md
 recursive-include checkpoints *.json

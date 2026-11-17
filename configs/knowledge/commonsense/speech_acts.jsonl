@@ -1,0 +1,298 @@
+{"s": "прости", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "простите", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извини", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извините", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извиняюсь", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я извиняюсь", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прошу прощения", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приношу извинения", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "виноват", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я был неправ", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мне жаль", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извините за мое поведение", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не сердись", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прости меня", "r": "IsA", "o": "apology", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помилуй", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помилуйте", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пощади", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пощадите", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прояви милость", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "смилуйся", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не казни", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "будь милосерден", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "молю о пощаде", "r": "IsA", "o": "beg_pardon", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благослови", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благословите", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благословляю", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пусть хранит тебя", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "да будет с тобой", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "да пребудет с тобой", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "в добрый путь", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "с миром", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благословен будь", "r": "IsA", "o": "bless", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приказываю", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прикажи", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вели", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "велите", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "распоряжаюсь", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "распоряжайтесь", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "исполняй", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "исполняйте", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "немедленно", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сделай это", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подайте", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "остановитесь", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "замолчите", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не делай это", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "запрещаю", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "позвоните мне", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "переведите", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "как можно быстрее", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "слушай приказ", "r": "IsA", "o": "command", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "признаюсь", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сознаюсь", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "признаю свою вину", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это сделал я", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вина моя", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я во всем признаюсь", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "каюсь", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не говорю правду", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я обманул вас", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это моя вина", "r": "IsA", "o": "confess", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не плачь", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не грусти", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "успокойся", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "успокойтесь", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я рядом", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я с тобой", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "все пройдет", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сочувствую", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мне жаль тебя", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прими мои соболезнования", "r": "IsA", "o": "console", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты прекрасна", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты прекрасен", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты красивая", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты красивый", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты мне нравишься", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты мне очень нравишься", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я скучал", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я скучала", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поужинаем вместе", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты очаровательна", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты очарователен", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я влюблен", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я влюблена", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поцелуй меня", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обними меня", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты мое солнце", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты мой свет", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я думаю о тебе", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты снишься мне", "r": "IsA", "o": "flirt", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "клянусь", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "клянусь честью", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "даю слово", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "присягаю", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обязуюсь", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обещаю именем", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пусть меня покарают", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вот моя клятва", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "клянусь жизнью", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "слово чести", "r": "IsA", "o": "oath", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "позволь предложить", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "хочу предложить", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "давай обсудим", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "может, обсудим", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "возьми", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прими от меня", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я готов помочь", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я могу помочь", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "давайте заключим договор", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предлагаю сделку", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я предлагаю мир", "r": "IsA", "o": "offer", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обещаю", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я обещаю", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я сделаю", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сделаю", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не подведу", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сдержу слово", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я верну", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я приду", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я напишу", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я помогу", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обещаю помочь", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я гарантирую", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "даю обещание", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не забуду", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я все исправлю", "r": "IsA", "o": "promise", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "выйдешь за меня", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "будь моей женой", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "будь моим мужем", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стань моей женой", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стань моим мужем", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предлагаю руку и сердце", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я прошу твоей руки", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты станешь моей супругой", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты станешь моим супругом", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обручимся", "r": "IsA", "o": "propose", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "убью", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я тебя убью", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пожалеешь", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты пожалеешь", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я тебя уничтожу", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пеняй на себя", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "еще раз и поплатишься", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я до тебя доберусь", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не доводи меня", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я тебя найду", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "тебе не поздоровится", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "угрожаю", "r": "IsA", "o": "threat", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прошу", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я прошу", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я прошу вас", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помогите", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пожалуйста помогите", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не могли бы вы", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не могли бы вы помочь", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "покажите мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "покажи мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "скажите мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "скажи мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "принесите мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дайте мне", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "можно попросить", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "окажите услугу", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "будьте добры", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не откажите", "r": "IsA", "o": "request", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "могу ли я", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "могут ли вы", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "можно ли", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не понимаю", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "как это", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "почему так", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "что это значит", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "где это", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кто это", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "когда это будет", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "разве это так", "r": "IsA", "o": "question", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я говорю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я говорю правду", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я слышал", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я сказал", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сообщаю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "заявляю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "объявляю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подтверждаю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отрицаю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "опровергаю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не знаю", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "у меня есть", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это моя точка зрения", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это моя мысль", "r": "IsA", "o": "statement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "да", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "согласен", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я согласен", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "согласна", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я согласна", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "хорошо", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "договорились", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "давайте сделаем это", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я за", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "принимаю", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддерживаю", "r": "IsA", "o": "agreement", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нет", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не могу", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не могу", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отказываюсь", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я отказываюсь", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не готов", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не буду", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не стану", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это исключено", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "увы нет", "r": "IsA", "o": "refusal", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "привет", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "здравствуй", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "здравствуйте", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "добрый день", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "добрый вечер", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доброе утро", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приветствую", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рад видеть вас", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рад тебя видеть", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мое почтение", "r": "IsA", "o": "greeting", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пока", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "до свидания", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прощай", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прощайте", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "до встречи", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "увидимся", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "всего доброго", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "счастливо", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доброй ночи", "r": "IsA", "o": "farewell", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "спасибо", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благодарю", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благодарю вас", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "признателен", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "признательна", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я вам благодарен", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "очень признателен", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "спасибо за помощь", "r": "IsA", "o": "thanks", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предлагаю", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я советую", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рекомендую", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "давай сделаем", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "давайте начнем", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "может, попробуем", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стоит подумать", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я бы посоветовал", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "неплохо бы", "r": "IsA", "o": "suggestion", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предупреждаю", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "осторожно", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "берегись", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "будь осторожен", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не советую", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это опасно", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не делай этого", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подумай прежде чем", "r": "IsA", "o": "warning", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приглашаю", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "заходи", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "заходите", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приходи", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приходите", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "буду ждать", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "жду в гости", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "раздели со мной трапезу", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "посети мой дом", "r": "IsA", "o": "invitation", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "соболезную", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мои соболезнования", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "скорблю", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я разделяю твою печаль", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мне жаль твою утрату", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "крепись", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "держись", "r": "IsA", "o": "condolence", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты умница", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты молодец", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "у тебя золотые руки", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты прекрасно справился", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты хорошо выглядишь", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты талант", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "восхищаюсь тобой", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты достойный человек", "r": "IsA", "o": "compliment", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дурак", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "идиот", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "глупец", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ничтожество", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мерзавец", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подлец", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты жалок", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты трус", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "заткнись", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты ничего не стоишь", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "презренный", "r": "IsA", "o": "insult", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это не так", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "неправда", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не верю", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не может быть", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты ошибаешься", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "это ложь", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не делал этого", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не я", "r": "IsA", "o": "denial", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}

@@ -1,0 +1,120 @@
+{"s": "хлеб", "r": "IsA", "o": "еда", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вода", "r": "IsA", "o": "питье", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вино", "r": "IsA", "o": "напиток", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "зерно", "r": "IsA", "o": "припас", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мясо", "r": "IsA", "o": "еда", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сыр", "r": "IsA", "o": "еда", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "фрукт", "r": "IsA", "o": "еда", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "монета", "r": "IsA", "o": "деньги", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "письмо", "r": "IsA", "o": "документ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "грамота", "r": "IsA", "o": "документ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свиток", "r": "IsA", "o": "документ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "карта", "r": "IsA", "o": "документ", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "печать", "r": "IsA", "o": "знак", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "знамя", "r": "IsA", "o": "символ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "герб", "r": "IsA", "o": "символ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "меч", "r": "IsA", "o": "оружие", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "копье", "r": "IsA", "o": "оружие", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кинжал", "r": "IsA", "o": "оружие", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "щит", "r": "IsA", "o": "защита", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольчуга", "r": "IsA", "o": "доспех", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "шлем", "r": "IsA", "o": "доспех", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свеча", "r": "IsA", "o": "светильник", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "факел", "r": "IsA", "o": "светильник", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лампа", "r": "IsA", "o": "светильник", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "книга", "r": "IsA", "o": "носитель знания", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ключ", "r": "IsA", "o": "инструмент", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нож", "r": "IsA", "o": "инструмент", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "молот", "r": "IsA", "o": "инструмент", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "плуг", "r": "IsA", "o": "инструмент", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "игла", "r": "IsA", "o": "инструмент", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "повозка", "r": "IsA", "o": "транспорт", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лодка", "r": "IsA", "o": "транспорт", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "конь", "r": "IsA", "o": "животное", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лекарство", "r": "IsA", "o": "снадобье", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "бинт", "r": "IsA", "o": "перевязочный материал", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольцо", "r": "IsA", "o": "украшение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ожерелье", "r": "IsA", "o": "украшение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "браслет", "r": "IsA", "o": "украшение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кубок", "r": "IsA", "o": "посуда", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "чаша", "r": "IsA", "o": "посуда", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благовония", "r": "IsA", "o": "подношение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "венок", "r": "IsA", "o": "подношение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ткань", "r": "IsA", "o": "материал", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кожа", "r": "IsA", "o": "материал", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дерево", "r": "IsA", "o": "материал", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "камень", "r": "IsA", "o": "материал", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "железо", "r": "IsA", "o": "металл", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "золото", "r": "IsA", "o": "металл", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "серебро", "r": "IsA", "o": "металл", "weight": 0.95, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "хлеб", "r": "HasProperty", "o": "сытный", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вода", "r": "HasProperty", "o": "утоляет жажду", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вино", "r": "HasProperty", "o": "опьяняет", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "монета", "r": "HasProperty", "o": "имеет ценность", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "письмо", "r": "HasProperty", "o": "содержит весть", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "грамота", "r": "HasProperty", "o": "подтверждает право", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "печать", "r": "HasProperty", "o": "удостоверяет", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "меч", "r": "HasProperty", "o": "острый", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "щит", "r": "HasProperty", "o": "защищает", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольчуга", "r": "HasProperty", "o": "тяжелая", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свеча", "r": "HasProperty", "o": "горит", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "книга", "r": "HasProperty", "o": "хранит знание", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ключ", "r": "HasProperty", "o": "открывает замок", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нож", "r": "HasProperty", "o": "режет", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "молот", "r": "HasProperty", "o": "тяжелый", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "повозка", "r": "HasProperty", "o": "перевозит груз", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "конь", "r": "HasProperty", "o": "перевозит всадника", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лекарство", "r": "HasProperty", "o": "лечит", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "бинт", "r": "HasProperty", "o": "останавливает кровь", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольцо", "r": "HasProperty", "o": "знак помолвки", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благовония", "r": "HasProperty", "o": "ароматные", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "венок", "r": "HasProperty", "o": "символизирует память", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ткань", "r": "HasProperty", "o": "мягкая", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "железо", "r": "HasProperty", "o": "прочное", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "золото", "r": "HasProperty", "o": "дорогое", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "серебро", "r": "HasProperty", "o": "дорогое", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "хлеб", "r": "UsedFor", "o": "насыщение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вода", "r": "UsedFor", "o": "утоление жажды", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вино", "r": "UsedFor", "o": "пир", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "зерно", "r": "UsedFor", "o": "прокорм", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "монета", "r": "UsedFor", "o": "плата", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "письмо", "r": "UsedFor", "o": "сообщение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "грамота", "r": "UsedFor", "o": "подтверждение права", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свиток", "r": "UsedFor", "o": "запись", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "карта", "r": "UsedFor", "o": "навигация", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "печать", "r": "UsedFor", "o": "удостоверение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "знамя", "r": "UsedFor", "o": "единство", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "герб", "r": "UsedFor", "o": "опознание рода", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "меч", "r": "UsedFor", "o": "бой", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "копье", "r": "UsedFor", "o": "бой", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кинжал", "r": "UsedFor", "o": "ближний бой", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "щит", "r": "UsedFor", "o": "защита", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольчуга", "r": "UsedFor", "o": "защита", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "шлем", "r": "UsedFor", "o": "защита головы", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свеча", "r": "UsedFor", "o": "освещение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "факел", "r": "UsedFor", "o": "освещение", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "книга", "r": "UsedFor", "o": "учеба", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ключ", "r": "UsedFor", "o": "доступ", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нож", "r": "UsedFor", "o": "нарезка", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "молот", "r": "UsedFor", "o": "ковка", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "плуг", "r": "UsedFor", "o": "пахота", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "игла", "r": "UsedFor", "o": "шитье", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "повозка", "r": "UsedFor", "o": "перевозка", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лодка", "r": "UsedFor", "o": "переправа", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "конь", "r": "UsedFor", "o": "поездка", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лекарство", "r": "UsedFor", "o": "лечение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "бинт", "r": "UsedFor", "o": "перевязка", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кольцо", "r": "UsedFor", "o": "помолвка", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ожерелье", "r": "UsedFor", "o": "подарок", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "браслет", "r": "UsedFor", "o": "подарок", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кубок", "r": "UsedFor", "o": "пир", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "чаша", "r": "UsedFor", "o": "обряд", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благовония", "r": "UsedFor", "o": "обряд", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "венок", "r": "UsedFor", "o": "погребение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ткань", "r": "UsedFor", "o": "одежда", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кожа", "r": "UsedFor", "o": "одежда", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дерево", "r": "UsedFor", "o": "строительство", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "камень", "r": "UsedFor", "o": "строительство", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "железо", "r": "UsedFor", "o": "ковка", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "золото", "r": "UsedFor", "o": "украшение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "серебро", "r": "UsedFor", "o": "украшение", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}

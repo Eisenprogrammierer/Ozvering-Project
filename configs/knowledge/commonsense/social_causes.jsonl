@@ -1,0 +1,150 @@
+{"s": "помощь", "r": "Causes", "o": "благодарность", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помощь", "r": "Causes", "o": "доверие", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержка", "r": "Causes", "o": "доверие", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержка", "r": "Causes", "o": "уверенность", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подарок", "r": "Causes", "o": "привязанность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подарок", "r": "Causes", "o": "благодарность", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подарок", "r": "Causes", "o": "обязательство внимания", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оскорбление", "r": "Causes", "o": "обида", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оскорбление", "r": "Causes", "o": "разлад в отношениях", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оскорбление", "r": "Causes", "o": "вражда", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обман", "r": "Causes", "o": "потеря доверия", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обман", "r": "Causes", "o": "разочарование", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "угроза", "r": "Causes", "o": "страх", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "угроза", "r": "Causes", "o": "недоверие", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "похвала", "r": "Causes", "o": "самоуважение", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "похвала", "r": "Causes", "o": "радость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извинение", "r": "Causes", "o": "примирение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извинение", "r": "Causes", "o": "прощение", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обещание", "r": "Causes", "o": "ожидание", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нарушенное обещание", "r": "Causes", "o": "недоверие", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "совместная трапеза", "r": "Causes", "o": "близость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "совместная работа", "r": "Causes", "o": "доверие", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "танец", "r": "Causes", "o": "близость", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поцелуй", "r": "Causes", "o": "близость", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свадьба", "r": "Causes", "o": "родство", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "присяга", "r": "Causes", "o": "вассальная верность", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обряд", "r": "Causes", "o": "обрядовая связь", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "жертва", "r": "Causes", "o": "благосклонность", "weight": 0.65, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "наказание", "r": "Causes", "o": "страх", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "наказание", "r": "Causes", "o": "обида", "weight": 0.65, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "милосердие", "r": "Causes", "o": "благодарность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "провозглашение", "r": "Causes", "o": "легитимность", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "закон", "r": "Causes", "o": "порядок", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отмена закона", "r": "Causes", "o": "недовольство", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обучение", "r": "Causes", "o": "уважение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "наставничество", "r": "Causes", "o": "вассальная верность", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "забота о больном", "r": "Causes", "o": "родство", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "соболезнование", "r": "Causes", "o": "близость", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сплетня", "r": "Causes", "o": "недоверие", "weight": 0.65, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "публичное унижение", "r": "Causes", "o": "страх", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "публичное унижение", "r": "Causes", "o": "вражда", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подношение", "r": "Causes", "o": "благосклонность", "weight": 0.65, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "музыка", "r": "Causes", "o": "радость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "песня", "r": "Causes", "o": "единство", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "танец", "r": "Causes", "o": "радость", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поражение", "r": "Causes", "o": "разочарование", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "победа", "r": "Causes", "o": "радость", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "неудача", "r": "Causes", "o": "разочарование", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "успех", "r": "Causes", "o": "уверенность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "зависть", "r": "Causes", "o": "недовольство", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пренебрежение", "r": "Causes", "o": "обида", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "недоразумение", "r": "Causes", "o": "раздражение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "разлука", "r": "Causes", "o": "тоска", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "встреча", "r": "Causes", "o": "радость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дорога", "r": "Causes", "o": "усталость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "голод", "r": "Causes", "o": "раздражение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "болезнь", "r": "Causes", "o": "слабость", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рана", "r": "Causes", "o": "боль", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лечение", "r": "Causes", "o": "облегчение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отдых", "r": "Causes", "o": "спокойствие", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "бессонница", "r": "Causes", "o": "усталость", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вино", "r": "Causes", "o": "опьянение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "щедрость", "r": "Causes", "o": "уважение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "скупость", "r": "Causes", "o": "презрение", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "храбрость", "r": "Causes", "o": "уважение", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "трусость", "r": "Causes", "o": "презрение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "честность", "r": "Causes", "o": "доверие", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ложь", "r": "Causes", "o": "недоверие", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "верность", "r": "Causes", "o": "доверие", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предательство", "r": "Causes", "o": "вражда", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "долг", "r": "Causes", "o": "обязанность", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "благодарность", "r": "Causes", "o": "ответная услуга", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дружба", "r": "Causes", "o": "поддержка", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вражда", "r": "Causes", "o": "конфликт", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ссора", "r": "Causes", "o": "разлад", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "примирение", "r": "Causes", "o": "близость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "молчание", "r": "Causes", "o": "неопределенность", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "откровенность", "r": "Causes", "o": "близость", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "тайна", "r": "Causes", "o": "недоверие", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "слух", "r": "Causes", "o": "сомнение", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пожениться", "r": "ResultsIn", "o": "союз", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помириться", "r": "ResultsIn", "o": "примирение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поссориться", "r": "ResultsIn", "o": "разлад", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "присягнуть", "r": "ResultsIn", "o": "вассальная связь", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "похвалить", "r": "ResultsIn", "o": "самоуважение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обидеть", "r": "ResultsIn", "o": "обида", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обмануть", "r": "ResultsIn", "o": "потеря доверия", "weight": 0.9, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помочь", "r": "ResultsIn", "o": "решение проблемы", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поговорить", "r": "ResultsIn", "o": "обсуждение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержать", "r": "ResultsIn", "o": "поддержка", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поблагодарить", "r": "ResultsIn", "o": "благодарность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "порадовать", "r": "ResultsIn", "o": "радость", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оскорбить", "r": "ResultsIn", "o": "разлад", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "уведомить", "r": "ResultsIn", "o": "осведомленность", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "запрет", "r": "Prevents", "o": "нарушение", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "совесть", "r": "Prevents", "o": "злоупотребление", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "порицание", "r": "Prevents", "o": "преступление", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "страх", "r": "Prevents", "o": "риск", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "усталость", "r": "Prevents", "o": "работа", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "бедность", "r": "Prevents", "o": "роскошь", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "закон", "r": "Prevents", "o": "произвол", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стража", "r": "Prevents", "o": "грабеж", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "договор", "r": "Prevents", "o": "война", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доверие", "r": "Prevents", "o": "конфликт", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помощь", "r": "Reduces", "o": "беспокойство", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "уверенность", "r": "Reduces", "o": "беспокойство", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "общение", "r": "Reduces", "o": "одиночество", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "недоверие", "r": "Reduces", "o": "сотрудничество", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отдых", "r": "Reduces", "o": "усталость", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лечение", "r": "Reduces", "o": "боль", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извинение", "r": "Reduces", "o": "обида", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "время", "r": "Reduces", "o": "обида", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "смех", "r": "Reduces", "o": "напряжение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "музыка", "r": "Reduces", "o": "тревога", "weight": 0.6, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "похвала", "r": "Increases", "o": "самоуважение", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "награда", "r": "Increases", "o": "энтузиазм", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обучение", "r": "Increases", "o": "навык", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "упражнение", "r": "Increases", "o": "сила", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "отдых", "r": "Increases", "o": "силы", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "вино", "r": "Increases", "o": "смелость", "weight": 0.5, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "страх", "r": "Increases", "o": "осторожность", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доверие", "r": "Increases", "o": "открытость", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержка", "r": "Increases", "o": "уверенность", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помочь", "r": "UsedFor", "o": "решение проблемы", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обсудить", "r": "UsedFor", "o": "разобраться в ситуации", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помолчать", "r": "UsedFor", "o": "успокоение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "приветствовать", "r": "UsedFor", "o": "радость встречи", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поговорить", "r": "UsedFor", "o": "обсуждение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "попросить", "r": "UsedFor", "o": "запрос", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "побеседовать", "r": "UsedFor", "o": "знакомство", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержать", "r": "UsedFor", "o": "поддержка", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пообещать", "r": "UsedFor", "o": "обещание", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поблагодарить", "r": "UsedFor", "o": "благодарность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пожаловаться", "r": "UsedFor", "o": "поиск сочувствия", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "извиниться", "r": "UsedFor", "o": "примирение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "объяснить", "r": "UsedFor", "o": "понимание", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "показать", "r": "UsedFor", "o": "демонстрация", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "предупредить", "r": "UsedFor", "o": "осторожность", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "пригрозить", "r": "UsedFor", "o": "устрашение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "солгать", "r": "UsedFor", "o": "сокрытие", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "признаться", "r": "UsedFor", "o": "облегчение", "weight": 0.7, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "утешить", "r": "UsedFor", "o": "успокоение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рассмешить", "r": "UsedFor", "o": "радость", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обнять", "r": "UsedFor", "o": "поддержка", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поцеловать", "r": "UsedFor", "o": "близость", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поклониться", "r": "UsedFor", "o": "почтение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "присягнуть", "r": "UsedFor", "o": "верность", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "наказать", "r": "UsedFor", "o": "устрашение", "weight": 0.75, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "наградить", "r": "UsedFor", "o": "поощрение", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обучить", "r": "UsedFor", "o": "навык", "weight": 0.8, "lang": "ru", "origin": "curated", "source": "author"}

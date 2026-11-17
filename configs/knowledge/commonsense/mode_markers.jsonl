@@ -1,0 +1,96 @@
+{"s": "флирт", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "кокетство", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "комплимент", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты красивая", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты красивый", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я тебя люблю", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я влюблен", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я влюблена", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "свидание", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поцелуй", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обнимаю", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты мне нравишься", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сердце", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "любовь", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "любви", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "любовью", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "очарован", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "очарована", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ласковое слово", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "нежность", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "взгляд в глаза", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "держи за руку", "r": "UsedIn", "o": "flirtation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ссора", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "скандал", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "перепалка", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты виноват", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты виновата", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "замолчи", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не хочу тебя видеть", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оставь меня", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "уйди", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я обижен", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я обижена", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты меня предал", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "хватит", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "довольно", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "между нами все кончено", "r": "UsedIn", "o": "quarrel", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "утешение", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сочувствие", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "соболезнование", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не грусти", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "не плачь", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я с тобой", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я рядом", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "все пройдет", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "примириться", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "помириться", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "прости меня", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обними", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поддержка", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доброе слово", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "сострадание", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "участие", "r": "UsedIn", "o": "consolation", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "оскорбление", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "унижение", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дурак", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "идиот", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ничтожество", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "мерзавец", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "подлец", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "глупец", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ты жалок", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "презрение", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "издевка", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "насмешка", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "грубость", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "брань", "r": "UsedIn", "o": "insult", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стих", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "стихи", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поэма", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поэзия", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "рифма", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "строфа", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ода", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "баллада", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "в стихах", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "поэтический", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "размер", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "ритм", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "метафора", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "образ", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "лирика", "r": "UsedIn", "o": "poetry", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "аргумент", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "довод", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "доказательство", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "докажи", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не согласен", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "я не согласна", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "возражение", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "обсуждение", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "логика", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "причина", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "следствие", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "контраргумент", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "полемика", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}
+{"s": "дебаты", "r": "UsedIn", "o": "argument", "weight": 0.85, "lang": "ru", "origin": "curated", "source": "author"}

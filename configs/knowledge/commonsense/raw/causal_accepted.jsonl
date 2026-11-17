@@ -1,0 +1,163 @@
+{"s": "неудовлетворение", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "пожелание", "r": "Causes", "o": "надежда", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "недоразумение", "r": "Causes", "o": "раздражение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "помощь", "r": "Causes", "o": "благодарность", "weight": 0.82, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "завет", "r": "Causes", "o": "обожание", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "угроза", "r": "Causes", "o": "страх", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "уважение", "r": "Causes", "o": "уважение", "weight": 0.7999999999999999, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "пренебрежение", "r": "Causes", "o": "оскорбление", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "поддержка", "r": "Causes", "o": "доверие", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "обещание", "r": "Causes", "o": "ожидание", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "зависть", "r": "Causes", "o": "недовольство", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 0}}
+{"s": "неудача", "r": "Causes", "o": "разочарование", "weight": 0.8833333333333333, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "поддержка", "r": "Provides", "o": "силу", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "уважение", "r": "Gives", "o": "уверенность", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "расстройство", "r": "LeadsTo", "o": "отсутствие работоспособности", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "похвалы", "r": "Causes", "o": "доверие", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "безделье", "r": "LeadsTo", "o": "неудовлетворенность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "вознаграждение", "r": "Influences", "o": "энтузиазм", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "оскорбление", "r": "Causes", "o": "раздражение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "помощь", "r": "Provides", "o": "решение проблемы", "weight": 0.8500000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 1}}
+{"s": "предложение", "r": "Makes", "o": "уверенность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "похвала", "r": "Causes", "o": "довольство", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "запрет", "r": "Prevents", "o": "нарушение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "недостаток сна", "r": "Causes", "o": "утомление", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "сдача", "r": "ResultsIn", "o": "провале", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "предложение", "r": "Makes", "o": "неудовольствием", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "недостаток в деньгах", "r": "Causes", "o": "бедность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "занятость", "r": "Prevents", "o": "сбор мотыльков", "weight": 0.6, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "прогулка", "r": "Causes", "o": "радость", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "недовольство", "r": "ResultsIn", "o": "неуважение", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 2}}
+{"s": "недовольство", "r": "Causes", "o": "дискомфорт", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "неуверенность", "r": "Causes", "o": "ошибки", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "социальная поддержка", "r": "Provides", "o": "уверенность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "увлечение", "r": "Causes", "o": "отвлечение", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "расстройство", "r": "Causes", "o": "грусть", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "достижение цели", "r": "Causes", "o": "радость", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "безработица", "r": "Causes", "o": "одиночество", "weight": 0.8666666666666667, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "удача", "r": "Causes", "o": "радость", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "перегрузка", "r": "Causes", "o": "неуверенность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "соревнование", "r": "Causes", "o": "острая конкуренция", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 3}}
+{"s": "счастье", "r": "Causes", "o": "радость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "предательство", "r": "Causes", "o": "недоверие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "свадьба", "r": "Causes", "o": "веселье", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "болезнь", "r": "Causes", "o": "тревогу", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "расставание", "r": "Causes", "o": "печаль", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "признание", "r": "Causes", "o": "доверие", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "возмущение", "r": "Causes", "o": "сердечный приступ", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "похвалу", "r": "Causes", "o": "уверенность", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 4}}
+{"s": "недовольство", "r": "Causes", "o": "гнев", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "расстройство", "r": "Causes", "o": "туги", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "неравенство", "r": "Causes", "o": "несправедливость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "помощь", "r": "Causes", "o": "уверенность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "взаимопонимание", "r": "Causes", "o": "доверие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "безделье", "r": "Causes", "o": "печаль", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "уважение", "r": "Causes", "o": "уважение к себе", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "увлечение", "r": "Causes", "o": "радость", "weight": 0.8833333333333333, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "примирение", "r": "Causes", "o": "мир", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "обман", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "усилия", "r": "Causes", "o": "успех", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 5}}
+{"s": "недопонимание", "r": "Causes", "o": "разочарование", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "помощь", "r": "Causes", "o": "уважение", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "проблемы", "r": "Causes", "o": "тревога", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "успех", "r": "Causes", "o": "радость", "weight": 0.8375, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "предательство", "r": "Causes", "o": "разругание", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "увлечение", "r": "Causes", "o": "веселье", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "разочарование", "r": "Causes", "o": "грусть", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "уважение", "r": "Causes", "o": "доверие", "weight": 0.8099999999999999, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "обещание", "r": "Causes", "o": "надежда", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 6}}
+{"s": "недоверие", "r": "Causes", "o": "препятствие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "небрегущий образ жизни", "r": "Causes", "o": "ожирение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "помощь", "r": "Causes", "o": "улучшение положения", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "расчётливость", "r": "Causes", "o": "недоверие", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "разочарование", "r": "Causes", "o": "дискомфорт", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "принятие решения", "r": "Causes", "o": "изменение ситуации", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "пренебрежение", "r": "Causes", "o": "ухудшение отношений", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 7}}
+{"s": "недоверие", "r": "Causes", "o": "чувство отчужденности", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "расставание", "r": "Causes", "o": "трудноть в общении", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "собеседник", "r": "ListensTo", "o": "беседующего", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "увлечение", "r": "Causes", "o": "энтузиазм", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "беспокойство", "r": "Causes", "o": "неспокойство", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "подарки", "r": "Expresses", "o": "привязанность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "разочарование", "r": "Causes", "o": "недовольство", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "приязнь", "r": "Causes", "o": "доброжелательность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 8}}
+{"s": "победа", "r": "Causes", "o": "гордость", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "поражение", "r": "Causes", "o": "разочарование", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "приятель", "r": "HasProperty", "o": "поддержка", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "враг", "r": "HasProperty", "o": "вражда", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "любовь", "r": "Causes", "o": "счастье", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "ненависть", "r": "Causes", "o": "несчастье", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "совесть", "r": "Prevents", "o": "злоупотребление", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "порицание", "r": "Prevents", "o": "преступления", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 9}}
+{"s": "приязнь", "r": "Causes", "o": "доверие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "беспокойство", "r": "Causes", "o": "неспокойствие", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "справедливость", "r": "Causes", "o": "уважение", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "утомление", "r": "Causes", "o": "усталость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "помощь", "r": "Causes", "o": "успех", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "победа", "r": "Causes", "o": "радость", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 10}}
+{"s": "недовольство", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "предательство", "r": "Causes", "o": "травлю характера", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "доверие", "r": "Causes", "o": "открытость", "weight": 0.8500000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "усилия", "r": "Causes", "o": "прогресс", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "взаимопонимание", "r": "Causes", "o": "сотрудничество", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "пренебрежение", "r": "Causes", "o": "чувство одиночества", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "поддержка", "r": "Causes", "o": "уверенность", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "достоверность", "r": "Causes", "o": "верить", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "оскорбление", "r": "Causes", "o": "разочарование", "weight": 0.6, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 11}}
+{"s": "неудовлетворенность", "r": "Causes", "o": "разочарование", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "зависть", "r": "Causes", "o": "негативное настроение", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "предательство", "r": "Causes", "o": "разочарование", "weight": 0.8500000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "поражение", "r": "Causes", "o": "депрессия", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "учительство", "r": "Causes", "o": "ум", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "забота", "r": "Causes", "o": "чувство безопасности", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "пренебрежение", "r": "Causes", "o": "разочарование", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "отрицание", "r": "Causes", "o": "упрёк", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 12}}
+{"s": "похвала", "r": "Causes", "o": "уверенность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "предложение", "r": "Causes", "o": "размышление", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "обман", "r": "Causes", "o": "недоверие", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "боязнь", "r": "Causes", "o": "избегание", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "любовь", "r": "Causes", "o": "радость", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "переживание", "r": "Causes", "o": "тревога", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 13}}
+{"s": "высокий уровень образования", "r": "Causes", "o": "интеллектуальная дебатность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "недостаток сонливости", "r": "Causes", "o": "неспособность сосредоточиться", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "зависть", "r": "Causes", "o": "изменение поведения", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "опыт", "r": "Causes", "o": "уверенность в себе", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "обостренная жалость", "r": "Causes", "o": "жертвенность", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "увлечение", "r": "Causes", "o": "обожание", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "боязнь", "r": "Causes", "o": "уклонение от действия", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "награда", "r": "Causes", "o": "мотивация", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "неуверенность", "r": "Causes", "o": "беспокойство", "weight": 0.8333333333333334, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 14}}
+{"s": "нехватка сонного времени", "r": "Causes", "o": "ослабленная концентрация", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "поддержка", "r": "Causes", "o": "сильная связь", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "обострение климата", "r": "Causes", "o": "увеличение температуры", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "неприязнь", "r": "Causes", "o": "непростительность", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "забота", "r": "Causes", "o": "улучшение душевного состояния", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "недостаток физической активности", "r": "Causes", "o": "увеличение веса", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "неудачный выбор", "r": "Causes", "o": "потеря денег", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 15}}
+{"s": "помощь", "r": "Reduces", "o": "беспокойство", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "уверенность", "r": "Reduces", "o": "беспокойство", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "неприятное событие", "r": "Causes", "o": "беспокойство", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "социализация", "r": "Reduces", "o": "одиночество", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "социальное остракизм", "r": "Causes", "o": "одиночество", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "доверие", "r": "Causes", "o": "сотрудничество", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "недоверие", "r": "Reduces", "o": "сотрудничество", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 16}}
+{"s": "недовольство", "r": "Causes", "o": "неуважение", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "неуважение", "r": "Causes", "o": "оскорбление", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "сотрудничество", "r": "Causes", "o": "успех", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "радость", "r": "Causes", "o": "счастье", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "оскорбление", "r": "Causes", "o": "гнев", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "гнев", "r": "Causes", "o": "разрыв связей", "weight": 0.6, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "разрыв связей", "r": "Causes", "o": "бездушие", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "бездушие", "r": "Causes", "o": "одиночество", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 17}}
+{"s": "недоверие", "r": "Causes", "o": "стресс", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "подарки", "r": "Causes", "o": "радость", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "неудача", "r": "Causes", "o": "депрессия", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "отказ", "r": "Causes", "o": "нерадость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "предательство", "r": "Causes", "o": "гнев", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "уважение", "r": "Causes", "o": "уверенность", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 18}}
+{"s": "неудовлетворенность", "r": "Causes", "o": "гнев", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}
+{"s": "нерасположение", "r": "Causes", "o": "охлаждение отношений", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}
+{"s": "подарки", "r": "Express", "o": "большую симпатию", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}
+{"s": "доверие", "r": "Enables", "o": "открытость", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}
+{"s": "беспокойство", "r": "Causes", "o": "тревогу", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}
+{"s": "проступки", "r": "Causes", "o": "обвинения", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "causal", "run": 19}}

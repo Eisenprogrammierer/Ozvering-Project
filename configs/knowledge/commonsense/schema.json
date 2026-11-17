@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "title": "Простые факты здравого смысла для диалога и мира",
+  "description": "Дистиллированный набор фактов «субъект — отношение — объект». Основа — принятые LLM-факты, проверенные и дополненные вручную. Сырые выгрузки лежат в raw/ и в игре не используются.",
+  "fields": {
+    "s": "субъект/фраза/причина",
+    "r": "отношение из relations",
+    "o": "объект/акт/режим/следствие",
+    "weight": "уверенность 0..1",
+    "lang": "язык, сейчас только ru",
+    "origin": "curated — проверено человеком, llm — сырая выгрузка",
+    "source": "происхождение записи: author или seed"
+  },
+  "relations": {
+    "IsA": "фраза выражает речевой акт; сущность относится к классу",
+    "UsedIn": "маркер используется в речевом режиме",
+    "UsedFor": "назначение сущности или глагола",
+    "HasProperty": "свойство сущности",
+    "Causes": "причина вызывает следствие",
+    "ResultsIn": "действие приводит к результату",
+    "Prevents": "фактор снижает вероятность следствия",
+    "Reduces": "фактор ослабляет состояние",
+    "Increases": "фактор усиливает состояние"
+  },
+  "acts": [
+    "apology",
+    "beg_pardon",
+    "bless",
+    "command",
+    "confess",
+    "console",
+    "flirt",
+    "oath",
+    "offer",
+    "promise",
+    "propose",
+    "threat",
+    "request",
+    "question",
+    "statement",
+    "agreement",
+    "refusal",
+    "greeting",
+    "farewell",
+    "thanks",
+    "suggestion",
+    "warning",
+    "invitation",
+    "condolence",
+    "compliment",
+    "insult",
+    "denial"
+  ],
+  "modes": [
+    "argument",
+    "consolation",
+    "flirtation",
+    "insult",
+    "poetry",
+    "quarrel"
+  ],
+  "languages": [
+    "ru"
+  ],
+  "origins": [
+    "curated",
+    "llm"
+  ],
+  "files": {
+    "speech_acts.jsonl": {
+      "required_relation": "IsA",
+      "object_in": "acts"
+    },
+    "mode_markers.jsonl": {
+      "required_relation": "UsedIn",
+      "object_in": "modes"
+    },
+    "social_causes.jsonl": {
+      "relations": [
+        "Causes",
+        "ResultsIn",
+        "Prevents",
+        "Reduces",
+        "Increases",
+        "UsedFor"
+      ]
+    },
+    "entities.jsonl": {
+      "relations": [
+        "IsA",
+        "UsedFor",
+        "HasProperty"
+      ]
+    }
+  },
+  "raw": "raw/*.jsonl — исходные выгрузки Mistral-7B, сохранены только для провенанса; загрузчик и линтер их не читают."
+}

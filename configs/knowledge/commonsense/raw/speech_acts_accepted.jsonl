@@ -1,0 +1,164 @@
+{"s": "буду видеть", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "не понимаю", "r": "IsA", "o": "expressive.question", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "пожалуйста, зайдите в мой кабинет", "r": "IsA", "o": "directive.request", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "это моя точка зрения", "r": "IsA", "o": "declaration.opinion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "я не готов", "r": "IsA", "o": "assertive.refusal", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "покажите мне", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "спасибо", "r": "IsA", "o": "expressive.thanks", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "я готов", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "я извиняюсь", "r": "IsA", "o": "expressive.apology", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "это моя идея", "r": "IsA", "o": "declaration.proposal", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 0}}
+{"s": "прошу", "r": "IsA", "o": "directive.request", "weight": 0.9000000000000001, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "принесу", "r": "IsA", "o": "commissive.promise", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "извините", "r": "IsA", "o": "expressive.apology", "weight": 0.9285714285714286, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "я говорю", "r": "IsA", "o": "declaration.statement", "weight": 0.9333333333333332, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "рассчитаю", "r": "IsA", "o": "commissive.promise", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "оценим", "r": "IsA", "o": "commissive.promise", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "заметил", "r": "IsA", "o": "declaration.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "помогите", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "сделаю", "r": "IsA", "o": "commissive.promise", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "приветствую", "r": "IsA", "o": "expressive.greeting", "weight": 0.8833333333333333, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 1}}
+{"s": "могут ли вы", "r": "IsA", "o": "directive.question", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "остановитесь", "r": "IsA", "o": "directive.command", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "извините, но...", "r": "IsA", "o": "expressive.apology", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "пожалуйста, помогите", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "я надеюсь, что...", "r": "IsA", "o": "commissive.hope", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "это моя рекомендация", "r": "IsA", "o": "commissive.recommendation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "я сожалею", "r": "IsA", "o": "expressive.sympathy", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "я готов помочь", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 2}}
+{"s": "не могли бы вы пожалуйста", "r": "IsA", "o": "directive.request", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "уверена в этом", "r": "IsA", "o": "declaration.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "давайте сделаем это сейчас", "r": "IsA", "o": "commissive.agreement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "я прошу вас", "r": "IsA", "o": "directive.request", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "я готов отказаться", "r": "IsA", "o": "commissive.refusal", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "слышал я это уже", "r": "IsA", "o": "declaration.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "прошу прощения", "r": "IsA", "o": "expressive.apology", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "давайте начнем с нуля", "r": "IsA", "o": "commissive.agreement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "обещаю сделать это", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 3}}
+{"s": "предлагаю", "r": "IsA", "o": "directive.proposal", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "обеспечиваю", "r": "IsA", "o": "commissive.commitment", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "подтверждаю", "r": "IsA", "o": "assertive.affirmation", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "приказываю", "r": "IsA", "o": "directive.order", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "сообщаю", "r": "IsA", "o": "declaration.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "обещаю помочь", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "сожалею", "r": "IsA", "o": "expressive.sympathy", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "одобряю", "r": "IsA", "o": "assertive.approval", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "опровергаю", "r": "IsA", "o": "assertive.denial", "weight": 0.75, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 4}}
+{"s": "обещаю", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "извини", "r": "IsA", "o": "expressive.apology", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "подтверждаю", "r": "IsA", "o": "assertive.confirmation", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "запрещаю", "r": "IsA", "o": "directive.prohibition", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "распоряжаюсь", "r": "IsA", "o": "directive.order", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "сообщаю", "r": "IsA", "o": "commissive.inform", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "пожелаю", "r": "IsA", "o": "expressive.wish", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "рекомендую", "r": "IsA", "o": "directive.suggestion", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "определяю", "r": "IsA", "o": "declaration.definition", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 5}}
+{"s": "предлагаю", "r": "IsA", "o": "directive.suggestion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "возражаю", "r": "IsA", "o": "expressive.disagreement", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "пожелаю", "r": "IsA", "o": "commissive.wish", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "радостно объявляю", "r": "IsA", "o": "declarative.announcement", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "извиняюсь", "r": "IsA", "o": "expressive.apology", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "предупреждаю", "r": "IsA", "o": "directive.warning", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 6}}
+{"s": "уточняю", "r": "IsA", "o": "directive.inquiry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "отрицаю", "r": "IsA", "o": "assertive.denial", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "сообщаю", "r": "IsA", "o": "declaration.fact", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "заявляю", "r": "IsA", "o": "declaration.announcement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "одобряю", "r": "IsA", "o": "expressive.approval", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "протестую", "r": "IsA", "o": "expressive.protest", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "возражаю", "r": "IsA", "o": "expressive.objection", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 7}}
+{"s": "могу ли я", "r": "IsA", "o": "directive.question", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "скажете мне правду", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "объявляю вас своим другом", "r": "IsA", "o": "declaration.friendship", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "позвоните мне в 6 часов", "r": "IsA", "o": "directive.command", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "прошу о прощении", "r": "IsA", "o": "expressive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "обещаю прийти на ваше рождение", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "рад видеть вас здесь", "r": "IsA", "o": "expressive.greeting", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "давайте заключим договор", "r": "IsA", "o": "directive.proposal", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "оцениваю ситуацию как критическую", "r": "IsA", "o": "assertive.evaluation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "предлагаю напиться в ресторане", "r": "IsA", "o": "directive.suggestion", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 8}}
+{"s": "пожалуйста", "r": "IsA", "o": "expressive.politeness", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я слышал", "r": "IsA", "o": "declarative.heard", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "покажи мне", "r": "IsA", "o": "directive.show", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я готов", "r": "IsA", "o": "commissive.ready", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я думаю", "r": "IsA", "o": "assertive.opinion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "скажи мне", "r": "IsA", "o": "directive.tell", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я сказал", "r": "IsA", "o": "declarative.said", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "остановитесь", "r": "IsA", "o": "directive.stop", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я не могу", "r": "IsA", "o": "assertive.unable", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я напишу", "r": "IsA", "o": "commissive.write", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 9}}
+{"s": "я не верю", "r": "IsA", "o": "expressive.disbelief", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "как можно быстрее", "r": "IsA", "o": "directive.hurry", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "пожалуйста, переведите", "r": "IsA", "o": "directive.command", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "это моя обязанность", "r": "IsA", "o": "commissive.obligation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "я счастлив", "r": "IsA", "o": "expressive.happiness", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "не могли бы вы помочь?", "r": "IsA", "o": "directive.request", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "я готов", "r": "IsA", "o": "commissive.readiness", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "я недоволен", "r": "IsA", "o": "expressive.dissatisfaction", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 10}}
+{"s": "пожалуйста, покажите мне", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "вы говорите", "r": "IsA", "o": "declaration.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "я прошу", "r": "IsA", "o": "directive.request", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "я обещаю", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "я не знаю", "r": "IsA", "o": "declaration.statement", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "это моя мысль", "r": "IsA", "o": "expressive.opinion", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "я советую", "r": "IsA", "o": "directive.suggestion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "это не так", "r": "IsA", "o": "assertive.denial", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 11}}
+{"s": "не горюч", "r": "IsA", "o": "declarative.fact", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "скажите мне", "r": "IsA", "o": "directive.question", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "у меня есть", "r": "IsA", "o": "declarative.possession", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "не понимаю", "r": "IsA", "o": "expressive.confusion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "распоряжайтесь", "r": "IsA", "o": "directive.command", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "прошу", "r": "IsA", "o": "expressive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "я готов пойти", "r": "IsA", "o": "commissive.offer", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "это моя точка зрения", "r": "IsA", "o": "declarative.opinion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 12}}
+{"s": "попросите", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "принесите мне", "r": "IsA", "o": "directive.request", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "я гарантирую", "r": "IsA", "o": "commissive.guarantee", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "я обещаю вернуть", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "извините за мое поведение", "r": "IsA", "o": "expressive.apology", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "радуюсь", "r": "IsA", "o": "expressive.joy", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "я объявляю", "r": "IsA", "o": "declaration.announcement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 13}}
+{"s": "попросить", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "сказать правду", "r": "IsA", "o": "declaration.fact", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "приказать", "r": "IsA", "o": "directive.order", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "объявить войну", "r": "IsA", "o": "commissive.declaration", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "радоваться", "r": "IsA", "o": "expressive.joy", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "предложить", "r": "IsA", "o": "directive.suggestion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "обещать помощь", "r": "IsA", "o": "commissive.promise", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "выразить сожаление", "r": "IsA", "o": "expressive.condolence", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 14}}
+{"s": "рассматриваю", "r": "IsA", "o": "declarative.consider", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "согласна", "r": "IsA", "o": "commissive.agree", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "пожалуйста", "r": "IsA", "o": "expressive.please", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "оцените", "r": "IsA", "o": "directive.evaluate", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "отказываюсь", "r": "IsA", "o": "commissive.refuse", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "возможно", "r": "IsA", "o": "expressive.possibly", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "приглашаю", "r": "IsA", "o": "commissive.invite", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 15}}
+{"s": "пока", "r": "IsA", "o": "commissive.promise", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "да", "r": "IsA", "o": "assertive.agreement", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "не могу", "r": "IsA", "o": "expressive.refusal", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "давайте", "r": "IsA", "o": "directive.invitation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "необходимо", "r": "IsA", "o": "directive.necessity", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "не согласен", "r": "IsA", "o": "assertive.disagreement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "пригодится", "r": "IsA", "o": "declaration.usefulness", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "надеюсь", "r": "IsA", "o": "expressive.hope", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 16}}
+{"s": "я говорю", "r": "IsA", "o": "declarative.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "покажи мне", "r": "IsA", "o": "directive.request", "weight": 0.875, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "я слышу", "r": "IsA", "o": "declarative.statement", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "принеси мне", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "я говорю правду", "r": "IsA", "o": "declarative.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "примите мою просьбу", "r": "IsA", "o": "commissive.promise", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "я не могу", "r": "IsA", "o": "assertive.negation", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "вот моя мысль", "r": "IsA", "o": "declarative.statement", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 17}}
+{"s": "пожалуйста, подождите", "r": "IsA", "o": "directive.request", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "я говорю правду", "r": "IsA", "o": "assertive.statement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "давайте поговорим о этом", "r": "IsA", "o": "directive.suggestion", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "это моя теория", "r": "IsA", "o": "declaration.theory", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "не могли бы вы сделать это", "r": "IsA", "o": "directive.request", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "я думаю, что это правильно", "r": "IsA", "o": "assertive.opinion", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "я согласен", "r": "IsA", "o": "commissive.agreement", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "хорошо, пойду", "r": "IsA", "o": "commissive.acceptance", "weight": 0.95, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 18}}
+{"s": "уверена в себе", "r": "IsA", "o": "expressive.confidence", "weight": 0.85, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}
+{"s": "это моя мысль", "r": "IsA", "o": "declaration.opinion", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}
+{"s": "пожалуйста, давайте сделаем это", "r": "IsA", "o": "directive.suggestion", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}
+{"s": "я не могу это сделать", "r": "IsA", "o": "declarative.ability", "weight": 0.9, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}
+{"s": "я не говорю правду", "r": "IsA", "o": "declarative.lie", "weight": 0.7, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}
+{"s": "не делай это", "r": "IsA", "o": "directive.prohibition", "weight": 0.8, "provenance": {"model": "mistralai/Mistral-7B-Instruct-v0.3", "topic": "speech_acts", "run": 19}}

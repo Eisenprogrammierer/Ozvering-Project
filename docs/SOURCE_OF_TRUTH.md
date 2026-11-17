@@ -149,6 +149,7 @@
 | Типы ответа диалога | `configs/dialogue/answer_kinds.json`; `campaign/dialogue/answers.py` (`answer_handler_name`); `test_answer_registry.py` |
 | Адаптеры мира | `campaign/perception.py` (`WorldView`, `AutomataCampaignAdapter`, `WorldEngineAdapter`, `SceneAdapter`); `configs/dialogue/world.json.adapters`; `test_world_adapters.py` |
 | Отношения и эмоциональные оси | `campaign/relations.py`; блоки `relation_axes`/`relation_effect_weights`/`relation_effect_limit` мира; эффекты `target`/`relation_axes` в `configs/worlds/actions/`; `test_relation_axes_config.py` |
+| Факты здравого смысла | `configs/knowledge/commonsense/` (`schema.json`, `speech_acts.jsonl`, `mode_markers.jsonl`, `social_causes.jsonl`, `entities.jsonl`; `raw/` — исходные LLM-выгрузки); `campaign/commonsense.py`; `python -m campaign.commonsense --check`; `test_commonsense.py` |
 | Живой мост действий | `campaign/dialogue/bridge.py` (`ActionBridge`, `ActionResult.work`/`.trace`); `campaign/actions.py` (`build_spec_work`, `improvised_work`); `test_d6_bridge.py` |
 | Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
 
@@ -227,6 +228,7 @@
 | `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, цели и шаги, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
 | `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 62 действия после слияния каталогов, 6 сцен, `norms`, `sandbox`), `actions/*.json`, `scenes/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/scenes.py`, `campaign/node_strategy.py` |
+| `configs/knowledge/commonsense/` | курированные факты «субъект — отношение — объект»: речевые акты, режимы, причины эмоций, свойства предметов; `raw/` — исходные LLM-выгрузки только для провенанса | `campaign/commonsense.py` |
 | `configs/strategy/` | **пуст** | `campaign/strategy.py` |
 | `configs/automata/` | **пуст** | `automata/storage.py` |
 | `configs/environments/` | **пуст** | `core41/environment.py` |
@@ -242,7 +244,7 @@
 | Агенты | `test_train_cli.py`, `test_checkpoints.py`, `test_core41.py` |
 | Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
 | Дневной мир | `test_campaign.py`, `test_world.py`, `test_world_primitives.py`, `test_scene.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
-| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_storyline_flex.py`, `test_lore_characters.py` |
+| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_storyline_flex.py`, `test_lore_characters.py`, `test_commonsense.py` |
 | Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
 | UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |
