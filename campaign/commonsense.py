@@ -107,6 +107,13 @@ class Reading:
     modes: Tuple[str, ...] = ()
     styles: Tuple[str, ...] = ()
     evidence: Tuple[Fact, ...] = field(default_factory=tuple)
+    weights: Tuple[Tuple[str, float], ...] = ()
+
+    @property
+    def mode_weight(self) -> float:
+        """Вес самого сильного маркера режима (0.0, если их нет)."""
+
+        return max((weight for _, weight in self.weights), default=0.0)
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -114,6 +121,7 @@ class Reading:
             "acts": list(self.acts),
             "modes": list(self.modes),
             "styles": list(self.styles),
+            "weights": dict(self.weights),
             "evidence": [fact.as_dict() for fact in self.evidence],
         }
 
@@ -270,6 +278,9 @@ class FactBase:
             modes=modes,
             styles=styles,
             evidence=evidence,
+            weights=tuple(
+                (mode, best_modes[mode][0]) for mode in modes
+            ),
         )
 
     def summary(self) -> Dict[str, Any]:

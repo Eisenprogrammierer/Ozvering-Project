@@ -349,10 +349,19 @@ class StyleContextRule:
 
 @dataclass(frozen=True)
 class StyleContextCatalog:
-    """Правила автовыбора регистра."""
+    """Правила автовыбора регистра.
+
+    ``hint_priority`` — приоритет подсказки стиля из фактов здравого
+    смысла; ``hint_min_weight`` — минимальный вес маркера режима, при
+    котором подсказка считается уверенной. Оба поля — данные
+    ``style_context.json``, чтобы подсказка вставала в общий порядок
+    правил, не перебивая отношения и полномочия.
+    """
 
     rules: Tuple[StyleContextRule, ...] = ()
     enabled: bool = False
+    hint_priority: int = 40
+    hint_min_weight: float = 0.8
 
     def ordered(self) -> Tuple[StyleContextRule, ...]:
         return tuple(

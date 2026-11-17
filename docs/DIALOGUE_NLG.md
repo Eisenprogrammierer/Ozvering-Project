@@ -631,12 +631,21 @@ whitelist по P8/P9.
 
 #### D5.2. Автовыбор регистра по контексту — закрыто
 
-- `configs/dialogue/style_context.json` — `enabled`, `rules`.
+- `configs/dialogue/style_context.json` — `enabled`, `hint_priority`,
+  `hint_min_weight`, `rules`.
 - `StyleEngine.resolve_for_context` — явный стиль → `persona.default_style`
-  → правила по контексту → `styles.default`.
+  → правила по контексту и подсказка `style_hints` по убыванию
+  `priority` → `styles.default`.
+- Подсказка режима: `DialogueSession(senses=...)` читает факты
+  здравого смысла, `Reading.weights`/`mode_weight` дают уверенность,
+  а `hint_priority` (`40`) ставит подсказку между
+  `default_official` (`10`) и отношениями (`50+`). Явный стиль и
+  правила с большим приоритетом её перебивают; без базы фактов или
+  при весе ниже `hint_min_weight` подсказка не применяется.
 - `DialogueSession(style_id=None)` — авто-режим.
 - Линтер `_style_context_problems`.
 - Тесты `tests/test_d5_registers.py` — 19 тестов.
+- Тесты `tests/test_d5_style_hints.py` — 16 тестов.
 
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 

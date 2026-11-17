@@ -527,9 +527,19 @@ def load_style_context(root: Path) -> StyleContextCatalog:
                 description=_text(data.get("description")),
             )
         )
+    try:
+        hint_priority = int(raw.get("hint_priority", 40))
+    except (TypeError, ValueError):
+        hint_priority = 40
+    try:
+        hint_min_weight = float(raw.get("hint_min_weight", 0.8))
+    except (TypeError, ValueError):
+        hint_min_weight = 0.8
     return StyleContextCatalog(
         rules=tuple(rules),
         enabled=bool(raw.get("enabled", True)),
+        hint_priority=hint_priority,
+        hint_min_weight=hint_min_weight,
     )
 
 

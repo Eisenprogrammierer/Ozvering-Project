@@ -10,6 +10,12 @@ D2 добавляет к read-only слою QUD, активные референ
 D5.2 добавляет авто-режим выбора регистра: если игрок не выбрал стиль
 явно, регистр определяется правилами из ``style_context.json`` по
 данным ``AgentKnowledge``. Явный выбор побеждает любые правила.
+
+D5.3 подключает подсказку стиля из фактов здравого смысла:
+``schema.json.style_hints`` связывает режим разговора (флирт, утешение,
+ссора) со стилем ответа. Подсказка участвует в общем порядке правил
+через ``hint_priority``, поэтому отношения и полномочия остаются
+сильнее. Без загруженной базы фактов сессия работает как раньше.
 """
 
 from __future__ import annotations
@@ -58,6 +64,8 @@ class DialogueSession:
         engine: Any = None,
         forms: Any = None,
         allow_improvised: bool = False,
+        senses: Any = None,
+        style_hints: bool = True,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
@@ -67,6 +75,15 @@ class DialogueSession:
         self.explicit_style_id = ""
         if style_id is not None and str(style_id) in self.style_engine.styles:
             self.explicit_style_id = str(style_id)
+        if senses is None and style_hints:
+            try:
+                from ..commonsense import default_factbase
+
+                senses = default_factbase()
+            except Exception:
+                senses = None
+        self.senses = senses if style_hints else None
+        self._hint_style = ""
         self.morphology = Morphology(catalog.synthesis)
         self.memory = memory or DialogueMemory(
             catalog.state,
@@ -112,8 +129,34 @@ class DialogueSession:
         """Текущий стиль: явный, иначе вычисленный по контексту."""
 
         return self.style_engine.resolve_for_context(
-            self.explicit_style_id, self.persona, self.knowledge
+            self.explicit_style_id,
+            self.persona,
+            self.knowledge,
+            hint_style=self._hint_style,
         )
+
+    def style_hint(self, text: str) -> str:
+        """Стиль из фактов здравого смысла, если режим распознан уверенно.
+
+        Пустая строка означает «нет уверенной подсказки»: сессия
+        остаётся на правилах ``style_context.json``.
+        """
+
+        senses = self.senses
+        if senses is None or not str(text or "").strip():
+            return ""
+        try:
+            reading = senses.classify(text)
+        except Exception:
+            return ""
+        threshold = self.style_engine.hint_min_weight
+        for mode, weight in getattr(reading, "weights", ()):
+            if weight < threshold:
+                continue
+            style = str(senses.style_for(mode) or "")
+            if style in self.style_engine.styles:
+                return style
+        return ""
 
     def ask(self, text: str) -> Answer:
         return self.respond(text).answer
@@ -285,6 +328,8 @@ class DialogueSession:
         if key and key not in self.style_engine.styles:
             key = ""
         self.explicit_style_id = key
+        if not key:
+            self._hint_style = ""
         self.planner.set_style(self._profile())
         return self.style_id
 
@@ -295,11 +340,15 @@ class DialogueSession:
 
     def _profile(self):
         return self.style_engine.profile_for_context(
-            self.explicit_style_id, self.persona, self.knowledge
+            self.explicit_style_id,
+            self.persona,
+            self.knowledge,
+            hint_style=self._hint_style,
         )
 
     def respond(self, text: str) -> Turn:
         self.state.begin_turn(self.knowledge.clock)
+        self._hint_style = ""
         sem, parse, source = self._interpret(text)
         if sem is None:
             return self._clarification(text, parse, source)
@@ -308,6 +357,7 @@ class DialogueSession:
             return self._clarification(text, parse, source, "no_referent")
         sem = self.state.apply_question_intent(sem, text)
         mentioned = self.state.observe_sem(sem)
+        self._hint_style = self.style_hint(text)
         answer = self.planner.plan(sem, style=self._profile())
         if answer.kind == "social":
             effect = (answer.data or {}).get("effect")

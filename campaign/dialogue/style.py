@@ -13,7 +13,7 @@ D5.2 добавляет автовыбор регистра по контекс�
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from .model import StyleCatalog, StyleSpec
 
@@ -104,6 +104,18 @@ class StyleEngine:
     def has(self, style_id: Any) -> bool:
         return str(style_id or "") in self.styles
 
+    @property
+    def hint_priority(self) -> int:
+        """Приоритет подсказки стиля (данные ``style_context.json``)."""
+
+        return int(getattr(self.context, "hint_priority", 40))
+
+    @property
+    def hint_min_weight(self) -> float:
+        """Минимальный вес маркера для уверенной подсказки."""
+
+        return float(getattr(self.context, "hint_min_weight", 0.8))
+
     def resolve(self, style_id: Any = None, persona: Any = None) -> str:
         """Выбрать стиль: явный → персона → стиль по умолчанию."""
 
@@ -122,6 +134,9 @@ class StyleEngine:
         style_id: Any = None,
         persona: Any = None,
         knowledge: Any = None,
+        *,
+        hint_style: Any = "",
+        hint_priority: Optional[int] = None,
     ) -> str:
         """Выбрать стиль с учётом контекста разговора.
 
@@ -129,13 +144,16 @@ class StyleEngine:
 
         1. Явный выбор игрока — он побеждает любые правила.
         2. ``persona.default_style`` — дефолт персоны.
-        3. Правила ``style_context.json`` по убыванию ``priority``;
-           первое совпавшее правило даёт стиль.
+        3. Правила ``style_context.json`` и подсказка ``style_hints``
+           по убыванию ``priority``; первое совпавшее правило даёт
+           стиль. Подсказка — такое же правило, поэтому её приоритет
+           (``hint_priority``) задан данными.
         4. ``styles.default`` — нейтральный.
 
         ``knowledge`` может быть ``None``: тогда правила, которым нужны
-        поля/факты, не срабатывают, и работает ручной выбор. Это
-        сохраняет обратную совместимость.
+        поля/факты, не срабатывают, и работает ручной выбор. Подсказка
+        не зависит от знания и применяется, если её приоритет выше
+        остальных совпавших правил.
         """
 
         explicit = str(style_id or "")
@@ -145,17 +163,40 @@ class StyleEngine:
         if default in self.styles:
             return default
         context = self.context
-        if (
-            knowledge is not None
-            and context is not None
-            and getattr(context, "enabled", False)
-            and getattr(context, "rules", ())
-        ):
+        enabled = bool(
+            context is not None and getattr(context, "enabled", False)
+        )
+        hint = str(hint_style or "")
+        if hint not in self.styles:
+            hint = ""
+        candidates = []
+        if enabled and knowledge is not None:
             for rule in context.ordered():
-                if rule.style_id not in self.styles:
-                    continue
-                if self._conditions_met(rule.conditions, knowledge):
-                    return rule.style_id
+                candidates.append(
+                    (
+                        rule.priority,
+                        rule.id,
+                        rule.style_id,
+                        rule.conditions,
+                    )
+                )
+        if hint:
+            if hint_priority is None:
+                hint_priority = int(
+                    getattr(context, "hint_priority", 40)
+                )
+            candidates.append(
+                (int(hint_priority), "", hint, ())
+            )
+            candidates.sort(key=lambda item: (-item[0], item[1]))
+        for priority, _rule_id, style, conditions in candidates:
+            if style not in self.styles:
+                continue
+            if conditions and not self._conditions_met(
+                conditions, knowledge
+            ):
+                continue
+            return style
         if self.catalog.default in self.styles:
             return self.catalog.default
         return next(iter(self.styles), "")
@@ -257,10 +298,19 @@ class StyleEngine:
         style_id: Any = None,
         persona: Any = None,
         knowledge: Any = None,
+        *,
+        hint_style: Any = "",
+        hint_priority: Optional[int] = None,
     ) -> StyleSpec:
         """Профиль с учётом контекста; неизвестный стиль безопасен."""
 
-        key = self.resolve_for_context(style_id, persona, knowledge)
+        key = self.resolve_for_context(
+            style_id,
+            persona,
+            knowledge,
+            hint_style=hint_style,
+            hint_priority=hint_priority,
+        )
         style = self.styles.get(key)
         if style is not None:
             return style

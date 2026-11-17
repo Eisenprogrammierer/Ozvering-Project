@@ -1,6 +1,8 @@
 {
   "schema": 1,
   "enabled": true,
+  "hint_priority": 40,
+  "hint_min_weight": 0.8,
   "rules": [
     {
       "id": "enemy_hostile",

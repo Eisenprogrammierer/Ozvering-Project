@@ -149,7 +149,7 @@
 | Типы ответа диалога | `configs/dialogue/answer_kinds.json`; `campaign/dialogue/answers.py` (`answer_handler_name`); `test_answer_registry.py` |
 | Адаптеры мира | `campaign/perception.py` (`WorldView`, `AutomataCampaignAdapter`, `WorldEngineAdapter`, `SceneAdapter`); `configs/dialogue/world.json.adapters`; `test_world_adapters.py` |
 | Отношения и эмоциональные оси | `campaign/relations.py`; блоки `relation_axes`/`relation_effect_weights`/`relation_effect_limit` мира; эффекты `target`/`relation_axes` в `configs/worlds/actions/`; `test_relation_axes_config.py` |
-| Факты здравого смысла | `configs/knowledge/commonsense/` (`schema.json` с `style_hints`, `speech_acts.jsonl`, `mode_markers.jsonl`, `social_causes.jsonl`, `entities.jsonl`; `raw/` — исходные LLM-выгрузки); `campaign/commonsense.py`; `python -m campaign.commonsense --check`; команда консоли `/смысл`; корпус парафраз с `"source": "commonsense"`; `test_commonsense.py`, `test_d7_console.py` |
+| Факты здравого смысла | `configs/knowledge/commonsense/` (`schema.json` с `style_hints`, `speech_acts.jsonl`, `mode_markers.jsonl`, `social_causes.jsonl`, `entities.jsonl`; `raw/` — исходные LLM-выгрузки); `campaign/commonsense.py`; `python -m campaign.commonsense --check`; команда консоли `/смысл`; runtime-хук стиля в `DialogueSession`; корпус парафраз с `"source": "commonsense"`; `test_commonsense.py`, `test_d5_style_hints.py`, `test_d7_console.py` |
 | Живой мост действий | `campaign/dialogue/bridge.py` (`ActionBridge`, `ActionResult.work`/`.trace`); `campaign/actions.py` (`build_spec_work`, `improvised_work`); `test_d6_bridge.py` |
 | Автоматы редактора | `configs/automata/*.json` (каталог пуст); `automata/storage.py`; `test_automata.py` |
 
