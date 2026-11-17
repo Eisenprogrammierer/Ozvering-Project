@@ -449,11 +449,13 @@ Python-зажимы**.
 `law`, `art`, `education`, `personal_care` объявлены в манифесте,
 обработчики лежат в `configs/campaigns/base/handlers/`, а каталог
 `configs/worlds/actions/agora_primitives.json` задаёт `kiss`, `embrace`,
-`offer_sacrifice`, `propose_law`, `perform_song`, `teach_lesson`,
-`comfort_person` и `ask_favor`. Согласие в `contact` выражено явными
+`offer_sacrifice`, `accept_law`, `propose_law`, `repeal_law`,
+`perform_song`, `teach_lesson`, `comfort_person` и `ask_favor`.
+Согласие в `contact` выражено явными
 `requires.affinity_min`/`trust_min`, жертва адресует место/общину и
-тратит предмет, закон создаёт норму (отмена нормы остаётся следующим
-шагом). Локальная сцена и кампании автоматов остаются за P6.
+тратит предмет, закон создаёт норму, принимает её и отменяет
+(`requires.target_status` + эффект `$target`). Локальная сцена закрыта,
+кампании автоматов остаются за P6.
 
 **Что умирает:** именно те примеры пользователя, которые проверяют
 гибкость: поцелуй, объятие, закон, жертва.
@@ -712,7 +714,7 @@ override: произвольная сторона кампании работа�
 **Доказательства:**
 
 - `configs/worlds/` содержит `agora_world.json` (44 узла, 72 должности,
-  62 действия после слияния `action_catalogs`, `norms`), каталог
+  64 действия после слияния `action_catalogs`, `norms`), каталог
   `actions/agora_actions.json`, `agora_strategies.json` и `biography.json`.
 - `campaign/world.py` — `validate_world` (`:429`),
   `WorldEngine` (`:753`), `load_world` (`:352`), `list_worlds` (`:376`).

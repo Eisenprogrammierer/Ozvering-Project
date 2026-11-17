@@ -129,6 +129,7 @@ def test_norm_tab_addresses_law():
     screen.draw(surface)
     options = _world_options(screen._action_options())
     assert options
+    assert "repeal_law" in {item["id"] for item in options}
     option = next(
         item
         for item in options

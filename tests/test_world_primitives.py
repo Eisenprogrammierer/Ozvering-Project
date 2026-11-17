@@ -155,6 +155,29 @@ def test_propose_law_creates_addressable_norm(world):
     )
 
 
+def test_repeal_law_changes_only_the_target_norm(world):
+    engine = _engine(world)
+    proposed = engine.execute(
+        "propose_law",
+        target_ref={"kind": "norm", "id": "agora_charter"},
+    )
+    assert proposed["ok"] is True
+    assert engine.norms["street_charter"]["status"] == "active"
+
+    target = {"kind": "norm", "id": "agora_charter"}
+    result = engine.execute("repeal_law", target_ref=target)
+    assert result["ok"] is True
+    assert engine.norms["agora_charter"]["status"] == "repealed"
+    assert engine.norms["street_charter"]["status"] == "active"
+    assert engine.entity_ref(engine.norms["agora_charter"]) == target
+    entry = [item for item in engine.log if item["kind"] == "norm"][-1]
+    assert "отменена норма" in entry["text"]
+
+    allowed, reason = engine.validate("repeal_law", target_ref=target)
+    assert allowed is False
+    assert reason == "норма уже не действует"
+
+
 def test_song_targets_place_and_changes_its_cohesion(world):
     engine = _engine(world)
     node = engine.node("agora_street")

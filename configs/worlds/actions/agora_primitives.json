@@ -194,6 +194,10 @@
           "norm"
         ]
       },
+      "requires": {
+        "target_status": ["active"],
+        "invalid_status_reason": "норма уже отменена"
+      },
       "template": {
         "amount": 0.02,
         "duration": 1.0,
@@ -225,6 +229,69 @@
       "failure": {
         "chance": 0.22,
         "text": "Закон не проходит: слов достаточно, но согласия в общине нет.",
+        "effects": {
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "ai": false,
+      "cooldown_days": 0
+    },
+    {
+      "id": "repeal_law",
+      "label": "Отменить норму",
+      "aliases": ["act_repeal_law"],
+      "phrases": ["Отмени норму", "Отмени закон"],
+      "category": "Право",
+      "description": "Лишить норму силы: правило остаётся в памяти, но ссылаться на него больше нельзя. Отмена — это тоже действие власти, а не исчезновение закона.",
+      "form": "law",
+      "actor": {},
+      "target": {
+        "required": true,
+        "kinds": [
+          "norm"
+        ]
+      },
+      "requires": {
+        "target_status": ["active"],
+        "invalid_status_reason": "норма уже не действует"
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0,
+        "payload": {
+          "kind": "order",
+          "action": "repeal_law",
+          "target": "",
+          "priority": 0.6
+        }
+      },
+      "cost": {
+        "player": {
+          "influence": 0.02
+        }
+      },
+      "success_chance": 0.72,
+      "success": {
+        "chance": 0.72,
+        "text": "Норма лишена силы: на неё больше не сослаться, а её сторонники запомнят, кто её отменил.",
+        "effects": {
+          "node": {
+            "legitimacy": -0.02
+          },
+          "player": {
+            "standing": -0.01
+          },
+          "norm": {
+            "id": "$target",
+            "status": "repealed"
+          }
+        }
+      },
+      "failure": {
+        "chance": 0.28,
+        "text": "Отмена не проходит: у нормы находятся защитники, и разговор возвращается к процедуре.",
         "effects": {
           "player": {
             "standing": -0.01

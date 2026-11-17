@@ -3812,6 +3812,15 @@ class WorldEngine:
                     target.get("fear"), 0.0
                 ) - 1e-9 > _as_float(maximum):
                     return "человек слишком напуган"
+            statuses = requires.get("target_status")
+            if statuses:
+                if self._entity_kind(target) != "norm":
+                    return "цель не является нормой"
+                if target.get("status") not in statuses:
+                    return _text(
+                        requires.get("invalid_status_reason"),
+                        "норма не в подходящем состоянии",
+                    )
             relation_min = requires.get("relation_min")
             if relation_min is not None:
                 value = self.relation(context["node"]["id"], target["id"])
@@ -5211,8 +5220,8 @@ class WorldEngine:
                     )
         return []
 
-    def _apply_norm_effects(self, spec):
-        """Создать или изменить норму мира (P4)."""
+    def _apply_norm_effects(self, spec, target=None):
+        """Создать, изменить или отменить норму мира (P4)."""
         if not spec:
             return []
         entries = spec if isinstance(spec, list) else [spec]
@@ -5223,6 +5232,10 @@ class WorldEngine:
             if not isinstance(entry, dict):
                 continue
             norm_id = _text(entry.get("id"))
+            if norm_id == "$target":
+                if self._entity_kind(target) != "norm":
+                    continue
+                norm_id = _text(target.get("id"))
             if not norm_id:
                 continue
             norm = self.norms.get(norm_id)
@@ -5243,7 +5256,12 @@ class WorldEngine:
                 for key in fields:
                     if key in entry:
                         norm[key] = _text(entry.get(key), norm.get(key, ""))
-                text = "изменена норма: %s" % norm.get("label", norm_id)
+                if norm.get("status") in ("repealed", "revoked", "inactive"):
+                    text = "отменена норма: %s" % norm.get(
+                        "label", norm_id
+                    )
+                else:
+                    text = "изменена норма: %s" % norm.get("label", norm_id)
             self.log.append({"day": self.day, "kind": "norm", "text": text})
         return []
 
@@ -5300,7 +5318,7 @@ class WorldEngine:
                 effects.get("item") or effects.get("items")
             )
             self._apply_norm_effects(
-                effects.get("norm") or effects.get("norms")
+                effects.get("norm") or effects.get("norms"), target
             )
             self._apply_obligation_effects(
                 effects.get("obligation") or effects.get("obligations"),

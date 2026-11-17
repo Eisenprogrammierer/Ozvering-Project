@@ -1974,6 +1974,14 @@
    "semantic": {"kind": "predicate", "id": "act_accept_law"}
   },
   {
+   "id": "verb:repeal_law",
+   "type": "verb",
+   "cat": "V",
+   "lemma": "отменить",
+   "forms": ["отменить", "отменяю", "отменяем", "отменяешь", "отменяете", "отменяет", "отменяют", "отменил", "отменила", "отменили", {"text": "отмени", "features": {"mood": "imperative"}}, {"text": "отмените", "features": {"mood": "imperative"}}],
+   "semantic": {"kind": "predicate", "id": "act_repeal_law"}
+  },
+  {
    "id": "verb:play_song",
    "type": "verb",
    "cat": "V",
