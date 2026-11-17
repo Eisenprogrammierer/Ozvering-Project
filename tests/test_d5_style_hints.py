@@ -13,6 +13,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from campaign.commonsense import Reading, load_commonsense
 from campaign.dialogue.engine import DialogueSession
 from campaign.dialogue.knowledge import AgentKnowledge, Fact
@@ -395,10 +397,38 @@ def test_relationship_beats_real_hint():
 
 def test_respond_clears_hint_after_unparsed_turn():
     catalog = _catalog()
-    session = _session(
-        catalog, _neutral_knowledge(catalog), senses=_Senses(weight=0.9)
-    )
-    session.respond("кто ты")
+    session = _session(catalog, _neutral_knowledge(catalog))
+    session.respond("Признаюсь в любви.")
     assert session.style_id == "romantic"
-    session.respond("абракадабра")
+    turn = session.respond("абракадабра")
+    assert turn.answer.kind == "unknown"
     assert session.style_id == "official"
+
+
+@pytest.mark.parametrize(
+    "phrase,expected",
+    [
+        ("Ты дурак.", "hostile"),
+        ("Мы ругаемся из-за пустяков.", "hostile"),
+        ("Не переживай, я рядом.", "friendly"),
+        ("Ты красивая.", "romantic"),
+        ("Расскажи стихотворение.", "romantic"),
+        ("Приведи аргументы.", "official"),
+    ],
+)
+def test_unparsed_mode_phrase_sets_register(phrase, expected):
+    catalog = _catalog()
+    session = _session(catalog, _neutral_knowledge(catalog))
+    turn = session.respond(phrase)
+    assert turn.answer.kind == "unknown"
+    assert turn.state["style_id"] == expected
+
+
+def test_explicit_style_beats_unparsed_hint():
+    catalog = _catalog()
+    session = _session(
+        catalog, _neutral_knowledge(catalog), style_id="friendly"
+    )
+    turn = session.respond("Ты дурак.")
+    assert turn.answer.kind == "unknown"
+    assert turn.state["style_id"] == "friendly"

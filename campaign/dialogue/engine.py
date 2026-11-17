@@ -353,7 +353,7 @@ class DialogueSession:
 
     def respond(self, text: str) -> Turn:
         self.state.begin_turn(self.knowledge.clock)
-        self._hint_style = ""
+        self._hint_style = self.style_hint(text)
         sem, parse, source = self._interpret(text)
         if sem is None:
             return self._clarification(text, parse, source)
@@ -362,7 +362,6 @@ class DialogueSession:
             return self._clarification(text, parse, source, "no_referent")
         sem = self.state.apply_question_intent(sem, text)
         mentioned = self.state.observe_sem(sem)
-        self._hint_style = self.style_hint(text)
         answer = self.planner.plan(sem, style=self._profile())
         if answer.kind == "social":
             effect = (answer.data or {}).get("effect")
@@ -377,6 +376,7 @@ class DialogueSession:
     ) -> Answer:
         """Ответить мета-репликой в выбранном регистре."""
 
+        self.planner.set_style(self._profile())
         text = self.planner.realizer.realize_answer(
             kind,
             {"message": message, "reason": reason},
