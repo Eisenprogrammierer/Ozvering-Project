@@ -360,6 +360,23 @@ def test_respond_applies_hint_to_parsed_turn():
     assert session.style_id == "romantic"
 
 
+def test_real_flirt_phrase_switches_register():
+    catalog = _catalog()
+    knowledge = _neutral_knowledge(catalog)
+    session = _session(catalog, knowledge)
+    turn = session.respond("Признаюсь в любви.")
+    assert turn.answer.kind == "social"
+    assert turn.state["style_id"] == "romantic"
+
+
+def test_relationship_beats_real_hint():
+    catalog = _catalog()
+    session = _session(catalog, _knowledge(catalog))
+    turn = session.respond("Признаюсь в любви.")
+    assert turn.answer.kind == "social"
+    assert turn.state["style_id"] == "friendly"
+
+
 def test_respond_clears_hint_after_unparsed_turn():
     catalog = _catalog()
     session = _session(

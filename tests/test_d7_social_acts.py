@@ -94,6 +94,16 @@ def test_extended_act_reaches_interaction(catalog, phrase, expected):
     )
 
 
+@pytest.mark.parametrize("phrase,expected", CASES.items())
+def test_extended_act_answers_as_social(catalog, phrase, expected):
+    act_id, _interaction = expected
+    session = _session(catalog, _campaign())
+    answer = session.ask(phrase)
+    assert answer.kind == "social"
+    assert answer.data["act"] == act_id
+    assert answer.text
+
+
 @pytest.mark.parametrize("phrase", ["Клянусь тебе.", "Сватаюсь к тебе."])
 def test_trust_gated_acts_reject_without_trust(catalog, phrase):
     campaign = _campaign()

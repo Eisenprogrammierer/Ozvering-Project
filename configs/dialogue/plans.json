@@ -4,14 +4,24 @@
     {
       "id": "greeting",
       "priority": 100,
-      "match": {"kind": "greeting"},
-      "answer": {"type": "smalltalk", "key": "greeting"}
+      "match": {
+        "kind": "greeting"
+      },
+      "answer": {
+        "type": "smalltalk",
+        "key": "greeting"
+      }
     },
     {
       "id": "farewell",
       "priority": 100,
-      "match": {"kind": "farewell"},
-      "answer": {"type": "smalltalk", "key": "farewell"}
+      "match": {
+        "kind": "farewell"
+      },
+      "answer": {
+        "type": "smalltalk",
+        "key": "farewell"
+      }
     },
     {
       "id": "smalltalk_how",
@@ -21,10 +31,17 @@
         "wh": "how",
         "body": {
           "kind": "topic",
-          "topic": {"head": {"entity": "concept:affairs"}}
+          "topic": {
+            "head": {
+              "entity": "concept:affairs"
+            }
+          }
         }
       },
-      "answer": {"type": "smalltalk", "key": "how_are_you"}
+      "answer": {
+        "type": "smalltalk",
+        "key": "how_are_you"
+      }
     },
     {
       "id": "compare_assets",
@@ -35,9 +52,21 @@
         "body": {
           "kind": "compare",
           "relation": "$relation",
-          "left": {"head": {"entity": "$left"}},
-          "right": {"head": {"entity": "$right"}},
-          "key": {"head": {"entity": "$key"}}
+          "left": {
+            "head": {
+              "entity": "$left"
+            }
+          },
+          "right": {
+            "head": {
+              "entity": "$right"
+            }
+          },
+          "key": {
+            "head": {
+              "entity": "$key"
+            }
+          }
         }
       },
       "answer": {
@@ -56,16 +85,33 @@
         "antecedent": {
           "kind": "assert",
           "predicate": "$rel",
-          "subject": {"head": {"entity": "$subject"}},
-          "object": {"head": {"entity": "$object"}}
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
+          "object": {
+            "head": {
+              "entity": "$object"
+            }
+          }
         }
       },
       "answer": {
         "type": "counterfactual",
         "relation": "$rel",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "remove": [
-          {"rel": "$rel", "args": ["$subject", "$object"]}
+          {
+            "rel": "$rel",
+            "args": [
+              "$subject",
+              "$object"
+            ]
+          }
         ],
         "target": "$subject"
       }
@@ -78,20 +124,37 @@
         "antecedent": {
           "kind": "assert",
           "predicate": "$rel",
-          "subject": {"head": {"entity": "$subject"}},
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
           "object": {
             "kind": "pp",
             "prep": "with",
-            "object": {"head": {"entity": "$object"}}
+            "object": {
+              "head": {
+                "entity": "$object"
+              }
+            }
           }
         }
       },
       "answer": {
         "type": "counterfactual",
         "relation": "$rel",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "remove": [
-          {"rel": "$rel", "args": ["$subject", "$object"]}
+          {
+            "rel": "$rel",
+            "args": [
+              "$subject",
+              "$object"
+            ]
+          }
         ],
         "target": "$subject"
       }
@@ -104,16 +167,33 @@
         "antecedent": {
           "kind": "assert",
           "have": true,
-          "subject": {"head": {"entity": "$subject"}},
-          "object": {"head": {"entity": "$object"}}
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
+          "object": {
+            "head": {
+              "entity": "$object"
+            }
+          }
         }
       },
       "answer": {
         "type": "counterfactual",
         "relation": "has_organ",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "remove": [
-          {"rel": "has_organ", "args": ["$subject", "$object"]}
+          {
+            "rel": "has_organ",
+            "args": [
+              "$subject",
+              "$object"
+            ]
+          }
         ],
         "target": "$subject"
       }
@@ -128,14 +208,25 @@
           "kind": "assert",
           "predicate": "believe",
           "value": "illegal",
-          "subject": {"head": {"entity": "$subject"}},
-          "object": {"head": {"entity": "$object"}}
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
+          "object": {
+            "head": {
+              "entity": "$object"
+            }
+          }
         }
       },
       "answer": {
         "type": "explain",
         "relation": "considers_outlaw",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "statement": "considers_outlaw",
         "missing": "unknown",
         "prefix_key": "why_prefix",
@@ -153,14 +244,25 @@
           "kind": "assert",
           "predicate": "believe",
           "value": "illegal",
-          "subject": {"head": {"entity": "$subject"}},
-          "object": {"head": {"entity": "$object"}}
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
+          "object": {
+            "head": {
+              "entity": "$object"
+            }
+          }
         }
       },
       "answer": {
         "type": "prove",
         "relation": "considers_outlaw",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "statement": "considers_outlaw",
         "missing": "unknown"
       }
@@ -174,19 +276,33 @@
         "body": {
           "kind": "assert",
           "predicate": "fight",
-          "subject": {"head": {"entity": "$subject"}},
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
           "object": {
             "kind": "pp",
             "prep": "with",
-            "object": {"head": {"entity": "$object"}}
+            "object": {
+              "head": {
+                "entity": "$object"
+              }
+            }
           }
         }
       },
       "answer": {
         "type": "explain",
         "relation": "war_reason",
-        "args": ["$subject", "$object", "$reason"],
-        "output": ["reason"],
+        "args": [
+          "$subject",
+          "$object",
+          "$reason"
+        ],
+        "output": [
+          "reason"
+        ],
         "statement": "war_reason",
         "missing": "unknown",
         "prefix_key": "",
@@ -202,18 +318,29 @@
         "body": {
           "kind": "assert",
           "predicate": "fight",
-          "subject": {"head": {"entity": "$subject"}},
+          "subject": {
+            "head": {
+              "entity": "$subject"
+            }
+          },
           "object": {
             "kind": "pp",
             "prep": "with",
-            "object": {"head": {"entity": "$object"}}
+            "object": {
+              "head": {
+                "entity": "$object"
+              }
+            }
           }
         }
       },
       "answer": {
         "type": "prove",
         "relation": "at_war_with",
-        "args": ["$subject", "$object"],
+        "args": [
+          "$subject",
+          "$object"
+        ],
         "statement": "at_war_with",
         "missing": "unknown"
       }
@@ -231,11 +358,18 @@
           "object": {
             "kind": "pp",
             "prep": "about",
-            "object": {"head": {"entity": "$target"}}
+            "object": {
+              "head": {
+                "entity": "$target"
+              }
+            }
           }
         }
       },
-      "answer": {"type": "summary", "target": "$target"}
+      "answer": {
+        "type": "summary",
+        "target": "$target"
+      }
     },
     {
       "id": "tell_about",
@@ -246,10 +380,17 @@
         "topic": {
           "kind": "pp",
           "prep": "about",
-          "object": {"head": {"entity": "$target"}}
+          "object": {
+            "head": {
+              "entity": "$target"
+            }
+          }
         }
       },
-      "answer": {"type": "summary", "target": "$target"}
+      "answer": {
+        "type": "summary",
+        "target": "$target"
+      }
     },
     {
       "id": "organs_list",
@@ -260,15 +401,30 @@
         "body": {
           "kind": "assert",
           "have": true,
-          "object": {"head": {"entity": "noun:organ"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "noun:organ"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "list",
         "relation": "has_organ",
-        "args": ["$owner", "$item"],
-        "output": ["item"],
+        "args": [
+          "$owner",
+          "$item"
+        ],
+        "output": [
+          "item"
+        ],
         "intro_key": "organs",
         "empty_key": "organs"
       }
@@ -282,15 +438,30 @@
         "body": {
           "kind": "assert",
           "have": true,
-          "object": {"head": {"entity": "noun:ally"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "noun:ally"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "list",
         "relation": "allied_with",
-        "args": ["$owner", "$item"],
-        "output": ["item"],
+        "args": [
+          "$owner",
+          "$item"
+        ],
+        "output": [
+          "item"
+        ],
         "intro_key": "allies",
         "empty_key": "allies"
       }
@@ -304,15 +475,30 @@
         "body": {
           "kind": "assert",
           "have": true,
-          "object": {"head": {"entity": "noun:ally"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "noun:ally"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "list",
         "relation": "allied_with",
-        "args": ["$owner", "$item"],
-        "output": ["item"],
+        "args": [
+          "$owner",
+          "$item"
+        ],
+        "output": [
+          "item"
+        ],
         "intro_key": "allies",
         "empty_key": "allies",
         "prefix_key": "yes",
@@ -328,17 +514,36 @@
         "body": {
           "kind": "assert",
           "have": true,
-          "object": {"head": {"entity": "noun:work"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "noun:work"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "list",
         "relation": "has_work",
-        "args": ["$owner", "$item"],
-        "output": ["item", "label"],
+        "args": [
+          "$owner",
+          "$item"
+        ],
+        "output": [
+          "item",
+          "label"
+        ],
         "label_relation": "work_label",
-        "label_args": ["$item", "$label"],
+        "label_args": [
+          "$item",
+          "$label"
+        ],
         "intro_key": "works",
         "empty_key": "works"
       }
@@ -351,15 +556,31 @@
         "wh": "how_many",
         "body": {
           "kind": "quantity",
-          "object": {"head": {"entity": "asset:$key"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "asset:$key"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "value",
         "relation": "asset",
-        "args": ["$owner", "$key", "$value"],
-        "output": ["value"],
+        "args": [
+          "$owner",
+          "$key",
+          "$value"
+        ],
+        "output": [
+          "value"
+        ],
         "label_prefix": "asset:",
         "template_key": "value"
       }
@@ -373,15 +594,28 @@
         "body": {
           "kind": "assert",
           "predicate": "rule",
-          "object": {"head": {"entity": "$owner"}}
+          "object": {
+            "head": {
+              "entity": "$owner"
+            }
+          }
         }
       },
       "answer": {
         "type": "leader",
         "owner": "$owner",
         "relation": "leader",
-        "args": ["$owner", "$character", "$post", "$person"],
-        "output": ["character", "post", "person"],
+        "args": [
+          "$owner",
+          "$character",
+          "$post",
+          "$person"
+        ],
+        "output": [
+          "character",
+          "post",
+          "person"
+        ],
         "phrase_key": "leader"
       }
     },
@@ -394,14 +628,23 @@
         "body": {
           "kind": "assert",
           "predicate": "locate",
-          "object": {"head": {"entity": "$target"}}
+          "object": {
+            "head": {
+              "entity": "$target"
+            }
+          }
         }
       },
       "answer": {
         "type": "located",
         "relation": "located_at",
-        "args": ["$target", "$place"],
-        "output": ["place"],
+        "args": [
+          "$target",
+          "$place"
+        ],
+        "output": [
+          "place"
+        ],
         "statement": "located_at",
         "missing": "unknown"
       }
@@ -415,14 +658,23 @@
         "body": {
           "kind": "assert",
           "predicate": "begin",
-          "object": {"head": {"entity": "$target"}}
+          "object": {
+            "head": {
+              "entity": "$target"
+            }
+          }
         }
       },
       "answer": {
         "type": "started",
         "relation": "started_at",
-        "args": ["$target", "$time"],
-        "output": ["time"],
+        "args": [
+          "$target",
+          "$time"
+        ],
+        "output": [
+          "time"
+        ],
         "statement": "started_at",
         "missing": "unknown"
       }
@@ -436,14 +688,23 @@
         "body": {
           "kind": "assert",
           "predicate": "do",
-          "subject": {"head": {"entity": "$owner"}}
+          "subject": {
+            "head": {
+              "entity": "$owner"
+            }
+          }
         }
       },
       "answer": {
         "type": "last_works",
         "owner": "$owner",
         "relation": "recent_work",
-        "args": {"owner": 0, "turn": 1, "label": 2, "success": 3},
+        "args": {
+          "owner": 0,
+          "turn": 1,
+          "label": 2,
+          "success": 3
+        },
         "keys": {
           "intro": "last_work_intro",
           "empty": "last_work_empty",
@@ -461,14 +722,27 @@
         "body": {
           "kind": "assert",
           "have": true,
-          "object": {"head": {"entity": "organ:$organ"}},
-          "owner": {"object": {"head": {"entity": "$owner"}}}
+          "object": {
+            "head": {
+              "entity": "organ:$organ"
+            }
+          },
+          "owner": {
+            "object": {
+              "head": {
+                "entity": "$owner"
+              }
+            }
+          }
         }
       },
       "answer": {
         "type": "prove",
         "relation": "has_organ",
-        "args": ["$owner", "organ:$organ"],
+        "args": [
+          "$owner",
+          "organ:$organ"
+        ],
         "statement": "has_organ",
         "missing": "no"
       }
@@ -482,46 +756,173 @@
         "body": {
           "kind": "assert",
           "copula": true,
-          "subject": {"head": {"entity": "$target"}}
+          "subject": {
+            "head": {
+              "entity": "$target"
+            }
+          }
         }
       },
-      "answer": {"type": "describe", "target": "$target"}
+      "answer": {
+        "type": "describe",
+        "target": "$target"
+      }
     },
     {
       "id": "social_command",
       "priority": 90,
-      "match": {"kind": "social", "act": "command"},
-      "answer": {"type": "social", "act": "command"}
+      "match": {
+        "kind": "social",
+        "act": "command"
+      },
+      "answer": {
+        "type": "social",
+        "act": "command"
+      }
     },
     {
       "id": "social_promise",
       "priority": 90,
-      "match": {"kind": "social", "act": "promise"},
-      "answer": {"type": "social", "act": "promise"}
+      "match": {
+        "kind": "social",
+        "act": "promise"
+      },
+      "answer": {
+        "type": "social",
+        "act": "promise"
+      }
     },
     {
       "id": "social_threat",
       "priority": 90,
-      "match": {"kind": "social", "act": "threat"},
-      "answer": {"type": "social", "act": "threat"}
+      "match": {
+        "kind": "social",
+        "act": "threat"
+      },
+      "answer": {
+        "type": "social",
+        "act": "threat"
+      }
     },
     {
       "id": "social_blackmail",
       "priority": 90,
-      "match": {"kind": "social", "act": "blackmail"},
-      "answer": {"type": "social", "act": "blackmail"}
+      "match": {
+        "kind": "social",
+        "act": "blackmail"
+      },
+      "answer": {
+        "type": "social",
+        "act": "blackmail"
+      }
     },
     {
       "id": "social_offer",
       "priority": 90,
-      "match": {"kind": "social", "act": "offer"},
-      "answer": {"type": "social", "act": "offer"}
+      "match": {
+        "kind": "social",
+        "act": "offer"
+      },
+      "answer": {
+        "type": "social",
+        "act": "offer"
+      }
     },
     {
       "id": "social_apology",
       "priority": 90,
-      "match": {"kind": "social", "act": "apology"},
-      "answer": {"type": "social", "act": "apology"}
+      "match": {
+        "kind": "social",
+        "act": "apology"
+      },
+      "answer": {
+        "type": "social",
+        "act": "apology"
+      }
+    },
+    {
+      "id": "social_flirt",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "flirt"
+      },
+      "answer": {
+        "type": "social",
+        "act": "flirt"
+      }
+    },
+    {
+      "id": "social_confess",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "confess"
+      },
+      "answer": {
+        "type": "social",
+        "act": "confess"
+      }
+    },
+    {
+      "id": "social_console",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "console"
+      },
+      "answer": {
+        "type": "social",
+        "act": "console"
+      }
+    },
+    {
+      "id": "social_bless",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "bless"
+      },
+      "answer": {
+        "type": "social",
+        "act": "bless"
+      }
+    },
+    {
+      "id": "social_oath",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "oath"
+      },
+      "answer": {
+        "type": "social",
+        "act": "oath"
+      }
+    },
+    {
+      "id": "social_beg_pardon",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "beg_pardon"
+      },
+      "answer": {
+        "type": "social",
+        "act": "beg_pardon"
+      }
+    },
+    {
+      "id": "social_propose",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "propose"
+      },
+      "answer": {
+        "type": "social",
+        "act": "propose"
+      }
     }
   ]
 }

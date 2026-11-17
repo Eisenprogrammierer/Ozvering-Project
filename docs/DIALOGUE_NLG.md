@@ -649,7 +649,7 @@ whitelist по P8/P9.
 - `DialogueSession(style_id=None)` — авто-режим.
 - Линтер `_style_context_problems`.
 - Тесты `tests/test_d5_registers.py` — 19 тестов.
-- Тесты `tests/test_d5_style_hints.py` — 20 тестов.
+- Тесты `tests/test_d5_style_hints.py` — 22 теста.
 
 #### D5.3. Агрегация, анафора и тема-рема — закрыто
 
@@ -869,10 +869,12 @@ whitelist по P8/P9.
   обряда, права, искусства и обучения; грамматика — правило
   `s_imperative_v_pp`. `social.json` расширен до 12 актов: `flirt`,
   `confess`, `console`, `bless`, `oath`, `beg_pardon`, `propose`.
+  Для всех 12 актов есть планы ответа, поэтому read-only `respond`
+  («Признаюсь в любви») даёт `kind: social` и реакцию, а не «не знаю».
   Линтер `_verb_path_problems` требует путь в реестре для каждого
   глагола `act_*` и правило грамматики для каждого речевого акта.
   Тесты: `tests/test_dialogue_projection.py` (10),
-  `tests/test_d7_social_acts.py` (11) и
+  `tests/test_d7_social_acts.py` (18) и
   `tests/test_d6_flexible_grammar.py` (12).
 - **P5. Реестр типов ответа.** `configs/dialogue/answer_kinds.json`
   связывает `plan.answer.type` с обработчиком. `AnswerPlanner` берёт
