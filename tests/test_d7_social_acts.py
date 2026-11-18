@@ -66,6 +66,7 @@ def test_social_catalog_has_extended_acts(catalog):
         "oath",
         "beg_pardon",
         "propose",
+        "insult",
     }
     assert set(catalog.social.acts) == expected
     assert lint_catalog(catalog) == []
@@ -120,3 +121,27 @@ def test_beg_pardon_does_not_require_target(catalog):
     result = _session(catalog, campaign).act("Извиняюсь.")
     assert result.performed is True
     assert result.action_id == "social_apology"
+
+
+def test_insult_parses_and_resents(catalog):
+    session = _session(catalog, _campaign())
+    answer = session.ask("Ты дурак.")
+    assert answer.kind == "social"
+    assert answer.data["act"] == "insult"
+    assert answer.data["reaction"] == "resent"
+    assert "оскорбительно" in answer.text.lower()
+
+
+def test_insult_has_no_world_action(catalog):
+    campaign = _campaign()
+    before = campaign.snapshot()
+    result = _session(catalog, campaign).act("Ты дурак.")
+    assert result.performed is False
+    assert campaign.snapshot() == before
+
+
+def test_reaction_construction_is_used_for_text(catalog):
+    session = _session(catalog, _campaign(), side="blue")
+    answer = session.ask("Клянусь тебе.")
+    assert answer.data["reaction"] == "reject"
+    assert "отказ" in answer.text.lower()

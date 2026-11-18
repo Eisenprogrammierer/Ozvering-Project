@@ -644,6 +644,15 @@
       "sem": {"kind": "social", "act": "threat", "object": "$object"}
     },
     {
+      "id": "s_social_insult",
+      "lhs": "S",
+      "rhs": [
+        {"cat": "NP", "as": "subject"},
+        {"cat": "N", "as": "object", "features": {"lemma": "дурак"}}
+      ],
+      "sem": {"kind": "social", "act": "insult"}
+    },
+    {
       "id": "s_social_blackmail",
       "lhs": "S",
       "rhs": [

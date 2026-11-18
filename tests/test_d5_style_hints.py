@@ -408,7 +408,7 @@ def test_respond_clears_hint_after_unparsed_turn():
 @pytest.mark.parametrize(
     "phrase,expected",
     [
-        ("Ты дурак.", "hostile"),
+        ("Ты глупец.", "hostile"),
         ("Мы ругаемся из-за пустяков.", "hostile"),
         ("Не переживай, я рядом.", "friendly"),
         ("Ты красивая.", "romantic"),
@@ -429,6 +429,6 @@ def test_explicit_style_beats_unparsed_hint():
     session = _session(
         catalog, _neutral_knowledge(catalog), style_id="friendly"
     )
-    turn = session.respond("Ты дурак.")
+    turn = session.respond("Ты глупец.")
     assert turn.answer.kind == "unknown"
     assert turn.state["style_id"] == "friendly"

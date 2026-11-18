@@ -807,6 +807,18 @@
       }
     },
     {
+      "id": "social_insult",
+      "priority": 90,
+      "match": {
+        "kind": "social",
+        "act": "insult"
+      },
+      "answer": {
+        "type": "social",
+        "act": "insult"
+      }
+    },
+    {
       "id": "social_blackmail",
       "priority": 90,
       "match": {

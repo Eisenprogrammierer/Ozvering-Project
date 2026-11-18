@@ -544,6 +544,15 @@
    ],
    "end": "."
   },
+  "social_resent": {
+   "act": "social",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "resent"}
+   ],
+   "end": "."
+  },
   "comparison_greater": {
    "parts": [
     {"kind": "text", "source": "left_name"},
@@ -1141,6 +1150,8 @@
   "marker:refuse_intimate": {"text": "Прости, я не могу.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "refuse"},
   "marker:refuse_hostile": {"text": "Нет. И не проси.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "refuse"},
   "marker:refuse_mentor": {"text": "Нет, и вот почему.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "refuse"},
+  "marker:resent_neutral": {"text": "Это оскорбительно.", "features": {}, "priority": 0, "concept": "resent"},
+  "marker:resent_hostile": {"text": "Следи за языком.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "resent"},
   "marker:evade_neutral": {"text": "Не могу обсуждать.", "features": {}, "priority": 0, "concept": "evade"},
   "marker:evade_official": {"text": "Это вне моей компетенции.", "features": {"formality": "high"}, "priority": 5, "concept": "evade"},
   "marker:evade_report": {"text": "Сведения закрыты.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "evade"},

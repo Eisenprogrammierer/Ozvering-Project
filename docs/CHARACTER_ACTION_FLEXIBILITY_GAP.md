@@ -126,7 +126,7 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │ ДИАЛОГ                                                               │
 │  лексикон/грамматика закрыты (F-12) · actions проецируются (F-13)   │
-│  12 social-актов (F-14) · answer kinds в реестре (F-15)             │
+│  13 social-актов (F-14) · answer kinds в реестре (F-15)             │
 │  адаптеры мира (F-16) · мост declared/improvised (F-17)             │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 │
@@ -608,15 +608,19 @@ opt-in (`projected_registry`/`merge_actions`) и не меняет
 и лексикон дают ему поверхностную форму. Python-обработчиков не
 добавлено.
 
-**Статус 2026-11-17:** планы ответа добавлены для всех 12 актов, поэтому
-`respond` (read-only) тоже возвращает `kind: social` с реакцией, а не
-`unknown`. Это же включает стилевую подсказку на живых фразах вроде
-«Признаюсь в любви.» → `romantic`.
+**Статус 2026-11-17:** планы ответа добавлены для всех 13 актов
+(включая разговорное `insult` без interaction), поэтому `respond`
+(read-only) тоже возвращает `kind: social` с реакцией, а не `unknown`.
+Текст ответа выбирается из конструкции реакции (`social_resent`,
+`social_reject`, …), а не из общего `social_accept`. Это же включает
+стилевую подсказку на живых фразах вроде «Признаюсь в любви.» →
+`romantic` и «Ты дурак.» → `hostile`.
 
 **Что умирает:** флирт, признание, утешение, благословение, присяга,
-просьба о прощении и сватовство перестали быть «невыразимыми».
+просьба о прощении, сватовство и оскорбление перестали быть
+«невыразимыми».
 
-**Доказательства:** `configs/dialogue/social.json` (12 актов),
+**Доказательства:** `configs/dialogue/social.json` (13 актов),
 `grammar.json` (`s_social_*`), `lexicon.json`;
 `tests/test_d7_social_acts.py` — фраза → акт → interaction, отказ по
 `trusts` не меняет мир.
@@ -927,7 +931,7 @@ P0 (канон) и P5 (реализация).
 | F-11 | Нет свободного действия из намерения — **`improvised_work` (P3), мост P5/F-17** | S2 | `bridge.py`, `available_actions` |
 | F-12 | Лексикон/грамматика — **закрыто для DoD в P5** | S2 | `lexicon.json`, `grammar.json`, `ontology.json`; `tests/test_d6_flexible_grammar.py` |
 | F-13 | `actions.json` — **проекция каталога в P5** | S2 | `campaign/dialogue/projection.py`; `tests/test_dialogue_projection.py` |
-| F-14 | `social.json` — **12 актов в P5** | S3 | `configs/dialogue/social.json`; `tests/test_d7_social_acts.py` |
+| F-14 | `social.json` — **13 актов в P5** | S3 | `configs/dialogue/social.json`; `tests/test_d7_social_acts.py` |
 | F-15 | `answer.type` — **реестр `answer_kinds.json` в P5** | S3 | `configs/dialogue/answer_kinds.json`; `tests/test_answer_registry.py` |
 | F-16 | `world.json` — **адаптеры `WorldView` в P5** | S2 | `campaign/perception.py`; `configs/dialogue/world.json.adapters`; `tests/test_world_adapters.py` |
 | F-17 | Мост — **declared/improvised + trace в P5** | S2 | `campaign/dialogue/bridge.py`; `tests/test_d6_bridge.py` |
@@ -940,7 +944,7 @@ P0 (канон) и P5 (реализация).
 
 **Итого после P1–P7, P5 и F-20:** F-01…F-23 закрыты в слое данных. В P5
 закрыты F-23 (призма восприятия), F-13 (проекция каталога действий),
-F-14 (12 речевых актов), F-12 (лексикон/грамматика под DoD-фразы),
+F-14 (13 речевых актов), F-12 (лексикон/грамматика под DoD-фразы),
 F-15 (реестр типов ответа), F-16 (адаптеры мира) и F-17 (живой мост
 declared/improvised). F-20 закрывает эмоциональные оси отношений
 данными мира. Пользовательские хвосты (кампании автоматов, UI-адресация)

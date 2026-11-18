@@ -724,21 +724,27 @@ class AnswerPlanner:
             "social_trace": tuple(decision.trace),
             "reason": decision.reason,
         }
-        text = self.realizer.construction(
-            decision.construction, decision.bindings
-        )
-        if not text:
-            text = self._social_fallback(decision)
-        text = self.realizer.realize_answer(
-            "social",
+        values = dict(decision.bindings)
+        values.update(
             {
-                "message": text,
+                "message": "",
                 "act": decision.act_id,
                 "reaction": decision.reaction_id,
                 "effect": dict(decision.effect),
-            },
-            fallback=text,
+            }
         )
+        text = self.realizer.realize_answer(
+            "social",
+            values,
+            fallback="",
+            construction=decision.construction,
+        )
+        if not text:
+            text = self._social_fallback(decision)
+            values["message"] = text
+            text = self.realizer.realize_answer(
+                "social", values, fallback=text
+            )
         return Answer("social", text, plan.id, data=data)
 
     def _social_fallback(self, decision: SocialDecision) -> str:

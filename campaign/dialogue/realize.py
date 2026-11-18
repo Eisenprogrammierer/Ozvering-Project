@@ -334,7 +334,10 @@ class Realizer:
         mode = str(self.style.feature("address_mode", "none"))
         if mode not in ("pre", "post"):
             return text
-        if not self._address({}, data):
+        address = self._address({}, data)
+        if not address:
+            return text
+        if address.casefold() in text.casefold():
             return text
         chosen = self._select(
             self.act_constructions.get("address_wrap") or ()
@@ -359,6 +362,7 @@ class Realizer:
         data: Mapping[str, Any],
         fallback: str = "",
         keys: Optional[Iterable[str]] = None,
+        construction: str = "",
     ) -> str:
         act = ACT_FOR_KIND.get(str(kind), str(kind))
         base: Dict[str, Any] = {
@@ -372,6 +376,11 @@ class Realizer:
         }
         values = dict(base)
         values.update(data)
+        spec = self.constructions.get(str(construction or ""))
+        if isinstance(spec, Mapping):
+            text = self._render_spec(spec, values)
+            if text:
+                return self._wrap_address(text, values, act)
         return self.realize_act(act, values, fallback)
 
     # --- дискурсивный слой ------------------------------------------

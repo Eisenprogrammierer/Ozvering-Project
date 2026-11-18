@@ -39,6 +39,16 @@
       "taboo": [],
       "reactions": ["reject", "counter", "evade", "clarify"]
     },
+    "insult": {
+      "id": "insult",
+      "label": "оскорбление",
+      "match": {"kind": "social", "act": "insult"},
+      "proposition": {"speaker": "$speaker"},
+      "validity": [],
+      "interaction": "",
+      "taboo": [],
+      "reactions": ["resent", "clarify"]
+    },
     "blackmail": {
       "id": "blackmail",
       "label": "шантаж",
@@ -176,6 +186,17 @@
       "conditions": [],
       "priority": 20,
       "construction": "social_reject"
+    },
+    "resent": {
+      "id": "resent",
+      "label": "обида",
+      "effect": {
+        "type": "refusal",
+        "subject": "$listener"
+      },
+      "conditions": [],
+      "priority": 15,
+      "construction": "social_resent"
     },
     "evade": {
       "id": "evade",

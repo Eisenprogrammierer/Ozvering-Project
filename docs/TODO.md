@@ -313,6 +313,12 @@
   предложение со строчной буквы («…, потому что …»). Линтер требует
   `reason_in_text` для `explain_with: because` и проверяет тип
   `lowercase_glue`.
+- [x] **F-14+ (`insult`).** Правило `s_social_insult` («Ты дурак»),
+  словарная статья `noun:fool`, акт `insult` без interaction и реакция
+  `resent` с конструкцией `social_resent`. `_answer_social` больше не
+  перерисовывает ответ общим `social_*`: текст берётся из конструкции
+  выбранной реакции, поэтому отказ и обида звучат по-разному.
+  `tests/test_d7_social_acts.py` (21), `test_d7_social.py`.
 - **D5.1 антиповтор.** `avoid_recent` ограничен N ходами; проверить,
   что он не даёт выбрать неожиданный регистр в длинном диалоге.
 - **D3.2 cf-конструкции.** Не используют `differences`/`removed`/
@@ -389,7 +395,7 @@
   зелёные.
 - [x] `tests/test_d7_console.py` — 22 теста (история, откат,
   подсказки, команды, `/смысл`, lint), зелёные.
-- [x] `tests/test_d7_social.py` — 19 тестов (гейты authority/trusts,
+- [x] `tests/test_d7_social.py` — 25 тестов (гейты authority/trusts,
   пять interactions, TextGame-маршрутизация, откат, lint), зелёные.
 - [x] `tests/test_d7_movement.py` — 17 тестов (данные и lint,
   разбор `move`, маршрут и band, read-only, перемещение, отказы,

@@ -453,8 +453,9 @@ F-16 и F-17. F-23 — призма восприятия (`campaign/perception.p
 провенанс `Fact`, opt-in `build_knowledge(..., view=...)`). F-13 —
 `campaign/dialogue/projection.py`: реестр `actions.json` собирается из
 `ActionSpec`, ручные записи остаются override, дубликаты фраз не
-перехватываются. F-14 — 12 речевых актов: к пяти исходным добавлены
-`flirt`, `confess`, `console`, `bless`, `oath`, `beg_pardon`, `propose`.
+перехватываются. F-14 — 13 речевых актов: к пяти исходным добавлены
+`flirt`, `confess`, `console`, `bless`, `oath`, `beg_pardon`, `propose`,
+`insult`.
 F-12 — лексикон и грамматика под DoD-фразы: местоимение «я»,
 существительные места/закона/жертвы/песни, императивы контакта, обряда,
 права, искусства и обучения, правило `s_imperative_v_pp`, семь

@@ -859,7 +859,7 @@ whitelist по P8/P9.
   обязательств (`creditor=player`, `debtor=собеседник`), виды рычага
   заданы в `world.json.leverage.kinds`, а акт `blackmail`
   переиспользует interaction `social_threat`.
-- Тесты: `tests/test_d7_social.py` (26) — пять interactions, гейты
+- Тесты: `tests/test_d7_social.py` (25) — пять interactions, гейты
   authority/trusts/leverage, отказ без кампании и при выключенных
   действиях, TextGame-маршрутизация, откат, линтер.
 - **P5. Проекция действий, лексикон и новые речевые акты.**
@@ -873,14 +873,18 @@ whitelist по P8/P9.
   «Успокой улицу», «Сошлись на норму»). Лексикон получил местоимение
   «я», существительные места/закона/жертвы/песни и глаголы контакта,
   обряда, права, искусства и обучения; грамматика — правило
-  `s_imperative_v_pp`. `social.json` расширен до 12 актов: `flirt`,
-  `confess`, `console`, `bless`, `oath`, `beg_pardon`, `propose`.
-  Для всех 12 актов есть планы ответа, поэтому read-only `respond`
-  («Признаюсь в любви») даёт `kind: social` и реакцию, а не «не знаю».
-  Линтер `_verb_path_problems` требует путь в реестре для каждого
+  `s_imperative_v_pp`. `social.json` расширен до 13 актов: `flirt`,
+  `confess`, `console`, `bless`, `oath`, `beg_pardon`, `propose`,
+  `insult`.
+  Для всех 13 актов есть планы ответа, поэтому read-only `respond`
+  («Признаюсь в любви», «Ты дурак») даёт `kind: social` и реакцию, а не
+  «не знаю». Текст ответа берётся из конструкции выбранной реакции
+  (`social_resent`, `social_reject`, …), а не из первого попавшегося
+  `social_*`; `insult` — разговорный акт без interaction и не меняет
+  мир. Линтер `_verb_path_problems` требует путь в реестре для каждого
   глагола `act_*` и правило грамматики для каждого речевого акта.
   Тесты: `tests/test_dialogue_projection.py` (10),
-  `tests/test_d7_social_acts.py` (18) и
+  `tests/test_d7_social_acts.py` (21) и
   `tests/test_d6_flexible_grammar.py` (12).
 - **P5. Реестр типов ответа.** `configs/dialogue/answer_kinds.json`
   связывает `plan.answer.type` с обработчиком. `AnswerPlanner` берёт
