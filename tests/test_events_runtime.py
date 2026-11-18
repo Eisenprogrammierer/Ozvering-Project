@@ -123,6 +123,171 @@ def test_conditions_filter_events_by_need_division_and_belief(catalog):
     ]
 
 
+def _rich_context():
+    return {
+        "id": "char-1",
+        "assets": {"legitimacy": 0.7, "cohesion": 0.2},
+        "organs": {"staff": 0.4, "army": 0.9},
+        "organ_statuses": {"staff": "восстанавливается"},
+        "flags": {"amnesty": True, "mobilization": 0.3},
+        "intentions": [
+            {"target": "faction.republic", "essence": "defend"}
+        ],
+        "relations": {
+            "faction.republic": {"trusts": 0.75, "fears": 0.0}
+        },
+        "characters": {
+            "char-1": {"morale": 0.8, "needs": {"fear": 0.6}},
+            "char-2": {"morale": 0.2},
+        },
+        "organization_state": {
+            "willing_share": 0.42,
+            "phase": "crisis",
+            "mode_weights": {"order": 0.2},
+        },
+        "beliefs": [
+            {
+                "subject": "faction.empire",
+                "predicate": "trusts",
+                "object": "faction.republic",
+                "value": 0.5,
+                "confidence": 0.8,
+            }
+        ],
+    }
+
+
+def _matches(spec, context=None):
+    return EventCondition.from_data(spec).evaluate(
+        _rich_context() if context is None else context
+    )
+
+
+def test_event_conditions_read_assets_organs_and_statuses():
+    assert _matches(
+        {"kind": "asset", "key": "legitimacy", "op": ">=", "value": 0.6}
+    )
+    assert not _matches(
+        {"kind": "asset", "key": "legitimacy", "op": ">=", "value": 0.8}
+    )
+    assert _matches(
+        {"kind": "organ", "key": "staff", "op": "<=", "value": 0.5}
+    )
+    assert _matches(
+        {"kind": "organ", "key": "missing", "op": "==", "value": 0.0}
+    )
+    assert _matches(
+        {
+            "kind": "organ_status",
+            "key": "staff",
+            "op": "==",
+            "value": "восстанавливается",
+        }
+    )
+
+
+def test_event_conditions_read_flags_as_presence_or_numbers():
+    assert _matches({"kind": "flag", "key": "amnesty"})
+    assert not _matches({"kind": "flag", "key": "missing"})
+    assert _matches({"kind": "flag", "key": "amnesty", "value": True})
+    assert not _matches({"kind": "flag", "key": "amnesty", "value": False})
+    assert _matches(
+        {
+            "kind": "flag",
+            "key": "mobilization",
+            "op": ">=",
+            "value": 0.2,
+        }
+    )
+    assert not _matches(
+        {
+            "kind": "flag",
+            "key": "mobilization",
+            "op": ">=",
+            "value": 0.4,
+        }
+    )
+
+
+def test_event_conditions_read_intentions_and_relations():
+    assert _matches(
+        {
+            "kind": "intention",
+            "key": "defend",
+            "object": "faction.republic",
+        }
+    )
+    assert not _matches({"kind": "intention", "key": "coerce"})
+    assert _matches(
+        {
+            "kind": "relation",
+            "predicate": "trusts",
+            "object": "faction.republic",
+            "op": ">=",
+            "value": 0.7,
+        }
+    )
+    assert not _matches(
+        {
+            "kind": "relation",
+            "predicate": "fears",
+            "object": "faction.republic",
+        }
+    )
+
+
+def test_event_conditions_read_roster_and_organization():
+    assert _matches(
+        {
+            "kind": "character_stats",
+            "subject": "char-1",
+            "key": "needs.fear",
+            "op": ">=",
+            "value": 0.5,
+        }
+    )
+    assert _matches(
+        {
+            "kind": "character_stats",
+            "subject": "char-2",
+            "key": "morale",
+            "op": "<",
+            "value": 0.5,
+        }
+    )
+    assert _matches(
+        {
+            "kind": "organization",
+            "key": "willing_share",
+            "op": "<",
+            "value": 0.5,
+        }
+    )
+    assert _matches(
+        {
+            "kind": "organization",
+            "key": "mode_weights.order",
+            "op": ">=",
+            "value": 0.2,
+        }
+    )
+    assert _matches(
+        {"kind": "organization", "key": "phase", "op": "==", "value": "crisis"}
+    )
+
+
+def test_belief_condition_distinguishes_presence_and_strength():
+    assert _matches({"kind": "belief", "predicate": "trusts"})
+    assert not _matches({"kind": "belief", "predicate": "fears"})
+    # value * confidence = 0.5 * 0.8 = 0.4
+    assert _matches(
+        {"kind": "belief", "predicate": "trusts", "op": ">=", "value": 0.4}
+    )
+    assert not _matches(
+        {"kind": "belief", "predicate": "trusts", "op": ">=", "value": 0.5}
+    )
+
+
 def test_event_condition_supports_negation_and_membership():
     condition = EventCondition.from_data(
         {
@@ -229,6 +394,19 @@ def test_engine_spawn_waits_for_speed_then_publishes(engine, catalog):
     visible = engine.advance(1.0, {"force": 0.5})
     assert visible == [instance]
     assert instance.text == "Анна голоден"
+
+
+def test_render_context_is_separate_from_condition_context(engine, catalog):
+    event = catalog.event("hungry_report")
+    instance = engine.spawn(
+        event,
+        context={"assets": {"legitimacy": 0.7}},
+        render_context={"actor": "Ирина"},
+    )
+    assert instance.text == "Ирина голоден"
+    assert instance.context["actor"] == "Ирина"
+    # Структуры условий не попадают в подстановки и в снимок события.
+    assert "assets" not in instance.context
 
 
 def test_engine_honours_cooldown():

@@ -357,17 +357,38 @@ Python. Полный производственный набор сейчас: *
 {"kind": "condition", "key": "wound", "op": ">=", "value": 0.5}
 {"kind": "belief", "subject": "actor-1", "predicate": "trusts",
  "object": "actor-2"}
+{"kind": "belief", "predicate": "trusts", "object": "faction.republic",
+ "op": ">=", "value": 0.5}
 {"kind": "tag", "key": "winter"}
+{"kind": "asset", "key": "legitimacy", "op": "<", "value": 0.4}
+{"kind": "organ", "key": "staff", "op": ">=", "value": 0.3}
+{"kind": "organ_status", "key": "staff", "op": "==",
+ "value": "восстанавливается"}
+{"kind": "flag", "key": "amnesty_offered"}
+{"kind": "intention", "key": "coerce", "object": "faction.republic"}
+{"kind": "relation", "predicate": "trusts", "object": "faction.republic",
+ "op": ">=", "value": 0.6}
+{"kind": "character_stats", "subject": "char-2", "key": "morale",
+ "op": "<", "value": 0.4}
+{"kind": "character_stats", "subject": "char-1", "key": "needs.fear",
+ "op": ">=", "value": 0.5}
+{"kind": "organization", "key": "willing_share", "op": "<", "value": 0.5}
 ```
 
 Поддерживаются `kind`: `need`/`desire`, `trait`, `division`, `force`,
 `energy`, `condition`/`sickness`/`wound`, `belief`, `tag`, `category`,
-`side`, `faction`, `role`, `alive`, `time`, а также произвольный ключ
-контекста. Операции: `>=`, `<=`, `>`, `<`, `==`, `!=`, `in`,
-`not in`. Флаг `negate: true` инвертирует результат.
+`side`, `faction`, `role`, `alive`, `time`, `asset`, `organ`,
+`organ_status`, `flag`, `intention`, `relation`, `character_stats`,
+`organization`, а также произвольный ключ контекста. Операции: `>=`,
+`<=`, `>`, `<`, `==`, `!=`, `in`, `not in`. Флаг `negate: true`
+инвертирует результат.
 
-Для `belief`, `tag` и `alive` без явных `op`/`value` условие означает
-«присутствует/жив» и проверяется как `== true`.
+Для `belief`, `tag`, `alive`, `flag`, `intention` и `relation` без явных
+`op`/`value` условие означает «присутствует/жив» и проверяется как
+`== true`. Если у `belief` указан числовой порог, сравнивается сила
+`value × confidence`; у `relation` — та же сила для предиката-отношения.
+`character_stats` и `organization` читают вложенный путь через точку
+(`needs.fear`, `mode_weights.order`).
 
 ### 4.4. Видимость
 
@@ -421,9 +442,14 @@ for event in engine.advance(1.0, context=viewer_context):
 
 `campaign.automata.AutomataCampaign` создаёт `EventEngine` и периодически
 вызывает `trigger()` с контекстом лидера: `needs`, `traits`, `divisions`,
-`tags`, `conditions`, `beliefs`, `force`, `energy`, `alive`, `time`.
-Записи попадают в `story_events` и в снимок кампании; **состояние не
-меняется** — поле `effects` в записи всегда пустое. Интервал спавна —
+`tags`, `conditions`, `beliefs`, `intentions`, `relations`, `assets`,
+`organs`, `organ_statuses`, `flags`, `characters`, `organization_state`,
+`priority_needs`, `goals`, `doctrine`, `turn`, `used_actions`, `force`,
+`energy`, `alive`, `time`. Имена `actor`, `target`, `rival`,
+`organization`, `rival_organization` подставляются в текст через отдельный
+`render_context`; структуры условий в подстановки не попадают. Записи
+попадают в `story_events` и в снимок кампании; **состояние не меняется** —
+поле `effects` в записи всегда пустое. Интервал спавна —
 `max(4.0, organization_interval_seconds × 0.5)` в масштабированных
 секундах.
 

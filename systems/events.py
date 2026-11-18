@@ -118,7 +118,14 @@ class EventCondition:
         kind = text(data.get("kind") or data.get("type")).strip()
         if not kind:
             raise EventError("%s[%d]: пустой kind" % (source, index))
-        present = kind in ("belief", "tag", "alive")
+        present = kind in (
+            "belief",
+            "tag",
+            "alive",
+            "flag",
+            "intention",
+            "relation",
+        )
         if (
             present
             and "op" not in data
@@ -130,8 +137,12 @@ class EventCondition:
             op = "=="
             value = True
         else:
-            op = str(data.get("op") or ">=").strip()
             value = data.get("value", data.get("threshold", 0.0))
+            if "op" not in data and isinstance(value, bool):
+                # Явное булево значение — это равенство, а не порог.
+                op = "=="
+            else:
+                op = str(data.get("op") or ">=").strip()
         if op not in (">=", "<=", ">", "<", "==", "!=", "in", "not in"):
             raise EventError(
                 "%s[%d]: неизвестная операция %r" % (source, index, op)
@@ -166,6 +177,77 @@ class EventCondition:
         }
 
 
+def _dig(value, path, default=None):
+    """Пройти вложенный путь ``needs.fear`` по словарям."""
+    current = value
+    for part in str(path or "").split("."):
+        if not part:
+            continue
+        if not isinstance(current, Mapping) or part not in current:
+            return default
+        current = current[part]
+    return current
+
+
+def _numeric_average(values):
+    numbers = []
+    for value in (values or {}).values():
+        try:
+            numbers.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    if not numbers:
+        return 0.0
+    return sum(numbers) / float(len(numbers))
+
+
+def _same_ref(value, expected):
+    """Сравнить ``faction.republic`` и ``automaton:faction.republic``."""
+    value = str(value or "")
+    expected = str(expected or "")
+    if not expected:
+        return True
+    if value == expected:
+        return True
+    if ":" in value:
+        return value.partition(":")[2] == expected
+    return False
+
+
+def _belief_parts(item):
+    if isinstance(item, Mapping):
+        return (
+            item.get("subject"),
+            item.get("predicate"),
+            item.get("object"),
+            item.get("value", 1.0),
+            item.get("confidence", 1.0),
+        )
+    if hasattr(item, "subject"):
+        return (
+            item.subject,
+            item.predicate,
+            item.object,
+            getattr(item, "value", 1.0),
+            getattr(item, "confidence", 1.0),
+        )
+    if isinstance(item, (list, tuple)) and len(item) >= 3:
+        value = item[3] if len(item) > 3 else 1.0
+        confidence = item[4] if len(item) > 4 else 1.0
+        return item[0], item[1], item[2], value, confidence
+    return None
+
+
+def _intention_parts(item):
+    if isinstance(item, Mapping):
+        return item.get("target"), item.get("essence")
+    if hasattr(item, "target"):
+        return item.target, getattr(item, "essence", "")
+    if isinstance(item, (list, tuple)) and len(item) >= 2:
+        return item[0], item[1]
+    return None
+
+
 def _condition_value(condition, context):
     kind = condition.kind
     key = condition.key
@@ -173,7 +255,7 @@ def _condition_value(condition, context):
         needs = context.get("needs") or {}
         if key:
             return needs.get(key, 0.0)
-        return sum(float(v) for v in needs.values()) / max(1, len(needs))
+        return _numeric_average(needs)
     if kind == "trait":
         traits = context.get("traits") or context.get("personality") or {}
         return traits.get(key, 0.0)
@@ -189,27 +271,88 @@ def _condition_value(condition, context):
         if kind in ("sickness", "wound") and not key:
             key = kind
         return conditions.get(key, 0.0)
+    if kind == "asset":
+        assets = context.get("assets") or {}
+        if key:
+            return assets.get(key, 0.0)
+        return _numeric_average(assets)
+    if kind == "organ":
+        organs = context.get("organs") or {}
+        if key:
+            return organs.get(key, 0.0)
+        return _numeric_average(organs)
+    if kind == "organ_status":
+        statuses = context.get("organ_statuses") or {}
+        return statuses.get(key, "")
+    if kind == "flag":
+        flags = context.get("flags") or {}
+        value = flags.get(key, False)
+        if isinstance(condition.value, bool):
+            return bool(value)
+        return value
     if kind == "belief":
-        beliefs = context.get("beliefs") or ()
-        for item in beliefs:
-            if isinstance(item, Mapping):
-                s = item.get("subject")
-                p = item.get("predicate")
-                o = item.get("object")
-            elif hasattr(item, "subject"):
-                s, p, o = item.subject, item.predicate, item.object
-            elif isinstance(item, (list, tuple)) and len(item) == 3:
-                s, p, o = item
-            else:
+        best = 0.0
+        found = False
+        for item in context.get("beliefs") or ():
+            parts = _belief_parts(item)
+            if parts is None:
                 continue
+            s, p, o, value, confidence = parts
             if condition.subject and s != condition.subject:
                 continue
             if condition.predicate and p != condition.predicate:
                 continue
             if condition.object and o != condition.object:
                 continue
-            return True
-        return False
+            found = True
+            try:
+                strength = float(value) * float(confidence)
+            except (TypeError, ValueError):
+                strength = 0.0
+            best = max(best, strength)
+        if isinstance(condition.value, bool):
+            return found
+        return best
+    if kind == "intention":
+        matches = 0
+        for item in context.get("intentions") or ():
+            parts = _intention_parts(item)
+            if parts is None:
+                continue
+            target, essence = parts
+            if key and not _same_ref(essence, key):
+                continue
+            if condition.object and not _same_ref(target, condition.object):
+                continue
+            matches += 1
+        if isinstance(condition.value, bool):
+            return matches > 0
+        return matches
+    if kind == "relation":
+        relations = context.get("relations") or {}
+        target = condition.object or key
+        bucket = relations.get(target) if target else {}
+        bucket = bucket if isinstance(bucket, Mapping) else {}
+        if condition.predicate:
+            try:
+                strength = float(bucket.get(condition.predicate, 0.0))
+            except (TypeError, ValueError):
+                strength = 0.0
+        else:
+            strength = _numeric_average(bucket)
+        if isinstance(condition.value, bool):
+            return strength > 0.0
+        return strength
+    if kind == "character_stats":
+        characters = context.get("characters") or {}
+        char_id = condition.subject or context.get("id", "")
+        stats = characters.get(char_id) or {}
+        value = _dig(stats, key, 0.0)
+        return value if value is not None else 0.0
+    if kind == "organization":
+        state = context.get("organization_state") or {}
+        value = _dig(state, key, 0.0)
+        return value if value is not None else 0.0
     if kind == "tag":
         return key in set(context.get("tags") or ())
     if kind == "category":
@@ -757,13 +900,17 @@ class EventEngine:
             return None
         return event
 
-    def spawn(self, event, context=None, text=None, seed=None):
+    def spawn(
+        self, event, context=None, text=None, seed=None, render_context=None
+    ):
         self._counter += 1
         rendered = text
         if rendered is None:
             rendered = self.generator.render(
                 event.id,
-                context=context,
+                context=(
+                    context if render_context is None else render_context
+                ),
                 seed=(
                     int(seed)
                     if seed is not None
@@ -793,11 +940,23 @@ class EventEngine:
         self.history.append(instance)
         return instance
 
-    def trigger(self, context=None, category=None, tags=None, seed=None):
+    def trigger(
+        self,
+        context=None,
+        category=None,
+        tags=None,
+        seed=None,
+        render_context=None,
+    ):
         event = self.pick(context=context, category=category, tags=tags)
         if event is None:
             return None
-        return self.spawn(event, context=context, seed=seed)
+        return self.spawn(
+            event,
+            context=context,
+            seed=seed,
+            render_context=render_context,
+        )
 
     def advance(self, seconds, context=None, category=None, tags=None):
         """Продвинуть время, вернуть новые и всё ещё активные события.

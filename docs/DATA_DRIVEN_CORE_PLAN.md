@@ -408,6 +408,15 @@ def apply_effects(campaign, scope, effects, *, scale=1.0, source=None):
 `when` и виды клауз. Вложенная схема из примера ниже — цель следующей
 итерации, текущий канон — список `kind`-клауз.**
 
+**Статус (2026-11-18): чтение событий закрыто.** `_story_context` отдаёт
+`intentions`, `assets`, `organs`, `organ_statuses`, `flags`,
+`characters`, `relations`, `organization_state`, `priority_needs`,
+`goals`, `doctrine`, `turn`, `used_actions` и реальные имена слотов.
+`systems/events.py` читает `asset`, `organ`, `organ_status`, `flag`,
+`intention`, `relation`, `character_stats`, `organization`; `belief`
+различает наличие и числовую силу. `trigger`/`spawn` принимают отдельный
+`render_context`. Остаток P4 — вложенная схема `requires` из примера.
+
 **Цель:** закрыть G-07 и G-08 (чтение).
 
 ### Новый модуль `campaign/conditions.py`

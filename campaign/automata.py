@@ -1646,11 +1646,108 @@ class AutomataCampaign:
             self.history.append(self.snapshot())
 
     # --- ролевые события -------------------------------------------
+    def _story_character_stats(self, character):
+        """Нормированный срез персонажа для условий событий."""
+        if character is None:
+            return {}
+        state = getattr(character, "state", {}) or {}
+        max_force = float(state.get("max_force", 10.0) or 10.0)
+        max_energy = float(state.get("max_energy", 3.0) or 3.0)
+        bdi = getattr(character, "bdi", None)
+        return {
+            "id": str(getattr(character, "campaign_id", "") or ""),
+            "name": str(getattr(character, "name", "") or ""),
+            "role": str(getattr(character, "campaign_role_id", "") or ""),
+            "post": str(getattr(character, "campaign_post", "") or ""),
+            "organ_id": str(
+                getattr(character, "campaign_organ_id", "") or ""
+            ),
+            "alive": not bool(getattr(character, "is_dead", False)),
+            "morale": round(
+                _clamp(float(getattr(character, "morale", 0.0)) / 100.0),
+                6,
+            ),
+            "force": round(
+                _clamp(
+                    float(getattr(character, "force", 0.0))
+                    / max(1e-9, max_force)
+                ),
+                6,
+            ),
+            "energy": round(
+                _clamp(
+                    float(getattr(character, "energy_pool", 0.0))
+                    / max(1e-9, max_energy)
+                ),
+                6,
+            ),
+            "needs": dict(getattr(character, "needs", {}) or {}),
+            "conditions": (
+                dict(bdi.conditions) if bdi is not None else {}
+            ),
+            "beliefs": (
+                [item.as_dict() for item in bdi.beliefs]
+                if bdi is not None
+                else []
+            ),
+            "intentions": (
+                [item.as_dict() for item in bdi.intentions]
+                if bdi is not None
+                else []
+            ),
+        }
+
+    def _story_relations(self, leader):
+        """Проекция убеждений-отношений лидера: объект → предикат → сила.
+
+        Слой отражения читает только то, что уже записано в BDI. Никакого
+        отдельного хранилища отношений не появляется (G-11 остаётся
+        отдельной задачей).
+        """
+        bdi = getattr(leader, "bdi", None)
+        config = getattr(bdi, "config", None)
+        if bdi is None or config is None:
+            return {}
+        relations = {}
+        for belief in bdi.beliefs:
+            spec = config.predicate(belief.predicate) or {}
+            if str(spec.get("kind") or "") != "relation":
+                continue
+            target = str(belief.object or "").strip()
+            if not target:
+                continue
+            strength = _clamp(
+                float(belief.value) * float(belief.confidence)
+            )
+            bucket = relations.setdefault(target, {})
+            bucket[belief.predicate] = max(
+                float(bucket.get(belief.predicate, 0.0)), strength
+            )
+        return relations
+
+    def _story_organization(self, faction):
+        """Снимок организации для событий: свежий или сохранённый."""
+        state = {}
+        organization = getattr(faction, "organization", None)
+        if organization is not None:
+            try:
+                state = dict(organization.snapshot())
+            except Exception:
+                logger.exception("не удалось прочитать снимок организации")
+        if not state:
+            state = dict(
+                _as_mapping(getattr(faction, "organization_snapshot", {}))
+            )
+        state.setdefault("name", str(getattr(faction, "name", "") or ""))
+        return state
+
     def _story_context(self, side=None):
         """Контекст для условий/видимости событий.
 
-        Берётся лидер фракции (по умолчанию — игрок). Все числа
-        нормированы в ``0..1``, чтобы условия в JSON были переносимыми.
+        Берётся лидер фракции (по умолчанию — игрок). Числа нормированы в
+        ``0..1``, чтобы условия в JSON были переносимыми. Помимо лидера
+        контекст видит активы, органы, флаги, ростер персонажей, намерения
+        и отношения — событие отражает фракцию, а не один силуэт.
         """
         side = str(side or self.player_side)
         faction = self.faction(side)
@@ -1664,15 +1761,40 @@ class AutomataCampaign:
         leader = faction.characters[0]
         bdi = getattr(leader, "bdi", None)
         divisions = getattr(leader, "divisions", None)
-        max_force = float(getattr(leader, "state", {}).get("max_force", 10.0))
-        max_energy = float(
-            getattr(leader, "state", {}).get("max_energy", 3.0)
+        rival_faction = self.faction(self.rival_of(side))
+        rival_leader = (
+            rival_faction.characters[0]
+            if rival_faction is not None and rival_faction.characters
+            else None
         )
+        target_character = (
+            faction.characters[1]
+            if len(faction.characters) > 1
+            else rival_leader
+        )
+        rival_name = str(
+            getattr(rival_leader, "name", "")
+            or getattr(rival_faction, "name", "")
+            or ""
+        )
+        characters = {}
+        for character in faction.characters:
+            stats = self._story_character_stats(character)
+            if stats.get("id"):
+                characters[stats["id"]] = stats
         return {
             "id": str(getattr(leader, "campaign_id", "") or ""),
             "name": str(getattr(leader, "name", "") or ""),
+            "actor": str(getattr(leader, "name", "") or ""),
+            "target": str(getattr(target_character, "name", "") or ""),
+            "rival": rival_name,
             "side": side,
             "faction_id": str(getattr(faction, "id", "") or ""),
+            "faction_name": str(getattr(faction, "name", "") or ""),
+            "organization": str(getattr(faction, "name", "") or ""),
+            "organization_state": self._story_organization(faction),
+            "rival_id": str(getattr(rival_faction, "id", "") or ""),
+            "rival_organization": rival_name,
             "role": str(getattr(leader, "campaign_role_id", "") or ""),
             "needs": dict(getattr(leader, "needs", {}) or {}),
             "traits": dict(getattr(leader.personality, "values", {}) or {}),
@@ -1684,15 +1806,66 @@ class AutomataCampaign:
                 dict(bdi.conditions) if bdi is not None else {}
             ),
             "beliefs": list(bdi.beliefs) if bdi is not None else [],
+            "intentions": (
+                [item.as_dict() for item in bdi.intentions]
+                if bdi is not None
+                else []
+            ),
+            "relations": self._story_relations(leader),
+            "assets": {
+                str(key): float(value)
+                for key, value in faction.assets.items()
+            },
+            "organs": {
+                str(organ.id): float(organ.integrity)
+                for organ in faction.organs
+            },
+            "organ_statuses": {
+                str(organ.id): organ.status() for organ in faction.organs
+            },
+            "flags": dict(getattr(faction, "flags", {}) or {}),
+            "characters": characters,
+            "character_count": len(faction.characters),
+            "priority_needs": list(
+                _as_mapping(faction.record).get("priority_needs") or ()
+            ),
+            "goals": list(
+                _as_mapping(faction.record).get("goals") or ()
+            ),
+            "doctrine": dict(
+                _as_mapping(
+                    _as_mapping(faction.record).get("doctrine")
+                )
+            ),
+            "turn": int(self.turn),
+            "used_actions": sorted(
+                str(key)
+                for key, value in faction.action_uses.items()
+                if int(value) > 0
+            ),
             "force": max(
                 0.0,
                 float(getattr(leader, "force", 0.0))
-                / max(1e-9, max_force),
+                / max(
+                    1e-9,
+                    float(
+                        getattr(leader, "state", {}).get(
+                            "max_force", 10.0
+                        )
+                    ),
+                ),
             ),
             "energy": max(
                 0.0,
                 float(getattr(leader, "energy_pool", 0.0))
-                / max(1e-9, max_energy),
+                / max(
+                    1e-9,
+                    float(
+                        getattr(leader, "state", {}).get(
+                            "max_energy", 3.0
+                        )
+                    ),
+                ),
             ),
             "alive": not bool(getattr(leader, "is_dead", False)),
             "time": float(self.elapsed),
@@ -1706,13 +1879,29 @@ class AutomataCampaign:
         if self.finished or self.story_engine is None:
             return []
         context = self._story_context()
+        # Условия читают структуры (активы, органы, ростер), а тексту
+        # нужны только имена. Разделяем, чтобы словари не попадали в
+        # подстановки и в контекст экземпляра события.
+        render_context = {
+            key: context[key]
+            for key in (
+                "actor",
+                "target",
+                "rival",
+                "organization",
+                "rival_organization",
+            )
+            if context.get(key)
+        }
         self.story_engine.advance(seconds, context=context)
         self._story_progress += max(0.0, float(seconds))
         interval = max(4.0, self.organization_interval_seconds * 0.5)
         spawned = []
         while self._story_progress >= interval:
             self._story_progress -= interval
-            instance = self.story_engine.trigger(context=context)
+            instance = self.story_engine.trigger(
+                context=context, render_context=render_context
+            )
             if instance is None:
                 continue
             # Ролевой слой только фиксирует событие. Никаких записей в
