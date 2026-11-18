@@ -987,6 +987,7 @@ def _build_faction_record(
         "automaton": _text(cfg.get("automaton")),
         "priority_needs": list(cfg.get("priority_needs") or ()),
         "goals": list(cfg.get("goals") or ()),
+        "doctrine": dict(cfg.get("doctrine") or {}),
         "assets": dict(cfg.get("assets") or {}),
         "score_assets": dict(cfg.get("score_assets") or {}),
         "rival_side": _text(cfg.get("rival_side")),

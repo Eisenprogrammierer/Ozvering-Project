@@ -336,6 +336,136 @@
       ]
     }
   },
+  "ai_model": {
+    "score_floor": 0.01,
+    "needs": {
+      "weight": 1.4,
+      "priority_weight": 0.6
+    },
+    "intention": {
+      "essence_weight": 0.6,
+      "focus_weight": 0.4,
+      "target_weight": 0.35,
+      "mismatch_penalty": 0.15
+    },
+    "doctrine": {
+      "form_weight": 1.0,
+      "essence_weight": 1.0
+    },
+    "beliefs": {
+      "rules": [
+        {
+          "predicate": "is_legitimate",
+          "forms": [
+            "information",
+            "meaning"
+          ],
+          "essences": [
+            "legitimize",
+            "ritualize",
+            "crown",
+            "inaugurate"
+          ],
+          "weight": 0.25
+        },
+        {
+          "predicate": "believes_in_own_myth",
+          "forms": [
+            "information",
+            "meaning"
+          ],
+          "essences": [
+            "legitimize",
+            "demonstrate",
+            "ritualize"
+          ],
+          "weight": 0.5
+        },
+        {
+          "predicate": "believes_myth_of",
+          "forms": [
+            "meaning"
+          ],
+          "essences": [
+            "ritualize",
+            "preach",
+            "convert",
+            "pilgrim"
+          ],
+          "weight": 0.4
+        },
+        {
+          "predicate": "considers_illegitimate",
+          "target": "action",
+          "essences": [
+            "delegitimize",
+            "expose",
+            "subvert",
+            "disinform",
+            "deny_recognition",
+            "leak"
+          ],
+          "weight": 0.5
+        },
+        {
+          "predicate": "sees_as_threat",
+          "target": "action",
+          "forms": [
+            "coercion"
+          ],
+          "essences": [
+            "defend",
+            "fortify",
+            "besiege",
+            "raid",
+            "strike",
+            "intercept"
+          ],
+          "weight": 0.35
+        },
+        {
+          "predicate": "sees_as_enemy",
+          "target": "action",
+          "forms": [
+            "coercion"
+          ],
+          "weight": 0.3
+        },
+        {
+          "predicate": "allied_with",
+          "target": "action",
+          "forms": [
+            "coercion"
+          ],
+          "weight": -0.6
+        },
+        {
+          "predicate": "depends_on",
+          "target": "action",
+          "forms": [
+            "coercion"
+          ],
+          "weight": -0.45
+        }
+      ]
+    },
+    "organs": {
+      "integrity_weight": 0.5,
+      "low_threshold": 0.4,
+      "repair_weight": 0.5,
+      "repair_essences": [
+        "repair",
+        "fortify",
+        "reinforce_organ",
+        "resupply_organ",
+        "reform_organ"
+      ]
+    },
+    "defense": {
+      "weight": 1.0,
+      "reference": 0.5
+    }
+  },
   "realtime": {
     "turn_seconds": 240.0,
     "action_interval_seconds": 80.0,

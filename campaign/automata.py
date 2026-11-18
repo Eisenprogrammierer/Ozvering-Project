@@ -197,6 +197,7 @@ EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
 SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
 REALTIME_DEFAULTS = default_dict("realtime")
 ACTION_PROCESS_DEFAULTS = default_dict("action_process")
+AI_MODEL_DEFAULTS = default_dict("ai_model")
 ASSET_LABELS = default_dict("asset_labels")
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
@@ -230,9 +231,29 @@ def _as_mapping(value):
     return value if isinstance(value, Mapping) else {}
 
 
+def _merged_mapping(base, override):
+    """Рекурсивно наложить ``override`` на копию ``base``."""
+    result = dict(base)
+    for key, value in _as_mapping(override).items():
+        current = result.get(key)
+        if isinstance(current, Mapping) and isinstance(value, Mapping):
+            result[key] = _merged_mapping(current, value)
+        else:
+            result[key] = value
+    return result
+
+
 def _text(value, default=""):
     text = str(value or "").strip()
     return text if text else default
+
+
+def _same_id(left, right):
+    """Сравнить идентификаторы контента, допуская ``.`` и ``_``."""
+    def normalize(value):
+        return _text(value).replace(".", "_").lower()
+
+    return bool(normalize(left)) and normalize(left) == normalize(right)
 
 
 def _nested_tuple(value):
@@ -747,6 +768,9 @@ class AutomataCampaign:
         )
         self.action_slots = max(
             1, int(_number(self.action_process.get("slots"), 2))
+        )
+        self.ai_model = _merged_mapping(
+            AI_MODEL_DEFAULTS, scenario.get("ai_model")
         )
         self.processes: List[dict] = []
         self._process_seq = 0
@@ -1591,7 +1615,23 @@ class AutomataCampaign:
                 faction = self.faction(side)
                 if faction is None or faction.dissolved:
                     continue
-                self._auto_play_side(side, 1)
+                self._ai_start_work(side)
+
+    def _ai_start_work(self, side):
+        """Занять свободные слоты ИИ процессами, а не мгновенными работами."""
+        started = []
+        while (
+            not self.finished
+            and self.slot_state(side)["free"] > 0
+        ):
+            action_id = self.auto_action(side, exclude_active=True)
+            if action_id is None:
+                break
+            result = self.start_action(side, action_id)
+            if not result.get("ok"):
+                break
+            started.append(action_id)
+        return started
 
     def _advance_rounds(self, seconds):
         if self.finished:
@@ -3252,42 +3292,291 @@ class AutomataCampaign:
         keep = max(0, limit - len(active))
         self.processes = active + done[-keep:] if keep else active
 
-    def auto_action(self, side, turn=None):
+    def _leader(self, side):
+        """Лидер фракции: первый персонаж, чьи BDI/органы ведут политику."""
+        faction = self.faction(side)
+        if faction is None or not faction.characters:
+            return None
+        return faction.characters[0]
+
+    def _action_form(self, action):
+        action = _as_mapping(action)
+        return _text(
+            action.get("form")
+            or _as_mapping(action.get("template")).get("form")
+        )
+
+    def _action_essences(self, action):
+        hints = _as_mapping(_as_mapping(action).get("hints"))
+        values = [
+            _text(hints.get("essence")),
+            _text(hints.get("intention_essence")),
+        ]
+        return [value for value in values if value]
+
+    def _action_need(self, essence, leader):
+        if leader is None or not essence:
+            return ""
+        config = getattr(getattr(leader, "bdi", None), "config", None)
+        if config is None:
+            return ""
+        return _text(config.need_for_essence(essence))
+
+    def _ai_action_weight(self, side, action, leader=None):
+        """Вес работы для ИИ: данные, BDI лидера, доктрина и органы.
+
+        Базовый вес — ``ai_priority`` работы. Дальше множители берутся
+        из ``automata_defaults.json::ai_model``: потребность, намерение,
+        доктрина фракции, убеждения лидера, целостность органа и защита
+        цели. Ни один множитель не зашит в код: отсутствующий блок или
+        нулевой вес просто не меняет базовый приоритет.
+        """
+        model = _as_mapping(self.ai_model)
+        floor = max(0.01, _number(model.get("score_floor"), 0.01))
+        weight = max(floor, _number(action.get("ai_priority"), 1.0))
+        faction = self.faction(side)
+        if leader is None:
+            leader = self._leader(side)
+        if faction is None:
+            return weight
+
+        essences = self._action_essences(action)
+        form = self._action_form(action)
+        target = self.faction(self._target_side(side, action))
+        target_id = _text(getattr(target, "id", ""))
+        faction_id = _text(getattr(faction, "id", ""))
+        need = ""
+        for essence in essences:
+            need = self._action_need(essence, leader)
+            if need:
+                break
+
+        if leader is not None and need:
+            needs = _as_mapping(model.get("needs"))
+            current = _clamp(
+                _as_mapping(getattr(leader, "needs", {})).get(need)
+            )
+            weight *= 1.0 + _number(needs.get("weight"), 1.4) * current
+            priorities = {
+                str(item)
+                for item in (
+                    faction.record.get("priority_needs") or ()
+                )
+                if str(item)
+            }
+            if need in priorities:
+                weight *= (
+                    1.0
+                    + _number(needs.get("priority_weight"), 0.6)
+                    * current
+                )
+
+        intention = None
+        if leader is not None:
+            bdi = getattr(leader, "bdi", None)
+            if bdi is not None:
+                intention = bdi.latest_intention()
+        if intention is not None:
+            intent = _as_mapping(model.get("intention"))
+            if intention.essence in essences:
+                weight *= 1.0 + _number(
+                    intent.get("essence_weight"), 0.6
+                )
+            focus = self._action_need(intention.essence, leader)
+            if focus and need == focus:
+                current = _clamp(
+                    _as_mapping(getattr(leader, "needs", {})).get(focus)
+                )
+                weight *= (
+                    1.0
+                    + _number(intent.get("focus_weight"), 0.4)
+                    * current
+                )
+            if target_id and _same_id(intention.target, target_id):
+                weight *= 1.0 + _number(
+                    intent.get("target_weight"), 0.35
+                )
+            if (
+                essences
+                and _text(intention.essence)
+                and _text(intention.essence) not in essences
+            ):
+                weight *= max(
+                    0.05,
+                    1.0
+                    - _number(intent.get("mismatch_penalty"), 0.15),
+                )
+
+        doctrine = _as_mapping(faction.record.get("doctrine"))
+        doctrine_model = _as_mapping(model.get("doctrine"))
+        form_weights = _as_mapping(doctrine.get("forms"))
+        essence_weights = _as_mapping(doctrine.get("essences"))
+        if form and form in form_weights:
+            weight *= max(
+                0.05,
+                1.0
+                + _number(doctrine_model.get("form_weight"), 1.0)
+                * _number(form_weights.get(form), 0.0),
+            )
+        doctrine_essence = None
+        for essence in essences:
+            if essence not in essence_weights:
+                continue
+            value = _number(essence_weights.get(essence), 0.0)
+            if doctrine_essence is None or value > doctrine_essence:
+                doctrine_essence = value
+        if doctrine_essence is not None:
+            weight *= max(
+                0.05,
+                1.0
+                + _number(doctrine_model.get("essence_weight"), 1.0)
+                * doctrine_essence,
+            )
+
+        beliefs = (
+            getattr(getattr(leader, "bdi", None), "beliefs", ())
+            if leader is not None
+            else ()
+        )
+        for rule in (
+            _as_mapping(model.get("beliefs")).get("rules") or ()
+        ):
+            if not isinstance(rule, Mapping):
+                continue
+            predicate = _text(rule.get("predicate"))
+            if not predicate:
+                continue
+            rule_forms = {
+                str(item) for item in (rule.get("forms") or ()) if item
+            }
+            rule_essences = {
+                str(item)
+                for item in (rule.get("essences") or ())
+                if item
+            }
+            if (rule_forms or rule_essences) and not (
+                form in rule_forms or set(essences) & rule_essences
+            ):
+                continue
+            target_mode = _text(rule.get("target") or "any")
+            strength = 0.0
+            for belief in beliefs:
+                if belief.predicate != predicate:
+                    continue
+                if (
+                    target_mode == "action"
+                    and not _same_id(belief.object, target_id)
+                ):
+                    continue
+                if (
+                    target_mode == "self"
+                    and not _same_id(belief.object, faction_id)
+                ):
+                    continue
+                strength = max(
+                    strength,
+                    _clamp(belief.value) * _clamp(belief.confidence),
+                )
+            if strength <= 0.0:
+                continue
+            weight *= max(
+                0.05,
+                1.0 + _number(rule.get("weight"), 0.0) * strength,
+            )
+
+        organs = _as_mapping(model.get("organs"))
+        organ_id = _text(action.get("organ_id"))
+        organ = faction.organ(organ_id) if organ_id else None
+        if organ is not None:
+            integrity = _clamp(organ.integrity)
+            weight *= max(
+                0.05,
+                1.0
+                - _number(organs.get("integrity_weight"), 0.5)
+                * (1.0 - integrity),
+            )
+            threshold = _number(organs.get("low_threshold"), 0.4)
+            repair = {
+                str(item)
+                for item in (organs.get("repair_essences") or ())
+                if item
+            }
+            if integrity < threshold and set(essences) & repair:
+                gap = (threshold - integrity) / max(threshold, 1e-6)
+                weight *= 1.0 + _number(
+                    organs.get("repair_weight"), 0.5
+                ) * gap
+
+        if target is not None:
+            chance_spec = _as_mapping(action.get("chance"))
+            defense = target.asset(
+                str(
+                    chance_spec.get("defense")
+                    or action.get("defense_asset")
+                    or "cohesion"
+                )
+            )
+            defense_model = _as_mapping(model.get("defense"))
+            reference = _number(defense_model.get("reference"), 0.5)
+            weight *= 1.0 + _number(
+                defense_model.get("weight"), 1.0
+            ) * max(0.0, reference - defense)
+        return weight
+
+    def _ai_weighted_options(
+        self, side, turn=None, exclude_active=False
+    ):
         options = [
             item
             for item in self.action_options(side, turn=turn)
             if item["enabled"]
         ]
-        if not options:
+        if exclude_active:
+            running = {
+                str(record.get("action_id"))
+                for record in self._active_processes(side)
+            }
+            options = [
+                item for item in options if item["id"] not in running
+            ]
+        leader = self._leader(side)
+        return [
+            (
+                option,
+                self._ai_action_weight(
+                    side, option["action"], leader=leader
+                ),
+            )
+            for option in options
+        ]
+
+    def ai_action_weights(
+        self, side, turn=None, exclude_active=False
+    ):
+        """Веса ИИ по доступным работам стороны (диагностика/тесты)."""
+        return {
+            str(option["id"]): round(weight, 6)
+            for option, weight in self._ai_weighted_options(
+                side, turn=turn, exclude_active=exclude_active
+            )
+        }
+
+    def auto_action(self, side, turn=None, exclude_active=False):
+        weighted = self._ai_weighted_options(
+            side, turn=turn, exclude_active=exclude_active
+        )
+        if not weighted:
             return None
-        faction = self.faction(side)
-        if faction is None:
-            return None
-        weights = []
-        for option in options:
-            action = option["action"]
-            weight = max(0.01, _number(action.get("ai_priority"), 1.0))
-            target_side = self._target_side(side, action)
-            target = self.faction(target_side)
-            if target is not None:
-                chance_spec = _as_mapping(action.get("chance"))
-                defense = target.asset(
-                    str(
-                        chance_spec.get("defense")
-                        or action.get("defense_asset")
-                        or "cohesion"
-                    )
-                )
-                weight *= 1.0 + max(0.0, 0.5 - defense)
-            weights.append(weight)
-        total = sum(weights)
+        total = sum(weight for _option, weight in weighted)
+        if total <= 0.0:
+            return weighted[-1][0]["id"]
         pick = self.rng.random() * total
         upto = 0.0
-        for option, weight in zip(options, weights):
+        for option, weight in weighted:
             upto += weight
             if pick <= upto:
                 return option["id"]
-        return options[-1]["id"]
+        return weighted[-1][0]["id"]
 
     def advance(
         self,

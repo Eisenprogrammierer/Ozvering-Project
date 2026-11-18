@@ -20,6 +20,17 @@
         "вернуть символически значимую территорию любой ценой",
         "удержать вертикаль и миф о непобедимости"
       ],
+      "doctrine": {
+        "forms": {
+          "coercion": 0.18,
+          "information": 0.12
+        },
+        "essences": {
+          "legitimize": 0.25,
+          "demonstrate": 0.2,
+          "purge": 0.12
+        }
+      },
       "character_defaults": {
         "deliberate_target": "faction.republic",
         "beliefs": [
@@ -928,6 +939,18 @@
         "сохранить внешний канал через Торговую планету",
         "не допустить внесудебных казней и раскола парламента"
       ],
+      "doctrine": {
+        "forms": {
+          "information": 0.2,
+          "negotiation": 0.12
+        },
+        "essences": {
+          "delegitimize": 0.25,
+          "expose": 0.22,
+          "negotiate": 0.2,
+          "educate": 0.1
+        }
+      },
       "character_defaults": {
         "deliberate_target": "faction.empire",
         "beliefs": [
@@ -1774,6 +1797,18 @@
         "превратить обиду и страх в общины и ритуал",
         "сохранить нарратив и фигуру главы культа"
       ],
+      "doctrine": {
+        "forms": {
+          "meaning": 0.24,
+          "care": 0.12
+        },
+        "essences": {
+          "preach": 0.25,
+          "ritualize": 0.22,
+          "convert": 0.16,
+          "build_network": 0.14
+        }
+      },
       "character_defaults": {
         "deliberate_target": "faction.empire",
         "beliefs": [
@@ -2498,6 +2533,18 @@
         "продавать обеим сторонам так, чтобы война не закончилась слишком быстро",
         "не потерять автономию перед Империей"
       ],
+      "doctrine": {
+        "forms": {
+          "exchange": 0.24,
+          "negotiation": 0.12
+        },
+        "essences": {
+          "trade": 0.3,
+          "invest": 0.2,
+          "bribe": 0.16,
+          "insure": 0.12
+        }
+      },
       "character_defaults": {
         "deliberate_target": "faction.empire",
         "beliefs": [

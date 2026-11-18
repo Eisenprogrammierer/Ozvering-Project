@@ -568,8 +568,8 @@ class StateMachine:
 `subfactions.mean|max|min:<asset>`, у подфракций есть автоматы
 `subfaction_default.json` и снимок. Вложенные органы помечаются
 `subfaction_id` и попадают в общий список фракции. Осталось: дерево
-«орган внутри органа» по `parent_id`, собственные шкалы органа и петля
-«лидер → доктрина → работы» (G-14).**
+«орган внутри органа» по `parent_id`, собственные шкалы органа.
+Петля «лидер → доктрина → работы» закрыта в P7 (G-06/G-14).**
 
 **Цель:** закрыть G-05 и G-14, дать «фракции внутри фракций» и органные
 автоматы.
@@ -642,72 +642,80 @@ class StateMachine:
 
 ## 9. P7. ИИ из данных
 
-**Статус (2026-11-14): открыто.**
+**Статус (2026-11-18): закрыто для кампании автоматов.**
 
-**Цель:** закрыть G-06.
+**Цель:** закрыть G-06 и выбор действий в G-14.
 
 ### Схема
 
 `automata_defaults.json`:
 
 ```json
-"ai": {
-  "epsilon": 0.08,
-  "weights": {
-    "ai_priority": 1.0,
-    "need": 0.6,
-    "belief": 0.8,
-    "intention": 0.9,
-    "trait": 0.3,
-    "relation": 0.5,
-    "asset": 0.4
+"ai_model": {
+  "needs": {"weight": 1.4, "priority_weight": 0.6},
+  "intention": {
+    "essence_weight": 0.6,
+    "focus_weight": 0.4,
+    "target_weight": 0.35,
+    "mismatch_penalty": 0.15
   },
-  "target_defense_weight": 0.5
+  "doctrine": {"form_weight": 1.0, "essence_weight": 1.0},
+  "beliefs": {"rules": [
+    {
+      "predicate": "sees_as_threat",
+      "target": "action",
+      "forms": ["coercion"],
+      "weight": 0.35
+    }
+  ]},
+  "organs": {
+    "integrity_weight": 0.5,
+    "low_threshold": 0.4,
+    "repair_weight": 0.5,
+    "repair_essences": ["repair", "fortify"]
+  },
+  "defense": {"weight": 1.0, "reference": 0.5}
 }
 ```
 
-Фракция:
+Фракция (`lore_factions.json`):
 
 ```json
-"ai": {
-  "policy": "coercive",
-  "preferred_essences": ["coerce", "demonstrate"],
-  "forbidden_essences": [],
-  "risk": 0.3
-}
-```
-
-Работа:
-
-```json
-"ai": {
-  "essence_match": 0.5,
-  "belief_bonus": {"myth_strength": 0.2},
-  "need_bonus": {"fear": 0.1}
+"doctrine": {
+  "forms": {"coercion": 0.18, "information": 0.12},
+  "essences": {"legitimize": 0.25, "demonstrate": 0.2}
 }
 ```
 
 ### Код
 
-`campaign/automata.py:2168-2198` → `score_work(...)` с термами:
+`campaign/automata.py` → `_ai_action_weight(side, action)`:
 
 ```
-score = ai_priority * w
-      + essence_match(work, leader.intentions) * intention_w
-      + belief_value(work.belief_bonus) * belief_w
-      + mean(needs[work.need_bonus]) * need_w
-      + relation_score(target) * relation_w
-      + (1 - target.defense) * defense_w
+weight = ai_priority
+       * need_factor(leader.needs, action.hints)
+       * intention_factor(leader.bdi.latest_intention)
+       * doctrine_factor(faction.record.doctrine)
+       * belief_factors(leader.bdi.beliefs, ai_model.beliefs.rules)
+       * organ_factor(faction.organs, action.organ_id)
+       * defense_factor(target.asset)
 ```
 
-Все веса — из JSON; отсутствующие термы = 0.
+Все множители — из JSON; отсутствующий блок ничего не меняет.
+`_advance_ai` занимает слоты через `start_action`, а не `perform`.
+`auto_action(..., exclude_active=True)` не повторяет уже идущую работу;
+`ai_action_weights()` отдаёт веса для диагностики.
 
 ### Тесты
 
-* Лидер с намерением `coerce` чаще выбирает coercive-работы.
-* Убеждение `myth_strength` повышает вес демонстраций.
-* Запрещённая суть не выбирается.
-* Детерминизм при фиксированном seed.
+`tests/test_ai_model.py`:
+
+* потребность и намерение лидера меняют относительный вес работ;
+* убеждение `allied_with` штрафует агрессию против союзника;
+* доктрина фракции меняет вес формы;
+* повреждённый орган снижает вес, ремонтная суть — возвращает;
+* реальное время занимает слоты процессами, а не мгновенными работами;
+* детерминизм при фиксированном seed (общий прогон кампании).
 
 ---
 
