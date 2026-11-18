@@ -7,8 +7,9 @@
 > D6.2a–d, D6.3 и D6.4 (G-19…G-23). Обновлён 2026-11-15: G-18 закрыт для
 > арены и кампании автоматов (единый `Work`-конвейер); дневной мир и
 > payload/квинтуплы остаются явным остатком фазы 4b. Обновлён 2026-11-18:
-> G-06 закрыт (ИИ читает BDI, доктрину и органы), G-08 закрыт (слой
-> отражения видит фракцию целиком), G-14 закрыт в части выбора действий.
+> G-05 закрыт (дерево органов и собственные шкалы), G-06 закрыт (ИИ
+> читает BDI, доктрину и органы), G-08 закрыт (слой отражения видит
+> фракцию целиком), G-14 закрыт в части выбора действий.
 >
 > **Связанные документы:** [`CONTENT.md`](CONTENT.md),
 > [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md),
@@ -35,7 +36,7 @@
 | G-02 | закрыто | `Character.deliberate(target)`, `deliberate_target`, контентные намерения |
 | G-03 | закрыто частично | `campaign/effects.py`: активы, потребности, черты, состояния, убеждения, намерения, органы, флаги; `relations` — P8 |
 | G-04 | закрыто | `campaign/state_machine.py` + `configs/campaigns/base/automata/*.json`; тик фракций и органов, снимок |
-| G-05 | закрыто частично | `SubfactionRuntime`, `subfactions.*` в эффектах/условиях/метриках, `subfaction_id` у органов, автоматы и снимок; дерево орган-в-органе — P6+ |
+| G-05 | закрыто | `SubfactionRuntime`, `subfactions.*`, дерево органов по `parent_id` (`organ_children/roots/depth`), собственные `scales` органа в тике/эффектах/условиях/снимке |
 | G-07 | закрыто | `campaign/conditions.py`, `requires.when` |
 | G-08 | закрыто | событие не пишет; `_story_context` видит активы, органы, флаги, ростер, намерения и отношения; числовые/структурные `conditions` |
 | G-09 | закрыто | `Belief.value/confidence/source/ttl`, `object: required/forbidden`, `decay_beliefs()` |
@@ -52,8 +53,7 @@
 | G-23 | закрыто | `discourse.connectives.mode`, `pattern.topic`, `render_moves`, `reason_in_text`, `lowercase_glue` |
 
 Остальные находки (G-10, G-11, G-14 в части нисходящего приказа)
-остаются открытыми. Орган-в-органе по `parent_id` и приказ
-«фракция → персонаж» — следующие шаги.
+остаются открытыми. Приказ «фракция → персонаж» — следующий шаг.
 
 ---
 
@@ -338,7 +338,17 @@ action_ids, integrity, weight, interactions, cooldowns
 
 **Частично закрыто в P6:** `SubfactionRuntime`, `subfactions.*` в
 эффектах/условиях/метриках, `subfaction_id` у органов, автоматы
-подфракций, снимок. Дерево «орган-в-органе» по `parent_id` — P6+.
+подфракций, снимок.
+
+**Закрыто 2026-11-18.** `parent_id` снова дерево, а не только сетевая
+связь: `organ_children`, `organ_roots`, `organ_depth`,
+`organ_descendants`, проверка циклов. При тике дочерний орган тянется к
+родителю (`organ_parent_pull`), родитель слышит среднее детей
+(`organ_child_pull`). У органа есть собственные шкалы `scales` и
+`scale_targets`: они живут в записи органа, тикают
+(`organ_scale_recovery`), читаются эффектами (`organs.<id>.scales`),
+условиями (`kind: organ`, `scale`) и событием (`kind: organ_scale`),
+сохраняются в снимке. Пример — `agents` культа и корпорации.
 
 ---
 

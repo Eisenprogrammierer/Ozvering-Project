@@ -48,6 +48,18 @@
     "weight": {
       "type": "number"
     },
+    "scales": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "scale_targets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
     "organ_interactions": {
       "type": "array",
       "items": {

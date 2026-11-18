@@ -62,8 +62,10 @@ from .fractal import (
     OrganRuntime,
     damage_organs,
     network_density,
+    organ_children,
     organ_composite,
     organ_degrees,
+    organ_depth,
     organ_links,
     readiness_scale,
     spread_organ_effect,
@@ -635,11 +637,14 @@ class FactionRuntime:
             )
         links = organ_links(self.organs)
         degrees = organ_degrees(self.organs)
+        children = organ_children(self.organs)
         organ_snapshots = []
         for organ in self.organs:
             item = organ.snapshot()
             item["links"] = list(links.get(organ.id, ()))
             item["degree"] = int(degrees.get(organ.id, 0))
+            item["children"] = list(children.get(organ.id, ()))
+            item["depth"] = organ_depth(self.organs, organ.id)
             organ_snapshots.append(item)
         return {
             "side": self.side,
@@ -1822,6 +1827,10 @@ class AutomataCampaign:
             },
             "organ_statuses": {
                 str(organ.id): organ.status() for organ in faction.organs
+            },
+            "organ_scales": {
+                str(organ.id): dict(organ.scales)
+                for organ in faction.organs
             },
             "flags": dict(getattr(faction, "flags", {}) or {}),
             "characters": characters,
@@ -4155,6 +4164,10 @@ class AutomataCampaign:
                     {
                         "id": organ.id,
                         "integrity": float(organ.integrity),
+                        "scales": {
+                            str(key): float(value)
+                            for key, value in organ.scales.items()
+                        },
                         "interaction_cooldowns": {
                             str(key): int(value)
                             for key, value in (
@@ -4456,6 +4469,12 @@ class AutomataCampaign:
                 organ.integrity = _clamp(
                     _number(saved.get("integrity"), organ.integrity)
                 )
+                for key, value in _as_mapping(
+                    saved.get("scales")
+                ).items():
+                    organ.scales[str(key)] = _clamp(
+                        _number(value, organ.scales.get(str(key), 0.0))
+                    )
                 organ.interaction_cooldowns = {
                     str(key): int(_number(value))
                     for key, value in _as_mapping(

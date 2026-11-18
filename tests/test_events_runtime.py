@@ -129,6 +129,10 @@ def _rich_context():
         "assets": {"legitimacy": 0.7, "cohesion": 0.2},
         "organs": {"staff": 0.4, "army": 0.9},
         "organ_statuses": {"staff": "восстанавливается"},
+        "organ_scales": {
+            "staff": {"stealth": 0.4},
+            "agents": {"stealth": 0.8},
+        },
         "flags": {"amnesty": True, "mobilization": 0.3},
         "intentions": [
             {"target": "faction.republic", "essence": "defend"}
@@ -182,6 +186,24 @@ def test_event_conditions_read_assets_organs_and_statuses():
             "key": "staff",
             "op": "==",
             "value": "восстанавливается",
+        }
+    )
+    assert _matches(
+        {
+            "kind": "organ_scale",
+            "key": "agents",
+            "object": "stealth",
+            "op": ">=",
+            "value": 0.7,
+        }
+    )
+    assert not _matches(
+        {
+            "kind": "organ_scale",
+            "key": "staff",
+            "object": "stealth",
+            "op": ">=",
+            "value": 0.7,
         }
     )
 

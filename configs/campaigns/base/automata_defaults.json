@@ -502,7 +502,10 @@
     "organ_damage": 0.05,
     "organ_spread": 0.18,
     "organ_dissolve_rate": 0.05,
-    "organ_effect_floor": 0.55
+    "organ_effect_floor": 0.55,
+    "organ_parent_pull": 0.35,
+    "organ_child_pull": 0.25,
+    "organ_scale_recovery": 0.12
   },
   "organ_kinds": {
     "command": {

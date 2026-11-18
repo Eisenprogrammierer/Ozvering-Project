@@ -407,10 +407,18 @@ custom = content.get("my_new_file", {})
 берёт явный текст, затем `effects.text`/`failure.text`, затем собирает
 подпись. Поэтому экран может показать описание даже у старых работ.
 
-Связи органов задаются полем `links` — это не иерархия, а сеть:
+Связи органов задаются полем `links` — это сеть:
 `"links": ["wehrmacht", "guard"]`. Связь двусторонняя, циклы и кластеры
-допустимы; `campaign/fractal.py` проверяет только неизвестные id и связь
-узла с самим собой.
+допустимы; `campaign/fractal.py` проверяет неизвестные id и связь узла с
+самим собой. Поле `parent_id` задаёт отдельное дерево вложенности:
+`"parent_id": "intelligence"`. Цикл родителей — ошибка; при тике ребёнок
+тянется к родителю, а родитель слышит детей.
+
+У органа могут быть собственные шкалы:
+`"scales": {"stealth": 0.62}`, `"scale_targets": {"stealth": 0.7}`.
+Эффекты пишут `"organs": {"agents": {"scales": {"stealth": -0.1}}}`,
+условия читают `{"kind": "organ", "key": "agents", "scale": "stealth"}`,
+снимок сохраняет значения.
 
 `kind` органа (`command`, `coercion`, `intelligence`, `information`,
 `maintenance`, `legitimacy`, `care`, `meaning`, `exchange`) задаёт его

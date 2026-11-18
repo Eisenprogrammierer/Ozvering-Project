@@ -278,6 +278,19 @@ def _clause_reason(clause, context):
         organ = faction.organ(key) if faction is not None else None
         if organ is None:
             return "нужно: орган %s" % key
+        scale = _text(clause.get("scale"))
+        if scale:
+            current = _number(
+                _as_mapping(getattr(organ, "scales", {})).get(scale)
+            )
+            if not compare(current, op, expected):
+                return "нужно: шкала органа %s.%s %s %s" % (
+                    key,
+                    scale,
+                    op,
+                    expected,
+                )
+            return ""
         if not compare(_number(organ.integrity), op, expected):
             return "нужно: орган %s %s %s" % (key, op, expected)
         return ""

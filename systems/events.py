@@ -284,6 +284,12 @@ def _condition_value(condition, context):
     if kind == "organ_status":
         statuses = context.get("organ_statuses") or {}
         return statuses.get(key, "")
+    if kind == "organ_scale":
+        scales = context.get("organ_scales") or {}
+        bucket = scales.get(key) or {}
+        if condition.object:
+            return _dig(bucket, condition.object, 0.0)
+        return bucket
     if kind == "flag":
         flags = context.get("flags") or {}
         value = flags.get(key, False)

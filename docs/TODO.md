@@ -528,6 +528,13 @@
 `end_turn`/`advance` остаются мгновенными. Подробности — G-06/G-14 в
 [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md).
 
+**Сделано в органах (2026-11-18, G-05).** `parent_id` снова дерево:
+`organ_children`/`organ_roots`/`organ_depth`/`organ_descendants`,
+проверка циклов. Тик тянет ребёнка к родителю и родителя к детям
+(`organ_parent_pull`, `organ_child_pull`). Собственные `scales` и
+`scale_targets` органа читаются эффектами, условиями, событиями и
+снимком; примеры — `agents` культа и корпорации.
+
 **Что было до среза.** `actions_per_turn`/`actions_per_day` = 3 — это
 бюджет очков, а не параллельность. `perform()` разрешал работу мгновенно:
 щелчок → бросок → эффект; игровое время на действие не тратится.

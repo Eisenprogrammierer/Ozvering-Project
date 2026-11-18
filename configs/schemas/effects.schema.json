@@ -129,6 +129,9 @@
         },
         "state": {
           "type": "string"
+        },
+        "scales": {
+          "$ref": "#/$defs/numberMap"
         }
       },
       "additionalProperties": false

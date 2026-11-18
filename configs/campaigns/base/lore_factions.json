@@ -2423,7 +2423,13 @@
           "description": "Люди культа внутри чужих структур: не шпионы, а носители сомнения.",
           "links": [
             "preaching"
-          ]
+          ],
+          "scales": {
+            "stealth": 0.62
+          },
+          "scale_targets": {
+            "stealth": 0.7
+          }
         },
         {
           "id": "printing",
@@ -3223,7 +3229,14 @@
           "description": "Внедрение в чужие канцелярии: покупка не человека, а доступа.",
           "links": [
             "intelligence"
-          ]
+          ],
+          "parent_id": "intelligence",
+          "scales": {
+            "stealth": 0.55
+          },
+          "scale_targets": {
+            "stealth": 0.62
+          }
         },
         {
           "id": "security",

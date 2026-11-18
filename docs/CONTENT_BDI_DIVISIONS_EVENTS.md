@@ -364,6 +364,8 @@ Python. Полный производственный набор сейчас: *
 {"kind": "organ", "key": "staff", "op": ">=", "value": 0.3}
 {"kind": "organ_status", "key": "staff", "op": "==",
  "value": "восстанавливается"}
+{"kind": "organ_scale", "key": "agents", "object": "stealth",
+ "op": ">=", "value": 0.6}
 {"kind": "flag", "key": "amnesty_offered"}
 {"kind": "intention", "key": "coerce", "object": "faction.republic"}
 {"kind": "relation", "predicate": "trusts", "object": "faction.republic",
@@ -378,8 +380,8 @@ Python. Полный производственный набор сейчас: *
 Поддерживаются `kind`: `need`/`desire`, `trait`, `division`, `force`,
 `energy`, `condition`/`sickness`/`wound`, `belief`, `tag`, `category`,
 `side`, `faction`, `role`, `alive`, `time`, `asset`, `organ`,
-`organ_status`, `flag`, `intention`, `relation`, `character_stats`,
-`organization`, а также произвольный ключ контекста. Операции: `>=`,
+`organ_status`, `organ_scale`, `flag`, `intention`, `relation`,
+`character_stats`, `organization`, а также произвольный ключ контекста. Операции: `>=`,
 `<=`, `>`, `<`, `==`, `!=`, `in`, `not in`. Флаг `negate: true`
 инвертирует результат.
 
@@ -388,7 +390,8 @@ Python. Полный производственный набор сейчас: *
 `== true`. Если у `belief` указан числовой порог, сравнивается сила
 `value × confidence`; у `relation` — та же сила для предиката-отношения.
 `character_stats` и `organization` читают вложенный путь через точку
-(`needs.fear`, `mode_weights.order`).
+(`needs.fear`, `mode_weights.order`). У `organ_scale` поле `key` — id
+органа, `object` — имя шкалы.
 
 ### 4.4. Видимость
 

@@ -73,6 +73,16 @@ def _as_mapping(value):
     return value if isinstance(value, Mapping) else {}
 
 
+def _scale_map(value):
+    """Собственные шкалы органа: имя → число в ``0..1``."""
+    result = {}
+    for key, amount in _as_mapping(value).items():
+        name = str(key or "").strip()
+        if name:
+            result[name] = _clamp(amount)
+    return result
+
+
 def organ_status(integrity):
     """Состояние органа по его целостности."""
     value = _clamp(integrity)
@@ -137,6 +147,82 @@ def organ_degrees(organs):
     }
 
 
+def _organ_index(organs):
+    return {
+        str(getattr(organ, "id", "") or ""): organ
+        for organ in organs or ()
+        if str(getattr(organ, "id", "") or "")
+    }
+
+
+def _valid_parent(organ, by_id):
+    organ_id = str(getattr(organ, "id", "") or "")
+    parent_id = str(getattr(organ, "parent_id", "") or "")
+    if not parent_id or parent_id == organ_id or parent_id not in by_id:
+        return ""
+    return parent_id
+
+
+def organ_children(organs):
+    """Прямые дети каждого органа по ``parent_id``."""
+    organs = list(organs or ())
+    by_id = _organ_index(organs)
+    children = {organ_id: [] for organ_id in by_id}
+    for organ in organs:
+        organ_id = str(getattr(organ, "id", "") or "")
+        parent_id = _valid_parent(organ, by_id)
+        if organ_id and parent_id:
+            children[parent_id].append(organ_id)
+    return {
+        key: sorted(value) for key, value in children.items()
+    }
+
+
+def organ_roots(organs):
+    """Корневые органы: без родителя или с неизвестным родителем."""
+    organs = list(organs or ())
+    by_id = _organ_index(organs)
+    return sorted(
+        organ_id
+        for organ_id, organ in by_id.items()
+        if not _valid_parent(organ, by_id)
+    )
+
+
+def organ_depth(organs, organ_id):
+    """Уровень органа в дереве; корень — ``0``. Цикл не зацикливает."""
+    by_id = _organ_index(list(organs or ()))
+    organ = by_id.get(str(organ_id or ""))
+    if organ is None:
+        return 0
+    seen = set()
+    depth = 0
+    while True:
+        current_id = str(getattr(organ, "id", "") or "")
+        if current_id in seen:
+            return depth
+        seen.add(current_id)
+        parent_id = _valid_parent(organ, by_id)
+        if not parent_id:
+            return depth
+        depth += 1
+        organ = by_id[parent_id]
+
+
+def organ_descendants(organs, organ_id):
+    """Все потомки органа в порядке обхода в ширину."""
+    children = organ_children(organs)
+    result = []
+    queue = list(children.get(str(organ_id or ""), ()))
+    while queue:
+        current = queue.pop(0)
+        if current in result:
+            continue
+        result.append(current)
+        queue.extend(children.get(current, ()))
+    return result
+
+
 def network_density(organs):
     """Доля существующих связей от всех возможных (0..1)."""
     links = organ_links(organs)
@@ -175,17 +261,7 @@ def validate_organ_network(organs):
                     "орган %s: неизвестная связь %s"
                     % (organ_id, linked)
                 )
-        parent_id = str(getattr(organ, "parent_id", "") or "")
-        if parent_id:
-            if parent_id == organ_id:
-                problems.append(
-                    "орган %s ссылается сам на себя" % organ_id
-                )
-            elif parent_id not in by_id:
-                problems.append(
-                    "орган %s: неизвестная связь %s"
-                    % (organ_id, parent_id)
-                )
+    problems.extend(validate_organ_hierarchy(organs))
     return problems
 
 
@@ -215,13 +291,50 @@ def organ_network_distances(organs, root_id=None):
 
 
 def validate_organ_hierarchy(organs):
-    """Устаревшее имя; сеть проверяется :func:`validate_organ_network`."""
-    return validate_organ_network(organs)
+    """Проверить дерево ``parent_id``: существование и отсутствие циклов."""
+    organs = list(organs or ())
+    by_id = _organ_index(organs)
+    problems = []
+    for organ_id, organ in by_id.items():
+        parent_id = str(getattr(organ, "parent_id", "") or "")
+        if not parent_id:
+            continue
+        if parent_id == organ_id:
+            problems.append(
+                "орган %s ссылается сам на себя" % organ_id
+            )
+            continue
+        if parent_id not in by_id:
+            problems.append(
+                "орган %s: неизвестный родитель %s"
+                % (organ_id, parent_id)
+            )
+            continue
+        seen = {organ_id}
+        current = parent_id
+        while current:
+            if current in seen:
+                problems.append(
+                    "орган %s: цикл родителей через %s"
+                    % (organ_id, current)
+                )
+                break
+            seen.add(current)
+            current = str(
+                getattr(by_id.get(current), "parent_id", "") or ""
+            )
+            if current and current not in by_id:
+                break
+    return problems
 
 
 def organ_depths(organs):
-    """Устаревшее имя; расстояние по связям, не уровень иерархии."""
-    return organ_network_distances(organs)
+    """Уровень каждого органа в дереве ``parent_id`` (корень — ``0``)."""
+    organs = list(organs or ())
+    return {
+        organ_id: organ_depth(organs, organ_id)
+        for organ_id in _organ_index(organs)
+    }
 
 
 def organ_composite(
@@ -326,6 +439,8 @@ class OrganRuntime:
     action_ids: List[str] = field(default_factory=list)
     integrity: float = ORGAN_DEFAULT_INTEGRITY
     weight: float = 1.0
+    scales: Dict[str, float] = field(default_factory=dict)
+    scale_targets: Dict[str, float] = field(default_factory=dict)
     interactions: List[dict] = field(default_factory=list)
     interaction_cooldowns: Dict[str, int] = field(default_factory=dict)
     used_turn: int = -1
@@ -343,6 +458,10 @@ class OrganRuntime:
         )
         if not configured:
             configured = DEFAULT_ORGAN_INTERACTIONS
+        scales = _scale_map(record.get("scales"))
+        scale_targets = _scale_map(record.get("scale_targets"))
+        for name, target in scale_targets.items():
+            scales.setdefault(name, target)
         return cls(
             id=organ_id,
             name=str(record.get("name") or organ_id),
@@ -365,6 +484,8 @@ class OrganRuntime:
             weight=organ_weight(
                 record.get("kind"), record.get("weight")
             ),
+            scales=scales,
+            scale_targets=scale_targets,
             interactions=[
                 dict(item)
                 for item in configured
@@ -412,6 +533,14 @@ class OrganRuntime:
             "integrity": round(_clamp(self.integrity), 6),
             "status": self.status(),
             "weight": round(self.weight, 6),
+            "scales": {
+                key: round(_clamp(value), 6)
+                for key, value in self.scales.items()
+            },
+            "scale_targets": {
+                key: round(_clamp(value), 6)
+                for key, value in self.scale_targets.items()
+            },
             "interaction_cooldowns": {
                 key: int(value)
                 for key, value in self.interaction_cooldowns.items()
@@ -486,22 +615,103 @@ def tick_organs(faction, organs, model=None):
         model.get("organ_dissolve_rate"),
         ORGAN_MODEL_DEFAULTS["organ_dissolve_rate"],
     )
+    parent_pull = _clamp(
+        _number(
+            model.get("organ_parent_pull"),
+            ORGAN_MODEL_DEFAULTS["organ_parent_pull"],
+        )
+    )
+    child_pull = _clamp(
+        _number(
+            model.get("organ_child_pull"),
+            ORGAN_MODEL_DEFAULTS["organ_child_pull"],
+        )
+    )
+    scale_recovery = _clamp(
+        _number(
+            model.get("organ_scale_recovery"),
+            ORGAN_MODEL_DEFAULTS["organ_scale_recovery"],
+        )
+    )
+    by_id = _organ_index(organs)
+    children = organ_children(organs)
+    dissolved = bool(getattr(faction, "dissolved", False))
+    integrity_before = {
+        str(organ.id): organ.integrity for organ in organs
+    }
+    scales_before = {
+        str(organ.id): dict(organ.scales) for organ in organs
+    }
+    # Сначала считаем цели по состоянию до тика: родитель и дети не
+    # перетягивают друг друга в одном и том же проходе.
+    targets = {}
+    for organ in organs:
+        organ_id = str(organ.id)
+        if dissolved:
+            targets[organ_id] = 0.0
+            continue
+        target = organ_target(
+            faction,
+            organ.kind,
+            model.get("organ_downscale"),
+        )
+        child_ids = children.get(organ_id) or ()
+        if child_ids:
+            total_weight = 0.0
+            total = 0.0
+            for child_id in child_ids:
+                child = by_id.get(child_id)
+                if child is None:
+                    continue
+                weight = max(ORGAN_MIN_WEIGHT, child.weight)
+                total_weight += weight
+                total += integrity_before.get(child_id, 0.0) * weight
+            if total_weight > 0.0:
+                child_mean = total / total_weight
+                target = (
+                    (1.0 - child_pull) * target
+                    + child_pull * child_mean
+                )
+        parent_id = _valid_parent(organ, by_id)
+        if parent_id:
+            parent_integrity = integrity_before.get(parent_id, target)
+            target = (
+                (1.0 - parent_pull) * target
+                + parent_pull * parent_integrity
+            )
+        targets[organ_id] = _clamp(target)
+
     deltas = []
     for organ in organs:
-        if getattr(faction, "dissolved", False):
-            target = 0.0
-            rate = min(1.0, recovery + dissolve_rate)
-        else:
-            target = organ_target(
-                faction,
-                organ.kind,
-                model.get("organ_downscale"),
-            )
-            rate = recovery
+        organ_id = str(organ.id)
+        target = targets[organ_id]
+        rate = (
+            min(1.0, recovery + dissolve_rate)
+            if dissolved
+            else recovery
+        )
         before = organ.integrity
         organ.integrity = _clamp(before + (target - before) * rate)
         deltas.append((organ, organ.integrity - before))
-    if not getattr(faction, "dissolved", False):
+
+    for organ in organs:
+        organ_id = str(organ.id)
+        before_scales = scales_before.get(organ_id, {})
+        parent_id = _valid_parent(organ, by_id)
+        parent_scales = scales_before.get(parent_id, {}) if parent_id else {}
+        for name, current in list(organ.scales.items()):
+            if dissolved:
+                target = 0.0
+            elif name in organ.scale_targets:
+                target = organ.scale_targets[name]
+            elif name in parent_scales:
+                target = parent_scales[name]
+            else:
+                target = before_scales.get(name, current)
+            organ.scales[name] = _clamp(
+                current + (target - current) * scale_recovery
+            )
+    if not dissolved:
         bump = getattr(faction, "bump_context", None)
         for organ in organs:
             feedback = upscale * organ.weight * (organ.integrity - 0.5)
@@ -576,9 +786,13 @@ __all__ = [
     "faction_pressure",
     "network_density",
     "organ_asset_key",
+    "organ_children",
     "organ_degrees",
+    "organ_depth",
     "organ_depths",
+    "organ_descendants",
     "organ_links",
+    "organ_roots",
     "organ_network_distances",
     "organ_status",
     "organ_target",

@@ -65,6 +65,9 @@ def test_story_context_exposes_assets_organs_flags_and_roster(campaign):
     assert context["organ_statuses"] == {
         str(organ.id): organ.status() for organ in faction.organs
     }
+    assert context["organ_scales"] == {
+        str(organ.id): dict(organ.scales) for organ in faction.organs
+    }
     assert context["flags"] == faction.flags
     assert context["organization_state"]["name"]
     assert context["turn"] == campaign.turn

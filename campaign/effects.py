@@ -411,6 +411,23 @@ def _apply_organs(faction, values, scale, applied, scope):
                     "value": str(payload.get("state")),
                 }
             )
+        for scale_key, value in _as_mapping(
+            payload.get("scales")
+        ).items():
+            scale_key = str(scale_key)
+            delta = _number(value) * scale
+            if not delta:
+                continue
+            before = organ.scales.get(scale_key, 0.0)
+            organ.scales[scale_key] = _clamp(before + delta)
+            applied["organs"].append(
+                {
+                    "scope": scope,
+                    "organ": str(organ_id),
+                    "key": "scale:%s" % scale_key,
+                    "delta": organ.scales[scale_key] - before,
+                }
+            )
 
 
 def _apply_subfactions(faction, values, scale, applied, scope):

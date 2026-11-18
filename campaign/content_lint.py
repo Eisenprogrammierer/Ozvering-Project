@@ -374,6 +374,11 @@ def check_faction(side, faction, config):
                 "%s.organs: повторяющийся id %r" % (prefix, organ_id)
             )
         organ_ids.add(organ_id)
+    by_id = {
+        str(_as_mapping(organ).get("id") or ""): _as_mapping(organ)
+        for organ in organs
+        if _as_mapping(organ).get("id")
+    }
     for index, organ in enumerate(organs):
         organ = _as_mapping(organ)
         organ_id = str(organ.get("id") or index)
@@ -383,6 +388,34 @@ def check_faction(side, faction, config):
                     "%s.organs.%s: ссылка на неизвестный орган %r"
                     % (prefix, organ_id, link)
                 )
+        parent_id = str(organ.get("parent_id") or "")
+        if not parent_id:
+            continue
+        if parent_id == organ_id:
+            problems.append(
+                "%s.organs.%s: орган не может быть родителем сам себе"
+                % (prefix, organ_id)
+            )
+            continue
+        if parent_id not in organ_ids:
+            problems.append(
+                "%s.organs.%s: неизвестный родитель %r"
+                % (prefix, organ_id, parent_id)
+            )
+            continue
+        seen = {organ_id}
+        current = parent_id
+        while current:
+            if current in seen:
+                problems.append(
+                    "%s.organs.%s: цикл родителей через %r"
+                    % (prefix, organ_id, current)
+                )
+                break
+            seen.add(current)
+            current = str(
+                _as_mapping(by_id.get(current)).get("parent_id") or ""
+            )
 
     sub_ids = set()
     for index, sub in enumerate(subfactions):
