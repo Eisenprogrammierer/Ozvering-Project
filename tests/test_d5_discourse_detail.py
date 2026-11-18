@@ -135,6 +135,17 @@ def test_why_fragment_asks_for_detail(catalog, campaign):
     assert "По имеющимся сведениям" in answer.text
 
 
+def test_war_detail_does_not_repeat_statement(catalog, campaign):
+    session = _session(catalog, campaign, style_id="friendly")
+    session.ask("Почему Империя воюет с Республикой?")
+    answer = session.ask("Подробнее")
+    move_ids = [
+        move["id"] for move in (answer.data or {}).get("moves") or ()
+    ]
+    assert "statement" not in move_ids
+    assert answer.text.lower().count("спора о законности") == 1
+
+
 def test_detail_flag_does_not_leak_into_state(catalog, campaign):
     session = _session(catalog, campaign)
     session.ask("Почему Империя считает Республику незаконной?")

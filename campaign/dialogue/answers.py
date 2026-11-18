@@ -565,7 +565,11 @@ class AnswerPlanner:
                 if bool(spec.optional):
                     continue
                 return []
-            key = text.strip().casefold()
+            if str(spec.source or "") == "statement":
+                core = _text_key(text)
+                if core and core in _text_key(answer.text):
+                    continue
+            key = _text_key(text)
             if key in seen_texts:
                 continue
             seen_texts.add(key)
@@ -1683,3 +1687,13 @@ class AnswerPlanner:
 def _capitalize(text: str) -> str:
     text = text[:1].upper() + text[1:] if text else text
     return text
+
+
+def _text_key(text: Any) -> str:
+    """Ключ сравнения ходов: без регистра, пунктуации и лишних пробелов."""
+
+    cleaned = "".join(
+        char if char.isalnum() else " "
+        for char in str(text or "").casefold()
+    )
+    return " ".join(cleaned.split())
