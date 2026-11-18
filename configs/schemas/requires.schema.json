@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/requires.schema.json",
+  "title": "Требования работы кампании",
+  "description": "Блок requires записи действия. Исполняется AutomataCampaign._action_requirement_reason.",
+  "type": "object",
+  "$defs": {
+    "threshold": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "gte": {
+              "type": "number"
+            },
+            "lte": {
+              "type": "number"
+            },
+            "gt": {
+              "type": "number"
+            },
+            "lt": {
+              "type": "number"
+            },
+            "at_least": {
+              "type": "number"
+            },
+            "at_most": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "assetRequirements": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/threshold"
+      }
+    },
+    "actionList": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "min_turn": {
+      "type": "number",
+      "minimum": 0
+    },
+    "used_actions": {
+      "$ref": "#/$defs/actionList"
+    },
+    "not_used_actions": {
+      "$ref": "#/$defs/actionList"
+    },
+    "self": {
+      "$ref": "#/$defs/assetRequirements"
+    },
+    "target": {
+      "$ref": "#/$defs/assetRequirements"
+    },
+    "when": {
+      "$ref": "https://ozvering.local/schemas/conditions.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

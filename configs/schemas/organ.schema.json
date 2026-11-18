@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/organ.schema.json",
+  "title": "Орган фракции",
+  "description": "Запись organs у фракции или подфракции. Читается OrganRuntime.from_record.",
+  "type": "object",
+  "required": [
+    "id"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "automaton_id": {
+      "type": "string"
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "subfaction_id": {
+      "type": "string"
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "action_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "integrity": {
+      "type": "number"
+    },
+    "weight": {
+      "type": "number"
+    },
+    "organ_interactions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "additionalProperties": false
+}

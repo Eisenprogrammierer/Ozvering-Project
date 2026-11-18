@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/effects.schema.json",
+  "title": "Эффекты работы, автомата и взаимодействия",
+  "description": "Словарь эффектов, который исполняет campaign/effects.py. Неизвестные ключи — ошибка: молчаливый no-op запрещён.",
+  "type": "object",
+  "$defs": {
+    "numberMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "characterNumberMap": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "flagValue": {
+      "type": [
+        "boolean",
+        "number",
+        "string",
+        "null"
+      ]
+    },
+    "belief": {
+      "type": "object",
+      "required": [
+        "predicate"
+      ],
+      "properties": {
+        "subject": {
+          "type": "string"
+        },
+        "predicate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "object": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "source": {
+          "type": "string"
+        },
+        "ttl": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "beliefs": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "add": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/belief"
+          }
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/belief"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "intention": {
+      "type": "object",
+      "required": [
+        "target",
+        "essence"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "essence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "intentions": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "push": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/intention"
+          }
+        },
+        "clear": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "organEffect": {
+      "type": "object",
+      "properties": {
+        "integrity": {
+          "type": "number"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "subfactionEffect": {
+      "type": "object",
+      "properties": {
+        "assets": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "share": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "self": {
+      "$ref": "#"
+    },
+    "target": {
+      "$ref": "#"
+    },
+    "assets": {
+      "$ref": "#/$defs/numberMap"
+    },
+    "needs": {
+      "$ref": "#/$defs/characterNumberMap"
+    },
+    "traits": {
+      "$ref": "#/$defs/characterNumberMap"
+    },
+    "conditions": {
+      "$ref": "#/$defs/characterNumberMap"
+    },
+    "beliefs": {
+      "$ref": "#/$defs/beliefs"
+    },
+    "intentions": {
+      "$ref": "#/$defs/intentions"
+    },
+    "organs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/organEffect"
+      }
+    },
+    "subfactions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/subfactionEffect"
+      }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/flagValue"
+      }
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

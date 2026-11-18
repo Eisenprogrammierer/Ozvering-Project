@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/automaton.schema.json",
+  "title": "Исполняемый автомат кампании",
+  "description": "Файл schema: 2 из configs/campaigns/base/automata. Читается StateMachineDefinition.from_data.",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "kind",
+    "states"
+  ],
+  "properties": {
+    "schema": {
+      "const": 2
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "faction",
+        "organ",
+        "subfaction"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "initial": {
+      "type": "string"
+    },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "handlers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "$ref": "https://ozvering.local/schemas/conditions.schema.json"
+          },
+          "effects": {
+            "$ref": "https://ozvering.local/schemas/effects.schema.json"
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "state": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "initial": {
+          "type": "boolean"
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "on_enter": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/effects.schema.json"
+          }
+        },
+        "on_tick": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/effects.schema.json"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/effects.schema.json"
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transition"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "https://ozvering.local/schemas/conditions.schema.json"
+        },
+        "priority": {
+          "type": "number"
+        },
+        "event": {
+          "type": "string"
+        },
+        "guard": {
+          "type": "string"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "to"
+          ]
+        },
+        {
+          "required": [
+            "target"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

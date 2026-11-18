@@ -26,6 +26,7 @@ from typing import Iterable, List, Sequence
 
 import bdi
 import character_traits as CT
+from . import content_schema
 from .actions import ActionError, FormCatalog, lint_action
 from .geometry import GeometryError, MetricGraph
 from .identity import (
@@ -50,50 +51,11 @@ DEFAULT_PATHS = (
     ROOT / "configs" / "storylines",
 )
 
-# Ключи, которые применяет `campaign/effects.py`.
-EFFECT_KEYS = {
-    "self",
-    "target",
-    "assets",
-    "needs",
-    "traits",
-    "conditions",
-    "beliefs",
-    "intentions",
-    "organs",
-    "subfactions",
-    "flags",
-    "text",
-}
-# Ключи, которые понимает `_asset_requirement_reason` и `action_options`.
-REQUIRE_KEYS = {
-    "min_turn",
-    "used_actions",
-    "not_used_actions",
-    "self",
-    "target",
-    "when",
-}
-CONDITION_KINDS = {
-    "asset",
-    "need",
-    "desire",
-    "trait",
-    "condition",
-    "sickness",
-    "wound",
-    "belief",
-    "intention",
-    "organ",
-    "subfaction",
-    "distance",
-    "angle",
-    "flag",
-    "context",
-    "turn",
-    "used_action",
-    "not_used_action",
-}
+# Списки ключей не дублируются: их задаёт JSON Schema, которую исполняет
+# ядро. Иначе новая схема и линтер расходятся.
+EFFECT_KEYS = content_schema.schema_keys("effects")
+REQUIRE_KEYS = content_schema.schema_keys("requires")
+CONDITION_KINDS = content_schema.condition_kinds()
 # Поля события кампании. Событие — ролевой слой: оно только отражает
 # состояние и не имеет права ничего производить.
 EVENT_KEYS = {
@@ -234,7 +196,9 @@ def check_intentions(source, items, config):
 
 
 def check_effects(source, effects):
-    problems: List[str] = []
+    problems: List[str] = content_schema.validate(
+        "effects", effects, source
+    )
     effects = _as_mapping(effects)
     for key, value in effects.items():
         where = "%s.%s" % (source, key)
@@ -309,7 +273,9 @@ def _condition_problems(source, conditions):
 
 
 def check_requires(source, requires):
-    problems: List[str] = []
+    problems: List[str] = content_schema.validate(
+        "requires", requires, source
+    )
     requires = _as_mapping(requires)
     for key in requires:
         if key not in REQUIRE_KEYS:
@@ -392,6 +358,13 @@ def check_faction(side, faction, config):
     organ_ids = set()
     for index, organ in enumerate(organs):
         organ = _as_mapping(organ)
+        problems.extend(
+            content_schema.validate(
+                "organ",
+                organ,
+                "%s.organs[%d]" % (prefix, index),
+            )
+        )
         organ_id = str(organ.get("id") or "")
         if not organ_id:
             problems.append("%s.organs[%d]: пустой id" % (prefix, index))
@@ -415,6 +388,9 @@ def check_faction(side, faction, config):
     for index, sub in enumerate(subfactions):
         sub_id = str(sub.get("id") or "")
         source = "%s.subfactions.%s" % (prefix, sub_id or index)
+        problems.extend(
+            content_schema.validate("subfaction", sub, source)
+        )
         if not sub_id:
             problems.append("%s: пустой id" % source)
         elif sub_id in sub_ids:
@@ -691,7 +667,9 @@ def lint_factions_data(data, config):
 
 def check_automaton(data, source):
     """Проверить исполняемый автомат из ``configs/automata``."""
-    problems: List[str] = []
+    problems: List[str] = content_schema.validate(
+        "automaton", data, source
+    )
     data = _as_mapping(data)
     schema = data.get("schema")
     if schema is not None:

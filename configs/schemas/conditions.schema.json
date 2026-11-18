@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/conditions.schema.json",
+  "title": "Условия кампании",
+  "description": "Одно условие, группа all/any/not или список условий. Исполняется campaign/conditions.py.",
+  "$defs": {
+    "clause": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/group"
+        },
+        {
+          "$ref": "#/$defs/atomic"
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clause"
+          }
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clause"
+          }
+        },
+        "not": {
+          "$ref": "#/$defs/clause"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "atomic": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "asset",
+            "need",
+            "desire",
+            "trait",
+            "condition",
+            "sickness",
+            "wound",
+            "belief",
+            "intention",
+            "organ",
+            "subfaction",
+            "distance",
+            "angle",
+            "flag",
+            "context",
+            "turn",
+            "used_action",
+            "not_used_action"
+          ]
+        },
+        "scope": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "op": {
+          "type": "string"
+        },
+        "value": {},
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "negated": {
+          "type": "boolean"
+        },
+        "target": {
+          "type": "string"
+        },
+        "essence": {
+          "type": "string"
+        },
+        "subfaction": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/clause"
+    },
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clause"
+      }
+    }
+  ]
+}
