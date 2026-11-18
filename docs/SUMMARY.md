@@ -586,9 +586,10 @@ python3 -m campaign --show campaigns/test_campaign_seed7.json
   не-work `events` в хронологический текст; work-события из `events`
   пропускаются как дубль. Read-only; `TextGame` получил `/look`,
   `/l` и `/осмотреться`, `DialogueSession.narrate`.
-* В production-`discourse.json` нет `topics` и `explanation_detailed` —
-  это осознанно, иначе длинный паттерн перехватывал бы обычное
-  объяснение.
+* В production-`discourse.json` есть `explanation_detailed` с `topics`,
+  но он помечен `detail: true`: длинный паттерн включается только
+  просьбой «Подробнее» или уточнением «Почему?» и не перехватывает
+  обычное объяснение.
 * Игровой экран поддерживает только ручной выбор стиля; авто-режим
   (`DialogueSession(style_id=None)`) доступен через API.
 * Открыты расширение доменных псевдонимов по мере контента и

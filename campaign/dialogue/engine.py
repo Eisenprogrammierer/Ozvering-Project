@@ -357,12 +357,21 @@ class DialogueSession:
         sem, parse, source = self._interpret(text)
         if sem is None:
             return self._clarification(text, parse, source)
+        detail = bool(isinstance(sem, Mapping) and sem.get("detail"))
+        if detail:
+            sem = {
+                key: value
+                for key, value in dict(sem).items()
+                if key != "detail"
+            }
         sem, unresolved = self.state.resolve_pronouns(sem)
         if unresolved:
             return self._clarification(text, parse, source, "no_referent")
         sem = self.state.apply_question_intent(sem, text)
         mentioned = self.state.observe_sem(sem)
-        answer = self.planner.plan(sem, style=self._profile())
+        answer = self.planner.plan(
+            sem, style=self._profile(), detail=detail
+        )
         if answer.kind == "social":
             effect = (answer.data or {}).get("effect")
             if isinstance(effect, Mapping):

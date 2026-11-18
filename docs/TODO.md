@@ -74,9 +74,13 @@
 - `_ordered_moves`: `topics` → `topic` → `moves`, дедупликация,
   защита от опечаток.
 - `_discourse_problems`: `topics ⊆ moves`, без дублей.
-- Механизм есть; `explanation_detailed` **не** в production —
-  иначе ломался бы `test_missing_pattern_skips_discourse`.
-- Тесты `tests/test_d5_discourse_paragraph.py` (D5.4-часть).
+- Production-паттерн `explanation_detailed` закрывает D5.4: он помечен
+  `detail: true` и выбирается только просьбой «Подробнее» или
+  уточнением «Почему?». Обычный вопрос по-прежнему берёт
+  `explanation_basic`, поэтому `test_missing_pattern_skips_discourse`
+  не ломается. Абзац объявляет `connectives: false`.
+- Тесты `tests/test_d5_discourse_paragraph.py` (механизм) и
+  `tests/test_d5_discourse_detail.py` (production-паттерн).
 
 ### 0.4. D6.2a — `не` в утверждениях и антецеденте (механизм закрыт 2026-11-14)
 
@@ -338,10 +342,15 @@
   (подпись — `styles.json:auto_label`), пустой `style_id` передаёт
   `set_style(None)`, а под кнопками показывается причина выбора:
   описание правила, режим разговора или «стиль по умолчанию».
-- **Production `topics`.** Механизм D5.4 покрыт тестами, но паттерна
-  с `topics` в `configs/dialogue/discourse.json` нет. Решить, когда
-  включать `explanation_detailed`, не ломая
-  `test_missing_pattern_skips_discourse`.
+- [x] **Production `topics`.** `explanation_detailed` (`detail: true`,
+  `connectives: false`) собирает абзац по просьбе «Подробнее» или
+  уточнению «Почему?»; обычное объяснение остаётся коротким, а
+  `test_missing_pattern_skips_discourse` не ломается. Ход `statement`
+  берёт утверждение из `Answer.data`, `hedge_detail`/`conclusion` —
+  регистровые маркеры `synthesis.json`. Тесты —
+  `tests/test_d5_discourse_detail.py` (8).
+- **Связки в длинном абзаце.** Сейчас абзац собирается без связок;
+  ротация связок для 3+ стыков — отдельная задача, если понадобится.
 
 ## 3. Документация
 

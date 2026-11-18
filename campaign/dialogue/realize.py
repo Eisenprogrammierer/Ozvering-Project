@@ -386,7 +386,9 @@ class Realizer:
     # --- дискурсивный слой ------------------------------------------
 
     def render_moves(
-        self, moves: Sequence[Mapping[str, Any]]
+        self,
+        moves: Sequence[Mapping[str, Any]],
+        connectives: bool = True,
     ) -> str:
         """Собрать ответ из ходов, связок и анафоры.
 
@@ -394,6 +396,10 @@ class Realizer:
         Если текст связки — сама точка, второе предложение просто
         идёт следом: «A. B.». ``clause``-связка встраивается внутрь
         одного предложения через запятую: «A, потому что B.».
+
+        ``connectives=False`` отключает связки: ходы просто идут друг
+        за другом через точку. Так собирается развёрнутый абзац, где
+        повтор одной и той же связки звучал бы навязчиво.
         """
 
         if not moves:
@@ -425,6 +431,11 @@ class Realizer:
                     rendered[index]["kind"],
                     first_entities,
                 )
+        if not connectives:
+            text = " ".join(
+                item["text"] for item in rendered if item["text"]
+            )
+            return self._finish(text, ".", True)
         result_parts: List[str] = [rendered[0]["text"]]
         for index in range(1, len(rendered)):
             connective = self._pick_connective(

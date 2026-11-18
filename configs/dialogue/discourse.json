@@ -7,6 +7,12 @@
       "act": "answer",
       "optional": false
     },
+    "statement": {
+      "id": "statement",
+      "label": "утверждение",
+      "source": "statement",
+      "optional": true
+    },
     "justify": {
       "id": "justify",
       "label": "обоснование",
@@ -19,10 +25,16 @@
       "act": "hedge",
       "optional": true
     },
+    "hedge_detail": {
+      "id": "hedge_detail",
+      "label": "оговорка подробного ответа",
+      "construction": "act_hedge_detail",
+      "optional": true
+    },
     "conclusion": {
       "id": "conclusion",
       "label": "заключение",
-      "act": "conclusion",
+      "construction": "act_conclusion",
       "optional": true
     },
     "clarify": {
@@ -45,6 +57,27 @@
       "moves": ["answer", "justify"],
       "topic": "justify",
       "priority": 10
+    },
+    "explanation_detailed": {
+      "id": "explanation_detailed",
+      "kind": "explanation",
+      "moves": [
+        "statement",
+        "answer",
+        "justify",
+        "hedge_detail",
+        "conclusion"
+      ],
+      "topics": [
+        "statement",
+        "answer",
+        "justify",
+        "hedge_detail",
+        "conclusion"
+      ],
+      "priority": 20,
+      "detail": true,
+      "connectives": false
     },
     "value_with_conclusion": {
       "id": "value_with_conclusion",

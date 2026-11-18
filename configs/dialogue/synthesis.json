@@ -447,6 +447,24 @@
    ],
    "end": "."
   },
+  "act_hedge_detail": {
+   "act": "hedge_detail",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "hedge"}
+   ],
+   "end": "."
+  },
+  "act_conclusion": {
+   "act": "conclusion",
+   "features": {},
+   "priority": 0,
+   "parts": [
+    {"kind": "marker", "concept": "conclusion"}
+   ],
+   "end": "."
+  },
   "act_address_post": {
    "act": "address_wrap",
    "features": {"address_mode": "post"},
@@ -1098,6 +1116,22 @@
   "marker:confirm_intimate": {"text": "Да.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "confirm"},
   "marker:confirm_hostile": {"text": "Да. И что?", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "confirm"},
   "marker:confirm_mentor": {"text": "Верно.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "confirm"},
+  "marker:hedge_neutral": {"text": "Насколько мне известно.", "features": {}, "priority": 0, "concept": "hedge"},
+  "marker:hedge_official": {"text": "По имеющимся сведениям.", "features": {"formality": "high"}, "priority": 5, "concept": "hedge"},
+  "marker:hedge_report": {"text": "По донесениям.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "hedge"},
+  "marker:hedge_command": {"text": "Насколько мне известно.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "hedge"},
+  "marker:hedge_friendly": {"text": "Как я слышал.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "hedge"},
+  "marker:hedge_intimate": {"text": "Если честно.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "hedge"},
+  "marker:hedge_hostile": {"text": "Вроде бы.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "hedge"},
+  "marker:hedge_mentor": {"text": "Насколько я знаю.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "hedge"},
+  "marker:conclusion_neutral": {"text": "Вот и всё.", "features": {}, "priority": 0, "concept": "conclusion"},
+  "marker:conclusion_official": {"text": "Таково положение.", "features": {"formality": "high"}, "priority": 5, "concept": "conclusion"},
+  "marker:conclusion_report": {"text": "Доклад окончен.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "conclusion"},
+  "marker:conclusion_command": {"text": "Выполняйте.", "features": {"authority": "high", "register": "command"}, "priority": 10, "concept": "conclusion"},
+  "marker:conclusion_friendly": {"text": "Вот так-то.", "features": {"distance": "near", "affect": "warm"}, "priority": 10, "concept": "conclusion"},
+  "marker:conclusion_intimate": {"text": "Вот так.", "features": {"distance": "intimate", "affect": "intimate"}, "priority": 10, "concept": "conclusion"},
+  "marker:conclusion_hostile": {"text": "Точка.", "features": {"distance": "far", "affect": "cold"}, "priority": 10, "concept": "conclusion"},
+  "marker:conclusion_mentor": {"text": "Запомни это.", "features": {"authority": "high", "affect": "warm"}, "priority": 10, "concept": "conclusion"},
   "marker:deny_neutral": {"text": "Нет.", "features": {}, "priority": 0, "concept": "deny"},
   "marker:deny_official": {"text": "Подтверждения не имеется.", "features": {"formality": "high"}, "priority": 5, "concept": "deny"},
   "marker:deny_report": {"text": "Никак нет.", "features": {"formality": "high", "authority": "high"}, "priority": 10, "concept": "deny"},

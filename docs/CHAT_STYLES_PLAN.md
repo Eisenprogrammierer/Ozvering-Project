@@ -176,7 +176,9 @@ venv/bin/python -m pytest -q
 - [x] Тесты `tests/test_d5_registers.py` — 19 тестов.
 - [x] Тесты `tests/test_d3_comparison.py` — 16 тестов.
 - [x] D5.4 — дискурсивная агрегация абзаца (4+ хода): механизм
-  `topics` + линтер + тесты. Production-паттерна с `topics` нет.
+  `topics` + линтер + тесты; production-паттерн `explanation_detailed`
+  включается «Подробнее»/«Почему?» (`detail: true`,
+  `connectives: false`), обычный ответ остаётся коротким.
 - [x] D6.2a — отрицание в антецеденте: `NEG` в лексиконе, правила
   `np_neg_v_np*`, `negated: true`, обмен `remove`/`add`; покрыто
   `tests/test_d3_counterfactual.py`.

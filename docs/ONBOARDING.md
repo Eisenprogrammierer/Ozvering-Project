@@ -620,10 +620,11 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   [].mode: plain|clause`, `discourse.patterns[].topic`,
   `discourse.anaphora` (типы, виды ходов, местоимения, min_length);
 * **D5.4 — абзац 4+ хода**: `DiscoursePattern.topics`, порядок
-  `topics → topic → moves` в `_ordered_moves`, линтер
-  `_discourse_problems`. Механизм готов и покрыт
-  `test_d5_discourse_paragraph.py`, но production-паттерна с `topics`
-  нет: `explanation_detailed` намеренно оставлен только в фикстуре;
+  `topics → topic → moves` в `_ordered_moves`, флаги `detail` и
+  `connectives`, линтер `_discourse_problems`. Production-паттерн
+  `explanation_detailed` включается просьбой «Подробнее» или
+  уточнением «Почему?»; тесты — `test_d5_discourse_paragraph.py`
+  и `test_d5_discourse_detail.py`;
 * **D3.1 — сравнения**: `comparison.json` (relation, args,
   key_prefix, конструкции исходов), `_answer_comparison` без
   `if a > b`. Расширенное «почему» через `max_premises` в плане;

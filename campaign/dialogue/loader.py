@@ -563,6 +563,8 @@ def _load_pattern(key: str, value: Mapping[str, Any]) -> DiscoursePattern:
             str(name) for name in _list(data.get("topics"))
         ),
         priority=_int(data.get("priority"), 0),
+        detail=bool(data.get("detail", False)),
+        connectives=bool(data.get("connectives", True)),
     )
 
 

@@ -270,14 +270,18 @@ class AnswerPlanner:
         self.realizer.set_style(self.style)
 
     def plan(
-        self, sem: Any, plan_id: str = "", style: Optional[StyleSpec] = None
+        self,
+        sem: Any,
+        plan_id: str = "",
+        style: Optional[StyleSpec] = None,
+        detail: bool = False,
     ) -> Answer:
         if style is not None:
             self.set_style(style)
         self.realizer.take_trace()
         self.realizer.take_discourse_trace()
         answer = self._plan(sem, plan_id)
-        answer = self._discourse(answer)
+        answer = self._discourse(answer, detail=detail)
         trace = self.realizer.take_trace()
         discourse = self.realizer.take_discourse_trace()
         data = dict(answer.data or {})
@@ -493,13 +497,15 @@ class AnswerPlanner:
 
     # --- дискурсивный слой -----------------------------------------
 
-    def _discourse(self, answer: Answer) -> Answer:
-        if StyleEngine.is_neutral(self.style):
+    def _discourse(self, answer: Answer, detail: bool = False) -> Answer:
+        if StyleEngine.is_neutral(self.style) and not detail:
             return answer
         discourse = getattr(self.catalog, "discourse", None)
         if discourse is None:
             return answer
-        pattern = discourse.pattern_for(answer.kind, answer.plan_id)
+        pattern = discourse.pattern_for(
+            answer.kind, answer.plan_id, detail=detail
+        )
         if pattern is None:
             return answer
         moves = self._build_moves(answer, pattern)
@@ -510,7 +516,9 @@ class AnswerPlanner:
             if entities:
                 for move in moves:
                     move["entities"] = entities
-        text = self.realizer.render_moves(moves)
+        text = self.realizer.render_moves(
+            moves, connectives=pattern.connectives
+        )
         if not text:
             return answer
         discourse_trace = self.realizer.take_discourse_trace()
@@ -545,6 +553,7 @@ class AnswerPlanner:
         data = dict(answer.data or {})
         reason_in_text = bool(data.get("reason_in_text"))
         result: List[Dict[str, Any]] = []
+        seen_texts: set = set()
         for move_id in ordered:
             spec = discourse.move(move_id)
             if spec is None:
@@ -556,6 +565,10 @@ class AnswerPlanner:
                 if bool(spec.optional):
                     continue
                 return []
+            key = text.strip().casefold()
+            if key in seen_texts:
+                continue
+            seen_texts.add(key)
             result.append(
                 {
                     "id": spec.id,
@@ -866,6 +879,7 @@ class AnswerPlanner:
             data={
                 "relation": relation,
                 "args": resolved,
+                "statement": statement,
                 "reason": reasons[0] if reasons else "",
                 "reasons": tuple(reasons),
                 "reason_args": resolved,

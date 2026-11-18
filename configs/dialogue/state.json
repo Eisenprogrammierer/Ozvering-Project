@@ -109,6 +109,10 @@
         {
           "path": "wh",
           "value": "why"
+        },
+        {
+          "path": "detail",
+          "value": true
         }
       ]
     },
@@ -122,6 +126,35 @@
         {
           "path": "wh",
           "value": "why"
+        },
+        {
+          "path": "detail",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "detail",
+      "tokens": [
+        "подробнее"
+      ],
+      "edits": [
+        {
+          "path": "detail",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "detail_a",
+      "tokens": [
+        "а",
+        "подробнее"
+      ],
+      "edits": [
+        {
+          "path": "detail",
+          "value": true
         }
       ]
     },

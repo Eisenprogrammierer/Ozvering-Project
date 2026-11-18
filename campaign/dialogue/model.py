@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Mapping, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -278,6 +278,12 @@ class DiscoursePattern:
     абзаца 4+ ходов: сначала они в указанном порядке, затем остальные
     ``moves``. ``topics`` перекрывает ``topic``; если ``topics``
     пусто, поведение прежнее.
+
+    ``detail`` помечает развёрнутый паттерн: он выбирается только по
+    явной просьбе («Подробнее», «Почему?» как уточнение к прошлому
+    ответу), поэтому короткий ответ по умолчанию не разрастается.
+    ``connectives`` выключает связки для абзаца: длинный ответ читается
+    лучше, когда ходы просто идут друг за другом.
     """
 
     id: str
@@ -287,6 +293,8 @@ class DiscoursePattern:
     topic: str = ""
     topics: Tuple[str, ...] = ()
     priority: int = 0
+    detail: bool = False
+    connectives: bool = True
 
 
 @dataclass(frozen=True)
@@ -319,16 +327,46 @@ class DiscourseCatalog:
     def move(self, move_id: str) -> Any:
         return self.moves.get(str(move_id or ""))
 
-    def pattern_for(self, kind: str, plan_id: str = "") -> Any:
-        candidates = [
+    def pattern_for(
+        self, kind: str, plan_id: str = "", detail: bool = False
+    ) -> Any:
+        """Выбрать паттерн ответа, при необходимости — развёрнутый.
+
+        ``detail`` сначала ищет паттерны с ``detail: true``; если таких
+        нет, падает обратно на обычные. Без ``detail`` развёрнутые
+        паттерны не участвуют, поэтому короткий ответ остаётся коротким.
+        """
+
+        pool = [
             item
             for item in self.patterns
+            if bool(item.detail) == bool(detail)
+        ]
+        chosen = self._pattern_from(pool, kind, plan_id)
+        if chosen is None and detail:
+            chosen = self._pattern_from(
+                [
+                    item
+                    for item in self.patterns
+                    if not bool(item.detail)
+                ],
+                kind,
+                plan_id,
+            )
+        return chosen
+
+    def _pattern_from(
+        self, pool: Sequence[Any], kind: str, plan_id: str
+    ) -> Any:
+        candidates = [
+            item
+            for item in pool
             if item.plan_id and item.plan_id == str(plan_id)
         ]
         if not candidates:
             candidates = [
                 item
-                for item in self.patterns
+                for item in pool
                 if item.kind and item.kind == str(kind) and not item.plan_id
             ]
         if not candidates:
