@@ -196,6 +196,7 @@ DEFAULT_RUN_TURNS = int(default_section("run_turns_default"))
 EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
 SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
 REALTIME_DEFAULTS = default_dict("realtime")
+ACTION_PROCESS_DEFAULTS = default_dict("action_process")
 ASSET_LABELS = default_dict("asset_labels")
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
@@ -735,6 +736,21 @@ class AutomataCampaign:
         self.speed_levels = sorted(set(speeds)) or [1]
         self.speed = 1
         self.elapsed = 0.0
+        self.action_process = dict(ACTION_PROCESS_DEFAULTS)
+        self.action_process.update(
+            {
+                str(key): value
+                for key, value in _as_mapping(
+                    scenario.get("action_process")
+                ).items()
+            }
+        )
+        self.action_slots = max(
+            1, int(_number(self.action_process.get("slots"), 2))
+        )
+        self.processes: List[dict] = []
+        self._process_seq = 0
+        self.last_process_result = None
         self._action_progress = 0.0
         self._ai_progress = 0.0
         self._round_progress = 0.0
@@ -1542,6 +1558,7 @@ class AutomataCampaign:
         self._advance_ai(scaled)
         self._advance_rounds(scaled)
         self._advance_story_events(scaled)
+        self._advance_processes(scaled)
         return self.snapshot()
 
     def _regenerate_actions(self, seconds):
@@ -2767,6 +2784,33 @@ class AutomataCampaign:
         target_faction = self.faction(target_side)
         if target_faction is None:
             return {"ok": False, "reason": "нет цели"}
+        return self._resolve_action(
+            actor,
+            action,
+            action_id,
+            target_side,
+            target_faction,
+            charge_cost=True,
+            spend_budget=True,
+        )
+
+    def _resolve_action(
+        self,
+        actor,
+        action,
+        action_id,
+        target_side,
+        target_faction,
+        charge_cost=True,
+        spend_budget=False,
+    ):
+        """Рассчитать и применить работу без предварительных гейтов.
+
+        Общая часть ``perform`` и завершения процесса: бросок, обработчик,
+        эффекты, перезарядка и запись в журнал. Стоимость списывает
+        вызывающий: ``perform`` — сразу, процесс — при запуске.
+        """
+        side = actor.side
         cost = _as_mapping(action.get("cost"))
         chance_spec = _as_mapping(action.get("chance"))
         attack_asset = str(
@@ -2831,8 +2875,9 @@ class AutomataCampaign:
                 "ok": False,
                 "reason": "обработчик работы: %s" % exc,
             }
-        for key, value in cost.items():
-            actor.add_asset(key, -_number(value))
+        if charge_cost:
+            for key, value in cost.items():
+                actor.add_asset(key, -_number(value))
         apply_report(
             actor,
             target_faction,
@@ -2894,7 +2939,8 @@ class AutomataCampaign:
         if cooldown > 0:
             actor.cooldowns[str(action_id)] = self.turn
         actor.action_uses[str(action_id)] = used_before + 1
-        self._spend_player_action(side)
+        if spend_budget:
+            self._spend_player_action(actor.side)
         result = {
             "ok": True,
             "turn": self.turn,
@@ -2945,6 +2991,266 @@ class AutomataCampaign:
         result["report"] = report.as_dict()
         self._log_work(result)
         return result
+
+    # --- процессы действий -----------------------------------------
+    def _active_processes(self, side=None):
+        side = None if side is None else str(side)
+        return [
+            record
+            for record in self.processes
+            if record.get("status") == "active"
+            and (side is None or str(record.get("side")) == side)
+        ]
+
+    def active_processes(self, side=None):
+        """Копии активных процессов: для UI и диалогового моста."""
+        return [dict(record) for record in self._active_processes(side)]
+
+    def slot_state(self, side=None):
+        """Сколько слотов занято и свободно у стороны."""
+        side = str(side or self.player_side)
+        used = len(self._active_processes(side))
+        return {
+            "side": side,
+            "slots": self.action_slots,
+            "used": used,
+            "free": max(0, self.action_slots - used),
+        }
+
+    def _action_duration(self, action, duration=None):
+        """Длительность работы в игровых секундах.
+
+        Приоритет: явное значение вызова, поле ``duration`` работы,
+        ``template.duration`` (единицы работы) с множителем из
+        ``action_process.duration_scale``. Всё берётся из данных.
+        """
+        minimum = max(
+            0.0, _number(self.action_process.get("min_duration"), 1.0)
+        )
+        if duration is not None:
+            return max(minimum, _number(duration, minimum))
+        explicit = action.get("duration")
+        if explicit is not None:
+            return max(minimum, _number(explicit, minimum))
+        template = _as_mapping(action.get("template"))
+        scale = _number(
+            self.action_process.get("duration_scale"),
+            _number(self.action_process.get("default_duration"), 1.0),
+        )
+        raw = template.get("duration")
+        if raw is None:
+            raw = 1.0
+        return max(minimum, _number(raw, 1.0) * max(0.0, scale))
+
+    def _process_for_action(self, side, action_id):
+        for record in self._active_processes(side):
+            if str(record.get("action_id")) == str(action_id):
+                return record
+        return None
+
+    def process_for_action(self, side, action_id):
+        record = self._process_for_action(side, action_id)
+        return dict(record) if record is not None else None
+
+    def start_action(self, side, action_id, target=None, duration=None):
+        """Начать процесс работы: слот, оплата и длительность.
+
+        Эффект не применяется сразу. Процесс завершается в
+        ``advance_time``; к этому моменту мир мог измениться, поэтому
+        предпосылки проверяются повторно. Бюджет хода не тратится:
+        ограничение — число слотов и время.
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        actor = self.faction(side)
+        if actor is None or actor.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        action = actor.action(action_id)
+        if action is None:
+            return {"ok": False, "reason": "действие не найдено"}
+        if self._process_for_action(side, action_id) is not None:
+            return {"ok": False, "reason": "действие уже выполняется"}
+        slots = self.slot_state(actor.side)
+        if slots["free"] <= 0:
+            return {
+                "ok": False,
+                "reason": "заняты все слоты (%d)" % slots["slots"],
+                "slots": slots,
+            }
+        if action_id not in self.available_actions(side):
+            option = next(
+                (
+                    item
+                    for item in self.action_options(side)
+                    if item["id"] == str(action_id)
+                ),
+                {},
+            )
+            return {
+                "ok": False,
+                "reason": option.get("reason") or "действие недоступно",
+                "slots": slots,
+            }
+        target_side = self._target_side(side, action, target=target)
+        target_faction = self.faction(target_side)
+        if target_faction is None:
+            return {"ok": False, "reason": "нет цели", "slots": slots}
+        cost = {
+            str(key): _number(value)
+            for key, value in _as_mapping(action.get("cost")).items()
+        }
+        for key, value in cost.items():
+            actor.add_asset(key, -value)
+        seconds = self._action_duration(action, duration)
+        self._process_seq += 1
+        record = {
+            "id": "process-%d" % self._process_seq,
+            "side": actor.side,
+            "action_id": str(action_id),
+            "label": str(action.get("label") or action_id),
+            "target_side": target_faction.side,
+            "target_id": target_faction.id,
+            "target_name": target_faction.name,
+            "turn": int(self.turn),
+            "started": round(float(self.elapsed), 6),
+            "finish_at": round(float(self.elapsed) + float(seconds), 6),
+            "duration": round(float(seconds), 6),
+            "remaining": round(float(seconds), 6),
+            "cost": cost,
+            "status": "active",
+        }
+        self.processes.append(record)
+        self._log_process(record, "начата")
+        return {
+            "ok": True,
+            "process": dict(record),
+            "slots": self.slot_state(actor.side),
+            "actions_left": self.actions_left,
+        }
+
+    def _refund_process(self, record):
+        if not bool(self.action_process.get("refund_on_cancel", True)):
+            return
+        actor = self.faction(record.get("side"))
+        if actor is None:
+            return
+        for key, value in _as_mapping(record.get("cost")).items():
+            actor.add_asset(key, _number(value))
+
+    def _cancel_process(self, record, reason):
+        record["status"] = "cancelled"
+        record["reason"] = str(reason or "процесс отменён")
+        record["finished"] = round(float(self.elapsed), 6)
+        record["remaining"] = 0.0
+        self._refund_process(record)
+        self.last_process_result = dict(record)
+        self._log_process(record, "отменена")
+
+    def _finish_process(self, record):
+        actor = self.faction(record.get("side"))
+        action_id = str(record.get("action_id") or "")
+        target_side = str(record.get("target_side") or "")
+        target_faction = self.faction(target_side)
+        reason = ""
+        if actor is None or actor.dissolved:
+            reason = "фракция недоступна"
+        elif target_faction is None:
+            reason = "нет цели"
+        else:
+            action = actor.action(action_id)
+            if action is None:
+                reason = "действие не найдено"
+            elif bool(self.action_process.get("recheck_on_finish", True)):
+                reason = self._action_use_reason(
+                    actor, action
+                ) or self._action_requirement_reason(
+                    actor, action, target_faction
+                )
+            if not reason:
+                result = self._resolve_action(
+                    actor,
+                    action,
+                    action_id,
+                    target_side,
+                    target_faction,
+                    charge_cost=False,
+                    spend_budget=False,
+                )
+                record["finished"] = round(float(self.elapsed), 6)
+                record["remaining"] = 0.0
+                record["result"] = result
+                if result.get("ok"):
+                    record["status"] = "done"
+                else:
+                    record["status"] = "cancelled"
+                    record["reason"] = result.get(
+                        "reason"
+                    ) or "работа не выполнена"
+                    self._refund_process(record)
+                self.last_process_result = dict(record)
+                self._log_process(record, "завершена")
+                return
+        self._cancel_process(record, reason)
+
+    def _advance_processes(self, seconds):
+        if self.finished:
+            return
+        expired = []
+        for record in self._active_processes():
+            remaining = _number(record.get("remaining"), 0.0) - seconds
+            record["remaining"] = round(max(0.0, remaining), 6)
+            if remaining <= 0.0:
+                expired.append(record)
+        expired.sort(
+            key=lambda item: (
+                _number(item.get("finish_at"), self.elapsed),
+                str(item.get("id")),
+            )
+        )
+        for record in expired:
+            self._finish_process(record)
+        self._trim_processes()
+
+    def _log_process(self, record, phase):
+        self.events.append(
+            {
+                "turn": int(self.turn),
+                "kind": "process",
+                "phase": str(phase),
+                "process_id": record.get("id"),
+                "side": record.get("side"),
+                "action_id": record.get("action_id"),
+                "label": record.get("label"),
+                "status": record.get("status"),
+                "remaining": record.get("remaining"),
+                "reason": record.get("reason", ""),
+                "text": "процесс «%s» %s" % (
+                    record.get("label") or record.get("action_id"),
+                    phase,
+                ),
+            }
+        )
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
+
+    def _trim_processes(self):
+        limit = max(
+            1, int(_number(self.action_process.get("log_limit"), 40))
+        )
+        if len(self.processes) <= limit:
+            return
+        active = [
+            record
+            for record in self.processes
+            if record.get("status") == "active"
+        ]
+        done = [
+            record
+            for record in self.processes
+            if record.get("status") != "active"
+        ]
+        keep = max(0, limit - len(active))
+        self.processes = active + done[-keep:] if keep else active
 
     def auto_action(self, side, turn=None):
         options = [
@@ -3288,6 +3594,12 @@ class AutomataCampaign:
             "action_progress": round(float(self._action_progress), 6),
             "ai_progress": round(float(self._ai_progress), 6),
             "round_progress": round(float(self._round_progress), 6),
+            "action_process": dict(self.action_process),
+            "action_slots": int(self.action_slots),
+            "process_seq": int(self._process_seq),
+            "processes": [
+                dict(record) for record in self.processes
+            ],
             "score_streak": self.score_streak,
             "score_streak_side": self.score_streak_side,
             "player_side": self.player_side,
@@ -3512,6 +3824,43 @@ class AutomataCampaign:
             0.0,
             _number(snapshot.get("round_progress"), self._round_progress),
         )
+        saved_process = _as_mapping(snapshot.get("action_process"))
+        if saved_process:
+            self.action_process.update(
+                {str(key): value for key, value in saved_process.items()}
+            )
+        self.action_slots = max(
+            1,
+            int(
+                _number(
+                    snapshot.get("action_slots"),
+                    _number(self.action_process.get("slots"), 2),
+                )
+            ),
+        )
+        self.processes = [
+            dict(record)
+            for record in (snapshot.get("processes") or ())
+            if isinstance(record, Mapping) and record.get("id")
+        ]
+        self._process_seq = max(
+            int(
+                _number(
+                    snapshot.get("process_seq"),
+                    self._process_seq,
+                )
+            ),
+            len(self.processes),
+        )
+        for record in self.processes:
+            if "remaining" not in record:
+                record["remaining"] = _number(
+                    record.get("duration"), 0.0
+                )
+            if "finish_at" not in record:
+                record["finish_at"] = float(self.elapsed) + _number(
+                    record.get("remaining"), 0.0
+                )
         saved_speed = max(1, int(_number(snapshot.get("speed"), self.speed)))
         allowed_speeds = [
             level for level in self.speed_levels if level >= saved_speed

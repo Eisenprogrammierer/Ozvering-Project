@@ -9,66 +9,14 @@ import character_traits as CT
 import bdi as BDI
 import simulation as S
 
-NEEDS = (
-    "hunger",
-    "thirst",
-    "fatigue",
-    "health",
-    "fear",
-    "anxiety",
-    "loneliness",
-    "reproduction",
-    "knowledge",
-    "creativity",
-    "boredom",
-    "status",
-    "spirituality",
-    "skill",
-    "love",
-    "friendship",
-)
-
+# Потребности, подписи и темпы роста — данные BDI, а не копия в Python.
+_BDI_CONFIG = BDI.load_bdi()
+NEEDS = tuple(_BDI_CONFIG.needs)
 NEEDS_RU = {
-    "hunger": "голод",
-    "thirst": "жажда",
-    "fatigue": "усталость",
-    "health": "здоровье",
-    "fear": "страх",
-    "anxiety": "тревога",
-    "loneliness": "одиночество",
-    "reproduction": "репродукция",
-    "knowledge": "знания",
-    "creativity": "творчество",
-    "boredom": "скука",
-    "status": "статус",
-    "spirituality": "духовность",
-    "skill": "умение",
-    "love": "любовь",
-    "friendship": "дружба",
+    key: definition.label for key, definition in _BDI_CONFIG.needs.items()
 }
 
 
-_NEED_RATES = {
-    "hunger": 0.0038,
-    "thirst": 0.0052,
-    "fatigue": 0.0042,
-    "health": 0.0020,
-    "fear": 0.0022,
-    "anxiety": 0.0024,
-    "loneliness": 0.0022,
-    "reproduction": 0.0010,
-    "knowledge": 0.0018,
-    "creativity": 0.0018,
-    "boredom": 0.0025,
-    "status": 0.0024,
-    "spirituality": 0.0018,
-    "skill": 0.0018,
-    "love": 0.0018,
-    "friendship": 0.0018,
-}
-
-
-HEALTH_DEATH_THRESHOLD = 1.0
 HEALTH_NEED_WEIGHTS = {
     "hunger": 0.10,
     "thirst": 0.14,
@@ -132,14 +80,7 @@ class Personality:
 Intention = BDI.Intention
 
 # Тактические виды намерений из ``traits.json`` переводятся в BDI-сути.
-ESSENCE_FOR_KIND = {
-    "assault": "attack",
-    "banzai": "attack",
-    "fire": "probe",
-    "hold": "defend",
-    "rest": "rest",
-    "retreat": "retreat",
-}
+ESSENCE_FOR_KIND = dict(TRAIT_MODEL.essence_for_kind)
 
 
 @dataclass
@@ -313,7 +254,6 @@ class Character(S.UtilityAI):
         if self.divisions is None:
             return []
         return self.divisions.tags()
-
 
     # --- BDI: желания, убеждения, намерения -------------------------
     @property

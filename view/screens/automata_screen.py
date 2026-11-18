@@ -188,6 +188,17 @@ class AutomataScreen(BaseScreen):
         interp.set_variable(
             "automata_actions_per_turn", snapshot["actions_per_turn"]
         )
+        interp.set_variable(
+            "automata_slots", snapshot.get("action_slots", 2)
+        )
+        interp.set_variable(
+            "automata_slots_used",
+            len(
+                self.campaign.active_processes(
+                    self.campaign.player_side
+                )
+            ),
+        )
         interp.set_variable("automata_outcome", snapshot["outcome"])
         interp.set_variable("automata_elapsed", snapshot["elapsed"])
         interp.set_variable("automata_speed", snapshot["speed"])
@@ -289,27 +300,33 @@ class AutomataScreen(BaseScreen):
             )
             logger.info("Работа отклонена: %s (%s)", action_id, self.message)
             return
-        self.campaign.begin_turn()
-        result = self.campaign.perform(
+        result = self.campaign.start_action(
             self.campaign.player_side, action_id
         )
         self._sync_storyline()
         if not result.get("ok"):
-            self.message = result.get("reason") or "Работа не выполнена."
+            self.message = result.get("reason") or "Работа не начата."
             logger.info("Работа отклонена: %s (%s)", action_id, self.message)
             return
+        process = result.get("process") or {}
         self.selected_action_id = None
         self.last_result = result
-        self.message = ""
+        self.message = (
+            "Работа начата: %s · %.0f с."
+            % (
+                process.get("label") or action_id,
+                float(process.get("duration", 0.0)),
+            )
+        )
         logger.info(
-            "Работа автомата: %s → %s; успех=%s; шанс=%.3f; ход=%d; "
-            "действий осталось=%d",
-            result.get("actor_name", "?"),
-            result.get("target_name", "?"),
-            result.get("success"),
-            float(result.get("chance", 0.0)),
+            "Работа автомата начата: %s → %s; слоты=%d/%d; "
+            "длительность=%.1f с; цикл=%d",
+            process.get("label") or action_id,
+            process.get("target_name", "?"),
+            result.get("slots", {}).get("used", 0),
+            result.get("slots", {}).get("slots", 0),
+            float(process.get("duration", 0.0)),
             self.campaign.turn,
-            self.campaign.actions_left,
         )
         if self.campaign.finished:
             self._check_storyline_outcome()
@@ -624,12 +641,12 @@ class AutomataScreen(BaseScreen):
         screen.blit(
             self.app.font_title.render(title, True, TEXT), (24, 12)
         )
-        status = "время %s · скорость %s · цикл %d · действия %d/%d" % (
+        status = "время %s · скорость %s · цикл %d · слоты %d/%d" % (
             self.campaign.time_label(),
             self.campaign.speed_label(),
             self.campaign.turn,
-            self.campaign.actions_left,
-            self.campaign.actions_per_turn,
+            self.campaign.slot_state()["used"],
+            self.campaign.action_slots,
         )
         if self.campaign.outcome:
             status += " · исход: %s" % self.campaign.outcome
@@ -709,7 +726,9 @@ class AutomataScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "Клик — выбрать, затем «Выполнить».", True, DIM
+                "Клик — выбрать, затем «Начать». Работа идёт во времени.",
+                True,
+                DIM,
             ),
             (MID_RECT.x + 12, MID_RECT.y + 36),
         )
@@ -753,6 +772,16 @@ class AutomataScreen(BaseScreen):
                 detail = "орган: %s · %s" % (organ, detail)
             if cost_text:
                 detail += " · цена: %s" % cost_text
+            active_process = self.campaign.process_for_action(
+                self.campaign.player_side, option["id"]
+            )
+            if active_process is not None:
+                duration = max(
+                    1e-6, float(active_process.get("duration", 0.0))
+                )
+                left = max(0.0, float(active_process.get("remaining", 0.0)))
+                progress = 100.0 * (1.0 - min(1.0, left / duration))
+                detail += " · в работе %.0f%%" % progress
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
             for line_number, line in enumerate(
@@ -958,9 +987,9 @@ class AutomataScreen(BaseScreen):
         self._draw_button(
             screen,
             self._execute_rect(),
-            "Выполнить · 1 действие",
+            "Начать · 1 слот",
             enabled=self.selected_action_id is not None
-            and self.campaign.actions_left > 0
+            and self.campaign.slot_state()["free"] > 0
             and not self.campaign.finished,
         )
         self._draw_button(
@@ -1006,15 +1035,32 @@ class AutomataScreen(BaseScreen):
                 accent=True,
             )
         else:
-            if self.campaign.actions_left <= 0:
-                hint = (
-                    "Действия восстанавливаются со временем · %s."
-                    % self.campaign.speed_label()
+            active = self.campaign.active_processes(self.campaign.player_side)
+            slots = self.campaign.slot_state()
+            if active:
+                parts = []
+                for item in active[:2]:
+                    duration = max(1e-6, float(item.get("duration", 0.0)))
+                    left = max(0.0, float(item.get("remaining", 0.0)))
+                    parts.append(
+                        "%s %.0f%%"
+                        % (
+                            item.get("label") or item.get("action_id"),
+                            100.0 * (1.0 - min(1.0, left / duration)),
+                        )
+                    )
+                hint = "В работе: %s · слоты %d/%d" % (
+                    ", ".join(parts),
+                    slots["used"],
+                    slots["slots"],
                 )
             else:
-                hint = "Выбрано: %s · осталось действий: %d" % (
-                    self.selected_action_id or "ничего",
-                    self.campaign.actions_left,
+                hint = (
+                    "Выбрано: %s · свободно слотов: %d"
+                    % (
+                        self.selected_action_id or "ничего",
+                        slots["free"],
+                    )
                 )
             screen.blit(
                 self.app.font_tiny.render(hint, True, DIM),

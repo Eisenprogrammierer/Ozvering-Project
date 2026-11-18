@@ -3,6 +3,15 @@
   "run_turns_default": 72,
   "event_log_limit": 400,
   "snapshot_tail": 80,
+  "action_process": {
+    "slots": 2,
+    "default_duration": 40.0,
+    "duration_scale": 40.0,
+    "min_duration": 1.0,
+    "recheck_on_finish": true,
+    "refund_on_cancel": true,
+    "log_limit": 40
+  },
   "asset_labels": {
     "legitimacy": "законность",
     "influence": "влияние",

@@ -189,8 +189,8 @@ def test_main_menu_has_quick_paths(app):
     assert callable(app.quick_campaign) and callable(app.open_arena)
 
 
-def test_automata_screen_spends_one_action_per_work(app):
-    """«Выполнить» проводит работу, тратит действие и не завершает ход."""
+def test_automata_screen_starts_work_process(app):
+    """«Начать» занимает слот и разрешает работу во времени."""
     from pathlib import Path
 
     from campaign.automata import AutomataCampaign
@@ -212,12 +212,21 @@ def test_automata_screen_spends_one_action_per_work(app):
     assert available
     before = campaign.turn
     budget = campaign.actions_left
+    assert campaign.slot_state()["used"] == 0
     screen.selected_action_id = available[0]
     screen._execute_selected()
 
     assert campaign.turn == before
-    assert campaign.actions_left == budget - 1
+    assert campaign.actions_left == budget
     assert screen.selected_action_id is None
+    active = campaign.active_processes(campaign.player_side)
+    assert len(active) == 1
+    process = active[0]
+    assert process["action_id"] == available[0]
+    assert campaign.slot_state()["used"] == 1
+    assert campaign.slot_state()["free"] == campaign.action_slots - 1
+
+    campaign.advance_time(float(process["duration"]) + 0.1)
     player_actions = [
         item
         for item in campaign.log
@@ -226,7 +235,11 @@ def test_automata_screen_spends_one_action_per_work(app):
     ]
     assert len(player_actions) == 1
     assert player_actions[0]["action_id"] == available[0]
+    assert campaign.slot_state()["used"] == 0
+    finished = next(
+        item for item in campaign.processes if item["id"] == process["id"]
+    )
+    assert finished["status"] == "done"
 
     screen._end_turn()
     assert campaign.turn == before + 1
-    assert campaign.actions_left == campaign.actions_per_turn

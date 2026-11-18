@@ -115,8 +115,10 @@
 
 **Статус (2026-11-14): частично.** `campaign/content_lint.py` работает,
 линтер отклоняет события с `effects`, `schema_version` снимка есть.
-JSON Schema из `configs/schemas/` — открыто; golden-тесты снимка — есть
-базовые.
+JSON Schema исполняемых блоков (`effects`, `conditions`, `requires`,
+`organ`, `subfaction`, `automaton`) — закрыто; верхнеуровневые схемы
+целых файлов (`bdi`, `automata_defaults`, `campaign_template`, `work`,
+`event`) — открыты. Golden-тесты снимка — есть базовые.
 
 **Цель:** сделать ошибки контента громкими, а изменения схемы —
 безопасными. Поведение игры не меняется.
@@ -126,6 +128,9 @@ JSON Schema из `configs/schemas/` — открыто; golden-тесты сни
 1. Ввести `configs/schemas/` с JSON Schema для:
    `bdi`, `lore_factions`, `automata_defaults`, `campaign_template`,
    `organ_automaton`, `faction_automaton`, `work`, `event`.
+   **Сделано для исполняемых блоков:** `effects`, `conditions`,
+   `requires`, `organ`, `subfaction`, `automaton`; остальные —
+   открыты.
 2. `campaign/content_lint.py`:
    * проверка обязательных полей и типов;
    * проверка ссылок: `organ_id`, `target`, `requires.used_actions`,

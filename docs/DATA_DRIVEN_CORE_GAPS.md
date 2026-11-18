@@ -37,7 +37,8 @@
 | G-07 | закрыто | `campaign/conditions.py`, `requires.when` |
 | G-08 | закрыто частично | событие больше не пишет; `conditions` читают BDI/органы/флаги, но `_story_context` всё ещё узок |
 | G-09 | закрыто | `Belief.value/confidence/source/ttl`, `object: required/forbidden`, `decay_beliefs()` |
-| G-12 | закрыто частично | `campaign/content_lint.py`; JSON Schema ещё нет |
+| G-12 | закрыто | `campaign/content_lint.py` + `configs/schemas/` + `campaign/content_schema.py`; верхнеуровневые схемы файлов — P0 |
+| G-13 | закрыто | `traits.json::intent.essence_for_kind`, BDI-потребности и подписи читаются из JSON; `bdi.NEEDS` — инвариант, сверяется тестом |
 | G-15 | закрыто | пресет строит граф редактора из того же `StateMachineDefinition` |
 | G-16 | закрыто частично | линтер проверяет предикаты; `strict_predicates` остаётся `false` для рантайма |
 | G-17 | закрыто (этап B) | `campaign/geometry.py`: метрический граф, локальные углы, кратчайшие пути; этапы C/D отложены |
@@ -49,7 +50,7 @@
 | G-23 | закрыто | `discourse.connectives.mode`, `pattern.topic`, `render_moves`, `reason_in_text`, `lowercase_glue` |
 
 Остальные находки (G-06, G-08 в части ширины контекста, G-10, G-11,
-G-13, G-14) остаются открытыми. Орган-в-органе по `parent_id` и петля
+G-14) остаются открытыми. Орган-в-органе по `parent_id` и петля
 «лидер → доктрина» — следующие шаги.
 
 ---
@@ -98,7 +99,7 @@ G-13, G-14) остаются открытыми. Орган-в-органе по
 | G-10 | Расширяемость активов фракции реальна, но неполна и не валидируется | **Medium** | Новые лорные активы без формулы, подписи, диагностики |
 | G-11 | Подсистема отношений (`campaign/relations.py`) не подключена к кампании | **Medium** | `affinity/trust/fear/respect`, покупка, шантаж, верность |
 | G-12 | Нет валидации схем контента: неизвестные ключи молча игнорируются | **Medium** | Опечатка в `effects` = тихий no-op |
-| G-13 | Часть «данных» захардкожена в Python и дублирует JSON | **Medium** | `ESSENCE_FOR_KIND`, `NEEDS_BASE`, дефолты органов |
+| G-13 | Часть «данных» захардкожена в Python и дублирует JSON — **закрыто** | **Medium** | `traits.json::intent.essence_for_kind`, `bdi.json` для `NEEDS`/`NEEDS_RU`/темпов; дефолты органов уже в `automata_defaults.json` |
 | G-14 | Обратная связь «персонаж → фракция» односторонняя и мелкая | **Medium** | Влияние лидера на выбор действий и активы |
 | G-15 | Автоматы редактора и автоматы кампании — разные несовместимые форматы | **Low** | Единый авторский пайплайн |
 | G-16 | `strict_predicates: false`, проверка предикатов косметическая | **Low** | Опечатки в предикатах проходят загрузку |
@@ -513,9 +514,15 @@ weight *= 1 + max(0, 0.5 - defense)
 Следствие: опечатка `effects.belief` вместо `effects.beliefs` — тихий
 no-op. Для контента объёмом в тысячи строк это гарантированные потери.
 
-**Закрыто частично в P0:** `campaign/content_lint.py` ловит обязательные
-поля, ссылки, неизвестные ключи. JSON Schema в `configs/schemas/` — ещё
-нет.
+**Закрыто.** `campaign/content_lint.py` ловит обязательные поля, ссылки
+и неизвестные ключи, а `configs/schemas/` задаёт исполняемый контракт:
+`effects`, `conditions`, `requires`, `organ`, `subfaction`, `automaton`.
+`campaign/content_schema.py` валидирует их через `jsonschema`; зависимость
+необязательна — без неё линтер работает как раньше. Схемы проверяют себя
+(`check_schema_files`) и подключены к `lint()`, поэтому опечатка
+`effects.beliefs.add[0].valeu` или `state.labl` становится ошибкой с путём.
+Верхнеуровневые схемы целых файлов (`bdi`, `automata_defaults`,
+`campaign_template`, `work`, `event`) остаются в P0.
 
 ---
 
@@ -523,18 +530,49 @@ no-op. Для контента объёмом в тысячи строк это 
 
 **Medium.**
 
-* `campaign/preset.py:38-39`: `NEEDS_BASE`, `NEEDS_PRIORITY` берутся из
-  `PRESET_DEFAULTS` (Python), а не из `bdi.json`/`automata_defaults.json`.
-* `warfare.py:135`: `ESSENCE_FOR_KIND` — фиксированная карта.
-* `campaign/fractal.py`: `ORGAN_DEFAULT_INTEGRITY`, `ORGAN_MODEL_DEFAULTS`,
-  `DEFAULT_ORGAN_INTERACTIONS` — дефолты в коде.
-* `bdi.py`: `NEEDS` — кортеж из 16 имён (это осознанный инвариант, его
-  трогать нельзя, но он должен сверяться с JSON, что и делает тест).
+Закрыто:
 
-Следствие: изменение баланса требует правки Python; два источника истины
-расходятся.
+* `warfare.py` больше не хранит `NEEDS`, `NEEDS_RU`, `_NEED_RATES`:
+  имена, подписи и темпы роста читаются из `configs/characters/bdi.json`.
+* `organizations/needs.py` больше не дублирует имена, подписи и «блага»
+  потребностей: они выведены из того же `bdi.json`.
+* `ESSENCE_FOR_KIND` перенесён в `traits.json::model.intent.essence_for_kind`;
+  `TraitsConfig` валидирует ключи и пустые сути.
+* `campaign/preset.py`: `NEEDS_BASE`/`NEEDS_PRIORITY` уже приходят из
+  `automata_defaults.json::preset_defaults`.
+* `campaign/fractal.py`: `ORGAN_DEFAULT_INTEGRITY`,
+  `ORGAN_MODEL_DEFAULTS`, `DEFAULT_ORGAN_INTERACTIONS` уже читаются из
+  `automata_defaults.json`.
 
-**Открыто.**
+Остался осознанный инвариант: `bdi.NEEDS` — кортеж 16 канонических
+желаний. Он не является «данными баланса»: это контракт, который
+`BDIConfig` сверяет с JSON при загрузке, а тест — с остальным кодом.
+
+**Закрыто.**
+
+---
+
+### G-13a. Процессы действий вместо мгновенных эффектов
+
+**High.**
+
+Действие больше не обязано быть мгновенным. `start_action` занимает слот,
+списывает цену и создаёт запись процесса; `advance_time` уменьшает
+`remaining`, а при нуле повторно проверяет `requires` и только затем
+применяет эффект. Если мир изменился и предпосылки больше не выполнены,
+процесс отменяется, а цена возвращается.
+
+Число одновременных дел задаётся `automata_defaults.json::action_process`
+(`slots: 2`, `duration_scale`, `default_duration`, `log_limit`). Длительность
+берётся из `duration` работы или `template.duration`, умноженного на
+`duration_scale`; сценарий может переопределить блок целиком.
+
+Legacy `perform` остаётся мгновенным для старых вызовов и CLI-моста.
+Снимок хранит активные процессы и продолжает их после загрузки.
+
+**Закрыто базово:** UI кампании переведён на `start_action`; сетевые и
+персональные взаимодействия пока остаются мгновенными. Их перевод — в
+[`TODO.md`](TODO.md) §8.
 
 ---
 

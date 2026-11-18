@@ -944,6 +944,14 @@
         "rest": "истощение",
         "retreat": "паника"
       },
+      "essence_for_kind": {
+        "assault": "attack",
+        "banzai": "attack",
+        "fire": "probe",
+        "hold": "defend",
+        "rest": "rest",
+        "retreat": "retreat"
+      },
       "force": [
         {
           "trait": "aggression",

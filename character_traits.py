@@ -243,6 +243,28 @@ class TraitModel:
                     "model.intent.force: неизвестное намерение %s"
                     % rule.get("intent")
                 )
+        essences = self.intent.get("essence_for_kind") or {}
+        if not isinstance(essences, Mapping):
+            raise TraitDataError(
+                "model.intent.essence_for_kind должен быть объектом"
+            )
+        for intent, essence in essences.items():
+            known = set(self.intents) | set(
+                str(item) for item in (self.intent.get("reasons") or {})
+            )
+            if str(intent) not in known:
+                raise TraitDataError(
+                    "model.intent.essence_for_kind: "
+                    "неизвестное намерение %s" % intent
+                )
+            if not str(essence or "").strip():
+                raise TraitDataError(
+                    "model.intent.essence_for_kind.%s: пустая суть" % intent
+                )
+        self.essence_for_kind = {
+            str(key): str(value).strip()
+            for key, value in essences.items()
+        }
 
     @property
     def trait_names(self):

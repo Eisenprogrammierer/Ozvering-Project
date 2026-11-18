@@ -1,60 +1,15 @@
 from __future__ import annotations
 
-NEEDS = (
-    "hunger",
-    "thirst",
-    "fatigue",
-    "health",
-    "fear",
-    "anxiety",
-    "loneliness",
-    "reproduction",
-    "knowledge",
-    "creativity",
-    "boredom",
-    "status",
-    "spirituality",
-    "skill",
-    "love",
-    "friendship",
-)
+import bdi
 
+# Подписи, «блага» и порядок потребностей — данные BDI, а не копия.
+_BDI_CONFIG = bdi.load_bdi()
+NEEDS = tuple(_BDI_CONFIG.needs)
 NEEDS_RU = {
-    "hunger": "голод",
-    "thirst": "жажда",
-    "fatigue": "усталость",
-    "health": "здоровье",
-    "fear": "страх",
-    "anxiety": "тревога",
-    "loneliness": "одиночество",
-    "reproduction": "репродукция",
-    "knowledge": "знания",
-    "creativity": "творчество",
-    "boredom": "скука",
-    "status": "статус",
-    "spirituality": "духовность",
-    "skill": "умение",
-    "love": "любовь",
-    "friendship": "дружба",
+    key: definition.label for key, definition in _BDI_CONFIG.needs.items()
 }
-
 NEED_GOODS = {
-    "hunger": "продовольствие",
-    "thirst": "вода",
-    "fatigue": "отдых",
-    "health": "лечение",
-    "fear": "безопасность",
-    "anxiety": "порядок и определённость",
-    "loneliness": "общение",
-    "reproduction": "продолжение рода",
-    "knowledge": "знание",
-    "creativity": "творчество",
-    "boredom": "развлечение",
-    "status": "статус",
-    "spirituality": "смысл",
-    "skill": "мастерство",
-    "love": "любовь",
-    "friendship": "дружба",
+    key: definition.good for key, definition in _BDI_CONFIG.needs.items()
 }
 
 

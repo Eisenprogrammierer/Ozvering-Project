@@ -82,7 +82,7 @@
 | `configs/campaigns/*.json` | шаблоны пресетов | `campaign.preset.load_template()` | новый шаблон | фракции/сценарий | файл |
 | `configs/campaigns/forms.json` | манифест 19 форм работы: `payload_kinds`, `target_kinds`, `default_handler`, теги | `campaign.actions.FormCatalog.load()` | форма в `forms` + обработчик `base/handlers/<id>.json` | адресаты/обработчик | форма (проверить обработчик и действия) |
 | `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы, взаимодействия и геометрия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions`, геометрия в `geometry.<side>` | цели, активы, титулы, органы, работы, взаимодействия, длины/углы | фракция/орган/работа/взаимодействие/геометрия (проверить `organ_id`, `links` и узлы геометрии) |
-| `configs/campaigns/base/automata_defaults.json` | базовые данные кампании автоматов | `campaign.defaults.load_defaults()` | секция в JSON | модель, интервалы реального времени, скорости, взаимодействия, потребности, бюджет | секция (ядро читает без хардкода) |
+| `configs/campaigns/base/automata_defaults.json` | базовые данные кампании автоматов | `campaign.defaults.load_defaults()` | секция в JSON | модель, интервалы реального времени, скорости, взаимодействия, потребности, бюджет, слоты и длительности процессов | секция (ядро читает без хардкода) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
 | `configs/view/presentation.json` | плейсхолдеры/подписи ассетов | `view.ui.asset_loader` | ключ | значение | ключ |
@@ -484,6 +484,22 @@ custom = content.get("my_new_file", {})
 Специализированные файлы выбираются ссылкой из данных: `faction.automaton`,
 поле `automaton` подфракции, `organ.automaton_id`, затем `organ.<kind>`.
 Проверка — `python -m campaign.content_lint`.
+
+Исполняемые блоки описаны JSON Schema в `configs/schemas/`:
+`automaton`, `effects`, `conditions`, `requires`, `organ`, `subfaction`.
+Их проверяет `campaign/content_schema.py`; `content_lint` вызывает его
+вместе с семантическими проверками. `jsonschema` — необязательная
+dev-зависимость: без неё линтер работает как раньше.
+
+Действия кампании идут процессами. Блок
+`automata_defaults.json::action_process` задаёт `slots` (сколько дел
+одновременно), `duration_scale` (игровые секунды на единицу
+`template.duration`), `default_duration`, `min_duration`, повторную
+проверку при завершении и возврат цены при срыве. Работа может задать
+`duration` напрямую; сценарий кампании — переопределить блок
+`scenario.action_process`. Эффект применяется не при клике, а когда
+`advance_time` доведёт процесс до нуля. Мгновенный `perform` остаётся
+для CLI и старых вызовов.
 
 Производственный набор: четыре фракционных автомата, три автомата
 подфракций и девять архетипов органов. Добавление нового файла в папку не
