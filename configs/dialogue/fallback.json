@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "description": "Мостик от свободной формулировки к канонической логической форме. Правило срабатывает, только если парсер и фрагменты не дали форму; оно не угадывает смысл, а выбирает явно объявленный шаблон.",
+  "texts": {
+    "stance_intro": "Моё мнение о {target}:",
+    "stance_intention": "Намерение: {essence}.",
+    "stance_empty": "Особого мнения о {target} у меня нет.",
+    "war_with": "Мы воюем с {enemies}.",
+    "war_reasons": "Причина: {reasons}",
+    "war_none": "Сейчас мы ни с кем не воюем.",
+    "attitude": "Моё отношение к вам: {stance}.",
+    "attitude_positive": "расположение {affinity}, доверие {trust}",
+    "attitude_negative": "настороженность: расположение {affinity}, страх {fear}",
+    "attitude_neutral": "ровное, без близости",
+    "help": "Можно спросить о войне, союзах, силах, лидере, делах фракции или о моём отношении к вам."
+  },
+  "intentions": {
+    "coerce": "принудить",
+    "defend": "защищать",
+    "contain": "сдерживать",
+    "support": "поддержать"
+  },
+  "addressing": {
+    "description": "Фолбэк срабатывает только на вопрос или просьбу. Декларации без вопросительного знака, вопросительного слова или просьбы не перехватываются.",
+    "question_words": [
+      "что", "кто", "кем", "чем", "как", "какой", "какая", "какие",
+      "почему", "зачем", "отчего", "где", "куда", "откуда", "когда",
+      "сколько", "чей", "чья", "чьё", "чьи"
+    ],
+    "request_words": [
+      "расскажи", "расскажите", "рассказывай", "назови", "назовите",
+      "покажи", "покажите", "помоги", "помогите", "скажи", "скажите",
+      "объясни", "объясните", "приведи", "приведите", "дай", "дайте",
+      "подскажи", "подскажите", "можно", "нужен", "нужна", "нужно",
+      "хочу", "хотел", "хотела", "хотелось"
+    ]
+  },
+  "rules": [
+    {
+      "id": "self_intro",
+      "priority": 100,
+      "when": {
+        "all": [
+          ["расскажи", "расскажите", "рассказывай"],
+          ["себе", "себя"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "topic",
+          "topic": {"kind": "np", "head": "you_sg"}
+        }
+      }
+    },
+    {
+      "id": "war_status_with",
+      "priority": 95,
+      "when": {
+        "all": [
+          ["с", "кем"],
+          ["воюешь", "воюет", "воюем", "воевать", "воевал", "война", "конфликт"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "war", "why": false}
+    },
+    {
+      "id": "war_status_enemy",
+      "priority": 95,
+      "when": {
+        "all": [
+          ["кто", "назови", "есть"],
+          ["враг", "враги", "врагом", "врага", "противник", "противники"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "war", "why": false}
+    },
+    {
+      "id": "war_reason",
+      "priority": 96,
+      "when": {
+        "all": [
+          ["почему", "зачем", "отчего"],
+          ["война", "воюешь", "воюет", "воюем", "конфликт", "против"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "war", "why": true}
+    },
+    {
+      "id": "strength",
+      "priority": 90,
+      "when": {
+        "all": [
+          ["сколько"],
+          ["войск", "войска", "сил", "силы", "солдат", "армия", "армии", "органов", "людей", "подразделений"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:organ"}},
+          "owner": {
+            "object": {"head": {"entity": "$speaker_faction"}}
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities",
+      "priority": 90,
+      "when": {
+        "all": [
+          ["что", "чем"],
+          ["можешь", "умеешь", "делаешь", "может", "умеет", "занимаешься"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:work"}},
+          "owner": {
+            "object": {"head": {"entity": "$speaker_faction"}}
+          }
+        }
+      }
+    },
+    {
+      "id": "news",
+      "priority": 85,
+      "when": {
+        "all": [
+          ["что", "есть", "какие"],
+          ["нового", "новости", "новое", "происходит", "случилось", "творится", "слышно"]
+        ]
+      },
+      "sem": {
+        "kind": "request",
+        "action": "digest",
+        "target": "$speaker_faction"
+      }
+    },
+    {
+      "id": "digest_target",
+      "priority": 84,
+      "requires_target": true,
+      "target_types": ["faction"],
+      "when": {
+        "all": [
+          ["как", "что"],
+          ["дела", "жизнь", "происходит", "нового", "случилось"]
+        ]
+      },
+      "sem": {
+        "kind": "request",
+        "action": "digest",
+        "target": "$target"
+      }
+    },
+    {
+      "id": "how_are_you",
+      "priority": 80,
+      "when": {
+        "all": [
+          ["как"],
+          ["жизнь", "сам", "ты", "дела"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "how",
+        "body": {
+          "kind": "topic",
+          "topic": {
+            "kind": "np",
+            "head": {"entity": "concept:affairs"}
+          }
+        }
+      }
+    },
+    {
+      "id": "stance_target",
+      "priority": 78,
+      "requires_target": true,
+      "when": {
+        "all": [
+          ["что", "как"],
+          ["думаешь", "считаешь", "мнение", "относишься", "отношение", "скажешь"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "stance", "target": "$target"}
+    },
+    {
+      "id": "leader_target",
+      "priority": 76,
+      "requires_target": true,
+      "when": {
+        "all": [
+          ["кто"],
+          ["лидер", "правит", "глава", "руководит", "руководитель", "возглавляет"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "assert",
+          "predicate": "rule",
+          "object": {"head": {"entity": "$target"}}
+        }
+      }
+    },
+    {
+      "id": "about_target",
+      "priority": 70,
+      "requires_target": true,
+      "when": {
+        "all": [
+          ["расскажи", "расскажите", "рассказывай", "знаешь", "слышал", "известно"],
+          ["о", "об", "про"]
+        ]
+      },
+      "sem": {
+        "kind": "request",
+        "action": "tell",
+        "topic": {
+          "kind": "pp",
+          "prep": "about",
+          "object": {
+            "kind": "np",
+            "head": {"entity": "$target"}
+          }
+        }
+      }
+    },
+    {
+      "id": "attitude",
+      "priority": 68,
+      "when": {
+        "all": [
+          ["уважаешь", "уважает", "доверяешь", "доверяет", "боишься", "боится", "относишься"],
+          ["меня", "мне", "нас", "вас", "ты", "вы"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "attitude"}
+    },
+    {
+      "id": "help",
+      "priority": 60,
+      "when": {
+        "any": [
+          ["помоги", "помогите", "помощь", "помочь"],
+          ["должность", "должности", "пост", "назначь", "назначение", "совет"]
+        ]
+      },
+      "sem": {"kind": "request", "action": "hint"}
+    },
+    {
+      "id": "generic_target",
+      "priority": 20,
+      "requires_target": true,
+      "when": {
+        "all": [
+          ["что", "как", "почему", "где", "когда", "кто", "сколько", "расскажи", "какой", "какая", "какие"]
+        ]
+      },
+      "sem": {
+        "kind": "request",
+        "action": "tell",
+        "topic": {
+          "kind": "pp",
+          "prep": "about",
+          "object": {
+            "kind": "np",
+            "head": {"entity": "$target"}
+          }
+        }
+      }
+    },
+    {
+      "id": "generic_question",
+      "priority": 10,
+      "min_tokens": 2,
+      "when": {
+        "all": [
+          ["что", "как", "почему", "зачем", "где", "когда", "кто", "сколько", "какой", "какая", "какие", "есть"]
+        ]
+      },
+      "sem": {
+        "kind": "request",
+        "action": "digest",
+        "target": "$speaker_faction"
+      }
+    }
+  ]
+}

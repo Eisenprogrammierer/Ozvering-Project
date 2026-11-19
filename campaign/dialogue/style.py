@@ -55,11 +55,24 @@ _SUBJECT_FIELDS = {
     "$player_id": "player_id",
     "$player_name": "player_name",
     "$player_post": "player_post",
-    "$player_faction": "player_faction",
+    "$player_faction": "player_faction_id",
+    "$player_faction_name": "player_faction",
     "$player_side": "player_side",
     "$side": "side",
     "$faction_id": "faction_id",
+    "$relation_affinity": "relation_affinity",
+    "$relation_trust": "relation_trust",
+    "$relation_fear": "relation_fear",
+    "$relation_respect": "relation_respect",
+    "$player_relation_affinity": "player_relation_affinity",
+    "$player_relation_trust": "player_relation_trust",
+    "$player_relation_fear": "player_relation_fear",
+    "$player_relation_respect": "player_relation_respect",
 }
+
+_NUMERIC_OPERATORS = frozenset(
+    {"gt", "gte", "lt", "lte", ">", ">=", "<", "<="}
+)
 
 
 def normalize_gender(value: Any) -> str:
@@ -290,13 +303,15 @@ class StyleEngine:
         field_name = str(condition.get("field") or "")
         if not field_name:
             return False
-        actual = str(getattr(knowledge, field_name, "") or "")
+        actual_raw = getattr(knowledge, field_name, "")
+        actual = str(actual_raw if actual_raw is not None else "")
         operator = str(condition.get("op") or "eq")
         raw = condition.get("value")
         if isinstance(raw, Mapping):
             other_field = str(raw.get("field") or "")
+            expected_raw = getattr(knowledge, other_field, "")
             expected = str(
-                getattr(knowledge, other_field, "") or ""
+                expected_raw if expected_raw is not None else ""
             )
         elif isinstance(raw, (list, tuple)):
             expected_list = [
@@ -309,8 +324,14 @@ class StyleEngine:
             return False
         elif raw is None:
             expected = ""
+        elif isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            expected = raw
         else:
-            expected = _substitute(raw, knowledge)
+            expected = str(_substitute(raw, knowledge))
+        if operator in _NUMERIC_OPERATORS:
+            return self._numeric_compare(
+                actual_raw, expected, operator
+            )
         if operator == "eq":
             return bool(actual) and actual == expected
         if operator == "ne":
@@ -321,6 +342,25 @@ class StyleEngine:
             return actual in (expected,)
         if operator == "not_in":
             return actual not in (expected,)
+        return False
+
+    @staticmethod
+    def _numeric_compare(actual: Any, expected: Any, operator: str) -> bool:
+        """Сравнить два значения как числа; нечисло — не совпало."""
+
+        try:
+            left = float(actual)
+            right = float(expected)
+        except (TypeError, ValueError):
+            return False
+        if operator in ("gt", ">"):
+            return left > right
+        if operator in ("gte", ">="):
+            return left >= right
+        if operator in ("lt", "<"):
+            return left < right
+        if operator in ("lte", "<="):
+            return left <= right
         return False
 
     def profile(

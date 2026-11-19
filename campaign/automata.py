@@ -1585,8 +1585,30 @@ class AutomataCampaign:
             root_id="%s:faction" % side,
         )
 
+    def ensure_clock(self):
+        """Активировать реальное время, не сдвигая организационный цикл.
+
+        Свободный режим идёт непрерывно: открытие экрана или действие
+        игрока не являются TBS-ходом и не должны увеличивать ``turn``.
+        Цикл двигают только ``advance_time`` и внутренние таймеры.
+        """
+        if self.finished:
+            return self.snapshot()
+        if not self._turn_active:
+            self._turn_active = True
+            if self.turn <= 0:
+                self.turn = 1
+            self.actions_left = max(
+                self.actions_left, self.actions_per_turn
+            )
+        return self.snapshot()
+
     def begin_turn(self):
-        """Начать ход, если он ещё не начат."""
+        """Legacy: начать ход, если он ещё не начат.
+
+        Оставлен для старых сейвов, CLI и тестов. Игровые экраны
+        используют ``ensure_clock`` и не переключают цикл вручную.
+        """
         if self.finished or self._turn_active:
             return self.snapshot()
         self.turn += 1
@@ -1707,11 +1729,7 @@ class AutomataCampaign:
             return self.snapshot()
         if seconds <= 0.0:
             return self.snapshot()
-        if not self._turn_active:
-            self._turn_active = True
-            if self.turn <= 0:
-                self.turn = 1
-            self.actions_left = max(self.actions_left, self.actions_per_turn)
+        self.ensure_clock()
         scaled = seconds * float(self.speed)
         self.elapsed += scaled
         self._regenerate_actions(scaled)
@@ -2075,12 +2093,11 @@ class AutomataCampaign:
             return None
         if self.finished:
             return "кампания завершена"
-        if not self._turn_active:
-            self.begin_turn()
+        self.ensure_clock()
         if self.actions_left <= 0:
             return (
-                "бюджет действий исчерпан: завершите ход "
-                "(доступно %d за ход)" % self.actions_per_turn
+                "бюджет действий исчерпан: действия восстанавливаются "
+                "со временем (до %d за интервал)" % self.actions_per_turn
             )
         return None
 
@@ -4812,6 +4829,34 @@ class AutomataCampaign:
                                 )
                             ).items()
                         },
+                        "mind": str(getattr(character, "mind", "steady")),
+                        "last_mind": str(
+                            getattr(character, "_last_mind", "steady")
+                        ),
+                        "panicked": bool(
+                            getattr(character, "panicked", False)
+                        ),
+                        "fanatical": bool(
+                            getattr(character, "fanatical", False)
+                        ),
+                        "panic_timer": int(
+                            getattr(character, "panic_timer", 0)
+                        ),
+                        "fanatic_timer": int(
+                            getattr(character, "fanatic_timer", 0)
+                        ),
+                        "panic_cooldown": int(
+                            getattr(character, "panic_cooldown", 0)
+                        ),
+                        "fanatic_cooldown": int(
+                            getattr(character, "fanatic_cooldown", 0)
+                        ),
+                        "under_fire": float(
+                            getattr(character, "under_fire", 0.0)
+                        ),
+                        "casualties": int(
+                            getattr(character, "casualties", 0)
+                        ),
                     }
                     for character in faction.characters
                 ]
@@ -5153,6 +5198,42 @@ class AutomataCampaign:
                         saved.get("cooldowns")
                     ).items()
                 }
+                if "mind" in saved:
+                    character.mind = str(
+                        saved.get("mind") or "steady"
+                    )
+                if "last_mind" in saved:
+                    character._last_mind = str(
+                        saved.get("last_mind") or "steady"
+                    )
+                if "panicked" in saved:
+                    character.panicked = bool(saved.get("panicked"))
+                if "fanatical" in saved:
+                    character.fanatical = bool(saved.get("fanatical"))
+                if "panic_timer" in saved:
+                    character.panic_timer = max(
+                        0, int(_number(saved.get("panic_timer"), 0))
+                    )
+                if "fanatic_timer" in saved:
+                    character.fanatic_timer = max(
+                        0, int(_number(saved.get("fanatic_timer"), 0))
+                    )
+                if "panic_cooldown" in saved:
+                    character.panic_cooldown = max(
+                        0, int(_number(saved.get("panic_cooldown"), 0))
+                    )
+                if "fanatic_cooldown" in saved:
+                    character.fanatic_cooldown = max(
+                        0, int(_number(saved.get("fanatic_cooldown"), 0))
+                    )
+                if "under_fire" in saved:
+                    character.under_fire = max(
+                        0.0, _number(saved.get("under_fire"), 0.0)
+                    )
+                if "casualties" in saved:
+                    character.casualties = max(
+                        0, int(_number(saved.get("casualties"), 0))
+                    )
                 try:
                     character.desires = character.weighted_urgency()
                 except Exception:

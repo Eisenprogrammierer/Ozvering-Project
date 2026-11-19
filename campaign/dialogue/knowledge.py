@@ -168,9 +168,12 @@ class AgentKnowledge:
         player_name: str = "",
         player_post: str = "",
         player_faction: str = "",
+        player_faction_id: str = "",
         player_side: str = "",
         player_gender: str = "",
         player_organ_id: str = "",
+        relation_axes: Optional[Mapping[str, Any]] = None,
+        player_relation_axes: Optional[Mapping[str, Any]] = None,
         view: Any = None,
         perception: Any = None,
     ):
@@ -187,9 +190,22 @@ class AgentKnowledge:
         self.player_name = player_name
         self.player_post = player_post
         self.player_faction = player_faction
+        self._player_faction_id = _text(player_faction_id)
         self.player_side = player_side
         self.player_gender = player_gender
         self.player_organ_id = player_organ_id
+        self.relation_axes = {
+            str(axis): _relation_number(value)
+            for axis, value in (relation_axes or {}).items()
+        }
+        self.player_relation_axes = {
+            str(axis): _relation_number(value)
+            for axis, value in (player_relation_axes or {}).items()
+        }
+        for axis, value in self.relation_axes.items():
+            setattr(self, "relation_" + axis, value)
+        for axis, value in self.player_relation_axes.items():
+            setattr(self, "player_relation_" + axis, value)
         self.world = world
         self.clock = clock
         self.run_id = run_id or "campaign"
@@ -199,6 +215,17 @@ class AgentKnowledge:
         for fact in self.facts:
             self._by_rel.setdefault(fact.rel, []).append(fact)
         self._lexemes = {entry.id: entry for entry in catalog.lexicon}
+
+    @property
+    def player_faction_id(self) -> str:
+        """Идентификатор фракции игрока для фактов и условий.
+
+        ``player_faction`` остаётся человекочитаемым именем из шаблона
+        ответа, а ``player_faction_id`` — сущностью мира. Синтетические
+        знания без отдельного идентификатора читаются по-старому.
+        """
+
+        return self._player_faction_id or self.player_faction
 
     def facts_for(self, relation: str) -> Tuple[Fact, ...]:
         return tuple(self._by_rel.get(str(relation), ()))
@@ -349,6 +376,14 @@ def _numeric(value: Any) -> str:
         return _text(value)
 
 
+def _relation_number(value: Any) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(-1.0, min(1.0, number))
+
+
 def build_knowledge(
     catalog: DialogueCatalog,
     campaign: Any,
@@ -397,6 +432,13 @@ def build_knowledge(
     )
     player_faction = _text(
         getattr(player_faction_runtime, "name", ""), player_side
+    )
+    player_faction_entity = _text(
+        (specs.get(player_side) or {}).get("entity"),
+        aliases.get(
+            player_side,
+            "faction:%s" % player_side if player_side else "",
+        ),
     )
     player_gender = _player_gender(campaign, player_character)
 
@@ -660,6 +702,12 @@ def build_knowledge(
     else:
         facts = [fact for fact, _ in candidates]
 
+    relation_axes, player_relation_axes = _relation_snapshot(
+        campaign,
+        speaker_refs=(speaker_id, faction_entity),
+        player_refs=(player_entity, player_faction_entity),
+    )
+
     return AgentKnowledge(
         catalog,
         facts,
@@ -677,7 +725,10 @@ def build_knowledge(
         player_name=player_name,
         player_post=player_post,
         player_faction=player_faction,
+        player_faction_id=player_faction_entity,
         player_side=player_side,
+        relation_axes=relation_axes,
+        player_relation_axes=player_relation_axes,
         player_gender=player_gender,
         player_organ_id=_text(
             getattr(player_character, "campaign_organ_id", "")
@@ -685,6 +736,55 @@ def build_knowledge(
         view=view,
         perception=perception,
     )
+
+
+def _relation_snapshot(
+    campaign: Any,
+    *,
+    speaker_refs: Iterable[str],
+    player_refs: Iterable[str],
+) -> Tuple[Mapping[str, float], Mapping[str, float]]:
+    """Снять оси отношений в обоих направлениях.
+
+    ``RelationStore`` может хранить связь по идентификатору персонажа
+    или по сущности фракции. Снимок берёт максимум по модулю из
+    доступных пар, чтобы не зависеть от того, какой идентификатор
+    использовал эффект. Отсутствие хранилища — это нейтральные нули,
+    а не ошибка диалога.
+    """
+
+    store = getattr(campaign, "relations", None)
+    if store is None or not hasattr(store, "axes_for"):
+        return {}, {}
+
+    def merge(pairs: Iterable[Tuple[str, str]]) -> Mapping[str, float]:
+        result: Dict[str, float] = {}
+        for source, target in pairs:
+            if not source or not target:
+                continue
+            try:
+                axes = store.axes_for(source, target)
+            except Exception:
+                continue
+            for axis, value in (axes or {}).items():
+                number = _relation_number(value)
+                if abs(number) > abs(result.get(str(axis), 0.0)):
+                    result[str(axis)] = number
+        return result
+
+    speakers = tuple(
+        _text(item) for item in speaker_refs if _text(item)
+    )
+    players = tuple(
+        _text(item) for item in player_refs if _text(item)
+    )
+    outgoing = merge(
+        (speaker, player) for speaker in speakers for player in players
+    )
+    incoming = merge(
+        (player, speaker) for player in players for speaker in speakers
+    )
+    return outgoing, incoming
 
 
 def _authority_fact(

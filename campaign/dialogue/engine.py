@@ -25,6 +25,7 @@ from typing import Any, Mapping, Optional
 
 from .answers import Answer, AnswerPlanner
 from .bridge import ActionBridge, ActionResult
+from .fallback import FallbackEngine
 from .knowledge import AgentKnowledge
 from .morph import Morphology
 from .model import DialogueCatalog, Parse, Persona
@@ -103,6 +104,9 @@ class DialogueSession:
             knowledge,
             self.memory,
             morphology=self.morphology,
+        )
+        self.fallback = FallbackEngine(
+            catalog, knowledge, self.state.entities
         )
         defaults = (catalog.movement or {}).get("defaults") or {}
         if not self.state.location:
@@ -372,6 +376,22 @@ class DialogueSession:
         answer = self.planner.plan(
             sem, style=self._profile(), detail=detail
         )
+        if answer.plan_id == "unmatched" and source == "parser":
+            fallback_sem, fallback_id = self.fallback.interpret(text)
+            if fallback_sem is not None:
+                fallback_sem, unresolved = self.state.resolve_pronouns(
+                    fallback_sem
+                )
+                if not unresolved:
+                    fallback_sem = self.state.apply_question_intent(
+                        fallback_sem, text
+                    )
+                    sem = fallback_sem
+                    source = "fallback:%s" % fallback_id
+                    mentioned = self.state.observe_sem(sem)
+                    answer = self.planner.plan(
+                        sem, style=self._profile(), detail=detail
+                    )
         if answer.kind == "social":
             effect = (answer.data or {}).get("effect")
             if isinstance(effect, Mapping):
@@ -419,6 +439,9 @@ class DialogueSession:
         sem, fragment_id, reason = self.state.fragment(text)
         if sem is not None:
             return sem, None, "fragment:%s" % fragment_id
+        sem, rule_id = self.fallback.interpret(text)
+        if sem is not None:
+            return sem, None, "fallback:%s" % rule_id
         return None, None, reason
 
     def _clarification(

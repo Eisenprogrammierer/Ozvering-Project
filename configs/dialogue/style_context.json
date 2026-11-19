@@ -97,6 +97,161 @@
       ]
     },
     {
+      "id": "relation_xenophobia",
+      "style": "hostile",
+      "priority": 88,
+      "description": "Расположение к игроку резко отрицательное — враждебный регистр.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "relation_affinity",
+          "op": "<=",
+          "value": -0.45
+        }
+      ]
+    },
+    {
+      "id": "relation_fear_hostile",
+      "style": "hostile",
+      "priority": 87,
+      "description": "Страх и неприязнь вместе дают враждебный регистр.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "relation_fear",
+          "op": ">=",
+          "value": 0.45
+        },
+        {
+          "kind": "field",
+          "field": "relation_affinity",
+          "op": "<=",
+          "value": -0.1
+        }
+      ]
+    },
+    {
+      "id": "relation_fear_report",
+      "style": "report",
+      "priority": 86,
+      "description": "Сильный страх перед игроком — подчинённый доклад.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "relation_fear",
+          "op": ">=",
+          "value": 0.55
+        },
+        {
+          "kind": "field",
+          "field": "relation_affinity",
+          "op": ">=",
+          "value": -0.1
+        }
+      ]
+    },
+    {
+      "id": "belief_threat_hostile",
+      "style": "hostile",
+      "priority": 92,
+      "description": "Собеседник считает фракцию игрока угрозой — враждебный регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "belief",
+          "args": [
+            "$speaker_id",
+            "$speaker_faction",
+            "sees_as_threat",
+            "$player_faction"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "belief_outlaw_hostile",
+      "style": "hostile",
+      "priority": 91,
+      "description": "Собеседник считает фракцию игрока незаконной — враждебный регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "belief",
+          "args": [
+            "$speaker_id",
+            "$speaker_faction",
+            "considers_illegitimate",
+            "$player_faction"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intention_coerce_hostile",
+      "style": "hostile",
+      "priority": 90,
+      "description": "Собеседник намерен принудить фракцию игрока — враждебный регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "intention",
+          "args": ["$speaker_id", "$player_faction", "coerce"]
+        }
+      ]
+    },
+    {
+      "id": "relation_trust_friendly",
+      "style": "friendly",
+      "priority": 72,
+      "description": "Собеседник доверяет игроку — дружеский регистр.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "relation_trust",
+          "op": ">=",
+          "value": 0.35
+        }
+      ]
+    },
+    {
+      "id": "relation_respect_mentor",
+      "style": "mentor",
+      "priority": 70,
+      "description": "Уважение без близости — наставительный регистр.",
+      "when": [
+        {
+          "kind": "field",
+          "field": "relation_respect",
+          "op": ">=",
+          "value": 0.55
+        },
+        {
+          "kind": "field",
+          "field": "relation_affinity",
+          "op": ">=",
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "id": "belief_allied_friendly",
+      "style": "friendly",
+      "priority": 66,
+      "description": "Собеседник считает фракции союзными — дружеский регистр.",
+      "when": [
+        {
+          "kind": "fact",
+          "rel": "belief",
+          "args": [
+            "$speaker_id",
+            "$speaker_faction",
+            "allied_with",
+            "$player_faction"
+          ]
+        }
+      ]
+    },
+    {
       "id": "default_official",
       "style": "official",
       "priority": 10,

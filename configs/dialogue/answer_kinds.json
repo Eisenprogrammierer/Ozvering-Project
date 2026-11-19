@@ -64,6 +64,18 @@
       "label": "последние работы",
       "handler": "last_works"
     },
+    "war": {
+      "label": "война и причины",
+      "handler": "war"
+    },
+    "stance": {
+      "label": "мнение о сущности",
+      "handler": "stance"
+    },
+    "attitude": {
+      "label": "отношение к собеседнику",
+      "handler": "attitude"
+    },
     "social": {
       "label": "речевой акт",
       "handler": "social"

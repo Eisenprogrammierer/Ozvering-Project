@@ -453,7 +453,7 @@ class OrganizationRuntime(S.Environment):
         analysis = self.analysis
         return {
             "force": self.force,
-            "energy_pool": self.energy_pool,
+            "energy_pool": float(self.energy_pool),
             "name": self.name,
             "side": self.side,
             "tick": self.tick_count,

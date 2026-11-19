@@ -191,7 +191,7 @@ class AutomataScreen(BaseScreen):
     def __init__(self, app, campaign):
         super().__init__(app)
         self.campaign = campaign
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         self.selected_action_id = None
         self.action_scroll = 0
         self.log_scroll = 0
@@ -199,11 +199,10 @@ class AutomataScreen(BaseScreen):
         self.last_result = None
         self._sync_storyline()
         logger.info(
-            "Экран автоматов: фракций=%d, ход=%d, действий=%d/%d, игрок=%s",
+            "Экран автоматов: фракций=%d, цикл=%d, слоты=%d, игрок=%s",
             len(campaign.factions),
             campaign.turn,
-            campaign.actions_left,
-            campaign.actions_per_turn,
+            campaign.action_slots,
             campaign.player_side,
         )
 
@@ -407,7 +406,7 @@ class AutomataScreen(BaseScreen):
         )
 
     def _end_turn(self):
-        """Совместимый помощник для старых вызовов вне интерфейса."""
+        """Legacy-помощник для старых вызовов вне интерфейса."""
         if self.campaign.finished:
             return
         self.campaign.end_turn()
@@ -417,15 +416,17 @@ class AutomataScreen(BaseScreen):
         )
         self._sync_storyline()
         if not self.campaign.finished:
+            # Legacy-помощник сохраняет старую семантику «завершить ход»:
+            # следующий цикл начинается сразу. Игровые экраны его не зовут.
             self.campaign.begin_turn()
             self.message = (
-                "Ход завершён. Начат ход %d; действий: %d."
+                "Цикл завершён. Цикл %d; доступно действий: %d."
                 % (self.campaign.turn, self.campaign.actions_left)
             )
         else:
             self.message = "Кампания завершена."
         logger.info(
-            "Ход автоматов завершён: ход=%d, действий=%d/%d, исход=%s",
+            "Цикл автоматов завершён: цикл=%d, действий=%d/%d, исход=%s",
             self.campaign.turn,
             self.campaign.actions_left,
             self.campaign.actions_per_turn,
@@ -527,10 +528,6 @@ class AutomataScreen(BaseScreen):
             130,
             40,
         )
-
-    def _end_turn_rect(self):
-        """Совместимый псевдоним кнопки ускорения для старых вызовов."""
-        return self._speed_up_rect()
 
     def _network_rect(self):
         return pygame.Rect(

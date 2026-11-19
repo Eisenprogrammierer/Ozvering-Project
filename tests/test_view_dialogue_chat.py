@@ -1,9 +1,8 @@
-"""Headless-тест экрана чата: авто-режим, причина выбора и отправка.
+"""Headless-тест экрана чата: вычисленный тон и отправка.
 
-Экран не содержит диалоговой логики, но именно он передаёт пустой
-``style_id`` как ``set_style(None)`` и показывает причину автовыбора.
-Тест рисует кадр в dummy-видеодрайвере и проверяет состояние, не
-открывая окно.
+Экран не содержит диалоговой логики и не даёт выбрать регистр вручную:
+тон вычисляют отношения и убеждения говорящего. Тест рисует кадр в
+dummy-видеодрайвере и проверяет состояние, не открывая окно.
 """
 
 from __future__ import annotations
@@ -49,37 +48,20 @@ def _chat_screen():
     return pygame, DialogueChatScreen(app)
 
 
-def test_chat_starts_in_auto_mode():
+def test_chat_always_uses_computed_style():
     _pygame, screen = _chat_screen()
-    assert screen.style_id == ""
     assert screen.session is not None
     assert screen.session.is_auto()
-    rows = screen._style_rows()
-    assert rows
-    assert rows[0][1] == ""
-    assert rows[0][2] == "авто"
-    assert all(
-        style_id for _rect, style_id, _label in rows[1:]
-    )
-
-
-def test_chat_auto_reason_comes_from_decision():
-    pygame, screen = _chat_screen()
+    assert screen._style_label()
     assert screen._style_reason()
+    assert not hasattr(screen, "_select_style")
+    assert not hasattr(screen, "_style_rows")
+
+
+def test_chat_draws_computed_style_caption():
+    pygame, screen = _chat_screen()
     surface = pygame.Surface((1280, 720))
     screen.draw(surface)
-
-
-def test_chat_manual_style_switches_and_keeps_reason():
-    _pygame, screen = _chat_screen()
-    screen._select_style("mentor")
-    assert screen.style_id == "mentor"
-    assert screen.session.style_id == "mentor"
-    assert not screen.session.is_auto()
-    assert screen._style_spec() is not None
-    screen._select_style("")
-    assert screen.style_id == ""
-    assert screen.session.is_auto()
 
 
 def test_chat_send_adds_player_and_agent_messages():

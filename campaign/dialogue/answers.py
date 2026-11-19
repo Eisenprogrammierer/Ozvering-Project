@@ -797,6 +797,187 @@ class AnswerPlanner:
         )
         return Answer("smalltalk", text, plan.id, data={"key": key})
 
+    def _fallback_texts(self) -> Mapping[str, str]:
+        spec = getattr(self.catalog, "fallback", None)
+        if not isinstance(spec, Mapping):
+            return {}
+        texts = spec.get("texts")
+        return texts if isinstance(texts, Mapping) else {}
+
+    def _intention_sentences(self, target: str) -> List[str]:
+        texts = self._fallback_texts()
+        spec = getattr(self.catalog, "fallback", None)
+        labels = (
+            spec.get("intentions") if isinstance(spec, Mapping) else None
+        ) or {}
+        if not isinstance(labels, Mapping):
+            labels = {}
+        template = str(texts.get("stance_intention") or "")
+        result: List[str] = []
+        for fact in self.knowledge.facts_for("intention"):
+            if len(fact.args) < 3:
+                continue
+            holder, subject, essence = fact.args[:3]
+            if holder != self.knowledge.speaker_id:
+                continue
+            if subject != target:
+                continue
+            label = str(labels.get(essence) or essence)
+            if template:
+                result.append(template.format(essence=label))
+            else:
+                result.append(label)
+        return result
+
+    def _answer_war(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Ответ о войне: с кем и почему, без выдуманных причин."""
+
+        texts = self._fallback_texts()
+        faction = str(self.knowledge.faction_id or "")
+        wars = []
+        seen = set()
+        for fact in self.knowledge.facts_for("at_war_with"):
+            args = tuple(str(item) for item in fact.args)
+            if len(args) < 2 or faction not in args[:2]:
+                continue
+            enemy = args[1] if args[0] == faction else args[0]
+            if not enemy or enemy in seen:
+                continue
+            seen.add(enemy)
+            wars.append((args, enemy))
+        if not wars:
+            text = str(texts.get("war_none") or "")
+            if not text:
+                return self._unknown(plan.id)
+            text = self.realizer.realize_answer(
+                "explanation", {"message": text}, fallback=text
+            )
+            return Answer("no", text, plan.id, data={"wars": []})
+        names = [
+            self.knowledge.surface(enemy, "ins")
+            or self.knowledge.name(enemy)
+            for _args, enemy in wars
+        ]
+        text = str(texts.get("war_with") or "").format(
+            enemies=", ".join(names)
+        )
+        data: Dict[str, Any] = {
+            "wars": [enemy for _args, enemy in wars],
+        }
+        if bool(plan.answer.get("why", False)):
+            reasons: List[str] = []
+            for _args, enemy in wars:
+                reasons.extend(self._belief_sentences(enemy))
+                reasons.extend(self._intention_sentences(enemy))
+            if reasons:
+                template = str(texts.get("war_reasons") or "")
+                if template:
+                    text += " " + template.format(
+                        reasons=" ".join(reasons)
+                    )
+                else:
+                    text += " " + " ".join(reasons)
+                data["reasons"] = reasons
+        text = self.realizer.realize_answer(
+            "explanation", {"message": text}, fallback=text
+        )
+        return Answer("explanation", text, plan.id, data=data)
+
+    def _answer_stance(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Мнение о сущности: убеждения и намерения, иначе сводка."""
+
+        target = _resolve(
+            str(plan.answer.get("target") or ""), captures
+        )
+        if not target:
+            return self._unknown(plan.id)
+        sentences = self._belief_sentences(target)
+        sentences.extend(self._intention_sentences(target))
+        texts = self._fallback_texts()
+        data: Dict[str, Any] = {"target": target}
+        if sentences:
+            intro = str(texts.get("stance_intro") or "").format(
+                target=self.knowledge.surface(target, "prep")
+                or self.knowledge.name(target)
+            )
+            text = (intro + " " + " ".join(sentences)).strip()
+            kind = "explanation"
+            data["sentences"] = sentences
+        else:
+            text = self.realizer.summary(target)
+            if not text:
+                text = str(texts.get("stance_empty") or "").format(
+                    target=self.knowledge.name(target)
+                )
+            kind = "summary"
+            data["sentences"] = []
+        if not text:
+            return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            kind, {"message": text}, fallback=text
+        )
+        return Answer(kind, text, plan.id, data=data)
+
+    def _answer_attitude(
+        self, plan: PlanSpec, captures: Mapping[str, str]
+    ) -> Answer:
+        """Отношение говорящего к игроку из осей отношений и фактов."""
+
+        axes = getattr(self.knowledge, "relation_axes", {}) or {}
+        affinity = _to_float(axes.get("affinity")) or 0.0
+        trust = _to_float(axes.get("trust")) or 0.0
+        fear = _to_float(axes.get("fear")) or 0.0
+        player_faction = str(
+            getattr(self.knowledge, "player_faction_id", "") or ""
+        )
+        faction = str(self.knowledge.faction_id or "")
+        at_war = any(
+            set(fact.args[:2]) == {faction, player_faction}
+            for fact in self.knowledge.facts_for("at_war_with")
+            if len(fact.args) >= 2 and player_faction
+        )
+        trusted = any(
+            len(fact.args) >= 2
+            and fact.args[0] == self.knowledge.player_id
+            and fact.args[1] == self.knowledge.speaker_id
+            for fact in self.knowledge.facts_for("trusts")
+        )
+        texts = self._fallback_texts()
+        if at_war or affinity <= -0.25:
+            stance = str(texts.get("attitude_negative") or "").format(
+                affinity="%.2f" % affinity,
+                fear="%.2f" % fear,
+            )
+        elif trust >= 0.25 or trusted:
+            stance = str(texts.get("attitude_positive") or "").format(
+                affinity="%.2f" % affinity,
+                trust="%.2f" % trust,
+            )
+        else:
+            stance = str(texts.get("attitude_neutral") or "")
+        text = str(texts.get("attitude") or "{stance}").format(
+            stance=stance
+        )
+        if not text:
+            return self._unknown(plan.id)
+        text = self.realizer.realize_answer(
+            "explanation", {"message": text}, fallback=text
+        )
+        return Answer(
+            "attitude",
+            text,
+            plan.id,
+            data={
+                "axes": dict(axes),
+                "at_war": at_war,
+                "trusted": trusted,
+            },
+        )
+
     def _answer_prove(
         self, plan: PlanSpec, captures: Mapping[str, str]
     ) -> Answer:

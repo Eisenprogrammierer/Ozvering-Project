@@ -494,5 +494,6 @@ class DialogueCatalog:
     movement: Mapping[str, Any] = field(default_factory=dict)
     time: Mapping[str, Any] = field(default_factory=dict)
     narrator: Mapping[str, Any] = field(default_factory=dict)
+    fallback: Mapping[str, Any] = field(default_factory=dict)
     world: Mapping[str, Any] = field(default_factory=dict)
     raw: Mapping[str, Any] = field(default_factory=dict)

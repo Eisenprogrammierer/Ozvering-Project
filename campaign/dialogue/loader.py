@@ -45,7 +45,23 @@ from .model import (
 
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "configs" / "dialogue"
 
-CONTEXT_OPERATORS = frozenset({"eq", "ne", "in", "not_in", "exists"})
+CONTEXT_OPERATORS = frozenset(
+    {
+        "eq",
+        "ne",
+        "in",
+        "not_in",
+        "exists",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        ">",
+        ">=",
+        "<",
+        "<=",
+    }
+)
 EFFECT_TYPES = frozenset(
     {
         "commitment",
@@ -878,6 +894,17 @@ def load_narrator(root: Path) -> Mapping[str, Any]:
     return raw
 
 
+def load_fallback(root: Path) -> Mapping[str, Any]:
+    """Правила фолбэка: как разобрать свободную формулировку без парсера."""
+
+    path = root / "fallback.json"
+    if not path.exists():
+        return {}
+    raw = _read_json(path)
+    _require_schema(raw, path)
+    return raw
+
+
 def load_world(root: Path) -> Mapping[str, Any]:
     path = root / "world.json"
     if not path.exists():
@@ -930,6 +957,7 @@ def load_dialogue(
     movement = load_movement(root)
     time = load_time(root)
     narrator = load_narrator(root)
+    fallback = load_fallback(root)
     world = load_world(root)
     plans = load_plans(root)
     answer_kinds = load_answer_kinds(root)
@@ -966,6 +994,7 @@ def load_dialogue(
         movement=movement,
         time=time,
         narrator=narrator,
+        fallback=fallback,
         world=world,
         raw={
             "ontology": ontology.raw,
@@ -982,5 +1011,6 @@ def load_dialogue(
             "movement": movement,
             "time": time,
             "narrator": narrator,
+            "fallback": fallback,
         },
     )

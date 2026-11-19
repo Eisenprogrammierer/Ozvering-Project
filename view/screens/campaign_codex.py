@@ -4,7 +4,7 @@
 и органы-автоматы. Если кампания запущена, выбранную запись своей фракции
 можно сразу усилить: для персонажа доступны повышение, награда, поддержка
 и допрос, для органа — усиление, реформа, чистка и снабжение. Действия
-тратят общий бюджет хода и не требуют перехода в сеть.
+тратят общий запас действий и не требуют перехода в сеть.
 
 В блоке действий показывается ожидаемый отчёт обработчика на текущем
 снимке (``build_interaction_work`` → ``handlers.receive``), без применения.
@@ -411,7 +411,7 @@ class CampaignCodexScreen(BaseScreen):
                 option.get("reason") or "Действие недоступно."
             )
             return None
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         if kind == "character":
             result = self.campaign.perform_character_interaction(
                 self._player_side(), owner_id, interaction_id
@@ -429,7 +429,7 @@ class CampaignCodexScreen(BaseScreen):
             return result
         if kind == "character":
             self.action_message = (
-                "%s: %s; мораль %.0f → %.0f; действий осталось %d"
+                "%s: %s; мораль %.0f → %.0f; запас действий %d"
                 % (
                     result.get("character_name", "персонаж"),
                     result.get("label", "действие"),
@@ -440,7 +440,7 @@ class CampaignCodexScreen(BaseScreen):
             )
         else:
             self.action_message = (
-                "%s: %s; целостность %.0f%% → %.0f%%; действий осталось %d"
+                "%s: %s; целостность %.0f%% → %.0f%%; запас действий %d"
                 % (
                     result.get("organ_name", "орган"),
                     result.get("label", "действие"),
@@ -451,7 +451,7 @@ class CampaignCodexScreen(BaseScreen):
             )
         self._sync_storyline()
         logger.info(
-            "Кодекс: %s → %s; действий %d",
+            "Кодекс: %s → %s; запас действий %d",
             result.get("character_name") or result.get("organ_name", "?"),
             result.get("interaction_id", "?"),
             self.campaign.actions_left,
@@ -609,7 +609,7 @@ class CampaignCodexScreen(BaseScreen):
             morale = float(live.get("morale", 0.0))
             screen.blit(
                 self.app.font_tiny.render(
-                    "мораль %.0f · действий кампании %d"
+                    "мораль %.0f · запас действий %d"
                     % (
                         morale,
                         self.campaign.actions_left
@@ -710,7 +710,7 @@ class CampaignCodexScreen(BaseScreen):
         if organ is not None:
             screen.blit(
                 self.app.font_tiny.render(
-                    "Состояние: %s · целостность %.0f%% · действий %d"
+                    "Состояние: %s · целостность %.0f%% · запас действий %d"
                     % (
                         organ.status(),
                         organ.integrity * 100.0,
@@ -865,7 +865,7 @@ class CampaignCodexScreen(BaseScreen):
         if self.campaign is None:
             heading = "ДЕЙСТВИЯ · кампания не запущена"
         else:
-            heading = "ДЕЙСТВИЯ · %d/%d" % (
+            heading = "ДЕЙСТВИЯ · запас %d/%d" % (
                 self.campaign.actions_left,
                 self.campaign.actions_per_turn,
             )

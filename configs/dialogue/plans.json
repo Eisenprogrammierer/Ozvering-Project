@@ -431,6 +431,127 @@
       }
     },
     {
+      "id": "digest_target",
+      "priority": 74,
+      "match": {
+        "kind": "request",
+        "action": "digest",
+        "target": "$target"
+      },
+      "answer": {
+        "type": "summary",
+        "target": "$target"
+      }
+    },
+    {
+      "id": "war_fallback",
+      "priority": 74,
+      "match": {
+        "kind": "request",
+        "action": "war",
+        "why": false
+      },
+      "answer": {
+        "type": "war",
+        "why": false
+      }
+    },
+    {
+      "id": "war_reason_fallback",
+      "priority": 74,
+      "match": {
+        "kind": "request",
+        "action": "war",
+        "why": true
+      },
+      "answer": {
+        "type": "war",
+        "why": true
+      }
+    },
+    {
+      "id": "war_topic_why",
+      "priority": 73,
+      "match": {
+        "kind": "question",
+        "wh": "why",
+        "body": {
+          "kind": "topic",
+          "topic": {
+            "head": {
+              "entity": "concept:war"
+            }
+          }
+        }
+      },
+      "answer": {
+        "type": "war",
+        "why": true
+      }
+    },
+    {
+      "id": "think_about",
+      "priority": 73,
+      "match": {
+        "kind": "question",
+        "wh": "what",
+        "body": {
+          "kind": "assert",
+          "predicate": "think",
+          "subject": "you_sg",
+          "object": {
+            "kind": "pp",
+            "prep": "about",
+            "object": {
+              "head": {
+                "entity": "$target"
+              }
+            }
+          }
+        }
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target"
+      }
+    },
+    {
+      "id": "stance_fallback",
+      "priority": 72,
+      "match": {
+        "kind": "request",
+        "action": "stance",
+        "target": "$target"
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target"
+      }
+    },
+    {
+      "id": "attitude_fallback",
+      "priority": 72,
+      "match": {
+        "kind": "request",
+        "action": "attitude"
+      },
+      "answer": {
+        "type": "attitude"
+      }
+    },
+    {
+      "id": "hint_fallback",
+      "priority": 60,
+      "match": {
+        "kind": "request",
+        "action": "hint"
+      },
+      "answer": {
+        "type": "smalltalk",
+        "key": "fallback_hint"
+      }
+    },
+    {
       "id": "organs_list",
       "priority": 70,
       "match": {

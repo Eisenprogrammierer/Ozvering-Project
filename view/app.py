@@ -514,7 +514,7 @@ class App:
         interp.state["automata"] = self.automata_campaign.snapshot()
         logger.info(
             "Кампания автоматов запущена: %s; роль=%s; игрок=%s; "
-            "действий за ход=%d",
+            "действий за интервал=%d",
             storyline.get("storyline_id", "?"),
             role.id,
             self.automata_campaign.player_side,
@@ -1067,7 +1067,7 @@ class App:
         self.music.request_category("ambient")
         self.manager.replace_all(AutomataScreen(self, campaign))
         logger.info(
-            "Кампания автоматов открыта: %s, ход=%d, действий=%d/%d",
+            "Кампания автоматов открыта: %s, цикл=%d, запас действий=%d/%d",
             campaign.preset_id,
             campaign.turn,
             campaign.actions_left,
@@ -1269,7 +1269,7 @@ class App:
             dialogue_snapshot=dialogue_snapshot,
         )
         logger.info(
-            "Сохранение автоматов записано: слот=%s, ход=%d",
+            "Сохранение автоматов записано: слот=%s, цикл=%d",
             slot_name,
             campaign.turn,
         )

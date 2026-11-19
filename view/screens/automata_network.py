@@ -148,7 +148,7 @@ class AutomataNetworkScreen(BaseScreen):
         self.campaign = campaign
         self.mode = "automata"
         self.selected_faction_side = campaign.player_side
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         faction = self._faction()
         self.selected_organ_id = self._default_organ_id(faction)
         self.selected_interaction_id = None
@@ -175,11 +175,11 @@ class AutomataNetworkScreen(BaseScreen):
         self._back_rect = pygame.Rect(
             BOTTOM_RECT.right - 140, BOTTOM_RECT.y + 4, 130, 36
         )
-        self._end_turn_rect = pygame.Rect(
+        self._speed_up_rect = pygame.Rect(
             self._back_rect.x - 170, BOTTOM_RECT.y + 4, 160, 36
         )
         self._slow_down_rect = pygame.Rect(
-            self._end_turn_rect.x - 150, BOTTOM_RECT.y + 4, 140, 36
+            self._speed_up_rect.x - 150, BOTTOM_RECT.y + 4, 140, 36
         )
         self._automata_tab_rect = pygame.Rect(
             SIDE_RECT.x + 14, SIDE_RECT.y + 48, 118, 28
@@ -192,7 +192,7 @@ class AutomataNetworkScreen(BaseScreen):
         )
         self._sync_storyline()
         logger.info(
-            "Сеть автоматов: фракций=%d, выбран орган %s, действий %d/%d",
+            "Сеть автоматов: фракций=%d, выбран орган %s, запас действий %d/%d",
             len(campaign.factions),
             self.selected_organ_id,
             campaign.actions_left,
@@ -531,7 +531,7 @@ class AutomataNetworkScreen(BaseScreen):
         self.last_result = result
         if result.get("kind") == "automaton" or "source_organ_id" in result:
             self.message = (
-                "%s → %s: %s; цель %.0f%% → %.0f%%; действий осталось %d"
+                "%s → %s: %s; цель %.0f%% → %.0f%%; запас действий %d"
                 % (
                     result.get("source_organ_name", "автомат"),
                     result.get("target_organ_name", "цель"),
@@ -545,7 +545,7 @@ class AutomataNetworkScreen(BaseScreen):
             )
         elif result.get("kind") == "character" or "character_name" in result:
             self.message = (
-                "%s: %s; мораль %.0f → %.0f; действий осталось %d"
+                "%s: %s; мораль %.0f → %.0f; запас действий %d"
                 % (
                     result.get("character_name", "персонаж"),
                     result.get("label", "действие"),
@@ -556,7 +556,7 @@ class AutomataNetworkScreen(BaseScreen):
             )
         else:
             self.message = (
-                "%s: целостность %.0f%% → %.0f%%; действий осталось %d"
+                "%s: целостность %.0f%% → %.0f%%; запас действий %d"
                 % (
                     result.get("label", "взаимодействие"),
                     float(result.get("integrity_before", 0.0)) * 100.0,
@@ -592,7 +592,7 @@ class AutomataNetworkScreen(BaseScreen):
         ]:
             self.message = self._budget_message()
             return None
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         result = self.campaign.perform_organ_interaction(
             self.campaign.player_side,
             organ.id,
@@ -602,7 +602,7 @@ class AutomataNetworkScreen(BaseScreen):
         result["kind"] = "organ"
         self.selected_interaction_id = None
         logger.info(
-            "Сеть: %s → %s; целостность %s → %s; ход %d; действий %d",
+            "Сеть: %s → %s; целостность %s → %s; цикл %d; запас действий %d",
             result.get("organ_name", "?"),
             result.get("interaction_id", "?"),
             result.get("integrity_before"),
@@ -639,7 +639,7 @@ class AutomataNetworkScreen(BaseScreen):
         ]:
             self.message = self._budget_message()
             return None
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         result = self.campaign.perform_automaton_interaction(
             self.campaign.player_side,
             organ.id,
@@ -651,7 +651,7 @@ class AutomataNetworkScreen(BaseScreen):
         self.selected_automaton_interaction_id = None
         self.selected_automaton_target_id = None
         logger.info(
-            "Сеть: автомат %s → %s (%s); цель %s → %s; ход %d; действий %d",
+            "Сеть: автомат %s → %s (%s); цель %s → %s; цикл %d; запас действий %d",
             result.get("source_organ_name", "?"),
             result.get("target_organ_name", "?"),
             result.get("interaction_id", "?"),
@@ -686,7 +686,7 @@ class AutomataNetworkScreen(BaseScreen):
         ]:
             self.message = self._budget_message()
             return None
-        self.campaign.begin_turn()
+        self.campaign.ensure_clock()
         result = self.campaign.perform_character_interaction(
             self.campaign.player_side,
             self.selected_character_id,
@@ -696,7 +696,7 @@ class AutomataNetworkScreen(BaseScreen):
         result["kind"] = "character"
         self.selected_character_interaction_id = None
         logger.info(
-            "Сеть: персонаж %s → %s; мораль %s → %s; ход %d; действий %d",
+            "Сеть: персонаж %s → %s; мораль %s → %s; цикл %d; запас действий %d",
             result.get("character_name", "?"),
             result.get("interaction_id", "?"),
             result.get("morale_before"),
@@ -714,6 +714,7 @@ class AutomataNetworkScreen(BaseScreen):
         return self.apply_interaction()
 
     def end_turn(self):
+        """Legacy: завершить цикл и вернуть часы без остановки времени."""
         if self.campaign.finished:
             return None
         self.campaign.end_turn()
@@ -729,12 +730,12 @@ class AutomataNetworkScreen(BaseScreen):
         self.selected_automaton_target_id = None
         self.selected_character_interaction_id = None
         self.message = (
-            "Ход завершён. Начат ход %d; действий: %d."
+            "Цикл завершён. Цикл %d; доступно действий: %d."
             % (self.campaign.turn, self.campaign.actions_left)
         )
         self._sync_storyline()
         logger.info(
-            "Сеть: ход завершён, начат ход %d, действий %d",
+            "Сеть: цикл завершён, цикл %d, запас действий %d",
             self.campaign.turn,
             self.campaign.actions_left,
         )
@@ -886,7 +887,7 @@ class AutomataNetworkScreen(BaseScreen):
         if self._back_rect.collidepoint(pos):
             self.app.manager.pop()
             return
-        if self._end_turn_rect.collidepoint(pos):
+        if self._speed_up_rect.collidepoint(pos):
             self._increase_speed()
             return
         if self._slow_down_rect.collidepoint(pos):
@@ -1376,7 +1377,7 @@ class AutomataNetworkScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "%s · время %s · %s · действия %d/%d"
+                "%s · время %s · %s · запас действий %d/%d"
                 % (
                     self._faction().name if self._faction() else "—",
                     self.campaign.time_label(),
@@ -1540,7 +1541,7 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _draw_bottom(self, screen):
         _panel(screen, BOTTOM_RECT)
-        budget = "время %s · %s · цикл %d · действия %d/%d" % (
+        budget = "время %s · %s · цикл %d · запас действий %d/%d" % (
             self.campaign.time_label(),
             self.campaign.speed_label(),
             self.campaign.turn,
@@ -1556,11 +1557,11 @@ class AutomataNetworkScreen(BaseScreen):
         pygame.draw.rect(
             screen,
             (46, 86, 138) if self.campaign.can_speed_up() else (40, 44, 56),
-            self._end_turn_rect,
+            self._speed_up_rect,
             border_radius=7,
         )
         pygame.draw.rect(
-            screen, PANEL_BORDER, self._end_turn_rect, 2, border_radius=7
+            screen, PANEL_BORDER, self._speed_up_rect, 2, border_radius=7
         )
         speed_text = (
             "Ускорить · %s" % self.campaign.speed_label()
@@ -1568,7 +1569,7 @@ class AutomataNetworkScreen(BaseScreen):
             else "Максимум"
         )
         text = self.app.font_small.render(speed_text, True, TEXT)
-        screen.blit(text, text.get_rect(center=self._end_turn_rect.center))
+        screen.blit(text, text.get_rect(center=self._speed_up_rect.center))
         can_slow = self.campaign.can_slow_down()
         pygame.draw.rect(
             screen,
@@ -1642,7 +1643,7 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.font_title.render("Сеть автоматов", True, TEXT),
             (24, 24),
         )
-        status = "время %s · скорость %s · цикл %d · действия %d/%d" % (
+        status = "время %s · скорость %s · цикл %d · запас действий %d/%d" % (
             self.campaign.time_label(),
             self.campaign.speed_label(),
             self.campaign.turn,

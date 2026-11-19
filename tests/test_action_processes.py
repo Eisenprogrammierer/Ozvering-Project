@@ -178,3 +178,45 @@ def test_legacy_perform_stays_instant(campaign):
     assert result["ok"] is True
     assert len(campaign.log) == log_before + 1
     assert campaign.slot_state(SIDE)["used"] == 0
+
+
+def test_advance_time_moves_world_without_end_turn(campaign):
+    """Мир идёт по физическому времени, а не по кнопке «завершить ход».
+
+    Организационный цикл, ИИ и организации обновляются внутри
+    ``advance_time``. ``end_turn`` не вызывается, но кампания всё равно
+    должна сдвинуться: иначе свободный режим остаётся TBS-игрой.
+    """
+    campaign.ensure_clock()
+    turn_before = campaign.turn
+    history_before = len(campaign.history)
+    log_before = len(campaign.log)
+    snapshots_before = {
+        side: bool(faction.organization_snapshot)
+        for side, faction in campaign.factions.items()
+    }
+
+    campaign.advance_time(campaign.organization_interval_seconds)
+
+    assert campaign.turn > turn_before
+    assert len(campaign.history) == history_before + 1
+
+    ai_entries = [
+        entry
+        for entry in campaign.log[log_before:]
+        if entry.get("actor_side")
+        and entry["actor_side"] != campaign.player_side
+    ]
+    ai_processes = [
+        process
+        for process in campaign.processes
+        if process.get("side") != campaign.player_side
+    ]
+    assert ai_entries or ai_processes
+
+    assert any(
+        faction.organization_snapshot and not snapshots_before[side]
+        for side, faction in campaign.factions.items()
+    )
+    # Часы активированы, но цикл не переключался вручную.
+    assert campaign.actions_left >= 0

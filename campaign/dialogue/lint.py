@@ -33,6 +33,9 @@ _ANSWER_TYPES = frozenset(
         "social",
         "comparison",
         "counterfactual",
+        "war",
+        "stance",
+        "attitude",
     }
 )
 _CASES = frozenset({"nom", "gen", "dat", "acc", "ins", "prep"})
@@ -1587,6 +1590,66 @@ def _style_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+_FALLBACK_FIELDS = {
+    "target",
+    "speaker_faction",
+    "player_faction",
+    "speaker_id",
+    "player_id",
+    "side",
+}
+_FALLBACK_KINDS = frozenset({"question", "request"})
+
+
+def _fallback_problems(catalog: DialogueCatalog) -> List[str]:
+    spec = getattr(catalog, "fallback", None)
+    if not isinstance(spec, Mapping) or not spec:
+        return []
+    problems: List[str] = []
+    seen: Set[str] = set()
+    for index, rule in enumerate(spec.get("rules") or ()):
+        where = "fallback.rules[%d]" % index
+        if not isinstance(rule, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        rule_id = str(rule.get("id") or "")
+        if not rule_id:
+            problems.append("%s.id: пусто" % where)
+        elif rule_id in seen:
+            problems.append("%s: повтор id %r" % (where, rule_id))
+        seen.add(rule_id)
+        when = rule.get("when")
+        groups = (
+            when.get("all") or when.get("any")
+            if isinstance(when, Mapping)
+            else when
+        )
+        if not groups:
+            problems.append("%s.when: пусто" % where)
+        sem = rule.get("sem")
+        if not isinstance(sem, Mapping):
+            problems.append("%s.sem: ожидался объект" % where)
+            continue
+        kind = str(sem.get("kind") or "")
+        if kind not in _FALLBACK_KINDS:
+            problems.append(
+                "%s.sem.kind: неизвестный вид %r" % (where, kind)
+            )
+        for name in _variables(sem):
+            if name not in _FALLBACK_FIELDS:
+                problems.append(
+                    "%s.sem: неизвестная подстановка $%s"
+                    % (where, name)
+                )
+        if bool(rule.get("requires_target", False)) and (
+            "target" not in _variables(sem)
+        ):
+            problems.append(
+                "%s.sem: requires_target без $target" % where
+            )
+    return problems
+
+
 def _style_context_problems(catalog: DialogueCatalog) -> List[str]:
     problems: List[str] = []
     context = getattr(catalog, "style_context", None)
@@ -2584,6 +2647,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_time_problems(catalog))
     problems.extend(_narrator_problems(catalog))
     problems.extend(_disclosure_problems(catalog))
+    problems.extend(_fallback_problems(catalog))
     return problems
 
 
