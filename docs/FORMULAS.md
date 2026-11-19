@@ -40,14 +40,14 @@
 `form` — канал работы (`force`, `info`), а **не** отдельный вид энергии.
 Один и тот же `E` в разных каналах даёт разные эффекты и потери.
 
-Два разных времени не путать:
+Три разных времени не путать:
 
 - **арена** — такт `1` секунды, скорости `пауза/1x/2x/4x/8x/16x`;
-- **кампания автоматов** — `turn_seconds = 240` в
-  `configs/campaigns/base/automata_defaults.json` (это темп кампании
-  автоматов, а не аренный тик);
-- **день `world_actor`** — `SECONDS_PER_DAY = 120` в `campaign/clock.py`
-  (отдельный дневной мир, не кампания автоматов).
+- **кампания автоматов** — физическое время `1:1`: `turn_seconds = 86400`
+  и `action_interval_seconds = 21600` в
+  `configs/campaigns/base/automata_defaults.json`;
+- **свободный режим** — те же физические сутки: `seconds_per_day = 86400`
+  (`campaign/free_clock.py`).
 
 ---
 
@@ -852,17 +852,17 @@ MAX_CATCHUP_TICKS = 64  (лишние отбрасываются в dropped_tick
 **Код:** `configs/campaigns/base/automata_defaults.json`.
 
 ```text
-turn_seconds = 240
+turn_seconds = 86400
 actions_per_turn = 3
-action_interval_seconds = 80
-ai_interval_seconds = 80
-organization_interval_seconds = 240
+action_interval_seconds = 21600
+ai_interval_seconds = 43200
+organization_interval_seconds = 86400
 speeds = [1, 2, 4, 8, 16, 32]
 ```
 
-Один ход — `240` секунд, внутри — три действия по `80` секунд. Полное
-восстановление лимита действий за `2` минуты недопустимо: бюджет `E`
-восстанавливается по правилам мира, а не ускорением.
+Физическое время `1:1`: цикл — сутки, одно действие восстанавливается за
+6 игровых часов, ответ автоматов — раз в 12 часов, тик организаций — раз в
+сутки. Бюджет `E` восстанавливается по правилам мира, а не ускорением.
 
 ### 10.3. Производные активы фракции
 
@@ -905,12 +905,12 @@ organization.<key>      context.<key>
 **Код:** `campaign/clock.py`.
 
 ```text
-SECONDS_PER_DAY = 120.0
+SECONDS_PER_DAY = 86400.0
 MAX_CATCHUP_DAYS = 7
 ```
 
-Это отдельный дневной мир; не путать с `turn_seconds = 240` кампании
-автоматов.
+Физические сутки: при `1x` один день мира равен одним реальным суткам.
+Догон ограничен неделей.
 
 ---
 

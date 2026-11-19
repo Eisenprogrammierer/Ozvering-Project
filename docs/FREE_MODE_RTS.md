@@ -62,7 +62,7 @@
 ```json
 {
   "clock": {
-    "seconds_per_day": 120.0,
+    "seconds_per_day": 86400.0,
     "speed": 2.0,
     "acc": 13.5,
     "days": 4
@@ -82,7 +82,7 @@
 {
   "sandbox": true,
   "realtime": true,
-  "seconds_per_day": 120,
+  "seconds_per_day": 86400,
   "time_speeds": [1, 2, 4, 8]
 }
 ```

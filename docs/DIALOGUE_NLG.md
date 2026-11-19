@@ -687,7 +687,7 @@ Production-паттерн `explanation_detailed` помечен `detail: true` �
 Ход `statement` берёт утверждение из `Answer.data`, `hedge_detail` и
 `conclusion` — данные `synthesis.json` с регистровыми маркерами.
 Повтор одинакового текста отбрасывается в `_build_moves`. Риски
-отдельного planner зафиксированы в `TODO.md` §1.1.
+отдельного planner зафиксированы в `TODO.md`.
 
 ### D6. Расширение и калибровка — частично закрыто
 
