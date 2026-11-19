@@ -1116,7 +1116,7 @@ class WorldEngine:
             self.config.get("offline_progress", True)
         )
         self.seconds_per_day = max(
-            1.0, _as_float(self.config.get("seconds_per_day"), 120.0)
+            1.0, _as_float(self.config.get("seconds_per_day"), 86400.0)
         )
         self.max_offline_days = max(
             1, _as_int(self.config.get("max_offline_days"), 7)

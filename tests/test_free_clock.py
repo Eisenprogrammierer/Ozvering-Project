@@ -1,6 +1,13 @@
 from campaign.free_clock import FreeClock, normalize_speeds
 
 
+def test_default_day_is_physical_86400_seconds():
+    clock = FreeClock()
+    assert clock.seconds_per_day == 86400.0
+    assert clock.advance(1.0) == 0
+    assert clock.acc == 1.0
+
+
 def test_speed_is_never_below_one_and_can_be_reduced():
     clock = FreeClock(speeds=[1, 2, 4, 8], speed=4)
     assert clock.speed == 4.0

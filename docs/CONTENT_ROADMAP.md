@@ -33,8 +33,9 @@
 - Эффект работы не применяется мгновенно: первый импульс при
   завершении, остаток — по окну `action_process.effect_window` с
   поправкой на обстоятельства (`settlement`).
-- Время сжимается: `realtime.game_seconds_per_real_second` переводит
-  реальные секунды экрана в игровые; скорость не ниже `1x`.
+- Время физическое: при `1x` одна реальная секунда равна одной игровой.
+  `advance_realtime(dt)` соблюдает инвариант `1:1`, а ускорение задаёт
+  только множитель `speed`; скорость не ниже `1x`.
 - У персонажей есть `portrait`, у органов — персонал; сеть умеет
   показывать людей выбранного автомата и честную плашку «Персонал
   недоступен».
@@ -183,9 +184,28 @@
     "character_agency": {
       "enabled": true,
       "max_characters": 6,
+      "goal_weight": 0.35,
       "intention_weight": 0.25,
       "need_weight": 0.2,
-      "urgency_floor": 0.25
+      "trust_weight": 0.25,
+      "grievance_weight": 0.45,
+      "sabotage_weight": 0.35,
+      "goal_hold_turns": 3,
+      "memory_decay": 0.92,
+      "executor_effect": {
+        "support_weight": 0.2,
+        "competence_weight": 0.15,
+        "min_factor": 0.7,
+        "max_factor": 1.25
+      },
+      "goals": {
+        "default_kind": "duty",
+        "by_need": {"status": "post", "fear": "safety"},
+        "kinds": {
+          "post": {"label": "получить пост", "essence": "seek_status", "target": "organ"},
+          "safety": {"label": "обезопасить себя", "essence": "seek_safety", "target": "self"}
+        }
+      }
     }
   }
 }
@@ -197,7 +217,7 @@
 {
   "realtime": {
     "turn_seconds": 86400.0,
-    "game_seconds_per_real_second": 3600.0,
+    "game_seconds_per_real_second": 1.0,
     "bdi_horizon_seconds": 1800.0,
     "bdi_tick_seconds": 900.0,
     "speeds": [1, 2, 4, 8, 16, 32]

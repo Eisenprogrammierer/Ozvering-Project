@@ -544,7 +544,110 @@
       "max_characters": 6,
       "intention_weight": 0.25,
       "need_weight": 0.2,
-      "urgency_floor": 0.25
+      "urgency_floor": 0.25,
+      "goal_weight": 0.35,
+      "target_weight": 0.2,
+      "trust_weight": 0.25,
+      "grievance_weight": 0.45,
+      "initiative_weight": 0.15,
+      "initiative_gain": 0.2,
+      "sabotage_weight": 0.35,
+      "sabotage_floor": 0.35,
+      "goal_hold_turns": 3,
+      "deliberate_every": 1,
+      "memory_decay": 0.92,
+      "order_trust": 0.1,
+      "order_grievance": 0.15,
+      "executor_organ_bonus": 0.25,
+      "competence_weight": 0.2,
+      "competence_traits": [
+        "discipline",
+        "loyalty",
+        "endurance"
+      ],
+      "executor_effect": {
+        "support_weight": 0.2,
+        "competence_weight": 0.15,
+        "min_factor": 0.7,
+        "max_factor": 1.25
+      },
+      "goals": {
+        "default_kind": "duty",
+        "by_need": {
+          "hunger": "provision",
+          "thirst": "provision",
+          "fatigue": "duty",
+          "health": "safety",
+          "fear": "safety",
+          "anxiety": "order",
+          "loneliness": "patron",
+          "reproduction": "patron",
+          "knowledge": "insight",
+          "creativity": "meaning",
+          "boredom": "mastery",
+          "status": "post",
+          "spirituality": "meaning",
+          "skill": "mastery",
+          "love": "patron",
+          "friendship": "patron"
+        },
+        "kinds": {
+          "post": {
+            "label": "получить пост",
+            "needs": ["status", "skill"],
+            "essence": "seek_status",
+            "target": "organ"
+          },
+          "meaning": {
+            "label": "найти смысл",
+            "needs": ["spirituality", "creativity"],
+            "essence": "seek_meaning",
+            "target": "faction"
+          },
+          "insight": {
+            "label": "докопаться до правды",
+            "needs": ["knowledge", "anxiety"],
+            "essence": "inspect",
+            "target": "rival"
+          },
+          "safety": {
+            "label": "обезопасить себя",
+            "needs": ["fear", "health"],
+            "essence": "seek_safety",
+            "target": "self"
+          },
+          "patron": {
+            "label": "найти опору",
+            "needs": ["friendship", "love"],
+            "essence": "befriend",
+            "target": "faction"
+          },
+          "provision": {
+            "label": "обеспечить себя",
+            "needs": ["hunger", "thirst"],
+            "essence": "eat",
+            "target": "self"
+          },
+          "mastery": {
+            "label": "отточить умение",
+            "needs": ["skill", "boredom"],
+            "essence": "practice",
+            "target": "self"
+          },
+          "order": {
+            "label": "навести порядок",
+            "needs": ["anxiety", "status"],
+            "essence": "seek_order",
+            "target": "faction"
+          },
+          "duty": {
+            "label": "выполнить долг",
+            "needs": ["status", "spirituality"],
+            "essence": "seek_order",
+            "target": "faction"
+          }
+        }
+      }
     },
     "needs": {
       "weight": 1.4,
@@ -682,7 +785,7 @@
     "action_interval_seconds": 21600.0,
     "ai_interval_seconds": 43200.0,
     "organization_interval_seconds": 86400.0,
-    "game_seconds_per_real_second": 3600.0,
+    "game_seconds_per_real_second": 1.0,
     "bdi_horizon_seconds": 1800.0,
     "bdi_tick_seconds": 900.0,
     "speeds": [

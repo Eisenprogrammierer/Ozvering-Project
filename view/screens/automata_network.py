@@ -1325,6 +1325,28 @@ class AutomataNetworkScreen(BaseScreen):
             ),
             (DETAIL_RECT.x + 300, DETAIL_RECT.y + 90),
         )
+        goal = dict(snapshot.get("goal") or {})
+        agency = dict(snapshot.get("agency") or {})
+        goal_label = goal.get("label") or goal.get("kind") or "нет цели"
+        goal_target = goal.get("target_name") or goal.get("target") or ""
+        motive = "цель: %s%s · дов. %.2f · обида %.2f" % (
+            goal_label,
+            (" → " + goal_target) if goal_target else "",
+            float(agency.get("trust", 0.5)),
+            float(agency.get("grievance", 0.0)),
+        )
+        if len(motive) > 46:
+            motive = motive[:45] + "…"
+        screen.blit(
+            self.app.font_tiny.render(
+                motive,
+                True,
+                WARN
+                if float(agency.get("grievance", 0.0)) >= 0.35
+                else MUTED,
+            ),
+            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 94),
+        )
 
     def _draw_tabs(self, screen):
         for rect, mode, label in (

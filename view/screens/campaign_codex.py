@@ -610,23 +610,34 @@ class CampaignCodexScreen(BaseScreen):
             flags.append("игрок")
         if character.get("is_faction_leader"):
             flags.append("лидер фракции")
+        goal = dict((live or {}).get("goal") or {})
+        goal_label = goal.get("label") or goal.get("kind") or ""
+        goal_target = goal.get("target_name") or goal.get("target") or ""
         meta = "%s · %s" % (faction, character.get("post", "должность"))
         if flags:
             meta += " · " + ", ".join(flags)
+        if goal_label:
+            meta += " · цель: %s%s" % (
+                goal_label,
+                (" → " + goal_target) if goal_target else "",
+            )
         screen.blit(
             self.app.font_tiny.render(meta, True, ACCENT), (x, y)
         )
         y += 22
         if live:
             morale = float(live.get("morale", 0.0))
+            agency = dict(live.get("agency") or {})
             screen.blit(
                 self.app.font_tiny.render(
-                    "мораль %.0f · запас действий %d"
+                    "мораль %.0f · запас действий %d · дов. %.2f · обида %.2f"
                     % (
                         morale,
                         self.campaign.actions_left
                         if self.campaign is not None
                         else 0,
+                        float(agency.get("trust", 0.5)),
+                        float(agency.get("grievance", 0.0)),
                     ),
                     True,
                     GOOD if morale >= 50.0 else WARN,

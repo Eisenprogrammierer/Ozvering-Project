@@ -820,6 +820,43 @@ def test_realtime_and_interactions_come_from_config():
     )
 
 
+def test_realtime_scale_is_physical_second_for_second():
+    """1× — это ровно одна игровая секунда за одну реальную секунду."""
+    from campaign.automata import PHYSICAL_SECONDS_PER_REAL_SECOND
+
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    assert PHYSICAL_SECONDS_PER_REAL_SECOND == 1.0
+    assert campaign.realtime_scale == 1.0
+    assert campaign.realtime["game_seconds_per_real_second"] == 1.0
+
+    campaign.advance_realtime(10.0)
+    assert campaign.elapsed == pytest.approx(10.0)
+
+    campaign.speed_up()
+    assert campaign.speed == 2
+    campaign.advance_realtime(10.0)
+    assert campaign.elapsed == pytest.approx(30.0)
+
+
+def test_legacy_realtime_scale_cannot_accelerate_physical_time():
+    """Старый контент с ``3600`` не имеет права ускорять время скрытно."""
+    preset = _preset("empire_campaign", seed=11)
+    data = preset.as_dict()
+    scenario = dict(data.get("scenario") or {})
+    realtime = dict(scenario.get("realtime") or {})
+    realtime["game_seconds_per_real_second"] = 3600.0
+    scenario["realtime"] = realtime
+    data["scenario"] = scenario
+
+    campaign = AutomataCampaign(data, seed=11)
+    assert campaign.realtime["game_seconds_per_real_second"] == 1.0
+    assert campaign.realtime_scale == 1.0
+    campaign.advance_realtime(5.0)
+    assert campaign.elapsed == pytest.approx(5.0)
+
+
 def test_core_rejects_self_character_interactions():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11

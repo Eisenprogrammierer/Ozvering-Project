@@ -7,7 +7,8 @@
 
 Границы первого среза:
 
-- `SECONDS_PER_DAY` — 120 секунд реального времени на день при 1x;
+- `SECONDS_PER_DAY` — 86 400 физических секунд на игровые сутки при 1x:
+  одна реальная секунда равна одной игровой секунде;
 - `MAX_CATCHUP_DAYS` — не больше 7 дней за один догон, лишнее отбрасывается;
 - авто-пауза фона на смерти, завершении сюжета, критическом здоровье
   (`HEALTH_CRITICAL`) или критической болезни (`SICKNESS_CRITICAL`);
@@ -28,7 +29,7 @@ from core41 import HEALTH_CRITICAL, SICKNESS_CRITICAL
 
 from .planner import SLOTS_MAX
 
-SECONDS_PER_DAY = 120.0
+SECONDS_PER_DAY = 86400.0
 MAX_CATCHUP_DAYS = 7
 SLOTS_PER_DAY = SLOTS_MAX + 1
 

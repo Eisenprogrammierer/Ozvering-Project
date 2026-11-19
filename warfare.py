@@ -404,12 +404,16 @@ class Character(S.UtilityAI):
         self.bdi.traits = self.personality.as_dict()
         return self.bdi.weighted_desires(TRAIT_MODEL)
 
-    def deliberate(self, target=None):
+    def deliberate(self, target=None, preferred=None):
         """Выбрать намерение, по умолчанию направленное на потребность.
 
         ``target`` — объект из контента (фракция, орган, персонаж). Если
         он задан, BDI не подменяет его ведущей потребностью: суть
         политического действия важнее биологического fallback.
+
+        ``preferred`` — подсказка личной цели (данные автономии
+        кампании). Паника и фанатизм сильнее цели: они спасают или
+        ломают человека раньше, чем он вспомнит о своём замысле.
         """
         self.bdi.traits = self.personality.as_dict()
         self.desires = self.bdi.weighted_desires(TRAIT_MODEL)
@@ -417,6 +421,7 @@ class Character(S.UtilityAI):
         target = target or self.deliberate_target
         values = self.personality.as_dict()
         mod = self.modulation()
+        hint = str(preferred or "")
 
         forbidden = [] if mod.retreat_allowed else ["retreat"]
         preferred = ""
@@ -427,6 +432,8 @@ class Character(S.UtilityAI):
             or mod.fanaticism > TRAIT_MODEL.fanaticism_override()
         ):
             preferred = "attack"
+        elif hint and hint not in forbidden:
+            preferred = hint
         else:
             kind, _scores = TRAIT_MODEL.choose_intent(
                 self.desires, values, mod

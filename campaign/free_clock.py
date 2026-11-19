@@ -55,7 +55,7 @@ class FreeClock(CampaignClock):
 
     def __init__(
         self,
-        seconds_per_day=120.0,
+        seconds_per_day=86400.0,
         max_catchup_days=7,
         speeds=None,
         speed=1.0,
@@ -147,7 +147,7 @@ class FreeClock(CampaignClock):
     def from_snapshot(
         cls,
         snapshot,
-        seconds_per_day=120.0,
+        seconds_per_day=86400.0,
         max_catchup_days=7,
         speeds=None,
     ):

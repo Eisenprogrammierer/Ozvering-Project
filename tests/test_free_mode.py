@@ -129,6 +129,7 @@ def test_free_storyline_declares_start_for_every_archetype(storyline, world):
     assert storyline["lose_scene"] == {}
     assert world.get("sandbox") is True
     assert world.get("realtime") is True
+    assert world.get("seconds_per_day") == 86400
     assert tuple(world.get("time_speeds")) == (1, 2, 4, 8)
     # Сюжет начинается с представления и заканчивается миром.
     assert storyline["scenes"][0]["type"] == "visual_novel"

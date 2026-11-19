@@ -12,7 +12,7 @@
   "scene_catalog": "configs/worlds/scenes/agora_scenes.json",
   "sandbox": true,
   "realtime": true,
-  "seconds_per_day": 120,
+  "seconds_per_day": 86400,
   "time_speeds": [1, 2, 4, 8],
   "relation_axes": {
     "affinity": {

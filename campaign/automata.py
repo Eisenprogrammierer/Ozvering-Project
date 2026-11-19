@@ -21,6 +21,7 @@ Capability хранит только шаблон работы (``template.amoun
 """
 
 from dataclasses import dataclass, field
+import copy
 import logging
 import math
 import random
@@ -202,6 +203,12 @@ DEFAULT_ACTIONS_PER_TURN = int(default_section("actions_per_turn"))
 DEFAULT_RUN_TURNS = int(default_section("run_turns_default"))
 EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
 SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
+# Физический инвариант времени: при скорости 1× одна реальная секунда
+# равна одной игровой секунде. Ускорение — только явный множитель
+# ``speed``; пауза, замедление ниже 1× и откат запрещены. Значение из
+# контента читается, но не может нарушить инвариант.
+PHYSICAL_SECONDS_PER_REAL_SECOND = 1.0
+
 REALTIME_DEFAULTS = default_dict("realtime")
 ACTION_PROCESS_DEFAULTS = default_dict("action_process")
 AI_MODEL_DEFAULTS = default_dict("ai_model")
@@ -241,14 +248,19 @@ def _as_mapping(value):
 
 
 def _merged_mapping(base, override):
-    """Рекурсивно наложить ``override`` на копию ``base``."""
-    result = dict(base)
+    """Рекурсивно наложить ``override`` на глубокую копию ``base``.
+
+    Копия обязательна: ``AI_MODEL_DEFAULTS`` и другие блоки данных
+    разделяются между кампаниями. Иначе тест или сценарий, меняющий
+    вложенный вес одной кампании, незаметно менял бы все остальные.
+    """
+    result = copy.deepcopy(dict(_as_mapping(base)))
     for key, value in _as_mapping(override).items():
         current = result.get(key)
         if isinstance(current, Mapping) and isinstance(value, Mapping):
             result[key] = _merged_mapping(current, value)
         else:
-            result[key] = value
+            result[key] = copy.deepcopy(value)
     return result
 
 
@@ -638,6 +650,48 @@ class FactionRuntime:
                     getattr(character, "campaign_cooldowns", {})
                 ).items()
             },
+            "goal": {
+                str(key): value
+                for key, value in _as_mapping(
+                    getattr(character, "campaign_goal", {})
+                ).items()
+            },
+            "agency": {
+                "trust": round(
+                    _clamp(_as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("trust", 0.5)),
+                    6,
+                ),
+                "grievance": round(
+                    _clamp(_as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("grievance", 0.0)),
+                    6,
+                ),
+                "initiative": round(
+                    _clamp(_as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("initiative", 0.0)),
+                    6,
+                ),
+                "assignments": int(
+                    _number(_as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("assignments"), 0)
+                ),
+                "orders": int(
+                    _number(_as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("orders"), 0)
+                ),
+                "last_order": str(
+                    _as_mapping(
+                        getattr(character, "campaign_agency", {})
+                    ).get("last_order", "")
+                    or ""
+                ),
+            },
         }
 
     def character_options(self):
@@ -854,6 +908,25 @@ class AutomataCampaign:
                 ).items()
             }
         )
+        configured_scale = _number(
+            self.realtime.get("game_seconds_per_real_second"),
+            PHYSICAL_SECONDS_PER_REAL_SECOND,
+        )
+        if not math.isclose(
+            configured_scale,
+            PHYSICAL_SECONDS_PER_REAL_SECOND,
+            rel_tol=1e-9,
+            abs_tol=1e-9,
+        ):
+            logger.warning(
+                "realtime.game_seconds_per_real_second=%s нарушает "
+                "физический инвариант 1:1; используется %.1f",
+                configured_scale,
+                PHYSICAL_SECONDS_PER_REAL_SECOND,
+            )
+        self.realtime["game_seconds_per_real_second"] = (
+            PHYSICAL_SECONDS_PER_REAL_SECOND
+        )
         speeds = [
             max(1, int(_number(value, 1)))
             for value in (self.realtime.get("speeds") or (1,))
@@ -935,6 +1008,8 @@ class AutomataCampaign:
         self.order_model = _order_model(data)
         self.last_order_result = None
         self._build_factions(data)
+        for faction in self.factions.values():
+            self._init_character_agency(faction)
         self._seed_obligations()
         self._build_machines()
         if snapshot:
@@ -1662,17 +1737,13 @@ class AutomataCampaign:
     def realtime_scale(self):
         """Сколько игровых секунд проходит за одну реальную секунду.
 
-        Экран вызывает ``advance_realtime(dt)``; ядро и старые вызовы
-        продолжают работать в игровых секундах через ``advance_time``.
-        Так длительности работ можно задавать в часах и днях, не
-        превращая кампанию в ожидание реальных суток.
+        Физический инвариант проекта: масштаб всегда ``1:1``. Экран
+        вызывает ``advance_realtime(dt)``; ускорение задаётся только
+        множителем ``speed``, а не скрытым пересчётом часов. Старый
+        контент со значением вроде ``3600`` не может ускорить время:
+        при загрузке он нормализуется к ``1.0`` с предупреждением.
         """
-        return max(
-            0.0,
-            _number(
-                self.realtime.get("game_seconds_per_real_second"), 1.0
-            ),
-        )
+        return PHYSICAL_SECONDS_PER_REAL_SECOND
 
     def time_label(self):
         """Игровое время: ``ЧЧ:ММ:СС``, а с первых суток — ``Д д ЧЧ:ММ:СС``."""
@@ -1791,7 +1862,12 @@ class AutomataCampaign:
         return self.snapshot()
 
     def advance_realtime(self, dt):
-        """Продвинуть кампанию на ``dt`` реальных секунд из игрового цикла."""
+        """Продвинуть кампанию на ``dt`` реальных секунд из игрового цикла.
+
+        При ``1×`` это ровно ``dt`` игровых секунд; при ``2×`` — ``2·dt``.
+        Никакой другой масштаб не применяется: физическое соответствие
+        времени — инвариант проекта.
+        """
         try:
             seconds = float(dt)
         except (TypeError, ValueError):
@@ -3309,6 +3385,7 @@ class AutomataCampaign:
         charge_cost=True,
         spend_budget=False,
         effect_fraction=1.0,
+        executor=None,
     ):
         """Рассчитать и применить работу без предварительных гейтов.
 
@@ -3403,8 +3480,33 @@ class AutomataCampaign:
             for key, value in cost.items():
                 actor.add_asset(key, -_number(value))
         fraction = max(0.0, min(1.0, _number(effect_fraction, 1.0)))
+        executor_support = 0.0
+        executor_competence = 0.0
+        executor_factor = 1.0
+        if executor is not None:
+            agency = self._agency_model()
+            effect_model = _as_mapping(agency.get("executor_effect"))
+            executor_support = self._character_support(
+                executor, action, actor
+            )
+            executor_competence = self._character_competence(executor)
+            spec = 1.0 + _number(
+                effect_model.get("support_weight"), 0.2
+            ) * executor_support + _number(
+                effect_model.get("competence_weight"), 0.15
+            ) * (executor_competence - 0.5)
+            executor_factor = max(
+                _number(effect_model.get("min_factor"), 0.7),
+                min(
+                    _number(effect_model.get("max_factor"), 1.25),
+                    spec,
+                ),
+            )
         effect_scale = (
-            self.model["effect_scale"] * readiness * repeat_scale
+            self.model["effect_scale"]
+            * readiness
+            * repeat_scale
+            * executor_factor
         )
         apply_report(
             actor,
@@ -3503,6 +3605,15 @@ class AutomataCampaign:
             "success": bool(success),
             "effect_scale": round(effect_scale, 6),
             "effect_fraction": round(fraction, 6),
+            "executor_id": str(
+                getattr(executor, "campaign_id", "") or ""
+            ),
+            "executor_name": str(
+                getattr(executor, "name", "") or ""
+            ),
+            "executor_support": round(executor_support, 6),
+            "executor_competence": round(executor_competence, 6),
+            "executor_factor": round(executor_factor, 6),
             "intention": dict(intention or {}),
             "trace": trace,
             "cost": {
@@ -3710,6 +3821,7 @@ class AutomataCampaign:
         for key, value in cost.items():
             actor.add_asset(key, -value)
         seconds = self._action_duration(action, duration)
+        executor = self._choose_executor(actor.side, action)
         self._process_seq += 1
         record = {
             "id": "process-%d" % self._process_seq,
@@ -3725,9 +3837,28 @@ class AutomataCampaign:
             "duration": round(float(seconds), 6),
             "remaining": round(float(seconds), 6),
             "cost": cost,
+            "executor_id": str(
+                getattr(executor, "campaign_id", "") or ""
+            ),
+            "executor_name": str(
+                getattr(executor, "name", "") or ""
+            ),
+            "executor_support": round(
+                self._character_support(executor, action, actor)
+                if executor is not None
+                else 0.0,
+                6,
+            ),
+            "executor_competence": round(
+                self._character_competence(executor)
+                if executor is not None
+                else 0.0,
+                6,
+            ),
             "status": "active",
         }
         self.processes.append(record)
+        self._remember_assignment(executor, record, started=True)
         self._log_process(record, "начата")
         return {
             "ok": True,
@@ -3787,6 +3918,11 @@ class AutomataCampaign:
                         ),
                     ),
                 )
+                executor = (
+                    actor.character(record.get("executor_id"))
+                    if actor is not None
+                    else None
+                )
                 result = self._resolve_action(
                     actor,
                     action,
@@ -3796,10 +3932,16 @@ class AutomataCampaign:
                     charge_cost=False,
                     spend_budget=False,
                     effect_fraction=initial,
+                    executor=executor,
                 )
                 record["finished"] = round(float(self.elapsed), 6)
                 record["remaining"] = 0.0
                 record["result"] = result
+                self._remember_assignment(
+                    executor,
+                    record,
+                    success=bool(result.get("success")),
+                )
                 if result.get("ok"):
                     record["status"] = "done"
                     self._start_settlement(
@@ -3934,6 +4076,10 @@ class AutomataCampaign:
                 - _clamp(_number(model.get("defense_weight"), 0.3))
                 * resistance,
             )
+        # Исполнитель продолжает влиять на эффект и после подготовки:
+        # его поддержка цели и компетентность записаны в результат
+        # процесса и переживают сохранение/загрузку.
+        factor *= _number(result.get("executor_factor"), 1.0)
         return max(
             _number(model.get("min_factor"), 0.1),
             min(_number(model.get("max_factor"), 1.6), factor),
@@ -4148,6 +4294,512 @@ class AutomataCampaign:
             return ""
         return _text(config.need_for_essence(essence))
 
+    # --- автономия персонажей -------------------------------------
+    def _agency_model(self):
+        return _as_mapping(
+            _as_mapping(self.ai_model).get("character_agency")
+        )
+
+    def _agency_enabled(self):
+        return bool(self._agency_model().get("enabled", False))
+
+    def _agency_state(self, character, faction=None):
+        """Личная память персонажа: доверие, обида, инициатива.
+
+        Состояние живёт на самом персонаже и попадает в снимок. Старые
+        сейвы без блока получают нейтральные значения, поэтому загрузка
+        не ломается.
+        """
+        raw = getattr(character, "campaign_agency", None)
+        state = dict(raw) if isinstance(raw, Mapping) else {}
+        state["trust"] = _clamp(_number(state.get("trust"), 0.5))
+        state["grievance"] = _clamp(
+            _number(state.get("grievance"), 0.0)
+        )
+        state["initiative"] = _clamp(
+            _number(state.get("initiative"), 0.0)
+        )
+        state["assignments"] = max(
+            0, int(_number(state.get("assignments"), 0))
+        )
+        state["orders"] = max(0, int(_number(state.get("orders"), 0)))
+        state["last_order"] = _text(state.get("last_order"))
+        memory = [
+            dict(item)
+            for item in (state.get("memory") or ())
+            if isinstance(item, Mapping)
+        ]
+        state["memory"] = memory[-8:]
+        return state
+
+    def _goal_need(self, character):
+        """Ведущая потребность персонажа для личной цели.
+
+        Сначала читаются BDI-желания, затем сырые потребности. Сортировка
+        по имени делает выбор детерминированным и не тратит
+        ``character.rng``.
+        """
+        values = _as_mapping(getattr(character, "desires", {}))
+        if not values:
+            values = _as_mapping(getattr(character, "needs", {}))
+        if not values:
+            return ""
+        need, _value = max(
+            values.items(),
+            key=lambda item: (_number(item[1]), str(item[0])),
+        )
+        return _text(need)
+
+    def _goal_target(self, character, faction, kind):
+        """Разрешить вид цели в конкретный объект мира.
+
+        Виды целей приходят из данных: ``organ`` (свой орган или самый
+        целый орган фракции), ``faction``, ``rival``, ``leader``, ``self``.
+        Неизвестный вид безопасно сводится к личности самого персонажа.
+        """
+        kind = _text(kind, "self")
+        if kind == "organ" and faction is not None:
+            organ_id = _text(
+                getattr(character, "campaign_organ_id", "")
+            )
+            organ = faction.organ(organ_id) if organ_id else None
+            if organ is None and faction.organs:
+                organ = max(
+                    faction.organs,
+                    key=lambda item: (
+                        _number(getattr(item, "integrity", 0.0)),
+                        str(getattr(item, "id", "")),
+                    ),
+                )
+            if organ is not None:
+                return str(organ.id), str(
+                    getattr(organ, "name", organ.id)
+                )
+            return str(faction.id), str(faction.name)
+        if kind == "faction" and faction is not None:
+            return str(faction.id), str(faction.name)
+        if kind == "rival":
+            rival_side = _text(self.rival_side)
+            if faction is not None and rival_side == faction.side:
+                rival_side = next(
+                    (
+                        side
+                        for side in self.factions
+                        if side != faction.side
+                    ),
+                    "",
+                )
+            rival = self.faction(rival_side)
+            if rival is not None:
+                return str(rival.id), str(rival.name)
+        if kind == "leader" and faction is not None and faction.characters:
+            leader = faction.characters[0]
+            if leader is not character:
+                return (
+                    str(getattr(leader, "campaign_id", "")),
+                    str(getattr(leader, "name", "")),
+                )
+            return str(faction.id), str(faction.name)
+        return (
+            str(getattr(character, "campaign_id", "")),
+            str(getattr(character, "name", "")),
+        )
+
+    def _character_goal(self, character, faction=None):
+        """Личная цель персонажа из данных ``character_agency.goals``."""
+        model = self._agency_model()
+        goals = _as_mapping(model.get("goals"))
+        by_need = _as_mapping(goals.get("by_need"))
+        kinds = _as_mapping(goals.get("kinds"))
+        default_kind = _text(goals.get("default_kind"), "duty")
+        need = self._goal_need(character)
+        kind = _text(by_need.get(need), default_kind)
+        spec = _as_mapping(kinds.get(kind))
+        if not spec:
+            spec = _as_mapping(kinds.get(default_kind))
+        if not spec:
+            spec = {
+                "label": kind,
+                "essence": need or "seek_order",
+                "target": "faction",
+            }
+        essence = _text(spec.get("essence"), need or "seek_order")
+        target_kind = _text(spec.get("target"), "self")
+        target, target_name = self._goal_target(
+            character, faction, target_kind
+        )
+        return {
+            "kind": kind,
+            "label": _text(spec.get("label"), kind),
+            "need": need,
+            "essence": essence,
+            "target_kind": target_kind,
+            "target": target,
+            "target_name": target_name,
+            "started": int(self.turn),
+            "revised": int(self.turn),
+        }
+
+    def _init_character_agency(self, faction):
+        """Завести цели и память всем персонажам фракции.
+
+        Вызывается после сборки фракций и после загрузки снимка. Уже
+        существующие цель и память сохраняются: старый сейв остаётся
+        источником истины.
+        """
+        if not self._agency_enabled() or faction is None:
+            return
+        for character in faction.characters:
+            character.campaign_agency = self._agency_state(
+                character, faction
+            )
+            goal = getattr(character, "campaign_goal", None)
+            if (
+                not isinstance(goal, Mapping)
+                or not _text(goal.get("kind"))
+            ):
+                character.campaign_goal = self._character_goal(
+                    character, faction
+                )
+
+    def _character_competence(self, character):
+        """Компетентность исполнителя по чертам из данных."""
+        model = self._agency_model()
+        traits = [
+            _text(item)
+            for item in (model.get("competence_traits") or ())
+            if _text(item)
+        ]
+        if not traits:
+            return 0.5
+        values = _as_mapping(
+            getattr(getattr(character, "personality", None), "values", {})
+        )
+        total = sum(_clamp(values.get(trait, 0.0)) for trait in traits)
+        return total / float(len(traits))
+
+    def _character_support(self, character, action, faction=None):
+        """Насколько персонаж поддерживает работу или саботирует её.
+
+        Поддержка складывается из личной цели, BDI-намерения, потребности
+        и совпадения адресата. Доверие и инициатива усиливают вклад,
+        обида его гасит. При высокой обиде персонаж переходит к саботажу,
+        и работа теряет вес.
+        """
+        model = self._agency_model()
+        if not bool(model.get("enabled", False)) or character is None:
+            return 0.0
+        if bool(
+            getattr(
+                character,
+                "is_dead",
+                getattr(character, "dead", False),
+            )
+        ):
+            return 0.0
+        if faction is None:
+            faction = self.faction(str(getattr(character, "side", "")))
+        essences = self._action_essences(action)
+        need = ""
+        for essence in essences:
+            need = self._action_need(essence, character)
+            if need:
+                break
+        target = None
+        if faction is not None:
+            target = self.faction(
+                self._target_side(faction.side, action)
+            )
+        target_id = _text(getattr(target, "id", ""))
+        state = self._agency_state(character, faction)
+        goal = _as_mapping(getattr(character, "campaign_goal", {}))
+        goal_weight = _number(model.get("goal_weight"), 0.35)
+        target_weight = _number(model.get("target_weight"), 0.2)
+        intention_weight = _number(model.get("intention_weight"), 0.25)
+        need_weight = _number(model.get("need_weight"), 0.2)
+        trust_weight = _number(model.get("trust_weight"), 0.25)
+        grievance_weight = _number(model.get("grievance_weight"), 0.45)
+        initiative_weight = _number(
+            model.get("initiative_weight"), 0.15
+        )
+        sabotage_weight = _number(model.get("sabotage_weight"), 0.35)
+        sabotage_floor = _number(model.get("sabotage_floor"), 0.35)
+        urgency_floor = _number(model.get("urgency_floor"), 0.25)
+
+        support = 0.0
+        if _text(goal.get("essence")) in essences:
+            support += goal_weight
+        if need and _text(goal.get("need")) == need:
+            support += goal_weight * 0.5
+        if (
+            target_id
+            and _text(goal.get("target"))
+            and _same_id(goal.get("target"), target_id)
+        ):
+            support += target_weight
+        bdi = getattr(character, "bdi", None)
+        intention = (
+            bdi.latest_intention()
+            if bdi is not None
+            and callable(getattr(bdi, "latest_intention", None))
+            else None
+        )
+        desires = _as_mapping(getattr(character, "desires", {}))
+        urgency = max(
+            [_number(value) for value in desires.values()] or [0.0]
+        )
+        if (
+            intention is not None
+            and _text(getattr(intention, "essence", "")) in essences
+            and urgency >= urgency_floor
+        ):
+            support += intention_weight * urgency
+        if need:
+            support += need_weight * _clamp(
+                _as_mapping(getattr(character, "needs", {})).get(need)
+            )
+        trust = _clamp(state.get("trust", 0.5))
+        initiative = _clamp(state.get("initiative", 0.0))
+        grievance = _clamp(state.get("grievance", 0.0))
+        support *= 1.0 + trust_weight * (trust - 0.5) * 2.0
+        support *= 1.0 + initiative_weight * initiative
+        support -= grievance_weight * grievance
+        if grievance >= sabotage_floor:
+            support -= sabotage_weight * grievance
+        return support
+
+    def _remember_assignment(self, character, record, success=None,
+                             started=False):
+        """Запомнить назначение на работу и его исход."""
+        if character is None or not self._agency_enabled():
+            return {}
+        faction = self.faction(_text(record.get("side")))
+        state = self._agency_state(character, faction)
+        model = self._agency_model()
+        if started:
+            state["assignments"] = (
+                max(0, int(state.get("assignments", 0))) + 1
+            )
+            state["initiative"] = _clamp(
+                state.get("initiative", 0.0)
+                + _number(model.get("initiative_gain"), 0.2) * 0.25
+            )
+        if success is True:
+            state["trust"] = _clamp(
+                state.get("trust", 0.5)
+                + _number(model.get("order_trust"), 0.1) * 0.5
+            )
+            state["grievance"] = _clamp(
+                state.get("grievance", 0.0) * 0.9
+            )
+        elif success is False:
+            state["grievance"] = _clamp(
+                state.get("grievance", 0.0)
+                + _number(model.get("order_grievance"), 0.15) * 0.5
+            )
+        character.campaign_agency = state
+        return dict(state)
+
+    def _order_goal_harmony(self, order, goal):
+        """Согласован ли приказ с личной целью адресата.
+
+        Данные приказа могут прямо задать ``goal_alignment`` или списки
+        ``goal_needs``/``goal_essences``. Иначе выводятся из эффектов:
+        снижение целевой потребности поддерживает цель, повышение —
+        вызывает обиду; совпадение сути намерения усиливает доверие.
+        """
+        goal = _as_mapping(goal)
+        order = _as_mapping(order)
+        if not goal:
+            return 0.0
+        harmony = 0.0
+        effects = _as_mapping(order.get("effects"))
+        need_delta = _as_mapping(effects.get("needs"))
+        goal_need = _text(goal.get("need"))
+        declared_needs = {
+            _text(item) for item in (order.get("goal_needs") or ())
+        }
+        if goal_need and goal_need in declared_needs:
+            harmony += 0.5
+        if goal_need and goal_need in need_delta:
+            delta = _number(need_delta.get(goal_need), 0.0)
+            harmony += 0.55 if delta < 0.0 else -0.45
+        order_essences = set()
+        intentions = _as_mapping(effects.get("intentions"))
+        for item in intentions.get("push") or ():
+            if isinstance(item, Mapping):
+                essence = _text(item.get("essence"))
+                if essence:
+                    order_essences.add(essence)
+        for item in order.get("goal_essences") or ():
+            essence = _text(item)
+            if essence:
+                order_essences.add(essence)
+        goal_essence = _text(goal.get("essence"))
+        if goal_essence and goal_essence in order_essences:
+            harmony += 0.6
+        elif order_essences:
+            harmony -= 0.2
+        alignment = _text(order.get("goal_alignment"))
+        if alignment == "support":
+            harmony += 0.5
+        elif alignment == "conflict":
+            harmony -= 0.5
+        return max(-1.0, min(1.0, harmony))
+
+    def _remember_order(self, character, order, faction=None):
+        """Приказ оставляет след: доверие или обиду у адресата."""
+        if character is None or not self._agency_enabled():
+            return {}
+        state = self._agency_state(character, faction)
+        model = self._agency_model()
+        goal = _as_mapping(getattr(character, "campaign_goal", {}))
+        harmony = self._order_goal_harmony(order, goal)
+        trust_delta = _number(model.get("order_trust"), 0.1) * (
+            0.5 + 0.5 * harmony
+        )
+        grievance_delta = _number(
+            model.get("order_grievance"), 0.15
+        ) * (0.5 - 0.5 * harmony)
+        state["trust"] = _clamp(
+            _number(state.get("trust"), 0.5) + trust_delta
+        )
+        state["grievance"] = _clamp(
+            _number(state.get("grievance"), 0.0) + grievance_delta
+        )
+        state["orders"] = max(0, int(state.get("orders", 0))) + 1
+        state["last_order"] = _text(order.get("id"))
+        memory = list(state.get("memory") or ())
+        memory.append(
+            {
+                "turn": int(self.turn),
+                "order_id": _text(order.get("id")),
+                "harmony": round(harmony, 6),
+                "trust": round(state["trust"], 6),
+                "grievance": round(state["grievance"], 6),
+            }
+        )
+        state["memory"] = memory[-8:]
+        character.campaign_agency = state
+        return {
+            "trust": round(state["trust"], 6),
+            "grievance": round(state["grievance"], 6),
+            "harmony": round(harmony, 6),
+            "goal": str(goal.get("label") or ""),
+        }
+
+    def _choose_executor(self, side, action):
+        """Выбрать исполнителя работы по цели, компетентности и органу.
+
+        Персонаж игрока не назначается автоматически: им управляет
+        игрок. Лидер фракции может быть исполнителем, если лучше всех
+        подходит по цели. При равенстве выигрывает стабильный порядок
+        персонажей, поэтому выбор детерминирован.
+        """
+        if not self._agency_enabled():
+            return None
+        faction = self.faction(side)
+        if faction is None:
+            return None
+        model = self._agency_model()
+        competence_weight = _number(
+            model.get("competence_weight"), 0.2
+        )
+        organ_bonus = _number(model.get("executor_organ_bonus"), 0.25)
+        organ_id = _text(action.get("organ_id"))
+        best = None
+        best_score = -math.inf
+        for character in faction.characters:
+            if bool(
+                getattr(
+                    character,
+                    "is_dead",
+                    getattr(character, "dead", False),
+                )
+            ):
+                continue
+            if bool(getattr(character, "campaign_is_player", False)):
+                continue
+            support = self._character_support(
+                character, action, faction
+            )
+            competence = self._character_competence(character)
+            score = 1.0 + support + competence_weight * (
+                competence - 0.5
+            )
+            if (
+                organ_id
+                and _same_id(
+                    getattr(character, "campaign_organ_id", ""),
+                    organ_id,
+                )
+            ):
+                score += organ_bonus
+            if score > best_score + 1e-9:
+                best = character
+                best_score = score
+        return best
+
+    def _tick_character_autonomy(self, faction, seconds=None):
+        """Пересмотреть личные цели и выбрать BDI-намерение.
+
+        Цель живёт ``goal_hold_turns`` ходов и не меняется каждый такт:
+        иначе персонаж дёргается между потребностями. Память приказов
+        затухает, инициатива возвращается к норме. Персонаж игрока
+        сохраняет цель для отображения, но не выбирает намерение сам.
+        """
+        if not self._agency_enabled() or faction is None:
+            return
+        model = self._agency_model()
+        decay = _clamp(_number(model.get("memory_decay"), 0.92))
+        hold = max(
+            1, int(_number(model.get("goal_hold_turns"), 3))
+        )
+        every = max(
+            1, int(_number(model.get("deliberate_every"), 1))
+        )
+        for character in faction.characters:
+            if bool(
+                getattr(
+                    character,
+                    "is_dead",
+                    getattr(character, "dead", False),
+                )
+            ):
+                continue
+            state = self._agency_state(character, faction)
+            state["trust"] = 0.5 + (
+                _number(state.get("trust"), 0.5) - 0.5
+            ) * decay
+            state["grievance"] = _clamp(
+                _number(state.get("grievance"), 0.0) * decay
+            )
+            state["initiative"] = _clamp(
+                _number(state.get("initiative"), 0.0) * decay
+            )
+            character.campaign_agency = state
+            goal = _as_mapping(getattr(character, "campaign_goal", {}))
+            started = int(_number(goal.get("started"), -10 ** 9))
+            if not goal or int(self.turn) - started >= hold:
+                goal = self._character_goal(character, faction)
+                goal["started"] = int(self.turn)
+                goal["revised"] = int(self.turn)
+                character.campaign_goal = goal
+            if bool(getattr(character, "campaign_is_player", False)):
+                continue
+            if every and int(self.turn) % every:
+                continue
+            try:
+                character.deliberate(
+                    target=_text(goal.get("target")) or None,
+                    preferred=_text(goal.get("essence")) or None,
+                )
+            except Exception:
+                logger.exception(
+                    "Намерение персонажа %s не выбрано",
+                    getattr(character, "name", "?"),
+                )
+
     def _ai_action_weight(self, side, action, leader=None):
         """Вес работы для ИИ: данные, BDI лидера, доктрина и органы.
 
@@ -4234,67 +4886,38 @@ class AutomataCampaign:
                 )
 
         # Автономия персонажей: не только лидер, но и остальные люди
-        # фракции вносят вклад в выбор работы своими намерениями и
-        # потребностями. Веса — данные ``ai_model.character_agency``.
+        # фракции вносят вклад в выбор работы своей целью, намерением,
+        # потребностью, доверием и обидой. Веса — данные
+        # ``ai_model.character_agency``.
         agency = _as_mapping(model.get("character_agency"))
         if bool(agency.get("enabled", False)):
             limit = max(
                 1, int(_number(agency.get("max_characters"), 6))
             )
-            intent_weight = _number(
-                agency.get("intention_weight"), 0.25
-            )
-            member_need_weight = _number(
-                agency.get("need_weight"), 0.2
-            )
-            urgency_floor = _number(
-                agency.get("urgency_floor"), 0.25
-            )
             support = 0.0
+            sabotage = 0.0
             for member in list(faction.characters)[:limit]:
                 if member is leader:
                     continue
-                if bool(
-                    getattr(
-                        member,
-                        "is_dead",
-                        getattr(member, "dead", False),
-                    )
-                ):
-                    continue
-                desires = _as_mapping(
-                    getattr(member, "desires", {})
+                value = self._character_support(
+                    member, action, faction
                 )
-                urgency = max(
-                    [_number(value) for value in desires.values()] or [0.0]
-                )
-                if urgency < urgency_floor:
-                    continue
-                bdi = getattr(member, "bdi", None)
-                intention = (
-                    bdi.latest_intention()
-                    if bdi is not None
-                    and callable(getattr(bdi, "latest_intention", None))
-                    else None
-                )
-                if intention is not None and _text(
-                    getattr(intention, "essence", "")
-                ) in essences:
-                    support += intent_weight * urgency
-                member_need = ""
-                for essence in essences:
-                    member_need = self._action_need(essence, member)
-                    if member_need:
-                        break
-                if member_need and member_need == need:
-                    current = _clamp(
-                        _as_mapping(
-                            getattr(member, "needs", {})
-                        ).get(member_need)
-                    )
-                    support += member_need_weight * current
+                if value >= 0.0:
+                    support += value
+                else:
+                    sabotage += -value
             if support > 0.0:
                 weight *= 1.0 + support
+            if sabotage > 0.0:
+                floor = _clamp(
+                    _number(agency.get("sabotage_floor"), 0.35)
+                )
+                weight *= max(
+                    floor,
+                    1.0
+                    - _number(agency.get("sabotage_weight"), 0.35)
+                    * sabotage,
+                )
 
         doctrine = _as_mapping(faction.record.get("doctrine"))
         doctrine_model = _as_mapping(model.get("doctrine"))
@@ -4845,6 +5468,7 @@ class AutomataCampaign:
         )
         applied = []
         relations = []
+        agency_memory = []
         for character in targets:
             payload = _order_payload(
                 order.get("effects"),
@@ -4861,6 +5485,18 @@ class AutomataCampaign:
             )
             relations.extend(
                 self._apply_order_relations(faction, character, order)
+            )
+            memory = self._remember_order(character, order, faction)
+            agency_memory.append(
+                {
+                    "id": str(
+                        getattr(character, "campaign_id", "") or ""
+                    ),
+                    "name": str(
+                        getattr(character, "name", "") or ""
+                    ),
+                    **memory,
+                }
             )
         for key, value in cost.items():
             faction.add_asset(key, -_number(value))
@@ -4894,6 +5530,7 @@ class AutomataCampaign:
             ],
             "cost": dict(option["cost"]),
             "relations": relations,
+            "agency": agency_memory,
             "applied": applied,
         }
         faction.last_order = {
@@ -4990,6 +5627,7 @@ class AutomataCampaign:
         self._tick_machines()
         for faction in self.factions.values():
             self._tick_faction_characters(faction, seconds)
+            self._tick_character_autonomy(faction, seconds)
             self._tick_faction_orders(faction)
             if faction.organization is None:
                 faction.relax_context(self.model["asset_relax"])
@@ -5321,6 +5959,16 @@ class AutomataCampaign:
                                 )
                             ).items()
                         },
+                        "goal": dict(
+                            _as_mapping(
+                                getattr(character, "campaign_goal", {})
+                            )
+                        ),
+                        "agency": dict(
+                            _as_mapping(
+                                getattr(character, "campaign_agency", {})
+                            )
+                        ),
                         "mind": str(getattr(character, "mind", "steady")),
                         "last_mind": str(
                             getattr(character, "_last_mind", "steady")
@@ -5690,6 +6338,10 @@ class AutomataCampaign:
                         saved.get("cooldowns")
                     ).items()
                 }
+                if isinstance(saved.get("goal"), Mapping):
+                    character.campaign_goal = dict(saved["goal"])
+                if isinstance(saved.get("agency"), Mapping):
+                    character.campaign_agency = dict(saved["agency"])
                 if "mind" in saved:
                     character.mind = str(
                         saved.get("mind") or "steady"
@@ -5746,6 +6398,7 @@ class AutomataCampaign:
         ).load(snapshot.get("relations") or {})
         for faction in self.factions.values():
             faction.relations = self.relations
+            self._init_character_agency(faction)
         if self.outcome:
             self.finished = True
         self._sync_avatar_state()
@@ -5817,6 +6470,7 @@ __all__ = [
     "EVENT_LOG_LIMIT",
     "FactionRuntime",
     "MODEL_DEFAULTS",
+    "PHYSICAL_SECONDS_PER_REAL_SECOND",
     "REALTIME_DEFAULTS",
     "WORK_TRACE_VERSION",
 ]
