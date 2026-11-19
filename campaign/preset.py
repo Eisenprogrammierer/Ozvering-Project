@@ -990,6 +990,22 @@ def _build_faction_record(
         "doctrine": dict(cfg.get("doctrine") or {}),
         "assets": dict(cfg.get("assets") or {}),
         "score_assets": dict(cfg.get("score_assets") or {}),
+        # Локальные активы и подписи (G-10) — часть данных фракции, а не
+        # только шаблона: рантайм читает их из record.
+        "asset_labels": dict(cfg.get("asset_labels") or {}),
+        "asset_formulas": {
+            str(key): [dict(term) for term in (terms or ())]
+            for key, terms in _as_mapping(
+                cfg.get("asset_formulas")
+            ).items()
+        },
+        # Приказы (G-14) могут быть локальными для фракции.
+        "orders": [
+            dict(item)
+            for item in (cfg.get("orders") or ())
+            if isinstance(item, Mapping) and item.get("id")
+        ],
+        "order_model": dict(cfg.get("order_model") or {}),
         "rival_side": _text(cfg.get("rival_side")),
         "population": _as_int(cfg.get("population"), 0),
         "actions": _action_records(cfg),

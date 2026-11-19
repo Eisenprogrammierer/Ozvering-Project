@@ -44,6 +44,42 @@
       }
     },
     {
+      "id": "who_are_you_sg",
+      "priority": 100,
+      "match": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "topic",
+          "topic": {
+            "head": "you_sg"
+          }
+        }
+      },
+      "answer": {
+        "type": "smalltalk",
+        "key": "who_are_you"
+      }
+    },
+    {
+      "id": "who_are_you_pl",
+      "priority": 99,
+      "match": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "topic",
+          "topic": {
+            "head": "you_pl"
+          }
+        }
+      },
+      "answer": {
+        "type": "smalltalk",
+        "key": "who_are_you"
+      }
+    },
+    {
       "id": "compare_assets",
       "priority": 95,
       "match": {

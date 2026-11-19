@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from campaign import content_lint
+from campaign.automata import AutomataCampaign
 from campaign.faction_state import asset_keys, asset_terms, derived_asset
+from campaign.preset import CampaignPresetGenerator
+from campaign.roles import RoleCatalog
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class FakeFaction:
@@ -77,3 +84,21 @@ def test_bad_formula_metric_and_missing_label_are_reported():
     problems = content_lint.check_defaults(defaults, factions)
     assert any("нет подписи" in item for item in problems)
     assert any("неизвестная метрика" in item for item in problems)
+
+
+def test_preset_keeps_local_formulas_labels_and_orders():
+    """Локальные блоки доезжают из lore_factions.json до рантайма.
+
+    Юнит-тест на ``FakeFaction`` проверяет только чтение record; этот —
+    что пресет не теряет данные фракции по дороге.
+    """
+    generator = CampaignPresetGenerator(
+        catalog=RoleCatalog.load(ROOT / "configs" / "roles"),
+        template_path=ROOT / "configs" / "campaigns" / "empire_campaign.json",
+    )
+    campaign = AutomataCampaign(generator.generate(seed=13), seed=13)
+    empire = campaign.faction("red")
+    assert empire.record.get("asset_labels", {}).get("myth") == "миф"
+    assert "myth" in asset_keys(empire)
+    assert empire.asset("myth") > 0.0
+    assert [item["id"] for item in empire.orders]

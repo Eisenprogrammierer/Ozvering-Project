@@ -785,6 +785,10 @@ class AnswerPlanner:
             text = self.persona.smalltalk[key]
         if not text:
             return self._unknown(plan.id)
+        try:
+            text = text.format(speaker=self.knowledge.speaker_name)
+        except (KeyError, IndexError):
+            pass
         text = self.realizer.realize_answer(
             "smalltalk",
             {"message": text, "key": key},

@@ -239,6 +239,19 @@ def test_greeting_and_unknown_tone_depend_on_persona(red, blue):
     assert red.persona.parse_unknown != blue.persona.parse_unknown
 
 
+def test_who_are_you_names_the_speaker(red, blue):
+    answer = red.ask("Кто ты?")
+    assert answer.plan_id == "who_are_you_sg"
+    assert answer.kind == "smalltalk"
+    assert red.knowledge.speaker_name in answer.text
+    plural = red.ask("Кто вы?")
+    assert plural.plan_id == "who_are_you_pl"
+    assert plural.text == answer.text
+    other = blue.ask("Кто ты?")
+    assert other.text != answer.text
+    assert blue.knowledge.speaker_name in other.text
+
+
 @pytest.mark.parametrize(
     "phrase",
     [
