@@ -180,7 +180,7 @@ def test_action_catalog_reports_unknown_form():
 
 def test_unimplemented_effect_is_reported():
     problems = content_lint.check_effects(
-        "work", {"self": {"legitimacy": 0.1}, "relations": {}}
+        "work", {"self": {"legitimacy": 0.1}, "teleport": {}}
     )
     assert any("не поддерживается ядром" in item for item in problems)
 
@@ -272,7 +272,7 @@ def test_automaton_targets_and_effects_are_checked():
         "initial": "a",
         "states": {
             "a": {
-                "on_enter": [{"relations": {}}],
+                "on_enter": [{"teleport": {}}],
                 "transitions": [
                     {"to": "b", "when": [{"kind": "nope"}]}
                 ],

@@ -303,7 +303,212 @@ def asymmetry_rows(outgoing, incoming, axes=None):
     ]
 
 
+class RelationStore:
+    """Направленные отношения кампании: ``source → target → axis``.
+
+    Ось — не актив фракции и не скалярная репутация: у каждого
+    направления свой набор значений. Значения лежат в ``-1..1``, поэтому
+    вражда и союз — это разные знаки одной оси, а не два разных поля.
+
+    ``source`` и ``target`` — любые идентификаторы контента: фракции,
+    персонажи, органы. Хранилище не проверяет существование субъекта:
+    это делает вызывающий код или линтер, а снимок должен переживать
+    удалённых персонажей.
+    """
+
+    def __init__(
+        self,
+        axes=None,
+        weights=None,
+        limit=None,
+        form_map=None,
+        neutral=0.0,
+    ):
+        self.axes = tuple(axes or RELATION_AXES)
+        self.weights = dict(weights or RELATION_EFFECT_WEIGHTS)
+        try:
+            self.limit = abs(float(limit))
+        except (TypeError, ValueError):
+            self.limit = RELATION_EFFECT_LIMIT
+        if self.limit <= 0.0:
+            self.limit = RELATION_EFFECT_LIMIT
+        self.form_map = {
+            str(key): str(value)
+            for key, value in (form_map or {}).items()
+            if str(key or "").strip() and str(value or "").strip()
+        }
+        self.neutral = _clamp(neutral, -1.0, 1.0)
+        self._values: dict = {}
+
+    @classmethod
+    def from_config(cls, config=None):
+        """Собрать хранилище из блока ``relation_model``."""
+        config = config if isinstance(config, Mapping) else {}
+        raw_axes = config.get("axes")
+        if raw_axes is None:
+            raw_axes = config.get("relation_axes")
+        axes = relation_axes_from_config({"relation_axes": raw_axes})
+        weights = relation_effect_weights_from_config(
+            {
+                "relation_effect_weights": config.get("effect_weights")
+                or config.get("relation_effect_weights")
+            }
+        )
+        limit = relation_effect_limit_from_config(
+            {
+                "relation_effect_limit": config.get("effect_limit")
+                or config.get("relation_effect_limit")
+            }
+        )
+        form_map = config.get("forms") or config.get("form_map") or {}
+        return cls(
+            axes=axes,
+            weights=weights,
+            limit=limit,
+            form_map=form_map,
+            neutral=config.get("neutral", 0.0),
+        )
+
+    def _subject(self, value):
+        return str(value or "").strip()
+
+    def form_for(self, form):
+        """Свести форму работы к форме отношения из данных."""
+        name = str(form or DEFAULT_RELATION_FORM)
+        return self.form_map.get(name, name)
+
+    def value(self, source, target, axis):
+        """Одно значение оси; отсутствующая связь читается как нейтраль."""
+        source = self._subject(source)
+        target = self._subject(target)
+        axis = self._subject(axis)
+        if not source or not target or not axis:
+            return self.neutral
+        try:
+            return _clamp(
+                self._values.get(source, {})
+                .get(target, {})
+                .get(axis, self.neutral)
+            )
+        except (TypeError, ValueError):
+            return self.neutral
+
+    def axes_for(self, source, target):
+        """Все настроенные оси направления; отсутствующие — нейтральны."""
+        return {
+            axis: self.value(source, target, axis) for axis in self.axes
+        }
+
+    def set(self, source, target, values):
+        """Заменить оси направления, не трогая остальные направления."""
+        source = self._subject(source)
+        target = self._subject(target)
+        if not source or not target:
+            return {}
+        clean = {}
+        for axis, value in (values or {}).items():
+            axis = self._subject(axis)
+            if not axis:
+                continue
+            try:
+                clean[axis] = _clamp(value)
+            except (TypeError, ValueError):
+                continue
+        if not clean:
+            self._values.get(source, {}).pop(target, None)
+        else:
+            self._values.setdefault(source, {})[target] = clean
+        return dict(clean)
+
+    def add(self, source, target, values, scale=1.0):
+        """Прибавить дельты и вернуть фактически применённые изменения."""
+        source = self._subject(source)
+        target = self._subject(target)
+        if not source or not target:
+            return {}
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = 1.0
+        if scale == 0.0:
+            return {}
+        current = self.axes_for(source, target)
+        before = dict(current)
+        for axis, value in (values or {}).items():
+            axis = self._subject(axis)
+            if not axis:
+                continue
+            try:
+                delta = float(value) * scale
+            except (TypeError, ValueError):
+                continue
+            if not delta:
+                continue
+            current[axis] = _clamp(
+                current.get(axis, self.neutral) + delta
+            )
+        applied = {
+            axis: current[axis] - before.get(axis, self.neutral)
+            for axis in current
+            if axis not in before
+            or abs(current[axis] - before[axis]) > 1e-12
+        }
+        if applied:
+            self.set(source, target, current)
+        return applied
+
+    def effect(self, source, target, form=DEFAULT_RELATION_FORM):
+        """Вклад отношений ``source → target`` в приём формы работы."""
+        return relation_effect(
+            self.axes_for(source, target),
+            self.form_for(form),
+            weights=self.weights,
+            limit=self.limit,
+        )
+
+    def view(self, source=None):
+        """Срез для UI: ``{target: {axis: value}}`` или всё хранилище."""
+        source = self._subject(source)
+        if source:
+            return {
+                target: dict(values)
+                for target, values in self._values.get(
+                    source, {}
+                ).items()
+            }
+        return self.snapshot()
+
+    def snapshot(self):
+        """Копия хранилища для снимка кампании."""
+        return {
+            source: {
+                target: dict(values)
+                for target, values in targets.items()
+            }
+            for source, targets in self._values.items()
+        }
+
+    def load(self, data):
+        """Заменить хранилище снимком; старые сейвы дают пустую матрицу."""
+        self._values = {}
+        for source, targets in (data or {}).items():
+            if not isinstance(targets, Mapping):
+                continue
+            for target, values in targets.items():
+                if not isinstance(values, Mapping):
+                    continue
+                self.set(source, target, values)
+        return self
+
+    def __bool__(self):
+        return any(self._values.values())
+
+    def __len__(self):
+        return sum(len(targets) for targets in self._values.values())
+
+
 __all__ = [
+    "RelationStore",
     "DEFAULT_RELATION_FORM",
     "RELATION_AXES",
     "RELATION_AXIS_LABELS",

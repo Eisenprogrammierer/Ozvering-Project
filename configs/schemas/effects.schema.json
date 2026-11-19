@@ -147,6 +147,39 @@
         }
       },
       "additionalProperties": false
+    },
+    "relationAxes": {
+      "type": "object",
+      "description": "Ось отношения → дельта в диапазоне -1..1.",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "relations": {
+      "type": "object",
+      "description": "ID цели → оси отношения, которые пишет действующий субъект.",
+      "additionalProperties": {
+        "$ref": "#/$defs/relationAxes"
+      }
+    },
+    "moraleEffect": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "character_id": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "properties": {
@@ -185,6 +218,12 @@
       "additionalProperties": {
         "$ref": "#/$defs/subfactionEffect"
       }
+    },
+    "relations": {
+      "$ref": "#/$defs/relations"
+    },
+    "morale": {
+      "$ref": "#/$defs/moraleEffect"
     },
     "flags": {
       "type": "object",

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/order.schema.json",
+  "title": "Приказ фракции персонажу",
+  "description": "Запись order_model.orders. Исполняется AutomataCampaign.issue_order.",
+  "type": "object",
+  "required": [
+    "id"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "number",
+      "minimum": 0
+    },
+    "cooldown": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "recipient": {
+      "type": "string"
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "when": {
+      "oneOf": [
+        {
+          "$ref": "https://ozvering.local/schemas/conditions.schema.json#/$defs/clause"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/conditions.schema.json#/$defs/clause"
+          }
+        }
+      ]
+    },
+    "requires": {
+      "$ref": "https://ozvering.local/schemas/requires.schema.json"
+    },
+    "effects": {
+      "$ref": "https://ozvering.local/schemas/effects.schema.json"
+    },
+    "relations": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

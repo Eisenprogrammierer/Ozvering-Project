@@ -36,7 +36,7 @@ from .avatar import (
     avatar_from_preset,
     avatar_from_snapshot,
 )
-from .conditions import asset_reason, check_conditions
+from .conditions import asset_reason, check_conditions, relation_reason
 from .effects import apply_effects, apply_report
 from .work import build_interaction_work, build_work
 from .work_trace import trace_from_report
@@ -75,6 +75,11 @@ from .fractal import (
 )
 from .geometry import GeometryError, MetricGraph
 from .obligations import DEFAULT_OBLIGATION_KIND, ObligationLedger
+from .relations import (
+    RelationStore,
+    relation_axis_labels_from_config,
+    relation_effect,
+)
 from .projections import (
     SCHEMA_VERSION,
     migrate_snapshot,
@@ -201,6 +206,8 @@ REALTIME_DEFAULTS = default_dict("realtime")
 ACTION_PROCESS_DEFAULTS = default_dict("action_process")
 AI_MODEL_DEFAULTS = default_dict("ai_model")
 ASSET_LABELS = default_dict("asset_labels")
+RELATION_MODEL_DEFAULTS = default_dict("relation_model")
+ORDER_MODEL_DEFAULTS = default_dict("order_model")
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
     PRESET_DEFAULTS["organization_runtime"]
@@ -256,6 +263,74 @@ def _same_id(left, right):
         return _text(value).replace(".", "_").lower()
 
     return bool(normalize(left)) and normalize(left) == normalize(right)
+
+
+def _relation_model(data):
+    """Блок ``relation_model``: база из defaults + переопределение сценария."""
+    base = _as_mapping(RELATION_MODEL_DEFAULTS)
+    override = _as_mapping(
+        _as_mapping(data.get("scenario")).get("relation_model")
+    )
+    return _merged_mapping(base, override)
+
+
+def _order_model(data):
+    """Блок ``order_model``: база из defaults + переопределение сценария."""
+    base = _as_mapping(ORDER_MODEL_DEFAULTS)
+    override = _as_mapping(
+        _as_mapping(data.get("scenario")).get("order_model")
+    )
+    return _merged_mapping(base, override)
+
+
+def _order_payload(effects, character_id):
+    """Направить эффекты приказа конкретному персонажу.
+
+    Приказ — нисходящая связь «фракция → человек». Ядро эффектов уже
+    понимает ``character_id`` в ``needs``/``traits``/``conditions``/
+    ``beliefs``/``intentions``/``morale``; здесь только подставляется
+    адресат, чтобы данные приказа оставались декларативными.
+    """
+    character_id = _text(character_id)
+    if not character_id:
+        return dict(_as_mapping(effects))
+    result = {}
+    for key, value in _as_mapping(effects).items():
+        if key in ("self", "target") and isinstance(value, Mapping):
+            result[key] = _order_payload(value, character_id)
+            continue
+        if key == "needs" and isinstance(value, Mapping) and (
+            "self" in value or "target" in value
+        ):
+            result[key] = {
+                scope: _order_payload({key: payload}, character_id)[key]
+                for scope, payload in value.items()
+            }
+            continue
+        if key in (
+            "needs",
+            "traits",
+            "conditions",
+            "beliefs",
+            "intentions",
+        ) and isinstance(value, Mapping):
+            item = dict(value)
+            item["character_id"] = character_id
+            result[key] = item
+            continue
+        if key == "morale":
+            if isinstance(value, Mapping):
+                item = dict(value)
+                item["character_id"] = character_id
+                result[key] = item
+            else:
+                result[key] = {
+                    "character_id": character_id,
+                    "amount": value,
+                }
+            continue
+        result[key] = value
+    return result
 
 
 def _nested_tuple(value):
@@ -410,6 +485,11 @@ class FactionRuntime:
     cooldowns: Dict[str, int] = field(default_factory=dict)
     low_streaks: Dict[str, int] = field(default_factory=dict)
     organization_snapshot: dict = field(default_factory=dict)
+    orders: List[dict] = field(default_factory=list)
+    order_cooldowns: Dict[str, int] = field(default_factory=dict)
+    last_order_turn: int = 0
+    last_order: dict = field(default_factory=dict)
+    relations: Optional[RelationStore] = None
     dissolved: bool = False
 
     @property
@@ -684,6 +764,12 @@ class FactionRuntime:
             },
             "flags": dict(self.flags),
             "organization": dict(stored),
+            "order_cooldowns": {
+                str(key): int(value)
+                for key, value in self.order_cooldowns.items()
+            },
+            "last_order_turn": int(self.last_order_turn),
+            "last_order": dict(self.last_order),
             "willing_share": round(_clamp(willing_share), 6),
             "willing_count": int(willing_count),
             "active_count": int(active),
@@ -832,6 +918,9 @@ class AutomataCampaign:
             logger.exception("не удалось поднять движок событий")
             self.story_engine = None
         self.obligations = ObligationLedger()
+        self.relations = RelationStore.from_config(_relation_model(data))
+        self.order_model = _order_model(data)
+        self.last_order_result = None
         self._build_factions(data)
         self._seed_obligations()
         self._build_machines()
@@ -1239,6 +1328,18 @@ class AutomataCampaign:
                 automaton_interactions = [
                     dict(item) for item in DEFAULT_AUTOMATON_INTERACTIONS
                 ]
+            order_model = _merged_mapping(
+                self.order_model, faction.get("order_model")
+            )
+            orders = [
+                dict(item)
+                for item in (
+                    faction.get("orders")
+                    or order_model.get("orders")
+                    or ()
+                )
+                if isinstance(item, Mapping) and item.get("id")
+            ]
             organs = []
             for organ_record in faction.get("organs") or ():
                 if not isinstance(organ_record, Mapping):
@@ -1287,6 +1388,8 @@ class AutomataCampaign:
                 geometry=geometry,
                 automaton_interactions=automaton_interactions,
                 character_interactions=character_interactions,
+                orders=orders,
+                relations=self.relations,
             )
             # Стартовые значения пресета задают фон, а не отдельный
             # кошелёк: подбираем контекст так, чтобы производные активы
@@ -1301,6 +1404,34 @@ class AutomataCampaign:
 
     def faction(self, side):
         return self.factions.get(str(side or ""))
+
+    def relation_view(self, source=None, target=None):
+        """Срез отношений для UI и диалога.
+
+        Без аргументов — вся матрица; с ``source`` — исходящие связи
+        субъекта; с ``source`` и ``target`` — обе стороны пары.
+        """
+        model = _relation_model(self.data)
+        axes = list(self.relations.axes)
+        labels = relation_axis_labels_from_config(
+            {"relation_axes": model.get("axes")}, axes
+        )
+        if source and target:
+            return {
+                "source": str(source),
+                "target": str(target),
+                "outgoing": self.relations.axes_for(source, target),
+                "incoming": self.relations.axes_for(target, source),
+                "axes": axes,
+                "labels": labels,
+            }
+        return {
+            "source": str(source or ""),
+            "axes": axes,
+            "labels": labels,
+            "limit": self.relations.limit,
+            "matrix": self.relations.view(source),
+        }
 
     def geometry(self, side):
         """Семантическая геометрия стороны или ``None``."""
@@ -2023,6 +2154,17 @@ class AutomataCampaign:
                 if int(value) > 0
             },
             "labels": ASSET_LABELS,
+            "relations": (
+                self.relations.view(faction.id)
+                if faction is not None
+                else {}
+            ),
+            "target_relations": (
+                self.relations.view(target.id)
+                if target is not None
+                else {}
+            ),
+            "relation_store": self.relations,
         }
 
     def _action_requirement_reason(self, faction, action, target=None):
@@ -2070,6 +2212,14 @@ class AutomataCampaign:
             )
             if reason:
                 return reason
+        reason = relation_reason(
+            "нужно",
+            requires.get("relations"),
+            self.relations,
+            getattr(faction, "id", ""),
+        )
+        if reason:
+            return reason
         reason = check_conditions(
             requires.get("when"),
             self._condition_context(faction, target),
@@ -2688,6 +2838,43 @@ class AutomataCampaign:
             )
         return options
 
+    def _apply_interaction_relations(
+        self, faction, character, interaction
+    ):
+        """Записать отношения взаимодействия «фракция ↔ персонаж».
+
+        Блок ``relations`` у взаимодействия может быть простым словарём
+        осей или объектом ``{"source": "character", "axes": {...}}``.
+        По умолчанию источник — фракция, потому что эффект применяет она.
+        """
+        raw = _as_mapping(interaction.get("relations"))
+        if not raw or self.relations is None:
+            return []
+        axes = _as_mapping(raw.get("axes")) if "axes" in raw else raw
+        if not axes:
+            return []
+        mode = _text(raw.get("source") or raw.get("from"), "faction")
+        faction_id = str(getattr(faction, "id", "") or "")
+        character_id = str(
+            getattr(character, "campaign_id", "") or ""
+        )
+        if not faction_id or not character_id:
+            return []
+        if mode in ("character", "target", "self_character"):
+            source, target = character_id, faction_id
+        else:
+            source, target = faction_id, character_id
+        changes = self.relations.add(source, target, axes, 1.0)
+        return [
+            {
+                "source": source,
+                "target": target,
+                "axis": str(axis),
+                "delta": delta,
+            }
+            for axis, delta in changes.items()
+        ]
+
     def perform_character_interaction(
         self, side, character_id, interaction_id
     ):
@@ -2782,6 +2969,9 @@ class AutomataCampaign:
             scale=1.0,
             source="character_interaction",
         )
+        relation_changes = self._apply_interaction_relations(
+            faction, character, interaction
+        )
         needs_before = {}
         for key, before_value in needs_snapshot.items():
             after_value = _clamp(character.needs.get(key, 0.0))
@@ -2833,6 +3023,7 @@ class AutomataCampaign:
                 round(organ.integrity, 6) if organ is not None else None
             ),
             "organ_integrity_delta": round(organ_delta, 6),
+            "relations": relation_changes,
             "text": str(
                 interaction.get("text") or option["description"]
             ),
@@ -3075,7 +3266,20 @@ class AutomataCampaign:
             chance_spec.get("slope"),
             _number(action.get("slope"), self.model["success_slope"]),
         )
-        chance = _sigmoid(base + slope * (attack_value - defense_value))
+        form = self._action_form(action)
+        relation_shift = 0.0
+        if (
+            self.relations is not None
+            and target_faction.id != actor.id
+        ):
+            relation_shift = self.relations.effect(
+                target_faction.id, actor.id, form
+            )
+        chance = _sigmoid(
+            base
+            + slope * (attack_value - defense_value)
+            + relation_shift
+        )
         roll = self.rng.random()
         success = roll < chance
         organ_id = str(action.get("organ_id") or "")
@@ -3208,6 +3412,7 @@ class AutomataCampaign:
             "defense_asset": defense_asset,
             "defense_value": round(defense_value, 6),
             "chance": round(chance, 6),
+            "relation_shift": round(relation_shift, 6),
             "roll": round(roll, 6),
             "success": bool(success),
             "intention": dict(intention or {}),
@@ -3719,6 +3924,19 @@ class AutomataCampaign:
             weight *= 1.0 + _number(
                 defense_model.get("weight"), 1.0
             ) * max(0.0, reference - defense)
+            if self.relations is not None and target.id != faction.id:
+                relation_model = _as_mapping(model.get("relations"))
+                shift = self.relations.effect(
+                    target.id, faction.id, form
+                )
+                weight *= max(
+                    0.05,
+                    1.0
+                    + _number(
+                        relation_model.get("weight"), 1.0
+                    )
+                    * shift,
+                )
         return weight
 
     def _ai_weighted_options(
@@ -3876,6 +4094,354 @@ class AutomataCampaign:
             self.advance(player_action=player_action, target=target)
         return self.snapshot()
 
+    def _tick_faction_orders(self, faction):
+        """Отдать приказ от фракции персонажу на организационном такте.
+
+        Приказы — данные ``order_model.orders``. Игровая сторона не
+        получает автоматических приказов: её направляет игрок (``issue_order``).
+        """
+        model = _as_mapping(self.order_model)
+        if not model or not bool(model.get("enabled", True)):
+            return None
+        if faction.side == self.player_side or not faction.orders:
+            return None
+        interval = max(1, int(_number(model.get("interval"), 1)))
+        if faction.last_order_turn and (
+            int(self.turn) - int(faction.last_order_turn) < interval
+        ):
+            return None
+        limit = max(1, int(_number(model.get("max_per_tick"), 1)))
+        result = None
+        for _ in range(limit):
+            selected = self._choose_order(faction)
+            if selected is None:
+                break
+            issued = self.issue_order(faction.side, selected["id"])
+            if not issued.get("ok"):
+                break
+            result = issued
+        return result
+
+    def _choose_order(self, faction):
+        """Выбрать доступный приказ по весам ``priority`` из данных."""
+        options = [
+            item for item in self.order_options(faction.side) if item["enabled"]
+        ]
+        if not options:
+            return None
+        weights = [
+            max(1e-6, _number(item["order"].get("priority"), 1.0))
+            for item in options
+        ]
+        pick = self.rng.random() * sum(weights)
+        upto = 0.0
+        for item, weight in zip(options, weights):
+            upto += weight
+            if pick <= upto:
+                return item["order"]
+        return options[-1]["order"]
+
+    def _order_cooldown_left(self, faction, order):
+        cooldown = max(
+            0,
+            int(
+                _number(
+                    order.get("cooldown"),
+                    self.order_model.get("cooldown", 1),
+                )
+            ),
+        )
+        if cooldown <= 0:
+            return 0
+        last = faction.order_cooldowns.get(str(order.get("id")))
+        if last is None:
+            return 0
+        return max(0, cooldown + 1 - (int(self.turn) - int(last)))
+
+    def _order_affordable(self, faction, order):
+        cost = _as_mapping(order.get("cost"))
+        return all(
+            faction.asset(key) + 1e-9 >= _number(value)
+            for key, value in cost.items()
+        )
+
+    def _order_requirement_reason(self, faction, order):
+        requires = _as_mapping(order.get("requires"))
+        reason = self._asset_requirement_reason(
+            "нужно", faction.assets, requires.get("self")
+        )
+        if reason:
+            return reason
+        when = requires.get("when")
+        if when is None:
+            when = order.get("when")
+        return check_conditions(when, self._condition_context(faction))
+
+    def _order_targets(self, faction, order, character_id=None):
+        alive = [
+            character
+            for character in faction.characters
+            if not bool(
+                getattr(
+                    character,
+                    "is_dead",
+                    getattr(character, "dead", False),
+                )
+            )
+        ]
+        if not alive:
+            return []
+        if character_id:
+            wanted = str(character_id)
+            return [
+                character
+                for character in alive
+                if str(getattr(character, "campaign_id", "")) == wanted
+            ]
+        recipient = _text(
+            order.get("recipient") or self.order_model.get("recipient"),
+            "priority",
+        )
+        if recipient in ("all", "everyone", "broadcast"):
+            return alive
+        if recipient == "leader":
+            return alive[:1]
+        if recipient == "lowest_morale":
+            return [
+                min(
+                    alive,
+                    key=lambda item: _number(
+                        getattr(item, "morale", 0.0)
+                    ),
+                )
+            ]
+        if recipient == "highest_morale":
+            return [
+                max(
+                    alive,
+                    key=lambda item: _number(
+                        getattr(item, "morale", 0.0)
+                    ),
+                )
+            ]
+
+        def need_score(character):
+            values = [
+                _clamp(value)
+                for value in _as_mapping(
+                    getattr(character, "needs", {})
+                ).values()
+            ]
+            return sum(values) / float(len(values)) if values else 1.0
+
+        return [min(alive, key=need_score)]
+
+    def order_options(self, side):
+        """Приказы стороны с причиной недоступности (UI и тесты)."""
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return []
+        options = []
+        for order in faction.orders:
+            cost = _as_mapping(order.get("cost"))
+            left = self._order_cooldown_left(faction, order)
+            requirement = self._order_requirement_reason(faction, order)
+            affordable = self._order_affordable(faction, order)
+            if requirement:
+                reason = requirement
+            elif left > 0:
+                reason = "перезарядка ещё %d" % left
+            elif not affordable:
+                reason = "не хватает состояния"
+            else:
+                reason = ""
+            options.append(
+                {
+                    "order": order,
+                    "id": str(order.get("id")),
+                    "label": str(order.get("label") or order.get("id")),
+                    "description": str(order.get("description") or ""),
+                    "priority": round(
+                        _number(order.get("priority"), 1.0), 6
+                    ),
+                    "recipient": _text(
+                        order.get("recipient")
+                        or self.order_model.get("recipient"),
+                        "priority",
+                    ),
+                    "cooldown": left,
+                    "cost": {
+                        str(key): round(_number(value), 6)
+                        for key, value in cost.items()
+                    },
+                    "enabled": not reason,
+                    "reason": reason,
+                }
+            )
+        return options
+
+    def _apply_order_relations(self, faction, character, order):
+        """Записать отношение приказа «фракция → персонаж»."""
+        raw = _as_mapping(order.get("relations"))
+        if not raw or self.relations is None:
+            return []
+        axes = _as_mapping(raw.get("axes")) if "axes" in raw else raw
+        if not axes:
+            return []
+        mode = _text(raw.get("source") or raw.get("from"), "faction")
+        faction_id = str(getattr(faction, "id", "") or "")
+        character_id = str(
+            getattr(character, "campaign_id", "") or ""
+        )
+        if not faction_id or not character_id:
+            return []
+        if mode in ("character", "target", "self_character"):
+            source, target = character_id, faction_id
+        else:
+            source, target = faction_id, character_id
+        changes = self.relations.add(source, target, axes, 1.0)
+        return [
+            {
+                "source": source,
+                "target": target,
+                "axis": str(axis),
+                "delta": delta,
+            }
+            for axis, delta in changes.items()
+        ]
+
+    def issue_order(self, side, order_id, character_id=None):
+        """Отдать приказ фракции конкретному персонажу.
+
+        Игрок и ИИ используют один путь: проверка требований → эффекты
+        через ``apply_effects`` → отношения → расход цены → перезарядка.
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        order = next(
+            (
+                item
+                for item in faction.orders
+                if str(item.get("id")) == str(order_id)
+            ),
+            None,
+        )
+        if order is None:
+            return {"ok": False, "reason": "приказ не найден"}
+        option = next(
+            (
+                item
+                for item in self.order_options(side)
+                if item["id"] == str(order_id)
+            ),
+            None,
+        )
+        if option is None or not option["enabled"]:
+            return {
+                "ok": False,
+                "reason": (
+                    option.get("reason")
+                    if option is not None
+                    else "приказ недоступен"
+                ),
+            }
+        targets = self._order_targets(faction, order, character_id)
+        if not targets:
+            return {"ok": False, "reason": "нет персонажа для приказа"}
+        cost = _as_mapping(order.get("cost"))
+        broadcast = (
+            not character_id
+            and option["recipient"] in ("all", "everyone", "broadcast")
+            and len(targets) > 1
+        )
+        applied = []
+        relations = []
+        for character in targets:
+            payload = _order_payload(
+                order.get("effects"),
+                "" if broadcast else getattr(character, "campaign_id", ""),
+            )
+            applied.append(
+                apply_effects(
+                    faction,
+                    payload,
+                    target=faction,
+                    scale=1.0,
+                    source="order",
+                )
+            )
+            relations.extend(
+                self._apply_order_relations(faction, character, order)
+            )
+        for key, value in cost.items():
+            faction.add_asset(key, -_number(value))
+        cooldown = max(
+            0,
+            int(
+                _number(
+                    order.get("cooldown"),
+                    self.order_model.get("cooldown", 1),
+                )
+            ),
+        )
+        if cooldown > 0:
+            faction.order_cooldowns[str(order.get("id"))] = int(self.turn)
+        faction.last_order_turn = int(self.turn)
+        record = {
+            "turn": int(self.turn),
+            "side": faction.side,
+            "order_id": str(order.get("id")),
+            "label": option["label"],
+            "description": option["description"],
+            "recipient": option["recipient"],
+            "characters": [
+                {
+                    "id": str(
+                        getattr(character, "campaign_id", "") or ""
+                    ),
+                    "name": str(getattr(character, "name", "") or ""),
+                }
+                for character in targets
+            ],
+            "cost": dict(option["cost"]),
+            "relations": relations,
+            "applied": applied,
+        }
+        faction.last_order = {
+            key: value
+            for key, value in record.items()
+            if key != "applied"
+        }
+        detail = "ход %d: %s отдаёт приказ «%s» → %s" % (
+            self.turn,
+            faction.name,
+            record["label"],
+            ", ".join(
+                item["name"] or item["id"]
+                for item in record["characters"]
+            )
+            or "никому",
+        )
+        self.events.append(
+            {
+                "turn": self.turn,
+                "kind": "order",
+                "text": detail,
+                "side": faction.side,
+                "order_id": record["order_id"],
+                "actor": faction.name,
+            }
+        )
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
+        self.last_order_result = record
+        result = {"ok": True}
+        result.update(record)
+        return result
+
     def _tick_faction_characters(self, faction, seconds):
         """Дать BDI персонажей прожить организационный интервал.
 
@@ -3915,6 +4481,7 @@ class AutomataCampaign:
         self._tick_machines()
         for faction in self.factions.values():
             self._tick_faction_characters(faction, seconds)
+            self._tick_faction_orders(faction)
             if faction.organization is None:
                 faction.relax_context(self.model["asset_relax"])
                 for key, value in faction.income.items():
@@ -4106,6 +4673,7 @@ class AutomataCampaign:
             "machines": self._machines_snapshot(),
             "log": list(self.log[-SNAPSHOT_TAIL:]),
             "obligations": self.obligations.to_list(),
+            "relations": self.relations.snapshot(),
         }
 
     to_dict = snapshot
@@ -4199,6 +4767,11 @@ class AutomataCampaign:
                             getattr(character, "energy_pool", 0.0)
                         ),
                         "dead": bool(getattr(character, "dead", False)),
+                        "rng_state": (
+                            _nested_tuple(character.rng.getstate())
+                            if getattr(character, "rng", None) is not None
+                            else None
+                        ),
                         "conditions": {
                             str(key): float(value)
                             for key, value in getattr(
@@ -4457,6 +5030,18 @@ class AutomataCampaign:
             faction.organization_snapshot = dict(
                 _as_mapping(state.get("organization"))
             )
+            faction.order_cooldowns = {
+                str(key): int(_number(value))
+                for key, value in _as_mapping(
+                    state.get("order_cooldowns")
+                ).items()
+            }
+            faction.last_order_turn = max(
+                0, int(_number(state.get("last_order_turn"), 0))
+            )
+            faction.last_order = dict(
+                _as_mapping(state.get("last_order"))
+            )
             saved_organs = {
                 str(item.get("id")): item
                 for item in (state.get("organ_state") or ())
@@ -4547,6 +5132,12 @@ class AutomataCampaign:
                     )
                 if saved.get("dead") is not None:
                     character.dead = bool(saved.get("dead"))
+                rng_state = saved.get("rng_state")
+                if rng_state and getattr(character, "rng", None) is not None:
+                    try:
+                        character.rng.setstate(_nested_tuple(rng_state))
+                    except (TypeError, ValueError):
+                        pass
                 character.morale = max(
                     0.0,
                     min(
@@ -4577,6 +5168,11 @@ class AutomataCampaign:
         # снимок — источник истины, а не пресет.
         self.obligations = ObligationLedger()
         self.obligations.load(snapshot.get("obligations") or ())
+        self.relations = RelationStore.from_config(
+            _relation_model(self.data)
+        ).load(snapshot.get("relations") or {})
+        for faction in self.factions.values():
+            faction.relations = self.relations
         if self.outcome:
             self.finished = True
         self._sync_avatar_state()

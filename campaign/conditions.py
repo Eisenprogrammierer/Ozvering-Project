@@ -125,6 +125,45 @@ def asset_reason(prefix, assets, conditions, labels=None):
     return ""
 
 
+def relation_reason(prefix, relations, store, source):
+    """Проверить блок ``relations``: цель → ось → порог.
+
+    Старый формат ``requires.relations`` остаётся читаемым: он не
+    дублирует типизированные условия, а даёт короткую запись для работ.
+    """
+    for target, axes in _as_mapping(relations).items():
+        for axis, spec in _as_mapping(axes).items():
+            current = _number(store.value(source, target, axis))
+            minimum, maximum, strict_min, strict_max = _threshold(spec)
+            if minimum is not None:
+                threshold = _number(minimum)
+                if current < threshold or (
+                    strict_min and current <= threshold
+                ):
+                    sign = ">" if strict_min else "≥"
+                    return "%s: отношение %s.%s %s %.2f" % (
+                        prefix,
+                        target,
+                        axis,
+                        sign,
+                        threshold,
+                    )
+            if maximum is not None:
+                threshold = _number(maximum)
+                if current > threshold or (
+                    strict_max and current >= threshold
+                ):
+                    sign = "<" if strict_max else "≤"
+                    return "%s: отношение %s.%s %s %.2f" % (
+                        prefix,
+                        target,
+                        axis,
+                        sign,
+                        threshold,
+                    )
+    return ""
+
+
 def _character(context, scope="self"):
     if scope == "target":
         return context.get("target_character")
@@ -274,6 +313,44 @@ def _clause_reason(clause, context):
         return "" if _intention_present(character, clause) else (
             "нужно: намерение %s" % (key or clause.get("essence"))
         )
+    if kind == "relation":
+        store = context.get("relation_store")
+        source = _text(clause.get("source") or clause.get("from"))
+        if not source and faction is not None:
+            source = _text(getattr(faction, "id", ""))
+        target_id = _text(
+            clause.get("target") or clause.get("key") or clause.get("id")
+        )
+        axis = _text(
+            clause.get("axis")
+            or clause.get("object")
+            or clause.get("predicate")
+            or "affinity"
+        )
+        if not target_id:
+            return "нужно: цель отношения"
+        if store is not None:
+            current = _number(store.value(source, target_id, axis))
+        else:
+            view = context.get(
+                "target_relations" if scope == "target" else "relations"
+            ) or {}
+            bucket = _as_mapping(view.get(target_id))
+            current = _number(bucket.get(axis))
+        if expected is None:
+            return (
+                ""
+                if abs(current) > 1e-9
+                else "нужно: отношение %s.%s" % (target_id, axis)
+            )
+        if not compare(current, op, expected):
+            return "нужно: отношение %s.%s %s %s" % (
+                target_id,
+                axis,
+                op,
+                expected,
+            )
+        return ""
     if kind == "organ":
         organ = faction.organ(key) if faction is not None else None
         if organ is None:
@@ -414,4 +491,5 @@ __all__ = [
     "asset_reason",
     "check_conditions",
     "compare",
+    "relation_reason",
 ]

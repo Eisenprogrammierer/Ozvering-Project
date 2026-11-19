@@ -494,6 +494,33 @@ def _apply_flags(faction, values, scale, applied, scope):
         )
 
 
+def _apply_relations(faction, values, scale, applied, scope):
+    store = getattr(faction, "relations", None)
+    source = str(getattr(faction, "id", "") or "")
+    if store is None or not source:
+        applied["ignored"].append(
+            {"scope": scope, "key": "relations", "reason": "no_store"}
+        )
+        return
+    for target, axes in _as_mapping(values).items():
+        target = str(target or "").strip()
+        if not target:
+            continue
+        changes = store.add(source, target, _as_mapping(axes), scale)
+        if not changes:
+            continue
+        for axis, delta in changes.items():
+            applied["relations"].append(
+                {
+                    "scope": scope,
+                    "source": source,
+                    "target": target,
+                    "axis": str(axis),
+                    "delta": delta,
+                }
+            )
+
+
 def _apply_scope(faction, payload, scope, scale, applied):
     payload = _as_mapping(payload)
     for key, value in payload.items():
@@ -518,9 +545,7 @@ def _apply_scope(faction, payload, scope, scale, applied):
         elif key == "morale":
             _apply_morale(faction, value, scale, applied, scope)
         elif key == "relations":
-            applied["ignored"].append(
-                {"scope": scope, "key": "relations", "reason": "deferred"}
-            )
+            _apply_relations(faction, value, scale, applied, scope)
         elif key == "text" or key == "scope" or key == "character_id":
             continue
         else:
@@ -561,6 +586,7 @@ def apply_effects(
         "organs": [],
         "subfactions": [],
         "flags": [],
+        "relations": [],
         "ignored": [],
     }
     effects = _as_mapping(effects)

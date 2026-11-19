@@ -35,6 +35,7 @@ def test_schema_set_covers_core_contracts():
         "requires",
         "organ",
         "subfaction",
+        "order",
         "automaton",
     }
 

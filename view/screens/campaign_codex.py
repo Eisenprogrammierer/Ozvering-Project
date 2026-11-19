@@ -56,6 +56,12 @@ ASSET_LABELS = {
     "morale": "мораль",
     "energy": "энергия",
 }
+try:
+    from campaign.defaults import default_dict
+
+    ASSET_LABELS = default_dict("asset_labels")
+except Exception:  # pragma: no cover - UI не должен падать без конфига
+    pass
 
 
 def _effect_to_text(effect):

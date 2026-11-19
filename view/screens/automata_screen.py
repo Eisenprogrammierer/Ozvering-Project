@@ -35,6 +35,30 @@ ASSET_LABELS = {
     "morale": "мораль",
     "energy": "энергия",
 }
+try:
+    from campaign.defaults import default_dict
+
+    ASSET_LABELS = default_dict("asset_labels")
+except Exception:  # pragma: no cover - UI не должен падать без конфига
+    pass
+
+
+def _relation_line(campaign, faction):
+    rival = campaign.faction(campaign.rival_of(faction.side))
+    if rival is None or rival.id == faction.id:
+        return ""
+    view = campaign.relation_view(faction.id, rival.id)
+    labels = view.get("labels") or {}
+    parts = []
+    for axis, value in (view.get("outgoing") or {}).items():
+        if abs(float(value)) < 0.01:
+            continue
+        parts.append(
+            "%s %+.2f" % (labels.get(axis, axis), float(value))
+        )
+    if not parts:
+        return "→ %s: нейтрально" % rival.name
+    return "→ %s: %s" % (rival.name, " · ".join(parts[:2]))
 
 
 def _panel(surface, rect):
@@ -44,12 +68,21 @@ def _panel(surface, rect):
     pygame.draw.rect(surface, PANEL_BORDER, rect, 2, border_radius=8)
 
 
-def _asset_line(assets, keys=None):
+def _asset_labels(faction):
+    labels = dict(ASSET_LABELS)
+    labels.update(
+        (getattr(faction, "record", {}) or {}).get("asset_labels") or {}
+    )
+    return labels
+
+
+def _asset_line(assets, keys=None, labels=None):
+    labels = labels or ASSET_LABELS
     items = []
     for key, value in assets.items():
         if keys is not None and key not in keys:
             continue
-        label = ASSET_LABELS.get(key, key)
+        label = labels.get(key, key)
         items.append("%s %.2f" % (label, float(value)))
     return " · ".join(items)
 
@@ -689,16 +722,22 @@ class AutomataScreen(BaseScreen):
             )
             lines = wrap_text(
                 self.app.font_tiny,
-                _asset_line(faction.assets),
+                _asset_line(faction.assets, labels=_asset_labels(faction)),
                 rect.width - 20,
             )
             y = rect.y + 32
-            for line in lines[:3]:
+            for line in lines[:2]:
                 screen.blit(
                     self.app.font_tiny.render(line, True, MUTED),
                     (rect.x + 10, y),
                 )
                 y += 18
+            relation = _relation_line(self.campaign, faction)
+            if relation:
+                screen.blit(
+                    self.app.font_tiny.render(relation, True, DIM),
+                    (rect.x + 10, rect.y + 68),
+                )
             if faction.organization_snapshot:
                 share = float(
                     faction.organization_snapshot.get("willing_share", 0.0)

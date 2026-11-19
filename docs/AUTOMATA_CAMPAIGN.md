@@ -651,6 +651,25 @@ campaign.perform_character_interaction("red", "<character_id>", "promote")
 Перезарядка персонажа считается отдельно от перезарядки органа и
 сохраняется в снимке кампании.
 
+### Приказы «фракция → персонаж»
+
+`automata_defaults.json::order_model` задаёт интервал, лимит и список
+`orders`. ИИ отдаёт приказы на организационном такте для не-игровых
+фракций; игрок вызывает тот же API вручную:
+
+```python
+campaign.order_options("blue")
+campaign.issue_order("blue", "reassure", character_id="char_blue_003")
+```
+
+Приказ проверяет `when`/`requires` и цену, выбирает адресата
+(`priority`, `leader`, `all`, `lowest_morale`, `highest_morale` или id),
+применяет `effects` через `apply_effects` с подставленным
+`character_id`, пишет `relations` и ставит перезарядку. `recipient: all`
+применяет потребности ко всем, а активы — один раз. Приказы, их
+перезарядки и последний приказ входят в снимок; схема —
+`configs/schemas/order.schema.json`.
+
 ## 4. Организация и производные активы
 
 Каждая фракция связана с `OrganizationRuntime`. Раз в ход организация

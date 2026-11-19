@@ -515,6 +515,24 @@ dev-зависимость: без неё линтер работает как �
 `doctrine.essences`. Ни intent, ни форма работы не зашиты в Python:
 `ai_action_weights()` показывает итоговые веса для диагностики.
 
+Отношения — направленная матрица кампании: `relation_model` в
+`automata_defaults.json` задаёт оси, лимит и веса форм, а
+`effects.relations`, `requires.relations` и условия `kind: relation`
+пишут и читают её без правки Python. Взаимодействия персонажей и приказы
+дополняют матрицу связью «персонаж ↔ фракция».
+
+Приказы «фракция → персонаж» описываются блоком
+`automata_defaults.json::order_model` (или `scenario.order_model`
+кампании). `interval`, `max_per_tick`, `cooldown` управляют частотой,
+`orders[]` — сами приказы: `when`, `requires`, `recipient`
+(`priority`, `leader`, `all`, `lowest_morale`, `highest_morale`),
+`effects`, `relations` и `cost`. Эффекты адресуют персонажа через
+`character_id`, который подставляет ядро; `recipient: all` применяет
+потребности ко всем, не дублируя активы. ИИ отдаёт приказы на
+организационном тике только за не-игровые фракции; игрок может вызвать
+`issue_order(side, order_id, character_id=None)` тем же путём. Схема —
+`configs/schemas/order.schema.json`.
+
 Производственный набор: четыре фракционных автомата, три автомата
 подфракций и девять архетипов органов. Добавление нового файла в папку не
 меняет поведение, пока на него не сослались; `*.default` остаётся

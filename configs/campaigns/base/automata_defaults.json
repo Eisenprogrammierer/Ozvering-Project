@@ -21,6 +21,172 @@
     "morale": "мораль",
     "energy": "энергия"
   },
+  "relation_model": {
+    "axes": {
+      "affinity": {"label": "расположение", "short": "расп."},
+      "trust": {"label": "доверие", "short": "дов."},
+      "fear": {"label": "страх", "short": "страх"},
+      "respect": {"label": "уважение", "short": "уваж."}
+    },
+    "neutral": 0.0,
+    "effect_limit": 0.2,
+    "effect_weights": {
+      "force": {
+        "affinity": 0.02,
+        "trust": -0.02,
+        "fear": 0.1,
+        "respect": 0.08
+      },
+      "info": {
+        "affinity": 0.06,
+        "trust": 0.14,
+        "fear": -0.04,
+        "respect": 0.04
+      }
+    },
+    "forms": {
+      "force": "force",
+      "coercion": "force",
+      "provision": "force",
+      "info": "info",
+      "information": "info",
+      "meaning": "info",
+      "care": "info"
+    }
+  },
+  "order_model": {
+    "enabled": true,
+    "interval": 2,
+    "max_per_tick": 1,
+    "cooldown": 2,
+    "recipient": "priority",
+    "orders": [
+      {
+        "id": "hold",
+        "label": "Держать строй",
+        "description": "Командир гасит панику и напоминает о дисциплине: страх и тревога спадают, усталость растёт.",
+        "priority": 1.4,
+        "cooldown": 2,
+        "recipient": "priority",
+        "when": [
+          {"kind": "asset", "key": "fear", "op": ">=", "value": 0.45}
+        ],
+        "effects": {
+          "needs": {
+            "fear": -0.05,
+            "anxiety": -0.03,
+            "fatigue": 0.02
+          },
+          "morale": 1.5
+        },
+        "relations": {
+          "source": "faction",
+          "axes": {"fear": 0.03, "trust": 0.02}
+        }
+      },
+      {
+        "id": "reassure",
+        "label": "Поддержать",
+        "description": "Личное участие командира снижает одиночество и тревогу, возвращая человеку опору.",
+        "priority": 1.2,
+        "cooldown": 2,
+        "recipient": "priority",
+        "when": [
+          {
+            "kind": "asset",
+            "key": "morale",
+            "op": "<=",
+            "value": 0.55
+          }
+        ],
+        "effects": {
+          "needs": {
+            "anxiety": -0.04,
+            "loneliness": -0.06,
+            "fear": -0.03
+          },
+          "morale": 2.0
+        },
+        "relations": {
+          "source": "faction",
+          "axes": {"trust": 0.04, "affinity": 0.03}
+        }
+      },
+      {
+        "id": "advance",
+        "label": "Наступать",
+        "description": "Общая задача поднимает дух и сплачивает людей, но требует сил и запасов.",
+        "priority": 1.0,
+        "cooldown": 3,
+        "recipient": "all",
+        "when": [
+          {"kind": "asset", "key": "morale", "op": ">=", "value": 0.55},
+          {"kind": "asset", "key": "supply", "op": ">=", "value": 0.45}
+        ],
+        "effects": {
+          "needs": {
+            "fatigue": 0.04,
+            "fear": -0.02,
+            "status": 0.01
+          },
+          "morale": 1.0
+        },
+        "relations": {
+          "source": "faction",
+          "axes": {"respect": 0.03, "trust": 0.01}
+        }
+      },
+      {
+        "id": "reward",
+        "label": "Наградить",
+        "description": "Награда самому уставшему поднимает статус и мораль, но расходует снабжение.",
+        "priority": 1.1,
+        "cooldown": 3,
+        "recipient": "lowest_morale",
+        "cost": {"supply": 0.03},
+        "when": [
+          {"kind": "asset", "key": "supply", "op": ">=", "value": 0.5}
+        ],
+        "effects": {
+          "needs": {"status": 0.04, "fatigue": -0.02},
+          "morale": {"amount": 3.0}
+        },
+        "relations": {
+          "source": "faction",
+          "axes": {"affinity": 0.05, "trust": 0.04}
+        }
+      },
+      {
+        "id": "purge",
+        "label": "Вычистить ряды",
+        "description": "Жёсткая чистка пугает и дисциплинирует, но подрывает доверие к командиру.",
+        "priority": 0.8,
+        "cooldown": 4,
+        "recipient": "lowest_morale",
+        "cost": {"influence": 0.03},
+        "when": [
+          {
+            "kind": "asset",
+            "key": "legitimacy",
+            "op": "<=",
+            "value": 0.4
+          }
+        ],
+        "effects": {
+          "needs": {
+            "fear": 0.06,
+            "anxiety": 0.05,
+            "status": -0.03
+          },
+          "morale": {"amount": -2.0}
+        },
+        "relations": {
+          "source": "faction",
+          "axes": {"fear": 0.1, "trust": -0.06, "respect": 0.02}
+        }
+      }
+    ]
+  },
   "faction_state": {
     "context_neutral": 0.5,
     "context_decay": 0.08,
@@ -464,6 +630,9 @@
     "defense": {
       "weight": 1.0,
       "reference": 0.5
+    },
+    "relations": {
+      "weight": 1.0
     }
   },
   "realtime": {
@@ -756,6 +925,10 @@
       },
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.08, "affinity": 0.04}
+      },
       "template": {
         "amount": 0.04,
         "duration": 1.0
@@ -774,6 +947,10 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.05, "affinity": 0.05}
+      },
       "template": {
         "amount": 0.05,
         "duration": 1.0
@@ -791,6 +968,10 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.04, "fear": -0.05}
+      },
       "template": {
         "amount": 0.02,
         "duration": 1.0
@@ -809,6 +990,10 @@
       },
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"fear": 0.1, "trust": -0.08, "respect": -0.04}
+      },
       "template": {
         "amount": 0.05,
         "duration": 1.0
@@ -823,6 +1008,10 @@
       "description": "Прямой приказ повышает тревогу и снижает статусные притязания, но не требует ресурсов.",
       "cooldown": 1,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"fear": 0.04, "respect": 0.03}
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -837,6 +1026,10 @@
       "description": "Обещание повышает доверие и мораль, но связывает говорящего обязательством.",
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.06}
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -851,6 +1044,10 @@
       "description": "Угроза повышает страх и тревогу и подрывает лояльность.",
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"fear": 0.1, "trust": -0.06}
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -868,6 +1065,10 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.04, "affinity": 0.03}
+      },
       "template": {
         "amount": 0.02,
         "duration": 1.0
@@ -882,6 +1083,10 @@
       "description": "Извинение снижает страх и тревогу и возвращает лояльность.",
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.06, "fear": -0.04}
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0

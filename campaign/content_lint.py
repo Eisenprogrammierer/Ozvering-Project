@@ -269,6 +269,12 @@ def _condition_problems(source, conditions):
             problems.append(
                 "%s: для angle нужны node, from и to" % where
             )
+        elif kind == "relation" and not (
+            clause.get("target") or clause.get("key") or clause.get("id")
+        ):
+            problems.append(
+                "%s: для relation нужна цель (target/key)" % where
+            )
     return problems
 
 
@@ -508,6 +514,21 @@ def check_faction(side, faction, config):
             check_requires(source + ".requires", action.get("requires"))
         )
 
+    for index, order in enumerate(_as_list(faction.get("orders"))):
+        order = _as_mapping(order)
+        order_id = str(order.get("id") or index)
+        problems.extend(
+            _order_problems(
+                "%s.orders.%s" % (prefix, order_id), order
+            )
+        )
+    if faction.get("order_model"):
+        problems.extend(
+            _order_model_problems(
+                faction.get("order_model"), prefix + ".order_model"
+            )
+        )
+
     defaults = _as_mapping(faction.get("character_defaults"))
     problems.extend(
         check_beliefs(
@@ -579,6 +600,259 @@ def check_events(source, events):
     return problems
 
 
+_CHARACTER_SIMPLE_METRICS = {"morale", "force", "energy", "alive"}
+
+
+def _metric_problem(
+    metric, defaults, config=None, traits=None, subfaction_ids=None
+):
+    """Проверить, что формула ссылается на исполняемую метрику.
+
+    Проверка структурная: читаются те же префиксы, что и в
+    ``campaign/faction_state.py::faction_metric``. Значения вроде
+    ``need.*`` сверяются с BDI, ``trait.*`` — с каталогом черт,
+    ``organs.kind:*`` — с данными ``organ_kinds``.
+    """
+    metric = str(metric or "").strip()
+    if not metric:
+        return "пустая метрика"
+    try:
+        float(metric)
+        return ""
+    except (TypeError, ValueError):
+        pass
+    if metric in ("organs.mean", "network.density", "network.degree"):
+        return ""
+    for prefix in (
+        "characters.mean:",
+        "characters.max:",
+        "characters.min:",
+    ):
+        if not metric.startswith(prefix):
+            continue
+        key = metric[len(prefix) :]
+        if not key:
+            return "пустая метрика персонажа в %r" % metric
+        if key in _CHARACTER_SIMPLE_METRICS:
+            return ""
+        head, separator, name = key.partition(".")
+        if not separator or not name:
+            return "неизвестная метрика персонажа %r" % key
+        needs = set(getattr(config, "needs", {}) or {})
+        conditions = set(getattr(config, "conditions", {}) or {})
+        if head in ("need", "satisfaction") and name in needs:
+            return ""
+        if head == "condition" and (
+            name in conditions or name in ("sickness", "wound")
+        ):
+            return ""
+        if head == "trait" and (not traits or name in traits):
+            return ""
+        if head == "division":
+            return ""
+        return "неизвестная метрика персонажа %r" % key
+    if metric.startswith("organs.kind:"):
+        kind = metric[len("organs.kind:") :]
+        kinds = _as_mapping(_as_mapping(defaults).get("organ_kinds"))
+        if not kind:
+            return "пустой вид органа в %r" % metric
+        if kinds and kind not in kinds:
+            return "неизвестный вид органа %r" % kind
+        return ""
+    if metric.startswith("organization."):
+        key = metric[len("organization.") :]
+        return "" if key else "пустая метрика организации"
+    if metric.startswith(
+        ("subfactions.mean:", "subfactions.max:", "subfactions.min:")
+    ):
+        key = metric.rsplit(":", 1)[-1]
+        return "" if key else "пустой актив подфракции"
+    if metric.startswith("subfactions."):
+        rest = metric[len("subfactions.") :]
+        sub_id, separator, asset = rest.partition(".")
+        if not separator or not sub_id or not asset:
+            return "неизвестная метрика подфракции %r" % rest
+        if subfaction_ids is not None and sub_id not in subfaction_ids:
+            return "неизвестная подфракция %r" % sub_id
+        return ""
+    if metric.startswith("context."):
+        key = metric[len("context.") :]
+        return "" if key else "пустая контекстная метрика"
+    return "неизвестная метрика %r" % metric
+
+
+def _formula_problems(
+    source,
+    formula,
+    defaults,
+    config=None,
+    traits=None,
+    subfaction_ids=None,
+):
+    problems: List[str] = []
+    if not isinstance(formula, list) or not formula:
+        return ["%s: формула должна быть непустым списком" % source]
+    for index, term in enumerate(formula):
+        where = "%s[%d]" % (source, index)
+        if not isinstance(term, Mapping):
+            problems.append("%s: термин должен быть объектом" % where)
+            continue
+        extra = set(term) - {"metric", "weight"}
+        if extra:
+            problems.append(
+                "%s: неизвестные поля %s"
+                % (where, ", ".join(sorted(extra)))
+            )
+        try:
+            float(term.get("weight"))
+        except (TypeError, ValueError):
+            problems.append("%s: вес должен быть числом" % where)
+        problem = _metric_problem(
+            term.get("metric"),
+            defaults,
+            config=config,
+            traits=traits,
+            subfaction_ids=subfaction_ids,
+        )
+        if problem:
+            problems.append("%s: %s" % (where, problem))
+    return problems
+
+
+def _relation_model_problems(model):
+    problems: List[str] = []
+    model = _as_mapping(model)
+    axes = model.get("axes")
+    if isinstance(axes, Mapping):
+        names = [str(key) for key in axes]
+    elif isinstance(axes, (list, tuple)):
+        names = [str(key) for key in axes]
+    else:
+        names = []
+    if not names:
+        problems.append("relation_model.axes: нужен непустой набор осей")
+    for name in names:
+        if not name.strip():
+            problems.append("relation_model.axes: пустое имя оси")
+    weights = _as_mapping(model.get("effect_weights"))
+    for form, bucket in weights.items():
+        if not isinstance(bucket, Mapping):
+            problems.append(
+                "relation_model.effect_weights.%s: нужен объект" % form
+            )
+            continue
+        for axis, value in bucket.items():
+            try:
+                float(value)
+            except (TypeError, ValueError):
+                problems.append(
+                    "relation_model.effect_weights.%s.%s: нужен число"
+                    % (form, axis)
+                )
+    try:
+        limit = float(model.get("effect_limit", 1.0))
+    except (TypeError, ValueError):
+        limit = 0.0
+    if limit <= 0.0:
+        problems.append("relation_model.effect_limit: нужен > 0")
+    forms = _as_mapping(model.get("forms"))
+    for form, target in forms.items():
+        if not str(target or "").strip():
+            problems.append(
+                "relation_model.forms.%s: пустая форма отношения" % form
+            )
+    return problems
+
+
+def _order_problems(source, order):
+    """Проверить один приказ: схему, эффекты, условия и числа."""
+    problems: List[str] = content_schema.validate("order", order, source)
+    order = _as_mapping(order)
+    if not str(order.get("id") or "").strip():
+        problems.append("%s: пустой id приказа" % source)
+    if "effects" in order:
+        problems.extend(
+            check_effects(source + ".effects", order.get("effects"))
+        )
+    if "requires" in order:
+        problems.extend(
+            check_requires(source + ".requires", order.get("requires"))
+        )
+    if "when" in order:
+        problems.extend(
+            _condition_problems(source + ".when", order.get("when"))
+        )
+    relations = _as_mapping(order.get("relations"))
+    axes = (
+        _as_mapping(relations.get("axes"))
+        if "axes" in relations
+        else relations
+    )
+    for axis, value in axes.items():
+        if str(axis) in ("source", "from"):
+            continue
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            problems.append(
+                "%s.relations.%s: ожидалось число" % (source, axis)
+            )
+    for key, value in _as_mapping(order.get("cost")).items():
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            problems.append(
+                "%s.cost.%s: ожидалось число" % (source, key)
+            )
+            continue
+        if number < 0:
+            problems.append(
+                "%s.cost.%s: цена не может быть отрицательной"
+                % (source, key)
+            )
+    recipient = order.get("recipient")
+    if recipient is not None and not str(recipient or "").strip():
+        problems.append("%s.recipient: пустой адресат" % source)
+    return problems
+
+
+def _order_model_problems(model, prefix="order_model"):
+    """Проверить блок ``order_model`` и уникальность приказов."""
+    problems: List[str] = []
+    model = _as_mapping(model)
+    orders = model.get("orders")
+    if not isinstance(orders, (list, tuple)):
+        problems.append("%s.orders: нужен список приказов" % prefix)
+        orders = []
+    seen = set()
+    for index, order in enumerate(orders):
+        order = _as_mapping(order)
+        order_id = str(order.get("id") or "")
+        source = "%s.orders.%s" % (prefix, order_id or index)
+        if order_id and order_id in seen:
+            problems.append(
+                "%s: повторяющийся id приказа %r"
+                % (prefix, order_id)
+            )
+        seen.add(order_id)
+        problems.extend(_order_problems(source, order))
+    for key in ("interval", "max_per_tick", "cooldown"):
+        if key not in model:
+            continue
+        try:
+            value = int(float(model.get(key)))
+        except (TypeError, ValueError):
+            problems.append("%s.%s: ожидалось целое число" % (prefix, key))
+            continue
+        minimum = 0 if key == "cooldown" else 1
+        if value < minimum:
+            problems.append(
+                "%s.%s: нужно значение не меньше %d"
+                % (prefix, key, minimum)
+            )
+    return problems
+
+
 def check_defaults(defaults, factions=None):
     """Проверить ``automata_defaults.json``: подписи и формулы активов."""
     problems: List[str] = []
@@ -589,16 +863,65 @@ def check_defaults(defaults, factions=None):
     faction_map = {}
     if isinstance(factions, Mapping):
         faction_map = _as_mapping(factions.get("factions")) or factions
+
+    try:
+        config = bdi.load_bdi()
+        traits = set(CT.load_traits().traits)
+    except Exception:
+        config = None
+        traits = set()
+
+    for asset, formula in assets.items():
+        problems.extend(
+            _formula_problems(
+                "faction_state.assets.%s" % asset,
+                formula,
+                defaults,
+                config=config,
+                traits=traits,
+            )
+        )
+    if isinstance(defaults.get("relation_model"), Mapping):
+        problems.extend(
+            _relation_model_problems(defaults.get("relation_model"))
+        )
+    if isinstance(defaults.get("order_model"), Mapping):
+        problems.extend(
+            _order_model_problems(defaults.get("order_model"))
+        )
+
     for faction in faction_map.values():
         faction = _as_mapping(faction)
-        for asset in list(_as_mapping(faction.get("assets"))) + list(
-            _as_mapping(faction.get("score_assets"))
+        local_labels = dict(labels)
+        local_labels.update(_as_mapping(faction.get("asset_labels")))
+        local_formulas = _as_mapping(faction.get("asset_formulas"))
+        subfaction_ids = {
+            str(_as_mapping(item).get("id") or "")
+            for item in _as_list(faction.get("subfactions"))
+            if _as_mapping(item).get("id")
+        }
+        for asset, formula in local_formulas.items():
+            problems.extend(
+                _formula_problems(
+                    "%s.asset_formulas.%s"
+                    % (faction.get("id") or "faction", asset),
+                    formula,
+                    defaults,
+                    config=config,
+                    traits=traits,
+                    subfaction_ids=subfaction_ids,
+                )
+            )
+        for asset in (
+            list(_as_mapping(faction.get("assets")))
+            + list(_as_mapping(faction.get("score_assets")))
+            + list(local_formulas)
         ):
-            if asset not in labels:
+            if asset not in local_labels:
                 problems.append(
                     "asset_labels: нет подписи для актива %r" % asset
                 )
-            if asset not in assets:
+            if asset not in assets and asset not in local_formulas:
                 problems.append(
                     "faction_state.assets: нет формулы для актива %r"
                     % asset

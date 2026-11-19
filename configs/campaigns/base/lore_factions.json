@@ -76,6 +76,29 @@
         "morale": 0.64,
         "energy": 0.66
       },
+      "asset_labels": {
+        "myth": "миф"
+      },
+      "asset_formulas": {
+        "myth": [
+          {
+            "metric": "characters.mean:trait.fanaticism",
+            "weight": 0.4
+          },
+          {
+            "metric": "characters.mean:satisfaction.spirituality",
+            "weight": 0.3
+          },
+          {
+            "metric": "organs.kind:legitimacy",
+            "weight": 0.2
+          },
+          {
+            "metric": "context.myth",
+            "weight": 0.1
+          }
+        ]
+      },
       "archetypes": {
         "front": [
           "veteran",
@@ -4140,6 +4163,13 @@
       },
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.08,
+          "affinity": 0.04
+        }
+      },
       "template": {
         "amount": 0.04,
         "duration": 1.0
@@ -4158,6 +4188,13 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.05,
+          "affinity": 0.05
+        }
+      },
       "template": {
         "amount": 0.05,
         "duration": 1.0
@@ -4175,6 +4212,13 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.04,
+          "fear": -0.05
+        }
+      },
       "template": {
         "amount": 0.02,
         "duration": 1.0
@@ -4193,6 +4237,14 @@
       },
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "fear": 0.1,
+          "trust": -0.08,
+          "respect": -0.04
+        }
+      },
       "template": {
         "amount": 0.05,
         "duration": 1.0
@@ -4207,6 +4259,13 @@
       "description": "Прямой приказ повышает тревогу и снижает статусные притязания.",
       "cooldown": 1,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "fear": 0.04,
+          "respect": 0.03
+        }
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -4221,6 +4280,12 @@
       "description": "Обещание повышает доверие и мораль, но связывает говорящего обязательством.",
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.06
+        }
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -4235,6 +4300,13 @@
       "description": "Угроза повышает страх и тревогу и подрывает лояльность.",
       "cooldown": 3,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "fear": 0.1,
+          "trust": -0.06
+        }
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0
@@ -4252,6 +4324,13 @@
       },
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.04,
+          "affinity": 0.03
+        }
+      },
       "template": {
         "amount": 0.02,
         "duration": 1.0
@@ -4266,6 +4345,13 @@
       "description": "Извинение снижает страх и тревогу и возвращает лояльность.",
       "cooldown": 2,
       "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {
+          "trust": 0.06,
+          "fear": -0.04
+        }
+      },
       "template": {
         "amount": 0.01,
         "duration": 1.0

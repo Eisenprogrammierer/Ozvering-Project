@@ -278,6 +278,9 @@ def asset_keys(faction=None):
     keys = list(ASSET_FORMULAS)
     if faction is not None:
         record = _as_mapping(getattr(faction, "record", {}) or {})
+        for key in _as_mapping(record.get("asset_formulas")):
+            if key not in keys:
+                keys.append(str(key))
         for source in (
             record.get("assets"),
             record.get("score_assets"),
@@ -291,7 +294,10 @@ def asset_keys(faction=None):
 
 
 def asset_terms(faction, key):
-    terms = ASSET_FORMULAS.get(str(key))
+    key = str(key)
+    record = _as_mapping(getattr(faction, "record", {}) or {})
+    local = _as_mapping(record.get("asset_formulas"))
+    terms = local.get(key) or ASSET_FORMULAS.get(key)
     if terms:
         return [dict(item) for item in terms if isinstance(item, Mapping)]
     return [

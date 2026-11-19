@@ -53,6 +53,7 @@
             "wound",
             "belief",
             "intention",
+            "relation",
             "organ",
             "subfaction",
             "distance",
@@ -105,6 +106,9 @@
           "type": "string"
         },
         "asset": {
+          "type": "string"
+        },
+        "axis": {
           "type": "string"
         },
         "scale": {

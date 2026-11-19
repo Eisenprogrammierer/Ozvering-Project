@@ -29,6 +29,7 @@ SCHEMA_FILES = {
     "requires": "requires.schema.json",
     "organ": "organ.schema.json",
     "subfaction": "subfaction.schema.json",
+    "order": "order.schema.json",
     "automaton": "automaton.schema.json",
 }
 

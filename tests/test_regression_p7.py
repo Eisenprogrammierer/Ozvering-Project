@@ -57,5 +57,6 @@ def test_unknown_effect_is_ignored_not_fatal():
         {"relations": {"target": {"trust": 0.1}}},
         target=None,
     )
+    # Без фракции отношения писать некуда, но эффект не роняет кампанию.
     assert applied["ignored"]
-    assert applied["ignored"][0]["reason"] == "deferred"
+    assert applied["ignored"][0]["reason"] == "no_store"

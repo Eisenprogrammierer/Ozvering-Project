@@ -48,6 +48,16 @@
         "$ref": "#/$defs/threshold"
       }
     },
+    "relationRequirements": {
+      "type": "object",
+      "description": "ID цели → ось отношения → порог.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/$defs/threshold"
+        }
+      }
+    },
     "actionList": {
       "oneOf": [
         {
@@ -78,6 +88,9 @@
     },
     "target": {
       "$ref": "#/$defs/assetRequirements"
+    },
+    "relations": {
+      "$ref": "#/$defs/relationRequirements"
     },
     "when": {
       "$ref": "https://ozvering.local/schemas/conditions.schema.json"
