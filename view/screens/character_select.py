@@ -303,7 +303,7 @@ class CharacterSelectScreen(BaseScreen):
             screen.blit(message, message.get_rect(center=(640, 350)))
         for index, item in enumerate(self.characters[:VISIBLE_ROWS]):
             button = self.buttons[index]
-            button.label = "%s — %s" % (
+            button.text = "%s — %s" % (
                 item.get("name") or "Без имени",
                 item.get("post") or "без должности",
             )

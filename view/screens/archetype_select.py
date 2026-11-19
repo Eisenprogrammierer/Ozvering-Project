@@ -193,7 +193,7 @@ class ArchetypeSelectScreen(BaseScreen):
         elif self.current is None:
             self.selected_id = self.archetypes[0].id
         self._clamp_scroll()
-        self.filter_button.label = "Фильтр: %s" % dict(
+        self.filter_button.text = "Фильтр: %s" % dict(
             _FILTER_MODES
         ).get(self.filter_mode, self.filter_mode)
 
@@ -395,7 +395,7 @@ class ArchetypeSelectScreen(BaseScreen):
         visible = self._visible()
         for index, item in enumerate(visible):
             button = self.buttons[index]
-            button.label = item.label
+            button.text = item.label
             button.draw(screen)
             if item.id == self.selected_id:
                 pygame.draw.rect(

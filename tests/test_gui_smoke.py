@@ -189,6 +189,28 @@ def test_main_menu_has_quick_paths(app):
     assert callable(app.quick_campaign) and callable(app.open_arena)
 
 
+def test_turn_log_overlay_draws_without_duel_engine(app):
+    """В свободной кампании ``app.engine`` равен None.
+
+    Открытие лога не должно падать: события берутся из кампании
+    автоматов, а при их отсутствии показывается «Нет событий.».
+    """
+    from types import SimpleNamespace
+
+    from view.ui.overlays import TurnLogOverlay
+
+    app.engine = None
+    app.automata_campaign = SimpleNamespace(
+        events=[{"turn": 3, "text": "Организация обновила состав"}]
+    )
+    overlay = TurnLogOverlay(app)
+    surface = pygame.Surface((1280, 720))
+    overlay.draw(surface)
+
+    app.automata_campaign = None
+    overlay.draw(surface)
+
+
 def test_automata_screen_starts_work_process(app):
     """«Начать» занимает слот и разрешает работу во времени."""
     from pathlib import Path

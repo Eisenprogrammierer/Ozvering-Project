@@ -1361,10 +1361,49 @@ class TurnLogOverlay(OverlayScreen):
         if self.close_btn.handle_event(event):
             return
 
+    def _entries(self):
+        """События текущего режима: дуэль или кампания автоматов.
+
+        В свободной кампании ``app.engine`` намеренно отсутствует, поэтому
+        лог нельзя читать только через ``engine.state``.
+        """
+
+        engine = getattr(self.app, "engine", None)
+        state = getattr(engine, "state", None) if engine is not None else None
+        events = (
+            getattr(state, "tick_events", None)
+            if state is not None
+            else None
+        )
+        if events:
+            return [
+                (event.get("tick", "?"), event.get("message", ""))
+                for event in list(events)[-30:]
+            ]
+        campaign = getattr(self.app, "automata_campaign", None)
+        source = (
+            getattr(campaign, "events", None)
+            or getattr(campaign, "log", None)
+            or ()
+        ) if campaign is not None else ()
+        entries = []
+        for item in list(source)[-30:]:
+            data = item if isinstance(item, dict) else {}
+            tick = data.get("turn", data.get("tick", "?"))
+            message = (
+                data.get("text")
+                or data.get("message")
+                or data.get("label")
+                or ""
+            )
+            entries.append((tick, message))
+        return entries
+
     def draw(self, screen):
         self.draw_base(screen, "Лог последнего тика")
         y = 130
-        if not self.app.engine.state.tick_events:
+        entries = self._entries()
+        if not entries:
             screen.blit(
                 self.app.font_small.render(
                     "Нет событий.", True, (180, 180, 190)
@@ -1372,9 +1411,7 @@ class TurnLogOverlay(OverlayScreen):
                 (270, y),
             )
             return
-        for event in self.app.engine.state.tick_events[-30:]:
-            tick = event.get("tick", "?")
-            message = event.get("message", "")
+        for tick, message in entries:
             line = f"[{tick}] {message}"
             if len(line) > 96:
                 line = line[:93] + "..."

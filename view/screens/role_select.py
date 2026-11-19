@@ -224,7 +224,7 @@ class RoleSelectScreen(BaseScreen):
             self.selected_id = self.roles[0].id
         self._clamp_scroll()
         label = dict(_FILTER_MODES).get(self.filter_mode, self.filter_mode)
-        self.filter_button.label = "Фильтр: %s" % label
+        self.filter_button.text = "Фильтр: %s" % label
         logger.info(
             "Фильтр ролей: %s (ролей=%d)",
             self.filter_mode,
@@ -491,7 +491,7 @@ class RoleSelectScreen(BaseScreen):
         visible = self._visible_roles()
         for index, role in enumerate(visible):
             button = self.buttons[index]
-            button.label = role.label
+            button.text = role.label
             button.draw(screen)
             if role.id == self.selected_id:
                 pygame.draw.rect(
@@ -510,8 +510,8 @@ class RoleSelectScreen(BaseScreen):
             DIM,
         )
         screen.blit(note, note.get_rect(center=(640, 660)))
-        self.archetype_button.label = self._archetype_label()
-        self.character_button.label = self._character_label()
+        self.archetype_button.text = self._archetype_label()
+        self.character_button.text = self._character_label()
         self.archetype_button.draw(screen)
         self.character_button.draw(screen)
         self.back_button.draw(screen)
