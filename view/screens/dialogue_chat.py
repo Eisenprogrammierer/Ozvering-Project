@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pygame
 
+from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import line_height, wrap_text
 from view.support.log_journal import get_logger
@@ -610,6 +611,16 @@ class DialogueChatScreen(BaseScreen):
                 pygame.draw.rect(
                     screen, ACCENT, rect, 1, border_radius=4
                 )
+            portrait_rect = pygame.Rect(
+                rect.x + 4, rect.y + 3, rect.height - 6, rect.height - 6
+            )
+            draw_portrait(
+                screen,
+                item.get("portrait")
+                or "characters/%s" % item.get("id", ""),
+                item.get("name", ""),
+                portrait_rect,
+            )
             label = str(item.get("name") or "")
             if item.get("is_leader"):
                 label = "* " + label
@@ -617,10 +628,27 @@ class DialogueChatScreen(BaseScreen):
                 self.app.font_tiny.render(
                     label, True, TEXT if alive else DIM
                 ),
-                (rect.x + 8, rect.y + 4),
+                (rect.x + 26, rect.y + 4),
             )
 
         _panel(screen, RIGHT_RECT)
+        agent_item = next(
+            (
+                item
+                for item in self._characters_for(self.side)
+                if str(item.get("id")) == str(self.character_id)
+            ),
+            {},
+        )
+        draw_portrait(
+            screen,
+            agent_item.get("portrait")
+            or "characters/%s" % agent_item.get("id", ""),
+            agent_item.get("name") or self._agent_name(),
+            pygame.Rect(
+                RIGHT_RECT.right - 64, RIGHT_RECT.y + 8, 48, 48
+            ),
+        )
         screen.blit(
             self.app.font_small.render(self._agent_name(), True, TEXT),
             (RIGHT_RECT.x + 12, RIGHT_RECT.y + 10),

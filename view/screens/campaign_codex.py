@@ -17,6 +17,7 @@ import pygame
 
 import warfare as W
 
+from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import draw_fitted, wrap_text
 from ..ui.widgets import Button, Panel
@@ -297,7 +298,7 @@ class CampaignCodexScreen(BaseScreen):
         if self.campaign is None:
             return
         before = self.campaign.turn
-        self.campaign.advance_time(dt)
+        self.campaign.advance_realtime(dt)
         if self.campaign.turn != before:
             self._sync_storyline()
 
@@ -578,6 +579,18 @@ class CampaignCodexScreen(BaseScreen):
         x = DETAIL_RECT.x + 18
         y = DETAIL_RECT.y + 16
         width = DETAIL_RECT.width - 36
+        portrait = pygame.Rect(
+            DETAIL_RECT.right - 84, DETAIL_RECT.y + 12, 66, 66
+        )
+        live = self._live_character(character) or {}
+        draw_portrait(
+            screen,
+            live.get("portrait")
+            or character.get("portrait")
+            or "characters/%s" % character.get("id", ""),
+            character.get("name", ""),
+            portrait,
+        )
         screen.blit(
             self.app.font_small.render("ПЕРСОНАЖ", True, MUTED), (x, y)
         )
@@ -604,7 +617,6 @@ class CampaignCodexScreen(BaseScreen):
             self.app.font_tiny.render(meta, True, ACCENT), (x, y)
         )
         y += 22
-        live = self._live_character(character) or {}
         if live:
             morale = float(live.get("morale", 0.0))
             screen.blit(

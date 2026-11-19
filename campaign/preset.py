@@ -502,6 +502,7 @@ def _make_character(
     return {
         "id": char_id,
         "name": name.full,
+        "portrait": "characters/%s" % char_id,
         "name_data": name.as_dict(),
         "gender": name.gender,
         "side": side,

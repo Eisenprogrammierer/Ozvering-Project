@@ -262,6 +262,9 @@ def test_automata_screen_starts_work_process(app):
         item for item in campaign.processes if item["id"] == process["id"]
     )
     assert finished["status"] == "done"
+    # Длительная работа сама по себе двигает игровое время и циклы.
+    turn_after_work = campaign.turn
+    assert turn_after_work > before
 
     screen._end_turn()
-    assert campaign.turn == before + 1
+    assert campaign.turn == turn_after_work + 1

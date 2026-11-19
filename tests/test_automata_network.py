@@ -175,7 +175,8 @@ def test_action_rows_do_not_fall_through_to_character_list():
     app.quit()
 
 
-def test_clicking_organ_from_characters_returns_to_organ_influence():
+def test_clicking_organ_from_characters_filters_its_personnel():
+    """В «ПЕРСОНАЛЕ» клик по узлу показывает людей этого автомата."""
     from campaign.automata import AutomataCampaign
     from view.app import App
     from view.screens.automata_network import AutomataNetworkScreen
@@ -208,9 +209,21 @@ def test_clicking_organ_from_characters_returns_to_organ_influence():
             button=1,
         )
     )
-    assert screen.mode == "organs"
+    assert screen.mode == "characters"
     assert screen.selected_organ_id == organ.id
+    assert all(
+        str(item.get("organ_id") or "") == str(organ.id)
+        for item in screen._characters()
+    )
 
+    screen.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=screen._organs_tab_rect.center,
+            button=1,
+        )
+    )
+    assert screen.mode == "organs"
     option = next(
         item
         for item in screen._interaction_options()
@@ -314,3 +327,42 @@ def test_speed_buttons_cancel_acceleration_without_going_below_one():
     assert "Минимальная скорость" in screen.message
     screen.draw(surface)
     app.quit()
+
+
+def test_personnel_tab_filters_by_organ_and_reports_empty():
+    """«ПЕРСОНАЛ» показывает людей выбранного автомата или плашку."""
+    from campaign.automata import AutomataCampaign
+    from view.app import App
+    from view.screens.automata_network import AutomataNetworkScreen
+
+    preset = _preset()
+    campaign = AutomataCampaign(preset, seed=11)
+    app = App()
+    app.storyline_interpreter = None
+    app.campaign_preset = preset
+    screen = AutomataNetworkScreen(app, campaign)
+    surface = pygame.Surface((1280, 720))
+
+    screen.mode = "characters"
+    screen.select_organ("imperial_staff")
+    staff = screen._characters()
+    assert staff
+    assert all(
+        str(item.get("organ_id") or "") == "imperial_staff"
+        for item in staff
+    )
+
+    screen.select_organ("panzerwaffe")
+    assert screen._characters() == []
+    assert screen.selected_character_id is None
+    screen.draw(surface)  # плашка «Персонал недоступен» не падает
+    app.quit()
+
+
+def test_portrait_placeholder_is_square_and_cached():
+    from view.ui.portraits import portrait_surface
+
+    first = portrait_surface("characters/missing", "Иван Тестов", 32)
+    second = portrait_surface("characters/missing", "Иван Тестов", 32)
+    assert first.get_size() == (32, 32)
+    assert first is second

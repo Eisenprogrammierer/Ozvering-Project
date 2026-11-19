@@ -166,3 +166,43 @@ def test_realtime_ai_occupies_slots_with_processes(campaign):
         assert all(item["status"] == "active" for item in active)
         assert campaign.slot_state(side)["used"] == len(active)
     assert not campaign.active_processes(campaign.player_side)
+
+
+def test_non_leader_characters_feed_action_weights(campaign):
+    """Автономия: намерения и потребности не только лидера двигают ИИ."""
+    faction = campaign.faction(SIDE)
+    assert campaign.ai_model["character_agency"]["enabled"] is True
+
+    action = {
+        "id": "agency_probe",
+        "label": "Проверка автономии",
+        "target": RIVAL,
+        "ai_priority": 1.0,
+        "template": {
+            "form": "coercion",
+        },
+        "hints": {"essence": "coerce"},
+        "chance": {"defense": "cohesion"},
+    }
+    # Сначала гасим автономию всех не-лидеров, чтобы сравнение было
+    # честным: у пресета уже есть свои намерения и желания.
+    for other in faction.characters[1:6]:
+        other.desires = {"fear": 0.0}
+        other.bdi.intentions = []
+    baseline = campaign._ai_action_weight(SIDE, action)
+
+    member = faction.characters[1]
+    member.desires = {"fear": 1.0}
+    member.bdi.intentions = [
+        member.bdi.config.validate_intention(
+            {"target": "faction.republic", "essence": "coerce"}
+        )
+    ]
+    boosted = campaign._ai_action_weight(SIDE, action)
+    assert boosted > baseline
+
+    member.desires = {"fear": 0.0}
+    member.bdi.intentions = []
+    assert campaign._ai_action_weight(SIDE, action) == pytest.approx(
+        baseline
+    )

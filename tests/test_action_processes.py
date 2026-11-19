@@ -220,3 +220,101 @@ def test_advance_time_moves_world_without_end_turn(campaign):
     )
     # Часы активированы, но цикл не переключался вручную.
     assert campaign.actions_left >= 0
+
+
+def test_lore_actions_live_for_hours_and_days(campaign):
+    """Эдикт не «срабатывает» за минуту: подготовка идёт сутками."""
+    action = _action(campaign, "imperial_edict")
+    duration = campaign._action_duration(action)
+    assert duration >= 24 * 3600.0
+    assert campaign.duration_label(duration).endswith(("ч", "дн"))
+
+    window = campaign._action_effect_window(action, duration)
+    assert window > duration
+    assert campaign.duration_label(window).endswith("дн")
+
+
+def test_effect_unfolds_in_pulses_and_settles(campaign):
+    started = campaign.start_action(
+        SIDE, "show_of_force", duration=3600
+    )
+    assert started["ok"] is True
+    process_id = started["process"]["id"]
+
+    campaign.advance_time(3601)
+    process = _process(campaign, process_id)
+    assert process["status"] == "done"
+    effect = process["effect"]
+    assert effect["status"] == "settling"
+    assert 0.0 < effect["applied"] < 1.0
+    first = effect["applied"]
+
+    campaign.advance_time(effect["interval"] + 1)
+    process = _process(campaign, process_id)
+    assert process["effect"]["applied"] > first
+    assert process["effect"]["status"] == "settling"
+
+    campaign.advance_time(process["effect"]["window"])
+    process = _process(campaign, process_id)
+    assert process["effect"]["status"] == "settled"
+    assert process["effect"]["applied"] == pytest.approx(1.0)
+    assert campaign.settling_processes(SIDE) == []
+
+
+def test_effect_condition_factor_reacts_to_target_defense(campaign):
+    record = {
+        "side": SIDE,
+        "target_side": "blue",
+        "result": {"defense_asset": "cohesion"},
+    }
+    target = campaign.faction("blue")
+    target.set_asset("cohesion", 0.0)
+    weak_defense = campaign._effect_condition_factor(record)
+    target.set_asset("cohesion", 1.0)
+    strong_defense = campaign._effect_condition_factor(record)
+    assert weak_defense > strong_defense
+
+
+def test_settling_effect_survives_save_and_load(preset):
+    campaign = AutomataCampaign(preset, seed=11)
+    started = campaign.start_action(SIDE, "show_of_force", duration=10)
+    assert started["ok"] is True
+    campaign.advance_time(11)
+    process = _process(campaign, started["process"]["id"])
+    assert process["effect"]["status"] == "settling"
+
+    restored = AutomataCampaign(
+        preset, snapshot=campaign.save_snapshot()
+    )
+    restored_process = _process(restored, process["id"])
+    assert restored_process["effect"]["status"] == "settling"
+    assert restored_process["effect"]["applied"] == pytest.approx(
+        process["effect"]["applied"]
+    )
+
+    restored.advance_time(restored_process["effect"]["window"] + 1)
+    restored_process = _process(restored, process["id"])
+    assert restored_process["effect"]["status"] == "settled"
+
+
+def test_character_snapshot_has_square_portrait(campaign):
+    faction = campaign.faction(SIDE)
+    character = faction.characters[0]
+    snapshot = faction.character_snapshot(character)
+    assert snapshot["portrait"].startswith("characters/")
+    assert snapshot["portrait"].endswith(snapshot["id"])
+
+
+def test_duration_class_expands_to_hours(campaign):
+    action = {
+        "id": "duration_class_probe",
+        "template": {"duration": 2, "duration_class": "day"},
+    }
+    assert campaign._action_duration(action) == pytest.approx(
+        2 * 24 * 3600.0
+    )
+
+    action["template"] = {"duration": 1, "duration_class": "week"}
+    assert campaign._action_duration(action) == pytest.approx(
+        7 * 24 * 3600.0
+    )

@@ -224,7 +224,7 @@
           "ai_priority": 1.4,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "legitimize",
@@ -252,7 +252,7 @@
           "ai_priority": 1.25,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "demonstrate"
@@ -277,7 +277,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "fortify",
@@ -305,7 +305,7 @@
           "ai_priority": 1.1,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "purge"
@@ -330,7 +330,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 720.0
           },
           "hints": {
             "essence": "ritualize",
@@ -366,7 +366,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "raid"
@@ -398,7 +398,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 12.0
           },
           "hints": {
             "essence": "terrorize"
@@ -424,7 +424,7 @@
           "ai_priority": 1.05,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "subvert"
@@ -450,7 +450,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "analyze"
@@ -475,7 +475,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "coordinate",
@@ -502,7 +502,7 @@
           "ai_priority": 0.65,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 8.0
           },
           "hints": {
             "essence": "repair",
@@ -537,7 +537,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "besiege",
@@ -563,7 +563,7 @@
           "ai_priority": 1.1,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 720.0
           },
           "hints": {
             "essence": "legitimize",
@@ -589,7 +589,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "demonstrate",
@@ -617,7 +617,7 @@
           "ai_priority": 0.75,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "purge",
@@ -643,7 +643,7 @@
           "ai_priority": 0.65,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "encrypt",
@@ -669,7 +669,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "charity",
@@ -1124,7 +1124,7 @@
           "ai_priority": 1.5,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "delegitimize"
@@ -1149,7 +1149,7 @@
           "ai_priority": 0.85,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 12.0
           },
           "hints": {
             "essence": "legitimize",
@@ -1177,7 +1177,7 @@
           "ai_priority": 1.15,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "strike"
@@ -1209,7 +1209,7 @@
           },
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "judge",
@@ -1236,7 +1236,7 @@
           "ai_priority": 0.95,
           "template": {
             "form": "exchange",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "trade"
@@ -1262,7 +1262,7 @@
           "ai_priority": 1.2,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "expose"
@@ -1295,7 +1295,7 @@
           },
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "educate",
@@ -1323,7 +1323,7 @@
           "ai_priority": 1.05,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "infiltrate"
@@ -1356,7 +1356,7 @@
           },
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "mobilize",
@@ -1383,7 +1383,7 @@
           "ai_priority": 0.65,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 8.0
           },
           "hints": {
             "essence": "evacuate",
@@ -1410,7 +1410,7 @@
           "ai_priority": 1.05,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "expose",
@@ -1436,7 +1436,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 720.0
           },
           "hints": {
             "essence": "reform",
@@ -1463,7 +1463,7 @@
           "ai_priority": 0.95,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "intercept",
@@ -1489,7 +1489,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "raid",
@@ -1515,7 +1515,7 @@
           "ai_priority": 0.75,
           "template": {
             "form": "negotiation",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "negotiate",
@@ -1542,7 +1542,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "centralize",
@@ -1968,7 +1968,7 @@
           "ai_priority": 1.4,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 6.0
           },
           "hints": {
             "essence": "preach"
@@ -1993,7 +1993,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "build_network",
@@ -2020,7 +2020,7 @@
           "ai_priority": 1.2,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "martyrize",
@@ -2048,7 +2048,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "infiltrate"
@@ -2073,7 +2073,7 @@
           "ai_priority": 0.65,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "ritualize",
@@ -2101,7 +2101,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 720.0
           },
           "hints": {
             "essence": "educate",
@@ -2134,7 +2134,7 @@
           },
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "judge",
@@ -2161,7 +2161,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "charity",
@@ -2194,7 +2194,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "defend"
@@ -2219,7 +2219,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "disinform",
@@ -2245,7 +2245,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "ritualize",
@@ -2271,7 +2271,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "care",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "shelter",
@@ -2298,7 +2298,7 @@
           "ai_priority": 0.85,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "radicalize",
@@ -2325,7 +2325,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "recruitment",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "convert",
@@ -2351,7 +2351,7 @@
           "ai_priority": 0.6,
           "template": {
             "form": "knowledge",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "encrypt",
@@ -2710,7 +2710,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "exchange",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "trade",
@@ -2737,7 +2737,7 @@
           "ai_priority": 1.1,
           "template": {
             "form": "exchange",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "invest"
@@ -2769,7 +2769,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "blockade"
@@ -2801,7 +2801,7 @@
           },
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "analyze"
@@ -2826,7 +2826,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "meaning",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "negotiate",
@@ -2857,7 +2857,7 @@
           },
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "blockade"
@@ -2883,7 +2883,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "exchange",
-            "duration": 1.0
+            "duration": 72.0
           },
           "hints": {
             "essence": "price_war"
@@ -2909,7 +2909,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "bribe"
@@ -2935,7 +2935,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "deceive"
@@ -2961,7 +2961,7 @@
           "ai_priority": 0.65,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "purge",
@@ -2989,7 +2989,7 @@
           "ai_priority": 0.7,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "repair",
@@ -3016,7 +3016,7 @@
           "ai_priority": 0.95,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "bribe",
@@ -3042,7 +3042,7 @@
           "ai_priority": 0.9,
           "template": {
             "form": "information",
-            "duration": 1.0
+            "duration": 48.0
           },
           "hints": {
             "essence": "blackmail",
@@ -3069,7 +3069,7 @@
           "ai_priority": 1.0,
           "template": {
             "form": "negotiation",
-            "duration": 1.0
+            "duration": 24.0
           },
           "hints": {
             "essence": "sanction",
@@ -3095,7 +3095,7 @@
           "ai_priority": 0.8,
           "template": {
             "form": "provision",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "hoard",
@@ -3121,7 +3121,7 @@
           "ai_priority": 0.75,
           "template": {
             "form": "exchange",
-            "duration": 1.0
+            "duration": 336.0
           },
           "hints": {
             "essence": "insure",
@@ -3147,7 +3147,7 @@
           "ai_priority": 0.85,
           "template": {
             "form": "coercion",
-            "duration": 1.0
+            "duration": 168.0
           },
           "hints": {
             "essence": "defend",

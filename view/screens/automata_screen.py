@@ -249,7 +249,7 @@ class AutomataScreen(BaseScreen):
         if self.campaign.finished:
             return
         before = self.campaign.turn
-        self.campaign.advance_time(dt)
+        self.campaign.advance_realtime(dt)
         if self.campaign.turn != before or self.campaign.finished:
             self._sync_storyline()
         if self.campaign.finished:
@@ -344,10 +344,12 @@ class AutomataScreen(BaseScreen):
         self.selected_action_id = None
         self.last_result = result
         self.message = (
-            "Работа начата: %s · %.0f с."
+            "Работа начата: %s · %s."
             % (
                 process.get("label") or action_id,
-                float(process.get("duration", 0.0)),
+                self.campaign.duration_label(
+                    float(process.get("duration", 0.0))
+                ),
             )
         )
         logger.info(
@@ -1072,6 +1074,9 @@ class AutomataScreen(BaseScreen):
             )
         else:
             active = self.campaign.active_processes(self.campaign.player_side)
+            settling = self.campaign.settling_processes(
+                self.campaign.player_side
+            )
             slots = self.campaign.slot_state()
             if active:
                 parts = []
@@ -1089,6 +1094,13 @@ class AutomataScreen(BaseScreen):
                     ", ".join(parts),
                     slots["used"],
                     slots["slots"],
+                )
+                if settling:
+                    hint += " · эффект: %d" % len(settling)
+            elif settling:
+                hint = (
+                    "Эффект разворачивается: %d · свободно слотов: %d"
+                    % (len(settling), slots["free"])
                 )
             else:
                 hint = (

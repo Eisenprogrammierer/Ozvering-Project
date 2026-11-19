@@ -26,7 +26,10 @@ from campaign.roles import RoleCatalog
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "configs" / "campaigns" / "empire_campaign.json"
-WAIT = "Жду."
+# Мир кампании живёт сутками: четыре минуты «Жду.» не пересекают
+# интервал событий. Для проверки /look нужна фаза, которая заведомо
+# больше половины организационного такта.
+WAIT = "Жду до вечера."
 
 
 class FakeCampaign:

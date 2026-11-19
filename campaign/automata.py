@@ -412,6 +412,10 @@ def _character_from_record(record, seed):
     character.campaign_post_id = record.get("post_id", "")
     character.campaign_organ_id = record.get("organ_id", "")
     character.campaign_role_id = record.get("campaign_role_id", "")
+    character.campaign_portrait = str(
+        record.get("portrait")
+        or "characters/%s" % str(record.get("id") or "unknown")
+    )
     character.campaign_leader = bool(record.get("is_faction_leader"))
     character.campaign_is_player = bool(record.get("is_player"))
     character.campaign_leverage = [
@@ -559,6 +563,15 @@ class FactionRuntime:
             "post_id": str(getattr(character, "campaign_post_id", "") or ""),
             "organ_id": str(
                 getattr(character, "campaign_organ_id", "") or ""
+            ),
+            "portrait": str(
+                getattr(
+                    character,
+                    "campaign_portrait",
+                    "characters/%s"
+                    % str(getattr(character, "campaign_id", "") or ""),
+                )
+                or ""
             ),
             "morale": round(
                 _clamp(_number(character.morale) / 100.0) * 100.0,
@@ -1645,12 +1658,47 @@ class AutomataCampaign:
     def organization_interval_seconds(self):
         return self._interval("organization_interval_seconds")
 
+    @property
+    def realtime_scale(self):
+        """Сколько игровых секунд проходит за одну реальную секунду.
+
+        Экран вызывает ``advance_realtime(dt)``; ядро и старые вызовы
+        продолжают работать в игровых секундах через ``advance_time``.
+        Так длительности работ можно задавать в часах и днях, не
+        превращая кампанию в ожидание реальных суток.
+        """
+        return max(
+            0.0,
+            _number(
+                self.realtime.get("game_seconds_per_real_second"), 1.0
+            ),
+        )
+
     def time_label(self):
-        """Игровое время в формате ЧЧ:ММ:СС."""
+        """Игровое время: ``ЧЧ:ММ:СС``, а с первых суток — ``Д д ЧЧ:ММ:СС``."""
         total = max(0, int(self.elapsed))
-        hours, remainder = divmod(total, 3600)
+        days, remainder = divmod(total, 86400)
+        hours, remainder = divmod(remainder, 3600)
         minutes, seconds = divmod(remainder, 60)
+        if days:
+            return "%d д %02d:%02d:%02d" % (
+                days,
+                hours,
+                minutes,
+                seconds,
+            )
         return "%02d:%02d:%02d" % (hours, minutes, seconds)
+
+    def duration_label(self, seconds):
+        """Человеческая длительность для UI: минуты, часы, дни, недели."""
+        seconds = max(0.0, _number(seconds, 0.0))
+        if seconds >= 86400.0:
+            return "%.1f дн" % (seconds / 86400.0)
+        if seconds >= 3600.0:
+            return "%.1f ч" % (seconds / 3600.0)
+        if seconds >= 60.0:
+            return "%.0f мин" % (seconds / 60.0)
+        return "%.0f с" % seconds
 
     def speed_label(self):
         return "×%d" % int(self.speed)
@@ -1715,9 +1763,12 @@ class AutomataCampaign:
         return True
 
     def advance_time(self, dt):
-        """Продвинуть кампанию на ``dt`` реальных секунд.
+        """Продвинуть кампанию на ``dt`` игровых секунд.
 
-        Игровое время идёт со скоростью ``speed`` (не меньше 1). Работа,
+        Это базовый вызов для тестов и legacy-кода. Игровые экраны
+        используют ``advance_realtime``, который переводит реальные
+        секунды кадра в игровые через ``realtime_scale``. Внутри обеих
+        функций время идёт со скоростью ``speed`` (не меньше 1); работа,
         ИИ и организации обновляются непрерывно, без кнопки «завершить
         ход»; пауза, замедление и откат отсутствуют.
         """
@@ -1738,6 +1789,14 @@ class AutomataCampaign:
         self._advance_story_events(scaled)
         self._advance_processes(scaled)
         return self.snapshot()
+
+    def advance_realtime(self, dt):
+        """Продвинуть кампанию на ``dt`` реальных секунд из игрового цикла."""
+        try:
+            seconds = float(dt)
+        except (TypeError, ValueError):
+            return self.snapshot()
+        return self.advance_time(seconds * self.realtime_scale)
 
     def _regenerate_actions(self, seconds):
         if self.finished:
@@ -3249,12 +3308,18 @@ class AutomataCampaign:
         target_faction,
         charge_cost=True,
         spend_budget=False,
+        effect_fraction=1.0,
     ):
         """Рассчитать и применить работу без предварительных гейтов.
 
         Общая часть ``perform`` и завершения процесса: бросок, обработчик,
         эффекты, перезарядка и запись в журнал. Стоимость списывает
         вызывающий: ``perform`` — сразу, процесс — при запуске.
+
+        ``effect_fraction`` позволяет применить только часть проекций.
+        Процесс делает так первый импульс, а остаток разворачивает во
+        времени через ``_advance_effects``. Legacy ``perform`` передаёт
+        ``1.0`` и остаётся мгновенным.
         """
         side = actor.side
         cost = _as_mapping(action.get("cost"))
@@ -3337,11 +3402,15 @@ class AutomataCampaign:
         if charge_cost:
             for key, value in cost.items():
                 actor.add_asset(key, -_number(value))
+        fraction = max(0.0, min(1.0, _number(effect_fraction, 1.0)))
+        effect_scale = (
+            self.model["effect_scale"] * readiness * repeat_scale
+        )
         apply_report(
             actor,
             target_faction,
             report,
-            scale=self.model["effect_scale"] * readiness * repeat_scale,
+            scale=effect_scale * fraction,
             source="work",
         )
         intention = (
@@ -3432,6 +3501,8 @@ class AutomataCampaign:
             "relation_shift": round(relation_shift, 6),
             "roll": round(roll, 6),
             "success": bool(success),
+            "effect_scale": round(effect_scale, 6),
+            "effect_fraction": round(fraction, 6),
             "intention": dict(intention or {}),
             "trace": trace,
             "cost": {
@@ -3466,6 +3537,21 @@ class AutomataCampaign:
         """Копии активных процессов: для UI и диалогового моста."""
         return [dict(record) for record in self._active_processes(side)]
 
+    def settling_processes(self, side=None):
+        """Процессы, чей эффект ещё разворачивается во времени."""
+        side = None if side is None else str(side)
+        return [
+            dict(record)
+            for record in self.processes
+            if _as_mapping(record.get("effect")).get("status")
+            == "settling"
+            and (side is None or str(record.get("side")) == side)
+        ]
+
+    def ongoing_processes(self, side=None):
+        """Подготовка и разворачивающийся эффект — для панели времени."""
+        return self.active_processes(side) + self.settling_processes(side)
+
     def slot_state(self, side=None):
         """Сколько слотов занято и свободно у стороны."""
         side = str(side or self.player_side)
@@ -3477,12 +3563,37 @@ class AutomataCampaign:
             "free": max(0, self.action_slots - used),
         }
 
+    def _duration_unit_seconds(self):
+        """Сколько игровых секунд в одной единице ``template.duration``.
+
+        В данных единица — час: ``duration_scale=3600``. Старые пресеты
+        могли использовать секунды; они задают свой ``duration_scale``.
+        """
+        return max(
+            0.0,
+            _number(
+                self.action_process.get("duration_unit"),
+                _number(self.action_process.get("duration_scale"), 3600.0),
+            ),
+        )
+
+    def _duration_class_hours(self, name):
+        raw = _as_mapping(
+            self.action_process.get("duration_classes")
+        ).get(str(name))
+        if isinstance(raw, Mapping):
+            raw = raw.get("hours")
+        return max(0.0, _number(raw, 0.0))
+
     def _action_duration(self, action, duration=None):
         """Длительность работы в игровых секундах.
 
         Приоритет: явное значение вызова, поле ``duration`` работы,
-        ``template.duration`` (единицы работы) с множителем из
-        ``action_process.duration_scale``. Всё берётся из данных.
+        ``template.duration`` (часы по умолчанию) с множителем из
+        ``action_process.duration_scale``. Если задан
+        ``template.duration_class`` (``hours``/``day``/``week``/…), его
+        часы умножаются на ``template.duration`` и ``duration_unit``.
+        Всё берётся из данных.
         """
         minimum = max(
             0.0, _number(self.action_process.get("min_duration"), 1.0)
@@ -3493,6 +3604,18 @@ class AutomataCampaign:
         if explicit is not None:
             return max(minimum, _number(explicit, minimum))
         template = _as_mapping(action.get("template"))
+        class_hours = self._duration_class_hours(
+            template.get("duration_class")
+        )
+        if class_hours > 0.0:
+            raw = template.get("duration")
+            multiplier = 1.0 if raw is None else _number(raw, 1.0)
+            return max(
+                minimum,
+                class_hours
+                * max(0.0, multiplier)
+                * self._duration_unit_seconds(),
+            )
         scale = _number(
             self.action_process.get("duration_scale"),
             _number(self.action_process.get("default_duration"), 1.0),
@@ -3501,6 +3624,31 @@ class AutomataCampaign:
         if raw is None:
             raw = 1.0
         return max(minimum, _number(raw, 1.0) * max(0.0, scale))
+
+    def _action_effect_window(self, action, duration):
+        """Сколько игровых секунд эффект действия разворачивается.
+
+        Явное ``effect_duration`` в действии — часы. Иначе окно считается
+        от длительности по коэффициенту формы из
+        ``action_process.effect_window``. Это позволяет эдикту действовать
+        неделями, а медицинской помощи — часами.
+        """
+        explicit = action.get("effect_duration")
+        if explicit is not None:
+            return max(
+                0.0,
+                _number(explicit, 0.0) * self._duration_unit_seconds(),
+            )
+        model = _as_mapping(
+            self.action_process.get("effect_window")
+        )
+        form = self._action_form(action)
+        by_form = _as_mapping(model.get("by_form"))
+        scale = _number(
+            by_form.get(form),
+            _number(model.get("default_scale"), 1.0),
+        )
+        return max(0.0, _number(duration, 0.0) * max(0.0, scale))
 
     def _process_for_action(self, side, action_id):
         for record in self._active_processes(side):
@@ -3627,6 +3775,18 @@ class AutomataCampaign:
                     actor, action, target_faction
                 )
             if not reason:
+                initial = max(
+                    0.0,
+                    min(
+                        1.0,
+                        _number(
+                            self.action_process.get(
+                                "effect_initial_share"
+                            ),
+                            1.0,
+                        ),
+                    ),
+                )
                 result = self._resolve_action(
                     actor,
                     action,
@@ -3635,12 +3795,19 @@ class AutomataCampaign:
                     target_faction,
                     charge_cost=False,
                     spend_budget=False,
+                    effect_fraction=initial,
                 )
                 record["finished"] = round(float(self.elapsed), 6)
                 record["remaining"] = 0.0
                 record["result"] = result
                 if result.get("ok"):
                     record["status"] = "done"
+                    self._start_settlement(
+                        record,
+                        action,
+                        _number(record.get("duration"), 0.0),
+                        initial,
+                    )
                 else:
                     record["status"] = "cancelled"
                     record["reason"] = result.get(
@@ -3651,6 +3818,234 @@ class AutomataCampaign:
                 self._log_process(record, "завершена")
                 return
         self._cancel_process(record, reason)
+
+    def _start_settlement(self, record, action, duration, initial=1.0):
+        """Начать постепенное разворачивание эффекта действия.
+
+        Подготовка (``status="done"``) закончена, но проекции работы
+        применяются не разом: первый импульс уже прошёл вместе с
+        завершением, остаток распределяется по окну
+        ``action_process.effect_window``. Поэтому эдикт продолжает
+        действовать дни и недели, а не «срабатывает» в один кадр.
+        """
+        effect = _as_mapping(record.get("effect"))
+        initial = max(0.0, min(1.0, _number(initial, 1.0)))
+        remaining = max(0.0, 1.0 - initial)
+        window = self._action_effect_window(action, duration)
+        pulses = max(
+            1,
+            int(_number(self.action_process.get("effect_pulses"), 8)),
+        )
+        power = max(0.1, _number(
+            self.action_process.get("effect_curve_power"), 1.5
+        ))
+        if remaining <= 1e-9 or window <= 0.0:
+            effect.update(
+                {
+                    "initial": round(initial, 6),
+                    "applied": round(initial, 6),
+                    "effective": round(initial, 6),
+                    "remaining": 0.0,
+                    "pulses": 0,
+                    "next_pulse": 0,
+                    "status": "settled",
+                    "started": round(float(self.elapsed), 6),
+                    "finish_at": round(float(self.elapsed), 6),
+                }
+            )
+            record["effect"] = effect
+            return
+        interval = window / float(pulses)
+        effect.update(
+            {
+                "initial": round(initial, 6),
+                "applied": round(initial, 6),
+                "effective": round(initial, 6),
+                "remaining": round(remaining, 6),
+                "window": round(window, 6),
+                "interval": round(interval, 6),
+                "pulses": pulses,
+                "next_pulse": 1,
+                "curve_power": power,
+                "started": round(float(self.elapsed), 6),
+                "next_at": round(float(self.elapsed) + interval, 6),
+                "finish_at": round(float(self.elapsed) + window, 6),
+                "status": "settling",
+            }
+        )
+        record["effect"] = effect
+        self._log_effect(
+            record,
+            "эффект начал разворачиваться",
+            "окно %.1f ч, импульсов %d" % (
+                window / max(1.0, self._duration_unit_seconds()),
+                pulses,
+            ),
+        )
+
+    def _effect_condition_factor(self, record):
+        """Насколько обстоятельства усиливают или гасят эффект.
+
+        Данные ``action_process.settlement`` задают опорные активы,
+        препятствия и вес органов. Мир меняется между импульсами, поэтому
+        один и тот же эдикт в сильной и слабой фракции действует
+        по-разному.
+        """
+        actor = self.faction(record.get("side"))
+        if actor is None or actor.dissolved:
+            return 0.0
+        result = _as_mapping(record.get("result"))
+        model = _as_mapping(self.action_process.get("settlement"))
+        factor = 1.0
+        support = [
+            str(item)
+            for item in (model.get("support_assets") or ())
+            if str(item)
+        ]
+        if support:
+            average = sum(actor.asset(key) for key in support) / float(
+                len(support)
+            )
+            factor *= 0.5 + _clamp(average)
+        obstacles = [
+            str(item)
+            for item in (model.get("obstacle_assets") or ())
+            if str(item)
+        ]
+        threshold = _number(model.get("obstacle_threshold"), 0.35)
+        penalty = _number(model.get("obstacle_penalty"), 0.6)
+        for key in obstacles:
+            if actor.asset(key) < threshold:
+                factor *= max(0.05, penalty)
+        organ_id = str(result.get("organ_id") or "")
+        organ = actor.organ(organ_id) if organ_id else None
+        if organ is not None:
+            organ_weight = _clamp(_number(
+                model.get("organ_weight"), 0.35
+            ))
+            factor *= 1.0 - organ_weight * (1.0 - _clamp(organ.integrity))
+        target = self.faction(record.get("target_side"))
+        defense_asset = str(result.get("defense_asset") or "")
+        if target is not None and defense_asset:
+            resistance = _clamp(target.asset(defense_asset))
+            factor *= max(
+                0.2,
+                1.0
+                - _clamp(_number(model.get("defense_weight"), 0.3))
+                * resistance,
+            )
+        return max(
+            _number(model.get("min_factor"), 0.1),
+            min(_number(model.get("max_factor"), 1.6), factor),
+        )
+
+    def _pulse_effect(self, record):
+        effect = _as_mapping(record.get("effect"))
+        if not effect or effect.get("status") != "settling":
+            return
+        index = int(_number(effect.get("next_pulse"), 1))
+        total = max(1, int(_number(effect.get("pulses"), 1)))
+        power = max(0.1, _number(effect.get("curve_power"), 1.5))
+        remaining = max(0.0, _number(effect.get("remaining"), 0.0))
+        weights = [float(i) ** power for i in range(index, total + 1)]
+        weight_sum = sum(weights) or 1.0
+        fraction = remaining * weights[0] / weight_sum
+        factor = self._effect_condition_factor(record)
+        result = _as_mapping(record.get("result"))
+        report = _as_mapping(result.get("report"))
+        actor = self.faction(record.get("side"))
+        target = self.faction(record.get("target_side"))
+        base_scale = _number(
+            result.get("effect_scale"), self.model["effect_scale"]
+        )
+        applied = apply_report(
+            actor,
+            target,
+            report,
+            scale=base_scale * fraction * factor,
+            source="process",
+        )
+        effect["applied"] = round(
+            _number(effect.get("applied"), 0.0) + fraction, 6
+        )
+        effect["effective"] = round(
+            _number(effect.get("effective"), 0.0) + fraction * factor, 6
+        )
+        effect["remaining"] = round(max(0.0, remaining - fraction), 6)
+        effect["next_pulse"] = index + 1
+        effect["last_factor"] = round(factor, 6)
+        effect["last_scale"] = round(base_scale * fraction * factor, 6)
+        effect["last_applied"] = applied
+        started = _number(effect.get("started"), self.elapsed)
+        interval = _number(effect.get("interval"), 0.0)
+        if index >= total or effect["remaining"] <= 1e-9:
+            effect["status"] = "settled"
+            effect["finish_at"] = round(float(self.elapsed), 6)
+            effect["next_at"] = round(float(self.elapsed), 6)
+        else:
+            effect["next_at"] = round(
+                started + interval * float(index + 1), 6
+            )
+        record["effect"] = effect
+        self._log_effect(
+            record,
+            "импульс эффекта",
+            "%.0f%% применено, множитель обстоятельств %.2f" % (
+                effect["applied"] * 100.0,
+                factor,
+            ),
+        )
+
+    def _advance_effects(self):
+        """Провести импульсы эффектов, у которых подошло время."""
+        for record in list(self.processes):
+            effect = _as_mapping(record.get("effect"))
+            if effect.get("status") != "settling":
+                continue
+            guard = 0
+            while (
+                _as_mapping(record.get("effect")).get("status")
+                == "settling"
+                and self.elapsed + 1e-9
+                >= _number(
+                    _as_mapping(record.get("effect")).get(
+                        "next_at", float("inf")
+                    ),
+                    float("inf"),
+                )
+                and guard < 10000
+            ):
+                self._pulse_effect(record)
+                guard += 1
+            effect = _as_mapping(record.get("effect"))
+            if effect.get("status") == "settled":
+                self._log_effect(
+                    record, "эффект завершён", "действие перестало меняться"
+                )
+
+    def _log_effect(self, record, phase, detail=""):
+        self.events.append(
+            {
+                "turn": int(self.turn),
+                "kind": "effect",
+                "phase": str(phase),
+                "process_id": record.get("id"),
+                "side": record.get("side"),
+                "action_id": record.get("action_id"),
+                "label": record.get("label"),
+                "remaining": _as_mapping(record.get("effect")).get(
+                    "remaining"
+                ),
+                "text": "эффект «%s»: %s%s"
+                % (
+                    record.get("label") or record.get("action_id"),
+                    phase,
+                    (" (%s)" % detail) if detail else "",
+                ),
+            }
+        )
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
 
     def _advance_processes(self, seconds):
         if self.finished:
@@ -3669,6 +4064,7 @@ class AutomataCampaign:
         )
         for record in expired:
             self._finish_process(record)
+        self._advance_effects()
         self._trim_processes()
 
     def _log_process(self, record, phase):
@@ -3704,13 +4100,23 @@ class AutomataCampaign:
             for record in self.processes
             if record.get("status") == "active"
         ]
+        settling = [
+            record
+            for record in self.processes
+            if _as_mapping(record.get("effect")).get("status")
+            == "settling"
+        ]
         done = [
             record
             for record in self.processes
             if record.get("status") != "active"
+            and _as_mapping(record.get("effect")).get("status")
+            != "settling"
         ]
-        keep = max(0, limit - len(active))
-        self.processes = active + done[-keep:] if keep else active
+        keep = max(0, limit - len(active) - len(settling))
+        self.processes = (
+            active + settling + done[-keep:] if keep else active + settling
+        )
 
     def _leader(self, side):
         """Лидер фракции: первый персонаж, чьи BDI/органы ведут политику."""
@@ -3826,6 +4232,69 @@ class AutomataCampaign:
                     1.0
                     - _number(intent.get("mismatch_penalty"), 0.15),
                 )
+
+        # Автономия персонажей: не только лидер, но и остальные люди
+        # фракции вносят вклад в выбор работы своими намерениями и
+        # потребностями. Веса — данные ``ai_model.character_agency``.
+        agency = _as_mapping(model.get("character_agency"))
+        if bool(agency.get("enabled", False)):
+            limit = max(
+                1, int(_number(agency.get("max_characters"), 6))
+            )
+            intent_weight = _number(
+                agency.get("intention_weight"), 0.25
+            )
+            member_need_weight = _number(
+                agency.get("need_weight"), 0.2
+            )
+            urgency_floor = _number(
+                agency.get("urgency_floor"), 0.25
+            )
+            support = 0.0
+            for member in list(faction.characters)[:limit]:
+                if member is leader:
+                    continue
+                if bool(
+                    getattr(
+                        member,
+                        "is_dead",
+                        getattr(member, "dead", False),
+                    )
+                ):
+                    continue
+                desires = _as_mapping(
+                    getattr(member, "desires", {})
+                )
+                urgency = max(
+                    [_number(value) for value in desires.values()] or [0.0]
+                )
+                if urgency < urgency_floor:
+                    continue
+                bdi = getattr(member, "bdi", None)
+                intention = (
+                    bdi.latest_intention()
+                    if bdi is not None
+                    and callable(getattr(bdi, "latest_intention", None))
+                    else None
+                )
+                if intention is not None and _text(
+                    getattr(intention, "essence", "")
+                ) in essences:
+                    support += intent_weight * urgency
+                member_need = ""
+                for essence in essences:
+                    member_need = self._action_need(essence, member)
+                    if member_need:
+                        break
+                if member_need and member_need == need:
+                    current = _clamp(
+                        _as_mapping(
+                            getattr(member, "needs", {})
+                        ).get(member_need)
+                    )
+                    support += member_need_weight * current
+            if support > 0.0:
+                weight *= 1.0 + support
 
         doctrine = _as_mapping(faction.record.get("doctrine"))
         doctrine_model = _as_mapping(model.get("doctrine"))
@@ -4480,13 +4949,36 @@ class AutomataCampaign:
             if not callable(getattr(character, "tick_needs", None)):
                 continue
             try:
-                character.tick_needs(
-                    seconds=seconds,
-                    supported=support,
-                    in_combat=False,
-                    under_fire=0.0,
-                    rng=getattr(character, "rng", None),
+                # Организационный такт теперь равен дню игрового времени.
+                # BDI нельзя прогонять на полные сутки: без еды и сна
+                # потребности уходят в крайности, сила падает до нуля и
+                # организация распадается за пару дней. Поэтому за такт
+                # моделируется короткий «срез» жизни (``bdi_horizon``),
+                # а суточную рутину закрывают эффекты организации. Дробим
+                # срез на шаги, чтобы срабатывали пороги и спилловер.
+                horizon = max(
+                    0.0,
+                    _number(
+                        self.realtime.get("bdi_horizon_seconds"), 1800.0
+                    ),
                 )
+                step = max(
+                    30.0,
+                    _number(
+                        self.realtime.get("bdi_tick_seconds"), 900.0
+                    ),
+                )
+                left = min(max(0.0, float(seconds)), horizon)
+                while left > 1e-9:
+                    chunk = min(step, left)
+                    character.tick_needs(
+                        seconds=chunk,
+                        supported=support,
+                        in_combat=False,
+                        under_fire=0.0,
+                        rng=getattr(character, "rng", None),
+                    )
+                    left -= chunk
             except Exception:
                 logger.exception(
                     "BDI персонажа %s не обновлён",

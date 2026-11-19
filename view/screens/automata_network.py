@@ -24,6 +24,7 @@ import math
 import pygame
 
 from campaign.fractal import organ_degrees, organ_links
+from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
@@ -226,8 +227,36 @@ class AutomataNetworkScreen(BaseScreen):
         )
         return ordered[0].id
 
-    def _characters(self):
+    def _all_characters(self):
         return self.campaign.character_options(self.campaign.player_side)
+
+    def _characters(self):
+        """Персонал выбранного автомата, а не вся фракция.
+
+        Игрок выбирает киберотдел — видит сотрудников киберотдела.
+        Если у органа никого нет, список пуст, и экран честно пишет
+        «Персонал недоступен», а не подсовывает людей из других узлов.
+        """
+        characters = self._all_characters()
+        organ_id = str(self.selected_organ_id or "")
+        if not organ_id:
+            return characters
+        return [
+            item
+            for item in characters
+            if str(item.get("organ_id") or "") == organ_id
+        ]
+
+    def _sync_character_selection(self):
+        characters = self._characters()
+        ids = {str(item.get("id")) for item in characters}
+        if str(self.selected_character_id or "") not in ids:
+            self.selected_character_id = (
+                characters[0]["id"] if characters else None
+            )
+            self.selected_character_interaction_id = None
+        self.character_scroll = 0
+        return self.selected_character_id
 
     def _character(self):
         if self.selected_character_id is None:
@@ -344,7 +373,7 @@ class AutomataNetworkScreen(BaseScreen):
         if self.campaign.finished:
             return
         before = self.campaign.turn
-        self.campaign.advance_time(dt)
+        self.campaign.advance_realtime(dt)
         if self.campaign.turn != before or self.campaign.finished:
             self._sync_storyline()
         if self.campaign.finished:
@@ -409,16 +438,13 @@ class AutomataNetworkScreen(BaseScreen):
             return False
         if mode in ("automata", "organs", "characters"):
             self.mode = mode
-        elif self.mode == "characters":
-            # Клик по органу из раздела персонала возвращает к влиянию
-            # на орган, а не оставляет игрока в «ПЕРСОНАЛЕ».
-            self.mode = "organs"
-        elif self.mode not in ("automata", "organs"):
+        elif self.mode != "characters":
             self.mode = "organs"
         self.selected_organ_id = str(organ_id)
         self.selected_interaction_id = None
         self.selected_automaton_interaction_id = None
         self.selected_automaton_target_id = None
+        self._sync_character_selection()
         self.message = ""
         return True
 
@@ -492,6 +518,18 @@ class AutomataNetworkScreen(BaseScreen):
         )
         if character is None:
             self.message = "Этот персонаж не принадлежит вашей фракции."
+            return False
+        organ_id = str(
+            getattr(character, "campaign_organ_id", "") or ""
+        )
+        if (
+            self.selected_organ_id
+            and organ_id
+            and organ_id != str(self.selected_organ_id)
+        ):
+            self.message = (
+                "Этот персонаж не входит в персонал выбранного автомата."
+            )
             return False
         self.mode = "characters"
         self.selected_character_id = str(character_id)
@@ -909,6 +947,7 @@ class AutomataNetworkScreen(BaseScreen):
             self.mode = "characters"
             self.selected_automaton_interaction_id = None
             self.selected_automaton_target_id = None
+            self._sync_character_selection()
             self.message = ""
             return
         for organ_id, rect in self._organ_rects.items():
@@ -1197,6 +1236,16 @@ class AutomataNetworkScreen(BaseScreen):
                 (DETAIL_RECT.x + 16, DETAIL_RECT.y + 14),
             )
             return
+        portrait = pygame.Rect(
+            DETAIL_RECT.right - 70, DETAIL_RECT.y + 10, 52, 52
+        )
+        draw_portrait(
+            screen,
+            snapshot.get("portrait")
+            or "characters/%s" % snapshot.get("id", ""),
+            snapshot.get("name", ""),
+            portrait,
+        )
         screen.blit(
             self.app.font_small.render(
                 "ПЕРСОНАЖ · %s"
@@ -1304,12 +1353,39 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _draw_character_list(self, screen):
         characters = self._characters()
+        organ = self._organ()
+        header = "ПЕРСОНАЛ · %s" % (
+            organ.name if organ is not None else "ВСЯ ФРАКЦИЯ"
+        )
+        screen.blit(
+            self.app.font_tiny.render(header, True, MUTED),
+            (SIDE_RECT.x + 14, SIDE_RECT.y + 82),
+        )
         if not characters:
+            plate = pygame.Rect(
+                SIDE_RECT.x + 14,
+                SIDE_RECT.y + 104,
+                SIDE_RECT.width - 28,
+                52,
+            )
+            pygame.draw.rect(screen, (28, 32, 42), plate, border_radius=6)
+            pygame.draw.rect(
+                screen, PANEL_BORDER, plate, 1, border_radius=6
+            )
+            text = self.app.font_small.render(
+                "Персонал недоступен", True, WARN
+            )
+            screen.blit(text, text.get_rect(center=plate.center))
+            hint = self.app.font_tiny.render(
+                "У этого автомата нет назначенных людей.",
+                True,
+                DIM,
+            )
             screen.blit(
-                self.app.font_tiny.render(
-                    "В вашей фракции нет персонажей.", True, DIM
+                hint,
+                hint.get_rect(
+                    center=(plate.centerx, plate.centery + 18)
                 ),
-                (SIDE_RECT.x + 14, SIDE_RECT.y + 104),
             )
             return
         for rect, character in self._character_rows():
@@ -1327,6 +1403,16 @@ class AutomataNetworkScreen(BaseScreen):
                 1,
                 border_radius=4,
             )
+            portrait_rect = pygame.Rect(
+                rect.x + 4, rect.y + 3, rect.height - 6, rect.height - 6
+            )
+            draw_portrait(
+                screen,
+                character.get("portrait")
+                or "characters/%s" % character.get("id", ""),
+                character.get("name", ""),
+                portrait_rect,
+            )
             label = character["name"]
             if character.get("is_leader"):
                 label += " · лидер"
@@ -1334,7 +1420,7 @@ class AutomataNetworkScreen(BaseScreen):
                 self.app.font_tiny.render(
                     label, True, TEXT if selected else MUTED
                 ),
-                (rect.x + 6, rect.y + 2),
+                (rect.x + 34, rect.y + 2),
             )
             screen.blit(
                 self.app.font_tiny.render(
@@ -1346,7 +1432,7 @@ class AutomataNetworkScreen(BaseScreen):
                     True,
                     DIM,
                 ),
-                (rect.x + 6, rect.y + 13),
+                (rect.x + 34, rect.y + 13),
             )
         if len(characters) > CHARACTER_VISIBLE:
             screen.blit(
@@ -1548,6 +1634,11 @@ class AutomataNetworkScreen(BaseScreen):
             self.campaign.actions_left,
             self.campaign.actions_per_turn,
         )
+        ongoing = self.campaign.ongoing_processes(
+            self.campaign.player_side
+        )
+        if ongoing:
+            budget += " · в работе %d" % len(ongoing)
         if self.campaign.outcome:
             budget += " · исход: %s" % self.campaign.outcome
         screen.blit(
