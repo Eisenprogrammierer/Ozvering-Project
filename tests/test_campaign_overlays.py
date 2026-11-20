@@ -157,6 +157,7 @@ def test_month_emulation_completes_a_long_process():
     from view.screens.campaign_overlays import TimeEmulationOverlay
 
     app, campaign = _app_with_campaign()
+    campaign.dispatch.enabled = False
     organ = campaign.player.organs[0]
     started = campaign.perform_organ_interaction(
         campaign.player_side, organ.id, "reform"

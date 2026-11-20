@@ -241,6 +241,7 @@ class TimeEmulationOverlay(OverlayScreen):
         self.step_index = 1
         self.active = False
         self.paused = False
+        self.interrupted = False
         self.total = 0.0
         self.remaining = 0.0
         self.simulated = 0.0
@@ -292,18 +293,49 @@ class TimeEmulationOverlay(OverlayScreen):
             else 0
         )
         self.paused = False
+        self.interrupted = False
         self.message = ""
+
+    def _decision_message(self):
+        """Короткая причина остановки: кто именно требует решения."""
+        decisions = self.campaign.pending_decisions(
+            self.campaign.player_side
+        )
+        first = decisions[0] if decisions else {}
+        who = (
+            first.get("source_name")
+            or first.get("title")
+            or "событие"
+        )
+        return (
+            "Эмуляция прервана: %s требует решения. "
+            "Откройте «ДОКЛАДЫ» и ответьте источнику." % who
+        )
+
+    def _interrupt_for_decision(self):
+        if not self.active:
+            return
+        self.active = False
+        self.paused = self.remaining > 1e-9
+        self.interrupted = True
+        self.message = self._decision_message()
 
     def start(self):
         """Запустить шаг или продолжить приостановленный."""
         if self.active or self.campaign.finished:
             return
+        if self.campaign.decision_pending(self.campaign.player_side):
+            self.interrupted = True
+            self.message = self._decision_message()
+            return
         if self.paused and self.remaining > 1e-9:
             self.active = True
+            self.interrupted = False
             self.message = "Эмуляция продолжена."
             return
         self._reset_step()
         self.active = True
+        self.interrupted = False
 
     def pause(self):
         """Остановить моделирование, сохранив пройденную часть шага."""
@@ -375,6 +407,9 @@ class TimeEmulationOverlay(OverlayScreen):
             if self.active and self.campaign.finished:
                 self.stop("Кампания завершена.")
             return
+        if self.campaign.decision_pending(self.campaign.player_side):
+            self._interrupt_for_decision()
+            return
         slice_seconds = max(20.0, self.total / float(EMULATION_SLICES))
         step = min(slice_seconds, self.remaining)
         tick = False
@@ -388,6 +423,11 @@ class TimeEmulationOverlay(OverlayScreen):
         self.simulated += step
         if self.campaign.finished:
             self.stop("Кампания завершена.")
+            return
+        # Решение игрока важнее оставшегося шага: эмуляция
+        # останавливается сразу, а не идёт дальше вхолостую.
+        if self.campaign.decision_pending(self.campaign.player_side):
+            self._interrupt_for_decision()
             return
         if self.remaining <= 1e-9:
             self._finish_step()
@@ -477,7 +517,11 @@ class TimeEmulationOverlay(OverlayScreen):
                 )[:2]
             ):
                 screen.blit(
-                    self.app.font_tiny.render(line, True, GOOD),
+                    self.app.font_tiny.render(
+                        line,
+                        True,
+                        WARN if self.interrupted else GOOD,
+                    ),
                     (panel.x + 20, info_y + 80 + line_number * 14),
                 )
         recent = self.campaign.events[self.events_before:]

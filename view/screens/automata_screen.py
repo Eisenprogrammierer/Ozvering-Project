@@ -566,6 +566,9 @@ class AutomataScreen(BaseScreen):
         if self._processes_rect().collidepoint(pos):
             self._open_processes()
             return
+        if self._reports_rect().collidepoint(pos):
+            self._open_reports()
+            return
         if self._emulation_rect().collidepoint(pos):
             self._open_emulation()
             return
@@ -647,9 +650,19 @@ class AutomataScreen(BaseScreen):
         """Кнопка отдельного списка текущих процессов."""
         return pygame.Rect(820, 14, 150, 40)
 
+    def _reports_rect(self):
+        """Кнопка очереди докладов источников."""
+        return pygame.Rect(660, 14, 150, 40)
+
     def _emulation_rect(self):
         """Кнопка запуска эмуляции времени."""
         return pygame.Rect(980, 14, 146, 40)
+
+    def _open_reports(self):
+        from .campaign_reports import ReportsOverlay
+
+        logger.info("Открытие очереди докладов кампании")
+        self.app.manager.push(ReportsOverlay(self.app, self.campaign))
 
     def _open_processes(self):
         from .campaign_overlays import ProcessesOverlay
@@ -783,6 +796,23 @@ class AutomataScreen(BaseScreen):
             y += 14
         return y
 
+    def _story_feed(self, limit=8):
+        """События для сведения на главном экране, без требующих выбора.
+
+        Доклады и будущие сюжетные развилки живут в отдельном окне
+        решений и не смешиваются с информационной лентой.
+        """
+        feed = []
+        for entry in self.campaign.story_events:
+            if entry.get("visible") is False:
+                continue
+            if entry.get("requires_choice"):
+                continue
+            if str(entry.get("category") or "") == "report":
+                continue
+            feed.append(entry)
+        return feed[-limit:]
+
     def draw(self, screen):
         player = self._player()
         title = self.campaign.title
@@ -830,6 +860,14 @@ class AutomataScreen(BaseScreen):
             ),
             enabled=True,
             accent=bool(ongoing),
+        )
+        reports = self.campaign.pending_reports(self.campaign.player_side)
+        self._draw_button(
+            screen,
+            self._reports_rect(),
+            "ДОКЛАДЫ · %d" % len(reports) if reports else "ДОКЛАДЫ",
+            enabled=True,
+            accent=bool(reports),
         )
         self._draw_button(
             screen,
@@ -1074,21 +1112,50 @@ class AutomataScreen(BaseScreen):
             )
 
         _panel(screen, RIGHT_RECT)
+        pending = self.campaign.pending_decisions(
+            self.campaign.player_side
+        )
+        heading = "СОБЫТИЯ"
+        if pending:
+            heading += " · ЖДЁТ РЕШЕНИЯ"
         screen.blit(
-            self.app.font_small.render("ЖУРНАЛ РАБОТ", True, MUTED),
+            self.app.font_small.render(heading, True, MUTED),
             (RIGHT_RECT.x + 12, RIGHT_RECT.y + 12),
         )
         y = RIGHT_RECT.y + 40
-        if self.message:
+        if pending:
+            first = pending[0]
+            demand = "Требует решения: %s — %s" % (
+                first.get("source_name") or "источник",
+                first.get("title") or "сообщение",
+            )
             for line in wrap_text(
-                self.app.font_tiny, self.message, RIGHT_RECT.width - 24
-            )[:3]:
+                self.app.font_tiny, demand, RIGHT_RECT.width - 24
+            )[:2]:
                 screen.blit(
                     self.app.font_tiny.render(line, True, WARN),
                     (RIGHT_RECT.x + 12, y),
                 )
-                y += 18
-            y += 8
+                y += 16
+            screen.blit(
+                self.app.font_tiny.render(
+                    "Откройте «ДОКЛАДЫ» и примите решение.",
+                    True,
+                    WARN,
+                ),
+                (RIGHT_RECT.x + 12, y),
+            )
+            y += 22
+        if self.message:
+            for line in wrap_text(
+                self.app.font_tiny, self.message, RIGHT_RECT.width - 24
+            )[:2]:
+                screen.blit(
+                    self.app.font_tiny.render(line, True, WARN),
+                    (RIGHT_RECT.x + 12, y),
+                )
+                y += 16
+            y += 6
         if self.last_result:
             result = self.last_result
             outcome_color = GOOD if result.get("success") else BAD
@@ -1097,39 +1164,18 @@ class AutomataScreen(BaseScreen):
                 result.get("target_name", "?"),
                 result.get("label", "работа"),
             )
-            for line in wrap_text(
-                self.app.font_small, header, RIGHT_RECT.width - 24
-            )[:3]:
-                screen.blit(
-                    self.app.font_small.render(line, True, TEXT),
-                    (RIGHT_RECT.x + 12, y),
-                )
-                y += 22
-            trace = result.get("trace") if isinstance(
-                result.get("trace"), dict
-            ) else {}
-            if trace:
-                stats = "форма %s · объём %s · %s" % (
-                    trace.get("form", "—"),
-                    amount_phrase(trace.get("amount", 0.0)),
-                    efficiency_phrase(
-                        trace.get("efficiency", 0.0)
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny, header, RIGHT_RECT.width - 24
                     ),
-                )
-                screen.blit(
-                    self.app.font_tiny.render(stats, True, ACCENT),
-                    (RIGHT_RECT.x + 12, y),
-                )
-                y += 16
-                if trace.get("essence"):
-                    screen.blit(
-                        self.app.font_tiny.render(
-                            "суть: %s" % trace["essence"], True, MUTED
-                        ),
-                        (RIGHT_RECT.x + 12, y),
-                    )
-                    y += 16
-            outcome = "исход: %s · %s" % (
+                    True,
+                    TEXT,
+                ),
+                (RIGHT_RECT.x + 12, y),
+            )
+            y += 16
+            outcome = "%s · %s" % (
                 "успех" if result.get("success") else "провал",
                 chance_phrase(result.get("chance", 0.0)),
             )
@@ -1137,37 +1183,68 @@ class AutomataScreen(BaseScreen):
                 self.app.font_tiny.render(outcome, True, outcome_color),
                 (RIGHT_RECT.x + 12, y),
             )
-            y += 20
+            y += 16
             text = str(result.get("text") or "")
             for line in wrap_text(
                 self.app.font_tiny, text, RIGHT_RECT.width - 24
-            )[:5]:
-                screen.blit(
-                    self.app.font_tiny.render(line, True, MUTED),
-                    (RIGHT_RECT.x + 12, y),
-                )
-                y += 17
-            y += 8
-        recent = self.campaign.events[-8:]
-        if recent:
-            screen.blit(
-                self.app.font_tiny.render("ПОСЛЕДНИЕ СОБЫТИЯ", True, DIM),
-                (RIGHT_RECT.x + 12, y),
-            )
-            y += 18
-        for event in recent:
-            text = str(event.get("text") or "")
-            for line in wrap_text(
-                self.app.font_tiny, text, RIGHT_RECT.width - 24
-            )[:3]:
-                if y > RIGHT_RECT.bottom - 22:
-                    break
+            )[:2]:
                 screen.blit(
                     self.app.font_tiny.render(line, True, MUTED),
                     (RIGHT_RECT.x + 12, y),
                 )
                 y += 15
-            y += 2
+            y += 8
+
+        screen.blit(
+            self.app.font_tiny.render("ЛЕНТА", True, DIM),
+            (RIGHT_RECT.x + 12, y),
+        )
+        y += 18
+        feed = self._story_feed()
+        if not feed:
+            for line in wrap_text(
+                self.app.font_tiny,
+                "Пока событий нет. Источники пришлют вести, когда "
+                "появится повод.",
+                RIGHT_RECT.width - 24,
+            )[:3]:
+                screen.blit(
+                    self.app.font_tiny.render(line, True, MUTED),
+                    (RIGHT_RECT.x + 12, y),
+                )
+                y += 15
+        for entry in reversed(feed):
+            if y > RIGHT_RECT.bottom - 24:
+                break
+            label = str(
+                entry.get("title")
+                or entry.get("category")
+                or "Событие"
+            )
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny, label, RIGHT_RECT.width - 24
+                    ),
+                    True,
+                    ACCENT,
+                ),
+                (RIGHT_RECT.x + 12, y),
+            )
+            y += 15
+            for line in wrap_text(
+                self.app.font_tiny,
+                str(entry.get("text") or ""),
+                RIGHT_RECT.width - 24,
+            )[:2]:
+                if y > RIGHT_RECT.bottom - 20:
+                    break
+                screen.blit(
+                    self.app.font_tiny.render(line, True, MUTED),
+                    (RIGHT_RECT.x + 12, y),
+                )
+                y += 14
+            y += 6
 
         _panel(screen, BOTTOM_RECT)
         self._draw_button(

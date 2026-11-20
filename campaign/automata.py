@@ -39,6 +39,7 @@ from .avatar import (
 )
 from .audit import CampaignStats, delta_map
 from .conditions import asset_reason, check_conditions, relation_reason
+from .dispatch import ReportDispatcher
 from .effects import apply_effects, apply_report
 from .work import build_interaction_work, build_work
 from .work_trace import trace_from_report
@@ -220,6 +221,10 @@ except Exception:  # pragma: no cover - совместимость со стар
 ASSET_LABELS = default_dict("asset_labels")
 RELATION_MODEL_DEFAULTS = default_dict("relation_model")
 ORDER_MODEL_DEFAULTS = default_dict("order_model")
+try:
+    DISPATCH_DEFAULTS = default_dict("dispatch")
+except Exception:  # pragma: no cover - совместимость со старым конфигом
+    DISPATCH_DEFAULTS = {"enabled": False}
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
     PRESET_DEFAULTS["organization_runtime"]
@@ -296,6 +301,15 @@ def _order_model(data):
     base = _as_mapping(ORDER_MODEL_DEFAULTS)
     override = _as_mapping(
         _as_mapping(data.get("scenario")).get("order_model")
+    )
+    return _merged_mapping(base, override)
+
+
+def _dispatch_config(data):
+    """Блок ``dispatch``: база из defaults + переопределение сценария."""
+    base = _as_mapping(DISPATCH_DEFAULTS)
+    override = _as_mapping(
+        _as_mapping(data.get("scenario")).get("dispatch")
     )
     return _merged_mapping(base, override)
 
@@ -1039,6 +1053,7 @@ class AutomataCampaign:
             self.story_engine = None
         self.obligations = ObligationLedger()
         self.relations = RelationStore.from_config(_relation_model(data))
+        self.dispatch = ReportDispatcher(self, _dispatch_config(data))
         self.order_model = _order_model(data)
         self.last_order_result = None
         self._build_factions(data)
@@ -1927,6 +1942,7 @@ class AutomataCampaign:
             self._advance_ai(scaled)
         self._advance_rounds(scaled, tick_rounds=tick_rounds)
         self._advance_story_events(scaled)
+        self.dispatch.tick(scaled)
         self._advance_processes(scaled)
 
     def advance_time(self, dt, *, snapshot=True):
@@ -2309,6 +2325,91 @@ class AutomataCampaign:
     # События — ролевой слой, а не часть ядра. Они ничего не производят:
     # единственный источник изменений — работы, переходы автоматов и
     # действия игрока. Событие только описывает уже случившееся.
+
+    def pending_reports(self, side=None):
+        """Доклады, ожидающие решения игрока."""
+        return self.dispatch.pending(side)
+
+    def pending_decisions(self, side=None):
+        """События, которые нельзя игнорировать во время эмуляции.
+
+        Сейчас это доклады с выбором. Список остаётся общим, чтобы
+        будущие сюжетные события с выбором попадали в ту же проверку.
+        """
+        decisions = list(self.dispatch.pending(side))
+        seen = {
+            str(item.get("id") or "")
+            for item in decisions
+            if item.get("id")
+        }
+        for entry in self.story_events:
+            if not entry.get("requires_choice"):
+                continue
+            if str(entry.get("status") or "") != "pending":
+                continue
+            if str(entry.get("id") or "") in seen:
+                continue
+            if side and str(entry.get("side") or "") not in ("", str(side)):
+                continue
+            decisions.append(entry)
+        return decisions
+
+    def decision_pending(self, side=None):
+        """Есть ли событие, требующее немедленного решения игрока."""
+        return bool(self.pending_decisions(side))
+
+    def report(self, report_id):
+        """Найти доклад по идентификатору."""
+        return self.dispatch.report(report_id)
+
+    def resolve_report(self, report_id, choice):
+        """Принять решение по докладу.
+
+        Последствия живут в BDI, отношениях, потребностях и морали
+        источника. Прямых записей в активы фракции нет.
+        """
+        return self.dispatch.resolve(report_id, choice)
+
+    def _record_report_event(self, report):
+        """Положить доклад в повествовательную ленту кампании."""
+        entry = {
+            "id": report.get("id"),
+            "template_id": "report",
+            "category": "report",
+            "title": report.get("title") or "Доклад",
+            "text": report.get("text") or "",
+            "severity": None,
+            "stakes": None,
+            "speed": "instant",
+            "duration": 0.0,
+            "elapsed": report.get("created"),
+            "visible": True,
+            "visibility": {},
+            "effects": {},
+            "turn": self.turn,
+            "source_id": report.get("source_id"),
+            "source_name": report.get("source_name"),
+            "asset": report.get("asset"),
+            "report_id": report.get("id"),
+            "requires_choice": True,
+            "status": report.get("status"),
+            "choices": [dict(item) for item in report.get("choices") or ()],
+        }
+        self.story_events.append(entry)
+        if len(self.story_events) > EVENT_LOG_LIMIT:
+            self.story_events = self.story_events[-EVENT_LOG_LIMIT:]
+        return entry
+
+    def _sync_report_event(self, report):
+        """Обновить статус доклада в повествовательной ленте."""
+        report_id = str(report.get("id") or "")
+        for entry in self.story_events:
+            if str(entry.get("report_id") or "") != report_id:
+                continue
+            entry["status"] = report.get("status")
+            entry["resolved"] = report.get("resolved")
+            return entry
+        return None
 
     def _advance_story_events(self, seconds):
         if self.finished or self.story_engine is None:
@@ -6683,6 +6784,7 @@ class AutomataCampaign:
             "log": list(self.log[-SNAPSHOT_TAIL:]),
             "obligations": self.obligations.to_list(),
             "relations": self.relations.snapshot(),
+            "dispatch": self.dispatch.snapshot(),
         }
 
     to_dict = snapshot
@@ -7258,6 +7360,7 @@ class AutomataCampaign:
         self.relations = RelationStore.from_config(
             _relation_model(self.data)
         ).load(snapshot.get("relations") or {})
+        self.dispatch.load(snapshot.get("dispatch") or {})
         for faction in self.factions.values():
             faction.relations = self.relations
             self._init_character_agency(faction)

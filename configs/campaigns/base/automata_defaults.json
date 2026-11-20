@@ -13,6 +13,202 @@
     "stats_outcome": true,
     "stats_verbose_report": false
   },
+  "dispatch": {
+    "enabled": true,
+    "interval_seconds": 172800.0,
+    "max_pending": 8,
+    "history_limit": 32,
+    "assets": [
+      "supply",
+      "legitimacy",
+      "cohesion",
+      "morale",
+      "energy",
+      "influence",
+      "fear"
+    ],
+    "source_by_asset": {
+      "supply": [
+        "intendant",
+        "chief_of_staff"
+      ],
+      "legitimacy": [
+        "justice",
+        "propaganda"
+      ],
+      "cohesion": [
+        "chief_of_staff",
+        "cathedral"
+      ],
+      "morale": [
+        "cathedral",
+        "guard"
+      ],
+      "energy": [
+        "intendant",
+        "guard"
+      ],
+      "influence": [
+        "abwehr",
+        "chief_of_staff"
+      ],
+      "fear": [
+        "guard",
+        "justice"
+      ]
+    },
+    "asset_labels": {
+      "legitimacy": "законность",
+      "influence": "влияние",
+      "cohesion": "сплочённость",
+      "supply": "снабжение",
+      "fear": "страх",
+      "morale": "мораль",
+      "energy": "энергия",
+      "myth": "миф"
+    },
+    "bands": [
+      {
+        "id": "critical",
+        "max": 0.2,
+        "label": "на грани"
+      },
+      {
+        "id": "low",
+        "max": 0.4,
+        "label": "просело"
+      },
+      {
+        "id": "strained",
+        "max": 0.55,
+        "label": "напряжённо"
+      },
+      {
+        "id": "stable",
+        "max": 0.7,
+        "label": "держится"
+      },
+      {
+        "id": "strong",
+        "max": 0.85,
+        "label": "крепко"
+      },
+      {
+        "id": "excellent",
+        "max": 1.01,
+        "label": "образцово"
+      }
+    ],
+    "confidence": {
+      "base": 0.45,
+      "discipline": 0.35,
+      "curiosity": 0.15,
+      "fear": -0.15,
+      "min": 0.2,
+      "max": 0.95,
+      "noise": 0.35
+    },
+    "tone": {
+      "loyalty_high": 0.62,
+      "loyalty_low": 0.42,
+      "ambition": 0.55,
+      "fear": 0.5
+    },
+    "titles": {
+      "report": "Доклад: {asset_label}"
+    },
+    "channels": {
+      "report": "доклад"
+    },
+    "templates": {
+      "loyal": [
+        "Докладываю: {asset_label} — «{band}». Считаю, что положение под контролем.",
+        "По моим сведениям, {asset_label} — «{band}». Держим, как можем."
+      ],
+      "loyal_fearful": [
+        "Господин, {asset_label} — «{band}». Боюсь, если не принять мер, будет хуже.",
+        "Не хочу тревожить вас зря, но {asset_label} — «{band}»."
+      ],
+      "ambitious": [
+        "Фракция теряет {asset_label}: сейчас «{band}». Дайте мне полномочия, и я исправлю.",
+        "{asset_label} — «{band}». Я знаю, как поправить дело, но мне нужна свобода рук."
+      ],
+      "hostile": [
+        "{asset_label} — «{band}». Советую не обольщаться.",
+        "Ваше положение по {asset_label} — «{band}». Это всё, что я могу сказать."
+      ],
+      "neutral": [
+        "Докладываю: {asset_label} — «{band}».",
+        "Сведения по {asset_label}: «{band}». Подробностей пока нет."
+      ]
+    },
+    "choices": [
+      {
+        "id": "trust",
+        "label": "Довериться"
+      },
+      {
+        "id": "verify",
+        "label": "Проверить"
+      },
+      {
+        "id": "ignore",
+        "label": "Игнорировать"
+      }
+    ],
+    "verify_tolerance": 0.12,
+    "effects": {
+      "trust": {
+        "morale": 2.0,
+        "player_trust": 0.08,
+        "source_trust": 0.05,
+        "needs": {
+          "fear": -0.01
+        }
+      },
+      "verify_right": {
+        "morale": 1.0,
+        "player_trust": 0.06,
+        "source_trust": 0.04
+      },
+      "verify_wrong": {
+        "morale": -5.0,
+        "player_trust": -0.08,
+        "source_trust": -0.04,
+        "needs": {
+          "fear": 0.02
+        }
+      },
+      "ignore": {
+        "morale": -4.0,
+        "player_trust": -0.05,
+        "source_trust": -0.08,
+        "needs": {
+          "fear": 0.02
+        }
+      }
+    },
+    "result_texts": {
+      "trust": "Вы поддержали источник. {source} укрепился в доверии.",
+      "verify_right": "Проверка подтвердила: {asset_label} — «{truth_band}». {source} оказался прав.",
+      "verify_wrong": "Проверка показала: {asset_label} — «{truth_band}». {source} ошибся.",
+      "ignore": "Вы отложили доклад. {source} воспринял это как невнимание."
+    },
+    "confidence_labels": [
+      {
+        "min": 0.75,
+        "label": "высокая"
+      },
+      {
+        "min": 0.5,
+        "label": "средняя"
+      },
+      {
+        "min": 0.0,
+        "label": "низкая"
+      }
+    ]
+  },
   "action_process": {
     "slots": 2,
     "default_duration": 86400.0,
