@@ -3,6 +3,12 @@ import pygame
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
+from view.support.metrics import (
+    chance_phrase,
+    cost_phrase,
+    effect_phrase,
+    metric_phrase,
+)
 
 logger = get_logger("view.strategy")
 
@@ -146,6 +152,14 @@ class StrategyScreen(BaseScreen):
             result.get("action"),
             result.get("outcome"),
         )
+        logger.debug(
+            "Сдвиги: %s; ресурсы: %s",
+            result.get("changes"),
+            {
+                key: self.engine.resource(key)
+                for key in self.engine.resource_defs
+            },
+        )
 
     def _end_day(self):
         result = self.engine.end_day()
@@ -265,7 +279,9 @@ class StrategyScreen(BaseScreen):
         )
         day_surf = self.app.font_small.render(day, True, WARN)
         screen.blit(day_surf, (WIDTH - 24 - day_surf.get_width(), 18))
-        status = "Хартия: %.0f%%" % (100.0 * self.engine.resource("charter"))
+        status = metric_phrase(
+            "Хартия", self.engine.resource("charter")
+        )
         status_surf = self.app.font_small.render(status, True, GOOD)
         screen.blit(status_surf, (WIDTH - 24 - status_surf.get_width(), 42))
         x = 24
@@ -281,9 +297,8 @@ class StrategyScreen(BaseScreen):
                 TYPE_COLORS["asset"],
                 pygame.Rect(bar.x, bar.y, int(bar.width * value), 2),
             )
-            text = "%s %.0f%%" % (
-                definition.get("label", key),
-                100.0 * value,
+            text = metric_phrase(
+                definition.get("label", key), value
             )
             screen.blit(
                 self.app.font_tiny.render(text, True, TEXT),
@@ -369,7 +384,7 @@ class StrategyScreen(BaseScreen):
             label = self.engine.stat_label(key)
             screen.blit(
                 self.app.font_tiny.render(
-                    "%s %.0f%%" % (label, 100.0 * float(value)),
+                    metric_phrase(label, value),
                     True,
                     (180, 194, 214),
                 ),
@@ -429,10 +444,9 @@ class StrategyScreen(BaseScreen):
                 (rect.x + 10, rect.y + 4),
             )
             cost = ", ".join(
-                "%s −%.0f%%"
-                % (
+                cost_phrase(
                     self.engine.resource_labels.get(key, key),
-                    100.0 * float(value),
+                    float(value),
                 )
                 for key, value in (action.get("cost") or {}).items()
             )
@@ -468,6 +482,47 @@ class StrategyScreen(BaseScreen):
             y += 14
         return y + 5
 
+    def _describe_cost(self, action):
+        """Плата словами: точные проценты остаются в конфиге и логах."""
+        lines = []
+        for key, value in ((action or {}).get("cost") or {}).items():
+            amount = float(value or 0.0)
+            if abs(amount) < 1e-9:
+                continue
+            lines.append(
+                cost_phrase(
+                    self.engine.resource_labels.get(key, key), amount
+                )
+            )
+        return lines
+
+    def _describe_effects(self, effects, target=None):
+        """Эффект словами, без процентов и дробей."""
+        effect = effects or {}
+        lines = []
+        for key, value in (effect.get("resources") or {}).items():
+            amount = float(value or 0.0)
+            if abs(amount) < 1e-9:
+                continue
+            lines.append(
+                effect_phrase(
+                    self.engine.resource_labels.get(key, key), amount
+                )
+            )
+        stats = (target or {}).get("stats") or {}
+        for key, value in (effect.get("target") or {}).items():
+            if target is not None and key not in stats:
+                continue
+            amount = float(value or 0.0)
+            if abs(amount) < 1e-9:
+                continue
+            lines.append(
+                effect_phrase(self.engine.stat_label(key), amount)
+            )
+        if effect.get("reveal"):
+            lines.append("раскрывает скрытый интерес")
+        return lines
+
     def _draw_effects_line(self, screen, y, effects):
         if not effects:
             return y
@@ -497,47 +552,57 @@ class StrategyScreen(BaseScreen):
                 screen,
                 y,
                 "Плата",
-                ", ".join(preview.get("cost") or ["без прямой платы"]),
+                ", ".join(self._describe_cost(action))
+                or "без прямой платы",
                 WARN,
                 2,
+            )
+            immediate = self._describe_effects(
+                action.get("immediate"), target
             )
             y = self._draw_text_block(
                 screen,
                 y,
                 "Ожидаемо",
-                ", ".join(
-                    preview.get("immediate") or ["без немедленного эффекта"]
-                ),
+                ", ".join(immediate) or "без немедленного эффекта",
                 GOOD,
                 2,
             )
-            success = preview.get("success_text") or ""
-            if success:
+            success = action.get("success") or {}
+            if success.get("text"):
                 y = self._draw_text_block(
                     screen,
                     y,
-                    "Успех — %.0f%%"
-                    % (100.0 * preview.get("success_chance", 0.0)),
-                    success,
+                    "Успех — %s"
+                    % chance_phrase(success.get("chance", 0.0)),
+                    success.get("text", ""),
                     GOOD,
                     3,
                 )
-                y = self._draw_effects_line(
-                    screen, y, preview.get("success_effects")
+                self._draw_effects_line(
+                    screen,
+                    y,
+                    self._describe_effects(
+                        success.get("effects"), target
+                    ),
                 )
-            failure = preview.get("failure_text") or ""
-            if failure:
+            failure = action.get("failure") or {}
+            if failure.get("text"):
                 y = self._draw_text_block(
                     screen,
                     y,
-                    "Провал — %.0f%%"
-                    % (100.0 * preview.get("failure_chance", 0.0)),
-                    failure,
+                    "Провал — %s"
+                    % chance_phrase(failure.get("chance", 0.0)),
+                    failure.get("text", ""),
                     BAD,
                     3,
                 )
-                y = self._draw_effects_line(
-                    screen, y, preview.get("failure_effects")
+                self._draw_effects_line(
+                    screen,
+                    y,
+                    self._describe_effects(
+                        failure.get("effects"), target
+                    ),
                 )
             if preview.get("delayed_text"):
                 y = self._draw_text_block(
@@ -599,8 +664,7 @@ class StrategyScreen(BaseScreen):
             )
             if result.get("changes"):
                 text = " · ".join(
-                    "%s %s%.0f%%"
-                    % (label, "+" if value > 0 else "", 100.0 * value)
+                    effect_phrase(label, value)
                     for label, value in result["changes"]
                 )
                 y = self._draw_text_block(screen, y, "Сдвиги", text, MUTED, 2)

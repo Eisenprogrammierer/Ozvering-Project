@@ -18,6 +18,7 @@ from campaign.env import END_DAY, TREAT_SELF, TREAT_WOUND
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button, Panel
 from view.support.log_journal import get_logger
+from view.support.metrics import metric_phrase
 
 logger = get_logger("view.campaign_quick")
 
@@ -146,17 +147,27 @@ class CampaignQuickScreen(BaseScreen):
         engine = self.env.engine
         max_energy = obs.max_energy or 100.0
         lines = [
-            "День %d/%d · действий осталось: %d · энергия %.0f%%"
+            "День %d/%d · действий осталось: %d · %s"
             % (
                 obs.day,
                 obs.total_days,
                 obs.actions_left,
-                100.0 * obs.energy / max_energy,
+                metric_phrase("энергия", obs.energy / max_energy),
             ),
-            "Здоровье %.0f%% · болезнь %.0f%% · рана %.0f%%"
-            % (obs.health, 100.0 * obs.sickness, 100.0 * obs.wound),
-            "Положение %.0f%% · сила узла %.0f%% · связность %.0f%%"
-            % (100.0 * obs.standing, 100.0 * obs.power, 100.0 * obs.cohesion),
+            " · ".join(
+                (
+                    metric_phrase("здоровье", obs.health, high=100.0),
+                    metric_phrase("болезнь", obs.sickness),
+                    metric_phrase("рана", obs.wound),
+                )
+            ),
+            " · ".join(
+                (
+                    metric_phrase("положение", obs.standing),
+                    metric_phrase("сила узла", obs.power),
+                    metric_phrase("связность", obs.cohesion),
+                )
+            ),
         ]
         office = engine.player_office()
         if office and office.get("id"):

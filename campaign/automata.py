@@ -1673,15 +1673,16 @@ class AutomataCampaign:
             root_id="%s:faction" % side,
         )
 
-    def ensure_clock(self):
-        """Активировать реальное время, не сдвигая организационный цикл.
+    def _activate_clock(self):
+        """Разбудить цикл без построения полного снимка.
 
-        Свободный режим идёт непрерывно: открытие экрана или действие
-        игрока не являются TBS-ходом и не должны увеличивать ``turn``.
-        Цикл двигают только ``advance_time`` и внутренние таймеры.
+        Отделено от :meth:`ensure_clock`, потому что игровой цикл вызывает
+        активацию каждый кадр. Полный ``snapshot()`` тяжёлый: он обходит
+        персонажей, органы и производные активы, поэтому в горячем пути
+        нужен только переход состояния.
         """
         if self.finished:
-            return self.snapshot()
+            return
         if not self._turn_active:
             self._turn_active = True
             if self.turn <= 0:
@@ -1689,6 +1690,15 @@ class AutomataCampaign:
             self.actions_left = max(
                 self.actions_left, self.actions_per_turn
             )
+
+    def ensure_clock(self):
+        """Активировать реальное время, не сдвигая организационный цикл.
+
+        Свободный режим идёт непрерывно: открытие экрана или действие
+        игрока не являются TBS-ходом и не должны увеличивать ``turn``.
+        Цикл двигают только ``advance_time`` и внутренние таймеры.
+        """
+        self._activate_clock()
         return self.snapshot()
 
     def begin_turn(self):
@@ -1833,7 +1843,28 @@ class AutomataCampaign:
         self.speed = int(allowed[0])
         return True
 
-    def advance_time(self, dt):
+    def _advance_seconds(self, seconds):
+        """Продвинуть состояние без построения снимка.
+
+        ``seconds`` — уже игровые секунды (до умножения на ``speed``).
+        Это горячий путь игрового цикла: экран обновляется 60 раз в
+        секунду, а ``snapshot()`` обходит всех персонажей и органы.
+        Поэтому снимок строится только по явному запросу.
+        """
+        if self.finished:
+            return
+        if seconds <= 0.0:
+            return
+        self._activate_clock()
+        scaled = seconds * float(self.speed)
+        self.elapsed += scaled
+        self._regenerate_actions(scaled)
+        self._advance_ai(scaled)
+        self._advance_rounds(scaled)
+        self._advance_story_events(scaled)
+        self._advance_processes(scaled)
+
+    def advance_time(self, dt, *, snapshot=True):
         """Продвинуть кампанию на ``dt`` игровых секунд.
 
         Это базовый вызов для тестов и legacy-кода. Игровые экраны
@@ -1842,37 +1873,31 @@ class AutomataCampaign:
         функций время идёт со скоростью ``speed`` (не меньше 1); работа,
         ИИ и организации обновляются непрерывно, без кнопки «завершить
         ход»; пауза, замедление и откат отсутствуют.
+
+        ``snapshot=False`` нужен горячему пути: снимок стоит дороже
+        самого шага и не нужен, пока интерфейс не запросит его явно.
         """
-        if self.finished or dt is None:
-            return self.snapshot()
         try:
             seconds = float(dt)
         except (TypeError, ValueError):
-            return self.snapshot()
-        if seconds <= 0.0:
-            return self.snapshot()
-        self.ensure_clock()
-        scaled = seconds * float(self.speed)
-        self.elapsed += scaled
-        self._regenerate_actions(scaled)
-        self._advance_ai(scaled)
-        self._advance_rounds(scaled)
-        self._advance_story_events(scaled)
-        self._advance_processes(scaled)
-        return self.snapshot()
+            seconds = 0.0
+        self._advance_seconds(seconds)
+        return self.snapshot() if snapshot else None
 
-    def advance_realtime(self, dt):
+    def advance_realtime(self, dt, *, snapshot=True):
         """Продвинуть кампанию на ``dt`` реальных секунд из игрового цикла.
 
         При ``1×`` это ровно ``dt`` игровых секунд; при ``2×`` — ``2·dt``.
         Никакой другой масштаб не применяется: физическое соответствие
-        времени — инвариант проекта.
+        времени — инвариант проекта. Экраны передают ``snapshot=False``,
+        чтобы не строить полный снимок каждый кадр.
         """
         try:
             seconds = float(dt)
         except (TypeError, ValueError):
-            return self.snapshot()
-        return self.advance_time(seconds * self.realtime_scale)
+            seconds = 0.0
+        self._advance_seconds(seconds * self.realtime_scale)
+        return self.snapshot() if snapshot else None
 
     def _regenerate_actions(self, seconds):
         if self.finished:
@@ -2171,27 +2196,33 @@ class AutomataCampaign:
     def _advance_story_events(self, seconds):
         if self.finished or self.story_engine is None:
             return []
-        context = self._story_context()
-        # Условия читают структуры (активы, органы, ростер), а тексту
-        # нужны только имена. Разделяем, чтобы словари не попадали в
-        # подстановки и в контекст экземпляра события.
-        render_context = {
-            key: context[key]
-            for key in (
-                "actor",
-                "target",
-                "rival",
-                "organization",
-                "rival_organization",
-            )
-            if context.get(key)
-        }
-        self.story_engine.advance(seconds, context=context)
+        # Контекст события — дорогой срез всех персонажей и органов.
+        # Строим его только когда событие действительно может сработать,
+        # а не каждый кадр: ``advance`` нужен лишь для хода времени.
+        self.story_engine.advance(seconds)
         self._story_progress += max(0.0, float(seconds))
         interval = max(4.0, self.organization_interval_seconds * 0.5)
         spawned = []
+        context = None
+        render_context = None
         while self._story_progress >= interval:
             self._story_progress -= interval
+            if context is None:
+                context = self._story_context()
+                # Условия читают структуры (активы, органы, ростер), а
+                # тексту нужны только имена. Разделяем, чтобы словари не
+                # попадали в подстановки и в контекст события.
+                render_context = {
+                    key: context[key]
+                    for key in (
+                        "actor",
+                        "target",
+                        "rival",
+                        "organization",
+                        "rival_organization",
+                    )
+                    if context.get(key)
+                }
             instance = self.story_engine.trigger(
                 context=context, render_context=render_context
             )
@@ -3275,6 +3306,7 @@ class AutomataCampaign:
             detail += "; суть=%s" % trace["essence"]
         if result.get("reason"):
             detail += "; причина: %s" % result["reason"]
+        logger.debug("%s", detail)
         self.events.append(
             {
                 "turn": result["turn"],

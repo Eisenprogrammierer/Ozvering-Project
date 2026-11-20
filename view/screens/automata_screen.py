@@ -5,6 +5,17 @@ import pygame
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
+from view.support.metrics import (
+    amount_phrase,
+    chance_phrase,
+    cost_phrase,
+    effect_phrase,
+    efficiency_phrase,
+    metric_phrase,
+    progress_phrase,
+    relation_phrase,
+    share_phrase,
+)
 
 logger = get_logger("view.automata")
 
@@ -54,7 +65,7 @@ def _relation_line(campaign, faction):
         if abs(float(value)) < 0.01:
             continue
         parts.append(
-            "%s %+.2f" % (labels.get(axis, axis), float(value))
+            relation_phrase(labels.get(axis, axis), float(value))
         )
     if not parts:
         return "→ %s: нейтрально" % rival.name
@@ -83,7 +94,7 @@ def _asset_line(assets, keys=None, labels=None):
         if keys is not None and key not in keys:
             continue
         label = labels.get(key, key)
-        items.append("%s %.2f" % (label, float(value)))
+        items.append(metric_phrase(label, float(value)))
     return " · ".join(items)
 
 
@@ -121,9 +132,7 @@ def _effect_to_text(effect):
             parts.append("%s %s" % (ASSET_LABELS.get(key, key), value))
             continue
         label = ASSET_LABELS.get(key, key)
-        parts.append(
-            "%s %+.3f" % (label, number)
-        )
+        parts.append(effect_phrase(label, number))
     return " · ".join(parts)
 
 
@@ -249,7 +258,7 @@ class AutomataScreen(BaseScreen):
         if self.campaign.finished:
             return
         before = self.campaign.turn
-        self.campaign.advance_realtime(dt)
+        self.campaign.advance_realtime(dt, snapshot=False)
         if self.campaign.turn != before or self.campaign.finished:
             self._sync_storyline()
         if self.campaign.finished:
@@ -612,12 +621,12 @@ class AutomataScreen(BaseScreen):
                 )
             return y + 14
         plan, report_ok, report_fail = preview
-        header = "форма: %s · объём: %.3f" % (
+        header = "форма: %s · объём: %s" % (
             plan.form,
-            plan.amount,
+            amount_phrase(plan.amount),
         )
         if report_ok is not None:
-            header += " · КПД: %.2f" % float(
+            header += " · %s" % efficiency_phrase(
                 report_ok.efficiency or 0.0
             )
         screen.blit(
@@ -741,17 +750,7 @@ class AutomataScreen(BaseScreen):
                 share = float(
                     faction.organization_snapshot.get("willing_share", 0.0)
                 )
-                active = int(
-                    faction.organization_snapshot.get("active_count", 0)
-                )
-                initial = int(
-                    faction.organization_snapshot.get("initial_count", 0)
-                )
-                info = "организация: %d/%d, воля %.2f" % (
-                    active,
-                    initial,
-                    share,
-                )
+                info = "поддержка: %s" % share_phrase(share)
                 screen.blit(
                     self.app.font_tiny.render(info, True, DIM),
                     (rect.x + 10, rect.bottom - 22),
@@ -801,7 +800,7 @@ class AutomataScreen(BaseScreen):
             target = _target_name(self.campaign, action)
             cost = action.get("cost") or {}
             cost_text = ", ".join(
-                "%s −%.2f" % (ASSET_LABELS.get(key, key), float(value))
+                cost_phrase(ASSET_LABELS.get(key, key), float(value))
                 for key, value in cost.items()
             )
             organ = str(action.get("organ") or action.get("organ_id") or "")
@@ -818,8 +817,8 @@ class AutomataScreen(BaseScreen):
                     1e-6, float(active_process.get("duration", 0.0))
                 )
                 left = max(0.0, float(active_process.get("remaining", 0.0)))
-                progress = 100.0 * (1.0 - min(1.0, left / duration))
-                detail += " · в работе %.0f%%" % progress
+                progress = 1.0 - min(1.0, left / duration)
+                detail += " · %s" % progress_phrase(progress)
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
             for line_number, line in enumerate(
@@ -875,9 +874,9 @@ class AutomataScreen(BaseScreen):
                 self.campaign, action
             )
             if organ is not None:
-                meta = "орган: %s · %.0f%% · %s" % (
+                meta = "орган: %s · %s · %s" % (
                     organ.name,
-                    organ.integrity * 100.0,
+                    metric_phrase("целостность", organ.integrity),
                     meta,
                 )
             screen.blit(
@@ -952,23 +951,15 @@ class AutomataScreen(BaseScreen):
                 result.get("trace"), dict
             ) else {}
             if trace:
-                stats = "форма %s · объём %.3f · КПД %.2f" % (
+                stats = "форма %s · объём %s · %s" % (
                     trace.get("form", "—"),
-                    float(trace.get("amount", 0.0)),
-                    float(trace.get("efficiency", 0.0)),
+                    amount_phrase(trace.get("amount", 0.0)),
+                    efficiency_phrase(
+                        trace.get("efficiency", 0.0)
+                    ),
                 )
                 screen.blit(
                     self.app.font_tiny.render(stats, True, ACCENT),
-                    (RIGHT_RECT.x + 12, y),
-                )
-                y += 16
-                balance = "stored %.3f · loss %.3f · entropy %.3f" % (
-                    float(trace.get("stored", 0.0)),
-                    float(trace.get("loss", 0.0)),
-                    float(trace.get("entropy", 0.0)),
-                )
-                screen.blit(
-                    self.app.font_tiny.render(balance, True, MUTED),
                     (RIGHT_RECT.x + 12, y),
                 )
                 y += 16
@@ -980,13 +971,12 @@ class AutomataScreen(BaseScreen):
                         (RIGHT_RECT.x + 12, y),
                     )
                     y += 16
-            chance = "шанс %.3f · бросок %.3f · %s" % (
-                float(result.get("chance", 0.0)),
-                float(result.get("roll", 0.0)),
+            outcome = "исход: %s · %s" % (
                 "успех" if result.get("success") else "провал",
+                chance_phrase(result.get("chance", 0.0)),
             )
             screen.blit(
-                self.app.font_tiny.render(chance, True, outcome_color),
+                self.app.font_tiny.render(outcome, True, outcome_color),
                 (RIGHT_RECT.x + 12, y),
             )
             y += 20
@@ -1084,10 +1074,12 @@ class AutomataScreen(BaseScreen):
                     duration = max(1e-6, float(item.get("duration", 0.0)))
                     left = max(0.0, float(item.get("remaining", 0.0)))
                     parts.append(
-                        "%s %.0f%%"
+                        "%s — %s"
                         % (
                             item.get("label") or item.get("action_id"),
-                            100.0 * (1.0 - min(1.0, left / duration)),
+                            progress_phrase(
+                                1.0 - min(1.0, left / duration)
+                            ),
                         )
                     )
                 hint = "В работе: %s · слоты %d/%d" % (

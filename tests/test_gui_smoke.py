@@ -56,14 +56,8 @@ def _drain_cycle(app, max_frames=600):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 app.running = False
-            elif (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_F11
-            ):
-                app.toggle_fullscreen()
-            elif (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-            ):
-                app.manager.handle_escape()
+            elif app.handle_global_key(event):
+                continue
             else:
                 app.manager.handle_event(event)
         dt = app.clock.tick(250) / 1000.0
@@ -98,6 +92,38 @@ def test_main_menu_cycle_draws_without_errors(app):
     assert frames >= 10, "цикл должен отрисовать кадры до QUIT"
     assert app.manager.current is not None
     assert type(app.manager.current).__name__ == "MainMenuScreen"
+
+
+def test_plain_letters_are_not_global_hotkeys(app):
+    """«д» в чате связи не должна открывать журнал: только Ctrl+L."""
+    opened = []
+    app.open_turn_log = lambda: opened.append("log")
+    plain = pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_l, mod=0
+    )
+    assert app.handle_global_key(plain) is False
+    assert opened == []
+
+    ctrl = pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_l, mod=pygame.KMOD_CTRL
+    )
+    assert app.handle_global_key(ctrl) is True
+    assert opened == ["log"]
+
+
+def test_turn_cycle_hotkey_requires_ctrl(app):
+    ticks = []
+    app.advance_turn = lambda: ticks.append("turn")
+    plain = pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_t, mod=0
+    )
+    assert app.handle_global_key(plain) is False
+    assert ticks == []
+    ctrl = pygame.event.Event(
+        pygame.KEYDOWN, key=pygame.K_t, mod=pygame.KMOD_CTRL
+    )
+    assert app.handle_global_key(ctrl) is True
+    assert ticks == ["turn"]
 
 
 def test_menu_navigation_reaches_world_screen(app):
@@ -168,9 +194,9 @@ def test_quick_campaign_screen_lifecycle(app):
     assert any("День" in line for line in lines)
     for line in lines:
         if "энергия" in line:
-            pct = float(line.split("энергия")[1].rstrip("%"))
-            assert pct <= 100.0, (
-                "энергия в UI обязана быть в процентах: %s" % line
+            energy_text = line.split("энергия")[1]
+            assert not any(char.isdigit() for char in energy_text), (
+                "энергия в UI обязана быть словесной: %s" % line
             )
     menu_btn = next(
         b for b in app.manager.current.buttons if b.text == "В меню"

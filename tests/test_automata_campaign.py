@@ -857,6 +857,29 @@ def test_legacy_realtime_scale_cannot_accelerate_physical_time():
     assert campaign.elapsed == pytest.approx(5.0)
 
 
+def test_realtime_hot_path_skips_snapshot():
+    """Кадр игры не должен строить полный снимок кампании."""
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+
+    def _unexpected_snapshot():
+        raise AssertionError("горячий путь не должен звать snapshot()")
+
+    campaign.snapshot = _unexpected_snapshot
+    assert campaign.advance_realtime(1.0, snapshot=False) is None
+    assert campaign.advance_time(2.0, snapshot=False) is None
+    assert campaign.elapsed == pytest.approx(3.0)
+
+
+def test_realtime_default_still_returns_snapshot():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    snapshot = campaign.advance_realtime(1.0)
+    assert snapshot["elapsed"] == pytest.approx(1.0)
+
+
 def test_core_rejects_self_character_interactions():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11

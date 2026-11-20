@@ -22,6 +22,13 @@ from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import draw_fitted, wrap_text
 from ..ui.widgets import Button, Panel
 from view.support.log_journal import get_logger
+from view.support.metrics import (
+    amount_phrase,
+    delta_phrase,
+    effect_phrase,
+    efficiency_phrase,
+    metric_phrase,
+)
 
 logger = get_logger("view.campaign_codex")
 
@@ -76,7 +83,7 @@ def _effect_to_text(effect):
             parts.append("%s %s" % (ASSET_LABELS.get(key, key), value))
             continue
         parts.append(
-            "%s %+.3f" % (ASSET_LABELS.get(key, key), number)
+            effect_phrase(ASSET_LABELS.get(key, key), number)
         )
     return " · ".join(parts)
 
@@ -298,7 +305,7 @@ class CampaignCodexScreen(BaseScreen):
         if self.campaign is None:
             return
         before = self.campaign.turn
-        self.campaign.advance_realtime(dt)
+        self.campaign.advance_realtime(dt, snapshot=False)
         if self.campaign.turn != before:
             self._sync_storyline()
 
@@ -429,32 +436,36 @@ class CampaignCodexScreen(BaseScreen):
             )
             return result
         if kind == "character":
-            self.action_message = (
-                "%s: %s; мораль %.0f → %.0f; запас действий %d"
-                % (
-                    result.get("character_name", "персонаж"),
-                    result.get("label", "действие"),
-                    float(result.get("morale_before", 0.0)),
-                    float(result.get("morale_after", 0.0)),
-                    self.campaign.actions_left,
-                )
+            self.action_message = "%s: %s; %s" % (
+                result.get("character_name", "персонаж"),
+                result.get("label", "действие"),
+                delta_phrase(
+                    "мораль",
+                    result.get("morale_before", 0.0),
+                    result.get("morale_after", 0.0),
+                    scale=100.0,
+                ),
             )
         else:
-            self.action_message = (
-                "%s: %s; целостность %.0f%% → %.0f%%; запас действий %d"
-                % (
-                    result.get("organ_name", "орган"),
-                    result.get("label", "действие"),
-                    float(result.get("integrity_before", 0.0)) * 100.0,
-                    float(result.get("integrity_after", 0.0)) * 100.0,
-                    self.campaign.actions_left,
-                )
+            self.action_message = "%s: %s; %s" % (
+                result.get("organ_name", "орган"),
+                result.get("label", "действие"),
+                delta_phrase(
+                    "целостность",
+                    result.get("integrity_before", 0.0),
+                    result.get("integrity_after", 0.0),
+                ),
             )
         self._sync_storyline()
         logger.info(
-            "Кодекс: %s → %s; запас действий %d",
+            "Кодекс: %s → %s; мораль %s→%s; целостность %s→%s; "
+            "запас действий %d",
             result.get("character_name") or result.get("organ_name", "?"),
             result.get("interaction_id", "?"),
+            result.get("morale_before"),
+            result.get("morale_after"),
+            result.get("integrity_before"),
+            result.get("integrity_after"),
             self.campaign.actions_left,
         )
         return result
@@ -630,14 +641,18 @@ class CampaignCodexScreen(BaseScreen):
             agency = dict(live.get("agency") or {})
             screen.blit(
                 self.app.font_tiny.render(
-                    "мораль %.0f · запас действий %d · дов. %.2f · обида %.2f"
+                    "%s · запас действий %d · %s · %s"
                     % (
-                        morale,
+                        metric_phrase("мораль", morale, high=100.0),
                         self.campaign.actions_left
                         if self.campaign is not None
                         else 0,
-                        float(agency.get("trust", 0.5)),
-                        float(agency.get("grievance", 0.0)),
+                        metric_phrase(
+                            "доверие", agency.get("trust", 0.5)
+                        ),
+                        metric_phrase(
+                            "обида", agency.get("grievance", 0.0)
+                        ),
                     ),
                     True,
                     GOOD if morale >= 50.0 else WARN,
@@ -666,7 +681,7 @@ class CampaignCodexScreen(BaseScreen):
             personality.items(), key=lambda item: float(item[1]), reverse=True
         )[:6]
         trait_text = " · ".join(
-            "%s %.2f" % (W.TRAITS_RU.get(key, key), float(value))
+            metric_phrase(W.TRAITS_RU.get(key, key), float(value))
             for key, value in top_traits
         )
         for line in wrap_text(self.app.font_tiny, trait_text, width)[:2]:
@@ -687,7 +702,7 @@ class CampaignCodexScreen(BaseScreen):
             urgency.items(), key=lambda item: float(item[1]), reverse=True
         )[:5]
         need_text = " · ".join(
-            "%s %.2f" % (W.NEEDS_RU.get(key, key), float(value))
+            metric_phrase(W.NEEDS_RU.get(key, key), float(value))
             for key, value in top_needs
         )
         for line in wrap_text(self.app.font_tiny, need_text, width)[:2]:
@@ -733,10 +748,10 @@ class CampaignCodexScreen(BaseScreen):
         if organ is not None:
             screen.blit(
                 self.app.font_tiny.render(
-                    "Состояние: %s · целостность %.0f%% · запас действий %d"
+                    "Состояние: %s · %s · запас действий %d"
                     % (
                         organ.status(),
-                        organ.integrity * 100.0,
+                        metric_phrase("целостность", organ.integrity),
                         self.campaign.actions_left,
                     ),
                     True,
@@ -845,10 +860,13 @@ class CampaignCodexScreen(BaseScreen):
             color = DIM
         else:
             plan, report_ok, _report_fail = preview
-            parts = ["форма: %s" % plan.form, "объём: %.3f" % plan.amount]
+            parts = [
+                "форма: %s" % plan.form,
+                "объём: %s" % amount_phrase(plan.amount),
+            ]
             if report_ok is not None:
                 parts.append(
-                    "КПД: %.2f" % float(report_ok.efficiency or 0.0)
+                    efficiency_phrase(report_ok.efficiency or 0.0)
                 )
                 effect = _projection_text(report_ok.projections)
                 if not effect:

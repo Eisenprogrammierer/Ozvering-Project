@@ -28,6 +28,13 @@ from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
+from view.support.metrics import (
+    cost_phrase,
+    delta_phrase,
+    effect_phrase,
+    metric_phrase,
+    share_phrase,
+)
 
 logger = get_logger("view.automata_network")
 
@@ -119,6 +126,19 @@ def _integrity_color(value):
     return BAD
 
 
+def _integrity_word(value):
+    value = max(0.0, min(1.0, float(value)))
+    if value >= 0.82:
+        return "крепок"
+    if value >= 0.58:
+        return "в порядке"
+    if value >= 0.32:
+        return "держится"
+    if value >= 0.12:
+        return "повреждён"
+    return "разрушен"
+
+
 def _draw_bar(surface, rect, value, color):
     pygame.draw.rect(surface, (32, 39, 52), rect, border_radius=3)
     filled = rect.copy()
@@ -130,13 +150,9 @@ def _draw_bar(surface, rect, value, color):
 
 def _money(cost):
     return ", ".join(
-        "%s −%.2f" % (key, float(value))
+        cost_phrase(key, float(value))
         for key, value in (cost or {}).items()
     ) or "без цены"
-
-
-def _signed(value, digits=2):
-    return "%+.*f" % (digits, float(value))
 
 
 class AutomataNetworkScreen(BaseScreen):
@@ -373,7 +389,7 @@ class AutomataNetworkScreen(BaseScreen):
         if self.campaign.finished:
             return
         before = self.campaign.turn
-        self.campaign.advance_realtime(dt)
+        self.campaign.advance_realtime(dt, snapshot=False)
         if self.campaign.turn != before or self.campaign.finished:
             self._sync_storyline()
         if self.campaign.finished:
@@ -553,10 +569,7 @@ class AutomataNetworkScreen(BaseScreen):
         return True
 
     def _budget_message(self):
-        return (
-            "Действия восстанавливаются со временем (%d за цикл)."
-            % self.campaign.actions_per_turn
-        )
+        return "Действия восстанавливаются со временем."
 
     def _apply_result(self, result):
         self._sync_storyline()
@@ -568,40 +581,46 @@ class AutomataNetworkScreen(BaseScreen):
         self.message = ""
         self.last_result = result
         if result.get("kind") == "automaton" or "source_organ_id" in result:
-            self.message = (
-                "%s → %s: %s; цель %.0f%% → %.0f%%; запас действий %d"
-                % (
-                    result.get("source_organ_name", "автомат"),
-                    result.get("target_organ_name", "цель"),
-                    result.get("label", "команда"),
-                    float(result.get("target_integrity_before", 0.0))
-                    * 100.0,
-                    float(result.get("target_integrity_after", 0.0))
-                    * 100.0,
-                    self.campaign.actions_left,
-                )
+            self.message = "%s → %s: %s; %s" % (
+                result.get("source_organ_name", "автомат"),
+                result.get("target_organ_name", "цель"),
+                result.get("label", "команда"),
+                delta_phrase(
+                    "целостность",
+                    result.get("target_integrity_before", 0.0),
+                    result.get("target_integrity_after", 0.0),
+                ),
             )
         elif result.get("kind") == "character" or "character_name" in result:
-            self.message = (
-                "%s: %s; мораль %.0f → %.0f; запас действий %d"
-                % (
-                    result.get("character_name", "персонаж"),
-                    result.get("label", "действие"),
-                    float(result.get("morale_before", 0.0)),
-                    float(result.get("morale_after", 0.0)),
-                    self.campaign.actions_left,
-                )
+            self.message = "%s: %s; %s" % (
+                result.get("character_name", "персонаж"),
+                result.get("label", "действие"),
+                delta_phrase(
+                    "мораль",
+                    result.get("morale_before", 0.0),
+                    result.get("morale_after", 0.0),
+                    scale=100.0,
+                ),
             )
         else:
-            self.message = (
-                "%s: целостность %.0f%% → %.0f%%; запас действий %d"
-                % (
-                    result.get("label", "взаимодействие"),
-                    float(result.get("integrity_before", 0.0)) * 100.0,
-                    float(result.get("integrity_after", 0.0)) * 100.0,
-                    self.campaign.actions_left,
-                )
+            self.message = "%s: %s" % (
+                result.get("label", "взаимодействие"),
+                delta_phrase(
+                    "целостность",
+                    result.get("integrity_before", 0.0),
+                    result.get("integrity_after", 0.0),
+                ),
             )
+        logger.debug(
+            "Сеть: %s; мораль %s→%s; целостность %s→%s; "
+            "действий %d",
+            result.get("label", "?"),
+            result.get("morale_before"),
+            result.get("morale_after"),
+            result.get("integrity_before"),
+            result.get("integrity_after"),
+            self.campaign.actions_left,
+        )
         if self.campaign.finished:
             self._check_storyline_outcome()
         return result
@@ -1129,9 +1148,9 @@ class AutomataNetworkScreen(BaseScreen):
             )
             screen.blit(
                 self.app.font_tiny.render(
-                    "%.0f%%" % (organ.integrity * 100.0), True, DIM
+                    _integrity_word(organ.integrity), True, DIM
                 ),
-                (rect.right - 29, rect.bottom - 17),
+                (rect.right - 58, rect.bottom - 17),
             )
             screen.blit(
                 self.app.font_tiny.render(
@@ -1184,9 +1203,9 @@ class AutomataNetworkScreen(BaseScreen):
             ),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 58),
         )
-        status = "%s · целостность %.0f%%" % (
+        status = "%s · %s" % (
             organ.status(),
-            organ.integrity * 100.0,
+            metric_phrase("целостность", organ.integrity),
         )
         screen.blit(
             self.app.font_tiny.render(
@@ -1287,7 +1306,9 @@ class AutomataNetworkScreen(BaseScreen):
         morale = float(snapshot.get("morale", 0.0))
         screen.blit(
             self.app.font_tiny.render(
-                "мораль %.0f" % morale, True, _integrity_color(morale / 100.0)
+                metric_phrase("мораль", morale, high=100.0),
+                True,
+                _integrity_color(morale / 100.0),
             ),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 78),
         )
@@ -1301,7 +1322,7 @@ class AutomataNetworkScreen(BaseScreen):
             reverse=True,
         )[:3]
         text = "потребности: " + " · ".join(
-            "%s %.2f" % (NEED_LABELS.get(key, key), value)
+            metric_phrase(NEED_LABELS.get(key, key), value)
             for key, value in needs
         )
         screen.blit(
@@ -1317,7 +1338,7 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.font_tiny.render(
                 "черты: "
                 + " · ".join(
-                    "%s %.2f" % (TRAIT_LABELS.get(key, key), value)
+                    metric_phrase(TRAIT_LABELS.get(key, key), value)
                     for key, value in traits
                 ),
                 True,
@@ -1329,11 +1350,11 @@ class AutomataNetworkScreen(BaseScreen):
         agency = dict(snapshot.get("agency") or {})
         goal_label = goal.get("label") or goal.get("kind") or "нет цели"
         goal_target = goal.get("target_name") or goal.get("target") or ""
-        motive = "цель: %s%s · дов. %.2f · обида %.2f" % (
+        motive = "цель: %s%s · %s · %s" % (
             goal_label,
             (" → " + goal_target) if goal_target else "",
-            float(agency.get("trust", 0.5)),
-            float(agency.get("grievance", 0.0)),
+            metric_phrase("доверие", agency.get("trust", 0.5)),
+            metric_phrase("обида", agency.get("grievance", 0.0)),
         )
         if len(motive) > 46:
             motive = motive[:45] + "…"
@@ -1446,10 +1467,14 @@ class AutomataNetworkScreen(BaseScreen):
             )
             screen.blit(
                 self.app.font_tiny.render(
-                    "%s · мораль %.0f"
+                    "%s · %s"
                     % (
                         character.get("post") or "участник",
-                        float(character.get("morale", 0.0)),
+                        metric_phrase(
+                            "мораль",
+                            character.get("morale", 0.0),
+                            high=100.0,
+                        ),
                     ),
                     True,
                     DIM,
@@ -1554,11 +1579,14 @@ class AutomataNetworkScreen(BaseScreen):
             )
             detail = _money(option.get("cost", {}))
             if self.mode == "characters" and option.get("morale"):
-                detail += " · мораль %s" % _signed(
-                    option.get("morale", 0.0), 0
+                detail += " · %s" % effect_phrase(
+                    "мораль", option.get("morale", 0.0)
                 )
             if self.mode == "automata":
-                detail += " · целей: %d" % len(option.get("targets", ()))
+                targets = len(option.get("targets", ()))
+                detail += " · цели: %s" % (
+                    "несколько" if targets > 1 else "одна"
+                )
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
             screen.blit(
@@ -1575,9 +1603,9 @@ class AutomataNetworkScreen(BaseScreen):
             target = self._selected_automaton_target()
             option = self._selected_automaton_interaction()
             if target is not None:
-                target_text = "Цель: %s · %.0f%%" % (
+                target_text = "Цель: %s · %s" % (
                     target["name"],
-                    float(target.get("integrity", 0.0)) * 100.0,
+                    _integrity_word(target.get("integrity", 0.0)),
                 )
                 color = GOOD
             elif option is not None:
@@ -1607,21 +1635,26 @@ class AutomataNetworkScreen(BaseScreen):
         if self.last_result:
             result = self.last_result
             if "source_organ_id" in result:
-                text = "%s → %s: %.0f%%" % (
+                text = "%s → %s: %s" % (
                     result.get("source_organ_name", "автомат"),
                     result.get("target_organ_name", "цель"),
-                    float(result.get("target_integrity_after", 0.0))
-                    * 100.0,
+                    _integrity_word(
+                        result.get("target_integrity_after", 0.0)
+                    ),
                 )
             elif "character_name" in result:
-                text = "%s → мораль %.0f" % (
+                text = "%s → %s" % (
                     result.get("character_name", "персонаж"),
-                    float(result.get("morale_after", 0.0)),
+                    metric_phrase(
+                        "мораль",
+                        result.get("morale_after", 0.0),
+                        high=100.0,
+                    ),
                 )
             else:
-                text = "%s → %.0f%%" % (
+                text = "%s → %s" % (
                     result.get("organ_name", "орган"),
-                    float(result.get("integrity_after", 0.0)) * 100.0,
+                    _integrity_word(result.get("integrity_after", 0.0)),
                 )
             screen.blit(
                 self.app.font_tiny.render(text, True, GOOD),

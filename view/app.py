@@ -1651,27 +1651,41 @@ class App:
         logger.info("Приложение останавливается")
         self.running = False
 
+    def handle_global_key(self, event):
+        """Глобальные горячие клавиши окна, а не текстового поля.
+
+        Одиночные буквы здесь не перехватываются: в чате связи «д» —
+        обычный текст. Журнал и завершение цикла висят на ``Ctrl``.
+        """
+        if event.type != pygame.KEYDOWN:
+            return False
+        key = event.key
+        mod = int(getattr(event, "mod", 0) or 0)
+        if key == pygame.K_F11:
+            self.toggle_fullscreen()
+            return True
+        if key == pygame.K_ESCAPE:
+            self.manager.handle_escape()
+            return True
+        if key == pygame.K_t and mod & pygame.KMOD_CTRL:
+            self.advance_turn()
+            return True
+        if key == pygame.K_l and mod & pygame.KMOD_CTRL:
+            self.open_turn_log()
+            return True
+        if key == pygame.K_F5:
+            self.save_game("quicksave")
+            return True
+        return False
+
     def run(self):
         logger.info("Главный цикл запущен")
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                elif (
-                    event.type == pygame.KEYDOWN and event.key == pygame.K_F11
-                ):
-                    self.toggle_fullscreen()
-                elif (
-                    event.type == pygame.KEYDOWN
-                    and event.key == pygame.K_ESCAPE
-                ):
-                    self.manager.handle_escape()
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
-                    self.advance_turn()
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_l:
-                    self.open_turn_log()
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F5:
-                    self.save_game("quicksave")
+                elif self.handle_global_key(event):
+                    continue
                 elif event.type == getattr(pygame, "WINDOWEVENT", -1):
                     inactive = {
                         getattr(pygame, "WINDOWEVENT_MINIMIZED", -2),
