@@ -142,6 +142,39 @@ def test_verify_choice_shows_action_cost():
     app.quit()
 
 
+def test_report_overlay_shows_contradiction_counter_line():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    dispatch = campaign.dispatch
+    dispatch.contradiction_enabled = True
+    dispatch.contradiction_chance = 1.0
+    dispatch.assets = ["supply"]
+    chosen = [
+        character
+        for character in campaign.player.characters
+        if str(getattr(character, "campaign_post_id", "") or "")
+    ][:2]
+    queue = list(chosen)
+
+    def _source(_faction, _asset):
+        return queue.pop(0) if queue else chosen[0]
+
+    dispatch._source = _source
+    first = dispatch.issue()
+    first["band"] = "other-band"
+    second = dispatch.issue()
+
+    overlay = ReportsOverlay(app, campaign)
+    overlay.index = 0
+    lines = overlay._body_lines(second)
+
+    assert second["contradicts"] == first["id"]
+    assert any("Ранее" in line for line in lines)
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()
+
+
 def test_main_feed_shows_story_events_but_not_decisions():
     from view.screens.automata_screen import AutomataScreen
 

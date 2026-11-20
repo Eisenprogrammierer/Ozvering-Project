@@ -83,6 +83,12 @@ class ReportsOverlay(OverlayScreen):
         line_h = self.app.font_small.get_height() + 5
         limit = max(0, rect.height // line_h)
         lines = wrap_text(self.app.font_small, text, rect.width)
+        counter_line = str(report.get("counter_line") or "")
+        if counter_line:
+            lines.append("")
+            lines.extend(
+                wrap_text(self.app.font_small, counter_line, rect.width)
+            )
         return lines[:limit]
 
     def _choice_rects(self, report):

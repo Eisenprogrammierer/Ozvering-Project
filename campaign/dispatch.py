@@ -158,6 +158,36 @@ class ReportDispatcher:
         self.rumor_follow_up_title = str(
             rumor.get("follow_up_title") or "Проверка слуха: {asset_label}"
         )
+        contradiction = _as_mapping(self.config.get("contradiction"))
+        self.contradiction_enabled = bool(
+            contradiction.get("enabled", False)
+        )
+        self.contradiction_chance = _clamp(
+            contradiction.get("chance"), 0.0, 1.0
+        )
+        self.contradiction_title = str(
+            contradiction.get("title") or "Разноречие: {asset_label}"
+        )
+        self.contradiction_text = str(
+            contradiction.get("text")
+            or "{source} настаивает: {asset_label} — «{band}». "
+            "{counter_source} ранее доложил: «{counter_band}». "
+            "Кому верить?"
+        )
+        self.contradiction_counter_line = str(
+            contradiction.get("counter_line")
+            or "Ранее {counter_source}: «{counter_band}»"
+        )
+        self.contradiction_counter_line_late = str(
+            contradiction.get("counter_line_late")
+            or "Позже {counter_source}: «{counter_band}»"
+        )
+        self.contradiction_result_texts = _as_mapping(
+            contradiction.get("result_texts")
+        )
+        self.contradiction_effects = _as_mapping(
+            contradiction.get("effects")
+        )
         self._progress = 0.0
         self._seq = 0
         self._asset_index = 0
@@ -238,13 +268,28 @@ class ReportDispatcher:
         return spawned
 
     def pending(self, side=None):
+        return self._pending_reports(side)
+
+    def _pending_reports(self, side=None, include_shadowed=False):
         side = str(side or "")
-        return [
-            report
-            for report in self.reports
-            if str(report.get("status") or "") == "pending"
-            and (not side or str(report.get("side") or "") == side)
-        ]
+        result = []
+        for report in self.reports:
+            if str(report.get("status") or "") != "pending":
+                continue
+            if side and str(report.get("side") or "") != side:
+                continue
+            if not include_shadowed and self._is_shadowed(report):
+                continue
+            result.append(report)
+        return result
+
+    def _is_shadowed(self, report):
+        partner_id = str(report.get("contradicted_by") or "")
+        partner = self.report(partner_id) if partner_id else None
+        return (
+            partner is not None
+            and str(partner.get("status") or "") == "pending"
+        )
 
     def report(self, report_id):
         key = str(report_id or "")
@@ -275,11 +320,95 @@ class ReportDispatcher:
         report = self._build_report(faction, source, asset, channel)
         if report is None:
             return None
+        self._attach_contradiction(report)
         self.reports.append(report)
         self._trim()
         self._record_story(report)
         self._log_issued(report)
         return report
+
+    def _attach_contradiction(self, report):
+        """Связать новый доклад с уже ждущим спорным сообщением."""
+        if not self.contradiction_enabled:
+            return None
+        if str(report.get("channel") or "") != "report":
+            return None
+        if self.rng.random() >= self.contradiction_chance:
+            return None
+        counterpart = self._counterpart_for(report)
+        if counterpart is None:
+            return None
+        values_map = self._contradiction_values(report, counterpart)
+        report["contradicts"] = counterpart.get("id")
+        report["contradiction"] = True
+        report["counter_source"] = counterpart.get("source_name")
+        report["counter_band"] = counterpart.get("band")
+        report["counter_band_label"] = counterpart.get("band_label")
+        report["title"] = _render(self.contradiction_title, values_map)
+        report["text"] = _render(self.contradiction_text, values_map)
+        report["counter_line"] = _render(
+            self.contradiction_counter_line, values_map
+        )
+        counterpart["contradicted_by"] = report.get("id")
+        mirror = self._contradiction_values(counterpart, report)
+        counterpart["contradiction"] = True
+        counterpart["counter_source"] = report.get("source_name")
+        counterpart["counter_band"] = report.get("band")
+        counterpart["counter_band_label"] = report.get("band_label")
+        counterpart["counter_line"] = _render(
+            self.contradiction_counter_line_late, mirror
+        )
+        return counterpart
+
+    def _counterpart_for(self, report):
+        for candidate in self._pending_reports(
+            report.get("side"), include_shadowed=True
+        ):
+            if candidate is report:
+                continue
+            if candidate.get("contradicts") or candidate.get(
+                "contradicted_by"
+            ):
+                continue
+            if str(candidate.get("channel") or "") != "report":
+                continue
+            if str(candidate.get("asset") or "") != str(
+                report.get("asset") or ""
+            ):
+                continue
+            if str(candidate.get("source_id") or "") == str(
+                report.get("source_id") or ""
+            ):
+                continue
+            if str(candidate.get("band") or "") == str(
+                report.get("band") or ""
+            ):
+                continue
+            return candidate
+        return None
+
+    def _contradiction_values(self, report, counterpart):
+        return {
+            "source": report.get("source_name") or "Источник",
+            "counter_source": counterpart.get("source_name") or "Источник",
+            "asset": report.get("asset") or "",
+            "asset_label": report.get("asset_label") or "",
+            "band": report.get("band_label") or "",
+            "counter_band": counterpart.get("band_label") or "",
+            "truth_band": report.get("true_band_label") or "",
+            "confidence": report.get("confidence_label") or "",
+        }
+
+    def _pending_counterpart(self, report):
+        counter_id = str(report.get("contradicts") or "")
+        if not counter_id:
+            return None
+        counterpart = self.report(counter_id)
+        if counterpart is None:
+            return None
+        if str(counterpart.get("status") or "") != "pending":
+            return None
+        return counterpart
 
     def _next_asset(self):
         asset = self.assets[self._asset_index % len(self.assets)]
@@ -295,6 +424,7 @@ class ReportDispatcher:
         ]
         if not characters:
             return None
+        matches = []
         for post_id in self.source_by_asset.get(asset, ()):
             for character in characters:
                 if (
@@ -304,7 +434,9 @@ class ReportDispatcher:
                     )
                     == post_id
                 ):
-                    return character
+                    matches.append(character)
+        if matches:
+            return matches[self._seq % len(matches)]
         # Лидер не докладывает сам себе; если других нет — молчим.
         fallback = [
             character
@@ -514,6 +646,15 @@ class ReportDispatcher:
         faction = self.campaign.faction(report.get("side"))
         source = self._character(report.get("source_id"))
         rumor = str(report.get("channel") or "") == "rumor"
+        counterpart = None if rumor else self._pending_counterpart(report)
+        if counterpart is None and not rumor:
+            partner_id = str(report.get("contradicted_by") or "")
+            partner = self.report(partner_id) if partner_id else None
+            if (
+                partner is not None
+                and str(partner.get("status") or "") == "pending"
+            ):
+                counterpart = partner
         cost = 0
         if choice_id == "verify" and self.verify_cost:
             gate = getattr(
@@ -563,17 +704,36 @@ class ReportDispatcher:
             "band": report.get("band_label") or "",
             "truth_band": report.get("true_band_label") or "",
         }
+        if counterpart is not None:
+            values_map["counter_source"] = (
+                counterpart.get("source_name") or "Источник"
+            )
+            values_map["counter_band"] = (
+                counterpart.get("band_label") or ""
+            )
         text_pool = (
             self.rumor_result_texts if rumor else self.result_texts
         )
-        text = _render(
-            text_pool.get(effect_key)
-            or text_pool.get(choice_id)
-            or self.result_texts.get(effect_key)
-            or self.result_texts.get(choice_id)
-            or "Решение принято.",
-            values_map,
-        )
+        if counterpart is not None:
+            contradiction_key = (
+                "verify" if choice_id == "verify" else choice_id
+            )
+            text = _render(
+                self.contradiction_result_texts.get(
+                    contradiction_key
+                )
+                or "Спор рассмотрен: {asset_label} — «{truth_band}».",
+                values_map,
+            )
+        else:
+            text = _render(
+                text_pool.get(effect_key)
+                or text_pool.get(choice_id)
+                or self.result_texts.get(effect_key)
+                or self.result_texts.get(choice_id)
+                or "Решение принято.",
+                values_map,
+            )
         follow_up = None
         if (
             rumor
@@ -600,6 +760,15 @@ class ReportDispatcher:
             ),
             "turn": int(_number(getattr(self.campaign, "turn", 0), 0)),
         }
+        counterpart_result = None
+        if counterpart is not None and counterpart is not report:
+            counterpart_result = self._resolve_counterpart(
+                counterpart, report, choice_id, revealed_truth
+            )
+            if counterpart_result is not None:
+                report["resolved"]["contradicts"] = (
+                    counterpart_result.get("id")
+                )
         sync = getattr(self.campaign, "_sync_report_event", None)
         if callable(sync):
             sync(report)
@@ -620,6 +789,89 @@ class ReportDispatcher:
             "follow_up": (
                 follow_up.get("id") if follow_up is not None else None
             ),
+            "counterpart": counterpart_result,
+            "text": text,
+            "changes": changes,
+        }
+
+    def _resolve_counterpart(
+        self, counterpart, winner, choice_id, revealed_truth
+    ):
+        """Закрыть второй доклад спора тем же решением игрока."""
+        if counterpart is None or counterpart is winner:
+            return None
+        faction = self.campaign.faction(counterpart.get("side"))
+        source = self._character(counterpart.get("source_id"))
+        correct = None
+        if choice_id == "verify":
+            error = abs(
+                _number(counterpart.get("perceived"))
+                - _number(counterpart.get("true_value"))
+            )
+            correct = error <= self.verify_tolerance + 1e-9
+            effect_key = (
+                "contradiction_verify_right"
+                if correct
+                else "contradiction_verify_wrong"
+            )
+        elif choice_id == "trust":
+            effect_key = "contradiction_trust"
+        else:
+            effect_key = "contradiction_ignore"
+        effect = _as_mapping(
+            self.contradiction_effects.get(effect_key)
+        )
+        belief_target = (
+            counterpart.get("asset")
+            if choice_id == "verify"
+            else winner.get("source_id")
+        )
+        changes = self._apply_effects(
+            faction,
+            source,
+            counterpart,
+            effect,
+            effect_key,
+            belief_target=belief_target,
+        )
+        if choice_id == "verify":
+            text = "Спор разрешён: «%s»." % (
+                counterpart.get("true_band_label") or "неизвестно"
+            )
+            derived_choice = "contradiction_verify"
+        elif choice_id == "trust":
+            text = "Спор решён в пользу другого источника."
+            derived_choice = "contradiction_trust"
+        else:
+            text = "Спор отложен."
+            derived_choice = "contradiction_ignore"
+        counterpart["status"] = "resolved"
+        counterpart["choice"] = derived_choice
+        counterpart["resolved"] = {
+            "choice": derived_choice,
+            "correct": correct,
+            "text": text,
+            "changes": changes,
+            "cost": 0,
+            "revealed_truth": revealed_truth,
+            "follow_up": None,
+            "resolved_by": winner.get("id"),
+            "at": round(
+                _number(getattr(self.campaign, "elapsed", 0.0)), 6
+            ),
+            "turn": int(_number(getattr(self.campaign, "turn", 0), 0)),
+        }
+        sync = getattr(self.campaign, "_sync_report_event", None)
+        if callable(sync):
+            sync(counterpart)
+        self._log_choice(
+            counterpart, derived_choice, correct, changes, text
+        )
+        return {
+            "id": counterpart.get("id"),
+            "source_name": counterpart.get("source_name"),
+            "choice": derived_choice,
+            "correct": correct,
             "text": text,
             "changes": changes,
         }
@@ -628,7 +880,11 @@ class ReportDispatcher:
         """Проверка слуха рождает новый claim, а не истину."""
         if faction is None or source is None:
             return None
-        if len(self.pending(report.get("side"))) >= self.max_pending:
+        if len(
+            self._pending_reports(
+                report.get("side"), include_shadowed=True
+            )
+        ) >= self.max_pending:
             return None
         follow = self._build_report(
             faction, source, report.get("asset"), "rumor"
@@ -670,7 +926,15 @@ class ReportDispatcher:
                     return character
         return None
 
-    def _apply_effects(self, faction, source, report, effect, effect_key):
+    def _apply_effects(
+        self,
+        faction,
+        source,
+        report,
+        effect,
+        effect_key,
+        belief_target=None,
+    ):
         changes = {}
         if source is not None:
             morale_before = _number(getattr(source, "morale", 0.0))
@@ -700,17 +964,22 @@ class ReportDispatcher:
                 "rumor_trust": "trusts",
                 "rumor_ignore": "ignored",
                 "rumor_verify": "doubts",
+                "contradiction_trust": "distrusted",
+                "contradiction_ignore": "ignored",
+                "contradiction_verify_right": "verified",
+                "contradiction_verify_wrong": "doubts",
             }.get(effect_key)
             if predicate:
-                target = (
-                    report.get("asset")
-                    if effect_key in (
-                        "verify_right",
-                        "verify_wrong",
-                        "rumor_verify",
-                    )
-                    else report.get("source_id")
-                )
+                if belief_target is not None:
+                    target = belief_target
+                elif effect_key in (
+                    "verify_right",
+                    "verify_wrong",
+                    "rumor_verify",
+                ):
+                    target = report.get("asset")
+                else:
+                    target = report.get("source_id")
                 try:
                     source.believe("player", predicate, str(target or ""))
                 except Exception:
@@ -746,30 +1015,52 @@ class ReportDispatcher:
 
     # --- история и путь --------------------------------------------
     def _expire_oldest(self, side=None):
-        for report in self.reports:
-            if str(report.get("status") or "") != "pending":
-                continue
-            if side and str(report.get("side") or "") != str(side):
-                continue
-            report["status"] = "expired"
-            report["resolved"] = {
-                "choice": None,
-                "correct": None,
-                "text": "Доклад устарел и был снят с очереди.",
-                "changes": {},
-                "at": round(
-                    _number(getattr(self.campaign, "elapsed", 0.0)), 6
-                ),
-                "turn": int(
-                    _number(getattr(self.campaign, "turn", 0), 0)
-                ),
-            }
-            sync = getattr(self.campaign, "_sync_report_event", None)
-            if callable(sync):
-                sync(report)
-            self._log_expired(report)
-            return report
-        return None
+        candidates = [
+            report
+            for report in self.reports
+            if str(report.get("status") or "") == "pending"
+            and (
+                not side
+                or str(report.get("side") or "") == str(side)
+            )
+        ]
+        if not candidates:
+            return None
+        visible = [
+            report for report in candidates if not self._is_shadowed(report)
+        ]
+        report = (visible or candidates)[0]
+        self._expire_report(report)
+        partner_id = str(report.get("contradicts") or "")
+        partner = self.report(partner_id) if partner_id else None
+        if (
+            partner is not None
+            and str(partner.get("status") or "") == "pending"
+            and partner is not report
+        ):
+            self._expire_report(partner)
+        return report
+
+    def _expire_report(self, report):
+        if str(report.get("status") or "") != "pending":
+            return
+        report["status"] = "expired"
+        report["resolved"] = {
+            "choice": None,
+            "correct": None,
+            "text": "Доклад устарел и был снят с очереди.",
+            "changes": {},
+            "at": round(
+                _number(getattr(self.campaign, "elapsed", 0.0)), 6
+            ),
+            "turn": int(
+                _number(getattr(self.campaign, "turn", 0), 0)
+            ),
+        }
+        sync = getattr(self.campaign, "_sync_report_event", None)
+        if callable(sync):
+            sync(report)
+        self._log_expired(report)
 
     def _trim(self):
         while len(self.reports) > self.history_limit:
@@ -815,6 +1106,9 @@ class ReportDispatcher:
             anonymous=report.get("anonymous"),
             follow_up=report.get("follow_up"),
             derived_from=report.get("derived_from"),
+            contradiction=report.get("contradiction"),
+            contradicts=report.get("contradicts"),
+            counter_source=report.get("counter_source"),
             true_value=report.get("true_value"),
             perceived=report.get("perceived"),
             confidence=report.get("confidence"),
@@ -840,6 +1134,8 @@ class ReportDispatcher:
                 report.get("resolved") or {}
             ).get("revealed_truth"),
             follow_up=(report.get("resolved") or {}).get("follow_up"),
+            contradicts=(report.get("resolved") or {}).get("contradicts"),
+            resolved_by=(report.get("resolved") or {}).get("resolved_by"),
             truth_band=report.get("true_band"),
             changes=changes,
             text=text,

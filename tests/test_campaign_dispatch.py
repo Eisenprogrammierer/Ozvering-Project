@@ -43,6 +43,27 @@ def _read(path):
     ]
 
 
+def _force_contradiction(campaign):
+    dispatch = campaign.dispatch
+    dispatch.contradiction_enabled = True
+    dispatch.contradiction_chance = 1.0
+    dispatch.assets = ["supply"]
+    faction = campaign.player
+    chosen = [
+        character
+        for character in faction.characters
+        if str(getattr(character, "campaign_post_id", "") or "")
+    ][:2]
+    assert len(chosen) == 2
+    queue = list(chosen)
+
+    def _source(_faction, _asset):
+        return queue.pop(0) if queue else chosen[0]
+
+    dispatch._source = _source
+    return chosen
+
+
 def test_source_is_chosen_by_asset_post():
     campaign = _campaign()
     faction = campaign.player
@@ -52,6 +73,19 @@ def test_source_is_chosen_by_asset_post():
     justice = campaign.dispatch._source(faction, "legitimacy")
     assert justice is not None
     assert justice.campaign_post_id in ("justice", "propaganda")
+
+
+def test_source_rotates_between_posts_of_same_asset():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    first = dispatch._source(campaign.player, "supply")
+    dispatch._seq = 1
+    second = dispatch._source(campaign.player, "supply")
+    dispatch._seq = 2
+    third = dispatch._source(campaign.player, "supply")
+
+    assert first is not second
+    assert first is third
 
 
 def test_report_carries_claim_with_confidence_and_quality_band():
@@ -337,3 +371,109 @@ def test_rumor_is_anonymous_and_verify_yields_new_claim():
     second = campaign.resolve_report(follow["id"], "verify")
     assert second["ok"] is True
     assert second["follow_up"] is None
+
+
+def test_contradiction_links_two_pending_reports():
+    campaign = _campaign()
+    _force_contradiction(campaign)
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    first["band_label"] = "иное"
+
+    second = _issue(campaign)
+
+    assert second["contradiction"] is True
+    assert second["contradicts"] == first["id"]
+    assert second["counter_source"] == first["source_name"]
+    assert "Ранее" in second["counter_line"]
+    assert first["contradicted_by"] == second["id"]
+    assert "Позже" in first["counter_line"]
+    assert [
+        item["id"]
+        for item in campaign.pending_reports(campaign.player_side)
+    ] == [second["id"]]
+    assert campaign.decision_pending(campaign.player_side) is True
+
+
+def test_contradiction_trust_closes_both_reports():
+    campaign = _campaign()
+    _force_contradiction(campaign)
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    second = _issue(campaign)
+
+    result = campaign.resolve_report(second["id"], "trust")
+
+    assert result["ok"] is True
+    assert result["counterpart"]["id"] == first["id"]
+    assert first["status"] == "resolved"
+    assert first["resolved"]["resolved_by"] == second["id"]
+    assert second["status"] == "resolved"
+    assert campaign.decision_pending(campaign.player_side) is False
+
+
+def test_contradiction_verify_resolves_both_and_costs_once():
+    campaign = _campaign()
+    campaign.actions_left = 10
+    _force_contradiction(campaign)
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    second = _issue(campaign)
+
+    result = campaign.resolve_report(second["id"], "verify")
+
+    assert result["ok"] is True
+    assert result["cost"] == 1
+    assert campaign.actions_left == 9
+    assert result["counterpart"]["correct"] in (True, False)
+    assert first["status"] == "resolved"
+    assert first["resolved"]["revealed_truth"] is True
+    assert first["resolved"]["resolved_by"] == second["id"]
+
+
+def test_contradiction_ignore_closes_both_reports():
+    campaign = _campaign()
+    _force_contradiction(campaign)
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    second = _issue(campaign)
+
+    result = campaign.resolve_report(second["id"], "ignore")
+
+    assert result["ok"] is True
+    assert first["status"] == "resolved"
+    assert second["status"] == "resolved"
+    assert campaign.decision_pending(campaign.player_side) is False
+
+
+def test_contradiction_pair_closes_from_either_report():
+    campaign = _campaign()
+    _force_contradiction(campaign)
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    second = _issue(campaign)
+
+    result = campaign.resolve_report(first["id"], "trust")
+
+    assert result["ok"] is True
+    assert result["counterpart"]["id"] == second["id"]
+    assert first["status"] == "resolved"
+    assert second["status"] == "resolved"
+    assert campaign.decision_pending(campaign.player_side) is False
+
+
+def test_expiring_contradiction_removes_both_reports():
+    campaign = _campaign()
+    _force_contradiction(campaign)
+    campaign.dispatch.max_pending = 2
+    first = _issue(campaign)
+    first["band"] = "other-band"
+    second = _issue(campaign)
+    third = _issue(campaign)
+    fourth = _issue(campaign)
+
+    assert first["status"] == "expired"
+    assert second["status"] == "expired"
+    assert third["status"] == "pending"
+    assert fourth["status"] == "pending"
+    assert len(campaign.pending_reports(campaign.player_side)) == 2

@@ -239,6 +239,50 @@
         }
       }
     },
+    "contradiction": {
+      "enabled": true,
+      "chance": 0.45,
+      "title": "Разноречие: {asset_label}",
+      "text": "{source} настаивает: {asset_label} — «{band}». {counter_source} ранее доложил: «{counter_band}». Кому верить?",
+      "counter_line": "Ранее {counter_source}: «{counter_band}»",
+      "counter_line_late": "Позже {counter_source}: «{counter_band}»",
+      "result_texts": {
+        "trust": "Вы приняли сторону {source}. {counter_source} остался при своём и запомнил это.",
+        "verify": "Проверка разрешила спор: {asset_label} — «{truth_band}». Оба источника получили ответ.",
+        "ignore": "Вы отложили спор. {source} и {counter_source} остались недовольны."
+      },
+      "effects": {
+        "contradiction_trust": {
+          "morale": -1.5,
+          "player_trust": -0.04,
+          "source_trust": -0.06,
+          "needs": {
+            "fear": 0.02
+          }
+        },
+        "contradiction_ignore": {
+          "morale": -2.0,
+          "player_trust": -0.05,
+          "source_trust": -0.04,
+          "needs": {
+            "fear": 0.01
+          }
+        },
+        "contradiction_verify_right": {
+          "morale": 1.0,
+          "player_trust": 0.04,
+          "source_trust": 0.03
+        },
+        "contradiction_verify_wrong": {
+          "morale": -2.5,
+          "player_trust": -0.06,
+          "source_trust": -0.04,
+          "needs": {
+            "fear": 0.02
+          }
+        }
+      }
+    },
     "confidence_labels": [
       {
         "min": 0.75,
