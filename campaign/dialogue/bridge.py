@@ -733,8 +733,10 @@ class ActionBridge:
                 result={"social": snapshot},
             )
         try:
+            # Реплика в диалоге разрешается сразу: реакция собеседника
+            # должна попасть в тот же ответ, а не ждать отдельного слота.
             result = self.campaign.perform_character_interaction(
-                self.side, listener, interaction_id
+                self.side, listener, interaction_id, defer=False
             )
         except AttributeError:
             return ActionResult(

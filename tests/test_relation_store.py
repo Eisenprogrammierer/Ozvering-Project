@@ -166,9 +166,13 @@ def test_work_chance_and_ai_weight_use_target_relation(campaign):
 def test_character_interaction_writes_character_to_faction(campaign):
     faction = campaign.faction(SIDE)
     character = faction.characters[1]
-    result = campaign.perform_character_interaction(
+    started = campaign.perform_character_interaction(
         SIDE, character.campaign_id, "promote"
     )
+    assert started["ok"]
+    assert started.get("started")
+    campaign.advance_time(3700)
+    result = campaign.last_character_result
     assert result["ok"]
     assert result["relations"]
     trust = campaign.relations.value(

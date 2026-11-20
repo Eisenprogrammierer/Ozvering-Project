@@ -66,15 +66,16 @@ def test_network_screen_draws_graph_and_applies_interaction():
         if item["enabled"]
     )
     before_turn = campaign.turn
-    before_budget = campaign.actions_left
     screen.select_interaction(option["id"])
     screen.apply_interaction()
 
     assert campaign.turn == before_turn
-    assert campaign.actions_left == before_budget - 1
+    slots = campaign.slot_state(campaign.player_side)
+    assert slots["used"] == 1
     assert screen.last_result
     assert screen.last_result["ok"] is True
-    assert screen.last_result["organ_id"] == organ.id
+    assert screen.last_result["started"] is True
+    assert screen.last_result["target_id"] == organ.id
     screen.draw(surface)
     app.quit()
 
@@ -111,7 +112,8 @@ def test_network_screen_selects_character_and_applies_character_action():
     assert campaign.turn == before_turn
     assert screen.last_result
     assert screen.last_result["ok"] is True
-    assert screen.last_result["character_id"] == character["id"]
+    assert screen.last_result["started"] is True
+    assert screen.last_result["target_id"] == character["id"]
     screen.draw(surface)
     app.quit()
 

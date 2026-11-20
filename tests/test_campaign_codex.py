@@ -71,11 +71,13 @@ def test_codex_actions_target_own_character_and_organ():
     assert option["enabled"] is True
 
     campaign.begin_turn()
-    before = campaign.actions_left
     result = screen.apply_action(kind, owner_id, option["id"])
     assert result and result["ok"] is True
-    assert campaign.actions_left == before - 1
-    assert "мораль" in screen.action_message
+    assert result["started"] is True
+    assert result["character_id"] == owner_id
+    assert campaign.slot_state(campaign.player_side)["used"] == 1
+    assert "начато" in screen.action_message
+    assert "слоты" in screen.action_message
     screen.draw(surface)
 
     screen.set_tab("automata")
@@ -92,8 +94,10 @@ def test_codex_actions_target_own_character_and_organ():
     assert kind == "organ"
     result = screen.apply_action(kind, owner_id, option["id"])
     assert result and result["ok"] is True
+    assert result["started"] is True
     assert result["organ_id"] == owner_id
-    assert "целостность" in screen.action_message
+    assert campaign.slot_state(campaign.player_side)["used"] == 2
+    assert "начато" in screen.action_message
     screen.draw(surface)
     app.quit()
 
@@ -165,15 +169,15 @@ def test_network_sends_automaton_command_to_another_automaton():
     assert screen.select_automaton_target(target["id"]) is True
 
     before_turn = campaign.turn
-    before_budget = campaign.actions_left
     screen.apply_current()
 
     assert screen.last_result
+    assert screen.last_result["started"] is True
     assert screen.last_result["kind"] == "automaton"
     assert screen.last_result["source_organ_id"] == screen.selected_organ_id
     assert screen.last_result["target_organ_id"] == target["id"]
     assert campaign.turn == before_turn
-    assert campaign.actions_left == before_budget - 1
+    assert campaign.slot_state(campaign.player_side)["used"] == 1
     screen.draw(surface)
     app.quit()
 

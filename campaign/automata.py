@@ -1782,7 +1782,9 @@ class AutomataCampaign:
         return "%.0f с" % seconds
 
     def speed_label(self):
-        return "×%d" % int(self.speed)
+        # Шрифт интерфейса не содержит знака «×», поэтому темп пишется
+        # латинской «x»: так подпись читается на всех экранах.
+        return "x%d" % int(self.speed)
 
     def speed_cap(self):
         return int(self.speed_levels[-1])
@@ -2350,7 +2352,9 @@ class AutomataCampaign:
             "relation_store": self.relations,
         }
 
-    def _action_requirement_reason(self, faction, action, target=None):
+    def _action_requirement_reason(
+        self, faction, action, target=None, assets=None
+    ):
         """Проверить предпосылки работы: состояния, историю и цели.
 
         Данные работы могут задавать блок ``requires``:
@@ -2385,7 +2389,9 @@ class AutomataCampaign:
             if str(action_id) in used:
                 return "несовместимо с: %s" % str(action_id)
         reason = self._asset_requirement_reason(
-            "нужно", faction.assets, requires.get("self")
+            "нужно",
+            assets if assets is not None else faction.assets,
+            requires.get("self"),
         )
         if reason:
             return reason
@@ -2415,18 +2421,19 @@ class AutomataCampaign:
         faction = self.faction(side)
         if faction is None or faction.dissolved:
             return []
+        assets = derived_assets(faction)
         options = []
         for action in faction.actions:
             cost = _as_mapping(action.get("cost"))
             affordable = all(
-                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                assets.get(str(key), 0.0) + 1e-9 >= _number(value, 0.0)
                 for key, value in cost.items()
             )
             left = self._cooldown_left(faction, action, turn=turn)
             target = self.faction(self._target_side(side, action))
             used_reason = self._action_use_reason(faction, action)
             requirement_reason = self._action_requirement_reason(
-                faction, action, target
+                faction, action, target, assets=assets
             )
             if used_reason:
                 reason = used_reason
@@ -2481,11 +2488,13 @@ class AutomataCampaign:
         organ = faction.organ(organ_id)
         if organ is None:
             return []
+        assets = derived_assets(faction)
         options = []
         for interaction in organ.interactions:
             cost = _as_mapping(interaction.get("cost"))
             affordable = all(
-                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                assets.get(str(key), 0.0) + 1e-9
+                >= _number(value, 0.0)
                 for key, value in cost.items()
             )
             left = organ.cooldown_left(interaction, self.turn)
@@ -2517,46 +2526,127 @@ class AutomataCampaign:
             )
         return options
 
-    def perform_organ_interaction(
-        self, side, organ_id, interaction_id
-    ):
-        """Повлиять на орган: усилить, реформировать, почистить, снабдить.
+    def _busy_interaction(self, side, kind, interaction_id, target_id):
+        for record in self._active_processes(side):
+            if record.get("kind") != kind:
+                continue
+            if str(record.get("interaction_id")) != str(interaction_id):
+                continue
+            if str(record.get("target_id")) != str(target_id):
+                continue
+            return record
+        return None
 
-        Взаимодействие проходит через ``build_interaction_work`` →
-        ``handlers.receive`` → ``apply_report``. После отчёта изменение
-        целостности органа проецируется на актив фракции тем же
-        ``spread_organ_effect``, что и в остальной модели.
+    def _start_interaction_process(
+        self,
+        side,
+        kind,
+        interaction,
+        *,
+        label,
+        description,
+        target_id,
+        target_name,
+    ):
+        """Занять слот взаимодействием и применить его по завершении.
+
+        Влияния и команды больше не тратят отдельный запас действий:
+        единственный лимит — два слота. Стоимость списывается сразу,
+        эффект применяется в :meth:`_finish_process`, когда процесс
+        доходит до ``finish_at``. Это позволяет видеть в интерфейсе
+        занятость слотов и не выполнять одно и то же действие дважды.
         """
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
-        gate = self._player_action_gate(side)
-        if gate:
-            return {"ok": False, "reason": gate}
+        self._activate_clock()
         faction = self.faction(side)
         if faction is None or faction.dissolved:
             return {"ok": False, "reason": "фракция недоступна"}
-        organ = faction.organ(organ_id)
-        if organ is None:
-            return {"ok": False, "reason": "орган не найден"}
-        option = next(
-            (
-                item
-                for item in self.organ_interaction_options(
-                    side, organ_id
-                )
-                if item["id"] == str(interaction_id)
-            ),
-            None,
+        interaction_id = str(
+            interaction.get("id") or kind
         )
-        if option is None:
-            return {"ok": False, "reason": "взаимодействие не найдено"}
-        if not option.get("enabled"):
+        busy = self._busy_interaction(
+            side, kind, interaction_id, target_id
+        )
+        if busy is not None:
             return {
                 "ok": False,
-                "reason": option.get("reason") or "взаимодействие недоступно",
+                "reason": "это действие уже выполняется",
             }
-        interaction = option["interaction"]
-        cost = _as_mapping(interaction.get("cost"))
+        slots = self.slot_state(faction.side)
+        if slots["free"] <= 0:
+            return {
+                "ok": False,
+                "reason": "заняты все слоты (%d)" % slots["slots"],
+                "slots": slots,
+            }
+        cost = {
+            str(key): _number(value)
+            for key, value in _as_mapping(
+                interaction.get("cost")
+            ).items()
+        }
+        for key, value in cost.items():
+            faction.add_asset(key, -value)
+        seconds = self._action_duration(interaction)
+        self._process_seq += 1
+        record = {
+            "id": "process-%d" % self._process_seq,
+            "kind": str(kind),
+            "phase": "interaction",
+            "side": faction.side,
+            "action_id": interaction_id,
+            "interaction_id": interaction_id,
+            "label": str(label or interaction.get("label") or kind),
+            "description": str(
+                description or interaction.get("description") or ""
+            ),
+            "target_side": str(kind),
+            "target_id": str(target_id or ""),
+            "target_name": str(target_name or ""),
+            "turn": int(self.turn),
+            "started": round(float(self.elapsed), 6),
+            "finish_at": round(float(self.elapsed) + float(seconds), 6),
+            "duration": round(float(seconds), 6),
+            "remaining": round(float(seconds), 6),
+            "cost": cost,
+            "interaction": copy.deepcopy(dict(interaction)),
+            "status": "active",
+        }
+        self.processes.append(record)
+        self._log_process(record, "начата")
+        result = {
+            "ok": True,
+            "started": True,
+            "side": faction.side,
+            "kind": str(kind),
+            "turn": self.turn,
+            "interaction_id": interaction_id,
+            "label": record["label"],
+            "description": record["description"],
+            "target_id": record["target_id"],
+            "target_name": record["target_name"],
+            "duration": record["duration"],
+            "cost": dict(cost),
+            "process": dict(record),
+            "slots": self.slot_state(faction.side),
+            "actions_left": self.actions_left,
+        }
+        for key in (
+            "organ_id",
+            "character_id",
+            "source_organ_id",
+            "target_organ_id",
+            "relation",
+        ):
+            if key in interaction:
+                result[key] = interaction[key]
+        return result
+
+    def _apply_organ_interaction(
+        self, faction, organ, interaction, label, description
+    ):
+        """Применить уже начатое влияние на орган (без списания цены)."""
         record = dict(interaction)
         record["organ_id"] = organ.id
         plan = build_interaction_work(
@@ -2588,8 +2678,7 @@ class AutomataCampaign:
                 "ok": False,
                 "reason": "обработчик взаимодействия: %s" % exc,
             }
-        for key, value in cost.items():
-            faction.add_asset(key, -_number(value))
+        cost = _as_mapping(interaction.get("cost"))
         before = organ.integrity
         apply_report(
             faction,
@@ -2602,13 +2691,7 @@ class AutomataCampaign:
         spread = spread_organ_effect(
             faction, organ, delta, self.model
         )
-        cooldown = int(_number(interaction.get("cooldown"), 0))
-        if cooldown > 0:
-            organ.interaction_cooldowns[
-                str(interaction.get("id"))
-            ] = self.turn
         organ.used_turn = self.turn
-        self._spend_player_action(side)
         result = {
             "ok": True,
             "turn": self.turn,
@@ -2618,8 +2701,10 @@ class AutomataCampaign:
             "organ_name": organ.name,
             "organ_kind": organ.kind,
             "interaction_id": str(interaction.get("id")),
-            "label": option["label"],
-            "description": option["description"],
+            "label": str(label or interaction.get("label") or ""),
+            "description": str(
+                description or interaction.get("description") or ""
+            ),
             "integrity_before": round(before, 6),
             "integrity_after": round(organ.integrity, 6),
             "integrity_delta": round(delta, 6),
@@ -2628,7 +2713,12 @@ class AutomataCampaign:
                 str(key): round(_number(value), 6)
                 for key, value in cost.items()
             },
-            "text": str(interaction.get("text") or option["description"]),
+            "text": str(
+                interaction.get("text")
+                or description
+                or interaction.get("description")
+                or ""
+            ),
             "status": organ.status(),
         }
         if report is not None:
@@ -2657,6 +2747,82 @@ class AutomataCampaign:
         if len(self.events) > EVENT_LOG_LIMIT:
             self.events = self.events[-EVENT_LOG_LIMIT:]
         self.last_organ_result = result
+        return result
+
+    def perform_organ_interaction(
+        self, side, organ_id, interaction_id, *, defer=True
+    ):
+        """Повлиять на орган: усилить, реформировать, почистить, снабдить.
+
+        По умолчанию влияние занимает свободный слот и применяется,
+        когда процесс завершится. ``defer=False`` оставлен для
+        синхронных legacy-вызовов (``advance(organ_action=...)``).
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        if not defer:
+            gate = self._player_action_gate(side)
+            if gate:
+                return {"ok": False, "reason": gate}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        organ = faction.organ(organ_id)
+        if organ is None:
+            return {"ok": False, "reason": "орган не найден"}
+        option = next(
+            (
+                item
+                for item in self.organ_interaction_options(
+                    side, organ_id
+                )
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return {"ok": False, "reason": "взаимодействие не найдено"}
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason") or "взаимодействие недоступно",
+            }
+        interaction = copy.deepcopy(dict(option["interaction"]))
+        interaction["organ_id"] = organ.id
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if defer:
+            result = self._start_interaction_process(
+                side,
+                "organ",
+                interaction,
+                label=option["label"],
+                description=option["description"],
+                target_id=organ.id,
+                target_name=organ.name,
+            )
+            if result.get("ok") and cooldown > 0:
+                organ.interaction_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            if result.get("ok"):
+                organ.used_turn = self.turn
+            return result
+        for key, value in _as_mapping(interaction.get("cost")).items():
+            faction.add_asset(key, -_number(value))
+        result = self._apply_organ_interaction(
+            faction,
+            organ,
+            interaction,
+            option["label"],
+            option["description"],
+        )
+        if result.get("ok"):
+            if cooldown > 0:
+                organ.interaction_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            self._spend_player_action(side)
+            result["actions_left"] = self.actions_left
         return result
 
     interact_organ = perform_organ_interaction
@@ -2693,11 +2859,13 @@ class AutomataCampaign:
         source = faction.organ(organ_id)
         if source is None:
             return []
+        assets = derived_assets(faction)
         options = []
         for interaction in faction.automaton_interactions:
             cost = _as_mapping(interaction.get("cost"))
             affordable = all(
-                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                assets.get(str(key), 0.0) + 1e-9
+                >= _number(value, 0.0)
                 for key, value in cost.items()
             )
             relation = str(interaction.get("relation") or "any").lower()
@@ -2760,20 +2928,152 @@ class AutomataCampaign:
             )
         return options
 
+    def _apply_automaton_interaction(
+        self,
+        faction,
+        source,
+        target,
+        interaction,
+        label,
+        description,
+    ):
+        """Применить уже начатую команду автомата (без списания цены)."""
+        record = dict(interaction)
+        record["source_organ_id"] = source.id
+        record["target_organ_id"] = target.id
+        plan = build_interaction_work(
+            record,
+            "automaton_interaction",
+            faction,
+            faction,
+            self,
+        )
+        if plan is None:
+            return {
+                "ok": False,
+                "reason": "работа взаимодействия не собрана",
+            }
+        try:
+            report = receive(
+                plan.to_work(),
+                plan,
+                faction,
+                faction,
+                self,
+                success=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Обработчик automaton_interaction не сработал: %s", exc
+            )
+            return {
+                "ok": False,
+                "reason": "обработчик взаимодействия: %s" % exc,
+            }
+        cost = _as_mapping(interaction.get("cost"))
+        source_before = source.integrity
+        target_before = target.integrity
+        apply_report(
+            faction,
+            faction,
+            report,
+            scale=1.0,
+            source="automaton_interaction",
+        )
+        source_delta = source.integrity - source_before
+        target_delta = target.integrity - target_before
+        source_spread = spread_organ_effect(
+            faction, source, source_delta, self.model
+        )
+        target_spread = spread_organ_effect(
+            faction, target, target_delta, self.model
+        )
+        source.used_turn = self.turn
+        target.used_turn = self.turn
+        result = {
+            "ok": True,
+            "turn": self.turn,
+            "actions_left": self.actions_left,
+            "side": faction.side,
+            "source_organ_id": source.id,
+            "source_organ_name": source.name,
+            "target_organ_id": target.id,
+            "target_organ_name": target.name,
+            "interaction_id": str(interaction.get("id")),
+            "label": str(label or interaction.get("label") or ""),
+            "description": str(
+                description or interaction.get("description") or ""
+            ),
+            "relation": str(interaction.get("relation") or "any"),
+            "source_integrity_before": round(source_before, 6),
+            "source_integrity_after": round(source.integrity, 6),
+            "source_integrity_delta": round(source_delta, 6),
+            "target_integrity_before": round(target_before, 6),
+            "target_integrity_after": round(target.integrity, 6),
+            "target_integrity_delta": round(target_delta, 6),
+            "faction_spread": round(source_spread + target_spread, 6),
+            "cost": {
+                str(key): round(_number(value), 6)
+                for key, value in cost.items()
+            },
+            "text": str(
+                interaction.get("text")
+                or description
+                or interaction.get("description")
+                or ""
+            ),
+            "status": target.status(),
+        }
+        if report is not None:
+            result["report"] = report.as_dict()
+        detail = (
+            "ход %d: %s → %s → %s: %s; цель %.2f → %.2f"
+            % (
+                self.turn,
+                faction.name,
+                source.name,
+                target.name,
+                result["label"],
+                target_before,
+                target.integrity,
+            )
+        )
+        self.events.append(
+            {
+                "turn": self.turn,
+                "kind": "automaton",
+                "text": detail,
+                "side": faction.side,
+                "organ_id": source.id,
+                "target_organ_id": target.id,
+                "actor": source.name,
+            }
+        )
+        if len(self.events) > EVENT_LOG_LIMIT:
+            self.events = self.events[-EVENT_LOG_LIMIT:]
+        self.last_automaton_result = result
+        return result
+
     def perform_automaton_interaction(
-        self, side, source_organ_id, target_organ_id, interaction_id
+        self,
+        side,
+        source_organ_id,
+        target_organ_id,
+        interaction_id,
+        *,
+        defer=True,
     ):
         """Провести команду одного автомата другому внутри своей сети.
 
-        Команда проходит через ``build_interaction_work`` →
-        ``handlers.receive`` → ``apply_report``; изменения целостности
-        источника и цели проецируются на активы фракции.
+        По умолчанию команда занимает слот и применяется по завершении
+        процесса. ``defer=False`` — синхронный legacy-путь.
         """
         if self.finished:
             return {"ok": False, "reason": "кампания завершена"}
-        gate = self._player_action_gate(side)
-        if gate:
-            return {"ok": False, "reason": gate}
+        if not defer:
+            gate = self._player_action_gate(side)
+            if gate:
+                return {"ok": False, "reason": gate}
         faction = self.faction(side)
         if faction is None or faction.dissolved:
             return {"ok": False, "reason": "фракция недоступна"}
@@ -2807,122 +3107,46 @@ class AutomataCampaign:
                 "ok": False,
                 "reason": "цель не подходит для этой команды",
             }
-        interaction = option["interaction"]
-        cost = _as_mapping(interaction.get("cost"))
-        record = dict(interaction)
-        record["source_organ_id"] = source.id
-        record["target_organ_id"] = target.id
-        plan = build_interaction_work(
-            record,
-            "automaton_interaction",
-            faction,
-            faction,
-            self,
-        )
-        if plan is None:
-            return {
-                "ok": False,
-                "reason": "работа взаимодействия не собрана",
-            }
-        try:
-            report = receive(
-                plan.to_work(),
-                plan,
-                faction,
-                faction,
-                self,
-                success=True,
-            )
-        except Exception as exc:
-            logger.warning(
-                "Обработчик automaton_interaction не сработал: %s", exc
-            )
-            return {
-                "ok": False,
-                "reason": "обработчик взаимодействия: %s" % exc,
-            }
-        for key, value in cost.items():
-            faction.add_asset(key, -_number(value))
-        source_before = source.integrity
-        target_before = target.integrity
-        apply_report(
-            faction,
-            faction,
-            report,
-            scale=1.0,
-            source="automaton_interaction",
-        )
-        source_delta = source.integrity - source_before
-        target_delta = target.integrity - target_before
-        source_spread = spread_organ_effect(
-            faction, source, source_delta, self.model
-        )
-        target_spread = spread_organ_effect(
-            faction, target, target_delta, self.model
-        )
+        interaction = copy.deepcopy(dict(option["interaction"]))
+        interaction["source_organ_id"] = source.id
+        interaction["target_organ_id"] = target.id
+        interaction["relation"] = option.get("relation", "any")
         cooldown = int(_number(interaction.get("cooldown"), 0))
-        if cooldown > 0:
-            source.interaction_cooldowns[
-                str(interaction.get("id"))
-            ] = self.turn
-        source.used_turn = self.turn
-        target.used_turn = self.turn
-        self._spend_player_action(side)
-        result = {
-            "ok": True,
-            "turn": self.turn,
-            "actions_left": self.actions_left,
-            "side": faction.side,
-            "source_organ_id": source.id,
-            "source_organ_name": source.name,
-            "target_organ_id": target.id,
-            "target_organ_name": target.name,
-            "interaction_id": str(interaction.get("id")),
-            "label": option["label"],
-            "description": option["description"],
-            "relation": option.get("relation", "any"),
-            "source_integrity_before": round(source_before, 6),
-            "source_integrity_after": round(source.integrity, 6),
-            "source_integrity_delta": round(source_delta, 6),
-            "target_integrity_before": round(target_before, 6),
-            "target_integrity_after": round(target.integrity, 6),
-            "target_integrity_delta": round(target_delta, 6),
-            "faction_spread": round(source_spread + target_spread, 6),
-            "cost": {
-                str(key): round(_number(value), 6)
-                for key, value in cost.items()
-            },
-            "text": str(interaction.get("text") or option["description"]),
-            "status": target.status(),
-        }
-        if report is not None:
-            result["report"] = report.as_dict()
-        detail = (
-            "ход %d: %s → %s → %s: %s; цель %.2f → %.2f"
-            % (
-                self.turn,
-                faction.name,
-                source.name,
-                target.name,
-                result["label"],
-                target_before,
-                target.integrity,
+        if defer:
+            result = self._start_interaction_process(
+                side,
+                "automaton",
+                interaction,
+                label=option["label"],
+                description=option["description"],
+                target_id=target.id,
+                target_name=target.name,
             )
+            if result.get("ok") and cooldown > 0:
+                source.interaction_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            if result.get("ok"):
+                source.used_turn = self.turn
+                target.used_turn = self.turn
+            return result
+        for key, value in _as_mapping(interaction.get("cost")).items():
+            faction.add_asset(key, -_number(value))
+        result = self._apply_automaton_interaction(
+            faction,
+            source,
+            target,
+            interaction,
+            option["label"],
+            option["description"],
         )
-        self.events.append(
-            {
-                "turn": self.turn,
-                "kind": "automaton",
-                "text": detail,
-                "side": faction.side,
-                "organ_id": source.id,
-                "target_organ_id": target.id,
-                "actor": source.name,
-            }
-        )
-        if len(self.events) > EVENT_LOG_LIMIT:
-            self.events = self.events[-EVENT_LOG_LIMIT:]
-        self.last_automaton_result = result
+        if result.get("ok"):
+            if cooldown > 0:
+                source.interaction_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            self._spend_player_action(side)
+            result["actions_left"] = self.actions_left
         return result
 
     interact_automaton = perform_automaton_interaction
@@ -2962,11 +3186,13 @@ class AutomataCampaign:
         if character is None:
             return []
         is_self = bool(getattr(character, "campaign_is_player", False))
+        assets = derived_assets(faction)
         options = []
         for interaction in faction.character_interactions:
             cost = _as_mapping(interaction.get("cost"))
             affordable = all(
-                faction.asset(key) + 1e-9 >= _number(value, 0.0)
+                assets.get(str(key), 0.0) + 1e-9
+                >= _number(value, 0.0)
                 for key, value in cost.items()
             )
             left = self._character_cooldown_left(character, interaction)
@@ -3058,54 +3284,20 @@ class AutomataCampaign:
             for axis, delta in changes.items()
         ]
 
-    def perform_character_interaction(
-        self, side, character_id, interaction_id
+    def _apply_character_interaction(
+        self, faction, character, interaction, label, description
     ):
-        """Применить действие к выбранному персонажу.
-
-        Действие проходит через ``build_interaction_work`` →
-        ``handlers.receive`` → ``apply_report``. Обработчик адресует
-        потребности, черты и мораль конкретного персонажа через
-        ``meta.character_id``, а изменение органа проецируется на актив
-        фракции.
-        """
-        if self.finished:
-            return {"ok": False, "reason": "кампания завершена"}
-        gate = self._player_action_gate(side)
-        if gate:
-            return {"ok": False, "reason": gate}
-        faction = self.faction(side)
-        if faction is None or faction.dissolved:
-            return {"ok": False, "reason": "фракция недоступна"}
-        character = faction.character(character_id)
-        if character is None:
-            return {"ok": False, "reason": "персонаж не найден"}
-        option = next(
-            (
-                item
-                for item in self.character_interaction_options(
-                    side, character_id
-                )
-                if item["id"] == str(interaction_id)
-            ),
-            None,
-        )
-        if option is None:
-            return {"ok": False, "reason": "взаимодействие не найдено"}
-        if not option.get("enabled"):
-            return {
-                "ok": False,
-                "reason": option.get("reason")
-                or "взаимодействие недоступно",
-            }
-        interaction = option["interaction"]
-        cost = _as_mapping(interaction.get("cost"))
+        """Применить уже начатое действие персонала (без списания цены)."""
+        if character is None or bool(
+            getattr(character, "is_dead", False)
+        ) or bool(getattr(character, "dead", False)):
+            return {"ok": False, "reason": "персонаж недоступен"}
         organ = faction.organ(
             getattr(character, "campaign_organ_id", "")
         )
         record = dict(interaction)
         record["character_id"] = str(
-            getattr(character, "campaign_id", character_id)
+            getattr(character, "campaign_id", "")
         )
         record["organ_id"] = organ.id if organ is not None else ""
         plan = build_interaction_work(
@@ -3137,8 +3329,7 @@ class AutomataCampaign:
                 "ok": False,
                 "reason": "обработчик взаимодействия: %s" % exc,
             }
-        for key, value in cost.items():
-            faction.add_asset(key, -_number(value))
+        cost = _as_mapping(interaction.get("cost"))
         needs_snapshot = {
             str(key): _clamp(value)
             for key, value in character.needs.items()
@@ -3166,25 +3357,21 @@ class AutomataCampaign:
             spread_organ_effect(
                 faction, organ, organ_delta, self.model
             )
-        cooldown = int(_number(interaction.get("cooldown"), 0))
-        if cooldown > 0:
-            character.campaign_cooldowns[
-                str(interaction.get("id"))
-            ] = self.turn
-        self._spend_player_action(side)
         result = {
             "ok": True,
             "turn": self.turn,
             "actions_left": self.actions_left,
             "side": faction.side,
             "character_id": str(
-                getattr(character, "campaign_id", character_id)
+                getattr(character, "campaign_id", "")
             ),
             "character_name": str(getattr(character, "name", "")),
             "post": str(getattr(character, "campaign_post", "") or ""),
             "interaction_id": str(interaction.get("id")),
-            "label": option["label"],
-            "description": option["description"],
+            "label": str(label or interaction.get("label") or ""),
+            "description": str(
+                description or interaction.get("description") or ""
+            ),
             "cost": {
                 str(key): round(_number(value), 6)
                 for key, value in cost.items()
@@ -3208,7 +3395,10 @@ class AutomataCampaign:
             "organ_integrity_delta": round(organ_delta, 6),
             "relations": relation_changes,
             "text": str(
-                interaction.get("text") or option["description"]
+                interaction.get("text")
+                or description
+                or interaction.get("description")
+                or ""
             ),
         }
         if report is not None:
@@ -3238,6 +3428,82 @@ class AutomataCampaign:
         if len(self.events) > EVENT_LOG_LIMIT:
             self.events = self.events[-EVENT_LOG_LIMIT:]
         self.last_character_result = result
+        return result
+
+    def perform_character_interaction(
+        self, side, character_id, interaction_id, *, defer=True
+    ):
+        """Применить действие к выбранному персонажу.
+
+        По умолчанию действие занимает слот и применяется по завершении
+        процесса. ``defer=False`` — синхронный legacy-путь.
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        if not defer:
+            gate = self._player_action_gate(side)
+            if gate:
+                return {"ok": False, "reason": gate}
+        faction = self.faction(side)
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        character = faction.character(character_id)
+        if character is None:
+            return {"ok": False, "reason": "персонаж не найден"}
+        option = next(
+            (
+                item
+                for item in self.character_interaction_options(
+                    side, character_id
+                )
+                if item["id"] == str(interaction_id)
+            ),
+            None,
+        )
+        if option is None:
+            return {"ok": False, "reason": "взаимодействие не найдено"}
+        if not option.get("enabled"):
+            return {
+                "ok": False,
+                "reason": option.get("reason")
+                or "взаимодействие недоступно",
+            }
+        interaction = copy.deepcopy(dict(option["interaction"]))
+        interaction["character_id"] = str(
+            getattr(character, "campaign_id", character_id)
+        )
+        cooldown = int(_number(interaction.get("cooldown"), 0))
+        if defer:
+            result = self._start_interaction_process(
+                side,
+                "character",
+                interaction,
+                label=option["label"],
+                description=option["description"],
+                target_id=interaction["character_id"],
+                target_name=str(getattr(character, "name", "")),
+            )
+            if result.get("ok") and cooldown > 0:
+                character.campaign_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            return result
+        for key, value in _as_mapping(interaction.get("cost")).items():
+            faction.add_asset(key, -_number(value))
+        result = self._apply_character_interaction(
+            faction,
+            character,
+            interaction,
+            option["label"],
+            option["description"],
+        )
+        if result.get("ok"):
+            if cooldown > 0:
+                character.campaign_cooldowns[
+                    str(interaction.get("id"))
+                ] = self.turn
+            self._spend_player_action(side)
+            result["actions_left"] = self.actions_left
         return result
 
     interact_character = perform_character_interaction
@@ -3917,7 +4183,90 @@ class AutomataCampaign:
         self.last_process_result = dict(record)
         self._log_process(record, "отменена")
 
+    def _finish_interaction_process(self, record):
+        """Завершить влияние/команду и применить её эффект."""
+        kind = str(record.get("kind") or "")
+        faction = self.faction(record.get("side"))
+        interaction = _as_mapping(record.get("interaction"))
+        label = record.get("label")
+        description = record.get("description")
+        if faction is None or faction.dissolved:
+            return {"ok": False, "reason": "фракция недоступна"}
+        if kind == "organ":
+            organ = faction.organ(record.get("target_id"))
+            if organ is None:
+                return {"ok": False, "reason": "орган не найден"}
+            return self._apply_organ_interaction(
+                faction,
+                organ,
+                interaction,
+                label,
+                description,
+            )
+        if kind == "automaton":
+            source = faction.organ(
+                interaction.get("source_organ_id")
+                or record.get("source_organ_id")
+            )
+            target = faction.organ(
+                interaction.get("target_organ_id")
+                or record.get("target_id")
+            )
+            if source is None:
+                return {
+                    "ok": False,
+                    "reason": "автомат-источник не найден",
+                }
+            if target is None:
+                return {
+                    "ok": False,
+                    "reason": "автомат-цель не найден",
+                }
+            return self._apply_automaton_interaction(
+                faction,
+                source,
+                target,
+                interaction,
+                label,
+                description,
+            )
+        if kind == "character":
+            character = faction.character(record.get("target_id"))
+            if character is None:
+                return {"ok": False, "reason": "персонаж не найден"}
+            return self._apply_character_interaction(
+                faction,
+                character,
+                interaction,
+                label,
+                description,
+            )
+        return {"ok": False, "reason": "неизвестный процесс"}
+
     def _finish_process(self, record):
+        if str(record.get("kind") or "") in (
+            "organ",
+            "automaton",
+            "character",
+        ):
+            result = self._finish_interaction_process(record)
+            record["finished"] = round(float(self.elapsed), 6)
+            record["remaining"] = 0.0
+            if result.get("ok"):
+                record["status"] = "done"
+                record["result"] = result
+            else:
+                record["status"] = "cancelled"
+                record["reason"] = result.get(
+                    "reason"
+                ) or "действие не выполнено"
+                self._refund_process(record)
+            self.last_process_result = dict(record)
+            self._log_process(
+                record,
+                "завершена" if result.get("ok") else "отменена",
+            )
+            return result
         actor = self.faction(record.get("side"))
         action_id = str(record.get("action_id") or "")
         target_side = str(record.get("target_side") or "")
@@ -5166,7 +5515,10 @@ class AutomataCampaign:
                 organ_id = interaction_id = None
             if organ_id and interaction_id:
                 self.perform_organ_interaction(
-                    self.player_side, organ_id, interaction_id
+                    self.player_side,
+                    organ_id,
+                    interaction_id,
+                    defer=False,
                 )
         if character_action:
             if isinstance(character_action, Mapping):
@@ -5182,7 +5534,10 @@ class AutomataCampaign:
                 character_id = interaction_id = None
             if character_id and interaction_id:
                 self.perform_character_interaction(
-                    self.player_side, character_id, interaction_id
+                    self.player_side,
+                    character_id,
+                    interaction_id,
+                    defer=False,
                 )
         if player_action:
             self.perform(self.player_side, player_action, target=target)
@@ -5239,7 +5594,8 @@ class AutomataCampaign:
         """Отдать приказ от фракции персонажу на организационном такте.
 
         Приказы — данные ``order_model.orders``. Игровая сторона не
-        получает автоматических приказов: её направляет игрок (``issue_order``).
+        получает автоматических приказов: её направляет игрок
+        (``issue_order``).
         """
         model = _as_mapping(self.order_model)
         if not model or not bool(model.get("enabled", True)):
@@ -5266,7 +5622,9 @@ class AutomataCampaign:
     def _choose_order(self, faction):
         """Выбрать доступный приказ по весам ``priority`` из данных."""
         options = [
-            item for item in self.order_options(faction.side) if item["enabled"]
+            item
+            for item in self.order_options(faction.side)
+            if item["enabled"]
         ]
         if not options:
             return None

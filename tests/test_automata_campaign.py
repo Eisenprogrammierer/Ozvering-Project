@@ -491,9 +491,13 @@ def test_organ_interaction_changes_organ_faction_and_cooldown():
         "red", organ.id, "reinforce"
     )
     assert result["ok"] is True
+    assert result.get("started") is True
+    assert campaign.slot_state("red")["used"] == 1
+    assert campaign.player.asset("supply") < supply
+    campaign.advance_time(3700)
     assert organ.integrity > 0.3
     assert campaign.player.asset("cohesion") > cohesion
-    assert campaign.player.asset("supply") < supply
+    assert campaign.slot_state("red")["used"] == 0
     options = {
         item["id"]: item
         for item in campaign.organ_interaction_options(
@@ -666,10 +670,13 @@ def test_character_interaction_changes_selected_character_and_spends_budget():
         campaign.player_side, character["id"], "promote"
     )
     assert result["ok"] is True
-    assert result["character_id"] == character["id"]
+    assert result.get("started") is True
+    assert result["target_id"] == character["id"]
+    assert campaign.slot_state(campaign.player_side)["used"] == 1
+    campaign.advance_time(3700)
     assert before.morale > morale_before
     assert before.needs["status"] < status_before
-    assert campaign.actions_left == campaign.actions_per_turn - 1
+    assert campaign.slot_state(campaign.player_side)["used"] == 0
     options = {
         item["id"]: item
         for item in campaign.character_interaction_options(
@@ -683,6 +690,44 @@ def test_character_interaction_changes_selected_character_and_spends_budget():
         and event.get("character_id") == character["id"]
         for event in campaign.events
     )
+
+
+def test_interactions_use_two_slots_without_action_budget():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    campaign.begin_turn()
+    campaign.actions_left = 0
+    candidates = []
+    for option in campaign.character_options(campaign.player_side):
+        if option.get("is_player"):
+            continue
+        available = campaign.character_interaction_options(
+            campaign.player_side, option["id"]
+        )
+        if any(
+            item["id"] == "promote" and item["enabled"]
+            for item in available
+        ):
+            candidates.append(option["id"])
+        if len(candidates) == 3:
+            break
+    assert len(candidates) == 3, "нужны три персонажа для проверки слотов"
+    for character_id in candidates[:2]:
+        result = campaign.perform_character_interaction(
+            campaign.player_side, character_id, "promote"
+        )
+        assert result["ok"] is True
+        assert result["started"] is True
+    assert campaign.slot_state(campaign.player_side)["used"] == 2
+    blocked = campaign.perform_character_interaction(
+        campaign.player_side, candidates[2], "promote"
+    )
+    assert blocked["ok"] is False
+    assert "слот" in blocked["reason"].lower()
+    campaign.advance_time(3700)
+    assert campaign.slot_state(campaign.player_side)["used"] == 0
+    assert campaign.last_character_result["ok"] is True
 
 
 def test_advance_without_explicit_action_autoplays_player_budget():

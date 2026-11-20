@@ -35,6 +35,21 @@ def wrap_text(font, text, max_width):
     return lines or [""]
 
 
+def fit_line(font, text, max_width):
+    """Обрезать строку по ширине, поставив «…», а не резать по краю."""
+    text = str(text or "")
+    width = max(1, int(max_width))
+    if font.size(text)[0] <= width:
+        return text
+    ellipsis = "…"
+    if font.size(ellipsis)[0] > width:
+        return ""
+    cut = len(text)
+    while cut > 0 and font.size(text[:cut] + ellipsis)[0] > width:
+        cut -= 1
+    return (text[:cut].rstrip() + ellipsis) if cut > 0 else ellipsis
+
+
 def line_height(font, spacing=1.18):
     return max(font.get_height(), int(font.get_height() * float(spacing)))
 

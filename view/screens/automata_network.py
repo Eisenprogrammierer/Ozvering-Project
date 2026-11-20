@@ -12,7 +12,8 @@
 * ``ВЛИЯНИЕ`` — игрок усиливает, реформирует, чистит или снабжает узел;
 * ``ПЕРСОНАЛ`` — влияние на людей своей фракции.
 
-Работы, влияния и команды автоматов тратят ограниченный бюджет действий.
+Работы, влияния и команды автоматов занимают один из двух слотов.
+Запаса действий нет: пока слот занят, новое дело не начать.
 Кампания идёт в реальном времени; ускорение можно включить и отменить,
 но нельзя опуститься ниже ``1×`` или поставить паузу.
 """
@@ -26,7 +27,7 @@ import pygame
 from campaign.fractal import organ_degrees, organ_links
 from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
-from ..ui.text_layout import wrap_text
+from ..ui.text_layout import fit_line, wrap_text
 from view.support.log_journal import get_logger
 from view.support.metrics import (
     cost_phrase,
@@ -39,8 +40,8 @@ from view.support.metrics import (
 logger = get_logger("view.automata_network")
 
 WIDTH, HEIGHT = 1280, 720
-GRAPH_RECT = pygame.Rect(24, 96, 812, 430)
-DETAIL_RECT = pygame.Rect(24, 536, 812, 112)
+GRAPH_RECT = pygame.Rect(24, 96, 812, 416)
+DETAIL_RECT = pygame.Rect(24, 522, 812, 126)
 SIDE_RECT = pygame.Rect(852, 96, 404, 552)
 BOTTOM_RECT = pygame.Rect(24, 660, 1232, 44)
 
@@ -56,10 +57,10 @@ WARN = (230, 184, 96)
 EDGE = (62, 78, 104)
 PATH_EDGE = (78, 155, 224)
 NODE_W = 148
-NODE_H = 40
+NODE_H = 58
 ROOT_H = 54
 NODE_GAP_Y = 10
-INTERACTION_ROW_H = 46
+INTERACTION_ROW_H = 54
 CHARACTER_ROW_H = 26
 CHARACTER_VISIBLE = 5
 
@@ -179,6 +180,7 @@ class AutomataNetworkScreen(BaseScreen):
         self.character_scroll = 0
         self.message = ""
         self.last_result = None
+        self._seen_process_result = None
         self._faction_rect = None
         self._organ_rects = {}
         self._character_rects = {}
@@ -208,12 +210,13 @@ class AutomataNetworkScreen(BaseScreen):
             SIDE_RECT.x + 266, SIDE_RECT.y + 48, 124, 28
         )
         self._sync_storyline()
+        slots = campaign.slot_state(campaign.player_side)
         logger.info(
-            "Сеть автоматов: фракций=%d, выбран орган %s, запас действий %d/%d",
+            "Сеть автоматов: фракций=%d, выбран орган %s, слоты %d/%d",
             len(campaign.factions),
             self.selected_organ_id,
-            campaign.actions_left,
-            campaign.actions_per_turn,
+            slots["used"],
+            slots["slots"],
         )
 
     def _faction(self):
@@ -390,10 +393,32 @@ class AutomataNetworkScreen(BaseScreen):
             return
         before = self.campaign.turn
         self.campaign.advance_realtime(dt, snapshot=False)
+        self._report_finished_process()
         if self.campaign.turn != before or self.campaign.finished:
             self._sync_storyline()
         if self.campaign.finished:
             self._check_storyline_outcome()
+
+    def _report_finished_process(self):
+        """Показать итог влияния, когда слот освободился."""
+        record = self.campaign.last_process_result
+        if not record:
+            return
+        process_id = str(record.get("id") or "")
+        if not process_id or process_id == self._seen_process_result:
+            return
+        self._seen_process_result = process_id
+        if str(record.get("side")) != self.campaign.player_side:
+            return
+        result = record.get("result") or {}
+        if not result:
+            return
+        label = result.get("label") or record.get("label") or "действие"
+        self.message = "%s: завершено · %s" % (
+            label,
+            self._slots_label(),
+        )
+        self.last_result = result
 
     def _increase_speed(self):
         if self.campaign.finished:
@@ -568,8 +593,9 @@ class AutomataNetworkScreen(BaseScreen):
         self.message = ""
         return True
 
-    def _budget_message(self):
-        return "Действия восстанавливаются со временем."
+    def _slots_label(self):
+        slots = self.campaign.slot_state(self.campaign.player_side)
+        return "слоты %d/%d" % (slots["used"], slots["slots"])
 
     def _apply_result(self, result):
         self._sync_storyline()
@@ -580,8 +606,24 @@ class AutomataNetworkScreen(BaseScreen):
             return result
         self.message = ""
         self.last_result = result
+        if result.get("started"):
+            slots = result.get("slots") or self.campaign.slot_state(
+                self.campaign.player_side
+            )
+            self.message = (
+                "%s: начато · %s · слоты %d/%d"
+                % (
+                    result.get("label", "действие"),
+                    self.campaign.duration_label(
+                        float(result.get("duration", 0.0))
+                    ),
+                    slots.get("used", 0),
+                    slots.get("slots", self.campaign.action_slots),
+                )
+            )
+            return result
         if result.get("kind") == "automaton" or "source_organ_id" in result:
-            self.message = "%s → %s: %s; %s" % (
+            self.message = "%s -> %s: %s; %s" % (
                 result.get("source_organ_name", "автомат"),
                 result.get("target_organ_name", "цель"),
                 result.get("label", "команда"),
@@ -611,15 +653,17 @@ class AutomataNetworkScreen(BaseScreen):
                     result.get("integrity_after", 0.0),
                 ),
             )
+        slots = self.campaign.slot_state(self.campaign.player_side)
         logger.debug(
             "Сеть: %s; мораль %s→%s; целостность %s→%s; "
-            "действий %d",
+            "слоты %d/%d",
             result.get("label", "?"),
             result.get("morale_before"),
             result.get("morale_after"),
             result.get("integrity_before"),
             result.get("integrity_after"),
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         if self.campaign.finished:
             self._check_storyline_outcome()
@@ -644,11 +688,6 @@ class AutomataNetworkScreen(BaseScreen):
         if self.campaign.finished:
             self.message = "Кампания уже завершена."
             return None
-        if self.campaign.actions_left <= 0 and self.campaign.action_budget()[
-            "active"
-        ]:
-            self.message = self._budget_message()
-            return None
         self.campaign.ensure_clock()
         result = self.campaign.perform_organ_interaction(
             self.campaign.player_side,
@@ -658,14 +697,14 @@ class AutomataNetworkScreen(BaseScreen):
         result = dict(result)
         result["kind"] = "organ"
         self.selected_interaction_id = None
+        slots = self.campaign.slot_state(self.campaign.player_side)
         logger.info(
-            "Сеть: %s → %s; целостность %s → %s; цикл %d; запас действий %d",
-            result.get("organ_name", "?"),
+            "Сеть: %s → %s; цикл %d; слоты %d/%d",
+            result.get("organ_name", organ.name),
             result.get("interaction_id", "?"),
-            result.get("integrity_before"),
-            result.get("integrity_after"),
             self.campaign.turn,
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         return self._apply_result(result)
 
@@ -691,11 +730,6 @@ class AutomataNetworkScreen(BaseScreen):
         if self.campaign.finished:
             self.message = "Кампания уже завершена."
             return None
-        if self.campaign.actions_left <= 0 and self.campaign.action_budget()[
-            "active"
-        ]:
-            self.message = self._budget_message()
-            return None
         self.campaign.ensure_clock()
         result = self.campaign.perform_automaton_interaction(
             self.campaign.player_side,
@@ -707,15 +741,15 @@ class AutomataNetworkScreen(BaseScreen):
         result["kind"] = "automaton"
         self.selected_automaton_interaction_id = None
         self.selected_automaton_target_id = None
+        slots = self.campaign.slot_state(self.campaign.player_side)
         logger.info(
-            "Сеть: автомат %s → %s (%s); цель %s → %s; цикл %d; запас действий %d",
-            result.get("source_organ_name", "?"),
-            result.get("target_organ_name", "?"),
+            "Сеть: автомат %s → %s (%s); цикл %d; слоты %d/%d",
+            result.get("source_organ_name", organ.name),
+            result.get("target_organ_name", "цель"),
             result.get("interaction_id", "?"),
-            result.get("target_integrity_before"),
-            result.get("target_integrity_after"),
             self.campaign.turn,
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         return self._apply_result(result)
 
@@ -738,11 +772,6 @@ class AutomataNetworkScreen(BaseScreen):
         if self.campaign.finished:
             self.message = "Кампания уже завершена."
             return None
-        if self.campaign.actions_left <= 0 and self.campaign.action_budget()[
-            "active"
-        ]:
-            self.message = self._budget_message()
-            return None
         self.campaign.ensure_clock()
         result = self.campaign.perform_character_interaction(
             self.campaign.player_side,
@@ -752,14 +781,14 @@ class AutomataNetworkScreen(BaseScreen):
         result = dict(result)
         result["kind"] = "character"
         self.selected_character_interaction_id = None
+        slots = self.campaign.slot_state(self.campaign.player_side)
         logger.info(
-            "Сеть: персонаж %s → %s; мораль %s → %s; цикл %d; запас действий %d",
-            result.get("character_name", "?"),
+            "Сеть: персонаж %s → %s; цикл %d; слоты %d/%d",
+            result.get("character_name", self.selected_character_id),
             result.get("interaction_id", "?"),
-            result.get("morale_before"),
-            result.get("morale_after"),
             self.campaign.turn,
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         return self._apply_result(result)
 
@@ -786,15 +815,17 @@ class AutomataNetworkScreen(BaseScreen):
         self.selected_automaton_interaction_id = None
         self.selected_automaton_target_id = None
         self.selected_character_interaction_id = None
+        slots = self.campaign.slot_state(self.campaign.player_side)
         self.message = (
-            "Цикл завершён. Цикл %d; доступно действий: %d."
-            % (self.campaign.turn, self.campaign.actions_left)
+            "Цикл завершён. Цикл %d; слоты %d/%d."
+            % (self.campaign.turn, slots["used"], slots["slots"])
         )
         self._sync_storyline()
         logger.info(
-            "Сеть: цикл завершён, цикл %d, запас действий %d",
+            "Сеть: цикл завершён, цикл %d, слоты %d/%d",
             self.campaign.turn,
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         return None
 
@@ -816,9 +847,9 @@ class AutomataNetworkScreen(BaseScreen):
             return
         self._faction_rect = pygame.Rect(
             GRAPH_RECT.x + 14,
-            GRAPH_RECT.y + 32,
+            GRAPH_RECT.y + 30,
             190,
-            34,
+            40,
         )
         organs = sorted(
             faction.organs,
@@ -1078,7 +1109,7 @@ class AutomataNetworkScreen(BaseScreen):
                 self.app.font_small.render(line, True, TEXT),
                 (
                     self._faction_rect.x + 7,
-                    self._faction_rect.y + 3 + line_number * 18,
+                    self._faction_rect.y + 4 + line_number * 18,
                 ),
             )
         screen.blit(
@@ -1090,7 +1121,7 @@ class AutomataNetworkScreen(BaseScreen):
             ),
             (
                 self._faction_rect.x + 7,
-                self._faction_rect.bottom - 14,
+                self._faction_rect.bottom - 17,
             ),
         )
 
@@ -1128,7 +1159,7 @@ class AutomataNetworkScreen(BaseScreen):
                 wrap_text(
                     self.app.font_tiny,
                     organ.name,
-                    rect.width - 12,
+                    rect.width - 30,
                 )[:2]
             ):
                 screen.blit(
@@ -1138,7 +1169,7 @@ class AutomataNetworkScreen(BaseScreen):
                     (rect.x + 6, rect.y + 4 + line_number * 11),
                 )
             bar = pygame.Rect(
-                rect.x + 6, rect.bottom - 11, rect.width - 36, 6
+                rect.x + 6, rect.bottom - 10, rect.width - 36, 6
             )
             _draw_bar(
                 screen,
@@ -1150,7 +1181,7 @@ class AutomataNetworkScreen(BaseScreen):
                 self.app.font_tiny.render(
                     _integrity_word(organ.integrity), True, DIM
                 ),
-                (rect.right - 58, rect.bottom - 17),
+                (rect.right - 58, rect.bottom - 25),
             )
             screen.blit(
                 self.app.font_tiny.render(
@@ -1197,24 +1228,32 @@ class AutomataNetworkScreen(BaseScreen):
             len(neighbors),
             " · ".join(neighbors) if neighbors else "изолированный узел",
         )
-        screen.blit(
-            self.app.font_tiny.render(
-                network_text, True, ACCENT
-            ),
-            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 58),
+        network_lines = wrap_text(
+            self.app.font_tiny,
+            network_text,
+            DETAIL_RECT.width - 32,
         )
+        for line_number, line in enumerate(network_lines[:2]):
+            screen.blit(
+                self.app.font_tiny.render(line, True, ACCENT),
+                (DETAIL_RECT.x + 16, DETAIL_RECT.y + 56 + line_number * 13),
+            )
         status = "%s · %s" % (
             organ.status(),
             metric_phrase("целостность", organ.integrity),
         )
         screen.blit(
             self.app.font_tiny.render(
-                status, True, _integrity_color(organ.integrity)
+                fit_line(
+                    self.app.font_tiny, status, DETAIL_RECT.width - 32
+                ),
+                True,
+                _integrity_color(organ.integrity),
             ),
-            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 76),
+            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 88),
         )
         bar = pygame.Rect(
-            DETAIL_RECT.x + 250, DETAIL_RECT.y + 78, 200, 9
+            DETAIL_RECT.x + 250, DETAIL_RECT.y + 90, 200, 9
         )
         _draw_bar(
             screen,
@@ -1222,27 +1261,31 @@ class AutomataNetworkScreen(BaseScreen):
             organ.integrity,
             _integrity_color(organ.integrity),
         )
+        works_text = "Работы: " + (
+            " · ".join(
+                str(
+                    (
+                        self._faction().action(action_id)
+                        if self._faction()
+                        else {}
+                    ).get("label")
+                    or action_id
+                )
+                for action_id in organ.action_ids
+            )
+            or "нет прямых работ"
+        )
         screen.blit(
             self.app.font_tiny.render(
-                "Работы: "
-                + (
-                    " · ".join(
-                        str(
-                            (
-                                self._faction().action(action_id)
-                                if self._faction()
-                                else {}
-                            ).get("label")
-                            or action_id
-                        )
-                        for action_id in organ.action_ids
-                    )
-                    or "нет прямых работ"
+                fit_line(
+                    self.app.font_tiny,
+                    works_text,
+                    DETAIL_RECT.right - (DETAIL_RECT.x + 470) - 16,
                 ),
                 True,
                 MUTED,
             ),
-            (DETAIL_RECT.x + 470, DETAIL_RECT.y + 72),
+            (DETAIL_RECT.x + 470, DETAIL_RECT.y + 88),
         )
 
     def _draw_character_detail(self, screen):
@@ -1278,9 +1321,12 @@ class AutomataNetworkScreen(BaseScreen):
             ),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 10),
         )
+        left_width = 260
         screen.blit(
             self.app.font_body.render(
-                snapshot["name"], True, TEXT
+                fit_line(self.app.font_body, snapshot["name"], left_width),
+                True,
+                TEXT,
             ),
             (DETAIL_RECT.x + 16, DETAIL_RECT.y + 30),
         )
@@ -1293,15 +1339,19 @@ class AutomataNetworkScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "%s · %s"
-                % (
-                    snapshot.get("post") or "без должности",
-                    organ_text,
+                fit_line(
+                    self.app.font_tiny,
+                    "%s · %s"
+                    % (
+                        snapshot.get("post") or "без должности",
+                        organ_text,
+                    ),
+                    left_width,
                 ),
                 True,
                 ACCENT if organ is not None else MUTED,
             ),
-            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 58),
+            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 56),
         )
         morale = float(snapshot.get("morale", 0.0))
         screen.blit(
@@ -1310,9 +1360,9 @@ class AutomataNetworkScreen(BaseScreen):
                 True,
                 _integrity_color(morale / 100.0),
             ),
-            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 78),
+            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 76),
         )
-        bar = pygame.Rect(DETAIL_RECT.x + 100, DETAIL_RECT.y + 80, 180, 9)
+        bar = pygame.Rect(DETAIL_RECT.x + 100, DETAIL_RECT.y + 78, 170, 9)
         _draw_bar(
             screen, bar, morale / 100.0, _integrity_color(morale / 100.0)
         )
@@ -1321,53 +1371,57 @@ class AutomataNetworkScreen(BaseScreen):
             key=lambda item: item[1],
             reverse=True,
         )[:3]
-        text = "потребности: " + " · ".join(
+        needs_text = "потребности: " + " · ".join(
             metric_phrase(NEED_LABELS.get(key, key), value)
             for key, value in needs
-        )
-        screen.blit(
-            self.app.font_tiny.render(text, True, MUTED),
-            (DETAIL_RECT.x + 300, DETAIL_RECT.y + 72),
         )
         traits = sorted(
             snapshot.get("personality", {}).items(),
             key=lambda item: item[1],
             reverse=True,
         )[:2]
-        screen.blit(
-            self.app.font_tiny.render(
-                "черты: "
-                + " · ".join(
-                    metric_phrase(TRAIT_LABELS.get(key, key), value)
-                    for key, value in traits
-                ),
-                True,
-                DIM,
-            ),
-            (DETAIL_RECT.x + 300, DETAIL_RECT.y + 90),
+        traits_text = "черты: " + " · ".join(
+            metric_phrase(TRAIT_LABELS.get(key, key), value)
+            for key, value in traits
         )
+        right_x = DETAIL_RECT.x + 300
+        right_width = DETAIL_RECT.right - 100 - right_x
+        for line_number, line in enumerate(
+            wrap_text(self.app.font_tiny, needs_text, right_width)[:2]
+        ):
+            screen.blit(
+                self.app.font_tiny.render(line, True, MUTED),
+                (right_x, DETAIL_RECT.y + 12 + line_number * 13),
+            )
+        for line_number, line in enumerate(
+            wrap_text(self.app.font_tiny, traits_text, right_width)[:2]
+        ):
+            screen.blit(
+                self.app.font_tiny.render(line, True, DIM),
+                (right_x, DETAIL_RECT.y + 44 + line_number * 13),
+            )
         goal = dict(snapshot.get("goal") or {})
         agency = dict(snapshot.get("agency") or {})
         goal_label = goal.get("label") or goal.get("kind") or "нет цели"
         goal_target = goal.get("target_name") or goal.get("target") or ""
         motive = "цель: %s%s · %s · %s" % (
             goal_label,
-            (" → " + goal_target) if goal_target else "",
+            (" — " + goal_target) if goal_target else "",
             metric_phrase("доверие", agency.get("trust", 0.5)),
             metric_phrase("обида", agency.get("grievance", 0.0)),
         )
-        if len(motive) > 46:
-            motive = motive[:45] + "…"
-        screen.blit(
-            self.app.font_tiny.render(
-                motive,
-                True,
-                WARN
-                if float(agency.get("grievance", 0.0)) >= 0.35
-                else MUTED,
-            ),
-            (DETAIL_RECT.x + 16, DETAIL_RECT.y + 94),
+        motive_color = (
+            WARN
+            if float(agency.get("grievance", 0.0)) >= 0.35
+            else MUTED
         )
+        for line_number, line in enumerate(
+            wrap_text(self.app.font_tiny, motive, left_width)[:2]
+        ):
+            screen.blit(
+                self.app.font_tiny.render(line, True, motive_color),
+                (DETAIL_RECT.x + 16, DETAIL_RECT.y + 94 + line_number * 13),
+            )
 
     def _draw_tabs(self, screen):
         for rect, mode, label in (
@@ -1461,20 +1515,30 @@ class AutomataNetworkScreen(BaseScreen):
                 label += " · лидер"
             screen.blit(
                 self.app.font_tiny.render(
-                    label, True, TEXT if selected else MUTED
+                    fit_line(
+                        self.app.font_tiny,
+                        label,
+                        rect.width - 38,
+                    ),
+                    True,
+                    TEXT if selected else MUTED,
                 ),
                 (rect.x + 34, rect.y + 2),
             )
             screen.blit(
                 self.app.font_tiny.render(
-                    "%s · %s"
-                    % (
-                        character.get("post") or "участник",
-                        metric_phrase(
-                            "мораль",
-                            character.get("morale", 0.0),
-                            high=100.0,
+                    fit_line(
+                        self.app.font_tiny,
+                        "%s · %s"
+                        % (
+                            character.get("post") or "участник",
+                            metric_phrase(
+                                "мораль",
+                                character.get("morale", 0.0),
+                                high=100.0,
+                            ),
                         ),
+                        rect.width - 38,
                     ),
                     True,
                     DIM,
@@ -1510,13 +1574,16 @@ class AutomataNetworkScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "%s · время %s · %s · запас действий %d/%d"
-                % (
-                    self._faction().name if self._faction() else "—",
-                    self.campaign.time_label(),
-                    self.campaign.speed_label(),
-                    self.campaign.actions_left,
-                    self.campaign.actions_per_turn,
+                fit_line(
+                    self.app.font_tiny,
+                    "%s · время %s · %s · %s"
+                    % (
+                        self._faction().name if self._faction() else "—",
+                        self.campaign.time_label(),
+                        self.campaign.speed_label(),
+                        self._slots_label(),
+                    ),
+                    SIDE_RECT.width - 28,
                 ),
                 True,
                 TEXT,
@@ -1571,7 +1638,11 @@ class AutomataNetworkScreen(BaseScreen):
             )
             screen.blit(
                 self.app.font_small.render(
-                    option["label"],
+                    fit_line(
+                        self.app.font_small,
+                        option["label"],
+                        rect.width - 16,
+                    ),
                     True,
                     TEXT if enabled else DIM,
                 ),
@@ -1589,10 +1660,17 @@ class AutomataNetworkScreen(BaseScreen):
                 )
             if not enabled:
                 detail += " · %s" % option.get("reason", "недоступно")
-            screen.blit(
-                self.app.font_tiny.render(detail, True, DIM),
-                (rect.x + 8, rect.y + 22),
-            )
+            for line_number, line in enumerate(
+                wrap_text(
+                    self.app.font_tiny,
+                    detail,
+                    rect.width - 16,
+                )[:2]
+            ):
+                screen.blit(
+                    self.app.font_tiny.render(line, True, DIM),
+                    (rect.x + 8, rect.y + 21 + line_number * 12),
+                )
 
         y = (
             rows[-1][0].bottom + 6
@@ -1635,7 +1713,7 @@ class AutomataNetworkScreen(BaseScreen):
         if self.last_result:
             result = self.last_result
             if "source_organ_id" in result:
-                text = "%s → %s: %s" % (
+                text = "%s -> %s: %s" % (
                     result.get("source_organ_name", "автомат"),
                     result.get("target_organ_name", "цель"),
                     _integrity_word(
@@ -1643,7 +1721,7 @@ class AutomataNetworkScreen(BaseScreen):
                     ),
                 )
             elif "character_name" in result:
-                text = "%s → %s" % (
+                text = "%s -> %s" % (
                     result.get("character_name", "персонаж"),
                     metric_phrase(
                         "мораль",
@@ -1652,7 +1730,7 @@ class AutomataNetworkScreen(BaseScreen):
                     ),
                 )
             else:
-                text = "%s → %s" % (
+                text = "%s -> %s" % (
                     result.get("organ_name", "орган"),
                     _integrity_word(result.get("integrity_after", 0.0)),
                 )
@@ -1682,12 +1760,11 @@ class AutomataNetworkScreen(BaseScreen):
 
     def _draw_bottom(self, screen):
         _panel(screen, BOTTOM_RECT)
-        budget = "время %s · %s · цикл %d · запас действий %d/%d" % (
+        budget = "время %s · %s · цикл %d · %s" % (
             self.campaign.time_label(),
             self.campaign.speed_label(),
             self.campaign.turn,
-            self.campaign.actions_left,
-            self.campaign.actions_per_turn,
+            self._slots_label(),
         )
         ongoing = self.campaign.ongoing_processes(
             self.campaign.player_side
@@ -1767,7 +1844,7 @@ class AutomataNetworkScreen(BaseScreen):
         else:
             enabled = self.selected_interaction_id is not None
         if not self.campaign.finished and enabled:
-            label = "Применить · 1 действие"
+            label = "Начать · 1 слот"
             color = TEXT
         elif (
             self.mode == "automata"
@@ -1789,12 +1866,11 @@ class AutomataNetworkScreen(BaseScreen):
             self.app.font_title.render("Сеть автоматов", True, TEXT),
             (24, 24),
         )
-        status = "время %s · скорость %s · цикл %d · запас действий %d/%d" % (
+        status = "время %s · скорость %s · цикл %d · %s" % (
             self.campaign.time_label(),
             self.campaign.speed_label(),
             self.campaign.turn,
-            self.campaign.actions_left,
-            self.campaign.actions_per_turn,
+            self._slots_label(),
         )
         if self.campaign.outcome:
             status += " · исход: %s" % self.campaign.outcome

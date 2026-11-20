@@ -4,7 +4,7 @@
 и органы-автоматы. Если кампания запущена, выбранную запись своей фракции
 можно сразу усилить: для персонажа доступны повышение, награда, поддержка
 и допрос, для органа — усиление, реформа, чистка и снабжение. Действия
-тратят общий запас действий и не требуют перехода в сеть.
+занимают один из двух слотов и не требуют перехода в сеть.
 
 В блоке действий показывается ожидаемый отчёт обработчика на текущем
 снимке (``build_interaction_work`` → ``handlers.receive``), без применения.
@@ -19,7 +19,7 @@ import warfare as W
 
 from ..ui.portraits import draw_portrait
 from ..ui.screen_manager import BaseScreen
-from ..ui.text_layout import draw_fitted, wrap_text
+from ..ui.text_layout import draw_fitted, fit_line, wrap_text
 from ..ui.widgets import Button, Panel
 from view.support.log_journal import get_logger
 from view.support.metrics import (
@@ -243,9 +243,9 @@ class CampaignCodexScreen(BaseScreen):
             faction = self._faction_names.get(item.get("faction_id"), "")
             flags = ""
             if item.get("is_player"):
-                flags = " ★"
+                flags = " (вы)"
             elif item.get("is_faction_leader"):
-                flags = " ◆"
+                flags = " (лидер)"
             text = "%s%s — %s" % (
                 item.get("name", "?"),
                 flags,
@@ -268,6 +268,12 @@ class CampaignCodexScreen(BaseScreen):
 
     def _player_side(self):
         return getattr(self.campaign, "player_side", None)
+
+    def _slots_label(self):
+        if self.campaign is None:
+            return "слоты —"
+        slots = self.campaign.slot_state(self._player_side())
+        return "слоты %d/%d" % (slots["used"], slots["slots"])
 
     def _item_side(self, item):
         """Сторона записи: явное поле или владелец из пресета."""
@@ -435,6 +441,23 @@ class CampaignCodexScreen(BaseScreen):
                 result.get("reason") or "Действие не выполнено."
             )
             return result
+        if result.get("started"):
+            slots = result.get("slots") or self.campaign.slot_state(
+                self._player_side()
+            )
+            self.action_message = (
+                "%s: начато · %s · слоты %d/%d"
+                % (
+                    result.get("label", "действие"),
+                    self.campaign.duration_label(
+                        float(result.get("duration", 0.0))
+                    ),
+                    slots.get("used", 0),
+                    slots.get("slots", self.campaign.action_slots),
+                )
+            )
+            self._sync_storyline()
+            return result
         if kind == "character":
             self.action_message = "%s: %s; %s" % (
                 result.get("character_name", "персонаж"),
@@ -457,16 +480,13 @@ class CampaignCodexScreen(BaseScreen):
                 ),
             )
         self._sync_storyline()
+        slots = self.campaign.slot_state(self._player_side())
         logger.info(
-            "Кодекс: %s → %s; мораль %s→%s; целостность %s→%s; "
-            "запас действий %d",
+            "Кодекс: %s → %s; слоты %d/%d",
             result.get("character_name") or result.get("organ_name", "?"),
             result.get("interaction_id", "?"),
-            result.get("morale_before"),
-            result.get("morale_after"),
-            result.get("integrity_before"),
-            result.get("integrity_after"),
-            self.campaign.actions_left,
+            slots["used"],
+            slots["slots"],
         )
         return result
 
@@ -561,7 +581,11 @@ class CampaignCodexScreen(BaseScreen):
                 )
             label = self._row_label(index, item)
             surf = self.app.font_tiny.render(
-                label, True, TEXT if index == selected else MUTED
+                fit_line(
+                    self.app.font_tiny, label, rect.width - 16
+                ),
+                True,
+                TEXT if index == selected else MUTED,
             )
             screen.blit(
                 surf,
@@ -630,7 +654,7 @@ class CampaignCodexScreen(BaseScreen):
         if goal_label:
             meta += " · цель: %s%s" % (
                 goal_label,
-                (" → " + goal_target) if goal_target else "",
+                (" — " + goal_target) if goal_target else "",
             )
         screen.blit(
             self.app.font_tiny.render(meta, True, ACCENT), (x, y)
@@ -641,12 +665,10 @@ class CampaignCodexScreen(BaseScreen):
             agency = dict(live.get("agency") or {})
             screen.blit(
                 self.app.font_tiny.render(
-                    "%s · запас действий %d · %s · %s"
+                    "%s · %s · %s · %s"
                     % (
                         metric_phrase("мораль", morale, high=100.0),
-                        self.campaign.actions_left
-                        if self.campaign is not None
-                        else 0,
+                        self._slots_label(),
                         metric_phrase(
                             "доверие", agency.get("trust", 0.5)
                         ),
@@ -748,11 +770,11 @@ class CampaignCodexScreen(BaseScreen):
         if organ is not None:
             screen.blit(
                 self.app.font_tiny.render(
-                    "Состояние: %s · %s · запас действий %d"
+                    "Состояние: %s · %s · %s"
                     % (
                         organ.status(),
                         metric_phrase("целостность", organ.integrity),
-                        self.campaign.actions_left,
+                        self._slots_label(),
                     ),
                     True,
                     GOOD if organ.integrity >= 0.65 else WARN,
@@ -814,7 +836,7 @@ class CampaignCodexScreen(BaseScreen):
                 transition.get("target", "?"),
             )
             event = str(transition.get("event") or "")
-            line = "%s → %s" % (source, target)
+            line = "%s -> %s" % (source, target)
             if event:
                 line += ": %s" % event
             for wrapped in wrap_text(
@@ -906,10 +928,7 @@ class CampaignCodexScreen(BaseScreen):
         if self.campaign is None:
             heading = "ДЕЙСТВИЯ · кампания не запущена"
         else:
-            heading = "ДЕЙСТВИЯ · запас %d/%d" % (
-                self.campaign.actions_left,
-                self.campaign.actions_per_turn,
-            )
+            heading = "ДЕЙСТВИЯ · %s" % self._slots_label()
         screen.blit(
             self.app.font_tiny.render(heading, True, MUTED),
             (area.x + 18, area.y + 5),
@@ -947,16 +966,19 @@ class CampaignCodexScreen(BaseScreen):
                 label += " · %s" % (
                     option.get("reason") or "недоступно"
                 )
-            old_clip = screen.get_clip()
-            screen.set_clip(rect.inflate(-8, -12))
             surf = self.app.font_tiny.render(
-                label, True, TEXT if enabled else DIM
+                fit_line(
+                    self.app.font_tiny,
+                    label,
+                    rect.width - 14,
+                ),
+                True,
+                TEXT if enabled else DIM,
             )
             screen.blit(
                 surf,
                 (rect.x + 7, rect.y + 4),
             )
-            screen.set_clip(old_clip)
             self._draw_preview_line(screen, rect, preview)
         if self.action_message:
             old_clip = screen.get_clip()

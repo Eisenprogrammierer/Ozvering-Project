@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import time
+
 import pygame
 
+from campaign.faction_state import derived_assets
 from ..ui.screen_manager import BaseScreen
-from ..ui.text_layout import wrap_text
+from ..ui.text_layout import fit_line, wrap_text
 from view.support.log_journal import get_logger
 from view.support.metrics import (
     amount_phrase,
@@ -26,8 +29,10 @@ MID_RECT = pygame.Rect(388, TOP_H, 420, 520)
 RIGHT_RECT = pygame.Rect(828, TOP_H, 428, 520)
 BOTTOM_RECT = pygame.Rect(24, 646, 1232, 54)
 CHAT_RECT = pygame.Rect(1136, 14, 120, 40)
-ACTION_ROW_H = 56
-DESCRIPTION_H = 160
+ACTION_ROW_H = 52
+DESCRIPTION_H = 184
+OPTIONS_TTL = 0.35
+FACTION_TTL = 0.50
 PANEL_BG = (18, 23, 33, 238)
 PANEL_BORDER = (58, 70, 92)
 TEXT = (225, 230, 238)
@@ -68,8 +73,8 @@ def _relation_line(campaign, faction):
             relation_phrase(labels.get(axis, axis), float(value))
         )
     if not parts:
-        return "→ %s: нейтрально" % rival.name
-    return "→ %s: %s" % (rival.name, " · ".join(parts[:2]))
+        return "с %s: нейтрально" % rival.name
+    return "с %s: %s" % (rival.name, " · ".join(parts[:2]))
 
 
 def _panel(surface, rect):
@@ -206,6 +211,10 @@ class AutomataScreen(BaseScreen):
         self.log_scroll = 0
         self.message = ""
         self.last_result = None
+        self._options_cache = None
+        self._options_cache_at = 0.0
+        self._faction_cache = {}
+        self._faction_cache_at = 0.0
         self._sync_storyline()
         logger.info(
             "Экран автоматов: фракций=%d, цикл=%d, слоты=%d, игрок=%s",
@@ -258,8 +267,20 @@ class AutomataScreen(BaseScreen):
         if self.campaign.finished:
             return
         before = self.campaign.turn
+        used_before = self.campaign.slot_state(
+            self.campaign.player_side
+        )["used"]
         self.campaign.advance_realtime(dt, snapshot=False)
-        if self.campaign.turn != before or self.campaign.finished:
+        used_after = self.campaign.slot_state(
+            self.campaign.player_side
+        )["used"]
+        if (
+            self.campaign.turn != before
+            or used_after != used_before
+            or self.campaign.finished
+        ):
+            self._invalidate_options()
+            self._faction_cache.clear()
             self._sync_storyline()
         if self.campaign.finished:
             self._check_storyline_outcome()
@@ -267,8 +288,63 @@ class AutomataScreen(BaseScreen):
     def _player(self):
         return self.campaign.faction(self.campaign.player_side)
 
-    def _options(self):
-        return self.campaign.action_options(self.campaign.player_side)
+    def _invalidate_options(self):
+        self._options_cache = None
+        self._options_cache_at = 0.0
+
+    def _options(self, force=False):
+        """Список работ с коротким кешем.
+
+        Производные активы фракции считаются по BDI всех персонажей,
+        поэтому запрашивать их несколько раз за кадр слишком дорого.
+        Кеш на треть секунды сохраняет отзывчивость кнопок и убирает
+        сотни лишних пересчётов в секунду.
+        """
+        now = time.monotonic()
+        if (
+            not force
+            and self._options_cache is not None
+            and now - self._options_cache_at < OPTIONS_TTL
+        ):
+            return self._options_cache
+        options = self.campaign.action_options(
+            self.campaign.player_side
+        )
+        self._options_cache = options
+        self._options_cache_at = now
+        return options
+
+    def _faction_summary(self, faction):
+        """Словесная карточка фракции с кешем на полсекунды."""
+        now = time.monotonic()
+        cached = self._faction_cache.get(faction.side)
+        if (
+            cached is not None
+            and now - self._faction_cache_at < FACTION_TTL
+        ):
+            return cached
+        assets = derived_assets(faction)
+        summary = {
+            "assets": _asset_line(
+                assets, labels=_asset_labels(faction)
+            ),
+            "relation": _relation_line(self.campaign, faction),
+            "support": (
+                "поддержка: %s"
+                % share_phrase(
+                    float(
+                        faction.organization_snapshot.get(
+                            "willing_share", 0.0
+                        )
+                    )
+                )
+                if faction.organization_snapshot
+                else ""
+            ),
+        }
+        self._faction_cache[faction.side] = summary
+        self._faction_cache_at = now
+        return summary
 
     def _visible_actions(self):
         return max(
@@ -287,7 +363,7 @@ class AutomataScreen(BaseScreen):
                 MID_RECT.x + 10,
                 MID_RECT.y + 58 + index * ACTION_ROW_H,
                 MID_RECT.width - 20,
-                ACTION_ROW_H - 6,
+                ACTION_ROW_H - 4,
             )
             rows.append((rect, option))
         return rows
@@ -344,6 +420,7 @@ class AutomataScreen(BaseScreen):
         result = self.campaign.start_action(
             self.campaign.player_side, action_id
         )
+        self._invalidate_options()
         self._sync_storyline()
         if not result.get("ok"):
             self.message = result.get("reason") or "Работа не начата."
@@ -724,13 +801,20 @@ class AutomataScreen(BaseScreen):
             label = faction.name
             if is_player:
                 label += " · вы"
+            summary = self._faction_summary(faction)
             screen.blit(
-                self.app.font_small.render(label, True, TEXT),
+                self.app.font_small.render(
+                    fit_line(
+                        self.app.font_small, label, rect.width - 20
+                    ),
+                    True,
+                    TEXT,
+                ),
                 (rect.x + 10, rect.y + 8),
             )
             lines = wrap_text(
                 self.app.font_tiny,
-                _asset_line(faction.assets, labels=_asset_labels(faction)),
+                summary["assets"],
                 rect.width - 20,
             )
             y = rect.y + 32
@@ -740,19 +824,25 @@ class AutomataScreen(BaseScreen):
                     (rect.x + 10, y),
                 )
                 y += 18
-            relation = _relation_line(self.campaign, faction)
+            relation = summary["relation"]
             if relation:
                 screen.blit(
-                    self.app.font_tiny.render(relation, True, DIM),
+                    self.app.font_tiny.render(
+                        fit_line(
+                            self.app.font_tiny,
+                            relation,
+                            rect.width - 20,
+                        ),
+                        True,
+                        DIM,
+                    ),
                     (rect.x + 10, rect.y + 68),
                 )
-            if faction.organization_snapshot:
-                share = float(
-                    faction.organization_snapshot.get("willing_share", 0.0)
-                )
-                info = "поддержка: %s" % share_phrase(share)
+            if summary["support"]:
                 screen.blit(
-                    self.app.font_tiny.render(info, True, DIM),
+                    self.app.font_tiny.render(
+                        summary["support"], True, DIM
+                    ),
                     (rect.x + 10, rect.bottom - 22),
                 )
 
@@ -793,9 +883,15 @@ class AutomataScreen(BaseScreen):
             color = TEXT if enabled else DIM
             screen.blit(
                 self.app.font_small.render(
-                    str(action.get("label") or option["id"]), True, color
+                    fit_line(
+                        self.app.font_small,
+                        str(action.get("label") or option["id"]),
+                        rect.width - 20,
+                    ),
+                    True,
+                    color,
                 ),
-                (rect.x + 10, rect.y + 6),
+                (rect.x + 10, rect.y + 4),
             )
             target = _target_name(self.campaign, action)
             cost = action.get("cost") or {}
@@ -826,7 +922,7 @@ class AutomataScreen(BaseScreen):
             ):
                 screen.blit(
                     self.app.font_tiny.render(line, True, DIM),
-                    (rect.x + 10, rect.y + 27 + line_number * 12),
+                    (rect.x + 10, rect.y + 23 + line_number * 11),
                 )
 
         description_rect = self._description_rect()
@@ -881,14 +977,26 @@ class AutomataScreen(BaseScreen):
                 )
             screen.blit(
                 self.app.font_small.render(
-                    str(action.get("label") or selected_option["id"]),
+                    fit_line(
+                        self.app.font_small,
+                        str(action.get("label") or selected_option["id"]),
+                        description_rect.width - 20,
+                    ),
                     True,
                     TEXT,
                 ),
                 (description_rect.x + 10, description_rect.y + 24),
             )
             screen.blit(
-                self.app.font_tiny.render(meta, True, ACCENT),
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny,
+                        meta,
+                        description_rect.width - 20,
+                    ),
+                    True,
+                    ACCENT,
+                ),
                 (description_rect.x + 10, description_rect.y + 44),
             )
             description = str(
@@ -934,7 +1042,7 @@ class AutomataScreen(BaseScreen):
         if self.last_result:
             result = self.last_result
             outcome_color = GOOD if result.get("success") else BAD
-            header = "%s → %s · %s" % (
+            header = "%s -> %s · %s" % (
                 result.get("actor_name", "?"),
                 result.get("target_name", "?"),
                 result.get("label", "работа"),
