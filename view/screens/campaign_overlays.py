@@ -254,6 +254,9 @@ class TimeEmulationOverlay(OverlayScreen):
         self.close_text_rect = pygame.Rect(
             panel.right - 180, panel.bottom - 56, 160, 38
         )
+        self.reports_rect = pygame.Rect(
+            panel.x + 260, panel.bottom - 56, 220, 38
+        )
         self.close_btn.callback = self.close
         self._reset_step()
 
@@ -319,6 +322,12 @@ class TimeEmulationOverlay(OverlayScreen):
         self.paused = self.remaining > 1e-9
         self.interrupted = True
         self.message = self._decision_message()
+
+    def _open_reports(self):
+        """Открыть окно решений поверх приостановленной эмуляции."""
+        from .campaign_reports import ReportsOverlay
+
+        self.app.manager.push(ReportsOverlay(self.app, self.campaign))
 
     def start(self):
         """Запустить шаг или продолжить приостановленный."""
@@ -387,6 +396,12 @@ class TimeEmulationOverlay(OverlayScreen):
         pos = event.pos
         if self.close_text_rect.collidepoint(pos):
             self.close()
+            return
+        if (
+            self.campaign.decision_pending(self.campaign.player_side)
+            and self.reports_rect.collidepoint(pos)
+        ):
+            self._open_reports()
             return
         if self.start_rect.collidepoint(pos):
             if self.active:
@@ -546,21 +561,48 @@ class TimeEmulationOverlay(OverlayScreen):
                 )
         if self.active:
             start_text = "ПАУЗА"
+        elif self.campaign.decision_pending(self.campaign.player_side):
+            start_text = "СНАЧАЛА РЕШЕНИЕ"
         elif self.paused:
             start_text = "ПРОДОЛЖИТЬ"
         else:
             start_text = "НАЧАТЬ ЭМУЛЯЦИЮ"
+        blocked = (
+            self.campaign.decision_pending(self.campaign.player_side)
+            and not self.active
+        )
         pygame.draw.rect(
             screen,
-            (150, 92, 58) if self.active else (46, 86, 138),
+            (46, 50, 62)
+            if blocked
+            else ((150, 92, 58) if self.active else (46, 86, 138)),
             self.start_rect,
             border_radius=7,
         )
         pygame.draw.rect(
             screen, PANEL_BORDER, self.start_rect, 2, border_radius=7
         )
-        text = self.app.font_small.render(start_text, True, TEXT)
+        text = self.app.font_small.render(
+            start_text, True, DIM if blocked else TEXT
+        )
         screen.blit(text, text.get_rect(center=self.start_rect.center))
+        if self.campaign.decision_pending(self.campaign.player_side):
+            pygame.draw.rect(
+                screen, (142, 96, 54), self.reports_rect, border_radius=7
+            )
+            pygame.draw.rect(
+                screen,
+                PANEL_BORDER,
+                self.reports_rect,
+                2,
+                border_radius=7,
+            )
+            text = self.app.font_small.render(
+                "К ДОКЛАДАМ", True, TEXT
+            )
+            screen.blit(
+                text, text.get_rect(center=self.reports_rect.center)
+            )
         pygame.draw.rect(
             screen, (40, 44, 56), self.close_text_rect, border_radius=7
         )

@@ -157,6 +157,16 @@ class ReportsOverlay(OverlayScreen):
             return
 
     # --- рисование --------------------------------------------------
+    def _choice_label(self, report, choice):
+        label = str(choice.get("label") or choice.get("id"))
+        try:
+            cost = int(report.get("verify_cost") or 0)
+        except (TypeError, ValueError):
+            cost = 0
+        if str(choice.get("id") or "") == "verify" and cost:
+            label = "%s · %d" % (label, cost)
+        return label
+
     def _draw_choice(self, screen, rect, label):
         pygame.draw.rect(screen, (46, 86, 138), rect, border_radius=6)
         pygame.draw.rect(screen, PANEL_BORDER, rect, 2, border_radius=6)
@@ -273,8 +283,13 @@ class ReportsOverlay(OverlayScreen):
             )
         elif str(report.get("status") or "") != "pending":
             resolved = report.get("resolved") or {}
-            truth = report.get("true_band_label")
-            line = "истинное положение: «%s»" % truth if truth else ""
+            revealed = resolved.get("revealed_truth", True)
+            truth = report.get("true_band_label") if revealed else None
+            line = (
+                "истинное положение: «%s»" % truth
+                if truth
+                else "Истина не установлена: слух остался слухом."
+            )
             screen.blit(
                 self.app.font_tiny.render(
                     fit_line(
@@ -317,7 +332,9 @@ class ReportsOverlay(OverlayScreen):
                 self._choice_rects(report), report.get("choices") or ()
             ):
                 self._draw_choice(
-                    screen, rect, str(choice.get("label") or choice.get("id"))
+                    screen,
+                    rect,
+                    self._choice_label(report, choice),
                 )
 
 

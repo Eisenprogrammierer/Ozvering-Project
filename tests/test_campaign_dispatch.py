@@ -24,7 +24,9 @@ def _preset(template_id="empire_campaign", seed=11):
 def _campaign():
     from campaign.automata import AutomataCampaign
 
-    return AutomataCampaign(_preset(), seed=11)
+    campaign = AutomataCampaign(_preset(), seed=11)
+    campaign.dispatch.rumor_enabled = False
+    return campaign
 
 
 def _issue(campaign):
@@ -105,6 +107,7 @@ def test_tone_follows_source_bdi():
 def test_choices_do_not_touch_assets(monkeypatch):
     campaign = _campaign()
     faction = campaign.player
+    campaign.actions_left = 10
     calls = []
     monkeypatch.setattr(
         faction, "add_asset", lambda *args, **kwargs: calls.append(args)
@@ -152,6 +155,7 @@ def test_trust_changes_relations_and_belief_without_direct_assets(monkeypatch):
 
 def test_verify_separates_right_from_wrong():
     campaign = _campaign()
+    campaign.actions_left = 10
     correct = _issue(campaign)
     correct["perceived"] = correct["true_value"]
     source = campaign.dispatch._character(correct["source_id"])
@@ -164,6 +168,7 @@ def test_verify_separates_right_from_wrong():
     )
 
     wrong = _issue(campaign)
+    campaign.actions_left = 10
     wrong["perceived"] = min(
         1.0, wrong["true_value"] + campaign.dispatch.verify_tolerance + 0.2
     )
@@ -280,3 +285,55 @@ def test_audit_logs_report_issue_and_choice(tmp_path, monkeypatch):
     assert choice["changes"]["morale"] < 0
     assert "assets_before" not in choice
     assert "assets_after" not in choice
+
+
+def test_verify_requires_action_budget():
+    campaign = _campaign()
+    campaign._turn_active = True
+    campaign.actions_left = 0
+    report = _issue(campaign)
+
+    blocked = campaign.resolve_report(report["id"], "verify")
+    assert blocked["ok"] is False
+    assert "проверка недоступна" in blocked["reason"]
+    assert report["status"] == "pending"
+
+    campaign.actions_left = 1
+    allowed = campaign.resolve_report(report["id"], "verify")
+    assert allowed["ok"] is True
+    assert allowed["cost"] == 1
+    assert campaign.actions_left == 0
+
+
+def test_rumor_is_anonymous_and_verify_yields_new_claim():
+    campaign = _campaign()
+    campaign.dispatch.rumor_enabled = True
+    campaign.dispatch.rumor_chance = 1.0
+    campaign.actions_left = 10
+
+    report = _issue(campaign)
+    assert report["channel"] == "rumor"
+    assert report["anonymous"] is True
+    assert report["source_name"] == "Слух"
+    assert report["source_post"] == ""
+    assert report["confidence"] <= campaign.dispatch.rumor_confidence_scale
+
+    result = campaign.resolve_report(report["id"], "verify")
+    assert result["ok"] is True
+    assert result["correct"] is None
+    assert result["revealed_truth"] is False
+    assert result["truth_band"] is None
+    assert result["cost"] == 1
+    assert result["follow_up"]
+
+    follow = campaign.report(result["follow_up"])
+    assert follow is not None
+    assert follow["follow_up"] is True
+    assert follow["derived_from"] == report["id"]
+    assert follow["status"] == "pending"
+    assert campaign.decision_pending(campaign.player_side) is True
+
+    campaign.actions_left = 10
+    second = campaign.resolve_report(follow["id"], "verify")
+    assert second["ok"] is True
+    assert second["follow_up"] is None

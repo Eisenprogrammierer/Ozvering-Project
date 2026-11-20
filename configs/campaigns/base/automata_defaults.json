@@ -115,10 +115,12 @@
       "fear": 0.5
     },
     "titles": {
-      "report": "Доклад: {asset_label}"
+      "report": "Доклад: {asset_label}",
+      "rumor": "Слух: {asset_label}"
     },
     "channels": {
-      "report": "доклад"
+      "report": "доклад",
+      "rumor": "слух"
     },
     "templates": {
       "loyal": [
@@ -157,6 +159,7 @@
       }
     ],
     "verify_tolerance": 0.12,
+    "verify_cost_actions": 1,
     "effects": {
       "trust": {
         "morale": 2.0,
@@ -193,6 +196,48 @@
       "verify_right": "Проверка подтвердила: {asset_label} — «{truth_band}». {source} оказался прав.",
       "verify_wrong": "Проверка показала: {asset_label} — «{truth_band}». {source} ошибся.",
       "ignore": "Вы отложили доклад. {source} воспринял это как невнимание."
+    },
+    "rumor": {
+      "enabled": true,
+      "chance": 0.28,
+      "confidence_scale": 0.6,
+      "noise_scale": 1.6,
+      "source_label": "Слух",
+      "titles": {
+        "rumor": "Слух: {asset_label}"
+      },
+      "templates": [
+        "В коридорах говорят, будто {asset_label} — «{band}». Кто говорит, неизвестно.",
+        "Дошло через третьи руки: {asset_label} — «{band}». За что купил, за то и продаю.",
+        "Шепчутся, что {asset_label} — «{band}». Проверять источник никто не стал."
+      ],
+      "follow_up_title": "Проверка слуха: {asset_label}",
+      "follow_up_text": "Проверка слуха: {asset_label} — «{band}». Твёрдых доказательств по-прежнему нет, но говорят настойчивее.",
+      "result_texts": {
+        "trust": "Вы приняли слух на веру. Кто его пустил — неизвестно.",
+        "verify": "Проверка не дала истины: {asset_label} — «{band}». Это всё ещё чей-то пересказ.",
+        "ignore": "Вы отмахнулись от слуха. {asset_label} остаётся неясным."
+      },
+      "effects": {
+        "rumor_trust": {
+          "morale": 1.0,
+          "needs": {
+            "fear": -0.01
+          }
+        },
+        "rumor_verify": {
+          "morale": -1.0,
+          "needs": {
+            "anxiety": 0.01
+          }
+        },
+        "rumor_ignore": {
+          "morale": -2.0,
+          "needs": {
+            "fear": 0.01
+          }
+        }
+      }
     },
     "confidence_labels": [
       {

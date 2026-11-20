@@ -129,6 +129,35 @@ class ReportDispatcher:
         self.verify_tolerance = max(
             0.0, _number(self.config.get("verify_tolerance"), 0.12)
         )
+        self.verify_cost = max(
+            0, int(_number(self.config.get("verify_cost_actions"), 1))
+        )
+        rumor = _as_mapping(self.config.get("rumor"))
+        self.rumor_enabled = bool(rumor.get("enabled", False))
+        self.rumor_chance = _clamp(rumor.get("chance"), 0.0, 1.0)
+        self.rumor_confidence_scale = _clamp(
+            rumor.get("confidence_scale"), 0.0, 1.0
+        )
+        self.rumor_noise_scale = max(
+            0.0, _number(rumor.get("noise_scale"), 1.5)
+        )
+        self.rumor_source_label = str(
+            rumor.get("source_label") or "Слух"
+        )
+        self.rumor_titles = _as_mapping(rumor.get("titles"))
+        self.rumor_templates = _as_list(rumor.get("templates"))
+        self.rumor_result_texts = _as_mapping(
+            rumor.get("result_texts")
+        )
+        self.rumor_effects = _as_mapping(rumor.get("effects"))
+        self.rumor_follow_up_text = str(
+            rumor.get("follow_up_text")
+            or "Проверка слуха: {asset_label} — «{band}». "
+            "Твёрдых доказательств по-прежнему нет."
+        )
+        self.rumor_follow_up_title = str(
+            rumor.get("follow_up_title") or "Проверка слуха: {asset_label}"
+        )
         self._progress = 0.0
         self._seq = 0
         self._asset_index = 0
@@ -240,7 +269,10 @@ class ReportDispatcher:
         source = self._source(faction, asset)
         if source is None:
             return None
-        report = self._build_report(faction, source, asset)
+        channel = "report"
+        if self.rumor_enabled and self.rng.random() < self.rumor_chance:
+            channel = "rumor"
+        report = self._build_report(faction, source, asset, channel)
         if report is None:
             return None
         self.reports.append(report)
@@ -284,8 +316,9 @@ class ReportDispatcher:
             return None
         return fallback[(self._seq + self._asset_index) % len(fallback)]
 
-    def _build_report(self, faction, source, asset):
+    def _build_report(self, faction, source, asset, channel="report"):
         asset = str(asset)
+        rumor = str(channel) == "rumor"
         true_value = _clamp(faction.asset(asset))
         true_band = self._band(true_value)
         values = getattr(
@@ -293,21 +326,37 @@ class ReportDispatcher:
         ) or {}
         needs = getattr(source, "needs", {}) or {}
         confidence = self._confidence(values, needs)
-        span = (1.0 - confidence) * _number(
-            self.confidence_cfg.get("noise"), 0.35
+        noise_scale = 1.0
+        if rumor:
+            confidence = _clamp(
+                confidence * self.rumor_confidence_scale
+            )
+            noise_scale = self.rumor_noise_scale
+        span = (
+            (1.0 - confidence)
+            * _number(self.confidence_cfg.get("noise"), 0.35)
+            * noise_scale
         )
         noise = self.rng.uniform(-span, span) if span else 0.0
         perceived = _clamp(true_value + noise)
-        tone = self._tone(values, needs)
+        tone = "neutral" if rumor else self._tone(values, needs)
         reported_band = self._frame_band(self._band(perceived), tone)
         label = self.asset_labels.get(asset, asset)
-        source_name = str(getattr(source, "name", "") or "Источник")
-        source_post = str(
-            getattr(source, "campaign_post", "")
-            or getattr(source, "campaign_post_id", "")
-            or ""
+        source_name = (
+            self.rumor_source_label
+            if rumor
+            else str(getattr(source, "name", "") or "Источник")
         )
-        channel = "report"
+        source_post = (
+            ""
+            if rumor
+            else str(
+                getattr(source, "campaign_post", "")
+                or getattr(source, "campaign_post_id", "")
+                or ""
+            )
+        )
+        channel = "rumor" if rumor else "report"
         values_map = {
             "asset": asset,
             "asset_label": label,
@@ -318,10 +367,22 @@ class ReportDispatcher:
             "channel": str(self.channels.get(channel) or channel),
             "confidence": self._confidence_label(confidence),
         }
-        template = self._template(tone)
+        if rumor:
+            template = (
+                str(self.rng.choice(self.rumor_templates))
+                if self.rumor_templates
+                else "Говорят, будто {asset_label} — «{band}»."
+            )
+        else:
+            template = self._template(tone)
         text = _render(template, values_map)
+        title_key = (
+            self.rumor_titles.get(channel) if rumor else None
+        )
         title = _render(
-            self.titles.get(channel) or "Доклад: {asset_label}",
+            title_key
+            or self.titles.get(channel)
+            or "Доклад: {asset_label}",
             values_map,
         )
         self._seq += 1
@@ -333,6 +394,7 @@ class ReportDispatcher:
             ),
             "source_name": source_name,
             "source_post": source_post,
+            "anonymous": rumor,
             "channel": channel,
             "channel_label": str(
                 self.channels.get(channel) or channel
@@ -350,6 +412,7 @@ class ReportDispatcher:
             "confidence": round(confidence, 6),
             "confidence_label": self._confidence_label(confidence),
             "tone": tone,
+            "verify_cost": self.verify_cost,
             "status": "pending",
             "created": round(
                 _number(getattr(self.campaign, "elapsed", 0.0)), 6
@@ -450,16 +513,46 @@ class ReportDispatcher:
             }
         faction = self.campaign.faction(report.get("side"))
         source = self._character(report.get("source_id"))
+        rumor = str(report.get("channel") or "") == "rumor"
+        cost = 0
+        if choice_id == "verify" and self.verify_cost:
+            gate = getattr(
+                self.campaign, "_player_action_gate", None
+            )
+            if callable(gate):
+                reason = gate(report.get("side"))
+                if reason:
+                    return {
+                        "ok": False,
+                        "reason": "проверка недоступна: %s" % reason,
+                        "report": report,
+                    }
+            spend = getattr(
+                self.campaign, "_spend_player_action", None
+            )
+            if callable(spend):
+                spend(report.get("side"))
+            cost = self.verify_cost
         effect_key = choice_id
         correct = None
+        revealed_truth = not rumor
         if choice_id == "verify":
-            error = abs(
-                _number(report.get("perceived"))
-                - _number(report.get("true_value"))
-            )
-            correct = error <= self.verify_tolerance + 1e-9
-            effect_key = "verify_right" if correct else "verify_wrong"
-        effect = _as_mapping(self.effects.get(effect_key))
+            if rumor:
+                effect_key = "rumor_verify"
+                revealed_truth = False
+            else:
+                error = abs(
+                    _number(report.get("perceived"))
+                    - _number(report.get("true_value"))
+                )
+                correct = error <= self.verify_tolerance + 1e-9
+                effect_key = (
+                    "verify_right" if correct else "verify_wrong"
+                )
+        elif rumor:
+            effect_key = "rumor_%s" % choice_id
+        effect_pool = self.rumor_effects if rumor else self.effects
+        effect = _as_mapping(effect_pool.get(effect_key))
         changes = self._apply_effects(
             faction, source, report, effect, effect_key
         )
@@ -470,12 +563,26 @@ class ReportDispatcher:
             "band": report.get("band_label") or "",
             "truth_band": report.get("true_band_label") or "",
         }
+        text_pool = (
+            self.rumor_result_texts if rumor else self.result_texts
+        )
         text = _render(
-            self.result_texts.get(effect_key)
+            text_pool.get(effect_key)
+            or text_pool.get(choice_id)
+            or self.result_texts.get(effect_key)
             or self.result_texts.get(choice_id)
             or "Решение принято.",
             values_map,
         )
+        follow_up = None
+        if (
+            rumor
+            and choice_id == "verify"
+            and not report.get("follow_up")
+        ):
+            follow_up = self._spawn_rumor_follow_up(
+                faction, source, report
+            )
         report["status"] = "resolved"
         report["choice"] = choice_id
         report["resolved"] = {
@@ -483,6 +590,11 @@ class ReportDispatcher:
             "correct": correct,
             "text": text,
             "changes": changes,
+            "cost": cost,
+            "revealed_truth": revealed_truth,
+            "follow_up": (
+                follow_up.get("id") if follow_up is not None else None
+            ),
             "at": round(
                 _number(getattr(self.campaign, "elapsed", 0.0)), 6
             ),
@@ -497,11 +609,56 @@ class ReportDispatcher:
             "report": report,
             "choice": choice_id,
             "correct": correct,
-            "truth_band": report.get("true_band"),
-            "truth_band_label": report.get("true_band_label"),
+            "truth_band": (
+                report.get("true_band") if revealed_truth else None
+            ),
+            "truth_band_label": (
+                report.get("true_band_label") if revealed_truth else None
+            ),
+            "revealed_truth": revealed_truth,
+            "cost": cost,
+            "follow_up": (
+                follow_up.get("id") if follow_up is not None else None
+            ),
             "text": text,
             "changes": changes,
         }
+
+    def _spawn_rumor_follow_up(self, faction, source, report):
+        """Проверка слуха рождает новый claim, а не истину."""
+        if faction is None or source is None:
+            return None
+        if len(self.pending(report.get("side"))) >= self.max_pending:
+            return None
+        follow = self._build_report(
+            faction, source, report.get("asset"), "rumor"
+        )
+        if follow is None:
+            return None
+        values_map = {
+            "source": follow.get("source_name") or "Слух",
+            "asset": follow.get("asset") or "",
+            "asset_label": follow.get("asset_label") or "",
+            "band": follow.get("band_label") or "",
+            "truth_band": follow.get("true_band_label") or "",
+        }
+        follow["follow_up"] = True
+        follow["derived_from"] = report.get("id")
+        follow["text"] = _render(self.rumor_follow_up_text, values_map)
+        follow["title"] = _render(
+            self.rumor_follow_up_title, values_map
+        )
+        follow["confidence"] = min(
+            0.95, _number(report.get("confidence")) + 0.15
+        )
+        follow["confidence_label"] = self._confidence_label(
+            follow["confidence"]
+        )
+        self.reports.append(follow)
+        self._trim()
+        self._record_story(follow)
+        self._log_issued(follow)
+        return follow
 
     def _character(self, character_id):
         key = str(character_id or "")
@@ -540,11 +697,18 @@ class ReportDispatcher:
                 "ignore": "ignored",
                 "verify_right": "verified",
                 "verify_wrong": "doubts",
+                "rumor_trust": "trusts",
+                "rumor_ignore": "ignored",
+                "rumor_verify": "doubts",
             }.get(effect_key)
             if predicate:
                 target = (
                     report.get("asset")
-                    if effect_key.startswith("verify_")
+                    if effect_key in (
+                        "verify_right",
+                        "verify_wrong",
+                        "rumor_verify",
+                    )
                     else report.get("source_id")
                 )
                 try:
@@ -647,6 +811,10 @@ class ReportDispatcher:
             source_name=report.get("source_name"),
             source_post=report.get("source_post"),
             asset=report.get("asset"),
+            channel=report.get("channel"),
+            anonymous=report.get("anonymous"),
+            follow_up=report.get("follow_up"),
+            derived_from=report.get("derived_from"),
             true_value=report.get("true_value"),
             perceived=report.get("perceived"),
             confidence=report.get("confidence"),
@@ -664,8 +832,14 @@ class ReportDispatcher:
             source_id=report.get("source_id"),
             source_name=report.get("source_name"),
             asset=report.get("asset"),
+            channel=report.get("channel"),
             choice=choice,
             correct=correct,
+            cost=(report.get("resolved") or {}).get("cost"),
+            revealed_truth=(
+                report.get("resolved") or {}
+            ).get("revealed_truth"),
+            follow_up=(report.get("resolved") or {}).get("follow_up"),
             truth_band=report.get("true_band"),
             changes=changes,
             text=text,

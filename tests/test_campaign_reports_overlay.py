@@ -129,6 +129,19 @@ def test_empty_overlay_is_readable():
     app.quit()
 
 
+def test_verify_choice_shows_action_cost():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    report = campaign.dispatch.issue()
+    overlay = ReportsOverlay(app, campaign)
+    verify = next(
+        item for item in report["choices"] if item["id"] == "verify"
+    )
+    assert overlay._choice_label(report, verify).endswith("· 1")
+    app.quit()
+
+
 def test_main_feed_shows_story_events_but_not_decisions():
     from view.screens.automata_screen import AutomataScreen
 
@@ -191,4 +204,25 @@ def test_emulation_refuses_to_start_with_pending_decision():
     campaign.resolve_report(report["id"], "trust")
     overlay.start()
     assert overlay.active is True
+    app.quit()
+
+
+def test_emulation_opens_reports_from_interrupt_banner():
+    from view.screens.campaign_overlays import TimeEmulationOverlay
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    campaign.dispatch.issue()
+    overlay = TimeEmulationOverlay(app, campaign)
+    overlay.draw(pygame.Surface((1280, 720)))
+
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=overlay.reports_rect.center,
+            button=1,
+        )
+    )
+
+    assert isinstance(app.manager.current, ReportsOverlay)
     app.quit()
