@@ -13,6 +13,20 @@ import pytest
 FIXTURE_ROOT = Path(__file__).resolve().parent / "fixtures" / "content"
 
 
+@pytest.fixture(autouse=True)
+def quiet_campaign_stats(monkeypatch):
+    """По умолчанию не писать файловый аудит из тестов.
+
+    Тесты, которые проверяют сам журнал, включают его явно через
+    ``OZVERIN_STATS=1`` и временный ``OZVERIN_STATS_LOG``.
+    """
+    monkeypatch.setenv("OZVERIN_STATS", "0")
+    yield
+    import campaign.audit as audit
+
+    audit.reset()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def isolated_json_content():
     """Подменить корни контента на тестовый набор на всю сессию."""

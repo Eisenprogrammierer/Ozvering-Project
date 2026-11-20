@@ -324,6 +324,56 @@ def derived_asset(faction, key, default=0.0):
     return _clamp(total / weight_sum)
 
 
+def asset_breakdown(faction, key, default=0.0):
+    """Разложить актив на формулы: метрика, вес, вклад.
+
+    ``derived_asset`` остаётся горячим путём и не строит словарей. Эта
+    функция нужна диагностике: она показывает, какая именно метрика
+    тянет актив вверх или вниз и сколько вклада она внесла.
+    """
+    terms = asset_terms(faction, key)
+    total = 0.0
+    weight_sum = 0.0
+    rows = []
+    for term in terms:
+        weight = _number(term.get("weight"), 0.0)
+        if not weight:
+            continue
+        metric = str(term.get("metric") or "")
+        value = faction_metric(faction, metric)
+        contribution = weight * value
+        total += contribution
+        weight_sum += abs(weight)
+        rows.append(
+            {
+                "metric": metric,
+                "weight": round(weight, 6),
+                "value": round(value, 6),
+                "contribution": round(contribution, 6),
+            }
+        )
+    raw = total / weight_sum if weight_sum > 0.0 else _clamp(default)
+    context = _as_mapping(getattr(faction, "context", {}) or {})
+    return {
+        "key": str(key),
+        "value": round(_clamp(raw), 6),
+        "raw": round(raw, 6),
+        "weight_sum": round(weight_sum, 6),
+        "context": round(
+            _number(context.get(str(key), CONTEXT_NEUTRAL)), 6
+        ),
+        "terms": rows,
+    }
+
+
+def asset_breakdowns(faction):
+    """Разложения всех активов фракции в стабильном порядке."""
+    return {
+        key: asset_breakdown(faction, key)
+        for key in asset_keys(faction)
+    }
+
+
 def derived_assets(faction):
     """Все производные активы фракции в стабильном порядке."""
     return {
@@ -561,6 +611,8 @@ __all__ = [
     "CONTEXT_NEUTRAL",
     "DerivedAssets",
     "apply_asset_delta",
+    "asset_breakdown",
+    "asset_breakdowns",
     "asset_keys",
     "asset_terms",
     "bump_context",

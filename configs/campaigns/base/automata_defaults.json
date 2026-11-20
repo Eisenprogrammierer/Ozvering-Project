@@ -3,6 +3,16 @@
   "run_turns_default": 72,
   "event_log_limit": 400,
   "snapshot_tail": 80,
+  "debug": {
+    "stats": true,
+    "stats_path": "campaign_stats.log",
+    "stats_formulas": true,
+    "stats_characters": true,
+    "stats_actions": true,
+    "stats_effects": true,
+    "stats_outcome": true,
+    "stats_verbose_report": false
+  },
   "action_process": {
     "slots": 2,
     "default_duration": 86400.0,

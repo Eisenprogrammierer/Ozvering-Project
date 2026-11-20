@@ -316,6 +316,90 @@ campaign.geometry_bearing("red", "staff", "field", "rear")
 (`action_process.slots`, по умолчанию `2`) через `start_action`. Его работы
 длятся в игровом времени и завершаются вместе с работами игрока.
 
+### 2.1. Файловый аудит статистики
+
+Кампания пишет подробный журнал в `campaign_stats.log` в корне проекта.
+Это JSON Lines: один объект на строку, без вывода в консоль. Журнал нужен,
+чтобы разобрать, почему активы растут или падают, а не гадать по одному
+числу на экране. Файл ротируется по 16 МБ (три архивных копии), поэтому
+долгая партия не занимает диск целиком.
+
+Настройки лежат в секции `debug` файла
+`configs/campaigns/base/automata_defaults.json`:
+
+```json
+"debug": {
+  "stats": true,
+  "stats_path": "campaign_stats.log",
+  "stats_formulas": true,
+  "stats_characters": true,
+  "stats_actions": true,
+  "stats_effects": true,
+  "stats_outcome": true,
+  "stats_verbose_report": false
+}
+```
+
+Переменные окружения важнее конфига: `OZVERIN_STATS=0` выключает аудит,
+`OZVERIN_STATS_LOG=/path/to/file.log` меняет путь. Тесты по умолчанию
+аудит не пишут; проверки самого журнала включают его явно.
+
+События журнала:
+
+* `campaign_start` — seed, стороны, состав фракций, модель, содержание;
+* `tick` — срез после организационного такта каждой фракции: активы
+  `assets_before`/`assets_after`, `asset_deltas`, контекст, организация,
+  сводка персонажей и `breakdowns` — разложение каждого актива на
+  метрику, вес, значение и вклад;
+* `bdi` — жизнь одного персонажа за такт: `interval_seconds` (сколько
+  прошло игрового времени) и `simulated_seconds` (сколько из него реально
+  прожил BDI), мораль, сила и энергия с максимумами, потребности,
+  состояния и дельты;
+* `work` — формула шанса (`base`, `slope`, атака, защита, разница,
+  `relation_shift`, логит, шанс, бросок), модификаторы (`readiness`,
+  повторное использование, исполнитель), цена, применённые проекции и
+  дельты активов обеих сторон;
+* `effect_pulse` — импульс отложенного эффекта: номер импульса, доля,
+  множитель обстоятельств, итоговый масштаб и применённые проекции;
+* `process_start`/`process_finish` — процесс работы или взаимодействия:
+  слот, длительность, цель, цена, статус и краткий итог;
+* `ai_choice` — выбранная ИИ работа, веса альтернатив и свободные слоты;
+* `outcome` — проверка исхода: пороги, текущие значения, серии и решение.
+
+Примеры разбора:
+
+```sh
+# последний дневной срез игрока и вклад формул в энергию
+jq -c 'select(.event=="tick" and .side=="red") |
+  {turn, asset_deltas, energy: .breakdowns.energy.terms}' \
+  campaign_stats.log | tail -1
+
+# кто сильнее всех теряет мораль и энергию за такт
+jq -c 'select(.event=="bdi" and .side=="red") |
+  {name, delta}' campaign_stats.log | tail -12
+
+# последние работы: шанс, бросок и применённые эффекты
+jq -c 'select(.event=="work") |
+  {turn, action_id, chance: .chance_formula.chance,
+   roll: .chance_formula.roll, success: .chance_formula.success,
+   applied: .applied.assets}' campaign_stats.log | tail -5
+```
+
+Если `jq` нет, тот же файл читается обычным Python:
+
+```python
+import json
+
+rows = [json.loads(line) for line in open("campaign_stats.log")]
+last = [row for row in rows if row["event"] == "tick"][-1]
+print(last["asset_deltas"])
+print(last["breakdowns"]["supply"]["terms"])
+```
+
+Аудит не влияет на симуляцию: он только читает уже посчитанные значения.
+При выключенном `stats` снимки BDI и разложения активов не строятся, так
+что горячий путь остаётся прежним.
+
 Жёсткого лимита ходов у production-кампаний больше нет: `max_turns`
 равен `None`, и кампания не обрывается на фиксированном цикле. Исход
 определяется состоянием фракций, а `run(turns=...)` остаётся горизонтом

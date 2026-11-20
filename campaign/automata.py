@@ -37,6 +37,7 @@ from .avatar import (
     avatar_from_preset,
     avatar_from_snapshot,
 )
+from .audit import CampaignStats, delta_map
 from .conditions import asset_reason, check_conditions, relation_reason
 from .effects import apply_effects, apply_report
 from .work import build_interaction_work, build_work
@@ -212,6 +213,10 @@ PHYSICAL_SECONDS_PER_REAL_SECOND = 1.0
 REALTIME_DEFAULTS = default_dict("realtime")
 ACTION_PROCESS_DEFAULTS = default_dict("action_process")
 AI_MODEL_DEFAULTS = default_dict("ai_model")
+try:
+    DEBUG_DEFAULTS = default_dict("debug")
+except Exception:  # pragma: no cover - совместимость со старым конфигом
+    DEBUG_DEFAULTS = {"stats": False}
 ASSET_LABELS = default_dict("asset_labels")
 RELATION_MODEL_DEFAULTS = default_dict("relation_model")
 ORDER_MODEL_DEFAULTS = default_dict("order_model")
@@ -389,6 +394,31 @@ def _character_from_record(record, seed):
         archetype=record.get("archetype") or "citizen",
         role=record.get("post_id") or record.get("role") or "citizen",
     )
+    # Пресет хранит силу поста отдельно от BDI-персонажа. Без переноса
+    # все кампанийные люди стартовали с одинаковой силой 10, хотя у
+    # лидера Империи в контенте 26, а у главы собора — 2.
+    character.force = max(
+        0.0, _number(record.get("force"), character.force)
+    )
+    # Без явного максимума ``faction_state`` нормировала силу и энергию
+    # на 1.0, и вклад персонажей в активы ``influence``/``energy``
+    # всегда был равен единице. Для кампанийных персонажей потолок —
+    # их стартовый запас: активы показывают, насколько он просел.
+    state = getattr(character, "state", None)
+    if isinstance(state, dict):
+        state["max_force"] = max(
+            1.0,
+            _number(
+                record.get("max_force"), max(1.0, character.force)
+            ),
+        )
+        state["max_energy"] = max(
+            1.0,
+            _number(
+                record.get("max_energy"),
+                max(1.0, character.energy_pool),
+            ),
+        )
     for need, value in _as_mapping(record.get("needs")).items():
         if need in character.needs:
             character.needs[need] = _clamp(value)
@@ -985,6 +1015,10 @@ class AutomataCampaign:
         self.last_organ_result = None
         self.last_automaton_result = None
         self.last_character_result = None
+        self.debug = _merged_mapping(
+            DEBUG_DEFAULTS, scenario.get("debug")
+        )
+        self.stats = CampaignStats(self, self.debug)
         self.factions: Dict[str, FactionRuntime] = {}
         self._character_index = {}
         self._story_progress = 0.0
@@ -1014,6 +1048,26 @@ class AutomataCampaign:
         self._build_machines()
         if snapshot:
             self.load_snapshot(snapshot)
+        self.stats.log(
+            "campaign_start",
+            preset_id=self.preset_id,
+            seed=self.seed,
+            player_side=self.player_side,
+            rival_side=self.rival_side,
+            speed_levels=list(self.speed_levels),
+            factions=[
+                {
+                    "side": side,
+                    "id": faction.id,
+                    "name": faction.name,
+                    "characters": len(faction.characters),
+                    "organs": len(faction.organs),
+                }
+                for side, faction in self.factions.items()
+            ],
+            model=dict(self.model),
+            upkeep=dict(self.upkeep),
+        )
 
     @staticmethod
     def _load_machine_catalog():
@@ -3758,6 +3812,12 @@ class AutomataCampaign:
         ``1.0`` и остаётся мгновенным.
         """
         side = actor.side
+        stats_before = None
+        if self.stats.enabled and self.stats.actions:
+            stats_before = {
+                "actor": self.stats.assets(actor),
+                "target": self.stats.assets(target_faction),
+            }
         cost = _as_mapping(action.get("cost"))
         chance_spec = _as_mapping(action.get("chance"))
         attack_asset = str(
@@ -3867,7 +3927,7 @@ class AutomataCampaign:
             * repeat_scale
             * executor_factor
         )
-        apply_report(
+        applied = apply_report(
             actor,
             target_faction,
             report,
@@ -3990,6 +4050,91 @@ class AutomataCampaign:
             "text": str(action.get("text") or ""),
         }
         result["report"] = report.as_dict()
+        if stats_before is not None:
+            assets_after = {
+                "actor": self.stats.assets(actor),
+                "target": self.stats.assets(target_faction),
+            }
+            applied_log = {
+                key: value
+                for key, value in applied.items()
+                if key != "report"
+            }
+            self.stats.log(
+                "work",
+                side=actor.side,
+                actor_id=actor.id,
+                actor=actor.name,
+                target_side=target_faction.side,
+                target_id=target_faction.id,
+                target=target_faction.name,
+                action_id=str(action_id),
+                label=str(action.get("label") or action_id),
+                form=str(plan.form),
+                chance_formula={
+                    "base": round(base, 6),
+                    "slope": round(slope, 6),
+                    "attack_asset": attack_asset,
+                    "attack_value": round(attack_value, 6),
+                    "defense_asset": defense_asset,
+                    "defense_value": round(defense_value, 6),
+                    "difference": round(
+                        attack_value - defense_value, 6
+                    ),
+                    "relation_shift": round(relation_shift, 6),
+                    "logit": round(
+                        base
+                        + slope * (attack_value - defense_value)
+                        + relation_shift,
+                        6,
+                    ),
+                    "chance": round(chance, 6),
+                    "roll": round(roll, 6),
+                    "success": bool(success),
+                },
+                modifiers={
+                    "readiness": round(readiness, 6),
+                    "repeat_uses": used_before,
+                    "repeat_decay": round(decay, 6),
+                    "repeat_scale": round(repeat_scale, 6),
+                    "effect_scale": round(effect_scale, 6),
+                    "effect_fraction": round(fraction, 6),
+                    "executor_support": round(executor_support, 6),
+                    "executor_competence": round(
+                        executor_competence, 6
+                    ),
+                    "executor_factor": round(executor_factor, 6),
+                },
+                cost=result["cost"],
+                applied=applied_log,
+                trace=trace,
+                report=(
+                    report.as_dict()
+                    if self.stats.verbose_report
+                    else None
+                ),
+                assets_before=stats_before,
+                assets_after=assets_after,
+                asset_deltas={
+                    "actor": delta_map(
+                        stats_before["actor"], assets_after["actor"]
+                    ),
+                    "target": delta_map(
+                        stats_before["target"], assets_after["target"]
+                    ),
+                },
+                organ={
+                    "id": str(action.get("organ_id") or ""),
+                    "integrity": round(
+                        organ.integrity if organ is not None else 1.0,
+                        6,
+                    ),
+                    "readiness": round(readiness, 6),
+                    "status": (
+                        organ.status() if organ is not None else "нет"
+                    ),
+                },
+            )
         self._log_work(result)
         return result
 
@@ -4255,6 +4400,23 @@ class AutomataCampaign:
         self.processes.append(record)
         self._remember_assignment(executor, record, started=True)
         self._log_process(record, "начата")
+        if self.stats.enabled and self.stats.actions:
+            self.stats.log(
+                "process_start",
+                process_id=record["id"],
+                side=record["side"],
+                action_id=record["action_id"],
+                label=record["label"],
+                target_side=record["target_side"],
+                target_id=record["target_id"],
+                target_name=record["target_name"],
+                duration=record["duration"],
+                finish_at=record["finish_at"],
+                cost=record["cost"],
+                executor_id=record["executor_id"],
+                executor_name=record["executor_name"],
+                slots=self.slot_state(actor.side),
+            )
         return {
             "ok": True,
             "process": dict(record),
@@ -4279,6 +4441,50 @@ class AutomataCampaign:
         self._refund_process(record)
         self.last_process_result = dict(record)
         self._log_process(record, "отменена")
+        self._log_process_stats(record)
+
+    def _log_process_stats(self, record, result=None):
+        """Записать начало/конец процесса в файловый аудит."""
+        if not self.stats.enabled or not self.stats.actions:
+            return
+        result = _as_mapping(result)
+        summary = {}
+        for key in (
+            "ok",
+            "reason",
+            "interaction_id",
+            "organ_id",
+            "organ_name",
+            "integrity_before",
+            "integrity_after",
+            "integrity_delta",
+            "morale_before",
+            "morale_after",
+            "needs_before",
+            "needs_after",
+            "faction_spread",
+            "status",
+            "text",
+        ):
+            if key in result:
+                summary[key] = result[key]
+        self.stats.log(
+            "process_finish",
+            process_id=record.get("id"),
+            kind=record.get("kind") or "work",
+            side=record.get("side"),
+            action_id=record.get("action_id"),
+            label=record.get("label"),
+            target_side=record.get("target_side"),
+            target_id=record.get("target_id"),
+            target_name=record.get("target_name"),
+            status=record.get("status"),
+            duration=record.get("duration"),
+            started=record.get("started"),
+            finished=record.get("finished"),
+            reason=record.get("reason", ""),
+            result=summary,
+        )
 
     def _finish_interaction_process(self, record):
         """Завершить влияние/команду и применить её эффект."""
@@ -4363,6 +4569,7 @@ class AutomataCampaign:
                 record,
                 "завершена" if result.get("ok") else "отменена",
             )
+            self._log_process_stats(record, result)
             return result
         actor = self.faction(record.get("side"))
         action_id = str(record.get("action_id") or "")
@@ -4436,6 +4643,7 @@ class AutomataCampaign:
                     self._refund_process(record)
                 self.last_process_result = dict(record)
                 self._log_process(record, "завершена")
+                self._log_process_stats(record, result)
                 return
         self._cancel_process(record, reason)
 
@@ -4611,6 +4819,29 @@ class AutomataCampaign:
                 started + interval * float(index + 1), 6
             )
         record["effect"] = effect
+        if self.stats.enabled and self.stats.effects:
+            self.stats.log(
+                "effect_pulse",
+                process_id=record.get("id"),
+                side=record.get("side"),
+                action_id=record.get("action_id"),
+                label=record.get("label"),
+                pulse=index,
+                pulses=total,
+                fraction=round(fraction, 6),
+                condition_factor=round(factor, 6),
+                base_scale=round(base_scale, 6),
+                effective_scale=round(
+                    base_scale * fraction * factor, 6
+                ),
+                remaining=effect.get("remaining"),
+                status=effect.get("status"),
+                applied={
+                    key: value
+                    for key, value in applied.items()
+                    if key != "report"
+                },
+            )
         self._log_effect(
             record,
             "импульс эффекта",
@@ -5569,17 +5800,42 @@ class AutomataCampaign:
             side, turn=turn, exclude_active=exclude_active
         )
         if not weighted:
+            if self.stats.enabled and self.stats.actions:
+                self.stats.log(
+                    "ai_choice",
+                    side=str(side),
+                    chosen=None,
+                    reason="нет доступных работ",
+                    slots=self.slot_state(side),
+                )
             return None
         total = sum(weight for _option, weight in weighted)
+        chosen = None
         if total <= 0.0:
-            return weighted[-1][0]["id"]
-        pick = self.rng.random() * total
-        upto = 0.0
-        for option, weight in weighted:
-            upto += weight
-            if pick <= upto:
-                return option["id"]
-        return weighted[-1][0]["id"]
+            chosen = weighted[-1][0]["id"]
+        else:
+            pick = self.rng.random() * total
+            upto = 0.0
+            for option, weight in weighted:
+                upto += weight
+                if pick <= upto:
+                    chosen = option["id"]
+                    break
+            if chosen is None:
+                chosen = weighted[-1][0]["id"]
+        if self.stats.enabled and self.stats.actions:
+            self.stats.log(
+                "ai_choice",
+                side=str(side),
+                chosen=str(chosen),
+                total=round(total, 6),
+                weights={
+                    str(option["id"]): round(weight, 6)
+                    for option, weight in weighted
+                },
+                slots=self.slot_state(side),
+            )
+        return chosen
 
     def advance(
         self,
@@ -6061,6 +6317,23 @@ class AutomataCampaign:
         """
         stored = _as_mapping(faction.organization_snapshot)
         support = _clamp(stored.get("willing_share", 0.5))
+        # Организационный такт теперь равен дню игрового времени.
+        # BDI нельзя прогонять на полные сутки: без еды и сна
+        # потребности уходят в крайности, сила падает до нуля и
+        # организация распадается за пару дней. Поэтому за такт
+        # моделируется короткий «срез» жизни (``bdi_horizon``),
+        # а суточную рутину закрывают эффекты организации. Дробим
+        # срез на шаги, чтобы срабатывали пороги и спилловер.
+        horizon = max(
+            0.0,
+            _number(
+                self.realtime.get("bdi_horizon_seconds"), 1800.0
+            ),
+        )
+        step = max(
+            30.0,
+            _number(self.realtime.get("bdi_tick_seconds"), 900.0),
+        )
         for character in faction.characters:
             if bool(
                 getattr(
@@ -6072,26 +6345,13 @@ class AutomataCampaign:
                 continue
             if not callable(getattr(character, "tick_needs", None)):
                 continue
+            before = (
+                self.stats.character_state(character)
+                if self.stats.enabled
+                else None
+            )
+            simulated = 0.0
             try:
-                # Организационный такт теперь равен дню игрового времени.
-                # BDI нельзя прогонять на полные сутки: без еды и сна
-                # потребности уходят в крайности, сила падает до нуля и
-                # организация распадается за пару дней. Поэтому за такт
-                # моделируется короткий «срез» жизни (``bdi_horizon``),
-                # а суточную рутину закрывают эффекты организации. Дробим
-                # срез на шаги, чтобы срабатывали пороги и спилловер.
-                horizon = max(
-                    0.0,
-                    _number(
-                        self.realtime.get("bdi_horizon_seconds"), 1800.0
-                    ),
-                )
-                step = max(
-                    30.0,
-                    _number(
-                        self.realtime.get("bdi_tick_seconds"), 900.0
-                    ),
-                )
                 left = min(max(0.0, float(seconds)), horizon)
                 while left > 1e-9:
                     chunk = min(step, left)
@@ -6103,16 +6363,40 @@ class AutomataCampaign:
                         rng=getattr(character, "rng", None),
                     )
                     left -= chunk
+                    simulated += chunk
             except Exception:
                 logger.exception(
                     "BDI персонажа %s не обновлён",
                     getattr(character, "name", "?"),
                 )
+                continue
+            if before is None:
+                continue
+            after = self.stats.character_state(character)
+            self.stats.log(
+                "bdi",
+                side=faction.side,
+                character_id=before.get("id"),
+                name=before.get("name"),
+                post=before.get("post"),
+                support=round(support, 6),
+                interval_seconds=round(float(seconds), 3),
+                horizon_seconds=round(horizon, 3),
+                simulated_seconds=round(simulated, 3),
+                before=before,
+                after=after,
+                delta=self.stats.character_delta(before, after),
+            )
 
     def _tick_organizations(self):
         seconds = max(30.0, float(self.organization_interval_seconds))
         self._tick_machines()
         for faction in self.factions.values():
+            before = (
+                self.stats.faction_state(faction)
+                if self.stats.enabled
+                else None
+            )
             self._tick_faction_characters(faction, seconds)
             self._tick_character_autonomy(faction, seconds)
             self._tick_faction_orders(faction)
@@ -6123,6 +6407,7 @@ class AutomataCampaign:
                 for key, value in self.upkeep.items():
                     faction.bump_context(key, -value)
                 tick_organs(faction, faction.organs, self.model)
+                self._log_tick_stats(faction, seconds, before)
                 continue
             snapshot = faction.organization.tick(turn=self.turn)
             initial = max(
@@ -6177,6 +6462,37 @@ class AutomataCampaign:
             for key, value in self.upkeep.items():
                 faction.bump_context(key, -value)
             tick_organs(faction, faction.organs, self.model)
+            self._log_tick_stats(faction, seconds, before)
+
+    def _log_tick_stats(self, faction, seconds, before):
+        """Записать дневной срез: активы, их формулы и BDI-сводку."""
+        if before is None or not self.stats.enabled:
+            return
+        after = self.stats.faction_state(faction)
+        self.stats.log(
+            "tick",
+            side=faction.side,
+            faction=faction.name,
+            seconds=round(float(seconds), 3),
+            assets_before=before.get("assets"),
+            assets_after=after.get("assets"),
+            asset_deltas=delta_map(
+                before.get("assets"), after.get("assets")
+            ),
+            context_before=before.get("context"),
+            context_after=after.get("context"),
+            context_deltas=delta_map(
+                before.get("context"), after.get("context")
+            ),
+            organization=after.get("organization"),
+            characters=after.get("characters"),
+            breakdowns=self.stats.breakdowns(faction),
+            low_streaks={
+                str(key): int(value)
+                for key, value in faction.low_streaks.items()
+            },
+            dissolved=bool(faction.dissolved),
+        )
 
     def _check_outcome(self):
         if self.outcome is not None:
@@ -6191,24 +6507,51 @@ class AutomataCampaign:
                 )
             ),
         )
+        checks = []
+        notable = False
         for side, thresholds in _as_mapping(rules.get("defeat")).items():
             faction = self.faction(side)
             if faction is None:
                 continue
             for asset, threshold in _as_mapping(thresholds).items():
                 key = "%s:%s" % (side, asset)
-                if faction.asset(asset) <= _number(threshold, 0.0) + 1e-9:
+                value = faction.asset(asset)
+                limit = _number(threshold, 0.0)
+                if value <= limit + 1e-9:
                     faction.low_streaks[key] = (
                         faction.low_streaks.get(key, 0) + 1
                     )
                 else:
                     faction.low_streaks[key] = 0
-                if faction.low_streaks.get(key, 0) >= streak_limit:
-                    self.outcome = (
+                streak = faction.low_streaks.get(key, 0)
+                if streak:
+                    notable = True
+                checks.append(
+                    {
+                        "side": str(side),
+                        "asset": str(asset),
+                        "value": round(value, 6),
+                        "threshold": round(limit, 6),
+                        "streak": int(streak),
+                        "streak_limit": int(streak_limit),
+                    }
+                )
+                if streak >= streak_limit:
+                    decision = (
                         "lose" if side == self.player_side else "win"
                     )
+                    if self.stats.enabled and self.stats.outcome:
+                        self.stats.log(
+                            "outcome",
+                            decision=decision,
+                            rule="defeat",
+                            checks=checks,
+                            streak_limit=streak_limit,
+                        )
+                    self.outcome = decision
                     self.finished = True
                     return
+        score_info = None
         if rules.get("score_margin") is not None:
             margin = _number(rules.get("score_margin"), 0.0)
             player = self.player
@@ -6225,9 +6568,11 @@ class AutomataCampaign:
                     return faction.score()
 
             if player is not None and rival is not None:
+                player_score = measure(player)
+                rival_score = measure(rival)
                 difference = (
-                    measure(player)
-                    - measure(rival)
+                    player_score
+                    - rival_score
                     + _number(rules.get("score_bias"), 0.0)
                 )
                 side = (
@@ -6250,14 +6595,44 @@ class AutomataCampaign:
                 else:
                     self.score_streak = 1
                     self.score_streak_side = side
+                if side is not None:
+                    notable = True
+                score_info = {
+                    "basis": basis,
+                    "player": round(player_score, 6),
+                    "rival": round(rival_score, 6),
+                    "difference": round(difference, 6),
+                    "margin": round(margin, 6),
+                    "side": side,
+                    "streak": int(self.score_streak),
+                    "required": int(required),
+                    "after_turn": int(after),
+                }
                 if (
                     self.turn >= after
                     and side is not None
                     and self.score_streak >= required
                 ):
+                    if self.stats.enabled and self.stats.outcome:
+                        self.stats.log(
+                            "outcome",
+                            decision=side,
+                            rule="score",
+                            checks=checks,
+                            score=score_info,
+                        )
                     self.outcome = side
                     self.finished = True
                     return
+        if notable and self.stats.enabled and self.stats.outcome:
+            self.stats.log(
+                "outcome",
+                decision=None,
+                rule="score" if score_info else "defeat",
+                checks=checks,
+                score=score_info,
+                streak_limit=streak_limit,
+            )
 
     def snapshot(self):
         return {
