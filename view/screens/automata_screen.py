@@ -563,6 +563,12 @@ class AutomataScreen(BaseScreen):
         if self._chat_rect().collidepoint(pos):
             self._open_chat()
             return
+        if self._processes_rect().collidepoint(pos):
+            self._open_processes()
+            return
+        if self._emulation_rect().collidepoint(pos):
+            self._open_emulation()
+            return
         if self._execute_rect().collidepoint(pos):
             self._execute_selected()
             return
@@ -637,6 +643,26 @@ class AutomataScreen(BaseScreen):
         """Кнопка «СВЯЗЬ»: свободная область сверху справа."""
         return CHAT_RECT
 
+    def _processes_rect(self):
+        """Кнопка отдельного списка текущих процессов."""
+        return pygame.Rect(820, 14, 150, 40)
+
+    def _emulation_rect(self):
+        """Кнопка запуска эмуляции времени."""
+        return pygame.Rect(980, 14, 146, 40)
+
+    def _open_processes(self):
+        from .campaign_overlays import ProcessesOverlay
+
+        logger.info("Открытие списка процессов кампании")
+        self.app.manager.push(ProcessesOverlay(self.app, self.campaign))
+
+    def _open_emulation(self):
+        from .campaign_overlays import TimeEmulationOverlay
+
+        logger.info("Открытие эмуляции времени")
+        self.app.manager.push(TimeEmulationOverlay(self.app, self.campaign))
+
     def _open_network(self):
         from .automata_network import AutomataNetworkScreen
 
@@ -674,7 +700,11 @@ class AutomataScreen(BaseScreen):
             color = (46, 86, 138)
         pygame.draw.rect(surface, color, rect, border_radius=7)
         pygame.draw.rect(surface, PANEL_BORDER, rect, 2, border_radius=7)
-        text = self.app.font_small.render(label, True, TEXT)
+        text = self.app.font_small.render(
+            fit_line(self.app.font_small, label, rect.width - 16),
+            True,
+            TEXT if enabled else DIM,
+        )
         surface.blit(text, text.get_rect(center=rect.center))
 
     def _draw_preview(self, screen, rect, action, preview, y):
@@ -786,6 +816,26 @@ class AutomataScreen(BaseScreen):
             "СВЯЗЬ",
             enabled=True,
             accent=True,
+        )
+        ongoing = self.campaign.ongoing_processes(
+            self.campaign.player_side
+        )
+        self._draw_button(
+            screen,
+            self._processes_rect(),
+            (
+                "В РАБОТЕ · %d" % len(ongoing)
+                if ongoing
+                else "В РАБОТЕ"
+            ),
+            enabled=True,
+            accent=bool(ongoing),
+        )
+        self._draw_button(
+            screen,
+            self._emulation_rect(),
+            "ЭМУЛЯЦИЯ",
+            enabled=not self.campaign.finished,
         )
 
         _panel(screen, LEFT_RECT)
@@ -1177,40 +1227,31 @@ class AutomataScreen(BaseScreen):
             )
             slots = self.campaign.slot_state()
             if active:
-                parts = []
-                for item in active[:2]:
-                    duration = max(1e-6, float(item.get("duration", 0.0)))
-                    left = max(0.0, float(item.get("remaining", 0.0)))
-                    parts.append(
-                        "%s — %s"
-                        % (
-                            item.get("label") or item.get("action_id"),
-                            progress_phrase(
-                                1.0 - min(1.0, left / duration)
-                            ),
-                        )
-                    )
-                hint = "В работе: %s · слоты %d/%d" % (
-                    ", ".join(parts),
+                hint = "В работе %d · эффектов %d · слоты %d/%d" % (
+                    len(active),
+                    len(settling),
                     slots["used"],
                     slots["slots"],
                 )
-                if settling:
-                    hint += " · эффект: %d" % len(settling)
             elif settling:
                 hint = (
-                    "Эффект разворачивается: %d · свободно слотов: %d"
+                    "Эффектов %d · свободно слотов %d"
                     % (len(settling), slots["free"])
                 )
             else:
-                hint = (
-                    "Выбрано: %s · свободно слотов: %d"
-                    % (
-                        self.selected_action_id or "ничего",
-                        slots["free"],
-                    )
+                hint = "Свободно слотов %d · выбрано: %s" % (
+                    slots["free"],
+                    self.selected_action_id or "ничего",
                 )
             screen.blit(
-                self.app.font_tiny.render(hint, True, DIM),
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny,
+                        hint,
+                        self._execute_rect().x - BOTTOM_RECT.x - 20,
+                    ),
+                    True,
+                    DIM,
+                ),
                 (BOTTOM_RECT.x + 10, BOTTOM_RECT.y + 20),
             )

@@ -171,7 +171,7 @@ def test_character_interaction_writes_character_to_faction(campaign):
     )
     assert started["ok"]
     assert started.get("started")
-    campaign.advance_time(3700)
+    campaign.advance_time(started["duration"] + 1)
     result = campaign.last_character_result
     assert result["ok"]
     assert result["relations"]

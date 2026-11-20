@@ -36,6 +36,31 @@
       "month": 720.0,
       "season": 2160.0
     },
+    "interaction_durations": {
+      "organ": {
+        "reinforce": {"class": "day", "amount": 1.0},
+        "reform": {"class": "week", "amount": 2.0},
+        "purge": {"class": "week", "amount": 1.0},
+        "resupply": {"class": "day", "amount": 2.0}
+      },
+      "automaton": {
+        "coordinate": {"class": "hour", "amount": 6.0},
+        "transfer": {"class": "day", "amount": 1.0},
+        "directive": {"class": "hour", "amount": 12.0},
+        "escalate": {"class": "day", "amount": 1.0}
+      },
+      "character": {
+        "promote": {"class": "week", "amount": 1.0},
+        "reward": {"class": "day", "amount": 1.0},
+        "reassure": {"class": "hour", "amount": 3.0},
+        "interrogate": {"class": "hour", "amount": 6.0},
+        "social_command": {"class": "hour", "amount": 1.0},
+        "social_promise": {"class": "hour", "amount": 1.0},
+        "social_threat": {"class": "hour", "amount": 1.0},
+        "social_offer": {"class": "hour", "amount": 1.0},
+        "social_apology": {"class": "hour", "amount": 1.0}
+      }
+    },
     "settlement": {
       "support_assets": ["legitimacy", "cohesion", "supply"],
       "obstacle_assets": ["fear"],

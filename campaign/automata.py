@@ -1845,24 +1845,33 @@ class AutomataCampaign:
         self.speed = int(allowed[0])
         return True
 
-    def _advance_seconds(self, seconds):
+    def _advance_seconds(
+        self, seconds, *, scale=True, tick_rounds=True, tick_ai=True
+    ):
         """Продвинуть состояние без построения снимка.
 
         ``seconds`` — уже игровые секунды (до умножения на ``speed``).
         Это горячий путь игрового цикла: экран обновляется 60 раз в
         секунду, а ``snapshot()`` обходит всех персонажей и органы.
         Поэтому снимок строится только по явному запросу.
+
+        ``scale=False`` нужен эмуляции: она пропускает выбранный
+        интервал игрового времени целиком, не умножая его на скорость.
+        ``tick_rounds=False`` и ``tick_ai=False`` тоже нужны эмуляции:
+        длинный шаг не должен прогонять полную автономию персонажей и
+        все ответы ИИ на каждый игровой день.
         """
         if self.finished:
             return
         if seconds <= 0.0:
             return
         self._activate_clock()
-        scaled = seconds * float(self.speed)
+        scaled = seconds * float(self.speed) if scale else float(seconds)
         self.elapsed += scaled
         self._regenerate_actions(scaled)
-        self._advance_ai(scaled)
-        self._advance_rounds(scaled)
+        if tick_ai:
+            self._advance_ai(scaled)
+        self._advance_rounds(scaled, tick_rounds=tick_rounds)
         self._advance_story_events(scaled)
         self._advance_processes(scaled)
 
@@ -1899,6 +1908,31 @@ class AutomataCampaign:
         except (TypeError, ValueError):
             seconds = 0.0
         self._advance_seconds(seconds * self.realtime_scale)
+        return self.snapshot() if snapshot else None
+
+    def advance_simulation(self, seconds, *, snapshot=False, tick=True):
+        """Пропустить ровно ``seconds`` игрового времени.
+
+        В отличие от ``advance_time``/``advance_realtime`` множитель
+        скорости не применяется: эмуляция принимает шаг в игровых часах
+        или днях. Это осознанный пропуск времени, а не ускорение темпа,
+        поэтому физический инвариант реального цикла не меняется.
+
+        ``tick=False`` пропускает организационный такт и ответ ИИ:
+        месяцы и годы нельзя прогонять полной автономией всех персонажей
+        на каждый день. Эмуляция включает такт несколько раз за шаг,
+        а работа, события и процессы считаются на всём интервале.
+        """
+        try:
+            seconds = float(seconds)
+        except (TypeError, ValueError):
+            seconds = 0.0
+        self._advance_seconds(
+            seconds, scale=False, tick_rounds=False, tick_ai=bool(tick)
+        )
+        if tick and not self.finished and seconds > 0.0:
+            self._tick_organizations()
+            self._check_outcome()
         return self.snapshot() if snapshot else None
 
     def _regenerate_actions(self, seconds):
@@ -1949,17 +1983,44 @@ class AutomataCampaign:
             started.append(action_id)
         return started
 
-    def _advance_rounds(self, seconds):
+    def _history_record(self):
+        """Короткая запись хода для истории.
+
+        Полный ``snapshot()`` обходит всех персонажей и органы. История
+        нужна только как хронология циклов, поэтому хранит сводку, а не
+        тяжёлый снимок мира.
+        """
+        return {
+            "turn": int(self.turn),
+            "elapsed": round(float(self.elapsed), 6),
+            "outcome": self.outcome,
+            "finished": bool(self.finished),
+        }
+
+    def _advance_rounds(self, seconds, *, tick_rounds=True):
         if self.finished:
             return
         self._round_progress += seconds
         interval = self.organization_interval_seconds
-        while self._round_progress >= interval and not self.finished:
-            self._round_progress -= interval
+        if interval <= 0.0:
+            return
+        steps = int(self._round_progress // interval)
+        if steps <= 0:
+            return
+        self._round_progress -= steps * interval
+        if not tick_rounds:
+            # Эмуляция: ходы идут, но полный такт организаций будет
+            # вызван отдельными «крупными» срезами.
+            self.turn += steps
+            self.history.append(self._history_record())
+            return
+        for _ in range(steps):
+            if self.finished:
+                break
             self.turn += 1
             self._tick_organizations()
             self._check_outcome()
-            self.history.append(self.snapshot())
+            self.history.append(self._history_record())
 
     # --- ролевые события -------------------------------------------
     def _story_character_stats(self, character):
@@ -2588,7 +2649,7 @@ class AutomataCampaign:
         }
         for key, value in cost.items():
             faction.add_asset(key, -value)
-        seconds = self._action_duration(interaction)
+        seconds = self._interaction_duration(kind, interaction)
         self._process_seq += 1
         record = {
             "id": "process-%d" % self._process_seq,
@@ -4033,6 +4094,42 @@ class AutomataCampaign:
         if raw is None:
             raw = 1.0
         return max(minimum, _number(raw, 1.0) * max(0.0, scale))
+
+    def _interaction_duration(self, kind, interaction, duration=None):
+        """Длительность влияния или команды с учётом политики видов.
+
+        Шаблоны в лорных фракциях исторически хранят ``duration: 1.0``
+        (час). Реалистичный темп задаётся один раз в
+        ``action_process.interaction_durations``: реформа — недели,
+        повышение — неделя, поддержка — часы. Явная длительность
+        вызова остаётся главнее политики.
+        """
+        minimum = max(
+            0.0, _number(self.action_process.get("min_duration"), 1.0)
+        )
+        if duration is not None:
+            return max(minimum, _number(duration, minimum))
+        explicit = interaction.get("duration")
+        if explicit is not None:
+            return max(minimum, _number(explicit, minimum))
+        policies = _as_mapping(
+            self.action_process.get("interaction_durations")
+        )
+        entry = _as_mapping(
+            _as_mapping(policies.get(str(kind))).get(
+                str(interaction.get("id"))
+            )
+        )
+        class_hours = self._duration_class_hours(entry.get("class"))
+        if class_hours > 0.0:
+            amount = _number(entry.get("amount"), 1.0)
+            return max(
+                minimum,
+                class_hours
+                * max(0.0, amount)
+                * self._duration_unit_seconds(),
+            )
+        return self._action_duration(interaction, duration)
 
     def _action_effect_window(self, action, duration):
         """Сколько игровых секунд эффект действия разворачивается.
@@ -5574,7 +5671,7 @@ class AutomataCampaign:
             self._auto_play_side(side, self.actions_per_turn)
         self._tick_organizations()
         self._check_outcome()
-        self.history.append(self.snapshot())
+        self.history.append(self._history_record())
         self.actions_left = 0
         self._turn_active = False
         return self.snapshot()

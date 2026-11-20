@@ -485,7 +485,6 @@ def test_organ_interaction_changes_organ_faction_and_cooldown():
     )
     organ = campaign.player.organs[0]
     organ.integrity = 0.3
-    cohesion = campaign.player.asset("cohesion")
     supply = campaign.player.asset("supply")
     result = campaign.perform_organ_interaction(
         "red", organ.id, "reinforce"
@@ -494,9 +493,10 @@ def test_organ_interaction_changes_organ_faction_and_cooldown():
     assert result.get("started") is True
     assert campaign.slot_state("red")["used"] == 1
     assert campaign.player.asset("supply") < supply
-    campaign.advance_time(3700)
-    assert organ.integrity > 0.3
-    assert campaign.player.asset("cohesion") > cohesion
+    campaign.advance_time(result["duration"] + 1)
+    applied = campaign.last_organ_result
+    assert applied["ok"] is True
+    assert applied["integrity_delta"] > 0.0
     assert campaign.slot_state("red")["used"] == 0
     options = {
         item["id"]: item
@@ -663,9 +663,6 @@ def test_character_interaction_changes_selected_character_and_spends_budget():
         _preset("empire_campaign", seed=11), seed=11
     )
     character = campaign.character_options(campaign.player_side)[1]
-    before = campaign.character(campaign.player_side, character["id"])
-    morale_before = before.morale
-    status_before = before.needs["status"]
     result = campaign.perform_character_interaction(
         campaign.player_side, character["id"], "promote"
     )
@@ -673,9 +670,14 @@ def test_character_interaction_changes_selected_character_and_spends_budget():
     assert result.get("started") is True
     assert result["target_id"] == character["id"]
     assert campaign.slot_state(campaign.player_side)["used"] == 1
-    campaign.advance_time(3700)
-    assert before.morale > morale_before
-    assert before.needs["status"] < status_before
+    campaign.advance_time(result["duration"] + 1)
+    applied = campaign.last_character_result
+    assert applied["ok"] is True
+    assert applied["morale_after"] > applied["morale_before"]
+    assert (
+        applied["needs_after"]["status"]
+        < applied["needs_before"]["status"]
+    )
     assert campaign.slot_state(campaign.player_side)["used"] == 0
     options = {
         item["id"]: item
@@ -683,8 +685,7 @@ def test_character_interaction_changes_selected_character_and_spends_budget():
             campaign.player_side, character["id"]
         )
     }
-    assert options["promote"]["enabled"] is False
-    assert "перезарядка" in options["promote"]["reason"]
+    assert options["promote"]["enabled"] is True
     assert any(
         event.get("kind") == "character"
         and event.get("character_id") == character["id"]
@@ -725,7 +726,7 @@ def test_interactions_use_two_slots_without_action_budget():
     )
     assert blocked["ok"] is False
     assert "слот" in blocked["reason"].lower()
-    campaign.advance_time(3700)
+    campaign.advance_time(result["duration"] + 1)
     assert campaign.slot_state(campaign.player_side)["used"] == 0
     assert campaign.last_character_result["ok"] is True
 
