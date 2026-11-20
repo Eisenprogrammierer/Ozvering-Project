@@ -675,12 +675,11 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
   доменных псевдонимов и runtime-хук стилевых подсказок;
   `has_leverage`/`blackmail` закрыты.
 
-Связанные решения: G-19…G-23 в
-[`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) (G-18 закрыт для
-арены и кампании), фаза P10 в
-[`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md),
-[`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) — архитектура стилевого
-слоя, автовыбор и дискурсивный слой.
+Связанные документы: открытые задачи диалога —
+[`TODO.md`](TODO.md), архитектура —
+[`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) (история фаз D0–D7 —
+[`history/DIALOGUE_NLG_PHASES.md`](history/DIALOGUE_NLG_PHASES.md)),
+стилевой слой — [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md).
 
 ### 5.10. «Хочу проверить, что ничего не сломал»
 
@@ -772,14 +771,14 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | [`history/UI.md`](history/UI.md) | исторический легаси-клиент `ui/`, сцены, сейвы, RTS |
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании четырёх фракций-автоматов, конвейер работы и правила обработчика |
 | [`history/WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) | исходный GAP-анализ работы как сообщения и статус закрытия (§0.1) |
-| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | план миграции, фактические фазы и остаток (§0.5) |
+| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | статус и остаток миграции работы |
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия: метрический граф, локальные углы, пути |
 | [`CONTENT.md`](CONTENT.md) | JSON-контент, загрузчики, добавление/правка |
 | [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) | BDI, 15 делений, события и производные активы фракции |
-| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит: что в коде мешает контенту быть данными; G-19 — диалог и его срезы, G-20…G-23 — стили/автовыбор/дискурс/сравнения |
-| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | план P0–P10 до полноценного Data-Driven ядра |
-| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог на естественном языке без LLM: архитектура, фазы D0–D6 |
-| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль реализатора, диагноз отвергнутого подхода, прогресс D5.1–D5.4 и D3.2, автовыбор D5.2 |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | только открытые GAP-пункты; полный аудит — в `history/` |
+| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | только открытые фазы; полный план — в `history/` |
+| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | диалог без LLM: архитектура, разбор, синтез, эпистемика |
+| [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой: регистровый профиль, автовыбор, дискурс |
 | [`CONTENT_PLAN_LORE.md`](CONTENT_PLAN_LORE.md) | контент-план по `лор.pdf`: предикаты, сути, работы, автоматы |
 | [`AGENTS.md`](AGENTS.md), [`ALGORITHMS.md`](ALGORITHMS.md) | политики, обучение, формулы, чекпойнты |
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов |

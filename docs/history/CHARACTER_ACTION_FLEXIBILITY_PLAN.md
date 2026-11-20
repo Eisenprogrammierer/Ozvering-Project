@@ -6,11 +6,11 @@
 > **Дата:** 2026-11-15.
 >
 > **Основание:** [`CHARACTER_ACTION_FLEXIBILITY_GAP.md`](CHARACTER_ACTION_FLEXIBILITY_GAP.md)
-> (F-01…F-23), [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) (§5 №15),
-> [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
-> [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md),
-> [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md),
-> [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md).
+> (F-01…F-23), [`SOURCE_OF_TRUTH.md`](../SOURCE_OF_TRUTH.md) (§5 №15),
+> [`WORLD_CORE_MODEL.md`](../WORLD_CORE_MODEL.md),
+> [`DIALOGUE_NLG.md`](../DIALOGUE_NLG.md),
+> [`DATA_DRIVEN_CORE_PLAN.md`](../DATA_DRIVEN_CORE_PLAN.md),
+> [`WORK_MECHANIC_PLAN.md`](../WORK_MECHANIC_PLAN.md).
 >
 > **Цель:** сделать играбельными любого персонажа (музыкант, школьник,
 > император, верховный жрец) и любые действия в рамках сюжета (поцелуй,

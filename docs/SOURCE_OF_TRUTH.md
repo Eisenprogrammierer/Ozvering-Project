@@ -624,7 +624,7 @@ BDI — не третий тип и не отдельная онтология. 
 | [`FORMULAS.md`](FORMULAS.md) | формулы ядра, арены, кампании и легаси: обозначения, единицы, примеры | справочник текущего кода + целевых констант |
 | [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация |
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы, конвейер работы | текущая реализация |
-| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | план закрытия GAP: фазы, флаги, DoD, фактический статус (§0.5) | план + отчёт о выполнении |
+| [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) | действующий конвейер работы и открытый остаток; полный план — в `history/` | статус + остаток |
 | [`AUTOMATA_GEOMETRY.md`](AUTOMATA_GEOMETRY.md) | семантическая геометрия автоматов: расстояния, углы, ориентация из JSON | текущая реализация (этап A) + план |
 | [`AGENTS.md`](AGENTS.md) | слой обучаемых агентов и RL-срез `core41` | текущая реализация |
 | [`ALGORITHMS.md`](ALGORITHMS.md) | точный справочник алгоритмов: такт, формулы, признаки, Duel-MLP, обучение | текущая реализация |
@@ -638,12 +638,10 @@ BDI — не третий тип и не отдельная онтология. 
 | [`AUTOMATA.md`](AUTOMATA.md) | редактор автоматов | текущий инструмент |
 | [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
-| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, фазы D0–D6, прогресс D0–D5.4/D3.2/D6.2a | текущая реализация + план |
+| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, разбор, синтез, эпистемика | текущая реализация |
 | [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
-| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | аудит G-1…G-23: что в коде мешает контенту быть данными | аудит, не канон |
-| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | фазы P0–P10 перевода ядра на данные | план |
-| [`CHARACTER_ACTION_FLEXIBILITY_GAP.md`](CHARACTER_ACTION_FLEXIBILITY_GAP.md) | аудит F-01…F-23: гибкость выбора персонажа, действий, диалога и эпистемики | аудит, не канон |
-| [`CHARACTER_ACTION_FLEXIBILITY_PLAN.md`](CHARACTER_ACTION_FLEXIBILITY_PLAN.md) | фазы P0–P7: от роли-лидера к управляемому персонажу, открытым работам и эпистемике | план |
+| [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | только открытые GAP-пункты; полный аудит — в `history/` | аудит, не канон |
+| [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | только открытые фазы; полный план — в `history/` | план |
 | [`ONBOARDING.md`](ONBOARDING.md) | карта проекта по потребностям | руководство |
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
@@ -671,6 +669,12 @@ BDI — не третий тип и не отдельная онтология. 
 | [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md) | дизайн lossy/LOD/энтропии в легаси-`simulation.py` | исторический |
 | [`history/UI.md`](history/UI.md) | легаси-клиент `ui/`: сцены, сейвы, RTS | исторический |
 | [`history/WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) | GAP-анализ работы как сообщения и статус закрытия (§0.1) | исторический аудит |
+| [`history/CHARACTER_ACTION_FLEXIBILITY_GAP.md`](history/CHARACTER_ACTION_FLEXIBILITY_GAP.md) | аудит F-01…F-23: гибкость персонажа, действий, диалога и эпистемики | исторический аудит (закрыт) |
+| [`history/CHARACTER_ACTION_FLEXIBILITY_PLAN.md`](history/CHARACTER_ACTION_FLEXIBILITY_PLAN.md) | фазы P0–P7 закрытия F-01…F-23 | исторический план (выполнен) |
+| [`history/DATA_DRIVEN_CORE_GAPS_FULL.md`](history/DATA_DRIVEN_CORE_GAPS_FULL.md) | полный аудит G-01…G-23 | исторический аудит |
+| [`history/DATA_DRIVEN_CORE_PLAN_FULL.md`](history/DATA_DRIVEN_CORE_PLAN_FULL.md) | полный план P0–P10 | исторический план |
+| [`history/WORK_MECHANIC_PLAN_FULL.md`](history/WORK_MECHANIC_PLAN_FULL.md) | полный план фаз 0–7 | исторический план |
+| [`history/CHAT_STYLES_PLAN_FULL.md`](history/CHAT_STYLES_PLAN_FULL.md) | первый подход и полный прогресс стилевого слоя | исторический план |
 
 **Правило статусов.** Документ из §6.2 не является каноном и не обязан
 совпадать с кодом. Если его вывод нужен для решения, сначала проверьте
@@ -696,10 +700,8 @@ BDI — не третий тип и не отдельная онтология. 
 | §2.3.5 | план среды арены (A12) | связь кампанийных стратегий узлов с аренным планом |
 | §2.8 | `F/E/H` у персонажа, реестр проекций | полная миграция `power/cohesion/...` |
 | §2.10 | `relation_effect()` на приёме, `affinity` в автономии | полное влияние `trust/fear/respect` на обработчик и выход |
-| §5 №15, [`CHARACTER_ACTION_FLEXIBILITY_GAP.md`](CHARACTER_ACTION_FLEXIBILITY_GAP.md) F-23 | **закрыто:** `campaign/perception.py` (`Signal`/`Perception`/`WorldView`), провенанс `Fact`/`DialogueMemory`, группы `perceived/believed/said`, opt-in `build_knowledge(view=...)`; `bdi.Belief.source` заполняется | narration по конкретному зрителю вместо флага `visible`; расширение каналов за пределы пяти |
 | [`AGENTS.md`](AGENTS.md) §5 | `IntentQueue`, слоты, `tick()` (A5) | production-планировщик: сквозной игровой цикл игрока |
 | [`AGENTS.md`](AGENTS.md) §5 | многофазный план и цели среды — фон | полноценная стратегическая политика среды (`force/defense/in_open`) |
-| [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) §10 | D0–D5.4, D3.2, D6.1, D6.2a–d, D6.3, D6.4 и D7.0–D7.4; контрфакты, отрицание, «то»-клауза, `predicate_relations`, условия/уступки/речь, beam, корпус парафраз, раскрытие и ложь, аудит лексикона, цели/мост/императивы/псевдонимы, история/откат/подсказки, social-действия, `has_leverage`/`blackmail`, перемещение, ожидание и темп, описание сцены | — |
 
 Закрыты и не являются блокерами: единицы `E/F/W`, конверсии и энтропия,
 логистика и её коэффициенты, отношения и обязательства, проекции старых
@@ -763,7 +765,7 @@ D7.4 (описание сцены из story/log/events).
   apply_report` применяет проекции. Арена вызывает
   `_receive_channel` из `resolve_work`. Дневной мир (фаза 4b), открытый
   payload-реестр и квинтуплы остаются остатком —
-  [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §0.5.
+  [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §2.
 - Легаси-спецификации [`history/MODEL.md`](history/MODEL.md),
   [`history/BASELINE.md`](history/BASELINE.md),
   [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md),

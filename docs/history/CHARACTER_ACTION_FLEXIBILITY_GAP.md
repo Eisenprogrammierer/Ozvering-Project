@@ -13,13 +13,13 @@
 > объятие, издание закона, жертва языческому богу, — с учётом диалоговой
 > гибкости.
 >
-> **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
-> [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
-> [`ONBOARDING.md`](ONBOARDING.md), [`SUMMARY.md`](SUMMARY.md),
-> [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md),
-> [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md),
-> [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md),
-> [`INTERACTION.md`](INTERACTION.md),
+> **Связанные документы:** [`SOURCE_OF_TRUTH.md`](../SOURCE_OF_TRUTH.md),
+> [`WORLD_CORE_MODEL.md`](../WORLD_CORE_MODEL.md),
+> [`ONBOARDING.md`](../ONBOARDING.md), [`SUMMARY.md`](../SUMMARY.md),
+> [`DIALOGUE_NLG.md`](../DIALOGUE_NLG.md),
+> [`DATA_DRIVEN_CORE_GAPS.md`](../DATA_DRIVEN_CORE_GAPS.md),
+> [`WORK_MECHANIC_PLAN.md`](../WORK_MECHANIC_PLAN.md),
+> [`INTERACTION.md`](../INTERACTION.md),
 > [`CHARACTER_ACTION_FLEXIBILITY_PLAN.md`](CHARACTER_ACTION_FLEXIBILITY_PLAN.md).
 
 ---
@@ -85,7 +85,7 @@
 - Это не оценка художественного качества лора и не предложение сюжетов.
 - Это не реализация и не ТЗ на конкретный патч: план фаз лежит отдельно.
 - Числа и пути относятся к head дерева на 2026-11-15; при расхождении
-  действуют [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md) и код.
+  действуют [`SOURCE_OF_TRUTH.md`](../SOURCE_OF_TRUTH.md) и код.
 
 ### 1.3. Термины
 

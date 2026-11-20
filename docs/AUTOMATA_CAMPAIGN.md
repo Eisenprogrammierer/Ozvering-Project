@@ -9,7 +9,7 @@
 > проекции. Именованные работы сохраняются как шаблоны возможностей;
 > эффект вычисляет `configs/campaigns/base/handlers/*.json`. Дневной мир
 > пока остаётся отдельным конвейером (фаза 4b). Статус —
-> [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §0.5, разбор —
+> [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §2, разбор —
 > [`WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) §0.1.
 
 ## 1. Что моделируется
@@ -518,7 +518,7 @@ capability (JSON)
 `configs/naming/interactions` не подключены (GAP-12); шанс по-прежнему
 считается по паре активов из блока `chance` (GAP-05, частично).
 Актуальный статус — [`WORK_MECHANIC_GAP.md`](history/WORK_MECHANIC_GAP.md) §0.1,
-[`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §0.5.
+[`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §2.
 
 **Почему не «одна работа из контекста».** Переход к полностью вычисляемой
 работе требует планировщика, который объясняет выбор, и калибровки;
