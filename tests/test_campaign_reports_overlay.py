@@ -373,3 +373,63 @@ def test_overlay_waits_for_intercept_delivery():
     assert overlay._can_open(item)
     overlay.draw(pygame.Surface((1280, 720)))
     app.quit()
+
+
+def test_overlay_uses_countermeasure_after_opening(monkeypatch):
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    item = _intercept(campaign)
+    overlay = ReportsOverlay(app, campaign)
+    spent = []
+    monkeypatch.setattr(
+        campaign,
+        "_spend_player_action",
+        lambda side: spent.append(str(side)),
+    )
+    overlay._open_intercept(item)
+    assert item["status"] == "open"
+
+    options = campaign.intercept_counters(item["id"])
+    assert [option["id"] for option in options] == ["warn", "expose"]
+    overlay.draw(pygame.Surface((1280, 720)))
+    rect = overlay._counter_rects(options)[0]
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, pos=rect.center, button=1
+        )
+    )
+
+    assert item["counter"] == "warn"
+    assert spent == [campaign.player_side, campaign.player_side]
+    assert "предупреждён" in overlay.message
+    lines = overlay._intercept_lines(item)
+    assert any("предупреждён" in line for line in lines)
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()
+
+
+def test_overlay_countermeasure_waits_for_revealed_motive():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    item = _intercept(campaign)
+    overlay = ReportsOverlay(app, campaign)
+    campaign.open_intercept(item["id"])
+    options = campaign.intercept_counters(item["id"])
+    overlay.draw(pygame.Surface((1280, 720)))
+    rect = overlay._counter_rects(options)[1]
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, pos=rect.center, button=1
+        )
+    )
+
+    assert item.get("counter") is None
+    assert "мотив" in overlay.message
+    item["motive"] = "выгода"
+    item["motive_revealed"] = True
+    options = campaign.intercept_counters(item["id"])
+    assert options[1]["available"] is True
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()

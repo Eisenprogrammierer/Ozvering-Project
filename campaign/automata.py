@@ -2395,6 +2395,16 @@ class AutomataCampaign:
         """Вскрыть перехваченное донесение за действие игрока."""
         return self.dispatch.open_intercept(intercept_id)
 
+    def intercept_counters(self, intercept_id):
+        """Контрмеры, доступные по вскрытому перехвату."""
+        return self.dispatch.countermeasure_options(
+            self.dispatch.intercept(intercept_id)
+        )
+
+    def use_intercept(self, intercept_id, counter_id):
+        """Потратить вскрытый перехват на контрмеру."""
+        return self.dispatch.use_intercept(intercept_id, counter_id)
+
     def _record_report_event(self, report):
         """Положить доклад в повествовательную ленту кампании."""
         entry = {

@@ -178,19 +178,31 @@ class ReportsOverlay(OverlayScreen):
             )
         if item.get("motive_revealed") and item.get("motive"):
             lines.append("Мотив: %s" % item.get("motive"))
+        counter_text = str(item.get("counter_text") or "")
+        if counter_text:
+            lines.append("")
+            lines.extend(
+                wrap_text(self.app.font_small, counter_text, rect.width)
+            )
         return lines[:limit]
 
     def _choice_rects(self, report):
         choices = list(report.get("choices") or ())
-        if not choices:
+        return self._button_rects(len(choices))
+
+    def _counter_rects(self, options):
+        return self._button_rects(len(options))
+
+    def _button_rects(self, count):
+        if not count:
             return []
         panel = self.panel.rect
         inner = panel.width - 40
-        gap = CHOICE_GAP * (len(choices) - 1)
-        width = max(80, (inner - gap) // len(choices))
+        gap = CHOICE_GAP * (count - 1)
+        width = max(80, (inner - gap) // count)
         top = panel.bottom - 58
         rects = []
-        for position in range(len(choices)):
+        for position in range(count):
             left = panel.x + 20 + position * (width + CHOICE_GAP)
             rects.append(pygame.Rect(left, top, width, CHOICE_H))
         return rects
@@ -238,7 +250,10 @@ class ReportsOverlay(OverlayScreen):
             self.message = ""
             return
         if self._is_intercept(report):
-            self._open_intercept(report)
+            if str(report.get("status") or "") == "open":
+                self._use_counter(report, event.pos)
+            else:
+                self._open_intercept(report)
             return
         if str(report.get("status") or "") != "pending":
             return
@@ -280,6 +295,32 @@ class ReportsOverlay(OverlayScreen):
                 result.get("reason") or "Перехват не вскрыт."
             )
 
+    def _use_counter(self, item, pos):
+        options = self.campaign.intercept_counters(item.get("id"))
+        for rect, option in zip(
+            self._counter_rects(options), options
+        ):
+            if not rect.collidepoint(pos):
+                continue
+            if not option.get("available"):
+                self.last_result = None
+                self.message = str(
+                    option.get("reason") or "Контрмера недоступна."
+                )
+                return
+            result = self.campaign.use_intercept(
+                item.get("id"), option.get("id")
+            )
+            if result.get("ok"):
+                self.last_result = result
+                self.message = str(result.get("text") or "")
+            else:
+                self.last_result = None
+                self.message = str(
+                    result.get("reason") or "Контрмера не принята."
+                )
+            return
+
     # --- рисование --------------------------------------------------
     def _choice_label(self, report, choice):
         label = str(choice.get("label") or choice.get("id"))
@@ -291,13 +332,18 @@ class ReportsOverlay(OverlayScreen):
             label = "%s · %d" % (label, cost)
         return label
 
-    def _draw_choice(self, screen, rect, label):
-        pygame.draw.rect(screen, (46, 86, 138), rect, border_radius=6)
+    def _draw_choice(self, screen, rect, label, enabled=True):
+        pygame.draw.rect(
+            screen,
+            (46, 86, 138) if enabled else (32, 39, 53),
+            rect,
+            border_radius=6,
+        )
         pygame.draw.rect(screen, PANEL_BORDER, rect, 2, border_radius=6)
         surface = self.app.font_small.render(
             fit_line(self.app.font_small, label, rect.width - 16),
             True,
-            TEXT,
+            TEXT if enabled else DIM,
         )
         screen.blit(
             surface,
@@ -439,6 +485,23 @@ class ReportsOverlay(OverlayScreen):
                 if price:
                     label = "%s · %d" % (label, price)
                 self._draw_choice(screen, self._intercept_rect(), label)
+            elif str(item.get("status") or "") == "open" and not item.get(
+                "counter"
+            ):
+                options = self.campaign.intercept_counters(item.get("id"))
+                for rect, option in zip(
+                    self._counter_rects(options), options
+                ):
+                    label = str(option.get("label") or option.get("id"))
+                    price = int(option.get("price") or 0)
+                    if price:
+                        label = "%s · %d" % (label, price)
+                    self._draw_choice(
+                        screen,
+                        rect,
+                        label,
+                        enabled=bool(option.get("available")),
+                    )
             return
 
         if str(item.get("status") or "") == "pending":
@@ -456,6 +519,8 @@ class ReportsOverlay(OverlayScreen):
         if not self._is_intercept(item):
             return "ожидает решения" if status == "pending" else "закрыт"
         if status == "open":
+            if item.get("counter"):
+                return "перехват · контрмера принята"
             return "перехват · вскрыт"
         if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
             return "перехват · в пути"
@@ -494,8 +559,12 @@ class ReportsOverlay(OverlayScreen):
 
     def _note_label(self, item):
         if self._is_intercept(item):
+            if item.get("counter"):
+                return str(
+                    item.get("counter_text") or "Контрмера принята."
+                )
             if item.get("status") == "open":
-                return "Перехват вскрыт."
+                return "Перехват вскрыт. Выберите контрмеру."
             if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
                 return "Ожидайте доставки."
             return "Донесение можно вскрыть за действие."

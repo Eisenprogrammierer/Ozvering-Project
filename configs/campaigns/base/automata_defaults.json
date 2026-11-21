@@ -360,7 +360,42 @@
       "in_transit_text": "Донесение ещё в пути: шифр доставят позже.",
       "open_text": "Шифр вскрыт. Донесение прочитано.",
       "source_unknown": "источник неизвестен",
-      "decision_unknown": "решение фракции неизвестно"
+      "decision_unknown": "решение фракции неизвестно",
+      "countermeasures": [
+        {
+          "id": "warn",
+          "label": "Предупредить лидера",
+          "price_actions": 1,
+          "belief": {
+            "predicate": "sees_as_threat",
+            "target": "origin_faction",
+            "value": 0.7,
+            "confidence": 0.8
+          },
+          "morale": 0.5,
+          "text": "Лидер предупреждён о замысле {faction}."
+        },
+        {
+          "id": "expose",
+          "label": "Подорвать источник",
+          "price_actions": 1,
+          "requires_motive": true,
+          "enemy_belief": {
+            "predicate": "feels_betrayed_by",
+            "target": "source",
+            "value": 0.8,
+            "confidence": 0.75
+          },
+          "relation": {
+            "trust": -0.06,
+            "affinity": -0.04
+          },
+          "text": "Слух о подлоге дошёл до {faction}: доверие к источнику пошатнулось."
+        }
+      ],
+      "counter_used_text": "Контрмера: {label}.",
+      "counter_disabled_motive": "Нужен раскрытый мотив подлога.",
+      "counter_already_text": "По этому перехвату уже принята контрмера."
     },
     "rumor": {
       "enabled": true,

@@ -1110,3 +1110,124 @@ def test_staff_briefing_skips_thin_or_stale_trend_samples():
 
     assert not any("прибывает" in line for line in lines)
     assert not any("проседает" in line for line in lines)
+
+
+def test_intercept_countermeasure_warns_leader_without_touching_assets(
+    monkeypatch,
+):
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _report, item = _intercept(campaign)
+    assert campaign.open_intercept(item["id"])["ok"] is True
+    leader = dispatch._leader_for(campaign.player)
+    assets_before = {
+        asset: campaign.faction(campaign.player_side).asset(asset)
+        for asset in dispatch.assets
+        if asset != "morale"
+    }
+    morale_before = leader.morale
+    spent = []
+    monkeypatch.setattr(
+        campaign,
+        "_spend_player_action",
+        lambda side: spent.append(str(side)),
+    )
+
+    result = campaign.use_intercept(item["id"], "warn")
+
+    assert result["ok"] is True
+    assert result["cost"] == 1
+    assert spent == [campaign.player_side]
+    assert item["counter"] == "warn"
+    assert item["counter_label"] == "Предупредить лидера"
+    assert "предупреждён" in result["text"]
+    assert any(
+        belief.predicate == "sees_as_threat"
+        and belief.subject == "player"
+        and belief.object == item["faction_id"]
+        for belief in leader.bdi.beliefs
+    )
+    assert leader.morale >= morale_before
+    assert assets_before == {
+        asset: campaign.faction(campaign.player_side).asset(asset)
+        for asset in dispatch.assets
+        if asset != "morale"
+    }
+    assert campaign.use_intercept(item["id"], "warn")["ok"] is False
+
+
+def test_intercept_countermeasure_requires_open_and_motive():
+    campaign = _campaign()
+    _report, item = _intercept(campaign)
+
+    sealed = campaign.use_intercept(item["id"], "warn")
+    assert sealed["ok"] is False
+    assert "вскройте" in sealed["reason"]
+
+    assert campaign.open_intercept(item["id"])["ok"] is True
+    options = {
+        option["id"]: option
+        for option in campaign.intercept_counters(item["id"])
+    }
+    assert options["warn"]["available"] is True
+    assert options["expose"]["available"] is False
+    blocked = campaign.use_intercept(item["id"], "expose")
+    assert blocked["ok"] is False
+    assert "мотив" in blocked["reason"]
+    assert not item.get("counter")
+
+
+def test_intercept_expose_shakes_enemy_trust_in_source():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    item["motive"] = "выгода"
+    item["motive_revealed"] = True
+    origin = campaign.faction(item["origin_side"])
+    origin_leader = dispatch._leader_for(origin)
+
+    result = campaign.use_intercept(item["id"], "expose")
+
+    assert result["ok"] is True
+    assert item["counter"] == "expose"
+    assert any(
+        belief.predicate == "feels_betrayed_by"
+        and belief.object == report["source_id"]
+        for belief in origin_leader.bdi.beliefs
+    )
+
+
+def test_used_intercept_counter_survives_snapshot():
+    campaign = _campaign()
+    _report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    campaign.use_intercept(item["id"], "warn")
+    snapshot = campaign.snapshot()
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(_preset(), seed=11, snapshot=snapshot)
+    loaded = restored.intercept(item["id"])
+
+    assert loaded is not None
+    assert loaded["counter"] == "warn"
+    assert loaded["counter_label"] == "Предупредить лидера"
+    assert restored.intercept_counters(item["id"]) == []
+
+
+def test_intercept_countermeasure_needs_action_budget(monkeypatch):
+    campaign = _campaign()
+    _report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    monkeypatch.setattr(
+        campaign,
+        "_player_action_gate",
+        lambda _side: "нет действий",
+    )
+
+    result = campaign.use_intercept(item["id"], "warn")
+
+    assert result["ok"] is False
+    assert "нет действий" in result["reason"]
+    assert not item.get("counter")

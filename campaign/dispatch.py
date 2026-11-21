@@ -128,6 +128,39 @@ THREAT_DEFAULTS = {
     "confidence": 0.7,
 }
 
+COUNTER_DEFAULTS = [
+    {
+        "id": "warn",
+        "label": "Предупредить лидера",
+        "price_actions": 1,
+        "belief": {
+            "predicate": "sees_as_threat",
+            "target": "origin_faction",
+            "value": 0.7,
+            "confidence": 0.8,
+        },
+        "morale": 0.5,
+        "text": "Лидер предупреждён о замысле {faction}.",
+    },
+    {
+        "id": "expose",
+        "label": "Подорвать источник",
+        "price_actions": 1,
+        "requires_motive": True,
+        "enemy_belief": {
+            "predicate": "feels_betrayed_by",
+            "target": "source",
+            "value": 0.8,
+            "confidence": 0.75,
+        },
+        "relation": {"trust": -0.06, "affinity": -0.04},
+        "text": (
+            "Слух о подлоге дошёл до {faction}: "
+            "доверие к источнику пошатнулось."
+        ),
+    },
+]
+
 INTERCEPTION_DEFAULTS = {
     "enabled": True,
     "chance": 0.40,
@@ -146,6 +179,10 @@ INTERCEPTION_DEFAULTS = {
     "open_text": "Шифр вскрыт. Донесение прочитано.",
     "source_unknown": "источник неизвестен",
     "decision_unknown": "решение фракции неизвестно",
+    "countermeasures": COUNTER_DEFAULTS,
+    "counter_used_text": "Контрмера: {label}.",
+    "counter_disabled_motive": "Нужен раскрытый мотив подлога.",
+    "counter_already_text": "По этому перехвату уже принята контрмера.",
 }
 
 
@@ -935,6 +972,220 @@ class ReportDispatcher:
             ),
             "cost": cost,
         }
+
+    def countermeasure_options(self, item):
+        """Список контрмер для вскрытого перехвата и их доступность."""
+        if item is None or str(item.get("status") or "") != "open":
+            return []
+        if item.get("counter"):
+            return []
+        disabled_motive = str(
+            self.interception_config.get("counter_disabled_motive")
+            or "Нужен раскрытый мотив подлога."
+        )
+        options = []
+        for raw in _as_list(
+            self.interception_config.get("countermeasures")
+        ):
+            data = _as_mapping(raw)
+            option_id = str(data.get("id") or "")
+            if not option_id:
+                continue
+            reason = ""
+            if bool(data.get("requires_motive")) and not bool(
+                item.get("motive_revealed")
+            ):
+                reason = disabled_motive
+            options.append(
+                {
+                    "id": option_id,
+                    "label": str(data.get("label") or option_id),
+                    "price": max(
+                        0,
+                        int(_number(data.get("price_actions"), 1)),
+                    ),
+                    "available": not reason,
+                    "reason": reason,
+                }
+            )
+        return options
+
+    def use_intercept(self, intercept_id, counter_id):
+        """Потратить вскрытый перехват на контрмеру.
+
+        Контрмера не трогает активы: она пишет убеждения в BDI,
+        отношения, мораль и потребности. Игрок может предупредить
+        своего лидера или подорвать доверие соперника к источнику.
+        """
+        item = self.intercept(intercept_id)
+        if item is None:
+            return {"ok": False, "reason": "перехват не найден"}
+        if str(item.get("status") or "") != "open":
+            return {
+                "ok": False,
+                "reason": "сначала вскройте перехват",
+                "intercept": item,
+            }
+        if item.get("counter"):
+            return {
+                "ok": False,
+                "reason": str(
+                    self.interception_config.get("counter_already_text")
+                    or "Контрмера уже принята."
+                ),
+                "intercept": item,
+            }
+        options = self.countermeasure_options(item)
+        option = None
+        for data in _as_list(
+            self.interception_config.get("countermeasures")
+        ):
+            data = _as_mapping(data)
+            if str(data.get("id") or "") == str(counter_id or ""):
+                option = data
+                break
+        if option is None:
+            return {
+                "ok": False,
+                "reason": "неизвестная контрмера",
+                "intercept": item,
+            }
+        info = next(
+            (
+                entry
+                for entry in options
+                if entry["id"] == str(counter_id or "")
+            ),
+            None,
+        )
+        if info is None or not info.get("available"):
+            return {
+                "ok": False,
+                "reason": (
+                    (info or {}).get("reason")
+                    or "контрмера недоступна"
+                ),
+                "intercept": item,
+            }
+        price = int(info.get("price") or 0)
+        cost = 0
+        if price:
+            gate = getattr(
+                self.campaign, "_player_action_gate", None
+            )
+            if callable(gate):
+                reason = gate(item.get("side"))
+                if reason:
+                    return {
+                        "ok": False,
+                        "reason": "контрмера недоступна: %s" % reason,
+                        "intercept": item,
+                    }
+            spend = getattr(
+                self.campaign, "_spend_player_action", None
+            )
+            if callable(spend):
+                spend(item.get("side"))
+            cost = price
+        player_faction = self.campaign.faction(item.get("side"))
+        origin_faction = self.campaign.faction(item.get("origin_side"))
+        player_leader = self._leader_for(player_faction)
+        origin_leader = self._leader_for(origin_faction)
+        self._apply_counter_belief(
+            player_leader, player_faction, option.get("belief"), item
+        )
+        self._apply_counter_belief(
+            origin_leader,
+            origin_faction,
+            option.get("enemy_belief"),
+            item,
+        )
+        if player_leader is not None:
+            morale = _number(getattr(player_leader, "morale", 0.0))
+            player_leader.morale = max(
+                0.0, min(100.0, morale + _number(option.get("morale")))
+            )
+            for need, delta in _as_mapping(
+                option.get("needs")
+            ).items():
+                if need in getattr(player_leader, "needs", {}):
+                    player_leader.needs[need] = _clamp(
+                        _number(player_leader.needs.get(need))
+                        + _number(delta)
+                    )
+        relation = _as_mapping(option.get("relation"))
+        relations = getattr(self.campaign, "relations", None)
+        if relation and relations is not None and origin_faction is not None:
+            source_id = str(item.get("source_id") or "")
+            if source_id:
+                try:
+                    relations.add(
+                        str(origin_faction.id),
+                        source_id,
+                        dict(relation),
+                        1.0,
+                    )
+                except Exception:
+                    pass
+        now = _number(getattr(self.campaign, "elapsed", 0.0))
+        label = str(option.get("label") or counter_id)
+        text = _render(
+            option.get("text")
+            or self.interception_config.get("counter_used_text"),
+            {
+                "faction": item.get("faction_name") or "",
+                "label": label,
+                "source": item.get("source_name") or "",
+                "asset_label": item.get("asset_label") or "",
+            },
+        )
+        item["counter"] = str(counter_id or "")
+        item["counter_label"] = label
+        item["counter_text"] = text
+        item["counter_at"] = round(now, 6)
+        item["counter_cost"] = cost
+        self._log(
+            "intercept_used",
+            intercept_id=item.get("id"),
+            report_id=item.get("report_id"),
+            side=item.get("side"),
+            origin_side=item.get("origin_side"),
+            counter=str(counter_id or ""),
+            cost=cost,
+        )
+        return {
+            "ok": True,
+            "intercept": item,
+            "text": text,
+            "cost": cost,
+        }
+
+    def _apply_counter_belief(self, character, faction, block, item):
+        """Записать убеждение контрмеры без изменения активов."""
+        data = _as_mapping(block)
+        predicate = str(data.get("predicate") or "")
+        if not predicate or character is None or faction is None:
+            return None
+        mode = str(data.get("target") or "source")
+        if mode == "origin_faction":
+            target = item.get("faction_id")
+        elif mode == "origin_side":
+            target = item.get("origin_side")
+        elif mode == "asset":
+            target = item.get("asset")
+        else:
+            target = item.get("source_id")
+        try:
+            return self._believe(
+                character,
+                self._leader_key(faction, character),
+                predicate,
+                str(target or ""),
+                _number(data.get("value"), 1.0),
+                _number(data.get("confidence"), 0.8),
+            )
+        except Exception:
+            return None
 
     def _capture_intercept(self, report):
         """Сохранить копию чужого доклада для возможного перехвата."""
