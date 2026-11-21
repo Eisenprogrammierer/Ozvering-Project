@@ -90,10 +90,14 @@ def test_stats_log_tick_formulas_and_bdi(tmp_path, monkeypatch):
         and item["side"] == campaign.player_side
     )
     assert bdi["interval_seconds"] == pytest.approx(86400.0)
-    assert bdi["simulated_seconds"] == pytest.approx(1800.0)
+    assert bdi["simulated_seconds"] == pytest.approx(86400.0)
     assert bdi["before"]["needs"]
     assert bdi["after"]["needs"]
     assert "energy" in bdi["delta"]
+    routine = bdi["routine"]
+    assert routine["service"] > 0.0
+    assert routine["rested_seconds"] > 0.0
+    assert routine["effects"]
 
 
 def test_stats_log_work_chance_formula(tmp_path, monkeypatch):

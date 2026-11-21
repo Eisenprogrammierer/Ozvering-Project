@@ -834,6 +834,7 @@
         "health": 0.18,
         "loneliness": 0.1
       },
+      "stress_floor": 0.5,
       "stress_scale": 4.0,
       "under_fire_penalty": 3.0,
       "order_morale": 0.15,

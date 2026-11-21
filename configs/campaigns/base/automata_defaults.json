@@ -1106,8 +1106,6 @@
     "ai_interval_seconds": 43200.0,
     "organization_interval_seconds": 86400.0,
     "game_seconds_per_real_second": 1.0,
-    "bdi_horizon_seconds": 1800.0,
-    "bdi_tick_seconds": 900.0,
     "speeds": [
       1,
       2,
@@ -1115,6 +1113,50 @@
       8,
       16,
       32
+    ]
+  },
+  "bdi_routine": {
+    "enabled": true,
+    "day_seconds": 86400.0,
+    "needs_unit_seconds": 21600.0,
+    "segment_seconds": 21600.0,
+    "sleep_share": 0.34,
+    "sleep_needs": [
+      "fatigue",
+      "boredom"
+    ],
+    "supply_floor": 0.25,
+    "support_floor": 0.4,
+    "coverage_reference": 0.72,
+    "coverage_buffer": 1.08,
+    "support_relief_scale": 0.22,
+    "morale_stress_scale": 0.6,
+    "morale_drift_scale": 0.5,
+    "morale_bonus": 0.5,
+    "rate": 0.35,
+    "work_energy": 0.04,
+    "energy_recovery": 0.9,
+    "force_recovery": 0.8,
+    "target_ratio": 0.7,
+    "targets": {
+      "hunger": 0.24,
+      "thirst": 0.2,
+      "fatigue": 0.18,
+      "health": 0.12,
+      "fear": 0.5,
+      "anxiety": 0.48,
+      "loneliness": 0.22,
+      "boredom": 0.3
+    },
+    "satisfy": [
+      "hunger",
+      "thirst",
+      "fatigue",
+      "health",
+      "fear",
+      "anxiety",
+      "loneliness",
+      "boredom"
     ]
   },
   "automata_model": {

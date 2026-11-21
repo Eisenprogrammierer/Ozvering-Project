@@ -835,6 +835,7 @@ class BDIState:
         under_fire=0.0,
         support=0.0,
         resting=False,
+        resting_needs=None,
         order_needs=None,
         rate_multipliers=None,
         trait_model=None,
@@ -889,10 +890,16 @@ class BDIState:
                     1.0,
                 )
         if resting:
-            for key in ("fatigue", "hunger", "thirst", "boredom"):
-                self.needs[key] = _clamp(
-                    self.needs[key] - 0.035 * scale, 0.0, 1.0
-                )
+            keys = (
+                resting_needs
+                if resting_needs is not None
+                else ("fatigue", "hunger", "thirst", "boredom")
+            )
+            for key in keys:
+                if key in self.needs:
+                    self.needs[key] = _clamp(
+                        self.needs[key] - 0.035 * scale, 0.0, 1.0
+                    )
         if in_combat:
             self.needs["skill"] = _clamp(
                 self.needs["skill"] - 0.012 * scale, 0.0, 1.0

@@ -41,6 +41,8 @@ from .audit import CampaignStats, delta_map
 from .conditions import asset_reason, check_conditions, relation_reason
 from .dispatch import ReportDispatcher
 from .effects import apply_effects, apply_report
+from .routine import DEFAULTS as ROUTINE_DEFAULTS
+from .routine import run_day as run_routine_day
 from .work import build_interaction_work, build_work
 from .work_trace import trace_from_report
 from .handlers import receive
@@ -225,6 +227,10 @@ try:
     DISPATCH_DEFAULTS = default_dict("dispatch")
 except Exception:  # pragma: no cover - совместимость со старым конфигом
     DISPATCH_DEFAULTS = {"enabled": False}
+try:
+    ROUTINE_CONFIG_DEFAULTS = default_dict("bdi_routine")
+except Exception:  # pragma: no cover - совместимость со старым конфигом
+    ROUTINE_CONFIG_DEFAULTS = dict(ROUTINE_DEFAULTS)
 PRESET_DEFAULTS = default_dict("preset_defaults")
 ORGANIZATION_RUNTIME_DEFAULTS = dict(
     PRESET_DEFAULTS["organization_runtime"]
@@ -989,6 +995,9 @@ class AutomataCampaign:
         )
         self.action_slots = max(
             1, int(_number(self.action_process.get("slots"), 2))
+        )
+        self.routine = _merged_mapping(
+            ROUTINE_CONFIG_DEFAULTS, scenario.get("bdi_routine")
         )
         self.ai_model = _merged_mapping(
             AI_MODEL_DEFAULTS, scenario.get("ai_model")
@@ -6414,27 +6423,14 @@ class AutomataCampaign:
 
         Активы фракции производны от потребностей, морали и силы людей,
         поэтому без этого шага «политические» шкалы выглядели бы
-        застывшими между редкими взаимодействиями.
+        застывшими между редкими взаимодействиями. Сутки моделируются
+        целиком: рутина кормит, поит, даёт сон и уход, а не оставляет
+        персонажей без еды на 47 из 48 тактов BDI. Насколько хорошо
+        закрыта норма, решают готовность людей и производный ``supply``.
         """
         stored = _as_mapping(faction.organization_snapshot)
         support = _clamp(stored.get("willing_share", 0.5))
-        # Организационный такт теперь равен дню игрового времени.
-        # BDI нельзя прогонять на полные сутки: без еды и сна
-        # потребности уходят в крайности, сила падает до нуля и
-        # организация распадается за пару дней. Поэтому за такт
-        # моделируется короткий «срез» жизни (``bdi_horizon``),
-        # а суточную рутину закрывают эффекты организации. Дробим
-        # срез на шаги, чтобы срабатывали пороги и спилловер.
-        horizon = max(
-            0.0,
-            _number(
-                self.realtime.get("bdi_horizon_seconds"), 1800.0
-            ),
-        )
-        step = max(
-            30.0,
-            _number(self.realtime.get("bdi_tick_seconds"), 900.0),
-        )
+        supply = _clamp(faction.asset("supply"))
         for character in faction.characters:
             if bool(
                 getattr(
@@ -6451,20 +6447,15 @@ class AutomataCampaign:
                 if self.stats.enabled
                 else None
             )
-            simulated = 0.0
             try:
-                left = min(max(0.0, float(seconds)), horizon)
-                while left > 1e-9:
-                    chunk = min(step, left)
-                    character.tick_needs(
-                        seconds=chunk,
-                        supported=support,
-                        in_combat=False,
-                        under_fire=0.0,
-                        rng=getattr(character, "rng", None),
-                    )
-                    left -= chunk
-                    simulated += chunk
+                routine = run_routine_day(
+                    character,
+                    seconds,
+                    support=support,
+                    supply=supply,
+                    config=self.routine,
+                    rng=getattr(character, "rng", None),
+                )
             except Exception:
                 logger.exception(
                     "BDI персонажа %s не обновлён",
@@ -6481,9 +6472,14 @@ class AutomataCampaign:
                 name=before.get("name"),
                 post=before.get("post"),
                 support=round(support, 6),
+                supply=round(supply, 6),
                 interval_seconds=round(float(seconds), 3),
-                horizon_seconds=round(horizon, 3),
-                simulated_seconds=round(simulated, 3),
+                simulated_seconds=(
+                    round(float(routine.get("seconds", 0.0)), 3)
+                    if routine
+                    else 0.0
+                ),
+                routine=routine,
                 before=before,
                 after=after,
                 delta=self.stats.character_delta(before, after),

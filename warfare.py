@@ -481,10 +481,15 @@ class Character(S.UtilityAI):
         under_fire=0.0,
         supported=0.0,
         rested=False,
+        resting_needs=None,
         rng=None,
         seconds=1800,
         rate_multipliers=None,
         morale_baseline_bonus=0.0,
+        seconds_per_unit=1800.0,
+        morale_seconds_per_unit=None,
+        morale_stress_mul=1.0,
+        morale_drift_mul=1.0,
     ):
         rng = rng or self.rng
         if self.is_dead:
@@ -495,7 +500,19 @@ class Character(S.UtilityAI):
         mod = self.modulation()
         uf = max(0.0, min(1.0, float(under_fire)))
         support = max(0.0, min(1.0, float(supported)))
-        scale = max(0.0, float(seconds)) / 1800.0
+        unit = max(1e-9, float(seconds_per_unit))
+        morale_unit = max(
+            1e-9,
+            float(
+                morale_seconds_per_unit
+                if morale_seconds_per_unit is not None
+                else unit
+            ),
+        )
+        scale = max(0.0, float(seconds)) / unit
+        # Мораль и приказы в кампании считаются за сутки, а потребности —
+        # за свой такт BDI. В бою оба масштаба совпадают.
+        morale_scale = max(0.0, float(seconds)) / morale_unit
         values = self.personality.as_dict()
         self.bdi.traits = values
 
@@ -505,9 +522,11 @@ class Character(S.UtilityAI):
             under_fire=uf,
             support=support,
             resting=rested,
+            resting_needs=resting_needs,
             order_needs=mod.needs,
             rate_multipliers=rate_multipliers,
             trait_model=TRAIT_MODEL,
+            seconds_per_unit=unit,
         )
 
         # BDI не хранит силу и энергию: персонаж применяет давление сам.
@@ -522,14 +541,18 @@ class Character(S.UtilityAI):
 
         if mod.fear:
             self.bdi.needs["fear"] = min(
-                1.0, self.bdi.needs["fear"] + mod.fear * scale
+                1.0, self.bdi.needs["fear"] + mod.fear * morale_scale
             )
         if mod.discipline:
             self.bdi.needs["anxiety"] = max(
-                0.0, self.bdi.needs["anxiety"] - 0.02 * mod.discipline * scale
+                0.0,
+                self.bdi.needs["anxiety"]
+                - 0.02 * mod.discipline * morale_scale,
             )
             self.bdi.needs["fear"] = max(
-                0.0, self.bdi.needs["fear"] - 0.01 * mod.discipline * scale
+                0.0,
+                self.bdi.needs["fear"]
+                - 0.01 * mod.discipline * morale_scale,
             )
 
         stress = TRAIT_MODEL.morale_stress(self.needs)
@@ -541,9 +564,11 @@ class Character(S.UtilityAI):
         drift = TRAIT_MODEL.morale_value("drift", 0.03) * (
             baseline - self.morale
         )
-        self.morale += scale * (
-            drift
-            - TRAIT_MODEL.morale_value("stress_scale", 4.0) * stress
+        self.morale += morale_scale * (
+            drift * max(0.0, float(morale_drift_mul))
+            - TRAIT_MODEL.morale_value("stress_scale", 4.0)
+            * stress
+            * max(0.0, float(morale_stress_mul))
             - TRAIT_MODEL.morale_value("under_fire_penalty", 3.0) * uf
             + TRAIT_MODEL.morale_value("order_morale", 0.15) * mod.morale
             + TRAIT_MODEL.morale_value("support_bonus", 0.20) * support
@@ -552,7 +577,9 @@ class Character(S.UtilityAI):
         )
         self.morale = max(0.0, min(100.0, self.morale))
         self.under_fire = uf
-        self.casualties = max(0.0, self.casualties + uf * 0.1 * scale)
+        self.casualties = max(
+            0.0, self.casualties + uf * 0.1 * morale_scale
+        )
 
         if self.is_dead:
             self.dead = True

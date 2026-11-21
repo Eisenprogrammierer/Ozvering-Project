@@ -487,11 +487,25 @@ class TraitModel:
         return _number(self.morale.get(key), default)
 
     def morale_stress(self, needs):
+        """Давление неудовлетворённых желаний на мораль.
+
+        Хронический фон страха или тревоги ниже ``stress_floor`` не
+        считается бедствием: люди привыкают к нему. Стресс начинается
+        выше порога и растёт до единицы, поэтому мораль реагирует на
+        ухудшение, а не на сам факт того, что солдат чего-то опасается.
+        """
         weights = self.morale.get("stress") or {}
-        return sum(
-            _number(needs.get(str(need)), 0.0) * _number(weight, 0.0)
-            for need, weight in weights.items()
-        )
+        floor = _clamp(self.morale.get("stress_floor", 0.0))
+        span = max(1e-9, 1.0 - floor)
+        total = 0.0
+        for need, weight in weights.items():
+            severity = (
+                _number(needs.get(str(need)), 0.0) - floor
+            ) / span
+            if severity <= 0.0:
+                continue
+            total += _clamp(severity) * _number(weight, 0.0)
+        return total
 
     def panic_threshold(self):
         return self.mind_value("panic_threshold", 0.42)
