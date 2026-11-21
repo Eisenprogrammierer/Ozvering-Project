@@ -696,7 +696,9 @@ class ReportDispatcher:
             except Exception:
                 trust_axis = 0.0
                 source_to_leader = 0.0
-        memory = self.memory.get(str(report.get("source_id") or "")) or {}
+        memory = self._memory_for(
+            report.get("source_id"), report.get("recipient_id")
+        )
         total = max(1, int(_number(memory.get("reports"), 0)))
         history = (
             _number(memory.get("trusted"), 0.0)
@@ -1192,8 +1194,11 @@ class ReportDispatcher:
         needs = getattr(source, "needs", {}) or {}
         source_id = str(getattr(source, "campaign_id", "") or "")
         leader = self._leader_for(faction)
+        recipient_id = str(getattr(leader, "campaign_id", "") or "")
         confidence = self._confidence(values, needs)
-        chain_line, memory_delta = self._memory_line(source_id)
+        chain_line, memory_delta = self._memory_line(
+            source_id, recipient_id
+        )
         if chain_line and not rumor:
             confidence = _clamp(
                 confidence + memory_delta * _number(
@@ -1219,7 +1224,7 @@ class ReportDispatcher:
         shift = 0
         if not rumor:
             intent, motive, shift = self._intent(
-                source, values, needs, tone
+                source, values, needs, tone, recipient_id
             )
         band = self._frame_band(self._band(perceived), tone)
         if shift:
@@ -1302,9 +1307,7 @@ class ReportDispatcher:
         return {
             "id": "report-%d" % self._seq,
             "side": str(faction.side),
-            "recipient_id": str(
-                getattr(leader, "campaign_id", "") or ""
-            ),
+            "recipient_id": recipient_id,
             "source_id": source_id,
             "source_name": source_name,
             "source_post": source_post,
@@ -1345,11 +1348,41 @@ class ReportDispatcher:
             "resolved": None,
         }
 
-    def _memory_line(self, source_id):
+    @staticmethod
+    def _memory_key(recipient_id, source_id):
+        return "%s|%s" % (str(recipient_id or ""), str(source_id or ""))
+
+    def _memory_for(self, source_id, recipient_id=None):
+        """Память конкретного получателя, с откатом к общей записи.
+
+        Старые снимки хранили одну память на источник. Она остаётся
+        общим запасным вариантом, а новые исходы пишутся отдельно для
+        каждого лидера-получателя.
+        """
+        source_id = str(source_id or "")
+        if recipient_id is None:
+            leader = self._leader_for(
+                self.campaign.faction(
+                    getattr(self.campaign, "player_side", "")
+                )
+            )
+            recipient_id = getattr(leader, "campaign_id", "")
+        recipient_id = str(recipient_id or "")
+        key = self._memory_key(recipient_id, source_id)
+        memory = self.memory.get(key)
+        if memory is not None:
+            return memory
+        return self.memory.get(source_id) or {}
+
+    def _memory_entry(self, source_id, recipient_id):
+        key = self._memory_key(recipient_id, source_id)
+        return self.memory.setdefault(key, self._new_memory())
+
+    def _memory_line(self, source_id, recipient_id=None):
         """Строка-цепочка: источник помнит прошлый доклад и его исход."""
         if not self.memory_enabled:
             return "", 0.0
-        memory = self.memory.get(str(source_id or "")) or {}
+        memory = self._memory_for(str(source_id or ""), recipient_id)
         outcome = str(memory.get("last_outcome") or "")
         if not outcome:
             return "", 0.0
@@ -1379,7 +1412,9 @@ class ReportDispatcher:
         )
         return line, delta
 
-    def _intent(self, source, values, needs, tone):
+    def _intent(
+        self, source, values, needs, tone, recipient_id=None
+    ):
         """Намеренная манипуляция отличается от честной ошибки.
 
         Честный источник искажает картину только собственной ошибкой.
@@ -1390,9 +1425,10 @@ class ReportDispatcher:
         cfg = self.distortion
         if not self.distortion_enabled:
             return "honest", "", 0
-        memory = self.memory.get(
-            str(getattr(source, "campaign_id", "") or "")
-        ) or {}
+        memory = self._memory_for(
+            str(getattr(source, "campaign_id", "") or ""),
+            recipient_id,
+        )
         total = max(1, int(_number(memory.get("reports"), 0)))
         grievance = (
             _number(memory.get("ignored"), 0.0)
@@ -1496,8 +1532,9 @@ class ReportDispatcher:
                 int(_number(getattr(self.campaign, "turn", 0), 0))
             ):
                 penalty_key = "promise:%s" % obligation.id
-                memory = self.memory.setdefault(
-                    source_id, self._new_memory()
+                memory = self._memory_entry(
+                    source_id,
+                    getattr(leader, "campaign_id", ""),
                 )
                 penalized = list(memory.get("penalized_promises") or ())
                 if penalty_key not in penalized:
@@ -1949,13 +1986,15 @@ class ReportDispatcher:
         return dict(obligation)
 
     def _remember(self, report, choice, correct, effect_key):
-        """Записать исход в память источника для следующих докладов."""
+        """Записать исход в память получателя для следующих докладов."""
         if not self.memory_enabled:
             return
         source_id = str(report.get("source_id") or "")
         if not source_id:
             return
-        memory = self.memory.setdefault(source_id, self._new_memory())
+        memory = self._memory_entry(
+            source_id, report.get("recipient_id")
+        )
         memory["reports"] = int(_number(memory.get("reports"), 0)) + 1
         if effect_key in ("trust", "rumor_trust"):
             memory["trusted"] = int(_number(memory.get("trusted"), 0)) + 1

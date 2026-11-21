@@ -570,7 +570,7 @@ def test_source_memory_appears_in_next_report_and_survives_snapshot():
     report, source = _fresh_report(campaign, faction)
     dispatch.resolve(report["id"], "ignore")
 
-    memory = dispatch.memory[source.campaign_id]
+    memory = dispatch._memory_for(source.campaign_id)
     assert memory["last_outcome"] == "ignored"
     assert memory["last_report_id"] == report["id"]
 
@@ -585,7 +585,7 @@ def test_source_memory_appears_in_next_report_and_survives_snapshot():
     restored = AutomataCampaign(
         _preset(), seed=11, snapshot=campaign.snapshot()
     )
-    loaded = restored.dispatch.memory[source.campaign_id]
+    loaded = restored.dispatch._memory_for(source.campaign_id)
     assert loaded["last_outcome"] == "ignored"
     assert loaded["last_report_id"] == report["id"]
 
@@ -621,7 +621,7 @@ def test_promise_ledger_reminds_and_penalizes_overdue():
     )
     assert overdue is True
     assert "просрочено" in overdue_line
-    memory = dispatch.memory[source.campaign_id]
+    memory = dispatch._memory_for(source.campaign_id)
     assert "promise:%s" % promise_id in memory["penalized_promises"]
 
 
@@ -661,7 +661,8 @@ def test_verification_separates_error_from_deliberate_lie():
     assert "подлог" in lie_result["text"]
     assert "выгода" in lie_result["text"]
     assert (
-        dispatch.memory[lie_source.campaign_id]["last_outcome"] == "lied"
+        dispatch._memory_for(lie_source.campaign_id)["last_outcome"]
+        == "lied"
     )
 
 
@@ -836,3 +837,117 @@ def test_interception_can_be_disabled():
     dispatch.auto_resolve(report)
 
     assert campaign.interceptions(campaign.player_side) == []
+
+
+def test_source_memory_is_separate_for_each_recipient():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    report, source = _fresh_report(campaign, faction)
+    dispatch.resolve(report["id"], "trust")
+    recipient = report["recipient_id"]
+    other = "other-leader"
+
+    player_memory = dispatch._memory_for(
+        source.campaign_id, recipient
+    )
+    assert player_memory["trusted"] == 1
+    assert player_memory["ignored"] == 0
+
+    foreign_report = dict(report, id="report-other", recipient_id=other)
+    dispatch._remember(foreign_report, "ignore", False, "ignore")
+
+    other_memory = dispatch._memory_for(source.campaign_id, other)
+    assert other_memory["trusted"] == 0
+    assert other_memory["ignored"] == 1
+    assert dispatch._memory_for(source.campaign_id, recipient)[
+        "trusted"
+    ] == 1
+
+    player_line, _delta = dispatch._memory_line(
+        source.campaign_id, recipient
+    )
+    other_line, _delta = dispatch._memory_line(
+        source.campaign_id, other
+    )
+    assert "доверились" in player_line
+    assert "отложили" in other_line
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(
+        _preset(), seed=11, snapshot=campaign.snapshot()
+    )
+    assert restored.dispatch._memory_for(
+        source.campaign_id, recipient
+    )["trusted"] == 1
+    assert restored.dispatch._memory_for(
+        source.campaign_id, other
+    )["ignored"] == 1
+
+
+def test_legacy_shared_memory_remains_a_fallback():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    source_id = "char-legacy"
+    memory = dispatch._new_memory()
+    memory["last_outcome"] = "ignored"
+    dispatch.memory[source_id] = memory
+
+    line, delta = dispatch._memory_line(source_id, "new-leader")
+
+    assert "отложили" in line
+    assert delta < 0
+    assert dispatch._memory_for(source_id, "new-leader") is memory
+
+
+def test_ai_choice_uses_only_its_own_recipient_memory():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = _foreign(campaign)
+    leader = dispatch._leader_for(faction)
+    source = dispatch._source(faction, "supply")
+    assert source is not None
+    recipient = leader.campaign_id
+    dispatch.ai_config.update(
+        {
+            "trust_base": 0.0,
+            "trust_relation": 0.0,
+            "trust_loyalty": 0.0,
+            "trust_history": 1.0,
+            "trust_fear": 0.0,
+            "verify_base": 0.0,
+            "verify_anxiety": 0.0,
+            "verify_discipline": 0.0,
+            "verify_distrust": 0.0,
+            "verify_history": 0.0,
+            "ignore_base": 0.0,
+            "ignore_fear": 0.0,
+            "ignore_distrust": 0.0,
+            "ignore_loyalty": 0.0,
+            "noise": 0.0,
+        }
+    )
+    trusted = dispatch._memory_entry(source.campaign_id, recipient)
+    trusted.update(
+        {"reports": 4, "trusted": 4, "last_outcome": "trusted"}
+    )
+    report = {
+        "side": faction.side,
+        "source_id": source.campaign_id,
+        "recipient_id": recipient,
+    }
+    assert dispatch._ai_choice(report, faction, leader) == "trust"
+
+    ignored = dispatch._memory_entry(
+        source.campaign_id, "other-leader"
+    )
+    ignored.update(
+        {"reports": 4, "ignored": 4, "last_outcome": "ignored"}
+    )
+    assert dispatch._ai_choice(report, faction, leader) == "trust"
+
+    other_report = dict(report, recipient_id="other-leader")
+    assert dispatch._ai_choice(
+        other_report, faction, leader
+    ) != "trust"
