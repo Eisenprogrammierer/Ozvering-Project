@@ -433,3 +433,38 @@ def test_overlay_countermeasure_waits_for_revealed_motive():
     assert options[1]["available"] is True
     overlay.draw(pygame.Surface((1280, 720)))
     app.quit()
+
+
+def test_story_feed_shows_city_news_after_delay():
+    from view.screens.automata_screen import AutomataScreen
+
+    app, campaign = _app_with_campaign()
+    dispatch = campaign.dispatch
+    dispatch.interval = 10 ** 9
+    dispatch.news_config.update(
+        {"interval_seconds": 100.0, "delay_seconds": 3600.0}
+    )
+    for key in ("city", "prices", "street"):
+        block = dispatch.news_config[key]
+        block["enabled"] = key == "city"
+        block["chance"] = 1.0 if key == "city" else 0.0
+
+    dispatch.tick(100.0)
+    screen = AutomataScreen(app, campaign)
+    city = [
+        entry
+        for entry in campaign.story_events
+        if entry.get("news_type") == "city"
+    ]
+    assert city
+    assert not any(
+        entry.get("news_type") == "city"
+        for entry in screen._story_feed()
+    )
+    assert campaign.decision_pending(campaign.player_side) is False
+
+    campaign.elapsed = float(city[-1]["release_at"])
+    feed = screen._story_feed()
+    assert any(entry.get("news_type") == "city" for entry in feed)
+    screen.draw(pygame.Surface((1280, 720)))
+    app.quit()

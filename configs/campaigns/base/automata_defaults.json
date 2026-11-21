@@ -345,12 +345,44 @@
     },
     "news": {
       "enabled": true,
+      "interval_seconds": 86400.0,
       "delay_seconds": 21600.0,
+      "max_pending": 8,
       "title": "Вести: {faction}",
       "texts": {
         "trust": "{faction}: докладу о «{asset_label}» поверили и действуют по нему.",
         "verify": "{faction}: проверяют сведения о «{asset_label}». В стане суета.",
         "ignore": "{faction}: от доклада о «{asset_label}» отмахнулись."
+      },
+      "city": {
+        "enabled": true,
+        "chance": 0.4,
+        "title": "Городская сводка",
+        "texts": {
+          "mixed": "В городе неровно: {weak_label} «{weak_band}», а {strong_label} «{strong_band}».",
+          "calm": "В городе ровно: {asset_label} «{band}»."
+        }
+      },
+      "prices": {
+        "enabled": true,
+        "chance": 0.35,
+        "title": "Цены",
+        "asset": "supply",
+        "low": "На рынке тесно: цены растут.",
+        "high": "На рынке людно: цены спадают.",
+        "level": "На рынке цены держатся."
+      },
+      "street": {
+        "enabled": true,
+        "chance": 0.3,
+        "title": "Слухи улиц",
+        "texts": {
+          "has_broken_word": "Улица помнит: {faction} не сдержала слово.",
+          "sees_as_threat": "На улицах шепчутся: {faction} и {target} — враги.",
+          "feels_betrayed_by": "Улица судачит: {faction} и {target} — не друзья.",
+          "trusts": "Улица шепчет: {faction} и {target} — близки.",
+          "quiet": "На улицах гадают, что затевает {faction}."
+        }
       }
     },
     "interception": {

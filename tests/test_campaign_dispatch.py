@@ -1327,3 +1327,136 @@ def test_memory_rumor_can_skip_player_side():
     assert dispatch._memory_for(
         source.campaign_id, player_leader.campaign_id
     ).get("reports", 0) == 0
+
+
+def _news_only(dispatch, *types, interval=100.0, delay=0.0):
+    dispatch.interval = 10 ** 9
+    dispatch.news_config.update(
+        {"interval_seconds": interval, "delay_seconds": delay}
+    )
+    for key in ("city", "prices", "street"):
+        block = dispatch.news_config[key]
+        block["enabled"] = key in types
+        block["chance"] = 1.0 if key in types else 0.0
+
+
+def _city_news(campaign):
+    return [
+        entry
+        for entry in campaign.story_events
+        if entry.get("category") == "news"
+        and entry.get("news_type") == "city"
+    ]
+
+
+def test_city_news_is_informational_delayed_and_asset_free():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _news_only(dispatch, "city", delay=3600.0)
+    before = {
+        side: {
+            asset: campaign.faction(side).asset(asset)
+            for asset in dispatch.assets
+        }
+        for side in campaign.factions
+    }
+
+    dispatch.tick(100.0)
+
+    news = _city_news(campaign)
+    assert len(news) == 1
+    entry = news[0]
+    assert entry["requires_choice"] is False
+    assert entry["category"] == "news"
+    assert entry["title"] == "Городская сводка"
+    assert entry["release_at"] == campaign.elapsed + 3600.0
+    assert "«" in entry["text"]
+    assert campaign.decision_pending(campaign.player_side) is False
+    assert before == {
+        side: {
+            asset: campaign.faction(side).asset(asset)
+            for asset in dispatch.assets
+        }
+        for side in campaign.factions
+    }
+
+
+def test_news_rotates_city_prices_and_street_rumors():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _news_only(dispatch, "city", "prices", "street")
+
+    for _ in range(6):
+        dispatch.tick(100.0)
+
+    news = [
+        entry
+        for entry in campaign.story_events
+        if entry.get("category") == "news"
+    ]
+    types = [entry.get("news_type") for entry in news]
+    assert types[:3] == ["city", "prices", "street"]
+    street = [
+        entry["text"] for entry in news if entry["news_type"] == "street"
+    ]
+    assert street
+    assert all(text.startswith("На ул") for text in street)
+    prices = [
+        entry["text"] for entry in news if entry["news_type"] == "prices"
+    ]
+    assert prices
+    assert all(text.startswith("На рынке") for text in prices)
+    assert all(entry["requires_choice"] is False for entry in news)
+
+
+def test_street_rumor_names_source_and_target_without_imaginary_assets():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _news_only(dispatch, "street")
+    faction = _foreign(campaign)
+    leader = dispatch._leader_for(faction)
+    leader.bdi.believe(
+        "other", "sees_as_threat", "faction_empire", value=1.0,
+        confidence=1.0,
+    )
+    dispatch.news_rng = type(dispatch.news_rng)(11)
+
+    for _ in range(4):
+        dispatch.tick(100.0)
+
+    texts = [
+        entry["text"]
+        for entry in campaign.story_events
+        if entry.get("news_type") == "street"
+    ]
+    assert any(
+        "враги" in text and "Империя" in text for text in texts
+    )
+
+
+def test_news_state_survives_snapshot_and_continues_identically():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _news_only(dispatch, "city", "prices", "street")
+    dispatch.tick(100.0)
+    snapshot = campaign.snapshot()
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(_preset(), seed=11, snapshot=snapshot)
+    _news_only(restored.dispatch, "city", "prices", "street")
+    dispatch.tick(300.0)
+    restored.dispatch.tick(300.0)
+
+    def ids(game):
+        return [
+            entry["id"]
+            for entry in game.story_events
+            if entry.get("category") == "news"
+        ]
+
+    assert ids(campaign) == ids(restored)
+    assert restored.dispatch._news_progress == pytest.approx(
+        dispatch._news_progress
+    )
+    assert restored.dispatch._news_seq == dispatch._news_seq
