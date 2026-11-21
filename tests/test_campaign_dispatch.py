@@ -1460,3 +1460,85 @@ def test_news_state_survives_snapshot_and_continues_identically():
         dispatch._news_progress
     )
     assert restored.dispatch._news_seq == dispatch._news_seq
+
+
+def _trend_pair(campaign, asset, values, offsets):
+    faction = campaign.player
+    for offset, value in zip(offsets, values):
+        _resolved_sample(
+            campaign,
+            faction,
+            asset,
+            campaign.elapsed - offset,
+            value,
+        )
+
+
+def test_staff_briefing_shows_several_asset_trends_at_once():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    dispatch.briefing_config.update(
+        {"trend_days": 20.0, "trend_min_samples": 2, "trend_step": 0.05}
+    )
+    campaign.elapsed = 10 * 86400.0
+    offsets = (8 * 86400.0, 6 * 86400.0)
+    _trend_pair(campaign, "supply", (0.2, 0.25), offsets)
+    _trend_pair(campaign, "cohesion", (0.8, 0.85), offsets)
+    _trend_pair(campaign, "legitimacy", (0.75, 0.2), offsets)
+
+    lines = dispatch.briefing(campaign.player.side)["lines"]
+
+    multi = [line for line in lines if line.startswith("За дни:")]
+    assert len(multi) == 1
+    assert "снабжение прибывает" in multi[0]
+    assert "сплочённость прибывает" in multi[0]
+    assert "законность проседает" in multi[0]
+    assert not any("0.8" in line or "0,8" in line for line in lines)
+
+
+def test_staff_briefing_multi_trend_limits_asset_count():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    dispatch.briefing_config.update(
+        {
+            "trend_days": 20.0,
+            "trend_min_samples": 2,
+            "trend_step": 0.05,
+            "trend_max_assets": 2,
+        }
+    )
+    campaign.elapsed = 10 * 86400.0
+    offsets = (8 * 86400.0, 6 * 86400.0)
+    _trend_pair(campaign, "supply", (0.2, 0.25), offsets)
+    _trend_pair(campaign, "cohesion", (0.8, 0.85), offsets)
+    _trend_pair(campaign, "legitimacy", (0.75, 0.2), offsets)
+
+    lines = dispatch.briefing(campaign.player.side)["lines"]
+
+    multi = [line for line in lines if line.startswith("За дни:")]
+    assert len(multi) == 1
+    assert multi[0].count("прибывает") + multi[0].count(
+        "проседает"
+    ) == 2
+
+
+def test_staff_briefing_falls_back_to_single_trend_when_multi_off():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    dispatch.briefing_config.update(
+        {
+            "trend_days": 20.0,
+            "trend_min_samples": 2,
+            "trend_step": 0.05,
+            "trend_multi": False,
+        }
+    )
+    campaign.elapsed = 10 * 86400.0
+    offsets = (8 * 86400.0, 6 * 86400.0)
+    _trend_pair(campaign, "supply", (0.2, 0.25), offsets)
+    _trend_pair(campaign, "legitimacy", (0.75, 0.2), offsets)
+
+    lines = dispatch.briefing(campaign.player.side)["lines"]
+
+    assert not any(line.startswith("За дни:") for line in lines)
+    assert any("проседает" in line for line in lines)

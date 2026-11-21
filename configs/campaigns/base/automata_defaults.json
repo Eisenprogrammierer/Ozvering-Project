@@ -313,6 +313,14 @@
       "trend_lines": {
         "up": "{asset_label} — «{band}», и за последние дни прибывает.",
         "down": "{asset_label} — «{band}», и за последние дни проседает."
+      },
+      "trend_multi": true,
+      "trend_max_assets": 3,
+      "trend_multi_line": "За дни: {parts}.",
+      "trend_join": ", ",
+      "trend_short": {
+        "up": "{asset_label} прибывает",
+        "down": "{asset_label} проседает"
       }
     },
     "ai": {

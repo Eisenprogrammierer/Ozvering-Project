@@ -92,6 +92,14 @@ BRIEFING_DEFAULTS = {
         "up": "{asset_label} — «{band}», и за последние дни прибывает.",
         "down": "{asset_label} — «{band}», и за последние дни проседает.",
     },
+    "trend_multi": True,
+    "trend_max_assets": 3,
+    "trend_multi_line": "За дни: {parts}.",
+    "trend_join": ", ",
+    "trend_short": {
+        "up": "{asset_label} прибывает",
+        "down": "{asset_label} проседает",
+    },
 }
 
 MEMORY_DEFAULTS = {
@@ -881,7 +889,9 @@ class ReportDispatcher:
             band = self._band(faction.asset(weakest))
             label = self.asset_labels.get(weakest, weakest)
             lines.append("%s — «%s»." % (label, band["label"]))
-        trend = self._trend_line(side, faction)
+        trend = self._trend_summary(side, faction) or self._trend_line(
+            side, faction
+        )
         if trend:
             lines.append(trend)
         leader = self._leader_for(faction)
@@ -921,18 +931,18 @@ class ReportDispatcher:
         result["lines"] = lines[:4]
         return result
 
-    def _trend_line(self, side, faction):
-        """Направление актива по докладам за окно, без точных чисел.
+    def _trend_movements(self, side, faction):
+        """Подвижные активы стороны за окно, от сильного к слабому.
 
         Начальник штаба сравнивает первую и вторую половину выборки
         решённых докладов своей стороны. Значения берутся из снимка
-        истины на момент доклада, поэтому строка не зависит от того,
-        поверил ли игрок источнику. Если движение меньше шага, строка
-        не выводится: молчание честнее выдуманного тренда.
+        истины на момент доклада, поэтому картина не зависит от того,
+        поверил ли игрок источнику. Движения меньше шага не попадают в
+        список: молчание честнее выдуманного тренда.
         """
         cfg = _as_mapping(self.briefing_config)
         if not bool(cfg.get("enabled", True)):
-            return ""
+            return []
         days = max(1.0, _number(cfg.get("trend_days"), 30.0))
         minimum = max(2, int(_number(cfg.get("trend_min_samples"), 2)))
         step = max(0.0, _number(cfg.get("trend_step"), 0.06))
@@ -955,7 +965,7 @@ class ReportDispatcher:
             samples.setdefault(asset, []).append(
                 (created, _clamp(report.get("true_value")))
             )
-        best = None
+        movements = []
         for asset, values in samples.items():
             if len(values) < minimum:
                 continue
@@ -966,17 +976,20 @@ class ReportDispatcher:
                 value for _at, value in values[middle:]
             ) / (len(values) - middle)
             delta = late - early
-            if best is None or abs(delta) > abs(best[1]):
-                best = (asset, delta)
-        if best is None:
+            if abs(delta) + 1e-9 < step:
+                continue
+            movements.append((asset, delta))
+        movements.sort(key=lambda item: (-abs(item[1]), item[0]))
+        return movements
+
+    def _trend_line(self, side, faction):
+        """Направление самого подвижного актива, без точных чисел."""
+        cfg = _as_mapping(self.briefing_config)
+        movements = self._trend_movements(side, faction)
+        if not movements:
             return ""
-        asset, delta = best
-        if delta >= step:
-            key = "up"
-        elif delta <= -step:
-            key = "down"
-        else:
-            return ""
+        asset, delta = movements[0]
+        key = "up" if delta > 0 else "down"
         template = _as_mapping(cfg.get("trend_lines")).get(key) or ""
         if not template:
             return ""
@@ -987,6 +1000,46 @@ class ReportDispatcher:
                 "asset": asset,
                 "asset_label": self.asset_labels.get(asset, asset),
                 "band": band["label"],
+            },
+        )
+
+    def _trend_summary(self, side, faction):
+        """Короткая картина по нескольким подвижным активам сразу."""
+        cfg = _as_mapping(self.briefing_config)
+        if not bool(cfg.get("trend_multi", True)):
+            return ""
+        limit = max(
+            2, int(_number(cfg.get("trend_max_assets"), 3))
+        )
+        movements = self._trend_movements(side, faction)
+        if len(movements) < 2:
+            return ""
+        short = _as_mapping(cfg.get("trend_short"))
+        parts = []
+        for asset, delta in movements[:limit]:
+            key = "up" if delta > 0 else "down"
+            template = short.get(key) or ""
+            if not template:
+                continue
+            parts.append(
+                _render(
+                    template,
+                    {
+                        "asset": asset,
+                        "asset_label": self.asset_labels.get(
+                            asset, asset
+                        ),
+                    },
+                )
+            )
+        if len(parts) < 2:
+            return ""
+        return _render(
+            cfg.get("trend_multi_line") or "За дни: {parts}.",
+            {
+                "parts": str(cfg.get("trend_join") or ", ").join(
+                    parts
+                )
             },
         )
 
