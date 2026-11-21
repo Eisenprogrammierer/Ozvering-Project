@@ -1231,3 +1231,99 @@ def test_intercept_countermeasure_needs_action_budget(monkeypatch):
     assert result["ok"] is False
     assert "нет действий" in result["reason"]
     assert not item.get("counter")
+
+
+def _spread_config(dispatch, **overrides):
+    config = dispatch.memory_config["spread"]
+    config.update(
+        {
+            "enabled": True,
+            "chance": 0.0,
+            "relation_weight": 0.0,
+            "weight": 0.5,
+            "include_player": False,
+        }
+    )
+    config.update(overrides)
+
+
+def test_memory_outcome_spreads_as_a_weaker_rumor():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _spread_config(dispatch, chance=1.0)
+    faction = campaign.player
+    report, source = _fresh_report(campaign, faction)
+
+    dispatch.resolve(report["id"], "ignore")
+
+    leaders = [
+        dispatch._leader_for(other)
+        for side, other in campaign.factions.items()
+        if side != campaign.player_side
+    ]
+    assert leaders
+    for leader in leaders:
+        memory = dispatch._memory_for(
+            source.campaign_id, leader.campaign_id
+        )
+        assert memory["ignored"] == pytest.approx(0.5)
+        assert memory["reports"] == pytest.approx(0.5)
+        assert memory["spread"] == 1
+        assert memory["last_outcome"] == ""
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(
+        _preset(), seed=11, snapshot=campaign.snapshot()
+    )
+    leader = leaders[0]
+    memory = restored.dispatch._memory_for(
+        source.campaign_id, leader.campaign_id
+    )
+    assert memory["ignored"] == pytest.approx(0.5)
+
+
+def test_memory_rumor_needs_shared_acquaintance():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _spread_config(
+        dispatch, chance=0.0, relation_weight=1.0
+    )
+    faction = campaign.player
+    report, source = _fresh_report(campaign, faction)
+
+    dispatch.resolve(report["id"], "ignore")
+
+    other = _foreign(campaign)
+    leader = dispatch._leader_for(other)
+    assert dispatch._memory_for(
+        source.campaign_id, leader.campaign_id
+    ).get("reports", 0) == 0
+
+    campaign.relations.add(
+        source.campaign_id, leader.campaign_id, {"trust": 0.9}, 1.0
+    )
+    second, _source = _fresh_report(
+        campaign, faction, source=source
+    )
+    dispatch.resolve(second["id"], "ignore")
+
+    memory = dispatch._memory_for(
+        source.campaign_id, leader.campaign_id
+    )
+    assert memory["reports"] == pytest.approx(0.5)
+    assert memory["ignored"] == pytest.approx(0.5)
+
+
+def test_memory_rumor_can_skip_player_side():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _spread_config(dispatch, chance=1.0)
+    faction = _foreign(campaign)
+    report, source = _fresh_report(campaign, faction)
+    dispatch.auto_resolve(report)
+
+    player_leader = dispatch._leader_for(campaign.player)
+    assert dispatch._memory_for(
+        source.campaign_id, player_leader.campaign_id
+    ).get("reports", 0) == 0

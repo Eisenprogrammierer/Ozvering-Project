@@ -96,6 +96,13 @@ BRIEFING_DEFAULTS = {
 MEMORY_DEFAULTS = {
     "enabled": True,
     "confidence_step": 0.04,
+    "spread": {
+        "enabled": True,
+        "chance": 0.30,
+        "weight": 0.5,
+        "relation_weight": 0.40,
+        "include_player": False,
+    },
     "lines": {
         "trusted": (
             "В прошлый раз вы доверились мне насчёт {last_asset_label}."
@@ -425,6 +432,9 @@ class ReportDispatcher:
         self.memory: Dict[str, dict] = {}
         self.rng = random.Random(
             int(_number(getattr(campaign, "seed", 0), 0)) * 7919 + 41
+        )
+        self.spread_rng = random.Random(
+            int(_number(getattr(campaign, "seed", 0), 0)) * 7919 + 97
         )
 
     @staticmethod
@@ -2000,6 +2010,7 @@ class ReportDispatcher:
             "last_band_label": "",
             "last_source_name": "",
             "penalized_promises": [],
+            "spread": 0,
         }
 
     def _leader_key(self, faction, leader=None):
@@ -2375,6 +2386,21 @@ class ReportDispatcher:
         )
         return dict(obligation)
 
+    @staticmethod
+    def _outcome_key(effect_key, choice):
+        """Свести эффект решения к исходу памяти источника."""
+        if effect_key in ("trust", "rumor_trust"):
+            return "trusted"
+        if effect_key == "verify_right":
+            return "verified_right"
+        if effect_key == "verify_lie":
+            return "lied"
+        if effect_key in ("verify_wrong", "rumor_verify"):
+            return "verified_wrong"
+        if effect_key in ("ignore", "rumor_ignore"):
+            return "ignored"
+        return str(choice or "")
+
     def _remember(self, report, choice, correct, effect_key):
         """Записать исход в память получателя для следующих докладов."""
         if not self.memory_enabled:
@@ -2386,34 +2412,15 @@ class ReportDispatcher:
             source_id, report.get("recipient_id")
         )
         memory["reports"] = int(_number(memory.get("reports"), 0)) + 1
-        if effect_key in ("trust", "rumor_trust"):
-            memory["trusted"] = int(_number(memory.get("trusted"), 0)) + 1
-            outcome = "trusted"
-        elif effect_key == "verify_right":
-            memory["verified_right"] = int(
-                _number(memory.get("verified_right"), 0)
-            ) + 1
-            outcome = "verified_right"
-        elif effect_key == "verify_lie":
-            memory["lied"] = int(
-                _number(memory.get("lied"), 0)
-            ) + 1
-            outcome = "lied"
-        elif effect_key == "verify_wrong":
-            memory["verified_wrong"] = int(
-                _number(memory.get("verified_wrong"), 0)
-            ) + 1
-            outcome = "verified_wrong"
-        elif effect_key in ("ignore", "rumor_ignore"):
-            memory["ignored"] = int(_number(memory.get("ignored"), 0)) + 1
-            outcome = "ignored"
-        elif effect_key in ("rumor_verify",):
-            memory["verified_wrong"] = int(
-                _number(memory.get("verified_wrong"), 0)
-            ) + 1
-            outcome = "verified_wrong"
-        else:
-            outcome = str(choice or "")
+        outcome = self._outcome_key(effect_key, choice)
+        if outcome in (
+            "trusted",
+            "ignored",
+            "verified_right",
+            "verified_wrong",
+            "lied",
+        ):
+            memory[outcome] = int(_number(memory.get(outcome), 0)) + 1
         memory["last_outcome"] = outcome
         memory["last_report_id"] = str(report.get("id") or "")
         memory["last_asset"] = str(report.get("asset") or "")
@@ -2426,6 +2433,103 @@ class ReportDispatcher:
             report.get("source_name") or ""
         )
         memory["last_correct"] = correct
+        self._spread_outcome(report, outcome)
+
+    def _spread_outcome(self, report, outcome):
+        """Разнести слух об исходе доклада по чужим лидерам.
+
+        Память источника остаётся личной: получатель знает исход точно,
+        а остальные слышат ослабленный слух через общих знакомых или
+        городскую молву. Слух не задаёт ``last_outcome``, поэтому не
+        выдаёт себя за личный доклад.
+        """
+        cfg = _as_mapping(self.memory_config.get("spread"))
+        if not bool(cfg.get("enabled", True)):
+            return []
+        if outcome not in (
+            "trusted",
+            "ignored",
+            "verified_right",
+            "verified_wrong",
+            "lied",
+        ):
+            return []
+        source_id = str(report.get("source_id") or "")
+        recipient_id = str(report.get("recipient_id") or "")
+        origin_side = str(report.get("side") or "")
+        if not source_id:
+            return []
+        base = _clamp(cfg.get("chance"), 0.0, 1.0)
+        weight = max(0.0, _number(cfg.get("weight"), 0.5))
+        relation_weight = _number(cfg.get("relation_weight"), 0.4)
+        include_player = bool(cfg.get("include_player", False))
+        player_side = str(
+            getattr(self.campaign, "player_side", "") or ""
+        )
+        spread = []
+        for faction in self._factions():
+            side = str(getattr(faction, "side", "") or "")
+            if side == origin_side:
+                continue
+            if side == player_side and not include_player:
+                continue
+            leader = self._leader_for(faction)
+            if leader is None:
+                continue
+            leader_id = str(
+                getattr(leader, "campaign_id", "") or ""
+            )
+            if not leader_id or leader_id in (recipient_id, source_id):
+                continue
+            shared = self._shared_acquaintance(
+                leader_id, recipient_id, source_id
+            )
+            chance = _clamp(
+                base + relation_weight * shared, 0.0, 1.0
+            )
+            if chance <= 0.0 or self.spread_rng.random() >= chance:
+                continue
+            memory = self._memory_entry(source_id, leader_id)
+            memory["reports"] = _number(
+                memory.get("reports"), 0.0
+            ) + weight
+            memory[outcome] = _number(
+                memory.get(outcome), 0.0
+            ) + weight
+            memory["spread"] = int(
+                _number(memory.get("spread"), 0)
+            ) + 1
+            spread.append({"side": side, "outcome": outcome})
+            self._log(
+                "memory_spread",
+                side=side,
+                from_side=origin_side,
+                source_id=source_id,
+                outcome=outcome,
+                weight=weight,
+            )
+        return spread
+
+    def _shared_acquaintance(self, leader_id, recipient_id, source_id):
+        """Насколько чужой лидер близок к участникам доклада."""
+        relations = getattr(self.campaign, "relations", None)
+        if relations is None:
+            return 0.0
+        best = 0.0
+        for other in (recipient_id, source_id):
+            if not other or other == leader_id:
+                continue
+            for pair in ((leader_id, other), (other, leader_id)):
+                try:
+                    axes = relations.axes_for(*pair)
+                except Exception:
+                    continue
+                best = max(
+                    best,
+                    _number(axes.get("affinity")),
+                    _number(axes.get("trust")),
+                )
+        return _clamp(best, 0.0, 1.0)
 
     def _resolve_counterpart(
         self, counterpart, winner, choice_id, revealed_truth
@@ -2932,6 +3036,9 @@ class ReportDispatcher:
             "seq": int(self._seq),
             "asset_index": int(self._asset_index),
             "rng_state": _nested_tuple(self.rng.getstate()),
+            "spread_rng_state": _nested_tuple(
+                self.spread_rng.getstate()
+            ),
             "reports": [
                 copy.deepcopy(report)
                 for report in self.reports[-self.history_limit:]
@@ -2957,6 +3064,12 @@ class ReportDispatcher:
         if state:
             try:
                 self.rng.setstate(_nested_tuple(state))
+            except (TypeError, ValueError):
+                pass
+        spread_state = data.get("spread_rng_state")
+        if spread_state:
+            try:
+                self.spread_rng.setstate(_nested_tuple(spread_state))
             except (TypeError, ValueError):
                 pass
         self.reports = [
