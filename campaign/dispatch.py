@@ -1517,6 +1517,7 @@ class ReportDispatcher:
                 )
                 if callable(fulfill):
                     fulfill(obligation.id)
+                self._forgive_broken_word(faction, leader)
                 self._log(
                     "promise_fulfilled",
                     side=getattr(faction, "side", ""),
@@ -1591,7 +1592,59 @@ class ReportDispatcher:
             "asset": str(asset),
             "source_id": str(getattr(source, "campaign_id", "") or ""),
         }
+        belief = _as_mapping(self.promise_config.get("belief"))
+        predicate = str(belief.get("predicate") or "")
+        if predicate and leader is not None:
+            try:
+                self._believe(
+                    leader,
+                    leader_key,
+                    predicate,
+                    str(getattr(source, "campaign_id", "") or ""),
+                    _number(belief.get("value"), 0.7),
+                    _number(belief.get("confidence"), 0.8),
+                )
+                changes["belief"] = predicate
+            except Exception:
+                pass
         self._log("promise_overdue", **changes)
+
+    def _forgive_broken_word(self, faction, leader):
+        """Снять след просрочки, когда лидер закрыл свои долги.
+
+        Убеждение ``has_broken_word`` даёт вес работам, которые
+        восстанавливают опору: поддержке, награде и ремонту. Оно живёт,
+        пока у лидера остаётся хотя бы один просроченный долг; закрытие
+        последнего возвращает прежние веса.
+        """
+        predicate = str(
+            _as_mapping(self.promise_config.get("belief")).get("predicate")
+            or ""
+        )
+        if not predicate or leader is None:
+            return False
+        obligations = getattr(self.campaign, "obligations", None)
+        day = int(_number(getattr(self.campaign, "turn", 0), 0))
+        if obligations is not None:
+            party = self._leader_key(faction, leader)
+            for item in obligations.for_party(party):
+                if item.active() and item.overdue(day):
+                    return False
+        bdi = getattr(leader, "bdi", None)
+        if bdi is None:
+            return False
+        removed = bdi.forget(
+            self._leader_key(faction, leader), predicate
+        )
+        if not removed:
+            return False
+        leader.beliefs = bdi.beliefs
+        self._log(
+            "promise_atoned",
+            side=getattr(faction, "side", ""),
+            predicate=predicate,
+        )
+        return True
 
     def _new_memory(self):
         return {

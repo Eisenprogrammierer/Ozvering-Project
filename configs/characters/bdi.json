@@ -602,6 +602,12 @@
       "symmetric": false,
       "object": "required"
     },
+    "has_broken_word": {
+      "label": "нарушил слово перед",
+      "kind": "relation",
+      "symmetric": false,
+      "object": "required"
+    },
     "resents": {
       "label": "обижен на",
       "kind": "relation",

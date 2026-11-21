@@ -951,3 +951,86 @@ def test_ai_choice_uses_only_its_own_recipient_memory():
     assert dispatch._ai_choice(
         other_report, faction, leader
     ) != "trust"
+
+
+def test_overdue_promise_weights_leader_work_and_atones_on_fulfil():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    leader = dispatch._leader_for(faction)
+    report, source = _fresh_report(campaign, faction)
+    report["asks_promise"] = True
+    report["request_line"] = "Прошу поддержки."
+    dispatch.resolve(report["id"], "trust")
+    obligation = campaign.obligations.get(report["promise_id"])
+    assert obligation is not None
+
+    probe = {
+        "id": "probe_reassure",
+        "label": "Поддержать",
+        "ai_priority": 1.0,
+        "template": {"form": "support"},
+        "hints": {"essence": "reassure"},
+        "chance": {"defense": "cohesion"},
+    }
+    baseline = campaign._ai_action_weight(faction.side, probe)
+
+    campaign.turn = obligation.due_day + 1
+    line, overdue = dispatch._promise_context(
+        faction, source, report["asset"], report["true_value"]
+    )
+    assert overdue is True
+    assert "просрочено" in line
+    breaches = [
+        belief
+        for belief in leader.bdi.beliefs
+        if belief.predicate == "has_broken_word"
+    ]
+    assert len(breaches) == 1
+    assert breaches[0].subject == "player"
+    boosted = campaign._ai_action_weight(faction.side, probe)
+    assert boosted > baseline * 1.05
+
+    dispatch._promise_context(
+        faction, source, report["asset"], report["true_value"]
+    )
+    assert len(
+        [
+            belief
+            for belief in leader.bdi.beliefs
+            if belief.predicate == "has_broken_word"
+        ]
+    ) == 1
+
+    reference = float(obligation.note.split(":")[3])
+    dispatch._promise_context(
+        faction, source, report["asset"], reference + 0.5
+    )
+    assert campaign.obligations.get(obligation.id).active() is False
+    assert not any(
+        belief.predicate == "has_broken_word"
+        for belief in leader.bdi.beliefs
+    )
+    assert campaign._ai_action_weight(faction.side, probe) == baseline
+
+
+def test_foreign_leader_broken_word_is_its_own_belief():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = _foreign(campaign)
+    leader = dispatch._leader_for(faction)
+    source = dispatch._source(faction, "supply")
+    assert source is not None
+
+    dispatch._penalize_promise(faction, source, leader, "supply")
+
+    assert any(
+        belief.predicate == "has_broken_word"
+        and belief.subject == leader.campaign_id
+        for belief in leader.bdi.beliefs
+    )
+    player_leader = dispatch._leader_for(campaign.player)
+    assert not any(
+        belief.predicate == "has_broken_word"
+        for belief in player_leader.bdi.beliefs
+    )

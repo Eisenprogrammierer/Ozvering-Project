@@ -291,7 +291,12 @@
       "request_text": "{source} просит не оставлять это без ответа.",
       "line": "Вы обещали {source} поддержку по «{asset_label}».",
       "overdue_line": "Обещание по «{asset_label}» просрочено. {source} помнит об этом.",
-      "fulfilled_line": "Обещание по «{asset_label}» исполнено. {source} отметил это."
+      "fulfilled_line": "Обещание по «{asset_label}» исполнено. {source} отметил это.",
+      "belief": {
+        "predicate": "has_broken_word",
+        "value": 0.7,
+        "confidence": 0.8
+      }
     },
     "ai": {
       "enabled": true,
@@ -1268,6 +1273,17 @@
             "coercion"
           ],
           "weight": -0.45
+        },
+        {
+          "predicate": "has_broken_word",
+          "essences": [
+            "reassure",
+            "reward",
+            "repair",
+            "resupply_organ",
+            "social_apology"
+          ],
+          "weight": 0.45
         }
       ]
     },
