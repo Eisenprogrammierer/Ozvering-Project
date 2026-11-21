@@ -82,6 +82,17 @@ PROMISE_DEFAULTS = {
     ),
 }
 
+BRIEFING_DEFAULTS = {
+    "enabled": True,
+    "trend_days": 30.0,
+    "trend_min_samples": 2,
+    "trend_step": 0.06,
+    "trend_lines": {
+        "up": "{asset_label} — «{band}», и за последние дни прибывает.",
+        "down": "{asset_label} — «{band}», и за последние дни проседает.",
+    },
+}
+
 MEMORY_DEFAULTS = {
     "enabled": True,
     "confidence_step": 0.04,
@@ -340,6 +351,9 @@ class ReportDispatcher:
         self.promise_enabled = bool(
             self.promise_config.get("enabled", True)
         )
+        self.briefing_config = _merged(
+            BRIEFING_DEFAULTS, self.config.get("briefing")
+        )
         self.threat_config = _merged(
             THREAT_DEFAULTS, self.config.get("threat")
         )
@@ -509,6 +523,9 @@ class ReportDispatcher:
             band = self._band(faction.asset(weakest))
             label = self.asset_labels.get(weakest, weakest)
             lines.append("%s — «%s»." % (label, band["label"]))
+        trend = self._trend_line(side, faction)
+        if trend:
+            lines.append(trend)
         leader = self._leader_for(faction)
         if leader is not None:
             needs = getattr(leader, "needs", {}) or {}
@@ -545,6 +562,75 @@ class ReportDispatcher:
             lines.append(recent)
         result["lines"] = lines[:4]
         return result
+
+    def _trend_line(self, side, faction):
+        """Направление актива по докладам за окно, без точных чисел.
+
+        Начальник штаба сравнивает первую и вторую половину выборки
+        решённых докладов своей стороны. Значения берутся из снимка
+        истины на момент доклада, поэтому строка не зависит от того,
+        поверил ли игрок источнику. Если движение меньше шага, строка
+        не выводится: молчание честнее выдуманного тренда.
+        """
+        cfg = _as_mapping(self.briefing_config)
+        if not bool(cfg.get("enabled", True)):
+            return ""
+        days = max(1.0, _number(cfg.get("trend_days"), 30.0))
+        minimum = max(2, int(_number(cfg.get("trend_min_samples"), 2)))
+        step = max(0.0, _number(cfg.get("trend_step"), 0.06))
+        now = _number(getattr(self.campaign, "elapsed", 0.0))
+        window = now - days * 86400.0
+        samples = {}
+        for report in self.reports:
+            if str(report.get("side") or "") != str(side):
+                continue
+            if str(report.get("status") or "") != "resolved":
+                continue
+            if report.get("true_value") is None:
+                continue
+            created = _number(report.get("created"), 0.0)
+            if created < window:
+                continue
+            asset = str(report.get("asset") or "")
+            if asset not in self.assets:
+                continue
+            samples.setdefault(asset, []).append(
+                (created, _clamp(report.get("true_value")))
+            )
+        best = None
+        for asset, values in samples.items():
+            if len(values) < minimum:
+                continue
+            values.sort(key=lambda item: item[0])
+            middle = len(values) // 2
+            early = sum(value for _at, value in values[:middle]) / middle
+            late = sum(
+                value for _at, value in values[middle:]
+            ) / (len(values) - middle)
+            delta = late - early
+            if best is None or abs(delta) > abs(best[1]):
+                best = (asset, delta)
+        if best is None:
+            return ""
+        asset, delta = best
+        if delta >= step:
+            key = "up"
+        elif delta <= -step:
+            key = "down"
+        else:
+            return ""
+        template = _as_mapping(cfg.get("trend_lines")).get(key) or ""
+        if not template:
+            return ""
+        band = self._band(faction.asset(asset))
+        return _render(
+            template,
+            {
+                "asset": asset,
+                "asset_label": self.asset_labels.get(asset, asset),
+                "band": band["label"],
+            },
+        )
 
     def _recent_report_news(self, side):
         for report in reversed(self.reports):

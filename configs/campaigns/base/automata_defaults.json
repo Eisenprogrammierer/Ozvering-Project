@@ -298,6 +298,16 @@
         "confidence": 0.8
       }
     },
+    "briefing": {
+      "enabled": true,
+      "trend_days": 30.0,
+      "trend_min_samples": 2,
+      "trend_step": 0.06,
+      "trend_lines": {
+        "up": "{asset_label} — «{band}», и за последние дни прибывает.",
+        "down": "{asset_label} — «{band}», и за последние дни проседает."
+      }
+    },
     "ai": {
       "enabled": true,
       "trust_base": 0.35,

@@ -1034,3 +1034,79 @@ def test_foreign_leader_broken_word_is_its_own_belief():
         belief.predicate == "has_broken_word"
         for belief in player_leader.bdi.beliefs
     )
+
+
+def _resolved_sample(campaign, faction, asset, created, value):
+    report, _source = _fresh_report(campaign, faction, asset=asset)
+    report["status"] = "resolved"
+    report["choice"] = "trust"
+    report["created"] = float(created)
+    report["true_value"] = float(value)
+    return report
+
+
+def test_staff_briefing_shows_rising_asset_trend():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    dispatch.briefing_config.update(
+        {"trend_days": 20.0, "trend_min_samples": 2, "trend_step": 0.05}
+    )
+    campaign.elapsed = 10 * 86400.0
+    for offset, value in (
+        (8 * 86400.0, 0.2),
+        (6 * 86400.0, 0.25),
+        (2 * 86400.0, 0.75),
+        (1 * 86400.0, 0.8),
+    ):
+        _resolved_sample(
+            campaign, faction, "supply", campaign.elapsed - offset, value
+        )
+
+    lines = dispatch.briefing(faction.side)["lines"]
+
+    assert any("прибывает" in line for line in lines)
+    assert any("снабжение" in line for line in lines)
+    assert not any("0.8" in line or "0,8" in line for line in lines)
+
+
+def test_staff_briefing_shows_falling_asset_trend():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    dispatch.briefing_config.update(
+        {"trend_days": 20.0, "trend_min_samples": 2, "trend_step": 0.05}
+    )
+    campaign.elapsed = 10 * 86400.0
+    for offset, value in (
+        (8 * 86400.0, 0.85),
+        (6 * 86400.0, 0.8),
+        (2 * 86400.0, 0.2),
+        (1 * 86400.0, 0.15),
+    ):
+        _resolved_sample(
+            campaign, faction, "cohesion", campaign.elapsed - offset, value
+        )
+
+    lines = dispatch.briefing(faction.side)["lines"]
+
+    assert any("проседает" in line for line in lines)
+
+
+def test_staff_briefing_skips_thin_or_stale_trend_samples():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    dispatch.briefing_config.update(
+        {"trend_days": 5.0, "trend_min_samples": 2, "trend_step": 0.05}
+    )
+    campaign.elapsed = 20 * 86400.0
+    _resolved_sample(campaign, faction, "supply", 0.0, 0.1)
+    _resolved_sample(
+        campaign, faction, "supply", campaign.elapsed - 86400.0, 0.9
+    )
+
+    lines = dispatch.briefing(faction.side)["lines"]
+
+    assert not any("прибывает" in line for line in lines)
+    assert not any("проседает" in line for line in lines)
