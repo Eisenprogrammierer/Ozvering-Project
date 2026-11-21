@@ -869,12 +869,16 @@ class AutomataScreen(BaseScreen):
             accent=bool(ongoing),
         )
         reports = self.campaign.pending_reports(self.campaign.player_side)
+        intercepts = self.campaign.available_interceptions(
+            self.campaign.player_side
+        )
+        attention = len(reports) + len(intercepts)
         self._draw_button(
             screen,
             self._reports_rect(),
-            "ДОКЛАДЫ · %d" % len(reports) if reports else "ДОКЛАДЫ",
+            "ДОКЛАДЫ · %d" % attention if attention else "ДОКЛАДЫ",
             enabled=True,
-            accent=bool(reports),
+            accent=bool(attention),
         )
         self._draw_button(
             screen,
@@ -1222,7 +1226,7 @@ class AutomataScreen(BaseScreen):
                 (RIGHT_RECT.x + 12, y),
             )
             y += 16
-            for line in briefing.get("lines")[:2]:
+            for line in briefing.get("lines")[:3]:
                 for wrapped in wrap_text(
                     self.app.font_tiny,
                     str(line),

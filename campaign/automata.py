@@ -2379,6 +2379,22 @@ class AutomataCampaign:
         """
         return self.dispatch.resolve(report_id, choice)
 
+    def interceptions(self, side=None):
+        """Перехваченные донесения противника для игрока."""
+        return self.dispatch.interceptions(side)
+
+    def available_interceptions(self, side=None):
+        """Перехваты, которые уже можно вскрыть."""
+        return self.dispatch.available_interceptions(side)
+
+    def intercept(self, intercept_id):
+        """Найти перехват по идентификатору."""
+        return self.dispatch.intercept(intercept_id)
+
+    def open_intercept(self, intercept_id):
+        """Вскрыть перехваченное донесение за действие игрока."""
+        return self.dispatch.open_intercept(intercept_id)
+
     def _record_report_event(self, report):
         """Положить доклад в повествовательную ленту кампании."""
         entry = {

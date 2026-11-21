@@ -288,3 +288,88 @@ def test_story_feed_delays_third_party_news():
     feed = screen._story_feed()
     assert any(entry.get("category") == "news" for entry in feed)
     app.quit()
+
+
+def _intercept(campaign, delay=0.0):
+    dispatch = campaign.dispatch
+    dispatch.interception_enabled = True
+    dispatch.interception_config.update(
+        {
+            "chance": 1.0,
+            "influence_weight": 0.0,
+            "delay_seconds": float(delay),
+            "expire_seconds": 100000.0,
+            "max_pending": 6,
+            "price_actions": 1,
+        }
+    )
+    foreign = next(
+        faction
+        for side, faction in campaign.factions.items()
+        if side != campaign.player_side
+    )
+    report = dispatch.issue(foreign)
+    assert report is not None
+    dispatch.auto_resolve(report)
+    return campaign.interceptions(campaign.player_side)[-1]
+
+
+def test_overlay_hides_sealed_intercept_and_opens_it(monkeypatch):
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    item = _intercept(campaign)
+    overlay = ReportsOverlay(app, campaign)
+    assert overlay._current()[0] is item
+    assert overlay._can_open(item)
+
+    sealed = overlay._intercept_lines(item)
+    assert any("скрыты" in line for line in sealed)
+    assert not any("Решение фракции" in line for line in sealed)
+    overlay.draw(pygame.Surface((1280, 720)))
+
+    spent = []
+    monkeypatch.setattr(
+        campaign,
+        "_spend_player_action",
+        lambda side: spent.append(str(side)),
+    )
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=overlay._intercept_rect().center,
+            button=1,
+        )
+    )
+
+    assert item["status"] == "open"
+    assert spent == [campaign.player_side]
+    assert overlay.message
+    opened = overlay._intercept_lines(item)
+    assert any("Решение фракции" in line for line in opened)
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()
+
+
+def test_overlay_waits_for_intercept_delivery():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    item = _intercept(campaign, delay=3600.0)
+    overlay = ReportsOverlay(app, campaign)
+
+    assert not overlay._can_open(item)
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=overlay._intercept_rect().center,
+            button=1,
+        )
+    )
+    assert item["status"] == "sealed"
+    assert "пути" in overlay.message
+
+    campaign.elapsed = float(item["available_at"])
+    assert overlay._can_open(item)
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()

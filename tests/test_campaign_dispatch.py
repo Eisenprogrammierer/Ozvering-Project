@@ -719,3 +719,120 @@ def test_ai_verify_does_not_spend_player_actions(monkeypatch):
     assert result["choice"] == "verify"
     assert result["cost"] == 0
     assert campaign.actions_left == 2
+
+
+def _intercept(campaign, delay=0.0, expire=100000.0):
+    dispatch = campaign.dispatch
+    dispatch.interception_enabled = True
+    dispatch.interception_config.update(
+        {
+            "chance": 1.0,
+            "influence_weight": 0.0,
+            "delay_seconds": float(delay),
+            "expire_seconds": float(expire),
+            "max_pending": 6,
+            "price_actions": 1,
+        }
+    )
+    faction = _foreign(campaign)
+    report = dispatch.issue(faction)
+    assert report is not None
+    dispatch.auto_resolve(report)
+    items = campaign.interceptions(campaign.player_side)
+    assert items
+    return report, items[-1]
+
+
+def test_foreign_report_is_intercepted_sealed_without_a_decision():
+    campaign = _campaign()
+    report, item = _intercept(campaign)
+
+    assert item["kind"] == "intercept"
+    assert item["side"] == campaign.player_side
+    assert item["origin_side"] == report["side"]
+    assert item["status"] == "sealed"
+    assert item["text"] == report["text"]
+    assert item["source_name"] == report["source_name"]
+    assert item["available_at"] == item["created"]
+    assert campaign.decision_pending(campaign.player_side) is False
+    briefing = campaign.staff_briefing(campaign.player_side)
+    assert any("перехвач" in line for line in briefing["lines"])
+
+
+def test_open_intercept_reveals_decision_and_spends_player_action(
+    monkeypatch,
+):
+    campaign = _campaign()
+    _report, item = _intercept(campaign)
+    spent = []
+    monkeypatch.setattr(
+        campaign,
+        "_spend_player_action",
+        lambda side: spent.append(str(side)),
+    )
+
+    result = campaign.open_intercept(item["id"])
+
+    assert result["ok"] is True
+    assert result["cost"] == 1
+    assert spent == [campaign.player_side]
+    assert item["status"] == "open"
+    assert item["text"]
+    assert item["choice"]
+    assert item["choice_label"]
+    assert item["decision_text"]
+    assert campaign.open_intercept(item["id"])["ok"] is False
+
+
+def test_open_intercept_waits_for_delivery_and_respects_gate(monkeypatch):
+    campaign = _campaign()
+    _report, item = _intercept(campaign, delay=3600.0)
+    campaign.elapsed = item["created"] + 10.0
+
+    early = campaign.open_intercept(item["id"])
+    assert early["ok"] is False
+    assert "пути" in early["reason"]
+
+    campaign.elapsed = float(item["available_at"])
+    monkeypatch.setattr(
+        campaign, "_player_action_gate", lambda _side: "нет действий"
+    )
+    blocked = campaign.open_intercept(item["id"])
+    assert blocked["ok"] is False
+    assert "нет действий" in blocked["reason"]
+
+    monkeypatch.setattr(
+        campaign, "_player_action_gate", lambda _side: None
+    )
+    opened = campaign.open_intercept(item["id"])
+    assert opened["ok"] is True
+
+
+def test_intercepts_expire_and_snapshot_roundtrip():
+    campaign = _campaign()
+    _report, _item = _intercept(campaign, expire=10.0)
+    snapshot = campaign.snapshot()
+
+    loaded = _campaign()
+    loaded.load_snapshot(snapshot)
+    items = loaded.interceptions(loaded.player_side)
+    assert len(items) == 1
+    assert items[0]["report_id"] == _item["report_id"]
+    assert items[0]["status"] == "sealed"
+
+    loaded.elapsed = 100.0
+    loaded.dispatch.tick(0.1)
+    assert loaded.interceptions(loaded.player_side) == []
+    assert loaded.dispatch.intercepts[0]["status"] == "expired"
+
+
+def test_interception_can_be_disabled():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    dispatch.interception_enabled = False
+    faction = _foreign(campaign)
+    report = dispatch.issue(faction)
+    assert report is not None
+    dispatch.auto_resolve(report)
+
+    assert campaign.interceptions(campaign.player_side) == []

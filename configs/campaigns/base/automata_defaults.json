@@ -331,6 +331,22 @@
         "ignore": "{faction}: от доклада о «{asset_label}» отмахнулись."
       }
     },
+    "interception": {
+      "enabled": true,
+      "chance": 0.4,
+      "influence_weight": 0.3,
+      "delay_seconds": 7200.0,
+      "expire_seconds": 259200.0,
+      "max_pending": 6,
+      "price_actions": 1,
+      "title": "Перехват: {faction}",
+      "open_title": "Перехват вскрыт: {faction}",
+      "sealed_text": "Шифр не вскрыт: известно лишь, чья это передача.",
+      "in_transit_text": "Донесение ещё в пути: шифр доставят позже.",
+      "open_text": "Шифр вскрыт. Донесение прочитано.",
+      "source_unknown": "источник неизвестен",
+      "decision_unknown": "решение фракции неизвестно"
+    },
     "rumor": {
       "enabled": true,
       "chance": 0.28,

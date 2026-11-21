@@ -48,6 +48,13 @@ class ReportsOverlay(OverlayScreen):
     def _pending(self):
         return list(self.campaign.pending_reports(self.side))
 
+    def _intercepts(self):
+        return [
+            item
+            for item in self.campaign.interceptions(self.side)
+            if str(item.get("status") or "") in ("sealed", "open")
+        ]
+
     def _history(self):
         reports = getattr(self.campaign.dispatch, "reports", ()) or ()
         return [
@@ -57,13 +64,24 @@ class ReportsOverlay(OverlayScreen):
             and str(report.get("status") or "") in ("resolved", "expired")
         ]
 
+    @staticmethod
+    def _is_intercept(item):
+        return str(item.get("kind") or "") == "intercept"
+
+    def _queue(self):
+        """Сначала доклады, затем перехваты: они не спорят за решение."""
+        return self._pending() + self._intercepts()
+
     def _current(self):
-        pending = self._pending()
-        if pending:
-            self.index = max(0, min(self.index, len(pending) - 1))
-            return pending[self.index], pending
+        queue = self._queue()
+        if queue:
+            self.index = max(0, min(self.index, len(queue) - 1))
+            return queue[self.index], queue
         history = self._history()
         return (history[-1] if history else None), []
+
+    def _now(self):
+        return float(getattr(self.campaign, "elapsed", 0.0) or 0.0)
 
     # --- геометрия --------------------------------------------------
     def _body_rect(self):
@@ -78,6 +96,9 @@ class ReportsOverlay(OverlayScreen):
         )
 
     def _body_lines(self, report):
+        return self._report_lines(report)
+
+    def _report_lines(self, report):
         text = str(report.get("text") or "")
         rect = self._body_rect()
         line_h = self.app.font_small.get_height() + 5
@@ -99,6 +120,66 @@ class ReportsOverlay(OverlayScreen):
             )
         return lines[:limit]
 
+    def _intercept_lines(self, item):
+        rect = self._body_rect()
+        line_h = self.app.font_small.get_height() + 5
+        limit = max(0, rect.height // line_h)
+        lines = []
+        status = str(item.get("status") or "")
+        if status == "sealed":
+            available_at = float(item.get("available_at") or 0.0)
+            if self._now() + 1e-9 < available_at:
+                lines.extend(
+                    wrap_text(
+                        self.app.font_small,
+                        str(item.get("in_transit_text") or ""),
+                        rect.width,
+                    )
+                )
+            else:
+                lines.extend(
+                    wrap_text(
+                        self.app.font_small,
+                        str(item.get("sealed_text") or ""),
+                        rect.width,
+                    )
+                )
+            lines.append("")
+            lines.append("Передача: %s." % item.get("faction_name"))
+            lines.append("Источник и содержание скрыты.")
+            return lines[:limit]
+
+        text = str(item.get("text") or "")
+        lines.extend(wrap_text(self.app.font_small, text, rect.width))
+        lines.append("")
+        lines.append(
+            "Источник: %s · %s"
+            % (
+                item.get("source_name") or item.get("source_unknown"),
+                item.get("source_post") or "без должности",
+            )
+        )
+        lines.append(
+            "Полоса: «%s» · уверенность: %s"
+            % (
+                item.get("band_label") or "неизвестна",
+                item.get("confidence_label") or "неизвестна",
+            )
+        )
+        decision = str(item.get("decision_text") or "")
+        lines.append("")
+        lines.append(
+            "Решение фракции: %s"
+            % (item.get("choice_label") or item.get("choice") or "—")
+        )
+        if decision:
+            lines.extend(
+                wrap_text(self.app.font_small, decision, rect.width)
+            )
+        if item.get("motive_revealed") and item.get("motive"):
+            lines.append("Мотив: %s" % item.get("motive"))
+        return lines[:limit]
+
     def _choice_rects(self, report):
         choices = list(report.get("choices") or ())
         if not choices:
@@ -114,6 +195,15 @@ class ReportsOverlay(OverlayScreen):
             rects.append(pygame.Rect(left, top, width, CHOICE_H))
         return rects
 
+    def _intercept_rect(self):
+        panel = self.panel.rect
+        return pygame.Rect(
+            panel.x + 20,
+            panel.bottom - 58,
+            panel.width - 40,
+            CHOICE_H,
+        )
+
     def _nav_rects(self):
         panel = self.panel.rect
         return (
@@ -126,26 +216,29 @@ class ReportsOverlay(OverlayScreen):
         if self.close_btn.handle_event(event):
             return
         if event.type == pygame.MOUSEWHEEL:
-            report, pending = self._current()
-            if pending:
+            _report, queue = self._current()
+            if queue:
                 self.index = max(
                     0,
-                    min(len(pending) - 1, self.index - event.y),
+                    min(len(queue) - 1, self.index - event.y),
                 )
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
-        report, pending = self._current()
+        report, queue = self._current()
         if report is None:
             return
         prev_rect, next_rect = self._nav_rects()
-        if pending and prev_rect.collidepoint(event.pos):
+        if queue and prev_rect.collidepoint(event.pos):
             self.index = max(0, self.index - 1)
             self.message = ""
             return
-        if pending and next_rect.collidepoint(event.pos):
-            self.index = min(len(pending) - 1, self.index + 1)
+        if queue and next_rect.collidepoint(event.pos):
+            self.index = min(len(queue) - 1, self.index + 1)
             self.message = ""
+            return
+        if self._is_intercept(report):
+            self._open_intercept(report)
             return
         if str(report.get("status") or "") != "pending":
             return
@@ -165,10 +258,27 @@ class ReportsOverlay(OverlayScreen):
                 self.message = str(
                     result.get("reason") or "Выбор не принят."
                 )
-            pending = self._pending()
-            if pending:
-                self.index = min(self.index, len(pending) - 1)
+            queue = self._queue()
+            if queue:
+                self.index = min(self.index, len(queue) - 1)
             return
+
+    def _open_intercept(self, item):
+        if str(item.get("status") or "") != "sealed":
+            return
+        if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
+            self.message = "Шифр ещё в пути."
+            self.last_result = None
+            return
+        result = self.campaign.open_intercept(item.get("id"))
+        if result.get("ok"):
+            self.last_result = result
+            self.message = str(result.get("text") or "")
+        else:
+            self.last_result = None
+            self.message = str(
+                result.get("reason") or "Перехват не вскрыт."
+            )
 
     # --- рисование --------------------------------------------------
     def _choice_label(self, report, choice):
@@ -200,10 +310,9 @@ class ReportsOverlay(OverlayScreen):
     def draw(self, screen):
         self.draw_base(screen, "ДОКЛАДЫ")
         panel = self.panel.rect
-        report, pending = self._current()
+        item, queue = self._current()
 
-        pending_count = len(pending)
-        if report is None:
+        if item is None:
             screen.blit(
                 self.app.font_small.render(
                     "Докладов пока нет.", True, MUTED
@@ -220,11 +329,10 @@ class ReportsOverlay(OverlayScreen):
             )
             return
 
-        status = "ожидает решения" if report.get("status") == "pending" else (
-            "закрыт"
-        )
-        if pending_count:
-            status += " · %d из %d" % (self.index + 1, pending_count)
+        intercept = self._is_intercept(item)
+        status = self._status_label(item)
+        if queue:
+            status += " · %d из %d" % (self.index + 1, len(queue))
         screen.blit(
             self.app.font_small.render(
                 fit_line(
@@ -233,15 +341,12 @@ class ReportsOverlay(OverlayScreen):
                     panel.width - 220,
                 ),
                 True,
-                WARN if report.get("status") == "pending" else DIM,
+                self._status_color(item),
             ),
             (panel.x + 20, panel.y + 52),
         )
 
-        source = "%s · %s" % (
-            report.get("source_name") or "Источник",
-            report.get("source_post") or "без должности",
-        )
+        source = self._source_label(item)
         screen.blit(
             self.app.font_small.render(
                 fit_line(self.app.font_small, source, panel.width - 40),
@@ -250,10 +355,7 @@ class ReportsOverlay(OverlayScreen):
             ),
             (panel.x + 20, panel.y + 76),
         )
-        meta = "канал: %s · уверенность: %s" % (
-            report.get("channel_label") or "доклад",
-            report.get("confidence_label") or "неизвестна",
-        )
+        meta = self._meta_label(item)
         screen.blit(
             self.app.font_tiny.render(meta, True, DIM),
             (panel.x + 20, panel.y + 100),
@@ -262,7 +364,7 @@ class ReportsOverlay(OverlayScreen):
             self.app.font_body.render(
                 fit_line(
                     self.app.font_body,
-                    report.get("title") or "Доклад",
+                    item.get("title") or "Доклад",
                     panel.width - 40,
                 ),
                 True,
@@ -275,19 +377,27 @@ class ReportsOverlay(OverlayScreen):
         pygame.draw.rect(screen, PANEL_ROW, body, border_radius=6)
         pygame.draw.rect(screen, PANEL_BORDER, body, 1, border_radius=6)
         y = body.y + 10
-        for line in self._body_lines(report):
+        lines = (
+            self._intercept_lines(item)
+            if intercept
+            else self._report_lines(item)
+        )
+        for line in lines:
             screen.blit(
                 self.app.font_small.render(line, True, TEXT),
                 (body.x + 12, y),
             )
             y += self.app.font_small.get_height() + 5
 
+        note = self._note_label(item)
         if self.message:
+            note = self.message
+        if note:
             screen.blit(
                 self.app.font_tiny.render(
                     fit_line(
                         self.app.font_tiny,
-                        self.message,
+                        note,
                         panel.width - 40,
                     ),
                     True,
@@ -295,33 +405,12 @@ class ReportsOverlay(OverlayScreen):
                 ),
                 (panel.x + 20, panel.bottom - 82),
             )
-        elif str(report.get("status") or "") != "pending":
-            resolved = report.get("resolved") or {}
-            revealed = resolved.get("revealed_truth", True)
-            truth = report.get("true_band_label") if revealed else None
-            line = (
-                "истинное положение: «%s»" % truth
-                if truth
-                else "Истина не установлена: слух остался слухом."
-            )
-            if resolved.get("motive_revealed") and resolved.get("motive"):
-                line += " · мотив: %s" % resolved.get("motive")
-            screen.blit(
-                self.app.font_tiny.render(
-                    fit_line(
-                        self.app.font_tiny, line, panel.width - 40
-                    ),
-                    True,
-                    MUTED,
-                ),
-                (panel.x + 20, panel.bottom - 82),
-            )
 
-        if pending:
+        if queue:
             prev_rect, next_rect = self._nav_rects()
             for rect, label, enabled in (
                 (prev_rect, "‹", self.index > 0),
-                (next_rect, "›", self.index < len(pending) - 1),
+                (next_rect, "›", self.index < len(queue) - 1),
             ):
                 pygame.draw.rect(
                     screen,
@@ -343,15 +432,94 @@ class ReportsOverlay(OverlayScreen):
                     ),
                 )
 
-        if str(report.get("status") or "") == "pending":
+        if intercept:
+            if self._can_open(item):
+                price = int(item.get("price") or 0)
+                label = "Вскрыть"
+                if price:
+                    label = "%s · %d" % (label, price)
+                self._draw_choice(screen, self._intercept_rect(), label)
+            return
+
+        if str(item.get("status") or "") == "pending":
             for rect, choice in zip(
-                self._choice_rects(report), report.get("choices") or ()
+                self._choice_rects(item), item.get("choices") or ()
             ):
                 self._draw_choice(
                     screen,
                     rect,
-                    self._choice_label(report, choice),
+                    self._choice_label(item, choice),
                 )
+
+    def _status_label(self, item):
+        status = str(item.get("status") or "")
+        if not self._is_intercept(item):
+            return "ожидает решения" if status == "pending" else "закрыт"
+        if status == "open":
+            return "перехват · вскрыт"
+        if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
+            return "перехват · в пути"
+        return "перехват · шифр не вскрыт"
+
+    def _status_color(self, item):
+        if self._is_intercept(item):
+            return WARN if item.get("status") == "sealed" else DIM
+        return WARN if item.get("status") == "pending" else DIM
+
+    def _source_label(self, item):
+        if self._is_intercept(item):
+            if item.get("status") == "sealed":
+                return "Источник неизвестен · перехват"
+            return "%s · %s" % (
+                item.get("source_name") or "Источник",
+                item.get("source_post") or "без должности",
+            )
+        return "%s · %s" % (
+            item.get("source_name") or "Источник",
+            item.get("source_post") or "без должности",
+        )
+
+    def _meta_label(self, item):
+        if self._is_intercept(item):
+            if item.get("status") == "sealed":
+                return "канал: перехват · содержание скрыто"
+            return "канал: %s · уверенность: %s" % (
+                item.get("channel_label") or "доклад",
+                item.get("confidence_label") or "неизвестна",
+            )
+        return "канал: %s · уверенность: %s" % (
+            item.get("channel_label") or "доклад",
+            item.get("confidence_label") or "неизвестна",
+        )
+
+    def _note_label(self, item):
+        if self._is_intercept(item):
+            if item.get("status") == "open":
+                return "Перехват вскрыт."
+            if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
+                return "Ожидайте доставки."
+            return "Донесение можно вскрыть за действие."
+        if str(item.get("status") or "") == "pending":
+            return ""
+        resolved = item.get("resolved") or {}
+        revealed = resolved.get("revealed_truth", True)
+        truth = item.get("true_band_label") if revealed else None
+        line = (
+            "истинное положение: «%s»" % truth
+            if truth
+            else "Истина не установлена: слух остался слухом."
+        )
+        if resolved.get("motive_revealed") and resolved.get("motive"):
+            line += " · мотив: %s" % resolved.get("motive")
+        return line
+
+    def _can_open(self, item):
+        return (
+            self._is_intercept(item)
+            and str(item.get("status") or "") == "sealed"
+            and self._now() + 1e-9
+            >= float(item.get("available_at") or 0.0)
+        )
 
 
 __all__ = ["ReportsOverlay", "REPORT_RECT"]
