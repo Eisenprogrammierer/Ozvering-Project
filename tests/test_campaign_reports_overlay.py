@@ -259,3 +259,32 @@ def test_emulation_opens_reports_from_interrupt_banner():
 
     assert isinstance(app.manager.current, ReportsOverlay)
     app.quit()
+
+
+def test_story_feed_delays_third_party_news():
+    from view.screens.automata_screen import AutomataScreen
+
+    app, campaign = _app_with_campaign()
+    campaign.dispatch.interval = 100.0
+    campaign.dispatch._progress = 0.0
+    campaign.dispatch.tick(100.0)
+    screen = AutomataScreen(app, campaign)
+
+    news = [
+        entry
+        for entry in campaign.story_events
+        if entry.get("category") == "news"
+    ]
+    assert news
+    assert all(entry.get("release_at") for entry in news)
+    assert not any(
+        entry.get("category") == "news"
+        for entry in screen._story_feed()
+    )
+
+    campaign.elapsed = max(
+        float(entry["release_at"]) for entry in news
+    )
+    feed = screen._story_feed()
+    assert any(entry.get("category") == "news" for entry in feed)
+    app.quit()

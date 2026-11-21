@@ -810,6 +810,13 @@ class AutomataScreen(BaseScreen):
                 continue
             if str(entry.get("category") or "") == "report":
                 continue
+            release_at = entry.get("release_at")
+            if release_at is not None:
+                try:
+                    if float(self.campaign.elapsed) + 1e-9 < float(release_at):
+                        continue
+                except (TypeError, ValueError):
+                    pass
             feed.append(entry)
         return feed[-limit:]
 
@@ -1194,6 +1201,39 @@ class AutomataScreen(BaseScreen):
                 )
                 y += 15
             y += 8
+
+        briefing = self.campaign.staff_briefing(
+            self.campaign.player_side
+        )
+        if briefing.get("lines") and y < RIGHT_RECT.bottom - 120:
+            header = "ШТАБ · %s" % (
+                briefing.get("chief") or "начальник штаба"
+            )
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny,
+                        header,
+                        RIGHT_RECT.width - 24,
+                    ),
+                    True,
+                    DIM,
+                ),
+                (RIGHT_RECT.x + 12, y),
+            )
+            y += 16
+            for line in briefing.get("lines")[:2]:
+                for wrapped in wrap_text(
+                    self.app.font_tiny,
+                    str(line),
+                    RIGHT_RECT.width - 24,
+                )[:1]:
+                    screen.blit(
+                        self.app.font_tiny.render(wrapped, True, MUTED),
+                        (RIGHT_RECT.x + 12, y),
+                    )
+                    y += 14
+            y += 4
 
         screen.blit(
             self.app.font_tiny.render("ЛЕНТА", True, DIM),

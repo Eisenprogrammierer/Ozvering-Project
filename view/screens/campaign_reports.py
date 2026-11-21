@@ -83,6 +83,14 @@ class ReportsOverlay(OverlayScreen):
         line_h = self.app.font_small.get_height() + 5
         limit = max(0, rect.height // line_h)
         lines = wrap_text(self.app.font_small, text, rect.width)
+        for key in ("chain_line", "promise_line", "request_line"):
+            value = str(report.get(key) or "")
+            if not value:
+                continue
+            lines.append("")
+            lines.extend(
+                wrap_text(self.app.font_small, value, rect.width)
+            )
         counter_line = str(report.get("counter_line") or "")
         if counter_line:
             lines.append("")
@@ -296,6 +304,8 @@ class ReportsOverlay(OverlayScreen):
                 if truth
                 else "Истина не установлена: слух остался слухом."
             )
+            if resolved.get("motive_revealed") and resolved.get("motive"):
+                line += " · мотив: %s" % resolved.get("motive")
             screen.blit(
                 self.app.font_tiny.render(
                     fit_line(

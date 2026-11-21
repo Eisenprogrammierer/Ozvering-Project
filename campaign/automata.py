@@ -2396,6 +2396,7 @@ class AutomataCampaign:
             "visibility": {},
             "effects": {},
             "turn": self.turn,
+            "side": report.get("side"),
             "source_id": report.get("source_id"),
             "source_name": report.get("source_name"),
             "asset": report.get("asset"),
@@ -2410,15 +2411,104 @@ class AutomataCampaign:
         return entry
 
     def _sync_report_event(self, report):
-        """Обновить статус доклада в повествовательной ленте."""
+        """Обновить статус доклада и выпустить вести о чужих фракциях."""
         report_id = str(report.get("id") or "")
-        for entry in self.story_events:
-            if str(entry.get("report_id") or "") != report_id:
+        entry = None
+        for item in self.story_events:
+            if str(item.get("report_id") or "") != report_id:
                 continue
-            entry["status"] = report.get("status")
-            entry["resolved"] = report.get("resolved")
-            return entry
-        return None
+            item["status"] = report.get("status")
+            item["resolved"] = report.get("resolved")
+            entry = item
+            break
+        if (
+            entry is not None
+            and str(report.get("side") or "") != str(self.player_side)
+            and str(report.get("status") or "") == "resolved"
+        ):
+            self._record_third_party_news(report)
+        return entry
+
+    def _record_third_party_news(self, report):
+        """Новость о решении чужой фракции приходит с задержкой.
+
+        Игрок не видит чужие доклады напрямую: он узнаёт о них позже и
+        только в общих чертах. Запись живёт в ``story_events`` без
+        выбора, поэтому попадает в информационную ленту, а не в окно
+        решений.
+        """
+        config = getattr(self.dispatch, "news_config", {}) or {}
+        if not bool(config.get("enabled", True)):
+            return None
+        news_id = "news-%s" % str(report.get("id") or "")
+        for entry in self.story_events:
+            if str(entry.get("id") or "") == news_id:
+                return entry
+        faction = self.faction(report.get("side"))
+        faction_name = str(
+            getattr(faction, "name", "") or report.get("side") or ""
+        )
+        choice = str(report.get("choice") or "")
+        if choice and choice not in ("verify", "trust", "ignore"):
+            if "verify" in choice:
+                choice = "verify"
+            elif "trust" in choice:
+                choice = "trust"
+            elif "ignore" in choice:
+                choice = "ignore"
+        texts = config.get("texts")
+        texts = texts if isinstance(texts, Mapping) else {}
+        template = str(
+            texts.get(choice)
+            or "{faction} приняла решение по докладу о «{asset_label}»."
+        )
+        asset_label = str(report.get("asset_label") or "")
+        text = (
+            template.replace("{faction}", faction_name)
+            .replace("{asset_label}", asset_label)
+            .replace("{side}", str(report.get("side") or ""))
+        )
+        title_template = str(config.get("title") or "Вести: {faction}")
+        title = title_template.replace("{faction}", faction_name)
+        delay = max(
+            0.0, float(config.get("delay_seconds") or 0.0)
+        )
+        entry = {
+            "id": news_id,
+            "template_id": "news",
+            "category": "news",
+            "title": title,
+            "text": text,
+            "severity": None,
+            "stakes": None,
+            "speed": "instant",
+            "duration": 0.0,
+            "elapsed": float(self.elapsed),
+            "release_at": float(self.elapsed) + delay,
+            "visible": True,
+            "visibility": {},
+            "effects": {},
+            "turn": self.turn,
+            "side": str(report.get("side") or ""),
+            "faction_id": str(getattr(faction, "id", "") or ""),
+            "source_id": "",
+            "source_name": faction_name,
+            "asset": report.get("asset"),
+            "report_id": report.get("id"),
+            "requires_choice": False,
+            "status": "resolved",
+        }
+        self.story_events.append(entry)
+        if len(self.story_events) > EVENT_LOG_LIMIT:
+            self.story_events = self.story_events[-EVENT_LOG_LIMIT:]
+        return entry
+
+    def staff_briefing(self, side=None):
+        """Сводка начальника штаба для правой панели."""
+        briefing = getattr(self.dispatch, "briefing", None)
+        if not callable(briefing):
+            return {"chief": "", "lines": []}
+        return briefing(side)
 
     def _advance_story_events(self, seconds):
         if self.finished or self.story_engine is None:

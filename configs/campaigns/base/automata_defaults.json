@@ -167,12 +167,25 @@
         "source_trust": 0.05,
         "needs": {
           "fear": -0.01
+        },
+        "leader": {
+          "needs": {
+            "anxiety": -0.01
+          },
+          "predicate": "trusts",
+          "target": "source",
+          "confidence": 0.7
         }
       },
       "verify_right": {
         "morale": 1.0,
         "player_trust": 0.06,
-        "source_trust": 0.04
+        "source_trust": 0.04,
+        "leader": {
+          "predicate": "trusts",
+          "target": "source",
+          "confidence": 0.85
+        }
       },
       "verify_wrong": {
         "morale": -5.0,
@@ -180,6 +193,32 @@
         "source_trust": -0.04,
         "needs": {
           "fear": 0.02
+        },
+        "leader": {
+          "needs": {
+            "anxiety": 0.02
+          },
+          "predicate": "distrusts",
+          "target": "source",
+          "confidence": 0.7
+        }
+      },
+      "verify_lie": {
+        "morale": -2.0,
+        "player_trust": -0.12,
+        "source_trust": -0.1,
+        "needs": {
+          "fear": 0.02
+        },
+        "leader": {
+          "morale": -2.0,
+          "needs": {
+            "anxiety": 0.03,
+            "fear": 0.02
+          },
+          "predicate": "suspects",
+          "target": "source",
+          "confidence": 0.9
         }
       },
       "ignore": {
@@ -188,6 +227,14 @@
         "source_trust": -0.08,
         "needs": {
           "fear": 0.02
+        },
+        "leader": {
+          "needs": {
+            "anxiety": 0.01
+          },
+          "predicate": "distrusts",
+          "target": "source",
+          "confidence": 0.4
         }
       }
     },
@@ -195,7 +242,94 @@
       "trust": "Вы поддержали источник. {source} укрепился в доверии.",
       "verify_right": "Проверка подтвердила: {asset_label} — «{truth_band}». {source} оказался прав.",
       "verify_wrong": "Проверка показала: {asset_label} — «{truth_band}». {source} ошибся.",
+      "verify_lie": "Проверка вскрыла подлог: {asset_label} — «{truth_band}». {source} исказил сведения ради {motive}.",
+      "verify_lie_hidden": "Проверка вскрыла подлог: {asset_label} — «{truth_band}». Мотив {source} остался неясен.",
       "ignore": "Вы отложили доклад. {source} воспринял это как невнимание."
+    },
+    "distortion": {
+      "enabled": true,
+      "base": 0.06,
+      "ambition": 0.22,
+      "disloyalty": 0.18,
+      "fear": 0.08,
+      "grievance": 0.12,
+      "shift": 1,
+      "strong_shift": 2,
+      "strong_at": 0.7,
+      "motive_reveal": 0.75,
+      "motives": {
+        "ambitious": "полномочия",
+        "hostile": "подрыв",
+        "loyal_fearful": "страх",
+        "loyal": "оправдание",
+        "neutral": "выгода"
+      }
+    },
+    "memory": {
+      "enabled": true,
+      "confidence_step": 0.04,
+      "lines": {
+        "trusted": "В прошлый раз вы доверились мне насчёт {last_asset_label}.",
+        "ignored": "В прошлый раз вы отложили мой доклад о {last_asset_label}.",
+        "verified_right": "Мой прошлый доклад о {last_asset_label} подтвердился.",
+        "verified_wrong": "В прошлый раз я ошибся с {last_asset_label} и стал осторожнее.",
+        "lied": "В прошлый раз вы раскрыли мою подтасовку насчёт {last_asset_label}.",
+        "expired": "Мой прошлый доклад о {last_asset_label} остался без ответа."
+      }
+    },
+    "promise": {
+      "enabled": true,
+      "chance": 0.3,
+      "kind": "favor",
+      "amount": 1.0,
+      "due_days": 5,
+      "tones": [
+        "ambitious",
+        "loyal_fearful",
+        "neutral"
+      ],
+      "request_text": "{source} просит не оставлять это без ответа.",
+      "line": "Вы обещали {source} поддержку по «{asset_label}».",
+      "overdue_line": "Обещание по «{asset_label}» просрочено. {source} помнит об этом.",
+      "fulfilled_line": "Обещание по «{asset_label}» исполнено. {source} отметил это."
+    },
+    "ai": {
+      "enabled": true,
+      "trust_base": 0.35,
+      "trust_relation": 0.45,
+      "trust_loyalty": 0.2,
+      "trust_history": 0.25,
+      "trust_fear": -0.3,
+      "verify_base": 0.1,
+      "verify_anxiety": 0.35,
+      "verify_discipline": 0.3,
+      "verify_distrust": 0.3,
+      "verify_history": 0.2,
+      "ignore_base": 0.1,
+      "ignore_fear": 0.35,
+      "ignore_distrust": 0.25,
+      "ignore_loyalty": 0.2,
+      "noise": 0.0
+    },
+    "threat": {
+      "enabled": true,
+      "bands": [
+        "critical",
+        "low"
+      ],
+      "predicate": "sees_as_threat",
+      "strength": 0.8,
+      "confidence": 0.7
+    },
+    "news": {
+      "enabled": true,
+      "delay_seconds": 21600.0,
+      "title": "Вести: {faction}",
+      "texts": {
+        "trust": "{faction}: докладу о «{asset_label}» поверили и действуют по нему.",
+        "verify": "{faction}: проверяют сведения о «{asset_label}». В стане суета.",
+        "ignore": "{faction}: от доклада о «{asset_label}» отмахнулись."
+      }
     },
     "rumor": {
       "enabled": true,
@@ -223,18 +357,36 @@
           "morale": 1.0,
           "needs": {
             "fear": -0.01
+          },
+          "leader": {
+            "predicate": "trusts",
+            "target": "source",
+            "confidence": 0.3
           }
         },
         "rumor_verify": {
           "morale": -1.0,
           "needs": {
             "anxiety": 0.01
+          },
+          "leader": {
+            "predicate": "distrusts",
+            "target": "source",
+            "confidence": 0.35
           }
         },
         "rumor_ignore": {
           "morale": -2.0,
           "needs": {
             "fear": 0.01
+          },
+          "leader": {
+            "needs": {
+              "anxiety": 0.01
+            },
+            "predicate": "distrusts",
+            "target": "source",
+            "confidence": 0.3
           }
         }
       }
@@ -258,6 +410,11 @@
           "source_trust": -0.06,
           "needs": {
             "fear": 0.02
+          },
+          "leader": {
+            "predicate": "trusts",
+            "target": "source",
+            "confidence": 0.5
           }
         },
         "contradiction_ignore": {
@@ -266,12 +423,25 @@
           "source_trust": -0.04,
           "needs": {
             "fear": 0.01
+          },
+          "leader": {
+            "needs": {
+              "anxiety": 0.01
+            },
+            "predicate": "distrusts",
+            "target": "source",
+            "confidence": 0.5
           }
         },
         "contradiction_verify_right": {
           "morale": 1.0,
           "player_trust": 0.04,
-          "source_trust": 0.03
+          "source_trust": 0.03,
+          "leader": {
+            "predicate": "trusts",
+            "target": "source",
+            "confidence": 0.7
+          }
         },
         "contradiction_verify_wrong": {
           "morale": -2.5,
@@ -279,6 +449,11 @@
           "source_trust": -0.04,
           "needs": {
             "fear": 0.02
+          },
+          "leader": {
+            "predicate": "distrusts",
+            "target": "source",
+            "confidence": 0.7
           }
         }
       }

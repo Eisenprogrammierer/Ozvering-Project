@@ -292,9 +292,17 @@ def test_dispatch_tick_issues_by_interval():
 
     spawned = campaign.dispatch.tick(250.0)
 
-    assert len(spawned) == 2
+    sides = {report["side"] for report in spawned}
+    assert len(spawned) == 2 * len(campaign.factions)
+    assert sides == set(campaign.factions)
     assert campaign.dispatch._progress == pytest.approx(50.0)
     assert len(campaign.pending_reports(campaign.player_side)) == 2
+    for report in spawned:
+        if report["side"] == campaign.player_side:
+            assert report["status"] == "pending"
+        else:
+            assert report["status"] == "resolved"
+            assert report.get("decided_by") == "ai"
 
 
 def test_audit_logs_report_issue_and_choice(tmp_path, monkeypatch):
@@ -477,3 +485,237 @@ def test_expiring_contradiction_removes_both_reports():
     assert third["status"] == "pending"
     assert fourth["status"] == "pending"
     assert len(campaign.pending_reports(campaign.player_side)) == 2
+
+
+def _foreign(campaign):
+    for side, faction in campaign.factions.items():
+        if side != campaign.player_side:
+            return faction
+    raise AssertionError("нет чужой фракции")
+
+
+def _fresh_report(campaign, faction, asset="supply", source=None):
+    dispatch = campaign.dispatch
+    if source is None:
+        source = dispatch._source(faction, asset)
+    assert source is not None
+    report = dispatch._build_report(faction, source, asset)
+    assert report is not None
+    dispatch.reports.append(report)
+    return report, source
+
+
+def test_ai_decides_foreign_report_through_leader_bdi():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = _foreign(campaign)
+    report = dispatch.issue(faction)
+    assert report is not None
+    leader = dispatch._leader_for(faction)
+    beliefs_before = [item.as_dict() for item in leader.bdi.beliefs]
+    needs_before = dict(leader.needs)
+    morale_before = leader.morale
+
+    result = dispatch.auto_resolve(report)
+
+    assert result is not None and result["ok"] is True
+    assert report["status"] == "resolved"
+    assert report["decided_by"] == "ai"
+    assert report["recipient_id"] == leader.campaign_id
+    beliefs_after = [item.as_dict() for item in leader.bdi.beliefs]
+    assert (
+        beliefs_after != beliefs_before
+        or dict(leader.needs) != needs_before
+        or leader.morale != morale_before
+    )
+    assert report["resolved"]["decided_by"] == "ai"
+
+
+def test_foreign_report_trust_changes_faction_action_weights():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = _foreign(campaign)
+    leader = dispatch._leader_for(faction)
+    leader_key = dispatch._leader_key(faction, leader)
+    report, _source = _fresh_report(campaign, faction)
+    report["band"] = "low"
+    report["band_label"] = "просело"
+    before = campaign.ai_action_weights(faction.side)
+
+    result = dispatch.resolve(report["id"], "trust")
+
+    assert result["ok"] is True
+    threat_target = dispatch._rival_faction_id(faction)
+    assert threat_target
+    assert any(
+        belief.predicate == "sees_as_threat"
+        and belief.object == threat_target
+        for belief in leader.bdi.beliefs
+    )
+    after = campaign.ai_action_weights(faction.side)
+    assert any(
+        after[key] > before[key] + 1e-9
+        for key in after
+        if key in before
+    )
+    assert leader_key in {
+        item.subject for item in leader.bdi.beliefs
+    }
+
+
+def test_source_memory_appears_in_next_report_and_survives_snapshot():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    report, source = _fresh_report(campaign, faction)
+    dispatch.resolve(report["id"], "ignore")
+
+    memory = dispatch.memory[source.campaign_id]
+    assert memory["last_outcome"] == "ignored"
+    assert memory["last_report_id"] == report["id"]
+
+    follow, _source = _fresh_report(
+        campaign, faction, source=source
+    )
+    assert "В прошлый раз" in follow["chain_line"]
+    assert "отложили" in follow["chain_line"]
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(
+        _preset(), seed=11, snapshot=campaign.snapshot()
+    )
+    loaded = restored.dispatch.memory[source.campaign_id]
+    assert loaded["last_outcome"] == "ignored"
+    assert loaded["last_report_id"] == report["id"]
+
+
+def test_promise_ledger_reminds_and_penalizes_overdue():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+    report, source = _fresh_report(campaign, faction)
+    report["asks_promise"] = True
+    report["request_line"] = "Прошу поддержки."
+
+    result = dispatch.resolve(report["id"], "trust")
+
+    assert result["ok"] is True
+    promise_id = result["promise"]
+    assert promise_id
+    obligation = campaign.obligations.get(promise_id)
+    assert obligation is not None
+    assert obligation.creditor == source.campaign_id
+    assert obligation.debtor == "player"
+    assert obligation.note.startswith("report:%s:" % report["id"])
+
+    reminder, overdue = dispatch._promise_context(
+        faction, source, report["asset"], report["true_value"]
+    )
+    assert "обещали" in reminder
+    assert overdue is False
+
+    campaign.turn = obligation.due_day
+    overdue_line, overdue = dispatch._promise_context(
+        faction, source, report["asset"], report["true_value"]
+    )
+    assert overdue is True
+    assert "просрочено" in overdue_line
+    memory = dispatch.memory[source.campaign_id]
+    assert "promise:%s" % promise_id in memory["penalized_promises"]
+
+
+def test_verification_separates_error_from_deliberate_lie():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = campaign.player
+
+    honest, _source = _fresh_report(campaign, faction)
+    honest["manipulation"] = False
+    honest["distortion"] = 0
+    honest["band"] = "excellent"
+    honest["band_label"] = "образцово"
+    honest["perceived"] = 0.95
+    honest["true_value"] = 0.1
+    honest_result = dispatch.resolve(honest["id"], "verify")
+    assert honest_result["ok"] is True
+    assert honest_result["correct"] is False
+    assert honest_result["manipulation"] is False
+    assert "ошибся" in honest_result["text"]
+
+    dispatch.distortion["motive_reveal"] = 1.0
+    lie, lie_source = _fresh_report(campaign, faction)
+    lie["manipulation"] = True
+    lie["distortion"] = 1
+    lie["motive"] = "выгода"
+    lie["band"] = "excellent"
+    lie["band_label"] = "образцово"
+    lie["perceived"] = 0.95
+    lie["true_value"] = 0.1
+    lie_result = dispatch.resolve(lie["id"], "verify")
+    assert lie_result["ok"] is True
+    assert lie_result["correct"] is False
+    assert lie_result["manipulation"] is True
+    assert lie_result["motive_revealed"] is True
+    assert lie_result["motive"] == "выгода"
+    assert "подлог" in lie_result["text"]
+    assert "выгода" in lie_result["text"]
+    assert (
+        dispatch.memory[lie_source.campaign_id]["last_outcome"] == "lied"
+    )
+
+
+def test_third_party_news_is_delayed_and_briefing_is_qualitative():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    dispatch.interval = 100.0
+    dispatch._progress = 0.0
+
+    spawned = dispatch.tick(100.0)
+
+    news = [
+        entry
+        for entry in campaign.story_events
+        if entry.get("category") == "news"
+    ]
+    assert news
+    assert len(news) == len(
+        [item for item in spawned if item["side"] != campaign.player_side]
+    )
+    assert all(entry["requires_choice"] is False for entry in news)
+    assert all(entry["release_at"] > campaign.elapsed for entry in news)
+    assert all(
+        campaign.faction(entry["side"]) is not None for entry in news
+    )
+
+    briefing = campaign.staff_briefing(campaign.player_side)
+    assert briefing["chief"]
+    assert briefing["lines"]
+    assert any(
+        "доклад" in line.lower() or "«" in line
+        for line in briefing["lines"]
+    )
+    for decision in campaign.pending_decisions(campaign.player_side):
+        assert str(decision.get("side") or "") in (
+            "",
+            campaign.player_side,
+        )
+
+
+def test_ai_verify_does_not_spend_player_actions(monkeypatch):
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    faction = _foreign(campaign)
+    report = dispatch.issue(faction)
+    assert report is not None
+    monkeypatch.setattr(
+        dispatch, "_ai_choice", lambda *_args, **_kwargs: "verify"
+    )
+    campaign.actions_left = 2
+
+    result = dispatch.auto_resolve(report)
+
+    assert result["ok"] is True
+    assert result["choice"] == "verify"
+    assert result["cost"] == 0
+    assert campaign.actions_left == 2
