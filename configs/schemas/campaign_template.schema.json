@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/campaign_template.schema.json",
+  "title": "Шаблон кампании",
+  "description": "Файл configs/campaigns/*_campaign.json. Читается campaign/preset.py. Неизвестные поля верхнего уровня и сценария запрещены.",
+  "type": "object",
+  "required": [
+    "template_id",
+    "scenario"
+  ],
+  "properties": {
+    "schema": {
+      "type": "integer"
+    },
+    "template_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "factions_path": {
+      "type": "string"
+    },
+    "factions": {
+      "type": "object"
+    },
+    "default_seed": {
+      "type": "integer"
+    },
+    "player_side": {
+      "type": "string"
+    },
+    "enemy_side": {
+      "type": "string"
+    },
+    "faction_slots": {
+      "type": "object",
+      "properties": {
+        "player": {
+          "type": "string"
+        },
+        "enemy": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scenario": {
+      "$ref": "#/$defs/scenario"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "events": {
+      "$ref": "#/$defs/events"
+    },
+    "playwright": {
+      "$ref": "#/$defs/playwright"
+    }
+  },
+  "$defs": {
+    "numberMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "sideMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "automata",
+            "strategy"
+          ]
+        },
+        "characters_per_faction": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "groups": {
+          "type": "object"
+        },
+        "rivals": {
+          "$ref": "#/$defs/sideMap"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "upkeep": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "actions_per_turn": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "success_base": {
+          "type": "number"
+        },
+        "success_slope": {
+          "type": "number"
+        },
+        "organization_cohesion": {
+          "type": "number"
+        },
+        "organization_legitimacy": {
+          "type": "number"
+        },
+        "organization_supply_drain": {
+          "type": "number"
+        },
+        "organization_fear": {
+          "type": "number"
+        },
+        "collapse_streak": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "effect_scale": {
+          "type": "number"
+        },
+        "asset_relax": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "properties": {
+        "streak_turns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "defeat": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/numberMap"
+          }
+        },
+        "score_margin": {
+          "type": "number"
+        },
+        "score_bias": {
+          "type": "number"
+        },
+        "score_basis": {
+          "type": "string"
+        },
+        "score_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "score_streak": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "drift_chance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "object",
+      "properties": {
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "playwright": {
+      "type": "object",
+      "properties": {
+        "max_actors": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "turns": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

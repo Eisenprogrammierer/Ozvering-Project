@@ -1,0 +1,1052 @@
+{
+  "actions_left": 0,
+  "digest": "38a4422b6d9a74bcdce37af79aae981271e09c7eae0ca27278e3964675adbc85",
+  "elapsed": 518400.0,
+  "factions": {
+    "amber": {
+      "action_uses": {
+        "blackmail_operation": 1,
+        "bribe_official": 2,
+        "buy_silence": 2,
+        "credit_offer": 2,
+        "embargo": 1,
+        "information_broker": 3,
+        "media_narrative": 2,
+        "port_control": 1,
+        "price_dumping": 1,
+        "repair_hub": 1,
+        "trade_route": 2
+      },
+      "assets": {
+        "cohesion": 0.497213,
+        "energy": 0.673884,
+        "fatigue": 0.549652,
+        "fear": 0.178083,
+        "hunger": 0.548688,
+        "influence": 0.638324,
+        "legitimacy": 0.340894,
+        "morale": 0.507279,
+        "skill": 0.552465,
+        "supply": 0.761692
+      },
+      "characters": [
+        {
+          "alive": true,
+          "energy": 2.272142,
+          "force": 25.73873,
+          "id": "char_amber_001",
+          "morale": 71.599,
+          "name": "Малика Камау",
+          "post_id": "leader"
+        },
+        {
+          "alive": true,
+          "energy": 2.145928,
+          "force": 12.719183,
+          "id": "char_amber_002",
+          "morale": 65.686,
+          "name": "Райдо Вечный Знак",
+          "post_id": "logistics"
+        },
+        {
+          "alive": true,
+          "energy": 2.093586,
+          "force": 7.721522,
+          "id": "char_amber_003",
+          "morale": 66.072,
+          "name": "Гульнара Табари",
+          "post_id": "intelligence"
+        },
+        {
+          "alive": true,
+          "energy": 2.065449,
+          "force": 6.698751,
+          "id": "char_amber_004",
+          "morale": 65.363,
+          "name": "Гвин Круг Грибов",
+          "post_id": "trade"
+        },
+        {
+          "alive": true,
+          "energy": 2.273247,
+          "force": 4.748769,
+          "id": "char_amber_005",
+          "morale": 68.881,
+          "name": "Павлос Влахос",
+          "post_id": "security"
+        },
+        {
+          "alive": true,
+          "energy": 2.191471,
+          "force": 3.741863,
+          "id": "char_amber_006",
+          "morale": 66.127,
+          "name": "Элеонора Гильдия Часов",
+          "post_id": "medicine"
+        },
+        {
+          "alive": true,
+          "energy": 2.170847,
+          "force": 0.701968,
+          "id": "char_amber_007",
+          "morale": 65.886,
+          "name": "Тсарион Паучий Трон",
+          "post_id": "participant_7"
+        },
+        {
+          "alive": true,
+          "energy": 2.167505,
+          "force": 0.726899,
+          "id": "char_amber_008",
+          "morale": 70.054,
+          "name": "Силван Ясный Родник",
+          "post_id": "participant_8"
+        },
+        {
+          "alive": true,
+          "energy": 2.173786,
+          "force": 0.730519,
+          "id": "char_amber_009",
+          "morale": 67.704,
+          "name": "Роса Альварес",
+          "post_id": "participant_9"
+        },
+        {
+          "alive": true,
+          "energy": 2.17616,
+          "force": 0.729807,
+          "id": "char_amber_010",
+          "morale": 67.061,
+          "name": "Ван Шань",
+          "post_id": "participant_10"
+        }
+      ],
+      "dissolved": false,
+      "organs": {
+        "agents": {
+          "integrity": 0.611749,
+          "kind": "intelligence",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "diplomacy": {
+          "integrity": 0.580157,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "engineering": {
+          "integrity": 0.594033,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "finance": {
+          "integrity": 0.663224,
+          "kind": "exchange",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "intelligence": {
+          "integrity": 0.565403,
+          "kind": "intelligence",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "media": {
+          "integrity": 0.553125,
+          "kind": "information",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "port": {
+          "integrity": 0.545693,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "security": {
+          "integrity": 0.613214,
+          "kind": "coercion",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "trade": {
+          "integrity": 0.722021,
+          "kind": "exchange",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "warehouses": {
+          "integrity": 0.568808,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        }
+      },
+      "score": 0.371752,
+      "subfactions": {}
+    },
+    "blue": {
+      "action_uses": {
+        "agent_network": 2,
+        "cyber_leak": 2,
+        "electronic_warfare": 2,
+        "human_rights_court": 1,
+        "information_campaign": 3,
+        "negotiation_offer": 1,
+        "parliament_debate": 2,
+        "precision_strike": 2,
+        "rights_documentation": 2,
+        "underground_radio": 1
+      },
+      "assets": {
+        "anxiety": 0.535137,
+        "cohesion": 0.518567,
+        "energy": 0.460944,
+        "fear": 0.12291,
+        "influence": 0.532328,
+        "legitimacy": 0.593988,
+        "morale": 0.555023,
+        "status": 0.536924,
+        "supply": 0.626265
+      },
+      "characters": [
+        {
+          "alive": true,
+          "energy": 2.652682,
+          "force": 25.759282,
+          "id": "char_blue_001",
+          "morale": 96.738,
+          "name": "Грета Кёлер",
+          "post_id": "leader"
+        },
+        {
+          "alive": true,
+          "energy": 2.699859,
+          "force": 12.768189,
+          "id": "char_blue_002",
+          "morale": 89.506,
+          "name": "Элеонора Гильдия Часов",
+          "post_id": "chief_of_staff"
+        },
+        {
+          "alive": true,
+          "energy": 2.676558,
+          "force": 7.724183,
+          "id": "char_blue_003",
+          "morale": 88.123,
+          "name": "Инес Альварес",
+          "post_id": "information"
+        },
+        {
+          "alive": true,
+          "energy": 2.447707,
+          "force": 6.730195,
+          "id": "char_blue_004",
+          "morale": 88.127,
+          "name": "Дриззт Паучий Трон",
+          "post_id": "diplomacy"
+        },
+        {
+          "alive": true,
+          "energy": 2.540033,
+          "force": 4.736441,
+          "id": "char_blue_005",
+          "morale": 89.324,
+          "name": "Ситлали Тласкала",
+          "post_id": "precision"
+        },
+        {
+          "alive": true,
+          "energy": 2.971262,
+          "force": 3.851517,
+          "id": "char_blue_006",
+          "morale": 88.943,
+          "name": "Судзуки Мидори",
+          "post_id": "rights"
+        },
+        {
+          "alive": true,
+          "energy": 3.005421,
+          "force": 2.925027,
+          "id": "char_blue_007",
+          "morale": 87.836,
+          "name": "Лука Ломбарди",
+          "post_id": "intendant"
+        },
+        {
+          "alive": true,
+          "energy": 2.50265,
+          "force": 1.713288,
+          "id": "char_blue_008",
+          "morale": 87.99,
+          "name": "Манназа Молчаливая Книга",
+          "post_id": "channel"
+        },
+        {
+          "alive": true,
+          "energy": 2.808108,
+          "force": 0.779094,
+          "id": "char_blue_009",
+          "morale": 89.871,
+          "name": "Нур аль-Хаким",
+          "post_id": "participant_9"
+        },
+        {
+          "alive": true,
+          "energy": 2.693182,
+          "force": 0.742531,
+          "id": "char_blue_010",
+          "morale": 90.054,
+          "name": "Мина Ахеменид",
+          "post_id": "participant_10"
+        },
+        {
+          "alive": true,
+          "energy": 3.005421,
+          "force": 0.929771,
+          "id": "char_blue_011",
+          "morale": 87.677,
+          "name": "Олусегун Олусун",
+          "post_id": "participant_11"
+        },
+        {
+          "alive": true,
+          "energy": 2.794833,
+          "force": 0.754515,
+          "id": "char_blue_012",
+          "morale": 87.398,
+          "name": "Чжао Лань",
+          "post_id": "participant_12"
+        }
+      ],
+      "dissolved": false,
+      "organs": {
+        "agents": {
+          "integrity": 0.44624,
+          "kind": "intelligence",
+          "status": "напряжение",
+          "subfaction_id": "revisionist",
+          "support": 0.0
+        },
+        "cyber": {
+          "integrity": 0.521826,
+          "kind": "intelligence",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "diplomacy": {
+          "integrity": 0.609264,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "moderate",
+          "support": 0.0
+        },
+        "field_corps": {
+          "integrity": 0.624711,
+          "kind": "coercion",
+          "status": "напряжение",
+          "subfaction_id": "revisionist",
+          "support": 0.0
+        },
+        "general_staff": {
+          "integrity": 0.620111,
+          "kind": "command",
+          "status": "напряжение",
+          "subfaction_id": "moderate",
+          "support": 0.0
+        },
+        "medical": {
+          "integrity": 0.589731,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "parliament": {
+          "integrity": 0.616146,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "orthodox",
+          "support": 0.0
+        },
+        "precision": {
+          "integrity": 0.60876,
+          "kind": "coercion",
+          "status": "напряжение",
+          "subfaction_id": "revisionist",
+          "support": 0.0
+        },
+        "propaganda": {
+          "integrity": 0.498752,
+          "kind": "information",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "radio": {
+          "integrity": 0.539411,
+          "kind": "information",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "rights": {
+          "integrity": 0.598434,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "orthodox",
+          "support": 0.0
+        }
+      },
+      "score": 0.493827,
+      "subfactions": {
+        "moderate": 0.43,
+        "orthodox": 0.32,
+        "revisionist": 0.25
+      }
+    },
+    "green": {
+      "action_uses": {
+        "apocalyptic_prophecy": 1,
+        "catacomb_archive": 1,
+        "charity_hospitals": 1,
+        "community_network": 2,
+        "convert_officer": 1,
+        "earth_ritual": 2,
+        "infiltration": 1,
+        "martyr_narrative": 2,
+        "parallel_court": 1,
+        "relic_procession": 2,
+        "scriptorium_schools": 1,
+        "sermon": 3
+      },
+      "assets": {
+        "anxiety": 0.510994,
+        "cohesion": 0.299498,
+        "energy": 0.294284,
+        "fear": 0.36992,
+        "friendship": 0.51349,
+        "influence": 0.426615,
+        "legitimacy": 0.205698,
+        "loneliness": 0.511757,
+        "morale": 0.440318,
+        "spirituality": 0.515067,
+        "supply": 0.264583
+      },
+      "characters": [
+        {
+          "alive": true,
+          "energy": 2.458887,
+          "force": 25.770986,
+          "id": "char_green_001",
+          "morale": 70.785,
+          "name": "Длань Рассвета",
+          "post_id": "leader"
+        },
+        {
+          "alive": true,
+          "energy": 2.713837,
+          "force": 12.877,
+          "id": "char_green_002",
+          "morale": 68.065,
+          "name": "Око Бури",
+          "post_id": "voice"
+        },
+        {
+          "alive": true,
+          "energy": 2.953032,
+          "force": 7.972473,
+          "id": "char_green_003",
+          "morale": 61.776,
+          "name": "Сосуд Веры",
+          "post_id": "network"
+        },
+        {
+          "alive": true,
+          "energy": 2.736599,
+          "force": 6.881333,
+          "id": "char_green_004",
+          "morale": 64.626,
+          "name": "Носитель Завета",
+          "post_id": "rite"
+        },
+        {
+          "alive": true,
+          "energy": 2.80422,
+          "force": 4.871664,
+          "id": "char_green_005",
+          "morale": 64.367,
+          "name": "Дождь на Ладонях",
+          "post_id": "care"
+        },
+        {
+          "alive": true,
+          "energy": 2.96357,
+          "force": 3.995742,
+          "id": "char_green_006",
+          "morale": 68.131,
+          "name": "Голос Мученика",
+          "post_id": "memory"
+        },
+        {
+          "alive": true,
+          "energy": 2.915727,
+          "force": 0.956549,
+          "id": "char_green_007",
+          "morale": 66.102,
+          "name": "Молот Правды",
+          "post_id": "participant_7"
+        },
+        {
+          "alive": true,
+          "energy": 2.852457,
+          "force": 0.932423,
+          "id": "char_green_008",
+          "morale": 66.685,
+          "name": "Хлеб Небес",
+          "post_id": "participant_8"
+        },
+        {
+          "alive": true,
+          "energy": 2.714668,
+          "force": 0.864624,
+          "id": "char_green_009",
+          "morale": 64.943,
+          "name": "Дым над Могилой",
+          "post_id": "participant_9"
+        },
+        {
+          "alive": true,
+          "energy": 2.883911,
+          "force": 0.955814,
+          "id": "char_green_010",
+          "morale": 64.985,
+          "name": "Тень Мученика",
+          "post_id": "participant_10"
+        }
+      ],
+      "dissolved": false,
+      "organs": {
+        "agents": {
+          "integrity": 0.495728,
+          "kind": "intelligence",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "charity": {
+          "integrity": 0.55322,
+          "kind": "care",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "communities": {
+          "integrity": 0.449884,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "knights": {
+          "integrity": 0.57933,
+          "kind": "coercion",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "preaching": {
+          "integrity": 0.489977,
+          "kind": "information",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "printing": {
+          "integrity": 0.59288,
+          "kind": "information",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "rites": {
+          "integrity": 0.561801,
+          "kind": "meaning",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "scriptorium": {
+          "integrity": 0.473162,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "synedrion": {
+          "integrity": 0.53541,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "",
+          "support": 0.0
+        }
+      },
+      "score": 0.310085,
+      "subfactions": {}
+    },
+    "red": {
+      "action_uses": {},
+      "assets": {
+        "anxiety": 0.563731,
+        "cohesion": 0.604306,
+        "energy": 0.659833,
+        "fear": 0.57296,
+        "hunger": 0.562823,
+        "influence": 0.738445,
+        "is_compromised": 0.627912,
+        "knowledge": 0.562692,
+        "legitimacy": 0.629939,
+        "morale": 0.646794,
+        "myth": 0.507182,
+        "spirituality": 0.562804,
+        "supply": 0.772059
+      },
+      "characters": [
+        {
+          "alive": true,
+          "energy": 2.975016,
+          "force": 25.981726,
+          "id": "char_red_001",
+          "morale": 72.756,
+          "name": "Григорий Иванов",
+          "post_id": "leader"
+        },
+        {
+          "alive": true,
+          "energy": 2.764955,
+          "force": 12.882967,
+          "id": "char_red_002",
+          "morale": 67.421,
+          "name": "Лучия Феррари",
+          "post_id": "chief_of_staff"
+        },
+        {
+          "alive": true,
+          "energy": 2.965679,
+          "force": 7.953502,
+          "id": "char_red_003",
+          "morale": 64.576,
+          "name": "Людвиг Мюллер",
+          "post_id": "justice"
+        },
+        {
+          "alive": true,
+          "energy": 2.9947,
+          "force": 6.986584,
+          "id": "char_red_004",
+          "morale": 66.759,
+          "name": "Марлен Фишер",
+          "post_id": "guard"
+        },
+        {
+          "alive": true,
+          "energy": 3.005703,
+          "force": 4.987982,
+          "id": "char_red_005",
+          "morale": 65.128,
+          "name": "Клаус Шнайдер",
+          "post_id": "abwehr"
+        },
+        {
+          "alive": true,
+          "energy": 2.951793,
+          "force": 3.975097,
+          "id": "char_red_006",
+          "morale": 65.985,
+          "name": "Элена Руис",
+          "post_id": "propaganda"
+        },
+        {
+          "alive": true,
+          "energy": 2.866959,
+          "force": 2.919986,
+          "id": "char_red_007",
+          "morale": 64.503,
+          "name": "Марлен Шнайдер",
+          "post_id": "intendant"
+        },
+        {
+          "alive": true,
+          "energy": 2.90962,
+          "force": 1.950772,
+          "id": "char_red_008",
+          "morale": 64.713,
+          "name": "Этьен Руссо",
+          "post_id": "cathedral"
+        },
+        {
+          "alive": true,
+          "energy": 2.901797,
+          "force": 0.939828,
+          "id": "char_red_009",
+          "morale": 65.876,
+          "name": "Клара Беккер",
+          "post_id": "participant_9"
+        },
+        {
+          "alive": true,
+          "energy": 2.954933,
+          "force": 0.963008,
+          "id": "char_red_010",
+          "morale": 67.079,
+          "name": "София Сотириу",
+          "post_id": "participant_10"
+        },
+        {
+          "alive": true,
+          "energy": 2.980283,
+          "force": 0.993591,
+          "id": "char_red_011",
+          "morale": 67.646,
+          "name": "Лоренц Рихтер",
+          "post_id": "participant_11"
+        },
+        {
+          "alive": true,
+          "energy": 2.881914,
+          "force": 0.924361,
+          "id": "char_red_012",
+          "morale": 67.147,
+          "name": "Ханна Шульц",
+          "post_id": "participant_12"
+        }
+      ],
+      "dissolved": false,
+      "organs": {
+        "abwehr": {
+          "integrity": 0.671594,
+          "kind": "intelligence",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "artillery": {
+          "integrity": 0.653107,
+          "kind": "coercion",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "bomber": {
+          "integrity": 0.653107,
+          "kind": "coercion",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "cathedral": {
+          "integrity": 0.463757,
+          "kind": "legitimacy",
+          "status": "напряжение",
+          "subfaction_id": "orthodox",
+          "support": 0.0
+        },
+        "cyber": {
+          "integrity": 0.671594,
+          "kind": "intelligence",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "guard": {
+          "integrity": 0.653107,
+          "kind": "coercion",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "imperial_staff": {
+          "integrity": 0.481588,
+          "kind": "command",
+          "status": "напряжение",
+          "subfaction_id": "moderate",
+          "support": 0.0
+        },
+        "justice": {
+          "integrity": 0.648794,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "orthodox",
+          "support": 0.0
+        },
+        "medical": {
+          "integrity": 0.648794,
+          "kind": "maintenance",
+          "status": "напряжение",
+          "subfaction_id": "revisionist",
+          "support": 0.0
+        },
+        "panzerwaffe": {
+          "integrity": 0.653107,
+          "kind": "coercion",
+          "status": "в строю",
+          "subfaction_id": "",
+          "support": 0.0
+        },
+        "propaganda": {
+          "integrity": 0.671594,
+          "kind": "information",
+          "status": "в строю",
+          "subfaction_id": "revisionist",
+          "support": 0.0
+        },
+        "wehrmacht": {
+          "integrity": 0.653107,
+          "kind": "coercion",
+          "status": "в строю",
+          "subfaction_id": "moderate",
+          "support": 0.0
+        }
+      },
+      "score": 0.612538,
+      "subfactions": {
+        "moderate": 0.35,
+        "orthodox": 0.4,
+        "revisionist": 0.25
+      }
+    }
+  },
+  "finished": false,
+  "outcome": null,
+  "story_events": [
+    {
+      "template_id": "election",
+      "title": "Выборы",
+      "turn": 2
+    },
+    {
+      "template_id": "parenthood",
+      "title": "Воспитание",
+      "turn": 2
+    },
+    {
+      "template_id": "news",
+      "title": "Цены",
+      "turn": 2
+    },
+    {
+      "template_id": "old_flame",
+      "title": "Старая любовь",
+      "turn": 3
+    },
+    {
+      "template_id": "landslide",
+      "title": "Оползень",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: снабжение",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Слух: законность",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Проверка слуха: законность",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Республика",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Республика",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: сплочённость",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Торговая планета",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Слух: мораль",
+      "turn": 3
+    },
+    {
+      "template_id": "report",
+      "title": "Проверка слуха: мораль",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Культ Земли",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Культ Земли",
+      "turn": 3
+    },
+    {
+      "template_id": "news",
+      "title": "Слухи улиц",
+      "turn": 3
+    },
+    {
+      "template_id": "ancient_text",
+      "title": "Древний текст",
+      "turn": 4
+    },
+    {
+      "template_id": "wildfire_event",
+      "title": "Степной пожар",
+      "turn": 4
+    },
+    {
+      "template_id": "temptation",
+      "title": "Соблазн",
+      "turn": 5
+    },
+    {
+      "template_id": "siege",
+      "title": "Осада",
+      "turn": 5
+    },
+    {
+      "template_id": "report",
+      "title": "Слух: энергия",
+      "turn": 5
+    },
+    {
+      "template_id": "report",
+      "title": "Слух: влияние",
+      "turn": 5
+    },
+    {
+      "template_id": "report",
+      "title": "Проверка слуха: влияние",
+      "turn": 5
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Республика",
+      "turn": 5
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Республика",
+      "turn": 5
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: страх",
+      "turn": 5
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Торговая планета",
+      "turn": 5
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: снабжение",
+      "turn": 5
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Культ Земли",
+      "turn": 5
+    },
+    {
+      "template_id": "news",
+      "title": "Цены",
+      "turn": 5
+    },
+    {
+      "template_id": "secret",
+      "title": "Тайна",
+      "turn": 6
+    },
+    {
+      "template_id": "inheritance",
+      "title": "Наследство",
+      "turn": 6
+    },
+    {
+      "template_id": "patronage",
+      "title": "Покровительство",
+      "turn": 7
+    },
+    {
+      "template_id": "parenthood",
+      "title": "Воспитание",
+      "turn": 7
+    },
+    {
+      "template_id": "report",
+      "title": "Слух: законность",
+      "turn": 7
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: сплочённость",
+      "turn": 7
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Республика",
+      "turn": 7
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: мораль",
+      "turn": 7
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Торговая планета",
+      "turn": 7
+    },
+    {
+      "template_id": "report",
+      "title": "Доклад: энергия",
+      "turn": 7
+    },
+    {
+      "template_id": "news",
+      "title": "Вести: Культ Земли",
+      "turn": 7
+    },
+    {
+      "template_id": "news",
+      "title": "Городская сводка",
+      "turn": 7
+    }
+  ],
+  "turn": 7
+}

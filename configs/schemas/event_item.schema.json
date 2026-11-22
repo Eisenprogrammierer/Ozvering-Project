@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/event_item.schema.json",
+  "title": "Одно событие кампании",
+  "description": "Элемент events из configs/systems/events.json. Проверяется отдельно, потому что линтер может получить список событий без каталога.",
+  "$ref": "https://ozvering.local/schemas/event.schema.json#/$defs/event"
+}

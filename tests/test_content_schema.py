@@ -37,7 +37,49 @@ def test_schema_set_covers_core_contracts():
         "subfaction",
         "order",
         "automaton",
+        "bdi",
+        "work",
+        "lore_factions",
+        "automata_defaults",
+        "campaign_template",
+        "event",
+        "event_item",
     }
+
+
+def test_new_whole_file_schemas_reject_unknown_keys():
+    samples = {
+        "bdi": {
+            "needs": {"hunger": {"label": "Голод"}},
+            "belief_predicates": {},
+            "intention_essences": {},
+            "typo": 1,
+        },
+        "work": {"id": "work", "label": "Работа", "typo": 1},
+        "lore_factions": {
+            "factions": {
+                "red": {"id": "faction.a", "name": "А", "typo": 1}
+            }
+        },
+        "automata_defaults": {"faction_state": {}, "typo": 1},
+        "campaign_template": {
+            "template_id": "test",
+            "scenario": {"mode": "automata"},
+            "typo": 1,
+        },
+        "event_item": {
+            "id": "event",
+            "title": "Событие",
+            "templates": ["текст"],
+            "typo": 1,
+        },
+    }
+    for name, data in samples.items():
+        problems = content_schema.validate(name, data)
+        assert any("неизвестное поле: typo" in item for item in problems), (
+            name,
+            problems,
+        )
 
 
 def test_real_content_passes_schema_lint():

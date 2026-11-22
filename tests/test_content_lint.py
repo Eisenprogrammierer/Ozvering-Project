@@ -199,6 +199,72 @@ def test_event_must_not_have_effects():
     assert any("не может менять состояние" in item for item in problems)
 
 
+def test_action_target_and_intention_hints_are_checked(config):
+    data = {
+        "factions": {
+            "red": {
+                "id": "faction.a",
+                "actions": [
+                    {
+                        "id": "work",
+                        "label": "Работа",
+                        "target": "nowhere",
+                        "hints": {
+                            "essence": "coordinate",
+                            "intention_essence": "nope",
+                            "intention_target": "nowhere",
+                        },
+                    }
+                ],
+            },
+            "blue": {"id": "faction.b"},
+        }
+    }
+    problems = content_lint.lint_factions_data(data, config)
+    assert any("target: неизвестная цель" in item for item in problems)
+    assert any("hints.intention_essence" in item for item in problems)
+
+
+def test_action_history_links_are_checked(config):
+    data = {
+        "factions": {
+            "red": {
+                "id": "faction.a",
+                "actions": [
+                    {
+                        "id": "first",
+                        "label": "Первая",
+                        "requires": {"used_actions": ["missing"]},
+                    }
+                ],
+            }
+        }
+    }
+    problems = content_lint.lint_factions_data(data, config)
+    assert any(
+        "requires.used_actions: неизвестная работа" in item
+        for item in problems
+    )
+
+
+def test_organ_subfaction_link_is_checked(config):
+    data = {
+        "factions": {
+            "red": {
+                "id": "faction.a",
+                "organs": [
+                    {"id": "staff", "subfaction_id": "missing"}
+                ],
+                "subfactions": [{"id": "orthodox"}],
+            }
+        }
+    }
+    problems = content_lint.lint_factions_data(data, config)
+    assert any(
+        "неизвестная подфракция" in item for item in problems
+    )
+
+
 def test_faction_links_and_actions_are_checked(config):
     data = {
         "factions": {

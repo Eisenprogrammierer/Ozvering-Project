@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/work.schema.json",
+  "title": "Работа фракции кампании автоматов",
+  "description": "Запись actions у фракции в lore_factions.json. Исполняется AutomataCampaign.perform/start_action. Неизвестные поля запрещены.",
+  "type": "object",
+  "required": [
+    "id",
+    "label"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "organ_id": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "cooldown": {
+      "type": "number",
+      "minimum": 0
+    },
+    "once": {
+      "type": "boolean"
+    },
+    "max_uses": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "repeat_effect_decay": {
+      "type": "number"
+    },
+    "ai_priority": {
+      "type": "number"
+    },
+    "requires": {
+      "$ref": "https://ozvering.local/schemas/requires.schema.json"
+    },
+    "template": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "amount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hints": {
+      "type": "object",
+      "properties": {
+        "essence": {
+          "type": "string"
+        },
+        "intention_essence": {
+          "type": "string"
+        },
+        "intention_target": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "chance": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "number"
+        },
+        "slope": {
+          "type": "number"
+        },
+        "attack": {
+          "type": "string"
+        },
+        "defense": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "intention": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "essence": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "effects": {
+      "$ref": "https://ozvering.local/schemas/effects.schema.json"
+    },
+    "success": {
+      "$ref": "https://ozvering.local/schemas/effects.schema.json"
+    },
+    "failure": {
+      "$ref": "https://ozvering.local/schemas/effects.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

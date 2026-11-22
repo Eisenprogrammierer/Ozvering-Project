@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/bdi.schema.json",
+  "title": "Конфиг BDI персонажей",
+  "description": "Файл configs/characters/bdi.json. Читается bdi.BDIConfig. Неизвестные ключи запрещены: опечатка в потребности, предикате или сущности намерения должна быть ошибкой загрузки, а не тихим no-op.",
+  "type": "object",
+  "required": [
+    "needs",
+    "belief_predicates",
+    "intention_essences"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "history": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "strict_predicates": {
+      "type": "boolean"
+    },
+    "death": {
+      "type": "object",
+      "properties": {
+        "metric": {
+          "const": "force"
+        },
+        "at_or_below": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "needs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/need"
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/condition"
+      }
+    },
+    "belief_predicates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/predicate"
+      }
+    },
+    "intention_essences": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/essence"
+      }
+    },
+    "decision": {
+      "type": "object",
+      "properties": {
+        "need_weight": {
+          "type": "number"
+        },
+        "belief_weight": {
+          "type": "number"
+        },
+        "intention_weight": {
+          "type": "number"
+        },
+        "novelty": {
+          "type": "number"
+        },
+        "trait_center": {
+          "type": "number"
+        },
+        "predicate_weights": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "need": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "good": {
+          "type": "string"
+        },
+        "initial": {
+          "type": "number"
+        },
+        "growth": {
+          "type": "number"
+        },
+        "threshold": {
+          "type": "number"
+        },
+        "force_drain": {
+          "type": "number"
+        },
+        "energy_drain": {
+          "type": "number"
+        },
+        "spillover": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "satisfaction": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "max": {
+          "type": "number"
+        },
+        "progress": {
+          "type": "number"
+        },
+        "rest_recovery": {
+          "type": "number"
+        },
+        "treat_rate": {
+          "type": "number"
+        },
+        "work_penalty": {
+          "type": "number"
+        },
+        "work_floor": {
+          "type": "number"
+        },
+        "force_drain": {
+          "type": "number"
+        },
+        "energy_drain": {
+          "type": "number"
+        },
+        "health_need_growth": {
+          "type": "number"
+        },
+        "contagion_chance": {
+          "type": "number"
+        },
+        "contagion_severity": {
+          "type": "number"
+        },
+        "hit_severity": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "predicate": {
+      "type": "object",
+      "required": [
+        "label",
+        "kind"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "relation",
+            "property"
+          ]
+        },
+        "symmetric": {
+          "type": "boolean"
+        },
+        "inverse": {
+          "type": "string"
+        },
+        "object": {
+          "enum": [
+            "required",
+            "forbidden"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "essence": {
+      "type": "object",
+      "required": [
+        "label",
+        "need"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "need": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

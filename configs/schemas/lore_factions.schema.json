@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/lore_factions.schema.json",
+  "title": "Лорные фракции кампании",
+  "description": "Базовый файл configs/campaigns/base/lore_factions.json: фракции, органы, подфракции, работы и общие взаимодействия. Читается campaign/preset.py и campaign/automata.py.",
+  "type": "object",
+  "required": [
+    "factions"
+  ],
+  "properties": {
+    "schema": {
+      "type": "integer"
+    },
+    "factions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/faction"
+      }
+    },
+    "geometry": {
+      "type": "object"
+    },
+    "character_interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/characterInteraction"
+      }
+    },
+    "automaton_interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/automatonInteraction"
+      }
+    }
+  },
+  "$defs": {
+    "numberMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "template": {
+      "type": "object",
+      "properties": {
+        "form": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "amount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hints": {
+      "type": "object",
+      "properties": {
+        "essence": {
+          "type": "string"
+        },
+        "intention_essence": {
+          "type": "string"
+        },
+        "intention_target": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "formula": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "metric",
+          "weight"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "post": {
+      "type": "object",
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "archetype": {
+          "type": "string"
+        },
+        "force": {
+          "type": "number"
+        },
+        "organ_id": {
+          "type": "string"
+        },
+        "leverage": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/leverage"
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "characterInteraction": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "cost": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "cooldown": {
+          "type": "number",
+          "minimum": 0
+        },
+        "allow_self": {
+          "type": "boolean"
+        },
+        "relations": {
+          "type": "object"
+        },
+        "template": {
+          "$ref": "#/$defs/template"
+        },
+        "hints": {
+          "$ref": "#/$defs/hints"
+        },
+        "effects": {
+          "$ref": "https://ozvering.local/schemas/effects.schema.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "automatonInteraction": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "relation": {
+          "type": "string"
+        },
+        "cost": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "cooldown": {
+          "type": "number",
+          "minimum": 0
+        },
+        "template": {
+          "$ref": "#/$defs/template"
+        },
+        "hints": {
+          "$ref": "#/$defs/hints"
+        },
+        "effects": {
+          "$ref": "https://ozvering.local/schemas/effects.schema.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "organInteraction": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "cost": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "cooldown": {
+          "type": "number",
+          "minimum": 0
+        },
+        "support": {
+          "type": "number"
+        },
+        "template": {
+          "$ref": "#/$defs/template"
+        },
+        "hints": {
+          "$ref": "#/$defs/hints"
+        },
+        "effects": {
+          "$ref": "https://ozvering.local/schemas/effects.schema.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "leverage": {
+      "type": "object",
+      "required": [
+        "creditor",
+        "kind",
+        "amount"
+      ],
+      "properties": {
+        "creditor": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "faction": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        },
+        "culture": {
+          "type": "string"
+        },
+        "role_title": {
+          "type": "string"
+        },
+        "role_title_base": {
+          "type": "string"
+        },
+        "role_title_female": {
+          "type": "string"
+        },
+        "rival_side": {
+          "type": "string"
+        },
+        "population": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "default_archetype": {
+          "type": "string"
+        },
+        "priority_needs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "line_posts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "doctrine": {
+          "type": "object",
+          "properties": {
+            "forms": {
+              "$ref": "#/$defs/numberMap"
+            },
+            "essences": {
+              "$ref": "#/$defs/numberMap"
+            }
+          },
+          "additionalProperties": false
+        },
+        "character_defaults": {
+          "type": "object",
+          "properties": {
+            "deliberate_target": {
+              "type": "string"
+            },
+            "beliefs": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "intentions": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "assets": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "asset_labels": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "asset_formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/formula"
+          }
+        },
+        "income": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "score_assets": {
+          "$ref": "#/$defs/numberMap"
+        },
+        "archetypes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "posts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/post"
+          }
+        },
+        "organization": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "leader_title": {
+              "type": "string"
+            },
+            "leader_title_base": {
+              "type": "string"
+            },
+            "leader_title_female": {
+              "type": "string"
+            },
+            "complete_weight": {
+              "type": "number"
+            },
+            "runtime": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "automaton": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "organs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/organ.schema.json"
+          }
+        },
+        "subfactions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/subfaction.schema.json"
+          }
+        },
+        "organ_interactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/organInteraction"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://ozvering.local/schemas/work.schema.json"
+          }
+        },
+        "geometry": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

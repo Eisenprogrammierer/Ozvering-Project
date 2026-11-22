@@ -59,13 +59,45 @@ def _preset(template_id, seed):
     return generator.generate(seed=seed)
 
 
+def _alive(character):
+    return not bool(
+        getattr(
+            character,
+            "is_dead",
+            getattr(character, "dead", False),
+        )
+    )
+
+
 def _collect(template_id, seed):
     preset = _preset(template_id, seed)
     campaign = AutomataCampaign(preset, seed=seed)
-    for _ in range(HORIZON):
+    history = {side: [] for side in campaign.factions}
+    first_death = None
+    dissolved = {}
+    for turn in range(1, HORIZON + 1):
         if campaign.finished:
             break
         campaign.advance()
+        for side, faction in campaign.factions.items():
+            history[side].append(faction.score())
+            if side not in dissolved and faction.dissolved:
+                dissolved[side] = turn
+            if first_death is None and any(
+                not _alive(character) for character in faction.characters
+            ):
+                first_death = turn
+    spread = {
+        side: max(values) - min(values)
+        for side, values in history.items()
+        if values
+    }
+    final = {
+        side: values[-1] for side, values in history.items() if values
+    }
+    final_spread = (
+        max(final.values()) - min(final.values()) if final else 0.0
+    )
     return {
         "seed": seed,
         "turn": campaign.turn,
@@ -76,6 +108,11 @@ def _collect(template_id, seed):
         "bias": float(
             (preset.scenario.get("outcome") or {}).get("score_bias") or 0.0
         ),
+        "first_death": first_death,
+        "dissolved": dissolved,
+        "score_spread": spread,
+        "final_spread": final_spread,
+        "final_scores": final,
     }
 
 
@@ -131,6 +168,36 @@ def main(argv=None):
             "исходы до горизонта: %d / %d"
             % (len(early), len(records))
         )
+        early_deaths = [
+            record["seed"]
+            for record in records
+            if record.get("first_death")
+            and record["first_death"] <= 3
+        ]
+        dissolved = [
+            (record["seed"], side, turn)
+            for record in records
+            for side, turn in (record.get("dissolved") or {}).items()
+        ]
+        spreads = [record.get("final_spread", 0.0) for record in records]
+        print(
+            "здоровье: смерть на 3-м ходу %d / %d; распадов %d"
+            % (len(early_deaths), len(records), len(dissolved))
+        )
+        if early_deaths:
+            print("  ранние смерти, seed: %s" % early_deaths)
+        if dissolved:
+            print("  распады: %s" % dissolved)
+        print(
+            "  разброс финальных оценок: mean=%.3f min=%.3f max=%.3f"
+            % (
+                statistics.mean(spreads),
+                min(spreads),
+                max(spreads),
+            )
+        )
+        if max(spreads) < 0.02:
+            print("  ВНИМАНИЕ: равновесие, фракции не расходятся")
         bias = records[0]["bias"] if records else 0.0
         print("score_bias из шаблона: %+.3f" % bias)
         for margin in margins:

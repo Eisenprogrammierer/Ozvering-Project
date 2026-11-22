@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/event.schema.json",
+  "title": "Каталог событий кампании",
+  "description": "Файл configs/systems/events.json. Читается systems/events.py. Событие — ролевой слой: оно описывает состояние и не имеет права менять мир.",
+  "type": "object",
+  "required": [
+    "events"
+  ],
+  "properties": {
+    "schema": {
+      "type": "integer"
+    },
+    "categories": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/category"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            ">=",
+            "<=",
+            ">",
+            "<",
+            "==",
+            "!=",
+            "in",
+            "not in"
+          ]
+        },
+        "value": true,
+        "threshold": true,
+        "subject": {
+          "type": "string"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "negate": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "visibility": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "enum": [
+            "global",
+            "faction",
+            "character"
+          ]
+        },
+        "divisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_force": {
+          "type": "number"
+        },
+        "max_force": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "templates"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string"
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "template": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "probability": {
+          "type": "number"
+        },
+        "chance": {
+          "type": "number"
+        },
+        "speed": {
+          "type": "number"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "cooldown": {
+          "type": "number",
+          "minimum": 0
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "visibility": {
+          "$ref": "#/$defs/visibility"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "context": {
+          "type": "object"
+        },
+        "severity": {
+          "type": "number"
+        },
+        "stakes": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

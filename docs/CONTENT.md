@@ -493,11 +493,18 @@ custom = content.get("my_new_file", {})
 поле `automaton` подфракции, `organ.automaton_id`, затем `organ.<kind>`.
 Проверка — `python -m campaign.content_lint`.
 
-Исполняемые блоки описаны JSON Schema в `configs/schemas/`:
-`automaton`, `effects`, `conditions`, `requires`, `organ`, `subfaction`.
+Исполняемые блоки и целые файлы описаны JSON Schema в
+`configs/schemas/`: `automaton`, `effects`, `conditions`, `requires`,
+`organ`, `subfaction`, `order`, `bdi`, `work`, `lore_factions`,
+`automata_defaults`, `campaign_template`, `event`/`event_item`.
 Их проверяет `campaign/content_schema.py`; `content_lint` вызывает его
-вместе с семантическими проверками. `jsonschema` — необязательная
-dev-зависимость: без неё линтер работает как раньше.
+вместе с семантическими проверками ссылок. Линтер обходит
+`configs/campaigns`, `configs/systems/events.json` и
+`configs/systems/playwright.json`, поэтому опечатка в шаблоне кампании,
+событии или `event_id` драматурга видна до запуска.
+`jsonschema` — необязательная dev-зависимость: без неё линтер работает
+как раньше. Стабильность поведения после правок схем и контента
+фиксирует `tests/test_campaign_golden.py`.
 
 Действия кампании идут процессами. Блок
 `automata_defaults.json::action_process` задаёт `slots` (сколько дел

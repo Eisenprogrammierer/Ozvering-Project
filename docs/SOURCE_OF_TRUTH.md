@@ -179,7 +179,8 @@
 |---|---|
 | Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
 | Снимок мира и кампании автоматов | `SCHEMA_VERSION = 2` (аватар, `entity_ref`/обязательства, сцена); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
-| Контент без Python | `test_content_without_python.py`; `content_lint.lint_world_data`/`lint_storylines_data`/`lint_scenes_data`; `test_content_lint.py` |
+| Контент без Python | `test_content_without_python.py`; `configs/schemas/` и `campaign/content_schema.py`; `content_lint`; `test_content_lint.py`, `test_content_schema.py` |
+| Стабильность кампании | `test_campaign_golden.py`; `tests/fixtures/golden/empire_seed13.json` |
 | Восприятие и провенанс | `campaign/perception.py`; `build_knowledge(view=...)`; `configs/dialogue/world.json` блок `perception`; `test_perception.py`, `test_provenance.py` |
 | Перенос `health/sickness/wound` | `core41/model.py` (`condition_state`, `load_condition`); `test_health.py`, `test_sickness.py` |
 | Версии чекпойнтов | `agents/policies.py`, `agents/checkpoints.py`; `test_checkpoints.py`; [`AGENTS.md`](AGENTS.md) §4 |

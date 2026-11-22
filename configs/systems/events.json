@@ -1724,6 +1724,210 @@
         "Старая рана {actor} открывается в {place}; жар не отступает, и {organization} ищет лекаря.",
         "{actor} не может скрыть раневую горячку: {target} замечает кровь и требует объяснений."
       ]
+    },
+    {
+      "id": "mandate_crisis",
+      "category": "politics",
+      "title": "Кризис мандата",
+      "tags": [
+        "legitimacy",
+        "power",
+        "threshold"
+      ],
+      "severity": 0.7,
+      "stakes": 0.9,
+      "weight": 1.2,
+      "probability": 0.65,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "legitimacy",
+          "op": "<=",
+          "value": 0.35
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 6.0,
+      "cooldown": 12.0,
+      "templates": [
+        "{organization} теряет право говорить от имени закона: {target} открыто спрашивает, кто дал {actor} мандат.",
+        "В {place} клятву {actor} встречают молчанием; {organization} впервые не может назвать это изменой."
+      ]
+    },
+    {
+      "id": "empty_stores",
+      "category": "economy",
+      "title": "Пустые склады",
+      "tags": [
+        "supply",
+        "scarcity",
+        "threshold"
+      ],
+      "severity": 0.65,
+      "stakes": 0.85,
+      "weight": 1.2,
+      "probability": 0.65,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "supply",
+          "op": "<=",
+          "value": 0.3
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 6.0,
+      "cooldown": 12.0,
+      "templates": [
+        "Склады {organization} пусты: {actor} считает пайки, а {target} предлагает реквизицию у {place}.",
+        "В {place} выдают последний хлеб; {organization} знает, что следующая неделя начнётся с долгов."
+      ]
+    },
+    {
+      "id": "broken_army",
+      "category": "war",
+      "title": "Армия на грани",
+      "tags": [
+        "morale",
+        "war",
+        "threshold"
+      ],
+      "severity": 0.75,
+      "stakes": 0.95,
+      "weight": 1.2,
+      "probability": 0.65,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "morale",
+          "op": "<=",
+          "value": 0.3
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 6.0,
+      "cooldown": 12.0,
+      "templates": [
+        "Люди {organization} больше не верят в приказ: {actor} видит, как {target} считает дезертиров.",
+        "На позициях у {place} {organization} держится только на страхе; {actor} обещает отступление, которого не будет."
+      ]
+    },
+    {
+      "id": "myth_crack",
+      "category": "mystery",
+      "title": "Трещина в мифе",
+      "tags": [
+        "myth",
+        "belief",
+        "threshold"
+      ],
+      "severity": 0.55,
+      "stakes": 0.8,
+      "weight": 1.0,
+      "probability": 0.55,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "myth",
+          "op": "<=",
+          "value": 0.3
+        }
+      ],
+      "visibility": {
+        "scope": "global",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 2.0,
+      "duration": 6.0,
+      "cooldown": 14.0,
+      "templates": [
+        "Старая история {organization} больше не убеждает: в {place} её пересказывают как насмешку.",
+        "{actor} слышит, как {target} повторяет чужую версию прошлого, и понимает, что миф дал трещину."
+      ]
+    },
+    {
+      "id": "street_panic",
+      "category": "society",
+      "title": "Паника на улицах",
+      "tags": [
+        "anxiety",
+        "unrest",
+        "threshold"
+      ],
+      "severity": 0.6,
+      "stakes": 0.8,
+      "weight": 1.1,
+      "probability": 0.6,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "anxiety",
+          "op": ">=",
+          "value": 0.7
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 5.0,
+      "cooldown": 10.0,
+      "templates": [
+        "Улицы {place} охватывает паника: {actor} ищет виновного, а {organization} — хоть одну твёрдую новость.",
+        "{target} приносит {actor} слух о новой угрозе; к вечеру его повторяют уже без имён."
+      ]
+    },
+    {
+      "id": "exposed_network",
+      "category": "crime",
+      "title": "Сеть под колпаком",
+      "tags": [
+        "compromised",
+        "network",
+        "threshold"
+      ],
+      "severity": 0.7,
+      "stakes": 0.9,
+      "weight": 1.1,
+      "probability": 0.6,
+      "conditions": [
+        {
+          "kind": "asset",
+          "key": "is_compromised",
+          "op": ">=",
+          "value": 0.65
+        }
+      ],
+      "visibility": {
+        "scope": "faction",
+        "min_force": 0.0,
+        "max_force": 1.0
+      },
+      "speed": 1.0,
+      "duration": 5.0,
+      "cooldown": 12.0,
+      "templates": [
+        "Связные {organization} молчат слишком долго: {actor} подозревает, что {target} уже читают чужие.",
+        "В {place} проваливается явка; {actor} не знает, кто из своих успел стать чужим."
+      ]
     }
   ]
 }

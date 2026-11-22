@@ -130,7 +130,8 @@
   Республики;
 * `organ.command`, `organ.coercion`, `organ.intelligence`,
   `organ.legitimacy`, `organ.maintenance`, `organ.information`,
-  `organ.care`, `organ.meaning`, `organ.exchange` для архетипов органов.
+  `organ.care`, `organ.meaning`, `organ.exchange`, `organ.support`
+  для архетипов органов.
 
 Империя и Республика получили по три подфракции с `share`, собственными
 активами (`influence`, `cohesion`, `grievance`, `legitimacy`) и
@@ -946,7 +947,7 @@ campaign.issue_order("blue", "reassure", character_id="char_blue_003")
    `energy`;
 2. целостность органов сети по их типам (`command`, `coercion`,
    `intelligence`, `information`, `maintenance`, `legitimacy`, `care`,
-   `meaning`, `exchange`);
+   `meaning`, `exchange`, `support`);
 3. краткоживущий контекст взаимодействий: работы, приказы, влияния,
    события и обратный поток органов.
 
@@ -1033,6 +1034,13 @@ campaign.issue_order("blue", "reassure", character_id="char_blue_003")
 Значения лежат в шаблонах кампаний и не зашиты в код. Проверить их можно
 скриптом `experiments/calibrate_automata_outcomes.py --seeds 1-50`; он же
 печатает, как результат меняется при другом `score_margin`.
+
+Скрипт также печатает здоровье прогона: первый ход с потерей персонажа,
+ходы распада фракций и разброс финальных оценок. Контрольный прогон
+72 хода × 4 шаблона × seed `7, 13, 29` не дал потерь до 10-го хода и не
+показал равновесия: разброс оценок по ходам `0.03–0.22`, финальный
+разрыв `0.23–0.36`. Распад фракции на 3-м ходу считается ошибкой
+калибровки, а не допустимым исходом.
 
 Калибровка переснята после введения бюджета из трёх действий и
 динамического исхода. Автоматический прогон тратит по три действия за

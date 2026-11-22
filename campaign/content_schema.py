@@ -31,6 +31,13 @@ SCHEMA_FILES = {
     "subfaction": "subfaction.schema.json",
     "order": "order.schema.json",
     "automaton": "automaton.schema.json",
+    "bdi": "bdi.schema.json",
+    "work": "work.schema.json",
+    "lore_factions": "lore_factions.schema.json",
+    "automata_defaults": "automata_defaults.schema.json",
+    "campaign_template": "campaign_template.schema.json",
+    "event": "event.schema.json",
+    "event_item": "event_item.schema.json",
 }
 
 

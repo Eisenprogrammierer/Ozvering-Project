@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ozvering.local/schemas/automata_defaults.schema.json",
+  "title": "Умолчания кампании автоматов",
+  "description": "Файл configs/campaigns/base/automata_defaults.json. Читается campaign/preset.py, campaign/fractal.py и campaign/dispatch.py. Неизвестные ключи верхнего уровня и основных блоков запрещены.",
+  "type": "object",
+  "properties": {
+    "actions_per_turn": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "run_turns_default": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_log_limit": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "snapshot_tail": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "debug": {
+      "$ref": "#/$defs/debug"
+    },
+    "dispatch": {
+      "$ref": "#/$defs/dispatch"
+    },
+    "action_process": {
+      "$ref": "#/$defs/actionProcess"
+    },
+    "asset_labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "relation_model": {
+      "$ref": "#/$defs/relationModel"
+    },
+    "order_model": {
+      "$ref": "#/$defs/orderModel"
+    },
+    "faction_state": {
+      "$ref": "#/$defs/factionState"
+    },
+    "ai_model": {
+      "$ref": "#/$defs/aiModel"
+    },
+    "realtime": {
+      "$ref": "#/$defs/realtime"
+    },
+    "bdi_routine": {
+      "$ref": "#/$defs/bdiRoutine"
+    },
+    "automata_model": {
+      "$ref": "#/$defs/automataModel"
+    },
+    "organ_model": {
+      "$ref": "#/$defs/organModel"
+    },
+    "organ_kinds": {
+      "$ref": "#/$defs/organKinds"
+    },
+    "organ_status_thresholds": {
+      "$ref": "#/$defs/organStatusThresholds"
+    },
+    "organ_target": {
+      "$ref": "#/$defs/organTarget"
+    },
+    "organ_default_integrity": {
+      "type": "number"
+    },
+    "organ_min_weight": {
+      "type": "number"
+    },
+    "preset_defaults": {
+      "$ref": "#/$defs/presetDefaults"
+    },
+    "organ_interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://ozvering.local/schemas/lore_factions.schema.json#/$defs/organInteraction"
+      }
+    },
+    "automaton_interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://ozvering.local/schemas/lore_factions.schema.json#/$defs/automatonInteraction"
+      }
+    },
+    "character_interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://ozvering.local/schemas/lore_factions.schema.json#/$defs/characterInteraction"
+      }
+    }
+  },
+  "$defs": {
+    "debug": {
+      "type": "object",
+      "properties": {
+        "stats": true,
+        "stats_actions": true,
+        "stats_characters": true,
+        "stats_effects": true,
+        "stats_formulas": true,
+        "stats_outcome": true,
+        "stats_path": true,
+        "stats_verbose_report": true
+      },
+      "additionalProperties": false
+    },
+    "dispatch": {
+      "type": "object",
+      "properties": {
+        "ai": true,
+        "asset_labels": true,
+        "assets": true,
+        "bands": true,
+        "briefing": true,
+        "channels": true,
+        "choices": true,
+        "confidence": true,
+        "confidence_labels": true,
+        "contradiction": true,
+        "distortion": true,
+        "effects": true,
+        "enabled": true,
+        "history_limit": true,
+        "interception": true,
+        "interval_seconds": true,
+        "max_pending": true,
+        "memory": true,
+        "news": true,
+        "promise": true,
+        "result_texts": true,
+        "rumor": true,
+        "source_by_asset": true,
+        "templates": true,
+        "threat": true,
+        "titles": true,
+        "tone": true,
+        "verify_cost_actions": true,
+        "verify_tolerance": true
+      },
+      "additionalProperties": false
+    },
+    "actionProcess": {
+      "type": "object",
+      "properties": {
+        "default_duration": true,
+        "duration_classes": true,
+        "duration_scale": true,
+        "duration_unit": true,
+        "effect_curve_power": true,
+        "effect_initial_share": true,
+        "effect_pulses": true,
+        "effect_window": true,
+        "interaction_durations": true,
+        "log_limit": true,
+        "min_duration": true,
+        "recheck_on_finish": true,
+        "refund_on_cancel": true,
+        "settlement": true,
+        "slots": true
+      },
+      "additionalProperties": false
+    },
+    "relationModel": {
+      "type": "object",
+      "properties": {
+        "axes": true,
+        "effect_limit": true,
+        "effect_weights": true,
+        "forms": true,
+        "neutral": true
+      },
+      "additionalProperties": false
+    },
+    "orderModel": {
+      "type": "object",
+      "properties": {
+        "cooldown": true,
+        "enabled": true,
+        "interval": true,
+        "max_per_tick": true,
+        "orders": true,
+        "recipient": true
+      },
+      "additionalProperties": false
+    },
+    "factionState": {
+      "type": "object",
+      "properties": {
+        "assets": true,
+        "context_decay": true,
+        "context_neutral": true,
+        "driver_gain": true,
+        "drivers": true,
+        "morale_scale": true
+      },
+      "additionalProperties": false
+    },
+    "aiModel": {
+      "type": "object",
+      "properties": {
+        "beliefs": true,
+        "character_agency": true,
+        "defense": true,
+        "doctrine": true,
+        "intention": true,
+        "needs": true,
+        "organs": true,
+        "relations": true,
+        "score_floor": true
+      },
+      "additionalProperties": false
+    },
+    "realtime": {
+      "type": "object",
+      "properties": {
+        "action_interval_seconds": true,
+        "ai_interval_seconds": true,
+        "game_seconds_per_real_second": true,
+        "organization_interval_seconds": true,
+        "speeds": true,
+        "turn_seconds": true
+      },
+      "additionalProperties": false
+    },
+    "bdiRoutine": {
+      "type": "object",
+      "properties": {
+        "coverage_buffer": true,
+        "coverage_reference": true,
+        "day_seconds": true,
+        "enabled": true,
+        "energy_recovery": true,
+        "force_recovery": true,
+        "morale_bonus": true,
+        "morale_drift_scale": true,
+        "morale_stress_scale": true,
+        "needs_unit_seconds": true,
+        "rate": true,
+        "satisfy": true,
+        "segment_seconds": true,
+        "sleep_needs": true,
+        "sleep_share": true,
+        "supply_floor": true,
+        "support_floor": true,
+        "support_relief_scale": true,
+        "target_ratio": true,
+        "targets": true,
+        "work_energy": true
+      },
+      "additionalProperties": false
+    },
+    "automataModel": {
+      "type": "object",
+      "properties": {
+        "asset_relax": true,
+        "collapse_streak": true,
+        "cooldown_turns": true,
+        "effect_scale": true,
+        "organization_cohesion": true,
+        "organization_fear": true,
+        "organization_legitimacy": true,
+        "organization_morale": true,
+        "organization_supply_drain": true,
+        "success_base": true,
+        "success_slope": true
+      },
+      "additionalProperties": false
+    },
+    "organModel": {
+      "type": "object",
+      "properties": {
+        "organ_action_gain": true,
+        "organ_action_loss": true,
+        "organ_child_pull": true,
+        "organ_damage": true,
+        "organ_dissolve_rate": true,
+        "organ_downscale": true,
+        "organ_effect_floor": true,
+        "organ_parent_pull": true,
+        "organ_recovery": true,
+        "organ_scale_recovery": true,
+        "organ_spread": true,
+        "organ_support_decay": true,
+        "organ_upscale": true
+      },
+      "additionalProperties": false
+    },
+    "organKinds": {
+      "type": "object",
+      "properties": {
+        "care": true,
+        "coercion": true,
+        "command": true,
+        "exchange": true,
+        "information": true,
+        "intelligence": true,
+        "legitimacy": true,
+        "maintenance": true,
+        "meaning": true,
+        "support": true
+      },
+      "additionalProperties": false
+    },
+    "organStatusThresholds": {
+      "type": "object",
+      "properties": {
+        "active": true,
+        "restoring": true,
+        "strained": true
+      },
+      "additionalProperties": false
+    },
+    "organTarget": {
+      "type": "object",
+      "properties": {
+        "pressure_assets": true,
+        "pressure_weight": true,
+        "profile_weight": true,
+        "support_weight": true
+      },
+      "additionalProperties": false
+    },
+    "presetDefaults": {
+      "type": "object",
+      "properties": {
+        "characters_per_faction": true,
+        "faction_leader_title": true,
+        "morale_leader_bonus": true,
+        "morale_max": true,
+        "morale_player_bonus": true,
+        "needs_base": true,
+        "needs_priority": true,
+        "organization_complete_weight": true,
+        "organization_leader_title": true,
+        "organization_name": true,
+        "organization_runtime": true,
+        "participant_title": true
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

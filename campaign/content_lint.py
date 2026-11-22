@@ -41,10 +41,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PATHS = (
     ROOT / "configs" / "characters" / "bdi.json",
     ROOT / "configs" / "characters" / "archetypes.json",
-    ROOT / "configs" / "campaigns" / "forms.json",
+    ROOT / "configs" / "campaigns",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
+    ROOT / "configs" / "systems" / "events.json",
+    ROOT / "configs" / "systems" / "playwright.json",
     ROOT / "configs" / "worlds" / "agora_world.json",
     ROOT / "configs" / "worlds" / "actions",
     ROOT / "configs" / "worlds" / "scenes",
@@ -347,7 +349,7 @@ def check_geometry(source, geometry, node_ids, links=None):
     return []
 
 
-def check_faction(side, faction, config):
+def check_faction(side, faction, config, known_targets=None):
     problems: List[str] = []
     prefix = "factions.%s" % side
     faction = _as_mapping(faction)
@@ -470,6 +472,16 @@ def check_faction(side, faction, config):
                     % (source, organ_id)
                 )
 
+    for index, organ in enumerate(organs):
+        organ = _as_mapping(organ)
+        organ_id = str(organ.get("id") or index)
+        subfaction_id = str(organ.get("subfaction_id") or "")
+        if subfaction_id and subfaction_id not in sub_ids:
+            problems.append(
+                "%s.organs.%s: неизвестная подфракция %r"
+                % (prefix, organ_id, subfaction_id)
+            )
+
     actions = [item for item in _as_list(faction.get("actions")) if item]
     action_ids = set()
     for index, action in enumerate(actions):
@@ -483,6 +495,9 @@ def check_faction(side, faction, config):
                 "%s: повторяющийся id работы %r" % (prefix, action_id)
             )
         action_ids.add(action_id)
+        problems.extend(
+            content_schema.validate("work", action, source)
+        )
         organ_id = str(action.get("organ_id") or "")
         if organ_id and organ_id not in organ_ids:
             problems.append(
@@ -492,6 +507,33 @@ def check_faction(side, faction, config):
         if essence and essence not in config.essences:
             problems.append(
                 "%s: неизвестная суть намерения %r" % (source, essence)
+            )
+        hints = _as_mapping(action.get("hints"))
+        for key in ("essence", "intention_essence"):
+            hint = str(hints.get(key) or "")
+            if hint and hint not in config.essences:
+                problems.append(
+                    "%s.hints.%s: неизвестная суть намерения %r"
+                    % (source, key, hint)
+                )
+        target = str(action.get("target") or "")
+        if (
+            target
+            and known_targets is not None
+            and target not in known_targets
+        ):
+            problems.append(
+                "%s.target: неизвестная цель %r" % (source, target)
+            )
+        hint_target = str(hints.get("intention_target") or "")
+        if (
+            hint_target
+            and known_targets is not None
+            and hint_target not in known_targets
+        ):
+            problems.append(
+                "%s.hints.intention_target: неизвестная цель %r"
+                % (source, hint_target)
             )
         intention = _as_mapping(action.get("intention"))
         if intention:
@@ -513,6 +555,23 @@ def check_faction(side, faction, config):
         problems.extend(
             check_requires(source + ".requires", action.get("requires"))
         )
+
+    # История работ ссылается на уже выполненные id. Проверяем после
+    # сбора всех работ, иначе ссылка вперёд выглядела бы неизвестной.
+    for index, action in enumerate(actions):
+        action = _as_mapping(action)
+        source = "%s.actions.%s" % (
+            prefix, str(action.get("id") or index)
+        )
+        requires = _as_mapping(action.get("requires"))
+        for key in ("used_actions", "not_used_actions"):
+            for reference in _as_list(requires.get(key)):
+                reference = str(reference or "")
+                if reference and reference not in action_ids:
+                    problems.append(
+                        "%s.requires.%s: неизвестная работа %r"
+                        % (source, key, reference)
+                    )
 
     for index, order in enumerate(_as_list(faction.get("orders"))):
         order = _as_mapping(order)
@@ -576,7 +635,9 @@ def check_faction(side, faction, config):
 def check_events(source, events):
     """Событие не производит состояние и не имеет эффектов."""
     problems: List[str] = []
+    categories = set()
     if isinstance(events, Mapping):
+        categories = set(_as_mapping(events.get("categories")))
         items = _as_list(events.get("events"))
         for key in events:
             if key in ("effects", "emit"):
@@ -588,6 +649,9 @@ def check_events(source, events):
         event = _as_mapping(event)
         event_id = str(event.get("id") or index)
         where = "%s.%s" % (source, event_id)
+        problems.extend(
+            content_schema.validate("event_item", event, where)
+        )
         for key in event:
             if key in ("effects", "emit", "apply"):
                 problems.append(
@@ -597,6 +661,12 @@ def check_events(source, events):
                 problems.append(
                     "%s: неизвестное поле события %r" % (where, key)
                 )
+        category = str(event.get("category") or "")
+        if category and categories and category not in categories:
+            problems.append(
+                "%s: неизвестная категория события %r"
+                % (where, category)
+            )
     return problems
 
 
@@ -987,6 +1057,19 @@ def lint_factions_data(data, config):
     else:
         return ["factions: ожидался объект или список"]
     seen = set()
+    known_targets = {"self", "rival", "strongest", "weakest"}
+
+    def _register_target(value):
+        value = str(value or "")
+        if not value:
+            return
+        known_targets.add(value)
+        known_targets.add(value.replace(".", "_"))
+        known_targets.add(value.replace("_", "."))
+
+    for side, faction in items:
+        _register_target(side)
+        _register_target(_as_mapping(faction).get("id"))
     geometries = _as_mapping(
         data.get("geometry") if isinstance(data, Mapping) else None
     )
@@ -998,7 +1081,14 @@ def lint_factions_data(data, config):
                 "factions: повторяющийся id фракции %r" % faction_id
             )
         seen.add(faction_id)
-        problems.extend(check_faction(str(side), faction, config))
+        problems.extend(
+            check_faction(
+                str(side),
+                faction,
+                config,
+                known_targets=known_targets,
+            )
+        )
         if side in geometries and not faction.get("geometry"):
             organs = _faction_organs(faction)
             node_ids = sorted(
@@ -1082,14 +1172,131 @@ def check_automaton(data, source):
     return problems
 
 
+def _relative_data_path(path, value):
+    target = pathlib.Path(str(value))
+    if not target.is_absolute():
+        target = pathlib.Path(path).parent / target
+    return target
+
+
+def lint_campaign_template_data(path, data):
+    """Проверить ссылки шаблона кампании на фракции и события.
+
+    Загрузчик проверяет стороны при генерации, но ошибка в JSON должна
+    находиться линтером до запуска. Категории событий сверяются с
+    каталогом ``configs/systems/events.json``.
+    """
+    if not isinstance(data, Mapping):
+        return ["шаблон кампании должен быть объектом"]
+    problems: List[str] = []
+    factions = _as_mapping(data.get("factions"))
+    factions_path = str(data.get("factions_path") or "")
+    if factions_path:
+        target = _relative_data_path(path, factions_path)
+        if not target.is_file():
+            problems.append(
+                "factions_path: файл не найден: %s" % factions_path
+            )
+        else:
+            try:
+                base = _load(target)
+            except (OSError, ValueError) as error:
+                problems.append("factions_path: %s" % error)
+            else:
+                factions = _as_mapping(_as_mapping(base).get("factions"))
+    elif not factions:
+        problems.append("нужен factions_path или inline factions")
+
+    slots = _as_mapping(data.get("faction_slots"))
+    player = str(
+        slots.get("player", data.get("player_side")) or ""
+    )
+    enemy = str(slots.get("enemy", data.get("enemy_side")) or "")
+    if factions:
+        if player and player not in factions:
+            problems.append("нет фракции player_side=%r" % player)
+        if enemy and enemy not in factions:
+            problems.append("нет фракции enemy_side=%r" % enemy)
+        if player and player == enemy:
+            problems.append("player_side и enemy_side совпадают")
+        scenario = _as_mapping(data.get("scenario"))
+        for side, rival in _as_mapping(scenario.get("rivals")).items():
+            if str(side) not in factions:
+                problems.append(
+                    "scenario.rivals: неизвестная фракция %r" % side
+                )
+            if str(rival) not in factions:
+                problems.append(
+                    "scenario.rivals.%s: неизвестная фракция %r"
+                    % (side, rival)
+                )
+
+    categories = _as_list(_as_mapping(data.get("events")).get("categories"))
+    if categories:
+        from systems.events import EventCatalog, EventError
+
+        try:
+            catalog = EventCatalog.load()
+        except (EventError, OSError, ValueError) as error:
+            problems.append("events: %s" % error)
+        else:
+            for category in categories:
+                if str(category) not in catalog.categories:
+                    problems.append(
+                        "events.categories: неизвестная категория %r"
+                        % category
+                    )
+    return problems
+
+
+def lint_playwright_data(path, data):
+    """Проверить, что шаблоны драматурга ссылаются на известные события."""
+    if not isinstance(data, Mapping):
+        return ["playwright.json должен быть объектом"]
+    templates = _as_list(data.get("templates"))
+    if not templates:
+        return []
+    from systems.events import EventCatalog, EventError
+
+    try:
+        catalog = EventCatalog.load()
+    except (EventError, OSError, ValueError) as error:
+        return ["events: %s" % error]
+    problems: List[str] = []
+    for index, template in enumerate(templates):
+        template = _as_mapping(template)
+        event_id = str(template.get("event_id") or "")
+        if event_id and event_id not in catalog.events:
+            problems.append(
+                "templates[%d].event_id: неизвестное событие %r"
+                % (index, event_id)
+            )
+    return problems
+
+
 def _problems_for(path, data, config, factions_data=None, forms=None):
     path = pathlib.Path(path)
     problems: List[str] = []
     if isinstance(data, Mapping) and "needs" in data:
         problems.extend(check_bdi(config))
+    if isinstance(data, Mapping) and "belief_predicates" in data:
+        problems.extend(
+            content_schema.validate("bdi", data, str(path))
+        )
     if isinstance(data, Mapping) and "forms" in data:
         problems.extend(lint_forms_data(data))
     is_world = _looks_like_world(data)
+    if (
+        not is_world
+        and isinstance(data, Mapping)
+        and "factions" in data
+        and "template_id" not in data
+    ):
+        problems.extend(
+            content_schema.validate(
+                "lore_factions", data, str(path)
+            )
+        )
     if is_world:
         problems.extend(lint_world_data(data))
     elif (
@@ -1114,7 +1321,40 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
     if isinstance(data, Mapping) and "factions" in data:
         problems.extend(lint_factions_data(data, config))
     if isinstance(data, Mapping) and "faction_state" in data:
+        problems.extend(
+            content_schema.validate(
+                "automata_defaults", data, str(path)
+            )
+        )
         problems.extend(check_defaults(data, factions_data))
+    if (
+        isinstance(data, Mapping)
+        and "template_id" in data
+        and "scenario" in data
+    ):
+        problems.extend(
+            content_schema.validate(
+                "campaign_template", data, str(path)
+            )
+        )
+        problems.extend(
+            lint_campaign_template_data(path, data)
+        )
+    if (
+        isinstance(data, Mapping)
+        and "events" in data
+        and "categories" in data
+    ):
+        problems.extend(
+            content_schema.validate("event", data, str(path))
+        )
+        problems.extend(check_events(str(path), data))
+    if (
+        path.name == "playwright.json"
+        and isinstance(data, Mapping)
+        and "templates" in data
+    ):
+        problems.extend(lint_playwright_data(path, data))
     if (
         isinstance(data, Mapping)
         and (
