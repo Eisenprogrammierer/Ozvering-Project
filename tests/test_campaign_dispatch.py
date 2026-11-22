@@ -1139,7 +1139,7 @@ def test_intercept_countermeasure_warns_leader_without_touching_assets(
     assert result["cost"] == 1
     assert spent == [campaign.player_side]
     assert item["counter"] == "warn"
-    assert item["counter_label"] == "Предупредить лидера"
+    assert item["counter_label"] == "Предупредить своего лидера"
     assert "предупреждён" in result["text"]
     assert any(
         belief.predicate == "sees_as_threat"
@@ -1212,7 +1212,7 @@ def test_used_intercept_counter_survives_snapshot():
 
     assert loaded is not None
     assert loaded["counter"] == "warn"
-    assert loaded["counter_label"] == "Предупредить лидера"
+    assert loaded["counter_label"] == "Предупредить своего лидера"
     assert restored.intercept_counters(item["id"]) == []
 
 

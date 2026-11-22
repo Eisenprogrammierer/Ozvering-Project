@@ -518,3 +518,34 @@ def test_production_runtime_events_are_data_driven():
         assert 0.0 < event.probability <= 1.0
         # Событие — слой отражения: оно ничего не производит.
         assert not event.effects
+
+
+def test_pair_and_life_conditions_read_context():
+    """Парные и жизненные условия — это факты контекста, не догадки."""
+    alive_pair = {
+        "actor_alive": True,
+        "target_alive": True,
+        "pair_alive": True,
+        "actor_gender": "f",
+        "target_gender": "m",
+        "opposite_gender": True,
+        "pair_same_faction": True,
+        "has_dead": False,
+    }
+    same_gender = dict(
+        alive_pair,
+        target_gender="f",
+        opposite_gender=False,
+    )
+    fallen = dict(alive_pair, has_dead=True, actor_alive=False)
+
+    def check(kind, context):
+        return EventCondition.from_data({"kind": kind}).evaluate(context)
+
+    assert check("pair_alive", alive_pair) is True
+    assert check("opposite_gender", alive_pair) is True
+    assert check("opposite_gender", same_gender) is False
+    assert check("pair_same_faction", alive_pair) is True
+    assert check("has_dead", alive_pair) is False
+    assert check("has_dead", fallen) is True
+    assert check("actor_dead", fallen) is True

@@ -468,3 +468,61 @@ def test_story_feed_shows_city_news_after_delay():
     assert any(entry.get("news_type") == "city" for entry in feed)
     screen.draw(pygame.Surface((1280, 720)))
     app.quit()
+
+
+def test_story_feed_scrolls_through_all_events(monkeypatch):
+    from view.screens.automata_screen import AutomataScreen, RIGHT_RECT
+
+    app, campaign = _app_with_campaign()
+    campaign.story_events = [
+        {
+            "id": "story-%d" % index,
+            "category": "news",
+            "title": "Вести %d" % index,
+            "text": "Событие номер %d." % index,
+            "turn": index,
+            "visible": True,
+        }
+        for index in range(12)
+    ]
+    screen = AutomataScreen(app, campaign)
+    assert len(screen._story_feed()) == 12
+
+    monkeypatch.setattr(pygame.mouse, "get_pos", lambda: RIGHT_RECT.center)
+    screen.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": 1})
+    )
+    assert screen.log_scroll == 1
+
+    screen.log_scroll = 99
+    screen.draw(pygame.Surface((1280, 720)))
+    assert screen.log_scroll == 11
+
+    screen.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1})
+    )
+    assert screen.log_scroll == 10
+    screen.draw(pygame.Surface((1280, 720)))
+    app.quit()
+
+
+def test_countermeasures_explain_target_and_benefit():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    overlay = ReportsOverlay(app, campaign)
+    options = campaign.intercept_counters(item["id"])
+    warn = next(
+        option for option in options if option["id"] == "warn"
+    )
+
+    assert "лидер" in warn["label"].lower()
+    assert "лидер" in warn["benefit"].lower()
+    assert "мораль" in warn["benefit"].lower()
+    lines = overlay._intercept_lines(item)
+    assert any("Контрмеры" in line for line in lines)
+    assert any("мораль" in line for line in lines)
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()

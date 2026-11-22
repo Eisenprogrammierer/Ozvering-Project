@@ -146,3 +146,63 @@ def test_story_event_is_filtered_by_unmet_asset_condition(campaign):
         )
         == []
     )
+
+
+def test_story_context_prefers_alive_opposite_gender_pair(campaign):
+    faction = campaign.faction(SIDE)
+    for index, character in enumerate(faction.characters):
+        character.campaign_gender = "f" if index == 0 else "m"
+    context = campaign._story_context()
+
+    assert context["actor_alive"] is True
+    assert context["target_alive"] is True
+    assert context["pair_alive"] is True
+    assert context["pair_same_faction"] is True
+    assert context["opposite_gender"] is True
+    assert context["target"] != context["actor"]
+    assert context["has_dead"] is False
+
+
+def test_story_context_reports_fallen_and_skips_dead_in_pair(campaign):
+    faction = campaign.faction(SIDE)
+    fallen = faction.characters[1]
+    original_force = fallen.force
+    fallen.force = 0.0
+    try:
+        context = campaign._story_context()
+        assert context["has_dead"] is True
+        assert context["fallen"] == fallen.name
+        assert context["actor"] != fallen.name
+        assert context["target"] != fallen.name
+        assert context["pair_alive"] is True
+    finally:
+        fallen.force = original_force
+
+
+def test_life_events_require_logical_pairs_and_real_death():
+    catalog = EventCatalog.load(ROOT / "configs" / "systems")
+    living_pair = {
+        "actor": "Анна",
+        "target": "Борис",
+        "fallen": "",
+        "actor_alive": True,
+        "target_alive": True,
+        "pair_alive": True,
+        "actor_gender": "f",
+        "target_gender": "m",
+        "opposite_gender": True,
+        "pair_same_faction": True,
+        "has_dead": False,
+    }
+    same_gender = dict(living_pair, target_gender="f", opposite_gender=False)
+    with_fallen = dict(living_pair, has_dead=True, fallen="Борис")
+
+    assert catalog.event("birth_child").matches(living_pair) is True
+    assert catalog.event("birth_child").matches(same_gender) is False
+    assert catalog.event("marriage").matches(living_pair) is True
+    assert catalog.event("marriage").matches(same_gender) is False
+    assert catalog.event("parenthood").matches(living_pair) is True
+    assert catalog.event("death").matches(living_pair) is False
+    assert catalog.event("death").matches(with_fallen) is True
+    assert catalog.event("funeral").matches(with_fallen) is True
+    assert catalog.event("succession").matches(with_fallen) is True

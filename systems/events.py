@@ -125,6 +125,14 @@ class EventCondition:
             "flag",
             "intention",
             "relation",
+            "pair_alive",
+            "opposite_gender",
+            "actor_alive",
+            "target_alive",
+            "actor_dead",
+            "target_dead",
+            "pair_same_faction",
+            "has_dead",
         )
         if (
             present
@@ -371,6 +379,32 @@ def _condition_value(condition, context):
         return context.get("role", "") == key
     if kind == "alive":
         return bool(context.get("alive", True))
+    if kind == "actor_alive":
+        return bool(context.get("actor_alive", True))
+    if kind == "target_alive":
+        return bool(context.get("target_alive", True))
+    if kind == "pair_alive":
+        if "pair_alive" in context:
+            return bool(context.get("pair_alive"))
+        return bool(
+            context.get("actor_alive", True)
+            and context.get("target_alive", True)
+        )
+    if kind == "actor_dead":
+        return not bool(context.get("actor_alive", True))
+    if kind == "target_dead":
+        return not bool(context.get("target_alive", True))
+    if kind == "pair_same_faction":
+        return bool(context.get("pair_same_faction", False))
+    if kind == "has_dead":
+        return bool(context.get("has_dead", False))
+    if kind == "opposite_gender":
+        if "opposite_gender" in context:
+            return bool(context.get("opposite_gender"))
+        left = str(context.get("actor_gender", "")).lower()
+        right = str(context.get("target_gender", "")).lower()
+        known = {"m", "male", "f", "female"}
+        return left in known and right in known and left != right
     if kind == "time":
         return context.get("time", 0.0)
     if kind in context:

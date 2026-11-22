@@ -218,7 +218,12 @@ THREAT_DEFAULTS = {
 COUNTER_DEFAULTS = [
     {
         "id": "warn",
-        "label": "Предупредить лидера",
+        "label": "Предупредить своего лидера",
+        "benefit": (
+            "Ваш лидер получит повод усилить силовые работы против "
+            "фракции-источника: мораль лидера +0.5, отношение к "
+            "источнику падает."
+        ),
         "price_actions": 1,
         "belief": {
             "predicate": "sees_as_threat",
@@ -227,11 +232,19 @@ COUNTER_DEFAULTS = [
             "confidence": 0.8,
         },
         "morale": 0.5,
-        "text": "Лидер предупреждён о замысле {faction}.",
+        "text": (
+            "Ваш лидер предупреждён о замысле {faction}; "
+            "источник теперь видится ему угрозой."
+        ),
     },
     {
         "id": "expose",
-        "label": "Подорвать источник",
+        "label": "Подорвать доверие к источнику",
+        "benefit": (
+            "Лидер фракции {faction} получит повод не доверять "
+            "своему источнику: доверие и расположение к нему падают, "
+            "а слух о подлоге расходится по его окружению."
+        ),
         "price_actions": 1,
         "requires_motive": True,
         "enemy_belief": {
@@ -1422,6 +1435,14 @@ class ReportDispatcher:
                 {
                     "id": option_id,
                     "label": str(data.get("label") or option_id),
+                    "benefit": _render(
+                        data.get("benefit") or "",
+                        {
+                            "faction": item.get("faction_name") or "",
+                            "source": item.get("source_name") or "",
+                            "asset_label": item.get("asset_label") or "",
+                        },
+                    ),
                     "price": max(
                         0,
                         int(_number(data.get("price_actions"), 1)),

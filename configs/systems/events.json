@@ -66,6 +66,17 @@
       "templates": [
         "{organization} объявляет о рождении ребёнка: {actor} и {target} стали родителями.",
         "В семье {actor} и {target} родился {child}; {organization} обещает новорождённому покровительство."
+      ],
+      "conditions": [
+        {
+          "kind": "pair_alive"
+        },
+        {
+          "kind": "pair_same_faction"
+        },
+        {
+          "kind": "opposite_gender"
+        }
       ]
     },
     {
@@ -83,6 +94,11 @@
       "templates": [
         "{actor} достигает совершеннолетия; {organization} вручает ему знак взрослого.",
         "На празднике {organization} {actor} объявлен наследником традиции, а {target} произносит клятву."
+      ],
+      "conditions": [
+        {
+          "kind": "pair_alive"
+        }
       ]
     },
     {
@@ -100,6 +116,17 @@
       "templates": [
         "{actor} и {target} объявляют о помолвке; {organization} готовит свадьбу.",
         "Свадьба {actor} и {target} укрепляет союз {organization} с {rival_organization}."
+      ],
+      "conditions": [
+        {
+          "kind": "pair_alive"
+        },
+        {
+          "kind": "pair_same_faction"
+        },
+        {
+          "kind": "opposite_gender"
+        }
       ]
     },
     {
@@ -117,6 +144,14 @@
       "templates": [
         "{actor} и {target} берут на воспитание {child}; {organization} признаёт договор.",
         "{organization} поручает {actor} заботу о {child}, а {target} становится наставником."
+      ],
+      "conditions": [
+        {
+          "kind": "pair_alive"
+        },
+        {
+          "kind": "pair_same_faction"
+        }
       ]
     },
     {
@@ -134,6 +169,11 @@
       "templates": [
         "{actor} заболевает; {organization} посылает лекаря и требует изоляции.",
         "Болезнь {actor} ставит под угрозу планы {organization}, а {target} ищет редкое лекарство."
+      ],
+      "conditions": [
+        {
+          "kind": "pair_alive"
+        }
       ]
     },
     {
@@ -149,8 +189,13 @@
       "stakes": 0.95,
       "weight": 1.0,
       "templates": [
-        "{actor} умирает; {organization} объявляет траур.",
-        "Смерть {actor} меняет расклад сил в {organization}; {target} наследует его место."
+        "{fallen} погиб; {organization} объявляет траур.",
+        "Смерть {fallen} меняет расклад сил в {organization}; {target} наследует его место."
+      ],
+      "conditions": [
+        {
+          "kind": "has_dead"
+        }
       ]
     },
     {
@@ -166,8 +211,16 @@
       "stakes": 0.8,
       "weight": 1.0,
       "templates": [
-        "{organization} хоронит {actor}; {target} произносит речь.",
-        "На похоронах {actor} {target} заключает тайный союз от имени {organization}."
+        "{organization} хоронит {fallen}; {target} произносит речь.",
+        "На похоронах {fallen} {target} заключает тайный союз от имени {organization}."
+      ],
+      "conditions": [
+        {
+          "kind": "has_dead"
+        },
+        {
+          "kind": "pair_alive"
+        }
       ]
     },
     {
@@ -1526,8 +1579,16 @@
       "stakes": 0.95,
       "weight": 1.0,
       "templates": [
-        "После смерти {target} {organization} не может выбрать наследника; {actor} — главный претендент.",
+        "После смерти {fallen} {organization} не может выбрать наследника; {actor} — главный претендент.",
         "Борьба за власть в {organization} сталкивает {actor} и {target}, а {rival_organization} ждёт."
+      ],
+      "conditions": [
+        {
+          "kind": "has_dead"
+        },
+        {
+          "kind": "pair_alive"
+        }
       ]
     },
     {

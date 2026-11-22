@@ -497,6 +497,8 @@ def test_organ_interaction_changes_organ_faction_and_cooldown():
     applied = campaign.last_organ_result
     assert applied["ok"] is True
     assert applied["integrity_delta"] > 0.0
+    assert applied["support_delta"] > 0.0
+    assert organ.support > 0.0
     assert campaign.slot_state("red")["used"] == 0
     options = {
         item["id"]: item

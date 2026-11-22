@@ -424,7 +424,8 @@
       "countermeasures": [
         {
           "id": "warn",
-          "label": "Предупредить лидера",
+          "label": "Предупредить своего лидера",
+          "benefit": "Ваш лидер получит повод усилить силовые работы против фракции-источника: мораль лидера +0.5, отношение к источнику падает.",
           "price_actions": 1,
           "belief": {
             "predicate": "sees_as_threat",
@@ -433,11 +434,12 @@
             "confidence": 0.8
           },
           "morale": 0.5,
-          "text": "Лидер предупреждён о замысле {faction}."
+          "text": "Ваш лидер предупреждён о замысле {faction}; источник теперь видится ему угрозой."
         },
         {
           "id": "expose",
-          "label": "Подорвать источник",
+          "label": "Подорвать доверие к источнику",
+          "benefit": "Лидер фракции {faction} получит повод не доверять своему источнику: доверие и расположение к нему падают, а слух о подлоге расходится по его окружению.",
           "price_actions": 1,
           "requires_motive": true,
           "enemy_belief": {
@@ -1526,7 +1528,8 @@
   "organ_model": {
     "organ_downscale": 0.6,
     "organ_recovery": 0.12,
-    "organ_upscale": 0.012,
+    "organ_upscale": 0.02,
+    "organ_support_decay": 0.01,
     "organ_action_gain": 0.08,
     "organ_action_loss": 0.06,
     "organ_damage": 0.05,
@@ -1587,6 +1590,7 @@
   "organ_target": {
     "profile_weight": 0.6,
     "pressure_weight": 0.4,
+    "support_weight": 1.0,
     "pressure_assets": [
       "legitimacy",
       "cohesion",
@@ -1648,6 +1652,7 @@
       "cost": {
         "supply": 0.04
       },
+      "support": 0.18,
       "cooldown": 2,
       "template": {
         "amount": 0.04,
@@ -1664,6 +1669,7 @@
       "cost": {
         "energy": 0.035
       },
+      "support": 0.08,
       "cooldown": 3,
       "template": {
         "amount": 0.035,
@@ -1680,6 +1686,7 @@
       "cost": {
         "influence": 0.05
       },
+      "support": -0.15,
       "cooldown": 3,
       "template": {
         "amount": 0.05,
@@ -1696,6 +1703,7 @@
       "cost": {
         "supply": 0.06
       },
+      "support": 0.12,
       "cooldown": 4,
       "template": {
         "amount": 0.06,

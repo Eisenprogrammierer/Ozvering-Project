@@ -285,6 +285,27 @@ def _text(value, default=""):
     return text if text else default
 
 
+def _normalize_gender(value):
+    """Привести пол к ``m``/``f``, сохранив пустое значение как пустое."""
+    text = _text(value).lower()
+    if text in ("m", "male", "man", "муж", "мужской"):
+        return "m"
+    if text in ("f", "female", "woman", "жен", "женский"):
+        return "f"
+    return ""
+
+
+def _character_alive(character):
+    """Жив ли персонаж: ``is_dead`` уже учитывает нулевую силу."""
+    return not bool(
+        getattr(
+            character,
+            "is_dead",
+            getattr(character, "dead", False),
+        )
+    )
+
+
 def _same_id(left, right):
     """Сравнить идентификаторы контента, допуская ``.`` и ``_``."""
     def normalize(value):
@@ -461,6 +482,12 @@ def _character_from_record(record, seed):
         )
     character.campaign_id = record.get("id")
     character.campaign_faction_id = record.get("faction_id")
+    # Пол нужен ролевому слою: без него события «рождения» и «свадьбы»
+    # выбирали двух мужчин и описывали невозможную пару. Пресет уже
+    # хранит пол в записи имени, просто не переносил его в персонажа.
+    character.campaign_gender = _normalize_gender(
+        record.get("gender") or record.get("sex")
+    )
     character.deliberate_target = str(
         record.get("deliberate_target") or ""
     )
@@ -2114,11 +2141,14 @@ class AutomataCampaign:
             "id": str(getattr(character, "campaign_id", "") or ""),
             "name": str(getattr(character, "name", "") or ""),
             "role": str(getattr(character, "campaign_role_id", "") or ""),
+            "gender": _normalize_gender(
+                getattr(character, "campaign_gender", "")
+            ),
             "post": str(getattr(character, "campaign_post", "") or ""),
             "organ_id": str(
                 getattr(character, "campaign_organ_id", "") or ""
             ),
-            "alive": not bool(getattr(character, "is_dead", False)),
+            "alive": _character_alive(character),
             "morale": round(
                 _clamp(float(getattr(character, "morale", 0.0)) / 100.0),
                 6,
@@ -2214,19 +2244,59 @@ class AutomataCampaign:
                 "alive": False,
                 "time": self.elapsed,
             }
-        leader = faction.characters[0]
+        # Ролевой слой не должен описывать мёртвых как живых. Для
+        # обычных сцен берём живого лидера и живого второго персонажа,
+        # а погибших отдаём отдельными полями ``fallen``/``has_dead``:
+        # события смерти, похорон и наследования срабатывают только
+        # тогда, когда такой персонаж действительно есть.
+        living = [
+            item for item in faction.characters
+            if _character_alive(item)
+        ]
+        candidates = living or list(faction.characters)
+        leader = candidates[0]
         bdi = getattr(leader, "bdi", None)
         divisions = getattr(leader, "divisions", None)
         rival_faction = self.faction(self.rival_of(side))
-        rival_leader = (
-            rival_faction.characters[0]
-            if rival_faction is not None and rival_faction.characters
-            else None
+        rival_leader = None
+        if rival_faction is not None and rival_faction.characters:
+            rival_leader = next(
+                (
+                    item for item in rival_faction.characters
+                    if _character_alive(item)
+                ),
+                rival_faction.characters[0],
+            )
+        actor_gender = _normalize_gender(
+            getattr(leader, "campaign_gender", "")
         )
-        target_character = (
-            faction.characters[1]
-            if len(faction.characters) > 1
-            else rival_leader
+        # Второй участник — по возможности свой, а не соперник: иначе
+        # «свадьба» связывала лидера с главой враждебной фракции.
+        # Разнополого кандидата предпочитаем, чтобы парные события не
+        # собирали однополую пару.
+        target_character = None
+        pair_same_faction = False
+        for item in candidates[1:]:
+            if item is leader:
+                continue
+            target_character = item
+            pair_same_faction = True
+            item_gender = _normalize_gender(
+                getattr(item, "campaign_gender", "")
+            )
+            if actor_gender and item_gender and actor_gender != item_gender:
+                break
+        if target_character is None:
+            target_character = rival_leader
+        target_gender = _normalize_gender(
+            getattr(target_character, "campaign_gender", "")
+        )
+        fallen = next(
+            (
+                item for item in faction.characters
+                if not _character_alive(item)
+            ),
+            None,
         )
         rival_name = str(
             getattr(rival_leader, "name", "")
@@ -2243,6 +2313,28 @@ class AutomataCampaign:
             "name": str(getattr(leader, "name", "") or ""),
             "actor": str(getattr(leader, "name", "") or ""),
             "target": str(getattr(target_character, "name", "") or ""),
+            "actor_gender": actor_gender,
+            "target_gender": target_gender,
+            "opposite_gender": bool(
+                actor_gender and target_gender
+                and actor_gender != target_gender
+            ),
+            "actor_alive": _character_alive(leader),
+            "target_alive": bool(
+                target_character is not None
+                and _character_alive(target_character)
+            ),
+            "pair_alive": bool(
+                target_character is not None
+                and _character_alive(leader)
+                and _character_alive(target_character)
+            ),
+            "pair_same_faction": pair_same_faction,
+            "has_dead": fallen is not None,
+            "fallen": str(getattr(fallen, "name", "") or ""),
+            "fallen_gender": _normalize_gender(
+                getattr(fallen, "campaign_gender", "")
+            ),
             "rival": rival_name,
             "side": side,
             "faction_id": str(getattr(faction, "id", "") or ""),
@@ -2327,7 +2419,7 @@ class AutomataCampaign:
                     ),
                 ),
             ),
-            "alive": not bool(getattr(leader, "is_dead", False)),
+            "alive": _character_alive(leader),
             "time": float(self.elapsed),
         }
 
@@ -2600,6 +2692,7 @@ class AutomataCampaign:
                         "actor",
                         "target",
                         "rival",
+                        "fallen",
                         "organization",
                         "rival_organization",
                     )
@@ -3060,6 +3153,7 @@ class AutomataCampaign:
             }
         cost = _as_mapping(interaction.get("cost"))
         before = organ.integrity
+        support_before = organ.support
         apply_report(
             faction,
             faction,
@@ -3068,6 +3162,14 @@ class AutomataCampaign:
             source="organ_interaction",
         )
         delta = organ.integrity - before
+        # Вложение оставляет постоянную опору: иначе суточный тик тянул
+        # целостность обратно к старой цели, и игрок не видел эффекта
+        # снабжения или усиления.
+        support_delta = _number(interaction.get("support"), 0.0)
+        if support_delta:
+            organ.support = _clamp(
+                organ.support + support_delta, 0.0, 0.5
+            )
         spread = spread_organ_effect(
             faction, organ, delta, self.model
         )
@@ -3088,6 +3190,11 @@ class AutomataCampaign:
             "integrity_before": round(before, 6),
             "integrity_after": round(organ.integrity, 6),
             "integrity_delta": round(delta, 6),
+            "support_before": round(support_before, 6),
+            "support_after": round(organ.support, 6),
+            "support_delta": round(
+                organ.support - support_before, 6
+            ),
             "faction_spread": round(spread, 6),
             "cost": {
                 str(key): round(_number(value), 6)
@@ -6994,6 +7101,7 @@ class AutomataCampaign:
                     {
                         "id": organ.id,
                         "integrity": float(organ.integrity),
+                        "support": float(organ.support),
                         "scales": {
                             str(key): float(value)
                             for key, value in organ.scales.items()
@@ -7353,6 +7461,11 @@ class AutomataCampaign:
                     continue
                 organ.integrity = _clamp(
                     _number(saved.get("integrity"), organ.integrity)
+                )
+                organ.support = _clamp(
+                    _number(saved.get("support"), organ.support),
+                    0.0,
+                    0.5,
                 )
                 for key, value in _as_mapping(
                     saved.get("scales")

@@ -192,6 +192,27 @@ class ReportsOverlay(OverlayScreen):
                     self.app.font_small, retaliation_text, rect.width
                 )
             )
+        # Пока контрмера не выбрана, объясняем адресата и выгоду каждой
+        # кнопки: игрок видит, кому достанется убеждение и что он с
+        # этого получит, а не только короткий ярлык.
+        if (
+            str(item.get("status") or "") == "open"
+            and not item.get("counter")
+        ):
+            options = self.campaign.intercept_counters(item.get("id"))
+            if options:
+                lines.append("")
+                lines.append("Контрмеры — кому и что даёт:")
+            for option in options:
+                benefit = str(option.get("benefit") or "")
+                entry = "• %s" % (
+                    option.get("label") or option.get("id") or "?"
+                )
+                if benefit:
+                    entry += ": %s" % benefit
+                lines.extend(
+                    wrap_text(self.app.font_small, entry, rect.width)
+                )
         return lines[:limit]
 
     def _choice_rects(self, report):

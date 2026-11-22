@@ -555,7 +555,14 @@ class AutomataScreen(BaseScreen):
                     ),
                 )
             elif RIGHT_RECT.collidepoint(pos):
-                self.log_scroll = max(0, self.log_scroll - event.y)
+                # Колесо вверх (+y) уводит ленту в прошлое: смещение
+                # считает, сколько свежих записей пропустить.
+                total = len(self._story_feed())
+                limit = max(0, total - 1)
+                self.log_scroll = max(
+                    0,
+                    min(limit, self.log_scroll + int(event.y)),
+                )
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
@@ -796,11 +803,14 @@ class AutomataScreen(BaseScreen):
             y += 14
         return y
 
-    def _story_feed(self, limit=8):
+    def _story_feed(self, limit=None):
         """События для сведения на главном экране, без требующих выбора.
 
         Доклады и будущие сюжетные развилки живут в отдельном окне
-        решений и не смешиваются с информационной лентой.
+        решений и не смешиваются с информационной лентой. Лента отдаёт
+        весь доступный журнал: экран сам решает, сколько строк поместится
+        и с какого смещения начать, чтобы старые вести можно было
+        долистать колесом.
         """
         feed = []
         for entry in self.campaign.story_events:
@@ -818,7 +828,9 @@ class AutomataScreen(BaseScreen):
                 except (TypeError, ValueError):
                     pass
             feed.append(entry)
-        return feed[-limit:]
+        if limit is None or int(limit) <= 0:
+            return feed
+        return feed[-int(limit):]
 
     def draw(self, screen):
         player = self._player()
@@ -1239,12 +1251,27 @@ class AutomataScreen(BaseScreen):
                     y += 14
             y += 4
 
+        feed = self._story_feed()
+        total = len(feed)
+        offset = min(self.log_scroll, max(0, total - 1))
+        self.log_scroll = offset
+        shown = total - offset
+        header = "ЛЕНТА"
+        if total:
+            header += " · %d/%d" % (shown, total)
+            if offset:
+                header += " · колесо ↑ — старее"
         screen.blit(
-            self.app.font_tiny.render("ЛЕНТА", True, DIM),
+            self.app.font_tiny.render(
+                fit_line(
+                    self.app.font_tiny, header, RIGHT_RECT.width - 24
+                ),
+                True,
+                DIM,
+            ),
             (RIGHT_RECT.x + 12, y),
         )
         y += 18
-        feed = self._story_feed()
         if not feed:
             for line in wrap_text(
                 self.app.font_tiny,
@@ -1257,7 +1284,7 @@ class AutomataScreen(BaseScreen):
                     (RIGHT_RECT.x + 12, y),
                 )
                 y += 15
-        for entry in reversed(feed):
+        for entry in reversed(feed[:shown]):
             if y > RIGHT_RECT.bottom - 24:
                 break
             label = str(

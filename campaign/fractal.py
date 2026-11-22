@@ -438,6 +438,10 @@ class OrganRuntime:
     links: List[str] = field(default_factory=list)
     action_ids: List[str] = field(default_factory=list)
     integrity: float = ORGAN_DEFAULT_INTEGRITY
+    # Постоянная опора от вложений игрока: снабжение, усиление и
+    # реформа поднимают цель целостности, а не только разовое значение.
+    # Без неё прибавка «растворялась» за несколько суточных тактов.
+    support: float = 0.0
     weight: float = 1.0
     scales: Dict[str, float] = field(default_factory=dict)
     scale_targets: Dict[str, float] = field(default_factory=dict)
@@ -458,6 +462,28 @@ class OrganRuntime:
         )
         if not configured:
             configured = DEFAULT_ORGAN_INTERACTIONS
+        else:
+            # Фракции в лоре описывают свои варианты взаимодействий.
+            # Недостающие поля (например, ``support``) добираем из
+            # общих умолчаний по тому же id, чтобы механика вложений
+            # работала одинаково во всех кампаниях.
+            defaults_by_id = {
+                str(item.get("id")): item
+                for item in DEFAULT_ORGAN_INTERACTIONS
+                if isinstance(item, Mapping) and item.get("id")
+            }
+            merged = []
+            for item in configured:
+                if not isinstance(item, Mapping):
+                    continue
+                item = dict(item)
+                base = defaults_by_id.get(str(item.get("id")))
+                if base:
+                    combined = dict(base)
+                    combined.update(item)
+                    item = combined
+                merged.append(item)
+            configured = merged
         scales = _scale_map(record.get("scales"))
         scale_targets = _scale_map(record.get("scale_targets"))
         for name, target in scale_targets.items():
@@ -481,6 +507,7 @@ class OrganRuntime:
             integrity=_clamp(
                 _number(record.get("integrity"), ORGAN_DEFAULT_INTEGRITY)
             ),
+            support=_clamp(_number(record.get("support"), 0.0), 0.0, 0.5),
             weight=organ_weight(
                 record.get("kind"), record.get("weight")
             ),
@@ -531,6 +558,7 @@ class OrganRuntime:
             "links": list(self.links),
             "action_ids": list(self.action_ids),
             "integrity": round(_clamp(self.integrity), 6),
+            "support": round(_clamp(self.support, 0.0, 0.5), 6),
             "status": self.status(),
             "weight": round(self.weight, 6),
             "scales": {
@@ -558,8 +586,12 @@ def faction_pressure(faction, keys=None):
     return sum(values) / float(len(values))
 
 
-def organ_target(faction, kind, downscale=None):
-    """Куда стремится целостность органа: уменьшенная копия фракции."""
+def organ_target(faction, kind, downscale=None, support=0.0):
+    """Куда стремится целостность органа: уменьшенная копия фракции.
+
+    ``support`` — накопленная опора от снабжения и усиления. Она
+    поднимает цель, поэтому вложение не исчезает за один-два такта.
+    """
     downscale = _number(
         downscale, ORGAN_MODEL_DEFAULTS["organ_downscale"]
     )
@@ -571,10 +603,14 @@ def organ_target(faction, kind, downscale=None):
     pressure_weight = _number(
         ORGAN_TARGET_DEFAULTS.get("pressure_weight"), 0.0
     )
+    support_weight = _number(
+        ORGAN_TARGET_DEFAULTS.get("support_weight"), 1.0
+    )
     target = 0.5 + downscale * (
         profile_weight * (specific - 0.5)
         + pressure_weight * (pressure - 0.5)
     )
+    target += support_weight * _clamp(support, 0.0, 0.5)
     return _clamp(target)
 
 
@@ -654,6 +690,7 @@ def tick_organs(faction, organs, model=None):
             faction,
             organ.kind,
             model.get("organ_downscale"),
+            support=organ.support,
         )
         child_ids = children.get(organ_id) or ()
         if child_ids:
@@ -693,6 +730,19 @@ def tick_organs(faction, organs, model=None):
         before = organ.integrity
         organ.integrity = _clamp(before + (target - before) * rate)
         deltas.append((organ, organ.integrity - before))
+
+    # Опора затухает медленно: вложение живёт неделями, а не один такт.
+    support_decay = max(
+        0.0,
+        _number(model.get("organ_support_decay"), 0.01),
+    )
+    for organ in organs:
+        if dissolved:
+            organ.support = 0.0
+        elif support_decay:
+            organ.support = _clamp(
+                organ.support - support_decay, 0.0, 0.5
+            )
 
     for organ in organs:
         organ_id = str(organ.id)

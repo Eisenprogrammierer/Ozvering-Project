@@ -20,6 +20,7 @@ from campaign.fractal import (
     organ_depth,
     organ_descendants,
     organ_roots,
+    organ_target,
     tick_organs,
     validate_organ_hierarchy,
     validate_organ_network,
@@ -196,3 +197,37 @@ def test_campaign_snapshot_preserves_organ_scales(preset, campaign):
     assert restored.faction("amber").organ("agents").scales[
         "stealth"
     ] == pytest.approx(0.77)
+
+
+def test_support_raises_target_and_survives_ticks():
+    faction = FakeFaction({"cohesion": 0.5})
+    plain = _organ("plain", integrity=0.5)
+    supported = _organ("supported", integrity=0.5, support=0.2)
+    faction.organs = [plain, supported]
+
+    assert organ_target(faction, supported.kind, support=0.2) > (
+        organ_target(faction, supported.kind, support=0.0)
+    )
+
+    tick_organs(faction, faction.organs)
+
+    assert supported.integrity > plain.integrity
+    assert 0.0 < supported.support < 0.2
+    snapshot = supported.snapshot()
+    assert snapshot["support"] == pytest.approx(supported.support)
+    restored = OrganRuntime.from_record(snapshot)
+    assert restored.support == pytest.approx(supported.support)
+
+
+def test_campaign_organs_inherit_support_from_default_interactions():
+    preset = CampaignPresetGenerator(
+        catalog=RoleCatalog.load(ROOT / "configs" / "roles"),
+        template_path=ROOT / "configs" / "campaigns" / "empire_campaign.json",
+    ).generate(seed=11)
+    campaign = AutomataCampaign(preset, seed=11)
+    organ = campaign.player.organs[0]
+    reinforce = organ.interaction("reinforce")
+    resupply = organ.interaction("resupply")
+
+    assert reinforce["support"] == pytest.approx(0.18)
+    assert resupply["support"] == pytest.approx(0.12)
