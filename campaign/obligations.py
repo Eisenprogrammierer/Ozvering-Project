@@ -35,6 +35,8 @@ OBLIGATION_STATUSES = ("open", "fulfilled", "cancelled")
 
 OBLIGATION_FULFILL_TRUST = 0.06
 OBLIGATION_FULFILL_AFFINITY = 0.03
+OBLIGATION_BREACH_TRUST = -0.08
+OBLIGATION_BREACH_AFFINITY = -0.05
 
 
 def _as_int(value, default=0):
@@ -67,6 +69,7 @@ class Obligation:
     created_day: int = 1
     due_day: int = None
     fulfilled_day: int = None
+    breached_day: int = None
     status: str = "open"
     note: str = ""
 
@@ -87,6 +90,14 @@ class Obligation:
             and _as_int(day, 0) >= int(self.due_day)
         )
 
+    def breached(self):
+        return self.breached_day is not None
+
+    def mark_breached(self, day):
+        if self.breached_day is None:
+            self.breached_day = max(0, _as_int(day, 0))
+        return self.breached_day
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -100,6 +111,11 @@ class Obligation:
                 None
                 if self.fulfilled_day is None
                 else int(self.fulfilled_day)
+            ),
+            "breached_day": (
+                None
+                if self.breached_day is None
+                else int(self.breached_day)
             ),
             "status": self.status,
             "note": self.note,
@@ -124,6 +140,7 @@ class Obligation:
             return None
         due = raw.get("due_day")
         fulfilled = raw.get("fulfilled_day")
+        breached = raw.get("breached_day")
         return cls(
             id=str(raw.get("id") or ""),
             creditor=creditor,
@@ -136,6 +153,11 @@ class Obligation:
                 None
                 if fulfilled is None
                 else max(0, _as_int(fulfilled, 0))
+            ),
+            breached_day=(
+                None
+                if breached is None
+                else max(0, _as_int(breached, 0))
             ),
             status=status,
             note=str(raw.get("note") or ""),
@@ -283,6 +305,8 @@ class ObligationLedger:
 
 __all__ = [
     "DEFAULT_OBLIGATION_KIND",
+    "OBLIGATION_BREACH_AFFINITY",
+    "OBLIGATION_BREACH_TRUST",
     "OBLIGATION_FULFILL_AFFINITY",
     "OBLIGATION_FULFILL_TRUST",
     "OBLIGATION_KINDS",

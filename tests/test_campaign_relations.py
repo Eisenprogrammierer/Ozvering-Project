@@ -3,6 +3,8 @@
 import pytest
 
 from campaign.obligations import (
+    OBLIGATION_BREACH_AFFINITY,
+    OBLIGATION_BREACH_TRUST,
     OBLIGATION_FULFILL_TRUST,
     OBLIGATION_KINDS,
     ObligationLedger,
@@ -201,6 +203,127 @@ def test_fulfilled_player_obligation_raises_trust_and_persists():
     legacy = dict(snapshot)
     legacy.pop("obligations")
     assert WorldEngine(load_world(), snapshot=legacy).obligations.items == []
+
+
+def test_overdue_obligation_lowers_creditor_axes_once_and_persists():
+    engine = _engine(seed=11)
+    source = next(
+        node
+        for node in engine.nodes.values()
+        if node["id"] != engine.player_node_id
+    )
+    target = next(
+        node
+        for node in engine.nodes.values()
+        if node["id"] not in (engine.player_node_id, source["id"])
+    )
+    before = engine.relation_axes(source["id"], target["id"])
+    obligation = engine.add_obligation(
+        source["id"], target["id"], "debt", 1.0, due_day=engine.day
+    )
+    engine.day += 1
+
+    events = engine._apply_overdue_obligations()
+
+    after = engine.relation_axes(source["id"], target["id"])
+    assert after["trust"] == pytest.approx(
+        before["trust"] + OBLIGATION_BREACH_TRUST
+    )
+    assert after["affinity"] == pytest.approx(
+        before["affinity"] + OBLIGATION_BREACH_AFFINITY
+    )
+    assert events[0]["action"] == "overdue"
+    assert events[0]["obligation_id"] == obligation["id"]
+    assert events[0]["changes"]
+    assert engine.obligations.get(obligation["id"]).breached_day == engine.day
+
+    again = engine._apply_overdue_obligations()
+
+    assert again == []
+    assert engine.relation_axes(source["id"], target["id"]) == after
+
+    snapshot = engine.to_dict()
+    saved = next(
+        item
+        for item in snapshot["obligations"]
+        if item["id"] == obligation["id"]
+    )
+    assert saved["breached_day"] == engine.day
+    restored = WorldEngine(load_world(), snapshot=snapshot)
+    assert (
+        restored.obligations.get(obligation["id"]).breached_day
+        == engine.day
+    )
+
+
+def test_end_day_reports_overdue_obligation():
+    engine = _engine(seed=11)
+    source = next(
+        node
+        for node in engine.nodes.values()
+        if node["id"] != engine.player_node_id
+    )
+    target = next(
+        node
+        for node in engine.nodes.values()
+        if node["id"] not in (engine.player_node_id, source["id"])
+    )
+    engine.add_obligation(
+        source["id"], target["id"], "debt", 1.0, due_day=engine.day
+    )
+
+    engine.end_day()
+
+    assert any(
+        entry.get("kind") == "obligation"
+        and entry.get("action") == "overdue"
+        for entry in engine.log
+    )
+
+
+def test_overdue_word_lowers_negotiation_chance_and_sours_character():
+    engine = _engine(office_id="state_advisor", seed=11)
+    option = next(
+        item
+        for item in engine.office_options(engine.player_node_id)
+        if item["id"] == "state_advisor"
+    )
+    rival = next(
+        item
+        for item in option["competition"]["rivals"]
+        if engine.character(item["id"]) is not None
+    )
+    rival_id = rival["id"]
+    engine.character(rival_id)["affinity"] = -0.5
+    before_offer = engine.labor_negotiation_offer(
+        "state_advisor", rival_id
+    )
+    affinity_before = engine.character_relation(rival_id)
+    trust_before = engine.character_trust(rival_id)
+    player_affinity_before = engine.player_relation(rival_id)
+    engine.add_obligation(
+        rival_id, "player", "favor", 1.0, due_day=engine.day
+    )
+    engine.day += 1
+
+    after_offer = engine.labor_negotiation_offer(
+        "state_advisor", rival_id
+    )
+
+    assert after_offer["overdue"]["count"] == 1
+    assert after_offer["chance"] < before_offer["chance"]
+
+    engine._apply_overdue_obligations()
+
+    assert engine.character_relation(rival_id) == pytest.approx(
+        affinity_before + OBLIGATION_BREACH_AFFINITY
+    )
+    assert engine.character_trust(rival_id) == pytest.approx(
+        trust_before + OBLIGATION_BREACH_TRUST
+    )
+    assert engine.player_relation(rival_id) == pytest.approx(
+        player_affinity_before + OBLIGATION_BREACH_AFFINITY
+    )
 
 
 def test_node_obligation_shifts_creditor_axes_toward_debtor():

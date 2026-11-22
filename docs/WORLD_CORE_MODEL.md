@@ -1281,7 +1281,8 @@ v0, а отсутствующие поля заполняются значени
 
 ```text
 obligation = {creditor, debtor, kind, amount,
-              created_day, due_day, fulfilled_day, status, note}
+              created_day, due_day, fulfilled_day, breached_day,
+              status, note}
 kind   ∈ {debt, favor, duty, evidence}
 status ∈ {open, fulfilled, cancelled}
 ```
@@ -1298,8 +1299,16 @@ summary/to_list/load/copy`.
 повышает доверие кредитора к должнику: игрок ↔ персонаж меняет легаси-поля
 персонажа и `player_relations`, узел ↔ узел — `relation_axes(creditor,
 debtor)`; персонаж ↔ персонаж остаётся записью журнала, пока в модели нет
-полной шкалы character→character. Журнал входит в снимок; старые сейвы без
-поля загружаются с пустым журналом.
+полной шкалы character→character.
+
+Первый день просрочки оплачивается один раз: `breached_day` фиксирует
+дату, а `obligations.overdue.relation` снижает доверие и расположение
+кредитора к должнику теми же путями, что и исполнение (только со знаком
+минус). `negotiation_penalty` уменьшает шанс переговоров с соперником,
+если с ним есть просроченный долг, а коалиционная пара теряет
+`overdue_penalty` за каждое такое обязательство. Активы от этого не
+меняются. Журнал и `breached_day` входят в снимок; старые сейвы без поля
+загружаются с пустым журналом.
 
 **UI асимметрии узлов.** `asymmetry_rows(outgoing, incoming)` возвращает
 `(axis, R_player→node, R_node→player)` в стабильном порядке осей. Карточка
@@ -1589,10 +1598,13 @@ LOD2 — дальняя периферия: раз в intervals[2] дней.
 ```text
 pair(a, b) = (avg_axes(R_a→b) + avg_axes(R_b→a)) / 2
              + obligation_bonus · min(obligations(a,b), 3)
+             − overdue_penalty · min(overdue(a,b), 3)
 ```
 
 Учитываются `affinity` и `trust` (набор осей задаётся конфигом), а
-обязательства дают ограниченный бонус, но не заменяют отношения. Коалиция
+обязательства дают ограниченный бонус, но не заменяют отношения.
+Просроченный долг бонуса не даёт и вычитает `overdue_penalty`, пока не
+закрыт. Коалиция
 формируется, когда пара держится не ниже `form_threshold` в течение
 `form_days` дней. Связка расширяется до `max_members`, если новый участник
 связан с каждым текущим не ниже порога. Распад — зеркальный: средняя сила

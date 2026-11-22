@@ -461,7 +461,10 @@ production-мир `configs/worlds/agora_world.json`. Компактный тес
 заменяют `F/E` и сопротивление. Обязательства — `campaign/obligations.py`
 (`ObligationLedger`): `creditor/debtor/kind/amount/due_day/status`,
 `WorldEngine.add_obligation()`/`fulfill_obligation()`/`obligation_view()`;
-исполнение повышает доверие кредитора к должнику и входит в снимок мира.
+исполнение повышает доверие кредитора к должнику, а первый день просрочки
+снижает его и уменьшает шанс переговоров и силу коалиционной пары
+(`breached_day`, `obligations.overdue`, `coalitions.overdue_penalty`).
+Журнал и дата нарушения входят в снимок мира.
 Карточка структуры показывает оба направления отношений через
 `asymmetry_rows()` (`вы → цель` / `цель → вы`).
 

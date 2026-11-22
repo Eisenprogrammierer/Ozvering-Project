@@ -14,6 +14,22 @@
   "realtime": true,
   "seconds_per_day": 86400,
   "time_speeds": [1, 2, 4, 8],
+  "obligations": {
+    "overdue": {
+      "enabled": true,
+      "relation": {
+        "trust": -0.08,
+        "affinity": -0.05
+      },
+      "negotiation_penalty": 0.18,
+      "max_stack": 3
+    }
+  },
+  "coalitions": {
+    "enabled": false,
+    "obligation_bonus": 0.06,
+    "overdue_penalty": 0.08
+  },
   "relation_axes": {
     "affinity": {
       "label": "расположение",

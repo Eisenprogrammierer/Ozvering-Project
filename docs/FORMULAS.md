@@ -763,13 +763,16 @@ work       = max(0, potential + labor_work − damage)
 ```text
 left  = average(axes R_a→b)
 right = average(axes R_b→a)
-pair  = clamp(0.5·(left + right) + 0.06·min(obligations, 3), 0, 1)
+pair  = clamp(0.5·(left + right)
+              + 0.06·min(obligations, 3)
+              − 0.08·min(overdue, 3), 0, 1)
 ```
 
-`obligation_bonus = 0.06`, порог формирования `form_threshold = 0.35`,
-порог распада `decay_threshold = 0.15`. Связка формируется после
-`form_days = 2` дней выше порога и распускается после `decay_days = 3`
-дней ниже порога или выбытия участника.
+`obligation_bonus = 0.06`, `overdue_penalty = 0.08`, порог формирования
+`form_threshold = 0.35`, порог распада `decay_threshold = 0.15`. Связка
+формируется после `form_days = 2` дней выше порога и распускается после
+`decay_days = 3` дней ниже порога или выбытия участника. Просроченное
+обязательство не даёт бонуса и вычитает штраф, пока долг не закрыт.
 
 ### 8.2. Автономные контакты
 

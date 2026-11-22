@@ -14,9 +14,12 @@
 ```text
 pair(a, b) = (avg_axes(R_a→b) + avg_axes(R_b→a)) / 2
              + obligation_bonus · min(obligations(a,b), 3)
+             − overdue_penalty · min(overdue(a,b), 3)
 ```
 
-`pair` ограничен `[0, 1]`. Коалиция формируется, когда `pair` не ниже
+`pair` ограничен `[0, 1]`. Просроченное обязательство не даёт бонуса,
+а вычитает `overdue_penalty`: нарушенное слово ослабляет связку, пока
+долг не закрыт. Коалиция формируется, когда `pair` не ниже
 `form_threshold` в течение `form_days` дней; распадается, когда средняя
 сила связки ниже `decay_threshold` в течение `decay_days` дней. Это
 детерминированно: пары перебираются по id, смещение по времени не нужно.
@@ -40,6 +43,7 @@ DEFAULT_COALITIONS = {
     "decay_days": 3,
     "axes": ("affinity", "trust"),
     "obligation_bonus": 0.06,
+    "overdue_penalty": 0.08,
     "cooperation_bonus": 0.05,
     "include_player": False,
 }
@@ -104,6 +108,9 @@ def coalition_config(raw=None):
     config["obligation_bonus"] = max(
         0.0, _as_float(raw.get("obligation_bonus"), 0.06)
     )
+    config["overdue_penalty"] = max(
+        0.0, _as_float(raw.get("overdue_penalty"), 0.08)
+    )
     config["cooperation_bonus"] = max(
         0.0, _as_float(raw.get("cooperation_bonus"), 0.05)
     )
@@ -117,11 +124,14 @@ def pair_score(
     obligations=0,
     axes=None,
     obligation_bonus=None,
+    overdue=0,
+    overdue_penalty=None,
 ):
     """Сила связи двух узлов в `[0, 1]`.
 
     `axes_ab` — R_a→b, `axes_ba` — R_b→a. Учитываются только выбранные оси;
     обязательства добавляют ограниченный бонус, но не заменяют отношения.
+    Просроченные обязательства вычитают `overdue_penalty`.
     """
     axes = tuple(axes or DEFAULT_COALITIONS["axes"])
     bonus = (
@@ -129,12 +139,18 @@ def pair_score(
         if obligation_bonus is None
         else max(0.0, _as_float(obligation_bonus))
     )
+    penalty = (
+        DEFAULT_COALITIONS["overdue_penalty"]
+        if overdue_penalty is None
+        else max(0.0, _as_float(overdue_penalty))
+    )
     ab = [_clamp((axes_ab or {}).get(axis, 0.0)) for axis in axes]
     ba = [_clamp((axes_ba or {}).get(axis, 0.0)) for axis in axes]
     left = sum(ab) / len(ab) if ab else 0.0
     right = sum(ba) / len(ba) if ba else 0.0
     value = 0.5 * (left + right)
     value += bonus * min(3, max(0, _as_int(obligations, 0)))
+    value -= penalty * min(3, max(0, _as_int(overdue, 0)))
     return _clamp(value)
 
 

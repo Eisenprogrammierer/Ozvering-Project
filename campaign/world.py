@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import time
+from collections.abc import Mapping
 from pathlib import Path
 
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
@@ -74,6 +75,8 @@ from .node_strategy import StrategyBook
 from .control import DirectiveBook
 from .obligations import (
     DEFAULT_OBLIGATION_KIND,
+    OBLIGATION_BREACH_AFFINITY,
+    OBLIGATION_BREACH_TRUST,
     OBLIGATION_FULFILL_AFFINITY,
     OBLIGATION_FULFILL_TRUST,
     ObligationLedger,
@@ -104,6 +107,16 @@ DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
 AUTONOMY_BASE_CHANCE = 0.6
 AUTONOMY_AFFINITY_THRESHOLD = -0.2
 AUTONOMY_TRUST_THRESHOLD = 0.35
+
+DEFAULT_OVERDUE_OBLIGATION = {
+    "enabled": True,
+    "relation": {
+        "trust": OBLIGATION_BREACH_TRUST,
+        "affinity": OBLIGATION_BREACH_AFFINITY,
+    },
+    "negotiation_penalty": 0.18,
+    "max_stack": 3,
+}
 
 _AUTONOMY_POLICIES = {
     "reconcile": {
@@ -2159,6 +2172,8 @@ class WorldEngine:
         character = self.character(rival_id)
         if character is not None:
             relation = self.character_relation(rival_id)
+        overdue = self._overdue_negotiation_penalty(rival_id)
+        relation -= overdue["penalty"]
         chance = self._negotiation_chance(
             competition.get("player_score", 0.0),
             rival.get("score", 0.0),
@@ -2168,6 +2183,7 @@ class WorldEngine:
         return {
             "available": True,
             "reason": "",
+            "overdue": overdue,
             "office_id": office_id,
             "office_label": option.get("label", office_id),
             "rival": rival,
@@ -2758,6 +2774,154 @@ class WorldEngine:
             ],
         }
 
+    def _overdue_obligation_rules(self):
+        """Правила цены просроченного слова из блока `obligations`."""
+        raw = self.config.get("obligations")
+        raw = raw if isinstance(raw, Mapping) else {}
+        raw = raw.get("overdue")
+        raw = raw if isinstance(raw, Mapping) else {}
+        relation = raw.get("relation")
+        relation = relation if isinstance(relation, Mapping) else {}
+        defaults = DEFAULT_OVERDUE_OBLIGATION["relation"]
+        return {
+            "enabled": bool(raw.get("enabled", True)),
+            "relation": {
+                axis: _as_float(relation.get(axis), default)
+                for axis, default in defaults.items()
+            },
+            "negotiation_penalty": max(
+                0.0,
+                _as_float(
+                    raw.get("negotiation_penalty"),
+                    DEFAULT_OVERDUE_OBLIGATION["negotiation_penalty"],
+                ),
+            ),
+            "max_stack": max(
+                1,
+                _as_int(
+                    raw.get("max_stack"),
+                    DEFAULT_OVERDUE_OBLIGATION["max_stack"],
+                ),
+            ),
+        }
+
+    def _apply_obligation_breach(self, obligation, rules):
+        """Просроченное слово бьёт по доверию кредитора к должнику.
+
+        Это зеркало `_apply_obligation_fulfillment()`: исполнение повышает
+        доверие, просрочка его снижает. Прямых записей в активы нет.
+        """
+        scale = min(1.0, max(0.0, float(obligation.amount)))
+        relation = rules.get("relation")
+        relation = relation if isinstance(relation, Mapping) else {}
+        trust = _as_float(relation.get("trust"), 0.0) * scale
+        affinity = _as_float(relation.get("affinity"), 0.0) * scale
+        creditor = obligation.creditor
+        debtor = obligation.debtor
+        creditor_char = self.character(creditor)
+        debtor_char = self.character(debtor)
+        changed = []
+        if creditor == "player" and debtor_char is not None:
+            changed.extend(
+                self._shift_character_relation(
+                    debtor_char, trust, affinity
+                )
+            )
+            view = self.player_relations.setdefault(debtor_char["id"], {})
+            for axis, delta in (("trust", trust), ("affinity", affinity)):
+                before = _as_float(view.get(axis), 0.0)
+                view[axis] = _clamp(before + delta, -1.0, 1.0)
+                actual = view[axis] - before
+                if abs(actual) > 1e-12:
+                    changed.append(
+                        (
+                            "вы · %s"
+                            % self.relation_axis_labels.get(axis, axis),
+                            actual,
+                        )
+                    )
+            return changed
+        if debtor == "player" and creditor_char is not None:
+            changed.extend(
+                self._shift_character_relation(
+                    creditor_char, trust, affinity
+                )
+            )
+            view = self.player_relations.setdefault(creditor_char["id"], {})
+            for axis, delta in (("trust", trust), ("affinity", affinity)):
+                before = _as_float(view.get(axis), 0.0)
+                view[axis] = _clamp(before + delta, -1.0, 1.0)
+                actual = view[axis] - before
+                if abs(actual) > 1e-12:
+                    changed.append(
+                        (
+                            "вы · %s"
+                            % self.relation_axis_labels.get(axis, axis),
+                            actual,
+                        )
+                    )
+            return changed
+        source_id = (
+            self.player_node_id if creditor == "player" else creditor
+        )
+        target_id = self.player_node_id if debtor == "player" else debtor
+        changed.extend(
+            self._shift_relation_between(
+                source_id, target_id, trust, affinity
+            )
+        )
+        return changed
+
+    def _apply_overdue_obligations(self):
+        """Один раз оплатить каждое просроченное обязательство."""
+        rules = self._overdue_obligation_rules()
+        if not rules["enabled"]:
+            return []
+        events = []
+        for obligation in self.obligations.overdue(self.day):
+            if obligation.breached():
+                continue
+            obligation.mark_breached(self.day)
+            changed = self._apply_obligation_breach(obligation, rules)
+            event = {
+                "day": int(self.day),
+                "kind": "obligation",
+                "action": "overdue",
+                "obligation_id": obligation.id,
+                "creditor": obligation.creditor,
+                "debtor": obligation.debtor,
+                "changes": changed,
+                "text": (
+                    "слово просрочено: %s → %s"
+                    % (obligation.debtor, obligation.creditor)
+                ),
+            }
+            self.log.append(event)
+            events.append(event)
+        return events
+
+    def _overdue_negotiation_penalty(self, character_id):
+        """Штраф к переговорам за просроченные долги с соперником."""
+        rules = self._overdue_obligation_rules()
+        if not rules["enabled"]:
+            return {"count": 0, "penalty": 0.0}
+        character = self.character(character_id) or {}
+        node_id = _text(character.get("node_id"))
+        player_refs = {"player", self.player_node_id}
+        rival_refs = {str(character_id), node_id}
+        player_refs.discard("")
+        rival_refs.discard("")
+        count = 0
+        for obligation in self.obligations.overdue(self.day):
+            ends = {str(obligation.creditor), str(obligation.debtor)}
+            if ends & player_refs and ends & rival_refs:
+                count += 1
+        count = min(rules["max_stack"], count)
+        return {
+            "count": count,
+            "penalty": round(rules["negotiation_penalty"] * count, 6),
+        }
+
     def value_rules(self):
         """Правила ценностей из блока `values` (кэш на инстанс)."""
         cached = getattr(self, "_value_rules_cache", None)
@@ -2820,13 +2984,39 @@ class WorldEngine:
             self._coalition_rules_cache = cached
         return cached
 
-    def _coalition_obligations(self, left, right):
+    def _coalition_party(self, party):
+        """Свести персонажа или игрока к узлу для счёта коалиции."""
+        party = _text(party)
+        if party == "player":
+            return self.player_node_id
+        if party in self.nodes:
+            return party
+        character = self.character(party)
+        if character is not None:
+            return _text(character.get("node_id")) or party
+        return party
+
+    def _coalition_obligation_counts(self, left, right):
+        """Открытые и просроченные обязательства между двумя узлами."""
         parties = {str(left), str(right)}
-        return sum(
-            1
-            for item in self.obligations.open()
-            if {item.creditor, item.debtor} == parties
-        )
+        opened = 0
+        overdue = 0
+        for item in self.obligations.open():
+            pair = {
+                self._coalition_party(item.creditor),
+                self._coalition_party(item.debtor),
+            }
+            if pair != parties:
+                continue
+            if item.overdue(self.day):
+                overdue += 1
+            else:
+                opened += 1
+        return opened, overdue
+
+    def _coalition_obligations(self, left, right):
+        """Совместимый счёт открытых обязательств без просрочки."""
+        return self._coalition_obligation_counts(left, right)[0]
 
     def _coalition_pair_scores(self):
         """Сила всех рассматриваемых пар узлов на текущий день."""
@@ -2845,12 +3035,17 @@ class WorldEngine:
         scores = {}
         for index, left in enumerate(nodes):
             for right in nodes[index + 1 :]:
+                opened, overdue = self._coalition_obligation_counts(
+                    left, right
+                )
                 scores[(left, right)] = pair_score(
                     self.relation_axes(left, right),
                     self.relation_axes(right, left),
-                    self._coalition_obligations(left, right),
+                    opened,
                     axes=rules["axes"],
                     obligation_bonus=rules["obligation_bonus"],
+                    overdue=overdue,
+                    overdue_penalty=rules["overdue_penalty"],
                 )
         return scores
 
@@ -6904,6 +7099,7 @@ class WorldEngine:
         self.day += 1
         self.actions_left = self.actions_per_day
         changed.extend(self._apply_economy_day())
+        events.extend(self._apply_overdue_obligations())
         events.extend(self._advance_coalitions())
         self.directives.prune(self.day)
         events.extend(self._run_intents(max_slot=SLOTS_MAX))

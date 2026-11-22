@@ -86,6 +86,10 @@ def test_pair_score_is_symmetric_bounded_and_obligation_aware():
         obligations=99,
     ) == 1.0
     assert pair_score(left, right, obligations=1) > base
+    assert pair_score(left, right, overdue=1) < base
+    assert pair_score(
+        left, right, obligations=1, overdue=1
+    ) == pytest.approx(base + 0.06 - 0.08)
 
 
 def test_coalition_forms_after_pressure_and_dissolves_after_decay():
@@ -191,6 +195,25 @@ def test_world_forms_coalition_logs_it_and_boosts_cooperation():
     assert engine._coalition_bonus(
         context, engine.nodes["agora_army_command"]
     ) == 0.0
+
+
+def test_overdue_obligation_weakens_pair_score_without_touching_relations():
+    engine = _engine({"coalitions": _rules()})
+    left = "agora_ministry_interior"
+    right = "agora_watch"
+    _join(engine, left, right, value=0.9)
+    key = (left, right)
+    before = engine._coalition_pair_scores()[key]
+    engine.add_obligation(
+        left, right, "debt", 1.0, due_day=engine.day
+    )
+    engine.day += 1
+
+    opened, overdue = engine._coalition_obligation_counts(left, right)
+
+    assert (opened, overdue) == (0, 1)
+    after = engine._coalition_pair_scores()[key]
+    assert after == pytest.approx(before - 0.08)
 
 
 def test_broken_relations_dissolve_coalition_on_day_edge():
