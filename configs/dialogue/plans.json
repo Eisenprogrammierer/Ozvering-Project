@@ -490,6 +490,93 @@
       }
     },
     {
+      "id": "tell_why",
+      "priority": 79,
+      "match": {
+        "kind": "request",
+        "action": "tell",
+        "wh": "why",
+        "topic": {
+          "kind": "pp",
+          "prep": "about",
+          "object": {
+            "head": {
+              "entity": "$target"
+            }
+          }
+        }
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target",
+        "why": true
+      }
+    },
+    {
+      "id": "digest_why",
+      "priority": 79,
+      "match": {
+        "kind": "request",
+        "action": "digest",
+        "wh": "why",
+        "target": "$target"
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target",
+        "why": true
+      }
+    },
+    {
+      "id": "think_why",
+      "priority": 79,
+      "match": {
+        "kind": "question",
+        "wh": "why",
+        "body": {
+          "kind": "assert",
+          "predicate": "think",
+          "subject": "you_sg",
+          "object": {
+            "kind": "pp",
+            "prep": "about",
+            "object": {
+              "head": {
+                "entity": "$target"
+              }
+            }
+          }
+        }
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target",
+        "why": true
+      }
+    },
+    {
+      "id": "rule_why",
+      "priority": 78,
+      "match": {
+        "kind": "question",
+        "wh": "why",
+        "body": {
+          "kind": "assert",
+          "predicate": "rule",
+          "object": {
+            "head": {
+              "entity": "$target"
+            }
+          }
+        }
+      },
+      "answer": {
+        "type": "stance",
+        "target": "$target",
+        "why": true
+      }
+    },
+    {
       "id": "think_about",
       "priority": 73,
       "match": {

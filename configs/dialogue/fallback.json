@@ -3,6 +3,7 @@
   "description": "Мостик от свободной формулировки к канонической логической форме. Правило срабатывает, только если парсер и фрагменты не дали форму; оно не угадывает смысл, а выбирает явно объявленный шаблон.",
   "texts": {
     "stance_intro": "Моё мнение о {target}:",
+    "stance_why_intro": "Причина:",
     "stance_intention": "Намерение: {essence}.",
     "stance_empty": "Особого мнения о {target} у меня нет.",
     "war_with": "Мы воюем с {enemies}.",
@@ -60,7 +61,7 @@
       "when": {
         "all": [
           ["с", "кем"],
-          ["воюешь", "воюет", "воюем", "воевать", "воевал", "война", "конфликт"]
+          ["воюешь", "воюет", "воюем", "воевать", "воевал", "война", "конфликт", "вражду"]
         ]
       },
       "sem": {"kind": "request", "action": "war", "why": false}
@@ -81,7 +82,7 @@
       "priority": 96,
       "when": {
         "all": [
-          ["почему", "зачем", "отчего"],
+          ["почему", "зачем", "отчего", "из-за"],
           ["война", "воюешь", "воюет", "воюем", "конфликт", "против"]
         ]
       },
@@ -94,6 +95,72 @@
         "all": [
           ["сколько"],
           ["войск", "войска", "сил", "силы", "солдат", "армия", "армии", "органов", "людей", "подразделений"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:organ"}},
+          "owner": {
+            "object": {"head": {"entity": "$speaker_faction"}}
+          }
+        }
+      }
+    },
+    {
+      "id": "forces_show",
+      "priority": 89,
+      "when": {
+        "all": [
+          ["покажи", "покажите", "показывай", "назови", "назовите"],
+          ["силы", "сил", "войска", "войск", "армию", "армия", "армией", "солдат", "подразделения"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:organ"}},
+          "owner": {
+            "object": {"head": {"entity": "$speaker_faction"}}
+          }
+        }
+      }
+    },
+    {
+      "id": "organs_show",
+      "priority": 89,
+      "when": {
+        "all": [
+          ["какие", "покажи", "покажите", "назови", "назовите", "перечисли"],
+          ["органы", "орган", "структуры", "подразделения"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "which",
+        "body": {
+          "kind": "assert",
+          "have": true,
+          "object": {"head": {"entity": "noun:organ"}},
+          "owner": {
+            "object": {"head": {"entity": "$speaker_faction"}}
+          }
+        }
+      }
+    },
+    {
+      "id": "army_status",
+      "priority": 86,
+      "when": {
+        "all": [
+          ["что", "как"],
+          ["армия", "армией", "армию", "войска", "войск", "силы"]
         ]
       },
       "sem": {
@@ -150,6 +217,8 @@
       "id": "digest_target",
       "priority": 84,
       "requires_target": true,
+      "use_focus": true,
+      "default_target": "$speaker_faction",
       "target_types": ["faction"],
       "when": {
         "all": [
@@ -188,6 +257,7 @@
       "id": "stance_target",
       "priority": 78,
       "requires_target": true,
+      "use_focus": true,
       "when": {
         "all": [
           ["что", "как"],
@@ -197,13 +267,35 @@
       "sem": {"kind": "request", "action": "stance", "target": "$target"}
     },
     {
-      "id": "leader_target",
-      "priority": 76,
-      "requires_target": true,
+      "id": "leader_own",
+      "priority": 77,
       "when": {
         "all": [
           ["кто"],
-          ["лидер", "правит", "глава", "руководит", "руководитель", "возглавляет"]
+          ["лидер", "правит", "глава", "руководит", "руководитель", "возглавляет", "главный", "командует", "командир", "командующий"],
+          ["у", "вас", "тебя", "твой", "твоя", "ваш", "ваша"]
+        ]
+      },
+      "sem": {
+        "kind": "question",
+        "wh": "who",
+        "body": {
+          "kind": "assert",
+          "predicate": "rule",
+          "object": {"head": {"entity": "$speaker_faction"}}
+        }
+      }
+    },
+    {
+      "id": "leader_target",
+      "priority": 76,
+      "requires_target": true,
+      "use_focus": true,
+      "default_target": "$speaker_faction",
+      "when": {
+        "all": [
+          ["кто"],
+          ["лидер", "правит", "глава", "руководит", "руководитель", "возглавляет", "главный", "командует", "командир", "командующий"]
         ]
       },
       "sem": {
@@ -220,6 +312,7 @@
       "id": "about_target",
       "priority": 70,
       "requires_target": true,
+      "use_focus": true,
       "when": {
         "all": [
           ["расскажи", "расскажите", "рассказывай", "знаешь", "слышал", "известно"],
@@ -265,6 +358,7 @@
       "id": "generic_target",
       "priority": 20,
       "requires_target": true,
+      "use_focus": true,
       "when": {
         "all": [
           ["что", "как", "почему", "где", "когда", "кто", "сколько", "расскажи", "какой", "какая", "какие"]

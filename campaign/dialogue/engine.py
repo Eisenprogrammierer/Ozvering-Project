@@ -106,7 +106,7 @@ class DialogueSession:
             morphology=self.morphology,
         )
         self.fallback = FallbackEngine(
-            catalog, knowledge, self.state.entities
+            catalog, knowledge, self.state.entities, focus=self.state.focus
         )
         defaults = (catalog.movement or {}).get("defaults") or {}
         if not self.state.location:
@@ -392,6 +392,10 @@ class DialogueSession:
                     answer = self.planner.plan(
                         sem, style=self._profile(), detail=detail
                     )
+        if answer.plan_id == "unmatched":
+            hint = self._hint_answer(text)
+            if hint is not None:
+                answer = hint
         if answer.kind == "social":
             effect = (answer.data or {}).get("effect")
             if isinstance(effect, Mapping):
@@ -399,6 +403,21 @@ class DialogueSession:
         self.state.push_turn(sem, answer)
         self.state.remember(sem, answer, mentioned)
         return Turn(text, parse, answer, sem, source, self.state_snapshot())
+
+    def _hint_answer(self, text: str) -> Optional[Answer]:
+        """Подсказка вместо «не знаю» для естественного вопроса.
+
+        Если фраза — вопрос, но разбор не дал плана, честнее предложить
+        темы, о которых агент умеет говорить. Просьба без вопросительной
+        формы и случайный набор слов по-прежнему получают «не понял».
+        """
+
+        if not self.fallback.is_question(text):
+            return None
+        message = str(self.fallback.texts.get("help") or "").strip()
+        if not message:
+            return None
+        return self._meta_answer("hint", message, "topic")
 
     def _meta_answer(
         self, kind: str, message: str, reason: str = ""
@@ -453,6 +472,12 @@ class DialogueSession:
     ) -> Turn:
         reason = reason or source or "no_match"
         if reason == "no_match":
+            hint = self._hint_answer(text)
+            if hint is not None:
+                self.state.push_turn(None, hint)
+                return Turn(
+                    text, parse, hint, None, source, self.state_snapshot()
+                )
             message = (
                 self.persona.parse_unknown
                 or self.persona.unknown

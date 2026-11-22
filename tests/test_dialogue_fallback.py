@@ -41,6 +41,13 @@ NATURAL_QUESTIONS = (
     "Как твои дела?",
     "Есть новости?",
     "Кто лидер Республики?",
+    "Из-за чего война?",
+    "С кем враждуете?",
+    "Покажи свои силы.",
+    "Кто у вас главный?",
+    "Что слышно?",
+    "Ты мне доверяешь?",
+    "Расскажи о войне.",
 )
 
 
@@ -63,6 +70,74 @@ def test_about_target_with_pro_preposition_resolves(red):
     answer = red.ask("Расскажи про Республику.")
     assert answer.plan_id == "tell_about"
     assert "Республика" in answer.text
+
+
+def test_ellipsis_leader_takes_topic_from_previous_turn():
+    session = build_session("red", seed=13)
+    session.ask("Расскажи про Республику.")
+    answer = session.ask("А кто лидер?")
+    assert answer.plan_id == "leader_who"
+    assert "Республик" in answer.text
+    assert "Грета" in answer.text
+
+
+def test_ellipsis_why_takes_topic_from_previous_turn():
+    session = build_session("red", seed=13)
+    session.ask("Расскажи про Республику.")
+    answer = session.ask("А почему?")
+    assert answer.plan_id == "tell_why"
+    assert answer.kind == "explanation"
+    assert "незаконн" in answer.text.casefold()
+    assert "не знаю" not in answer.text.casefold()
+
+
+def test_why_after_stance_explains_the_stance():
+    session = build_session("red", seed=13)
+    session.ask("Что ты думаешь о Республике?")
+    answer = session.ask("Почему?")
+    assert answer.plan_id == "think_why"
+    assert answer.kind == "explanation"
+    assert answer.text.startswith("Причина:")
+
+
+def test_why_after_leader_keeps_topic():
+    session = build_session("red", seed=13)
+    session.ask("Кто лидер Республики?")
+    answer = session.ask("А почему?")
+    assert answer.plan_id == "rule_why"
+    assert "Республик" in answer.text
+
+
+def test_leader_question_with_pronoun_stays_with_speaker_faction():
+    session = build_session("red", seed=13)
+    session.ask("Расскажи про Республику.")
+    answer = session.ask("Кто у вас главный?")
+    assert answer.plan_id == "leader_who"
+    assert "Импери" in answer.text
+    assert "Республик" not in answer.text
+
+
+def test_natural_question_without_parse_gets_hint_not_unknown():
+    session = build_session("red", seed=13)
+    answer = session.ask("Квантовый флуктуатор?")
+    assert answer.kind == "hint"
+    assert "Можно спросить" in answer.text
+    assert "не знаю" not in answer.text.casefold()
+
+
+def test_gibberish_without_question_stays_honest():
+    session = build_session("red", seed=13)
+    answer = session.ask("абракадабра")
+    assert answer.kind == "unknown"
+
+
+def test_war_reason_prefers_derived_rule():
+    session = build_session("red", seed=13)
+    answer = session.ask("Из-за чего война?")
+    assert answer.plan_id == "war_reason_fallback"
+    assert "законност" in answer.text.casefold()
+    assert answer.proof
+    assert answer.proof[0].rule == "war_reason_legitimacy"
 
 
 def _knowledge(catalog, **kwargs):

@@ -901,6 +901,47 @@ class ConversationState:
             )[:limit]
             self.referents = {str(item["id"]): item for item in keep}
 
+    def focus(self, types: Optional[Iterable[str]] = None) -> str:
+        """Самая заметная сущность разговора для эллипсиса.
+
+        Политика ``state.json.focus`` задаёт допустимые типы, порог
+        заметности и возраст упоминания. Python только выбирает запись;
+        какие типы могут быть темой, решают данные.
+        """
+
+        spec = _mapping(self.policy.get("focus"))
+        allowed = {
+            str(item).casefold()
+            for item in (
+                types if types is not None else spec.get("types") or ()
+            )
+            if str(item)
+        }
+        excluded = {
+            str(item)
+            for item in spec.get("exclude_ids") or ()
+            if str(item)
+        }
+        minimum = _number(spec.get("min_salience"), 0.0)
+        max_age = _integer(spec.get("max_age"), 0)
+        best: Optional[Tuple[Tuple[float, int, str], str]] = None
+        for record in self.referents.values():
+            identifier = _text(record.get("id"))
+            if not identifier or identifier in excluded:
+                continue
+            if allowed and _text(record.get("type")).casefold() not in allowed:
+                continue
+            salience = _number(record.get("salience"))
+            if salience < minimum:
+                continue
+            last = _integer(record.get("last"))
+            if max_age and self.turn - last > max_age:
+                continue
+            key = (salience, last, identifier)
+            if best is None or key > best[0]:
+                best = (key, identifier)
+        return best[1] if best is not None else ""
+
     def observe_sem(self, sem: Any) -> List[str]:
         found: List[str] = []
         self._walk_sem(sem, "", found)

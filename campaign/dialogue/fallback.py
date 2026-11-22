@@ -36,11 +36,13 @@ class FallbackEngine:
         catalog: Any,
         knowledge: Any,
         entities: Any = None,
+        focus: Any = None,
     ):
         spec = getattr(catalog, "fallback", None)
         self.spec = spec if isinstance(spec, Mapping) else {}
         self.knowledge = knowledge
         self.entities = entities
+        self.focus = focus
         raw_rules = list(self.spec.get("rules") or ())
         self.rules = tuple(
             sorted(
@@ -75,6 +77,18 @@ class FallbackEngine:
                 target = self._find_target(
                     tokens, rule.get("target_types") or ()
                 )
+                if (
+                    not target
+                    and bool(rule.get("use_focus", False))
+                    and callable(self.focus)
+                ):
+                    candidate = _text(self.focus())
+                    if self._target_allowed(
+                        candidate, rule.get("target_types") or ()
+                    ):
+                        target = candidate
+                if not target:
+                    target = self._default_target(rule)
                 if not target:
                     continue
             values = self._values(target)
@@ -85,6 +99,27 @@ class FallbackEngine:
                 continue
             return sem, _text(rule.get("id"))
         return None, ""
+
+    def is_question(self, text: str) -> bool:
+        """Вопрос ли это по данным ``fallback.addressing``.
+
+        Отличается от ``is_addressed``: просьба без вопросительного
+        слова («Расскажи стихотворение.») не обязана превращаться в
+        подсказку о темах мира.
+        """
+
+        text = str(text or "")
+        if "?" in text:
+            return True
+        gate = _mapping(self.spec.get("addressing"))
+        words = {
+            _text(item).casefold()
+            for item in gate.get("question_words") or ()
+            if _text(item)
+        }
+        if not words:
+            return False
+        return any(token in words for token in tokenize(text))
 
     # --- сопоставление ------------------------------------------------
 
@@ -175,28 +210,43 @@ class FallbackEngine:
         entities = self.entities
         if entities is None:
             return ""
-        allowed = {
-            _text(item).casefold() for item in types if _text(item)
-        }
         for index in range(len(tokens)):
             found = entities.resolve(tokens, index, "entity")
             if found is None:
                 continue
             identifier, _span = found
-            identifier = _text(identifier)
-            if not identifier:
-                continue
-            if identifier.startswith(self._NOT_TARGET):
-                continue
-            type_name = _text(entities.type_of(identifier)).casefold()
-            if allowed and type_name not in allowed:
-                continue
-            if getattr(entities, "ignored", lambda value: False)(
-                identifier
-            ):
-                continue
-            return identifier
+            if self._target_allowed(identifier, types):
+                return _text(identifier)
         return ""
+
+    def _target_allowed(
+        self, identifier: str, types: Sequence[str] = ()
+    ) -> bool:
+        identifier = _text(identifier)
+        if not identifier:
+            return False
+        if identifier.startswith(self._NOT_TARGET):
+            return False
+        entities = self.entities
+        if entities is None:
+            return False
+        allowed = {
+            _text(item).casefold() for item in types if _text(item)
+        }
+        type_name = _text(entities.type_of(identifier)).casefold()
+        if allowed and type_name not in allowed:
+            return False
+        if getattr(entities, "ignored", lambda value: False)(identifier):
+            return False
+        return True
+
+    def _default_target(self, rule: Mapping[str, Any]) -> str:
+        value = _text(rule.get("default_target"))
+        if not value:
+            return ""
+        if value.startswith("$"):
+            return _text(self._values("").get(value))
+        return value
 
     def _values(self, target: str) -> Mapping[str, str]:
         knowledge = self.knowledge

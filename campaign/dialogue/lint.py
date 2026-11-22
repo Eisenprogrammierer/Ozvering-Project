@@ -1647,6 +1647,16 @@ def _fallback_problems(catalog: DialogueCatalog) -> List[str]:
             problems.append(
                 "%s.sem: requires_target без $target" % where
             )
+        use_focus = rule.get("use_focus")
+        if use_focus is not None and not isinstance(use_focus, bool):
+            problems.append("%s.use_focus: ожидалось true/false" % where)
+        default_target = str(rule.get("default_target") or "")
+        if default_target.startswith("$"):
+            if default_target[1:] not in _FALLBACK_FIELDS:
+                problems.append(
+                    "%s.default_target: неизвестная подстановка %s"
+                    % (where, default_target)
+                )
     return problems
 
 
@@ -2455,6 +2465,30 @@ def _state_problems(catalog: DialogueCatalog) -> List[str]:
                 "state.referents.type_gender.%s: нет такого типа"
                 % type_name
             )
+    focus = policy.get("focus") or {}
+    if not isinstance(focus, Mapping):
+        problems.append("state.focus: ожидался объект")
+        focus = {}
+    for type_name in focus.get("types") or ():
+        if str(type_name) not in types:
+            problems.append(
+                "state.focus.types: неизвестный тип %r" % str(type_name)
+            )
+    if focus:
+        try:
+            if float(focus.get("min_salience", 0)) < 0:
+                problems.append(
+                    "state.focus.min_salience: должно быть >= 0"
+                )
+        except (TypeError, ValueError):
+            problems.append(
+                "state.focus.min_salience: ожидалось число"
+            )
+        try:
+            if int(focus.get("max_age", 0)) < 0:
+                problems.append("state.focus.max_age: должно быть >= 0")
+        except (TypeError, ValueError):
+            problems.append("state.focus.max_age: ожидалось число")
     qud = policy.get("qud") or {}
     for source in qud.get("base_order") or ():
         if str(source) not in ("qud", "last_sem"):

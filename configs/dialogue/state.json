@@ -83,6 +83,23 @@
     "strict_gender": true,
     "strict_number": false
   },
+  "focus": {
+    "description": "Тема эллипсиса: самая заметная сущность разговора. Концепты и служебные узлы темой не становятся.",
+    "types": [
+      "faction",
+      "subfaction",
+      "character",
+      "organ",
+      "place",
+      "work",
+      "event"
+    ],
+    "exclude_ids": [
+      "concept:answer"
+    ],
+    "min_salience": 0.2,
+    "max_age": 8
+  },
   "qud": {
     "max_size": 16,
     "keep_answered": true,

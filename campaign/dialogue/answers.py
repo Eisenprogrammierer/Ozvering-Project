@@ -867,11 +867,27 @@ class AnswerPlanner:
         data: Dict[str, Any] = {
             "wars": [enemy for _args, enemy in wars],
         }
+        proof: Tuple[ProofStep, ...] = ()
         if bool(plan.answer.get("why", False)):
             reasons: List[str] = []
+            derived: List[str] = []
             for _args, enemy in wars:
-                reasons.extend(self._belief_sentences(enemy))
-                reasons.extend(self._intention_sentences(enemy))
+                solution = self.engine.first(
+                    "war_reason", faction, enemy, "$reason"
+                )
+                if solution is None:
+                    continue
+                reason = self._reason_for(solution.proof)
+                if reason and reason not in derived:
+                    derived.append(reason)
+                    if not proof:
+                        proof = (solution.proof,)
+            if derived:
+                reasons = list(derived)
+            else:
+                for _args, enemy in wars:
+                    reasons.extend(self._belief_sentences(enemy))
+                    reasons.extend(self._intention_sentences(enemy))
             if reasons:
                 template = str(texts.get("war_reasons") or "")
                 if template:
@@ -881,10 +897,11 @@ class AnswerPlanner:
                 else:
                     text += " " + " ".join(reasons)
                 data["reasons"] = reasons
+            data["derived_reasons"] = derived
         text = self.realizer.realize_answer(
             "explanation", {"message": text}, fallback=text
         )
-        return Answer("explanation", text, plan.id, data=data)
+        return Answer("explanation", text, plan.id, proof=proof, data=data)
 
     def _answer_stance(
         self, plan: PlanSpec, captures: Mapping[str, str]
@@ -900,14 +917,20 @@ class AnswerPlanner:
         sentences.extend(self._intention_sentences(target))
         texts = self._fallback_texts()
         data: Dict[str, Any] = {"target": target}
+        why = bool(plan.answer.get("why", False))
         if sentences:
-            intro = str(texts.get("stance_intro") or "").format(
+            key = "stance_why_intro" if why else "stance_intro"
+            intro = str(
+                texts.get(key) or texts.get("stance_intro") or ""
+            ).format(
                 target=self.knowledge.surface(target, "prep")
                 or self.knowledge.name(target)
             )
             text = (intro + " " + " ".join(sentences)).strip()
             kind = "explanation"
             data["sentences"] = sentences
+            if why:
+                data["why"] = True
         else:
             text = self.realizer.summary(target)
             if not text:
