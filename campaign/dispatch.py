@@ -270,6 +270,30 @@ INTERCEPTION_DEFAULTS = {
     "counter_used_text": "Контрмера: {label}.",
     "counter_disabled_motive": "Нужен раскрытый мотив подлога.",
     "counter_already_text": "По этому перехвату уже принята контрмера.",
+    "retaliation": {
+        "enabled": True,
+        "chance": 0.30,
+        "chances": {
+            "warn": 0.45,
+            "expose": 0.25,
+        },
+        "influence_weight": 0.30,
+        "player_influence_weight": 0.30,
+        "relation": {
+            "trust": -0.08,
+            "affinity": -0.05,
+        },
+        "belief": {
+            "predicate": "sees_as_threat",
+            "value": 0.70,
+            "confidence": 0.75,
+        },
+        "texts": {
+            "warn": "{faction}: замысел раскрыт. {player} под подозрением.",
+            "expose": "{faction}: за слухом о подлоге стоит {player}.",
+        },
+        "fallback_text": "{faction} что-то заподозрила.",
+    },
 }
 
 
@@ -512,6 +536,9 @@ class ReportDispatcher:
         )
         self.news_rng = random.Random(
             int(_number(getattr(campaign, "seed", 0), 0)) * 7919 + 131
+        )
+        self.retaliation_rng = random.Random(
+            int(_number(getattr(campaign, "seed", 0), 0)) * 7919 + 173
         )
         self._news_progress = 0.0
         self._news_seq = 0
@@ -1539,6 +1566,9 @@ class ReportDispatcher:
         item["counter_text"] = text
         item["counter_at"] = round(now, 6)
         item["counter_cost"] = cost
+        retaliation = self._retaliate(
+            item, str(counter_id or ""), now
+        )
         self._log(
             "intercept_used",
             intercept_id=item.get("id"),
@@ -1547,13 +1577,17 @@ class ReportDispatcher:
             origin_side=item.get("origin_side"),
             counter=str(counter_id or ""),
             cost=cost,
+            retaliated=bool(retaliation),
         )
-        return {
+        result = {
             "ok": True,
             "intercept": item,
             "text": text,
             "cost": cost,
         }
+        if retaliation:
+            result["retaliation"] = retaliation
+        return result
 
     def _apply_counter_belief(self, character, faction, block, item):
         """Записать убеждение контрмеры без изменения активов."""
@@ -1581,6 +1615,117 @@ class ReportDispatcher:
             )
         except Exception:
             return None
+
+    def _retaliation_chance(self, item, counter_id):
+        """Шанс, что соперник заметит вмешательство игрока."""
+        cfg = _as_mapping(self.interception_config.get("retaliation"))
+        if not bool(cfg.get("enabled", True)):
+            return 0.0
+        chances = _as_mapping(cfg.get("chances"))
+        base = _number(
+            chances.get(counter_id), _number(cfg.get("chance"), 0.3)
+        )
+        origin = self.campaign.faction(item.get("origin_side"))
+        player = self.campaign.faction(item.get("side"))
+        if origin is None or player is None:
+            return 0.0
+        origin_influence = _clamp(origin.asset("influence"))
+        player_influence = _clamp(player.asset("influence"))
+        return _clamp(
+            base
+            + _number(cfg.get("influence_weight"), 0.3)
+            * (origin_influence - 0.5)
+            - _number(cfg.get("player_influence_weight"), 0.3)
+            * (player_influence - 0.5),
+            0.0,
+            1.0,
+        )
+
+    def _retaliate(self, item, counter_id, now):
+        """Соперник замечает контрмеру и отвечает через BDI.
+
+        Ответ не трогает активы: лидер получает убеждение об угрозе со
+        стороны игрока, а отношения между фракциями проседают. Дальше
+        вес работ меняет уже ``ai_model.beliefs.rules``.
+        """
+        if not counter_id:
+            return None
+        chance = self._retaliation_chance(item, counter_id)
+        if chance <= 0.0 or self.retaliation_rng.random() >= chance:
+            return None
+        origin_faction = self.campaign.faction(item.get("origin_side"))
+        player_faction = self.campaign.faction(item.get("side"))
+        if origin_faction is None or player_faction is None:
+            return None
+        leader = self._leader_for(origin_faction)
+        if leader is None:
+            return None
+        cfg = _as_mapping(self.interception_config.get("retaliation"))
+        belief = _as_mapping(cfg.get("belief"))
+        predicate = str(belief.get("predicate") or "")
+        target = str(getattr(player_faction, "id", "") or "")
+        if predicate and target:
+            try:
+                self._believe(
+                    leader,
+                    self._leader_key(origin_faction, leader),
+                    predicate,
+                    target,
+                    _number(belief.get("value"), 0.7),
+                    _number(belief.get("confidence"), 0.75),
+                )
+            except Exception:
+                pass
+        relation = _as_mapping(cfg.get("relation"))
+        relations = getattr(self.campaign, "relations", None)
+        if relation and relations is not None:
+            try:
+                relations.add(
+                    str(origin_faction.id),
+                    str(player_faction.id),
+                    dict(relation),
+                    1.0,
+                )
+            except Exception:
+                pass
+        texts = _as_mapping(cfg.get("texts"))
+        text = _render(
+            texts.get(counter_id)
+            or cfg.get("fallback_text")
+            or "{faction} что-то заподозрила.",
+            {
+                "faction": str(
+                    getattr(origin_faction, "name", "")
+                    or item.get("faction_name")
+                    or ""
+                ),
+                "player": str(
+                    getattr(player_faction, "name", "") or ""
+                ),
+            },
+        )
+        payload = {
+            "counter": counter_id,
+            "text": text,
+            "belief": predicate,
+            "target": target,
+            "chance": round(chance, 6),
+            "at": round(now, 6),
+        }
+        item["retaliation"] = payload
+        item["retaliation_text"] = text
+        self._log(
+            "intercept_retaliated",
+            intercept_id=item.get("id"),
+            report_id=item.get("report_id"),
+            origin_side=item.get("origin_side"),
+            side=item.get("side"),
+            counter=counter_id,
+            chance=round(chance, 6),
+            belief=predicate,
+            target=target,
+        )
+        return payload
 
     def _capture_intercept(self, report):
         """Сохранить копию чужого доклада для возможного перехвата."""
@@ -3488,6 +3633,9 @@ class ReportDispatcher:
             "news_rng_state": _nested_tuple(
                 self.news_rng.getstate()
             ),
+            "retaliation_rng_state": _nested_tuple(
+                self.retaliation_rng.getstate()
+            ),
             "reports": [
                 copy.deepcopy(report)
                 for report in self.reports[-self.history_limit:]
@@ -3532,6 +3680,14 @@ class ReportDispatcher:
         if news_state:
             try:
                 self.news_rng.setstate(_nested_tuple(news_state))
+            except (TypeError, ValueError):
+                pass
+        retaliation_state = data.get("retaliation_rng_state")
+        if retaliation_state:
+            try:
+                self.retaliation_rng.setstate(
+                    _nested_tuple(retaliation_state)
+                )
             except (TypeError, ValueError):
                 pass
         self.reports = [

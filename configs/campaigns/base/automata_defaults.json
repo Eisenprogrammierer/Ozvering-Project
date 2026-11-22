@@ -455,7 +455,31 @@
       ],
       "counter_used_text": "Контрмера: {label}.",
       "counter_disabled_motive": "Нужен раскрытый мотив подлога.",
-      "counter_already_text": "По этому перехвату уже принята контрмера."
+      "counter_already_text": "По этому перехвату уже принята контрмера.",
+      "retaliation": {
+        "enabled": true,
+        "chance": 0.30,
+        "chances": {
+          "warn": 0.45,
+          "expose": 0.25
+        },
+        "influence_weight": 0.30,
+        "player_influence_weight": 0.30,
+        "relation": {
+          "trust": -0.08,
+          "affinity": -0.05
+        },
+        "belief": {
+          "predicate": "sees_as_threat",
+          "value": 0.70,
+          "confidence": 0.75
+        },
+        "texts": {
+          "warn": "{faction}: замысел раскрыт. {player} под подозрением.",
+          "expose": "{faction}: за слухом о подлоге стоит {player}."
+        },
+        "fallback_text": "{faction} что-то заподозрила."
+      }
     },
     "rumor": {
       "enabled": true,
@@ -1354,6 +1378,21 @@
             "intercept"
           ],
           "weight": 0.35
+        },
+        {
+          "predicate": "sees_as_threat",
+          "forms": [
+            "coercion"
+          ],
+          "essences": [
+            "defend",
+            "fortify",
+            "besiege",
+            "raid",
+            "strike",
+            "intercept"
+          ],
+          "weight": 0.2
         },
         {
           "predicate": "sees_as_enemy",

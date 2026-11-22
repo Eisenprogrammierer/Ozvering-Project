@@ -1641,3 +1641,138 @@ def test_memory_rumor_can_name_the_wrong_source():
         assert dispatch._memory_for(
             source.campaign_id, leader.campaign_id
         ).get("last_outcome", "") == ""
+
+
+def _retaliation_config(dispatch, chance, warn=0.0, expose=0.0):
+    config = dispatch.interception_config["retaliation"]
+    config.update(
+        {
+            "enabled": True,
+            "chance": chance,
+            "chances": {"warn": warn, "expose": expose},
+            "influence_weight": 0.0,
+            "player_influence_weight": 0.0,
+        }
+    )
+
+
+def test_intercept_countermeasure_can_alert_origin_faction():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    campaign.actions_left = 10
+    _report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    origin = campaign.faction(item["origin_side"])
+    player = campaign.faction(campaign.player_side)
+    leader = dispatch._leader_for(origin)
+    trust_before = campaign.relations.axes_for(
+        origin.id, player.id
+    )["trust"]
+    assets_before = {
+        asset: origin.asset(asset) for asset in dispatch.assets
+    }
+    probe = {
+        "id": "probe",
+        "ai_priority": 1.0,
+        "form": "coercion",
+        "hints": {"essence": "defend"},
+    }
+    weight_before = campaign._ai_action_weight(
+        origin.side, probe, leader
+    )
+    _retaliation_config(dispatch, chance=1.0, warn=1.0)
+
+    result = campaign.use_intercept(item["id"], "warn")
+
+    assert result["ok"] is True
+    assert item["retaliation_text"]
+    assert player.name in item["retaliation_text"]
+    assert any(
+        belief.predicate == "sees_as_threat"
+        and belief.object == player.id
+        for belief in leader.bdi.beliefs
+    )
+    assert campaign.relations.axes_for(origin.id, player.id)[
+        "trust"
+    ] < trust_before
+    assert assets_before == {
+        asset: origin.asset(asset) for asset in dispatch.assets
+    }
+    assert campaign._ai_action_weight(origin.side, probe, leader) > (
+        weight_before
+    )
+    events = [
+        entry
+        for entry in campaign.story_events
+        if entry.get("category") == "retaliation"
+    ]
+    assert events[-1]["text"] == item["retaliation_text"]
+    assert events[-1]["requires_choice"] is False
+
+
+def test_retaliation_chance_grows_with_origin_influence():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _report, item = _intercept(campaign)
+    origin = campaign.faction(item["origin_side"])
+    player = campaign.faction(campaign.player_side)
+    _retaliation_config(dispatch, chance=0.3, warn=0.3)
+    dispatch.interception_config["retaliation"].update(
+        {"influence_weight": 0.3, "player_influence_weight": 0.3}
+    )
+    origin.assets["influence"] = 1.0
+    player.assets["influence"] = 0.0
+    high = dispatch._retaliation_chance(item, "warn")
+    origin.assets["influence"] = 0.0
+    player.assets["influence"] = 1.0
+    low = dispatch._retaliation_chance(item, "warn")
+
+    assert high > low
+
+
+def test_intercept_countermeasure_can_pass_unnoticed():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    campaign.actions_left = 10
+    _report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    origin = campaign.faction(item["origin_side"])
+    player = campaign.faction(campaign.player_side)
+    leader = dispatch._leader_for(origin)
+    beliefs_before = [belief.as_dict() for belief in leader.bdi.beliefs]
+    trust_before = campaign.relations.axes_for(
+        origin.id, player.id
+    )["trust"]
+    _retaliation_config(dispatch, chance=0.0)
+
+    result = campaign.use_intercept(item["id"], "warn")
+
+    assert result["ok"] is True
+    assert not item.get("retaliation_text")
+    assert [belief.as_dict() for belief in leader.bdi.beliefs] == (
+        beliefs_before
+    )
+    assert campaign.relations.axes_for(origin.id, player.id)[
+        "trust"
+    ] == trust_before
+
+
+def test_intercept_retaliation_survives_snapshot():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    campaign.actions_left = 10
+    _report, item = _intercept(campaign)
+    campaign.open_intercept(item["id"])
+    _retaliation_config(dispatch, chance=1.0, warn=1.0)
+    campaign.use_intercept(item["id"], "warn")
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(
+        _preset(), seed=11, snapshot=campaign.snapshot()
+    )
+    loaded = restored.intercept(item["id"])
+
+    assert loaded["retaliation_text"] == item["retaliation_text"]
+    assert loaded["retaliation"]["counter"] == "warn"
+    assert loaded["retaliation"]["belief"] == "sees_as_threat"

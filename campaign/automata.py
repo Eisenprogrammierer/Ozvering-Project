@@ -2403,7 +2403,46 @@ class AutomataCampaign:
 
     def use_intercept(self, intercept_id, counter_id):
         """Потратить вскрытый перехват на контрмеру."""
-        return self.dispatch.use_intercept(intercept_id, counter_id)
+        result = self.dispatch.use_intercept(intercept_id, counter_id)
+        if result.get("ok") and result.get("retaliation"):
+            self._record_retaliation_event(result)
+        return result
+
+    def _record_retaliation_event(self, result):
+        """Показать ответ соперника в информационной ленте."""
+        item = result.get("intercept") or {}
+        text = str(item.get("retaliation_text") or "")
+        if not text:
+            return None
+        entry = {
+            "id": "retaliation-%s" % (item.get("id") or ""),
+            "template_id": "retaliation",
+            "category": "retaliation",
+            "title": "Ответ соперника",
+            "text": text,
+            "severity": None,
+            "stakes": None,
+            "speed": "instant",
+            "duration": 0.0,
+            "elapsed": float(self.elapsed),
+            "visible": True,
+            "visibility": {},
+            "effects": {},
+            "turn": self.turn,
+            "side": str(item.get("origin_side") or ""),
+            "faction_id": str(item.get("faction_id") or ""),
+            "source_id": "",
+            "source_name": str(item.get("faction_name") or ""),
+            "asset": item.get("asset"),
+            "report_id": item.get("report_id"),
+            "intercept_id": item.get("id"),
+            "requires_choice": False,
+            "status": "resolved",
+        }
+        self.story_events.append(entry)
+        if len(self.story_events) > EVENT_LOG_LIMIT:
+            self.story_events = self.story_events[-EVENT_LOG_LIMIT:]
+        return entry
 
     def _record_report_event(self, report):
         """Положить доклад в повествовательную ленту кампании."""

@@ -184,6 +184,14 @@ class ReportsOverlay(OverlayScreen):
             lines.extend(
                 wrap_text(self.app.font_small, counter_text, rect.width)
             )
+        retaliation_text = str(item.get("retaliation_text") or "")
+        if retaliation_text:
+            lines.append("")
+            lines.extend(
+                wrap_text(
+                    self.app.font_small, retaliation_text, rect.width
+                )
+            )
         return lines[:limit]
 
     def _choice_rects(self, report):
@@ -314,6 +322,14 @@ class ReportsOverlay(OverlayScreen):
             if result.get("ok"):
                 self.last_result = result
                 self.message = str(result.get("text") or "")
+                retaliation = str(
+                    (result.get("intercept") or {}).get(
+                        "retaliation_text"
+                    )
+                    or ""
+                )
+                if retaliation:
+                    self.message = "%s %s" % (self.message, retaliation)
             else:
                 self.last_result = None
                 self.message = str(
@@ -560,9 +576,12 @@ class ReportsOverlay(OverlayScreen):
     def _note_label(self, item):
         if self._is_intercept(item):
             if item.get("counter"):
-                return str(
+                note = str(
                     item.get("counter_text") or "Контрмера принята."
                 )
+                if item.get("retaliation_text"):
+                    note += " Соперник насторожился."
+                return note
             if item.get("status") == "open":
                 return "Перехват вскрыт. Выберите контрмеру."
             if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
