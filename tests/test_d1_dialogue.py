@@ -160,8 +160,24 @@ def test_asset_value_is_read_from_snapshot(red):
     answer = red.ask("Сколько законности у Империи?")
     assert answer.plan_id == "asset_quantity"
     assert answer.kind == "value"
-    assert "0.72" in answer.text
     assert "законность" in answer.text.lower()
+    assert "высок" in answer.text.lower()
+    assert answer.data["value"] != ""
+    assert not any(char.isdigit() for char in answer.text)
+
+
+def test_dialogue_hides_numeric_metrics(red):
+    for question in (
+        "Сколько законности у Империи?",
+        "Что такое Абвер?",
+        "Расскажи об Империи.",
+    ):
+        answer = red.ask(question)
+        assert answer.text.strip(), question
+        assert not any(char.isdigit() for char in answer.text), (
+            question,
+            answer.text,
+        )
 
 
 def test_leader_is_resolved_through_post(red):
@@ -221,7 +237,9 @@ def test_last_work_waits_for_a_real_turn(catalog, campaign):
         seed=13,
     )
     for _ in range(2):
-        advanced.advance(player_action=advanced.auto_action(advanced.player_side))
+        advanced.advance(
+            player_action=advanced.auto_action(advanced.player_side)
+        )
     session = DialogueSession(
         catalog,
         build_knowledge(catalog, advanced, "red"),

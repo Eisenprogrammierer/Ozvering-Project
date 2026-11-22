@@ -34,6 +34,7 @@ from .item_automaton import (
 )
 from . import logbook as _logbook
 from .lod import CampaignLod
+from .qualitative import cost_phrase, effect_phrase, metric_word
 from .scenes import SceneCatalog, SceneError, SceneSpec
 from .coalitions import (
     CoalitionBook,
@@ -4208,15 +4209,11 @@ class WorldEngine:
         cost = action.get("cost") or {}
         parts = []
         for key, value in (cost.get("node") or {}).items():
-            parts.append(
-                "%s −%.0f%%" % (self.stat_label(key), 100.0 * _as_float(value))
-            )
+            parts.append(cost_phrase(self.stat_label(key), _as_float(value)))
         for key, value in (cost.get("player") or {}).items():
-            parts.append(
-                "%s −%.0f%%" % (self.stat_label(key), 100.0 * _as_float(value))
-            )
+            parts.append(cost_phrase(self.stat_label(key), _as_float(value)))
         for item_id in cost.get("items") or ():
-            parts.append("%s −1" % self.item_label(item_id))
+            parts.append("предмет: %s" % self.item_label(item_id))
         return ", ".join(parts) or "без прямой платы"
 
     def stat_label(self, key):
@@ -4240,12 +4237,12 @@ class WorldEngine:
                 if abs(amount) < 1e-9:
                     continue
                 lines.append(
-                    "%s: %s %s%.0f%%"
+                    "%s · %s"
                     % (
                         label,
-                        self.relation_stat_label(key),
-                        "+" if amount > 0 else "",
-                        100.0 * amount,
+                        effect_phrase(
+                            self.relation_stat_label(key), amount
+                        ),
                     )
                 )
         return lines
@@ -5885,11 +5882,18 @@ class WorldEngine:
             rival = (competition.get("rivals") or [{}])[0]
             return (
                 False,
-                "очередь кандидатов сильнее: %s (%.2f против %.2f)"
+                "очередь кандидатов сильнее: %s (ваше положение: %s, "
+                "соперник: %s)"
                 % (
                     rival.get("name", "другой претендент"),
-                    competition.get("best_rival", 0.0),
-                    competition.get("player_score", 0.0),
+                    metric_word(
+                        "положение",
+                        competition.get("player_score", 0.0),
+                    ),
+                    metric_word(
+                        "положение",
+                        competition.get("best_rival", 0.0),
+                    ),
                 ),
             )
         return True, ""

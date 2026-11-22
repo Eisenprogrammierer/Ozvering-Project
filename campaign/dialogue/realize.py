@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
+from ..qualitative import metric_word
 from .features import select_best
 from .inference import InferenceEngine, is_variable
 from .knowledge import AgentKnowledge
@@ -47,6 +48,23 @@ def _format_number(value: Any) -> str:
         return "%.2f" % float(value)
     except (TypeError, ValueError):
         return str(value)
+
+
+def _quality_word(label: str, value: Any, mapping: Mapping[str, Any]) -> str:
+    """Перевести числовую метрику в слово, не называя значение."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    try:
+        low = float(mapping.get("low", 0.0))
+    except (TypeError, ValueError):
+        low = 0.0
+    try:
+        high = float(mapping.get("high", 1.0))
+    except (TypeError, ValueError):
+        high = 1.0
+    return metric_word(label, number, low, high)
 
 
 def _marker_concept(identifier: str) -> str:
@@ -727,8 +745,15 @@ class Realizer:
         value = str(value or "")
         if not value or is_variable(value):
             return ""
-        if str(mapping.get("format") or "") == "number":
+        format_name = str(mapping.get("format") or "")
+        if format_name == "number":
             return _format_number(value)
+        if format_name == "quality":
+            return _quality_word(
+                str(mapping.get("label") or "уровень"),
+                value,
+                mapping,
+            )
         case = str(mapping.get("case") or "")
         if case:
             return self.noun(value, case, str(mapping.get("number") or "sg"))
@@ -792,6 +817,7 @@ class Realizer:
         )
         prefix = str(spec.get("label_prefix") or "")
         template = str(spec.get("format") or "{label} {value}")
+        quality = bool(spec.get("quality"))
         rows: List[str] = []
         seen: set = set()
         for solution in self.engine.prove(relation, pattern):
@@ -800,8 +826,13 @@ class Realizer:
             if not key or not value:
                 continue
             label = self.knowledge.surface(prefix + key, "nom")
+            display = (
+                _quality_word(label, value, spec)
+                if quality
+                else _format_number(value)
+            )
             text = template.format(
-                label=label, value=_format_number(value), key=key
+                label=label, value=display, key=key
             )
             if text in seen:
                 continue
@@ -892,7 +923,18 @@ class Realizer:
             )
         if kind == "number":
             value = data.get(str(part.get("source") or ""), "")
-            return _format_number(value) if value != "" else ""
+            if value == "":
+                return ""
+            if bool(part.get("quality")):
+                source = str(part.get("label_source") or "label")
+                entity = str(data.get(source) or "")
+                label = (
+                    self.knowledge.surface(entity, "nom")
+                    if entity
+                    else str(part.get("label") or "")
+                )
+                return _quality_word(label, value, part)
+            return _format_number(value)
         if kind == "np":
             entity = data.get(str(part.get("source") or ""), "")
             if not entity:

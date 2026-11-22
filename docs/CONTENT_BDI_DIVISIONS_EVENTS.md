@@ -378,6 +378,12 @@ Python. Полный производственный набор сейчас: *
 {"kind": "intention", "key": "coerce", "object": "faction.republic"}
 {"kind": "relation", "predicate": "trusts", "object": "faction.republic",
  "op": ">=", "value": 0.6}
+{"kind": "pair_alive"}
+{"kind": "opposite_gender"}
+{"kind": "pair_same_faction"}
+{"kind": "has_dead"}
+{"kind": "actor_alive"}
+{"kind": "target_dead"}
 {"kind": "character_stats", "subject": "char-2", "key": "morale",
  "op": "<", "value": 0.4}
 {"kind": "character_stats", "subject": "char-1", "key": "needs.fear",
@@ -387,16 +393,25 @@ Python. Полный производственный набор сейчас: *
 
 Поддерживаются `kind`: `need`/`desire`, `trait`, `division`, `force`,
 `energy`, `condition`/`sickness`/`wound`, `belief`, `tag`, `category`,
-`side`, `faction`, `role`, `alive`, `time`, `asset`, `organ`,
+`side`, `faction`, `role`, `alive`, `actor_alive`, `target_alive`,
+`pair_alive`, `actor_dead`, `target_dead`, `opposite_gender`,
+`pair_same_faction`, `has_dead`, `time`, `asset`, `organ`,
 `organ_status`, `organ_scale`, `flag`, `intention`, `relation`,
 `character_stats`, `organization`, а также произвольный ключ контекста. Операции: `>=`,
 `<=`, `>`, `<`, `==`, `!=`, `in`, `not in`. Флаг `negate: true`
 инвертирует результат.
 
-Для `belief`, `tag`, `alive`, `flag`, `intention` и `relation` без явных
+Для `belief`, `tag`, `alive`, `flag`, `intention`, `relation`,
+`pair_alive`, `opposite_gender`, `pair_same_faction`, `has_dead`,
+`actor_alive`, `target_alive`, `actor_dead` и `target_dead` без явных
 `op`/`value` условие означает «присутствует/жив» и проверяется как
-`== true`. Если у `belief` указан числовой порог, сравнивается сила
-`value × confidence`; у `relation` — та же сила для предиката-отношения.
+`== true`. `actor_dead` и `target_dead` — отрицание соответствующего
+`*_alive`. `pair_alive` требует живых `actor` и `target`;
+`opposite_gender` — известных и разных `actor_gender`/`target_gender`;
+`pair_same_faction` — что второй участник выбран из своей фракции;
+`has_dead` — что в ростере есть погибший. Если у `belief` указан
+числовой порог, сравнивается сила `value × confidence`; у `relation` —
+та же сила для предиката-отношения.
 `character_stats` и `organization` читают вложенный путь через точку
 (`needs.fear`, `mode_weights.order`). У `organ_scale` поле `key` — id
 органа, `object` — имя шкалы.
@@ -456,9 +471,12 @@ for event in engine.advance(1.0, context=viewer_context):
 `tags`, `conditions`, `beliefs`, `intentions`, `relations`, `assets`,
 `organs`, `organ_statuses`, `flags`, `characters`, `organization_state`,
 `priority_needs`, `goals`, `doctrine`, `turn`, `used_actions`, `force`,
-`energy`, `alive`, `time`. Имена `actor`, `target`, `rival`,
-`organization`, `rival_organization` подставляются в текст через отдельный
-`render_context`; структуры условий в подстановки не попадают. Записи
+`energy`, `alive`, `time`, а также полями пары и ростера: `actor_gender`,
+`target_gender`, `opposite_gender`, `actor_alive`, `target_alive`,
+`pair_alive`, `pair_same_faction`, `has_dead`, `fallen` и
+`fallen_gender`. Имена `actor`, `target`, `rival`, `fallen`,
+`organization`, `rival_organization` подставляются в текст через
+отдельный `render_context`; структуры условий в подстановки не попадают. Записи
 попадают в `story_events` и в снимок кампании; **состояние не меняется** —
 поле `effects` в записи всегда пустое. Интервал спавна —
 `max(4.0, organization_interval_seconds × 0.5)` в масштабированных

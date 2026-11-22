@@ -58,5 +58,9 @@ venv/bin/python -m pytest -q  # тесты
 - [`FORMULAS.md`](FORMULAS.md) — формулы, единицы, константы.
 - [`ALGORITHMS.md`](ALGORITHMS.md) — такт, признаки, обучение.
 - [`CONTENT.md`](CONTENT.md) — JSON-контент и загрузчики.
+- [`CAMPAIGN_EVENTS_BDI.md`](CAMPAIGN_EVENTS_BDI.md) — доклады, слухи,
+  перехваты, контрмеры и лента событий.
+- [`CAMPAIGN_LOGIC_AUDIT.md`](CAMPAIGN_LOGIC_AUDIT.md) — разбор
+  исправленных проблем игрового слоя кампании.
 - [`TODO.md`](TODO.md) — только открытые задачи.
 - [`history/`](history/) — прошлое; не канон и не переписывается.

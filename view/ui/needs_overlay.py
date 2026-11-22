@@ -13,6 +13,7 @@ from view.support.needs import (
     SUPPLY_LABELS,
 )
 from view.support.log_journal import get_logger
+from view.support.metrics import effect_phrase, metric_phrase
 
 logger = get_logger("view.needs_ui")
 
@@ -40,8 +41,7 @@ def _effect_text(effects):
     parts = []
     for need, value in (effects or {}).items():
         label = NEED_LABELS.get(need, need)
-        sign = "+" if value >= 0 else ""
-        parts.append("%s %s%.2f" % (label, sign, value))
+        parts.append(effect_phrase(label, value))
     return ", ".join(parts)
 
 
@@ -113,12 +113,13 @@ class NeedsOverlay(OverlayScreen):
         needs_system = st.needs
         needs = needs_system.player_needs_summary()
         trait = needs_system.trait_info
-        status_text = (
-            "Личные потребности командира · мораль %.0f · черта: %s"
-            % (
+        status_text = "Личные потребности командира · %s · черта: %s" % (
+            metric_phrase(
+                "мораль",
                 getattr(needs_system.commander, "morale", 0.0),
-                trait.get("label", "—"),
-            )
+                high=100.0,
+            ),
+            trait.get("label", "—"),
         )
         draw_fitted(
             screen,

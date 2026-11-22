@@ -26,6 +26,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from ..qualitative import metric_word, relation_word
 from .counterfactual import CounterfactualEngine
 from .inference import InferenceEngine, ProofStep, Solution, is_variable
 from .knowledge import AgentKnowledge, Fact
@@ -949,13 +950,13 @@ class AnswerPlanner:
         texts = self._fallback_texts()
         if at_war or affinity <= -0.25:
             stance = str(texts.get("attitude_negative") or "").format(
-                affinity="%.2f" % affinity,
-                fear="%.2f" % fear,
+                affinity=relation_word("расположение", affinity),
+                fear=relation_word("страх", fear),
             )
         elif trust >= 0.25 or trusted:
             stance = str(texts.get("attitude_positive") or "").format(
-                affinity="%.2f" % affinity,
-                trust="%.2f" % trust,
+                affinity=relation_word("расположение", affinity),
+                trust=relation_word("доверие", trust),
             )
         else:
             stance = str(texts.get("attitude_neutral") or "")
@@ -1491,33 +1492,43 @@ class AnswerPlanner:
         prefix = str(plan.answer.get("label_prefix") or "")
         key = captures.get("$key", "")
         label_entity = prefix + key if prefix else ""
+        label = (
+            self.knowledge.surface(label_entity, "nom")
+            if label_entity
+            else label_entity
+        )
         template_key = str(plan.answer.get("template_key") or "value")
+        # Метрики мира не произносятся числами: персонаж говорит
+        # «законность высокая», а не «законность 0.72». Точное значение
+        # остаётся в ``data`` для отладки и проверок.
+        display_value = value
+        quality = bool(plan.answer.get("quality")) or relation == "asset"
+        if quality:
+            try:
+                display_value = metric_word(label or key, float(value))
+            except (TypeError, ValueError):
+                display_value = str(value)
         text = self.realizer.answer(
             template_key,
             {
                 "label": label_entity,
                 "owner": owner,
-                "value": value,
+                "value": display_value,
             },
         )
         if not text:
-            label = (
-                self.knowledge.surface(label_entity, "nom")
-                if label_entity
-                else label_entity
-            )
             template = str(self.answers.get(template_key) or "")
             text = template.format(
                 label=_capitalize(label),
                 owner_gen=self.knowledge.surface(owner, "gen"),
-                value=_format_number(value),
+                value=display_value,
             )
         text = self.realizer.realize_answer(
             "value",
             {
                 "owner": owner,
                 "key": key,
-                "value": value,
+                "value": display_value,
                 "label": label_entity,
                 "intro": text,
             },
@@ -1534,6 +1545,7 @@ class AnswerPlanner:
             plan.id,
             data={
                 "value": value,
+                "display_value": display_value,
                 "owner": owner,
                 "key": key,
                 "label": label_entity,

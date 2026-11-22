@@ -3,6 +3,7 @@ import pygame
 from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import wrap_text
 from view.support.log_journal import get_logger
+from view.support.metrics import metric_word
 
 logger = get_logger("view.automaton_select")
 
@@ -437,19 +438,22 @@ class AutomatonSelectScreen(BaseScreen):
             label = self.engine.stat_label(key)
             screen.blit(
                 self.app.font_tiny.render(
-                    "%s %.0f%%" % (label, 100.0 * value), True, DIM
+                    "%s %s" % (label, metric_word(label, value)), True, DIM
                 ),
                 (sx, sy),
             )
             sx += 126
+        interests = ", ".join(
+            "%s %s"
+            % (
+                self.engine.domain_label(key),
+                metric_word(self.engine.domain_label(key), value),
+            )
+            for key, value in (node.get("interests") or {}).items()
+        )
         screen.blit(
             self.app.font_tiny.render(
-                "Интересы: %s"
-                % ", ".join(
-                    "%s %.0f%%"
-                    % (self.engine.domain_label(key), 100.0 * float(value))
-                    for key, value in (node.get("interests") or {}).items()
-                ),
+                "Интересы: %s" % (interests or "—"),
                 True,
                 DIM,
             ),
@@ -475,8 +479,11 @@ class AutomatonSelectScreen(BaseScreen):
                 ),
                 (rect.x + 10, rect.y + 4),
             )
-            detail = "полномочия %.0f%% · ранг %d" % (
-                100.0 * float(option.get("authority", 0.0)),
+            detail = "полномочия %s · ранг %d" % (
+                metric_word(
+                    "полномочия",
+                    float(option.get("authority", 0.0)),
+                ),
                 int(option.get("rank", 99)),
             )
             if not enabled:

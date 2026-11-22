@@ -290,6 +290,7 @@ def test_campaign_labor_market_blocks_weak_candidate_without_cost():
 
     assert result["ok"] is False
     assert "очередь кандидатов сильнее" in result["reason"]
+    assert not any(char.isdigit() for char in result["reason"])
     assert engine.player_node_id == "agora_ministry_interior"
     assert engine.player_resources == before
 
@@ -600,6 +601,11 @@ def test_characters_have_circles_actions_and_qualitative_preview():
     assert preview["enabled"] is True
     assert preview["success_effects_map"]["affinity"] > 0
     assert preview["failure_effects_map"]
+    for key in ("cost",):
+        assert not any(char.isdigit() for char in preview[key]), preview[key]
+    for key in ("immediate", "success_effects", "failure_effects"):
+        for line in preview[key]:
+            assert not any(char.isdigit() for char in line), line
 
     before_actions = engine.actions_left
     before_affinity = engine.character_relation("mira_svet")

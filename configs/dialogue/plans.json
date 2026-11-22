@@ -741,7 +741,8 @@
           "value"
         ],
         "label_prefix": "asset:",
-        "template_key": "value"
+        "template_key": "value",
+        "quality": true
       }
     },
     {

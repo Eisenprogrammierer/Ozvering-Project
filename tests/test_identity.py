@@ -116,6 +116,11 @@ def test_identity_editor_screen_builds_and_draws():
     before = screen.values["origin"]
     screen.cycle("origin", 1)
     assert screen.values["origin"] != before
+    for line in screen._effect_lines(screen._option("origin")):
+        assert not any(char.isdigit() for char in line), line
+    screen.select_section("trait")
+    for line in screen._effect_lines(screen._option("trait")):
+        assert not any(char.isdigit() for char in line), line
     screen.name = "Анна"
     screen.start()
     assert screen.started is True

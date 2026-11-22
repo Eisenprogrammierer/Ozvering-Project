@@ -13,7 +13,9 @@ import os
 import pygame
 
 from campaign import CampaignPresetGenerator
+from warfare import NEEDS_RU
 from view.support.log_journal import get_logger
+from view.support.metrics import metric_word
 from view.support.storyline import load_storyline
 
 from ..ui.screen_manager import BaseScreen
@@ -242,12 +244,16 @@ class CharacterSelectScreen(BaseScreen):
             ),
             reverse=True,
         )[:4]
-        lines = [
-            "Потребности: %s"
+        need_text = ", ".join(
+            "%s %s"
             % (
-                ", ".join("%s %.2f" % (key, value) for value, key in top)
-                or "—"
-            ),
+                NEEDS_RU.get(key, key),
+                metric_word(NEEDS_RU.get(key, key), value),
+            )
+            for value, key in top
+        )
+        lines = [
+            "Потребности: %s" % (need_text or "—"),
             "Лидер фракции: %s"
             % ("да" if item.get("is_faction_leader") else "нет"),
         ]

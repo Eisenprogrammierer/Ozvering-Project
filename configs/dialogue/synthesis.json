@@ -179,7 +179,7 @@
     {"kind": "np", "source": "label", "case": "nom"},
     {"kind": "np", "source": "owner", "case": "gen"},
     {"kind": "literal", "text": "—"},
-    {"kind": "number", "source": "value"}
+    {"kind": "number", "source": "value", "quality": true}
    ],
    "end": ".",
    "relation": "asset"
@@ -408,7 +408,7 @@
     {"kind": "np", "source": "label", "case": "nom"},
     {"kind": "np", "source": "owner", "case": "gen"},
     {"kind": "literal", "text": "—"},
-    {"kind": "number", "source": "value"}
+    {"kind": "number", "source": "value", "quality": true}
    ],
    "end": "."
   },
@@ -421,7 +421,7 @@
     {"kind": "np", "source": "label", "case": "gen"},
     {"kind": "np", "source": "owner", "case": "gen"},
     {"kind": "literal", "text": "составляет"},
-    {"kind": "number", "source": "value"}
+    {"kind": "number", "source": "value", "quality": true}
    ],
    "end": "."
   },
@@ -726,6 +726,7 @@
    "value": "$value",
    "label_prefix": "asset:",
    "format": "{label} {value}",
+   "quality": true,
    "join": ", ",
    "sort": true
   },
@@ -801,7 +802,13 @@
     "kind": "relation",
     "relation": "organ_integrity",
     "pattern": ["$self", "$value"],
-    "fields": {"integrity": {"var": "$value", "format": "number"}}
+    "fields": {
+    "integrity": {
+     "var": "$value",
+     "format": "quality",
+     "label": "целостность"
+    }
+   }
    }
   },
   "post": {

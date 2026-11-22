@@ -121,6 +121,26 @@ def test_style_comes_from_relation_axes():
     assert decision.rule_id == "relation_trust_friendly"
 
 
+def test_attitude_fallback_states_relation_without_numbers():
+    catalog = load_dialogue(DEFAULT_DIR)
+    warm = DialogueSession(
+        catalog,
+        _knowledge(catalog, relation_axes={"trust": 0.8, "affinity": 0.3}),
+    )
+    cold = DialogueSession(
+        catalog,
+        _knowledge(catalog, relation_axes={"affinity": -0.6, "fear": 0.2}),
+    )
+    positive = warm.ask("Ты меня уважаешь?")
+    negative = cold.ask("Ты меня уважаешь?")
+    for answer in (positive, negative):
+        assert answer.plan_id == "attitude_fallback"
+        assert answer.text.strip()
+        assert not any(char.isdigit() for char in answer.text)
+    assert "доверие" in positive.text.lower()
+    assert "страх" in negative.text.lower()
+
+
 def test_numeric_relation_operator_handles_zero_threshold():
     catalog = load_dialogue(DEFAULT_DIR)
     session = _style(

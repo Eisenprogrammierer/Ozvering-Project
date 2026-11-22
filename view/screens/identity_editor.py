@@ -23,6 +23,7 @@ from ..ui.screen_manager import BaseScreen
 from ..ui.text_layout import draw_fitted, line_height, wrap_text
 from ..ui.widgets import Button, Panel
 from view.support.log_journal import get_logger
+from view.support.metrics import effect_phrase
 
 logger = get_logger("view.identity_editor")
 
@@ -54,11 +55,6 @@ MUTED = (150, 162, 180)
 DIM = (108, 120, 138)
 ACCENT = (80, 150, 220)
 GOOD = (110, 200, 150)
-
-
-def _signed(value):
-    amount = float(value)
-    return ("+" if amount >= 0 else "") + ("%.2f" % amount)
 
 
 class IdentityEditorScreen(BaseScreen):
@@ -418,7 +414,7 @@ class IdentityEditorScreen(BaseScreen):
             labels.append(
                 "Потребности: "
                 + ", ".join(
-                    "%s %s" % (W.NEEDS_RU.get(key, key), _signed(value))
+                    effect_phrase(W.NEEDS_RU.get(key, key), value)
                     for key, value in sorted(needs.items())
                 )
             )
@@ -427,7 +423,7 @@ class IdentityEditorScreen(BaseScreen):
             labels.append(
                 "Черты: "
                 + ", ".join(
-                    "%s %s" % (self.catalog.trait_label(key), _signed(value))
+                    effect_phrase(self.catalog.trait_label(key), value)
                     for key, value in sorted(traits.items())
                 )
             )
@@ -475,7 +471,7 @@ class IdentityEditorScreen(BaseScreen):
             effect_y = PREVIEW_RECT.y + 310
             screen.blit(
                 self.app.font_tiny.render(
-                    "Черта усиливается на +0.22 к базовому значению.",
+                    "Черта заметно усиливается относительно базы.",
                     True,
                     GOOD,
                 ),
