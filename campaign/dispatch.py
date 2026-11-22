@@ -111,6 +111,19 @@ MEMORY_DEFAULTS = {
         "weight": 0.5,
         "relation_weight": 0.40,
         "include_player": False,
+        "distortion": {
+            "enabled": True,
+            "chance": 0.20,
+            "source_chance": 0.10,
+            "weight_scale": 1.5,
+            "outcomes": {
+                "trusted": "ignored",
+                "ignored": "trusted",
+                "verified_right": "verified_wrong",
+                "verified_wrong": "verified_right",
+                "lied": "verified_wrong",
+            },
+        },
     },
     "lines": {
         "trusted": (
@@ -135,6 +148,14 @@ MEMORY_DEFAULTS = {
         ),
     },
 }
+
+MEMORY_OUTCOMES = (
+    "trusted",
+    "ignored",
+    "verified_right",
+    "verified_wrong",
+    "lied",
+)
 
 NEWS_DEFAULTS = {
     "enabled": True,
@@ -2805,18 +2826,14 @@ class ReportDispatcher:
         Память источника остаётся личной: получатель знает исход точно,
         а остальные слышат ослабленный слух через общих знакомых или
         городскую молву. Слух не задаёт ``last_outcome``, поэтому не
-        выдаёт себя за личный доклад.
+        выдаёт себя за личный доклад. По дороге слух может исказиться:
+        перевернуть исход, преувеличить силу или приписать всё другому
+        источнику.
         """
         cfg = _as_mapping(self.memory_config.get("spread"))
         if not bool(cfg.get("enabled", True)):
             return []
-        if outcome not in (
-            "trusted",
-            "ignored",
-            "verified_right",
-            "verified_wrong",
-            "lied",
-        ):
+        if outcome not in MEMORY_OUTCOMES:
             return []
         source_id = str(report.get("source_id") or "")
         recipient_id = str(report.get("recipient_id") or "")
@@ -2827,6 +2844,16 @@ class ReportDispatcher:
         weight = max(0.0, _number(cfg.get("weight"), 0.5))
         relation_weight = _number(cfg.get("relation_weight"), 0.4)
         include_player = bool(cfg.get("include_player", False))
+        distortion = _as_mapping(cfg.get("distortion"))
+        distortion_on = bool(distortion.get("enabled", True))
+        distort_chance = _clamp(distortion.get("chance"), 0.0, 1.0)
+        source_chance = _clamp(
+            distortion.get("source_chance"), 0.0, 1.0
+        )
+        weight_scale = max(
+            0.0, _number(distortion.get("weight_scale"), 1.5)
+        )
+        flips = _as_mapping(distortion.get("outcomes"))
         player_side = str(
             getattr(self.campaign, "player_side", "") or ""
         )
@@ -2853,26 +2880,78 @@ class ReportDispatcher:
             )
             if chance <= 0.0 or self.spread_rng.random() >= chance:
                 continue
-            memory = self._memory_entry(source_id, leader_id)
+            rumor_source = source_id
+            rumor_outcome = outcome
+            rumor_weight = weight
+            distorted = False
+            if (
+                distortion_on
+                and distort_chance > 0.0
+                and self.spread_rng.random() < distort_chance
+            ):
+                flipped = str(flips.get(rumor_outcome) or "")
+                if flipped in MEMORY_OUTCOMES:
+                    rumor_outcome = flipped
+                rumor_weight *= weight_scale
+                distorted = True
+            if (
+                distortion_on
+                and source_chance > 0.0
+                and self.spread_rng.random() < source_chance
+            ):
+                confused = self._confuse_source(
+                    report, source_id, recipient_id
+                )
+                if confused:
+                    rumor_source = confused
+                    distorted = True
+            memory = self._memory_entry(rumor_source, leader_id)
             memory["reports"] = _number(
                 memory.get("reports"), 0.0
-            ) + weight
-            memory[outcome] = _number(
-                memory.get(outcome), 0.0
-            ) + weight
+            ) + rumor_weight
+            memory[rumor_outcome] = _number(
+                memory.get(rumor_outcome), 0.0
+            ) + rumor_weight
             memory["spread"] = int(
                 _number(memory.get("spread"), 0)
             ) + 1
-            spread.append({"side": side, "outcome": outcome})
+            spread.append(
+                {
+                    "side": side,
+                    "outcome": rumor_outcome,
+                    "source_id": rumor_source,
+                    "distorted": distorted,
+                }
+            )
             self._log(
                 "memory_spread",
                 side=side,
                 from_side=origin_side,
-                source_id=source_id,
-                outcome=outcome,
-                weight=weight,
+                source_id=rumor_source,
+                true_source_id=source_id,
+                outcome=rumor_outcome,
+                true_outcome=outcome,
+                weight=rumor_weight,
+                distorted=distorted,
             )
         return spread
+
+    def _confuse_source(self, report, source_id, recipient_id=""):
+        """Подменить источник слуха другим человеком той же стороны."""
+        faction = self.campaign.faction(report.get("side"))
+        if faction is None:
+            return ""
+        candidates = []
+        for character in getattr(faction, "characters", ()) or ():
+            cid = str(getattr(character, "campaign_id", "") or "")
+            if not cid or cid in (source_id, recipient_id):
+                continue
+            if not _alive(character):
+                continue
+            candidates.append(cid)
+        if not candidates:
+            return ""
+        return self.spread_rng.choice(candidates)
 
     def _shared_acquaintance(self, leader_id, recipient_id, source_id):
         """Насколько чужой лидер близок к участникам доклада."""

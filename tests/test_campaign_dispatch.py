@@ -1245,6 +1245,14 @@ def _spread_config(dispatch, **overrides):
         }
     )
     config.update(overrides)
+    config.setdefault("distortion", {}).update(
+        {
+            "enabled": False,
+            "chance": 0.0,
+            "source_chance": 0.0,
+            "weight_scale": 1.0,
+        }
+    )
 
 
 def test_memory_outcome_spreads_as_a_weaker_rumor():
@@ -1542,3 +1550,94 @@ def test_staff_briefing_falls_back_to_single_trend_when_multi_off():
 
     assert not any(line.startswith("За дни:") for line in lines)
     assert any("проседает" in line for line in lines)
+
+
+def _spread_leaders(campaign):
+    dispatch = campaign.dispatch
+    return [
+        dispatch._leader_for(faction)
+        for side, faction in campaign.factions.items()
+        if side != campaign.player_side
+    ]
+
+
+def test_memory_rumor_can_flip_outcome_and_exaggerate_weight():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _spread_config(dispatch, chance=1.0)
+    dispatch.memory_config["spread"]["distortion"].update(
+        {
+            "enabled": True,
+            "chance": 1.0,
+            "source_chance": 0.0,
+            "weight_scale": 2.0,
+            "outcomes": {"ignored": "lied"},
+        }
+    )
+    report, source = _fresh_report(campaign, campaign.player)
+
+    dispatch.resolve(report["id"], "ignore")
+
+    leaders = _spread_leaders(campaign)
+    assert leaders
+    for leader in leaders:
+        memory = dispatch._memory_for(
+            source.campaign_id, leader.campaign_id
+        )
+        assert memory["lied"] == pytest.approx(1.0)
+        assert memory["ignored"] == 0
+        assert memory["reports"] == pytest.approx(1.0)
+        assert memory["last_outcome"] == ""
+
+    from campaign.automata import AutomataCampaign
+
+    restored = AutomataCampaign(
+        _preset(), seed=11, snapshot=campaign.snapshot()
+    )
+    leader = leaders[0]
+    memory = restored.dispatch._memory_for(
+        source.campaign_id, leader.campaign_id
+    )
+    assert memory["lied"] == pytest.approx(1.0)
+
+
+def test_memory_rumor_can_name_the_wrong_source():
+    campaign = _campaign()
+    dispatch = campaign.dispatch
+    _spread_config(dispatch, chance=1.0)
+    dispatch.memory_config["spread"]["distortion"].update(
+        {
+            "enabled": True,
+            "chance": 0.0,
+            "source_chance": 1.0,
+            "weight_scale": 1.0,
+        }
+    )
+    report, source = _fresh_report(campaign, campaign.player)
+    origin = campaign.player
+    candidates = [
+        str(character.campaign_id)
+        for character in origin.characters
+        if str(getattr(character, "campaign_id", ""))
+        not in (source.campaign_id, report.get("recipient_id"))
+        and not getattr(character, "dead", False)
+    ]
+    assert candidates
+
+    dispatch.resolve(report["id"], "ignore")
+
+    leaders = _spread_leaders(campaign)
+    total = 0.0
+    for candidate in candidates:
+        for leader in leaders:
+            total += dispatch._memory_for(
+                candidate, leader.campaign_id
+            ).get("reports", 0.0)
+    assert total == pytest.approx(0.5 * len(leaders))
+    for leader in leaders:
+        assert dispatch._memory_for(
+            source.campaign_id, leader.campaign_id
+        ).get("reports", 0) == 0
+        assert dispatch._memory_for(
+            source.campaign_id, leader.campaign_id
+        ).get("last_outcome", "") == ""
