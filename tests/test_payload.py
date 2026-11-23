@@ -56,6 +56,112 @@ def test_payload_schema_rejects_typos_and_missing_required_fields():
     assert "item" in PAYLOAD_KINDS
 
 
+def test_payload_kind_registry_loads_new_kind_from_data(tmp_path, monkeypatch):
+    import core41.payload as payload_module
+
+    path = tmp_path / "payload_kinds.json"
+    path.write_text(
+        json.dumps(
+            {
+                "kinds": {
+                    "loot": {
+                        "label": "добыча",
+                        "describe": "добыча: {item_id} ×{quantity:g}",
+                        "required": ["item_id"],
+                        "defaults": {"quantity": 2.0},
+                        "numeric": ["quantity"],
+                    }
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    kinds = payload_module.load_payload_kinds(path)
+    monkeypatch.setattr(payload_module, "PAYLOAD_KINDS", kinds)
+
+    payload = make_payload("loot", item_id="coin")
+    assert payload_map(payload)["quantity"] == pytest.approx(2.0)
+    assert describe_payload(payload) == "добыча: coin ×2"
+
+    with pytest.raises(PayloadError):
+        make_payload("loot", item_id="coin", weight=1)
+
+
+def test_payload_registry_rejects_inconsistent_schema():
+    from core41.payload import normalize_payload_kinds
+
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds({"kinds": {}})
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id"],
+                        "numeric": ["weight"],
+                    }
+                }
+            }
+        )
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id"],
+                        "defaults": {"quantity": 1},
+                        "describe_defaults": {"missing": "?"},
+                    }
+                }
+            }
+        )
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id", "item_id"],
+                    }
+                }
+            }
+        )
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id"],
+                        "defaults": {"item_id": "x"},
+                    }
+                }
+            }
+        )
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id"],
+                        "numeric": ["quantity"],
+                        "defaults": {"quantity": "не число"},
+                    }
+                }
+            }
+        )
+    with pytest.raises(PayloadError):
+        normalize_payload_kinds(
+            {
+                "kinds": {
+                    "loot": {
+                        "required": ["item_id"],
+                        "quantitiy": ["quantity"],
+                    }
+                }
+            }
+        )
+
+
 def test_opaque_payload_without_kind_keeps_backward_compatibility():
     payload = normalize_payload([("a", 1), ("b", "x")])
     assert payload == (("a", 1), ("b", "x"))

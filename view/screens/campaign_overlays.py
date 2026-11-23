@@ -65,16 +65,12 @@ class ProcessesOverlay(OverlayScreen):
         self.campaign = campaign
         self.side = str(side or campaign.player_side)
         self.scroll = 0
+        self.message = ""
 
     def _records(self):
         active = self.campaign.active_processes(self.side)
         settling = self.campaign.settling_processes(self.side)
-        active.sort(
-            key=lambda item: (
-                float(item.get("finish_at", 0.0)),
-                str(item.get("id", "")),
-            )
-        )
+        active.sort(key=self.campaign._process_sort_key)
         settling.sort(
             key=lambda item: (
                 float(
@@ -87,14 +83,57 @@ class ProcessesOverlay(OverlayScreen):
             ("settling", item) for item in settling
         ]
 
+    @staticmethod
+    def _row_rects(panel, count):
+        return [
+            pygame.Rect(
+                panel.x + 20,
+                panel.y + 154 + index * 72,
+                panel.width - 40,
+                64,
+            )
+            for index in range(count)
+        ]
+
+    @staticmethod
+    def _cancel_rect(rect):
+        return pygame.Rect(rect.right - 104, rect.y + 8, 92, 20)
+
+    def _visible_rows(self):
+        """Видимые строки и их прямоугольники — общая геометрия."""
+        rows = self._records()[self.scroll:self.scroll + 4]
+        rects = self._row_rects(self.panel.rect, len(rows))
+        return [
+            (mode, record, rect)
+            for (mode, record), rect in zip(rows, rects)
+        ]
+
     def handle_event(self, event):
         if self.close_btn.handle_event(event):
             return
         if event.type == pygame.MOUSEWHEEL:
             total = len(self._records())
             self.scroll = max(
-                0, min(max(0, total - 5), self.scroll - event.y)
+                0, min(max(0, total - 4), self.scroll - event.y)
             )
+            return
+        if (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and getattr(event, "button", 0) == 1
+        ):
+            for mode, record, rect in self._visible_rows():
+                if mode != "active":
+                    continue
+                if self._cancel_rect(rect).collidepoint(event.pos):
+                    result = self.campaign.cancel_action(
+                        self.side, record.get("id")
+                    )
+                    self.message = (
+                        "Отменено: %s" % (record.get("label") or "работа")
+                        if result.get("ok")
+                        else str(result.get("reason") or "отмена не удалась")
+                    )
+                    return
 
     def _target(self, record):
         name = (
@@ -122,14 +161,32 @@ class ProcessesOverlay(OverlayScreen):
             or "процесс"
         )
         title = "%s · %s" % (kind_label, label)
+        title_width = rect.width - 24
+        if mode == "active":
+            title_width -= 110
         screen.blit(
             self.app.font_small.render(
-                fit_line(self.app.font_small, title, rect.width - 24),
+                fit_line(self.app.font_small, title, title_width),
                 True,
                 TEXT,
             ),
             (rect.x + 10, rect.y + 7),
         )
+        if mode == "active":
+            cancel = self._cancel_rect(rect)
+            pygame.draw.rect(
+                screen, PANEL_BORDER, cancel, 1, border_radius=4
+            )
+            cancel_text = self.app.font_tiny.render(
+                "ОТМЕНИТЬ", True, WARN
+            )
+            screen.blit(
+                cancel_text,
+                (
+                    cancel.centerx - cancel_text.get_width() // 2,
+                    cancel.centery - cancel_text.get_height() // 2,
+                ),
+            )
         screen.blit(
             self.app.font_tiny.render(
                 fit_line(
@@ -142,7 +199,7 @@ class ProcessesOverlay(OverlayScreen):
             ),
             (rect.x + 10, rect.y + 27),
         )
-        bar = pygame.Rect(rect.x + 10, rect.bottom - 22, rect.width - 20, 8)
+        bar = pygame.Rect(rect.x + 10, rect.bottom - 10, rect.width - 20, 6)
         if mode == "active":
             duration = max(1e-6, float(record.get("duration", 0.0)))
             remaining = max(0.0, float(record.get("remaining", 0.0)))
@@ -170,9 +227,61 @@ class ProcessesOverlay(OverlayScreen):
                 True,
                 DIM,
             ),
-            (rect.x + 10, rect.y + 42),
+            (rect.x + 10, rect.y + 40),
         )
         _bar(screen, bar, progress, color)
+
+    def _draw_slot_cards(self, screen, panel, y):
+        cards = self.campaign.slot_cards(self.side)
+        if not cards:
+            return
+        gap = 8
+        width = (panel.width - 40 - gap * (len(cards) - 1)) // len(cards)
+        for index, card in enumerate(cards):
+            rect = pygame.Rect(
+                panel.x + 20 + index * (width + gap), y, width, 48
+            )
+            pygame.draw.rect(
+                screen,
+                PANEL_ROW_ACTIVE if card.get("occupied") else PANEL_ROW,
+                rect,
+                border_radius=6,
+            )
+            pygame.draw.rect(screen, PANEL_BORDER, rect, 1, border_radius=6)
+            title = "СЛОТ %d · %s" % (
+                card["slot"],
+                card.get("label") if card.get("occupied") else "свободен",
+            )
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(self.app.font_tiny, title, width - 16),
+                    True,
+                    ACCENT if card.get("occupied") else MUTED,
+                ),
+                (rect.x + 8, rect.y + 6),
+            )
+            if card.get("occupied"):
+                detail = "осталось %s" % self.campaign.duration_label(
+                    card.get("remaining", 0.0)
+                )
+                _bar(
+                    screen,
+                    pygame.Rect(
+                        rect.x + 8, rect.bottom - 12, width - 16, 5
+                    ),
+                    card.get("progress", 0.0),
+                    ACCENT,
+                )
+            else:
+                detail = "слот свободен для работы"
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(self.app.font_tiny, detail, width - 16),
+                    True,
+                    DIM,
+                ),
+                (rect.x + 8, rect.y + 24),
+            )
 
     def draw(self, screen):
         self.draw_base(screen, "В РАБОТЕ")
@@ -193,32 +302,25 @@ class ProcessesOverlay(OverlayScreen):
         )
         screen.blit(
             self.app.font_tiny.render(
-                "Текущее действие занимает слот до завершения процесса; "
-                "эффект затем разворачивается во времени.",
+                "Слот занимает подготовка; отмена возвращает часть цены. "
+                "Эффект затем разворачивается во времени.",
                 True,
                 DIM,
             ),
             (panel.x + 20, panel.y + 70),
         )
-        top = panel.y + 94
-        visible = records[self.scroll:self.scroll + 5]
-        if not visible:
+        self._draw_slot_cards(screen, panel, panel.y + 92)
+        rows = self._visible_rows()
+        if not rows:
             screen.blit(
                 self.app.font_small.render(
                     "Сейчас ничего не выполняется.", True, MUTED
                 ),
-                (panel.x + 20, top + 12),
+                (panel.x + 20, panel.y + 166),
             )
-            return
-        for index, (mode, record) in enumerate(visible):
-            rect = pygame.Rect(
-                panel.x + 20,
-                top + index * 86,
-                panel.width - 40,
-                78,
-            )
+        for mode, record, rect in rows:
             self._draw_row(screen, rect, mode, record)
-        if len(records) > 5:
+        if len(records) > 4:
             hint = "колесо мыши · %d из %d" % (
                 self.scroll + 1,
                 len(records),
@@ -227,6 +329,19 @@ class ProcessesOverlay(OverlayScreen):
             screen.blit(
                 surface,
                 (panel.right - 20 - surface.get_width(), panel.y + 48),
+            )
+        if self.message:
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(
+                        self.app.font_tiny,
+                        self.message,
+                        panel.width - 40,
+                    ),
+                    True,
+                    GOOD,
+                ),
+                (panel.x + 20, panel.bottom - 24),
             )
 
 

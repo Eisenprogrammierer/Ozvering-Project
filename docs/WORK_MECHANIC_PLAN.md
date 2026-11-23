@@ -21,13 +21,15 @@ capability/interaction
   `WorkReport`; дублирующего приёма в `ArenaAgent` нет.
 - `form` — канал, а не отдельная энергия.
 - Правила получателя — JSON в `configs/campaigns/base/handlers/`.
+- Виды `payload` — JSON в `configs/content/payload_kinds.json`:
+  обязательные поля, значения по умолчанию, числовые поля и шаблон
+  описания. `PAYLOAD_KINDS` остаётся отображением для старых вызовов.
 - `perform()` и `perform_*` остались тонкими фасадами для старых вызовов.
 
 ## 2. Что осталось
 
 - [ ] Дневной мир: перевести `WorldEngine.execute()` с отдельного
   конвейера `immediate/success/failure` на общий `Work`-путь.
-- [ ] Реестр `PAYLOAD_KINDS`: открыть для данных вместо Python-списка.
 - [ ] Квинтуплы `configs/naming/interactions`: подключить к обработчикам.
 - [ ] Шанс работы: считать из контекста получателя, а не только из пары
   активов блока `chance`.

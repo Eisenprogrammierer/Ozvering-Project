@@ -3065,6 +3065,7 @@ class AutomataCampaign:
         self._process_seq += 1
         record = {
             "id": "process-%d" % self._process_seq,
+            "seq": int(self._process_seq),
             "kind": str(kind),
             "phase": "interaction",
             "side": faction.side,
@@ -4550,6 +4551,129 @@ class AutomataCampaign:
             "free": max(0, self.action_slots - used),
         }
 
+    @staticmethod
+    def _process_sort_key(record):
+        """Порядок завершений: ``(finish_at, seq)``.
+
+        Идентификатор сортировать нельзя: ``process-10`` лексикографически
+        раньше ``process-2``. ``seq`` присваивается при создании процесса
+        и переживает снимок; старые сейвы без поля получают номер из id.
+        """
+        raw_seq = record.get("seq")
+        if raw_seq is None:
+            tail = str(record.get("id") or "").rsplit("-", 1)[-1]
+            try:
+                raw_seq = int(tail)
+            except (TypeError, ValueError):
+                raw_seq = 0
+        return (
+            _number(record.get("finish_at"), 0.0),
+            int(_number(raw_seq, 0.0)),
+            str(record.get("id") or ""),
+        )
+
+    def slot_cards(self, side=None):
+        """Карточки слотов: занят процессом или свободен.
+
+        Слот занимает подготовка работы; разворачивающийся эффект живёт
+        отдельно и показывается в списке процессов. Возвращаемые значения
+        — только данные, без форматирования: UI решает, как их показать.
+        """
+        side = str(side or self.player_side)
+        active = sorted(
+            self._active_processes(side), key=self._process_sort_key
+        )
+        cards = []
+        for index in range(self.action_slots):
+            record = active[index] if index < len(active) else None
+            if record is None:
+                cards.append(
+                    {
+                        "slot": index + 1,
+                        "side": side,
+                        "occupied": False,
+                    }
+                )
+                continue
+            duration = max(0.0, _number(record.get("duration"), 0.0))
+            remaining = max(0.0, _number(record.get("remaining"), 0.0))
+            progress = (
+                1.0
+                if duration <= 0.0
+                else max(0.0, min(1.0, 1.0 - remaining / duration))
+            )
+            cards.append(
+                {
+                    "slot": index + 1,
+                    "side": side,
+                    "occupied": True,
+                    "id": str(record.get("id") or ""),
+                    "kind": str(record.get("kind") or "action"),
+                    "action_id": str(record.get("action_id") or ""),
+                    "label": str(
+                        record.get("label")
+                        or record.get("action_id")
+                        or "работа"
+                    ),
+                    "target_name": str(record.get("target_name") or ""),
+                    "remaining": round(remaining, 6),
+                    "duration": round(duration, 6),
+                    "finish_at": round(
+                        _number(record.get("finish_at"), 0.0), 6
+                    ),
+                    "progress": round(progress, 6),
+                }
+            )
+        return cards
+
+    def cancel_action(self, side, process_id, reason=""):
+        """Отменить активный процесс стороны с пеней.
+
+        Автоматическая отмена по изменившимся условиям возвращает цену
+        полностью. Добровольная отмена игроком удерживает долю
+        ``action_process.cancel.penalty``: слот освобождается, но работа
+        не исчезает бесследно.
+        """
+        if self.finished:
+            return {"ok": False, "reason": "кампания завершена"}
+        side = str(side or self.player_side)
+        record = next(
+            (
+                item
+                for item in self.processes
+                if str(item.get("id")) == str(process_id)
+            ),
+            None,
+        )
+        if record is None:
+            return {"ok": False, "reason": "процесс не найден"}
+        if str(record.get("side")) != side:
+            return {"ok": False, "reason": "это процесс другой стороны"}
+        if str(record.get("status")) != "active":
+            return {"ok": False, "reason": "процесс уже завершён"}
+        config = _as_mapping(self.action_process.get("cancel"))
+        if not bool(config.get("enabled", True)):
+            return {"ok": False, "reason": "отмена недоступна"}
+        penalty = max(
+            0.0, min(1.0, _number(config.get("penalty"), 0.5))
+        )
+        self._cancel_process(
+            record,
+            reason or str(config.get("reason") or "действие отменено"),
+            penalty=penalty,
+            voluntary=True,
+        )
+        return {
+            "ok": True,
+            "side": side,
+            "process": dict(record),
+            "penalty": round(penalty, 6),
+            "refunded": dict(record.get("refunded") or {}),
+            "forfeited": dict(record.get("forfeited") or {}),
+            "slots": self.slot_state(side),
+            "actions_left": self.actions_left,
+        }
+
     def _duration_unit_seconds(self):
         """Сколько игровых секунд в одной единице ``template.duration``.
 
@@ -4737,6 +4861,7 @@ class AutomataCampaign:
         self._process_seq += 1
         record = {
             "id": "process-%d" % self._process_seq,
+            "seq": int(self._process_seq),
             "side": actor.side,
             "action_id": str(action_id),
             "label": str(action.get("label") or action_id),
@@ -4796,21 +4921,47 @@ class AutomataCampaign:
             "actions_left": self.actions_left,
         }
 
-    def _refund_process(self, record):
+    def _refund_process(self, record, share=1.0):
+        """Вернуть часть цены процесса.
+
+        ``share=1.0`` — полный возврат (автоматическая отмена по
+        изменившимся условиям). Добровольная отмена игроком передаёт
+        долю меньше единицы: потеря — это пена, а не скрытый штраф.
+        """
         if not bool(self.action_process.get("refund_on_cancel", True)):
-            return
+            return {}
+        try:
+            share = max(0.0, min(1.0, float(share)))
+        except (TypeError, ValueError):
+            share = 1.0
         actor = self.faction(record.get("side"))
         if actor is None:
-            return
+            return {}
+        refunded = {}
         for key, value in _as_mapping(record.get("cost")).items():
-            actor.add_asset(key, _number(value))
+            amount = _number(value) * share
+            if amount:
+                actor.add_asset(key, amount)
+                refunded[str(key)] = round(amount, 6)
+        return refunded
 
-    def _cancel_process(self, record, reason):
+    def _cancel_process(self, record, reason, penalty=0.0, voluntary=False):
         record["status"] = "cancelled"
         record["reason"] = str(reason or "процесс отменён")
         record["finished"] = round(float(self.elapsed), 6)
         record["remaining"] = 0.0
-        self._refund_process(record)
+        penalty = max(0.0, min(1.0, _number(penalty, 0.0)))
+        record["voluntary"] = bool(voluntary)
+        record["penalty"] = round(penalty, 6)
+        refunded = self._refund_process(record, share=1.0 - penalty)
+        record["refunded"] = dict(refunded)
+        if penalty > 0.0:
+            lost = {}
+            for key, value in _as_mapping(record.get("cost")).items():
+                amount = _number(value) * penalty
+                if amount:
+                    lost[str(key)] = round(amount, 6)
+            record["forfeited"] = lost
         self.last_process_result = dict(record)
         self._log_process(record, "отменена")
         self._log_process_stats(record)
@@ -5283,12 +5434,7 @@ class AutomataCampaign:
             record["remaining"] = round(max(0.0, remaining), 6)
             if remaining <= 0.0:
                 expired.append(record)
-        expired.sort(
-            key=lambda item: (
-                _number(item.get("finish_at"), self.elapsed),
-                str(item.get("id")),
-            )
-        )
+        expired.sort(key=self._process_sort_key)
         for record in expired:
             self._finish_process(record)
         self._advance_effects()
@@ -7333,6 +7479,16 @@ class AutomataCampaign:
                 record["finish_at"] = float(self.elapsed) + _number(
                     record.get("remaining"), 0.0
                 )
+        for index, record in enumerate(self.processes, 1):
+            if record.get("seq") is None:
+                tail = str(record.get("id") or "").rsplit("-", 1)[-1]
+                try:
+                    record["seq"] = int(tail)
+                except (TypeError, ValueError):
+                    record["seq"] = index
+            self._process_seq = max(
+                self._process_seq, int(_number(record.get("seq"), 0))
+            )
         saved_speed = max(1, int(_number(snapshot.get("speed"), self.speed)))
         allowed_speeds = [
             level for level in self.speed_levels if level >= saved_speed

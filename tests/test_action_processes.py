@@ -155,6 +155,127 @@ def test_failed_recheck_cancels_and_refunds_cost(campaign):
     assert campaign.slot_state(SIDE)["used"] == 0
 
 
+def test_cancel_action_frees_slot_and_charges_configured_penalty(campaign):
+    action_id = campaign.available_actions(SIDE)[0]
+    action = _action(campaign, action_id)
+    action["cost"] = {"legitimacy": 0.05}
+    faction = campaign.faction(SIDE)
+    started = campaign.start_action(SIDE, action_id, duration=10)
+    assert started["ok"] is True
+    process_id = started["process"]["id"]
+    after_cost = faction.asset("legitimacy")
+
+    penalty = float(campaign.action_process["cancel"]["penalty"])
+    result = campaign.cancel_action(SIDE, process_id)
+
+    assert result["ok"] is True
+    assert result["slots"]["used"] == 0
+    assert result["refunded"]["legitimacy"] == pytest.approx(
+        0.05 * (1.0 - penalty)
+    )
+    assert result["forfeited"]["legitimacy"] == pytest.approx(
+        0.05 * penalty
+    )
+    process = _process(campaign, process_id)
+    assert process["status"] == "cancelled"
+    assert process["voluntary"] is True
+    assert process["penalty"] == pytest.approx(penalty)
+    assert process["reason"]
+    assert faction.asset("legitimacy") > after_cost
+    assert campaign.slot_state(SIDE)["used"] == 0
+
+    again = campaign.cancel_action(SIDE, process_id)
+    assert again["ok"] is False
+    assert "завершён" in again["reason"]
+
+
+def test_cancel_action_accepts_data_driven_zero_penalty(preset):
+    data = copy.deepcopy(preset.as_dict())
+    data["scenario"]["action_process"] = {
+        "cancel": {"enabled": True, "penalty": 0.0},
+    }
+    campaign = AutomataCampaign(data, seed=11)
+    action_id = campaign.available_actions(SIDE)[0]
+    action = _action(campaign, action_id)
+    action["cost"] = {"legitimacy": 0.05}
+    started = campaign.start_action(SIDE, action_id, duration=10)
+    process = started["process"]
+
+    result = campaign.cancel_action(SIDE, process["id"], reason="проба")
+    assert result["ok"] is True
+    assert result["penalty"] == pytest.approx(0.0)
+    assert result["refunded"]["legitimacy"] == pytest.approx(0.05)
+    assert result["forfeited"] == {}
+    assert _process(campaign, process["id"])["reason"] == "проба"
+
+
+def test_cancel_action_rejects_foreign_process(campaign):
+    action_id = campaign.available_actions(SIDE)[0]
+    started = campaign.start_action(SIDE, action_id, duration=10)
+    result = campaign.cancel_action("blue", started["process"]["id"])
+    assert result["ok"] is False
+    assert "другой стороны" in result["reason"]
+    assert _process(campaign, started["process"]["id"])["status"] == "active"
+
+
+def test_process_order_uses_sequence_not_lexicographic_id(campaign):
+    records = [
+        {"id": "process-10", "seq": 10, "finish_at": 5.0},
+        {"id": "process-2", "seq": 2, "finish_at": 5.0},
+    ]
+    ordered = sorted(records, key=campaign._process_sort_key)
+    assert [item["id"] for item in ordered] == ["process-2", "process-10"]
+
+    legacy = [
+        {"id": "process-10", "finish_at": 5.0},
+        {"id": "process-2", "finish_at": 5.0},
+    ]
+    ordered = sorted(legacy, key=campaign._process_sort_key)
+    assert [item["id"] for item in ordered] == ["process-2", "process-10"]
+
+
+def test_equal_finish_times_complete_in_start_order(campaign):
+    available = campaign.available_actions(SIDE)
+    first = campaign.start_action(SIDE, available[0], duration=10)
+    second = campaign.start_action(SIDE, available[1], duration=10)
+    ids = {first["process"]["id"], second["process"]["id"]}
+    campaign.advance_time(11.0)
+
+    completed = [
+        event["process_id"]
+        for event in campaign.events
+        if event.get("kind") == "process"
+        and event.get("phase") == "завершена"
+        and event.get("process_id") in ids
+    ]
+    assert completed == [
+        first["process"]["id"],
+        second["process"]["id"],
+    ]
+
+
+def test_slot_cards_describe_occupancy_and_progress(campaign):
+    action_id = campaign.available_actions(SIDE)[0]
+    started = campaign.start_action(SIDE, action_id, duration=10)
+    assert started["ok"] is True
+
+    cards = campaign.slot_cards(SIDE)
+    assert len(cards) == campaign.action_slots
+    assert cards[0]["occupied"] is True
+    assert cards[0]["id"] == started["process"]["id"]
+    assert cards[0]["progress"] == pytest.approx(0.0)
+    assert cards[1]["occupied"] is False
+
+    campaign.advance_time(5.0)
+    cards = campaign.slot_cards(SIDE)
+    assert cards[0]["progress"] == pytest.approx(0.5)
+    assert cards[0]["remaining"] == pytest.approx(5.0)
+
+    campaign.advance_time(6.0)
+    cards = campaign.slot_cards(SIDE)
+    assert all(not card["occupied"] for card in cards)
+
+
 def test_snapshot_restores_active_process_and_finishes(preset):
     campaign = AutomataCampaign(preset, seed=11)
     action_id = campaign.available_actions(SIDE)[0]
@@ -169,6 +290,31 @@ def test_snapshot_restores_active_process_and_finishes(preset):
     assert restored.slot_state(SIDE)["used"] == 0
     assert restored.processes[0]["status"] == "done"
     assert restored.log[-1]["action_id"] == action_id
+
+
+def test_legacy_snapshot_without_seq_migrates_process_order(preset):
+    campaign = AutomataCampaign(preset, seed=11)
+    action_id = campaign.available_actions(SIDE)[0]
+    started = campaign.start_action(SIDE, action_id, duration=10)
+    assert started["ok"] is True
+
+    snapshot = campaign.save_snapshot()
+    for record in snapshot["processes"]:
+        record.pop("seq", None)
+    snapshot.pop("process_seq", None)
+
+    restored = AutomataCampaign(preset, snapshot=snapshot)
+    assert restored.processes[0]["seq"] == 1
+
+    next_action = next(
+        item
+        for item in restored.available_actions(SIDE)
+        if item != action_id
+    )
+    second = restored.start_action(SIDE, next_action, duration=10)
+    assert second["ok"] is True
+    assert second["process"]["seq"] == 2
+    assert second["process"]["id"] == "process-2"
 
 
 def test_legacy_perform_stays_instant(campaign):

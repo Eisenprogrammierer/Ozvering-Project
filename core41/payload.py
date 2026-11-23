@@ -14,10 +14,12 @@ Payload хранится как неизменяемый кортеж пар `(�
 * схема вида проверяется один раз, а обработчик видит уже нормализованные
   поля.
 
-Тип задаётся ключом `kind`. Известные виды описаны в `PAYLOAD_KINDS`;
-неизвестный `kind` отвергается. Payload без `kind` остаётся «непрозрачным»
-для собственного обработчика: это обратная совместимость для контента,
-который передаёт произвольные пары.
+Тип задаётся ключом `kind`. Реестр известных видов читается из
+`configs/content/payload_kinds.json` (переменная окружения
+`OZVERING_PAYLOAD_KINDS` позволяет подменить файл) и доступен как
+`PAYLOAD_KINDS`; неизвестный `kind` отвергается. Payload без `kind`
+остаётся «непрозрачным» для собственного обработчика: это обратная
+совместимость для контента, который передаёт произвольные пары.
 
 `apply_payload()` — детерминированное применение нагрузки к состоянию
 получателя. Оно не заменяет энергию и не создаёт второй бюджет: предметы,
@@ -27,48 +29,25 @@ Payload хранится как неизменяемый кортеж пар `(�
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Mapping
+
+logger = logging.getLogger(__name__)
+
 PAYLOAD_SCHEMA_VERSION = 1
 PAYLOAD_HISTORY_LIMIT = 32
 PAYLOAD_STRING_LIMIT = 240
 
-PAYLOAD_KINDS = {
-    "item": {
-        "required": ("item_id",),
-        "defaults": {"quantity": 1.0, "quality": 1.0, "label": ""},
-        "numeric": ("quantity", "quality"),
-    },
-    "evidence": {
-        "required": ("claim",),
-        "defaults": {
-            "strength": 0.5,
-            "subject": "",
-            "source": "",
-        },
-        "numeric": ("strength",),
-    },
-    "order": {
-        "required": ("action",),
-        "defaults": {
-            "target": "",
-            "deadline_day": 0,
-            "priority": 0.5,
-        },
-        "numeric": ("deadline_day", "priority"),
-    },
-    "info": {
-        "required": ("topic",),
-        "defaults": {
-            "confidence": 0.5,
-            "source": "",
-        },
-        "numeric": ("confidence",),
-    },
-    "force": {
-        "required": (),
-        "defaults": {"intent": "", "severity": 0.5},
-        "numeric": ("severity",),
-    },
-}
+PAYLOAD_REGISTRY_ENV = "OZVERING_PAYLOAD_KINDS"
+PAYLOAD_REGISTRY_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "configs"
+    / "content"
+    / "payload_kinds.json"
+)
 
 
 class PayloadError(ValueError):
@@ -96,6 +75,164 @@ def _scalar(value, field_name):
         "payload.%s: неподдерживаемый тип %s"
         % (field_name, type(value).__name__)
     )
+
+
+def _field_names(value, where):
+    """Список имён полей без пустых и повторяющихся значений."""
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise PayloadError("%s: ожидался список полей" % where)
+    result = []
+    for item in value:
+        name = _as_text(item).strip()
+        if not name:
+            raise PayloadError("%s: пустое имя поля" % where)
+        if name in result:
+            raise PayloadError("%s: поле %r повторяется" % (where, name))
+        result.append(name)
+    return result
+
+
+def normalize_payload_kinds(data):
+    """Проверить и нормализовать реестр видов payload.
+
+    Новый вид — это данные, а не ветка Python: обязательные поля,
+    значения по умолчанию, числовые поля и шаблон описания. Ошибка в
+    реестре должна быть громкой, поэтому неизвестные ключи и
+    несовпадающие типы полей отвергаются.
+    """
+    if not isinstance(data, Mapping):
+        raise PayloadError("payload_kinds: ожидался объект")
+    unknown_root = set(data) - {"schema", "description", "kinds"}
+    if unknown_root:
+        raise PayloadError(
+            "payload_kinds: неизвестные ключи %s"
+            % ", ".join(sorted(str(key) for key in unknown_root))
+        )
+    raw_kinds = data.get("kinds")
+    if not isinstance(raw_kinds, Mapping) or not raw_kinds:
+        raise PayloadError("payload_kinds.kinds: нужен непустой объект")
+    allowed_keys = {
+        "label",
+        "describe",
+        "required",
+        "defaults",
+        "numeric",
+        "describe_defaults",
+    }
+    result = {}
+    for raw_name, raw_spec in raw_kinds.items():
+        kind = _as_text(raw_name).strip()
+        if not kind:
+            raise PayloadError("payload_kinds: пустое имя вида")
+        if not isinstance(raw_spec, Mapping):
+            raise PayloadError(
+                "payload_kinds.%s: ожидался объект" % kind
+            )
+        where = "payload_kinds.%s" % kind
+        unknown = set(raw_spec) - allowed_keys
+        if unknown:
+            raise PayloadError(
+                "%s: неизвестные ключи %s"
+                % (where, ", ".join(sorted(str(key) for key in unknown)))
+            )
+        required = _field_names(raw_spec.get("required"), where + ".required")
+        raw_defaults = raw_spec.get("defaults") or {}
+        if not isinstance(raw_defaults, Mapping):
+            raise PayloadError("%s.defaults: ожидался объект" % where)
+        defaults = {}
+        for raw_field, value in raw_defaults.items():
+            field = _as_text(raw_field).strip()
+            if not field:
+                raise PayloadError("%s.defaults: пустое имя поля" % where)
+            if field in defaults:
+                raise PayloadError(
+                    "%s.defaults: поле %r повторяется" % (where, field)
+                )
+            defaults[field] = _scalar(value, "%s.defaults.%s" % (where, field))
+        for field in required:
+            if field in defaults:
+                raise PayloadError(
+                    "%s: поле %r одновременно required и defaults"
+                    % (where, field)
+                )
+        numeric = _field_names(raw_spec.get("numeric"), where + ".numeric")
+        known = set(required) | set(defaults)
+        for field in numeric:
+            if field not in known:
+                raise PayloadError(
+                    "%s.numeric: поле %r не объявлено в required/defaults"
+                    % (where, field)
+                )
+            if field in defaults:
+                try:
+                    float(defaults[field])
+                except (TypeError, ValueError) as exc:
+                    raise PayloadError(
+                        "%s.defaults.%s: ожидается число"
+                        % (where, field)
+                    ) from exc
+        raw_describe_defaults = raw_spec.get("describe_defaults") or {}
+        if not isinstance(raw_describe_defaults, Mapping):
+            raise PayloadError(
+                "%s.describe_defaults: ожидался объект" % where
+            )
+        describe_defaults = {}
+        for raw_field, value in raw_describe_defaults.items():
+            field = _as_text(raw_field).strip()
+            if not field:
+                raise PayloadError(
+                    "%s.describe_defaults: пустое имя поля" % where
+                )
+            if field not in known:
+                raise PayloadError(
+                    "%s.describe_defaults: неизвестное поле %r"
+                    % (where, field)
+                )
+            describe_defaults[field] = _scalar(
+                value, "%s.describe_defaults.%s" % (where, field)
+            )
+        result[kind] = {
+            "label": _as_text(raw_spec.get("label")) or kind,
+            "describe": _as_text(raw_spec.get("describe")),
+            "required": tuple(required),
+            "defaults": defaults,
+            "numeric": tuple(numeric),
+            "describe_defaults": describe_defaults,
+        }
+    return result
+
+
+def load_payload_kinds(path=None):
+    """Прочитать реестр видов из JSON.
+
+    Путь можно задать аргументом или переменной окружения
+    ``OZVERING_PAYLOAD_KINDS``. По умолчанию берётся
+    ``configs/content/payload_kinds.json`` рядом с репозиторием.
+    """
+    source = path or os.environ.get(PAYLOAD_REGISTRY_ENV)
+    source = Path(source) if source else PAYLOAD_REGISTRY_PATH
+    try:
+        text = Path(source).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PayloadError(
+            "payload_kinds: не удалось прочитать %s: %s" % (source, exc)
+        ) from exc
+    try:
+        data = json.loads(text)
+    except ValueError as exc:
+        raise PayloadError(
+            "payload_kinds: некорректный JSON %s: %s" % (source, exc)
+        ) from exc
+    return normalize_payload_kinds(data)
+
+
+try:
+    PAYLOAD_KINDS = load_payload_kinds()
+except PayloadError as exc:  # pragma: no cover - защита от битого контента
+    logger.error("Реестр payload не загружен: %s", exc)
+    PAYLOAD_KINDS = {}
 
 
 def _pairs(payload):
@@ -210,7 +347,11 @@ def payload_fields(payload):
 
 
 def describe_payload(payload):
-    """Короткое русское описание payload для журнала/UI."""
+    """Короткое русское описание payload для журнала/UI.
+
+    Текст берётся из шаблона ``describe`` реестра видов. Новый вид
+    получает описание в конфиге, а не новой веткой Python.
+    """
     try:
         data = payload_map(payload)
     except PayloadError:
@@ -218,28 +359,25 @@ def describe_payload(payload):
     kind = _as_text(data.get("kind"))
     if not kind:
         return "payload: %d полей" % len(data) if data else "payload: пусто"
-    if kind == "item":
-        return "предмет %s ×%g" % (
-            _as_text(data.get("item_id"), "?"),
-            float(data.get("quantity", 0.0)),
-        )
-    if kind == "evidence":
-        return "свидетельство: %s" % _as_text(data.get("claim"), "?")
-    if kind == "order":
-        return "приказ: %s → %s" % (
-            _as_text(data.get("action"), "?"),
-            _as_text(data.get("target")) or "себя",
-        )
-    if kind == "info":
-        return "сведения: %s (%.2f)" % (
-            _as_text(data.get("topic"), "?"),
-            float(data.get("confidence", 0.0)),
-        )
-    if kind == "force":
-        return "принуждение: %s" % (
-            _as_text(data.get("intent")) or "без интента"
-        )
-    return "payload %s" % kind
+    schema = PAYLOAD_KINDS.get(kind)
+    if schema is None:
+        return "payload %s" % kind
+    template = str(schema.get("describe") or "")
+    if not template:
+        return "payload %s" % kind
+    values = dict(schema.get("defaults") or {})
+    values.update(schema.get("describe_defaults") or {})
+    values.update(
+        {
+            key: value
+            for key, value in data.items()
+            if value not in (None, "")
+        }
+    )
+    try:
+        return template.format_map(values)
+    except (KeyError, ValueError, IndexError, AttributeError):
+        return "payload %s" % kind
 
 
 def _bounded_append(store, value):
@@ -339,13 +477,17 @@ def payload_state(target):
 __all__ = [
     "PAYLOAD_HISTORY_LIMIT",
     "PAYLOAD_KINDS",
+    "PAYLOAD_REGISTRY_ENV",
+    "PAYLOAD_REGISTRY_PATH",
     "PAYLOAD_SCHEMA_VERSION",
     "PAYLOAD_STRING_LIMIT",
     "PayloadError",
     "apply_payload",
     "describe_payload",
+    "load_payload_kinds",
     "make_payload",
     "normalize_payload",
+    "normalize_payload_kinds",
     "payload_fields",
     "payload_kind",
     "payload_map",

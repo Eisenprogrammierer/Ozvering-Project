@@ -161,6 +161,36 @@ def test_forms_manifest_requires_handler_and_addresses():
     assert any("нет обработчика" in item for item in problems)
 
 
+def test_forms_manifest_reports_unknown_payload_kind():
+    problems = content_lint.lint_forms_data(
+        {
+            "forms": [
+                {
+                    "id": "briefing",
+                    "default_handler": False,
+                    "payload_kinds": ["info", "no_such_kind"],
+                    "target_kinds": ["character"],
+                }
+            ]
+        }
+    )
+    assert any("неизвестные payload_kinds" in item for item in problems)
+
+
+def test_payload_registry_lint_reports_inconsistent_numeric_field():
+    problems = content_lint.lint_payload_kinds_data(
+        {
+            "kinds": {
+                "loot": {
+                    "required": ["item_id"],
+                    "numeric": ["weight"],
+                }
+            }
+        }
+    )
+    assert any("numeric" in item for item in problems)
+
+
 def test_action_catalog_reports_unknown_form():
     problems = content_lint.lint_actions_data(
         {

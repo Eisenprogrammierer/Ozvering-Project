@@ -23,8 +23,6 @@
 
 - [ ] Перевести `WorldEngine.execute()` с отдельного конвейера
   `immediate/success/failure` на общий `Work`-путь.
-- [ ] Заменить закрытый Python-реестр `PAYLOAD_KINDS` на data-driven
-  реестр видов payload.
 - [ ] Подключить квинтуплы `configs/naming/interactions` к обработчикам.
 - [ ] Считать шанс работы из контекста, а не только из пары активов
   блока `chance`.

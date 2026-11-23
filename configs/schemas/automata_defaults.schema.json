@@ -150,6 +150,7 @@
     "actionProcess": {
       "type": "object",
       "properties": {
+        "cancel": true,
         "default_duration": true,
         "duration_classes": true,
         "duration_scale": true,

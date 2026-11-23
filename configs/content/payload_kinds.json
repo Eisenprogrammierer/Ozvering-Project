@@ -1,0 +1,65 @@
+{
+  "description": "Реестр типизированных полезных нагрузок работы. Новый вид добавляется этим файлом; поля проверяются core41.payload без правки Python-списка.",
+  "schema": 1,
+  "kinds": {
+    "item": {
+      "label": "предмет",
+      "describe": "предмет {item_id} ×{quantity:g}",
+      "required": ["item_id"],
+      "defaults": {
+        "quantity": 1.0,
+        "quality": 1.0,
+        "label": ""
+      },
+      "numeric": ["quantity", "quality"]
+    },
+    "evidence": {
+      "label": "свидетельство",
+      "describe": "свидетельство: {claim}",
+      "required": ["claim"],
+      "defaults": {
+        "strength": 0.5,
+        "subject": "",
+        "source": ""
+      },
+      "numeric": ["strength"]
+    },
+    "order": {
+      "label": "приказ",
+      "describe": "приказ: {action} → {target}",
+      "required": ["action"],
+      "defaults": {
+        "target": "",
+        "deadline_day": 0,
+        "priority": 0.5
+      },
+      "describe_defaults": {
+        "target": "себя"
+      },
+      "numeric": ["deadline_day", "priority"]
+    },
+    "info": {
+      "label": "сведения",
+      "describe": "сведения: {topic} ({confidence:.2f})",
+      "required": ["topic"],
+      "defaults": {
+        "confidence": 0.5,
+        "source": ""
+      },
+      "numeric": ["confidence"]
+    },
+    "force": {
+      "label": "принуждение",
+      "describe": "принуждение: {intent}",
+      "required": [],
+      "defaults": {
+        "intent": "",
+        "severity": 0.5
+      },
+      "describe_defaults": {
+        "intent": "без интента"
+      },
+      "numeric": ["severity"]
+    }
+  }
+}

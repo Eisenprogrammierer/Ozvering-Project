@@ -104,6 +104,42 @@ def test_processes_overlay_lists_active_process():
     app.quit()
 
 
+def test_processes_overlay_cancel_button_stops_active_work():
+    from view.screens.campaign_overlays import ProcessesOverlay
+
+    app, campaign = _app_with_campaign()
+    organ = campaign.player.organs[0]
+    started = campaign.perform_organ_interaction(
+        campaign.player_side, organ.id, "reinforce"
+    )
+    assert started["ok"] is True
+    process_id = campaign.active_processes(campaign.player_side)[0]["id"]
+
+    overlay = ProcessesOverlay(app, campaign)
+    surface = pygame.Surface((1280, 720))
+    overlay.draw(surface)
+    rows = overlay._visible_rows()
+    assert len(rows) == 1
+    mode, record, rect = rows[0]
+    assert mode == "active"
+
+    overlay.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            pos=overlay._cancel_rect(rect).center,
+            button=1,
+        )
+    )
+    assert "Отменено" in overlay.message
+    assert any(
+        item["id"] == process_id and item["status"] == "cancelled"
+        for item in campaign.processes
+    )
+    assert campaign.slot_state(campaign.player_side)["used"] == 0
+    overlay.draw(surface)
+    app.quit()
+
+
 def test_emulation_advances_selected_step_and_can_stop():
     from view.screens.campaign_overlays import TimeEmulationOverlay
 

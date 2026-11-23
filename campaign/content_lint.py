@@ -27,6 +27,11 @@ from typing import Iterable, List, Sequence
 import bdi
 import character_traits as CT
 from . import content_schema
+from core41.payload import (
+    PAYLOAD_KINDS,
+    PayloadError,
+    normalize_payload_kinds,
+)
 from .actions import ActionError, FormCatalog, lint_action
 from .geometry import GeometryError, MetricGraph
 from .identity import (
@@ -41,6 +46,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PATHS = (
     ROOT / "configs" / "characters" / "bdi.json",
     ROOT / "configs" / "characters" / "archetypes.json",
+    ROOT / "configs" / "content" / "payload_kinds.json",
     ROOT / "configs" / "campaigns",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
@@ -1283,6 +1289,8 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         problems.extend(
             content_schema.validate("bdi", data, str(path))
         )
+    if path.name == "payload_kinds.json":
+        problems.extend(lint_payload_kinds_data(data))
     if isinstance(data, Mapping) and "forms" in data:
         problems.extend(lint_forms_data(data))
     is_world = _looks_like_world(data)
@@ -1394,6 +1402,15 @@ def _expand(paths):
     return files
 
 
+def lint_payload_kinds_data(data):
+    """Проверить реестр видов payload и его схему."""
+    try:
+        normalize_payload_kinds(data)
+    except PayloadError as exc:
+        return [str(exc)]
+    return []
+
+
 def lint_forms_data(data):
     """Проверить манифест форм и наличие обработчиков."""
     if not isinstance(data, Mapping):
@@ -1412,6 +1429,14 @@ def lint_forms_data(data):
             problems.append("%s: не задан payload_kinds" % form.id)
         if not form.target_kinds:
             problems.append("%s: не задан target_kinds" % form.id)
+        unknown = [
+            kind for kind in form.payload_kinds if kind not in PAYLOAD_KINDS
+        ]
+        if unknown:
+            problems.append(
+                "%s: неизвестные payload_kinds %s"
+                % (form.id, ", ".join(sorted(unknown)))
+            )
     return problems
 
 

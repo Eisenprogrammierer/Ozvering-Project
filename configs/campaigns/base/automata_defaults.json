@@ -633,6 +633,11 @@
     "min_duration": 1.0,
     "recheck_on_finish": true,
     "refund_on_cancel": true,
+    "cancel": {
+      "enabled": true,
+      "penalty": 0.5,
+      "reason": "действие отменено игроком"
+    },
     "log_limit": 60,
     "effect_initial_share": 0.15,
     "effect_pulses": 8,
