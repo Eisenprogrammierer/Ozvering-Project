@@ -1,0 +1,63 @@
+{
+  "form": "care",
+  "description": "Обработчик работ дневного мира для формы care. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "calm_crowd"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "cohesion": 0.02
+          },
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "cohesion": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "hug"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "affinity": 0.05,
+            "trust": 0.03,
+            "family": 0.02,
+            "romance": 0.01
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "affinity": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

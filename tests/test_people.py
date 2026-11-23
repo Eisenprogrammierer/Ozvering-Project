@@ -136,6 +136,17 @@ def test_republic_and_corporation_allow_any_name_without_epithets(catalog):
         assert any(item.style == "fantasy" for item in items)
 
 
+def test_republic_prefers_ordinary_names_but_keeps_rare_fantasy(catalog):
+    generator = PersonNameGenerator(catalog, seed=9)
+    items = generator.generate_many(
+        600, policy="faction_republic", seed=23
+    )
+    fantasy = sum(1 for item in items if item.style == "fantasy")
+    assert 0 < fantasy < len(items) / 4
+    assert all(item.epithet == "" for item in items)
+    assert sum(1 for item in items if item.style == "real") > 3 * fantasy
+
+
 def test_cult_policy_generates_only_religious_epithets(catalog):
     generator = PersonNameGenerator(catalog, seed=3)
     policy = generator.policy("faction_cult")

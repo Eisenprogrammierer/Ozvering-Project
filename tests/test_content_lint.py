@@ -177,6 +177,47 @@ def test_forms_manifest_reports_unknown_payload_kind():
     assert any("неизвестные payload_kinds" in item for item in problems)
 
 
+def test_handler_lint_reports_duplicate_rule_ids(tmp_path):
+    path = tmp_path / "world.json"
+    problems = content_lint.lint_handlers_data(
+        path,
+        {
+            "form": "world",
+            "rules": [
+                {"when": {"id": "inspect"}, "receiver": {"effect": {}}},
+                {"when": {"id": "inspect"}, "receiver": {"effect": {}}},
+            ],
+        },
+    )
+    assert any("повтор id" in item for item in problems)
+
+
+def test_handler_lint_reports_broken_branch_and_form(tmp_path):
+    path = tmp_path / "world.json"
+    problems = content_lint.lint_handlers_data(
+        path,
+        {
+            "form": "other",
+            "rules": [
+                {
+                    "when": {"id": "inspect"},
+                    "receiver": {"effect": {"if": {}, "then": []}},
+                    "sender": [],
+                }
+            ],
+        },
+    )
+    assert any("не совпадает с именем файла" in item for item in problems)
+    assert any("effect.then" in item for item in problems)
+    assert any("sender" in item for item in problems)
+
+
+def test_world_handlers_are_linted_from_default_paths():
+    handlers = content_lint.ROOT / "configs" / "worlds" / "handlers"
+    assert handlers.is_dir()
+    assert content_lint.lint([handlers]) == []
+
+
 def test_payload_registry_lint_reports_inconsistent_numeric_field():
     problems = content_lint.lint_payload_kinds_data(
         {

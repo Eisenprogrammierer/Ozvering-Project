@@ -1,0 +1,52 @@
+{
+  "form": "exchange",
+  "description": "Обработчик работ дневного мира для формы exchange. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "offer_gift"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "affinity": 0.04,
+            "trust": 0.02,
+            "romance": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "use_item"
+      },
+      "receiver": {
+        "effect": {
+          "item_work": {
+            "id": "$target"
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {}
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

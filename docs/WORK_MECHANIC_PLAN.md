@@ -16,11 +16,15 @@ capability/interaction
   → campaign/effects.py     (apply_report — единственный вход)
 ```
 
-- 65 работ и 17 взаимодействий идут одним путём.
+- 65 работ и 17 взаимодействий кампании идут одним путём; дневной мир
+  строит `Work` тем же `build_work` и принимает его через `receive`.
+- В мире 70 правил обработчика по формам (`world`, `art`, `care`, …);
+  эффекты веток в `agora_world.json` остаются для превью и как откат.
 - `core41.arena.resolve_work` вызывает `_receive_channel` и возвращает
   `WorkReport`; дублирующего приёма в `ArenaAgent` нет.
 - `form` — канал, а не отдельная энергия.
-- Правила получателя — JSON в `configs/campaigns/base/handlers/`.
+- Правила получателя кампании — JSON в `configs/campaigns/base/handlers/`;
+  правила дневного мира — `configs/worlds/handlers/<form>.json`.
 - Виды `payload` — JSON в `configs/content/payload_kinds.json`:
   обязательные поля, значения по умолчанию, числовые поля и шаблон
   описания. `PAYLOAD_KINDS` остаётся отображением для старых вызовов.
@@ -28,8 +32,10 @@ capability/interaction
 
 ## 2. Что осталось
 
-- [ ] Дневной мир: перевести `WorldEngine.execute()` с отдельного
-  конвейера `immediate/success/failure` на общий `Work`-путь.
+- [x] Дневной мир: `WorldEngine.execute()`, `_ai_action()` и
+  `execute_character_action()` строят `Work` и принимают его через
+  `receive`; эффекты веток в записях действий остаются совместимым
+  откатом для миров без обработчиков.
 - [ ] Квинтуплы `configs/naming/interactions`: подключить к обработчикам.
 - [ ] Шанс работы: считать из контекста получателя, а не только из пары
   активов блока `chance`.

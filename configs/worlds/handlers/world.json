@@ -1,0 +1,1450 @@
+{
+  "form": "world",
+  "description": "Обработчик работ дневного мира для формы world. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "amnesty"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.06,
+            "capacity": 0.04
+          },
+          "node": {
+            "cohesion": 0.04
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "legitimacy": -0.02
+            },
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "appoint"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.08,
+            "cohesion": 0.02
+          },
+          "player": {
+            "favor": 0.04
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "cohesion": -0.03
+            },
+            "player": {
+              "standing": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "archive"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "evidence": 0.08
+          },
+          "node": {
+            "capacity": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "capacity": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "ask_favor"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": -0.01,
+          "trust": -0.04,
+          "player": {
+            "favor": 0.07
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.06,
+            "trust": -0.05,
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "audience"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "favor": 0.04,
+            "standing": 0.01
+          },
+          "relation": 0.08
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.02
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "build_network"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "favor": 0.06,
+            "standing": 0.02
+          },
+          "relation": 0.1
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "favor": -0.03
+            },
+            "relation": -0.02
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "censor"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": -0.1,
+            "legitimacy": -0.04
+          },
+          "node": {
+            "power": 0.04
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.03
+            },
+            "target": {
+              "legitimacy": 0.04
+            },
+            "relation": -0.08
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "charity"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.04
+          },
+          "player": {
+            "standing": 0.03
+          },
+          "relation": 0.08
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.02
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "consecrate"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.07
+          },
+          "relation": 0.06
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "relation": -0.03,
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "contract"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "wealth": 0.05
+          },
+          "target": {
+            "wealth": 0.02
+          },
+          "relation": 0.1,
+          "player": {
+            "favor": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "relation": -0.05
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "court_intrigue"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": -0.06,
+            "legitimacy": -0.03
+          },
+          "player": {
+            "evidence": 0.08
+          },
+          "relation": -0.08
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.04
+            },
+            "relation": -0.1
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "craft"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.05,
+            "wealth": 0.01
+          },
+          "player": {
+            "standing": 0.01,
+            "favor": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "wealth": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "denounce"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": -0.08,
+            "capacity": -0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.04
+            },
+            "relation": -0.1
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "dismiss_official"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": -0.04,
+            "cohesion": -0.04
+          },
+          "node": {
+            "power": 0.02
+          },
+          "relation": -0.08
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.03
+            },
+            "relation": -0.05
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "duel"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": -0.03
+          },
+          "player": {
+            "standing": 0.04
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.08
+            },
+            "relation": -0.1
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "embargo"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "wealth": -0.1
+          },
+          "node": {
+            "wealth": 0.03
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.03
+            },
+            "node": {
+              "wealth": -0.03
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "enforce_order"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.04,
+            "capacity": 0.04
+          },
+          "relation": -0.04
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "legitimacy": -0.05
+            },
+            "player": {
+              "standing": -0.03
+            },
+            "relation": -0.08
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "excommunicate"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": -0.08
+          },
+          "player": {
+            "standing": 0.01
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.03
+            },
+            "relation": -0.08
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "feast"
+      },
+      "receiver": {
+        "effect": {
+          "relation": 0.1,
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.02,
+            "favor": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "fund_works"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.12
+          },
+          "relation": 0.06,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.02
+            },
+            "relation": -0.03
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "garrison"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "power": 0.06,
+            "legitimacy": 0.02,
+            "cohesion": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "legitimacy": -0.03
+            },
+            "player": {
+              "standing": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "heart_to_heart"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": 0.07,
+          "trust": 0.05,
+          "romance": 0.03,
+          "family": 0.01
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.02,
+            "trust": -0.01
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "hoard"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.06,
+            "wealth": 0.03,
+            "cohesion": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "wealth": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "inspect"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "evidence": 0.14,
+            "standing": 0.01
+          },
+          "relation": 0.02
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.04
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "invest"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.1,
+            "wealth": 0.04
+          },
+          "relation": 0.06,
+          "player": {
+            "favor": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.02
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "investigate"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "evidence": 0.15,
+            "standing": 0.02
+          },
+          "target": {
+            "legitimacy": -0.03
+          },
+          "relation": -0.03
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.03
+            },
+            "relation": -0.05
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "lean_on"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": -0.1,
+          "trust": -0.08,
+          "vassalage": 0.02,
+          "player": {
+            "favor": 0.09,
+            "evidence": 0.04
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.14,
+            "trust": -0.1,
+            "player": {
+              "standing": -0.04
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "marriage"
+      },
+      "receiver": {
+        "effect": {
+          "relation": 0.2,
+          "player": {
+            "favor": 0.06
+          },
+          "node": {
+            "legitimacy": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "relation": -0.05,
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "martial_law"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "power": 0.14
+          },
+          "target": {
+            "capacity": 0.08,
+            "legitimacy": -0.08,
+            "cohesion": -0.05
+          },
+          "relation": -0.15
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "legitimacy": -0.08
+            },
+            "player": {
+              "standing": -0.05
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "mobilize"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "power": 0.13,
+            "cohesion": -0.04
+          },
+          "node": {
+            "power": 0.03
+          },
+          "relation": -0.06
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "legitimacy": -0.04
+            },
+            "player": {
+              "standing": -0.03
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "negotiate"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "favor": 0.05,
+            "standing": 0.02
+          },
+          "target": {
+            "legitimacy": 0.01
+          },
+          "relation": 0.12
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.06
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "offer_help"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": 0.05,
+          "trust": 0.09,
+          "family": 0.01,
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.01,
+            "trust": -0.03
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "patronize"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.02
+          },
+          "relation": 0.12,
+          "player": {
+            "favor": 0.05
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "relation": -0.03,
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "perform"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "reach": 0.04,
+            "legitimacy": 0.01
+          },
+          "player": {
+            "standing": 0.015,
+            "favor": 0.02,
+            "influence": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.005
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "pilgrimage"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "node": {
+            "cohesion": 0.04
+          },
+          "player": {
+            "standing": 0.03
+          },
+          "relation": 0.07
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "preach"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": 0.05
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            },
+            "relation": -0.01
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "price_fix"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "wealth": -0.05,
+            "capacity": 0.04
+          },
+          "node": {
+            "legitimacy": 0.02
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "cohesion": -0.04
+            },
+            "player": {
+              "standing": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "publish"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": 0.05
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "quarantine"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.04,
+            "legitimacy": -0.03
+          },
+          "relation": -0.05
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.02
+            },
+            "target": {
+              "cohesion": -0.04
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "recruit_medics"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.07,
+            "cohesion": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "capacity": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "reform"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.04
+          },
+          "target": {
+            "capacity": 0.12,
+            "cohesion": -0.03
+          },
+          "player": {
+            "standing": 0.04
+          },
+          "relation": 0.02
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "capacity": -0.03,
+              "cohesion": -0.04
+            },
+            "player": {
+              "standing": -0.02
+            },
+            "relation": -0.04
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "relieve"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "legitimacy": 0.06
+          },
+          "relation": 0.08,
+          "player": {
+            "standing": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "request_transfer"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "research"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.08
+          },
+          "player": {
+            "evidence": 0.05,
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "capacity": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "sabotage"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": -0.12,
+            "legitimacy": -0.04
+          },
+          "player": {
+            "evidence": 0.05
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.06
+            },
+            "relation": -0.15
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "schism"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "cohesion": -0.12,
+            "legitimacy": -0.05
+          },
+          "node": {
+            "reach": 0.04
+          },
+          "relation": -0.2
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.05
+            },
+            "relation": -0.15
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "seek_promotion"
+      },
+      "receiver": {
+        "effect": {
+          "player": {
+            "standing": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "share_news"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": 0.04,
+          "trust": 0.02,
+          "player": {
+            "favor": 0.05
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.03,
+            "player": {
+              "standing": -0.02
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "smuggle"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "wealth": 0.08
+          },
+          "player": {
+            "favor": 0.04,
+            "evidence": 0.05
+          },
+          "target": {
+            "wealth": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.05
+            },
+            "node": {
+              "legitimacy": -0.04
+            },
+            "relation": -0.05
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "strike"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "wealth": -0.1,
+            "capacity": -0.06
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation": -0.1
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.04
+            },
+            "node": {
+              "cohesion": -0.04
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "study"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "capacity": 0.03
+          },
+          "player": {
+            "evidence": 0.03,
+            "standing": 0.005
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {}
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "support_ambition"
+      },
+      "receiver": {
+        "effect": {
+          "affinity": 0.09,
+          "trust": 0.07,
+          "vassalage": 0.02,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "affinity": -0.03,
+            "trust": -0.02
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "tax"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "wealth": 0.1
+          },
+          "target": {
+            "wealth": -0.08
+          },
+          "relation": -0.1,
+          "player": {
+            "standing": -0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "legitimacy": -0.04
+            },
+            "player": {
+              "standing": -0.02
+            },
+            "relation": -0.08
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "teach"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.08
+          },
+          "node": {
+            "capacity": 0.02
+          },
+          "relation": 0.03
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "treat"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "capacity": 0.05,
+            "legitimacy": 0.03
+          },
+          "relation": 0.06,
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

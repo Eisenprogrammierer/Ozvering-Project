@@ -216,7 +216,7 @@
 ```json
 {
   "realtime": {
-    "turn_seconds": 86400.0,
+    "cycle_seconds": 86400.0,
     "game_seconds_per_real_second": 1.0,
     "speeds": [1, 2, 4, 8, 16, 32]
   },

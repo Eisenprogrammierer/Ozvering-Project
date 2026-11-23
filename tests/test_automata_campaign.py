@@ -774,6 +774,44 @@ def test_realtime_advances_clock_and_regenerates_actions():
     assert campaign.turn >= 1
 
 
+def test_cycle_terms_are_canonical_with_legacy_aliases():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    assert campaign.actions_per_cycle == campaign.actions_per_turn == 3
+    assert campaign.cycle_seconds == campaign.turn_seconds
+    assert campaign.snapshot()["actions_per_cycle"] == 3
+    assert "cycle_seconds" in campaign.snapshot()["realtime"]
+
+    campaign.realtime = {"turn_seconds": 1234.0}
+    assert campaign.cycle_seconds == pytest.approx(1234.0)
+    campaign.actions_per_turn = 5
+    assert campaign.actions_per_cycle == 5
+    campaign.max_turns = 9
+    assert campaign.cycle_limit == 9
+
+
+def test_legacy_snapshot_terms_migrate_to_cycle_names():
+    campaign = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    snapshot = campaign.snapshot()
+    snapshot.pop("actions_per_cycle", None)
+    snapshot.pop("cycle_limit", None)
+    snapshot["actions_per_turn"] = 4
+    snapshot["max_turns"] = 12
+
+    clone = AutomataCampaign(
+        _preset("empire_campaign", seed=11), seed=11
+    )
+    clone.load_snapshot(snapshot)
+
+    assert clone.actions_per_cycle == 4
+    assert clone.cycle_limit == 12
+    assert clone.actions_per_turn == 4
+    assert clone.max_turns == 12
+
+
 def test_full_action_budget_takes_more_than_two_minutes():
     campaign = AutomataCampaign(
         _preset("empire_campaign", seed=11), seed=11
@@ -850,7 +888,8 @@ def test_realtime_and_interactions_come_from_config():
         _preset("empire_campaign", seed=11), seed=11
     )
     defaults = default_dict("realtime")
-    assert campaign.turn_seconds == float(defaults["turn_seconds"])
+    assert campaign.cycle_seconds == float(defaults["cycle_seconds"])
+    assert campaign.turn_seconds == campaign.cycle_seconds
     assert campaign.action_interval_seconds == float(
         defaults["action_interval_seconds"]
     )

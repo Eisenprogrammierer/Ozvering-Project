@@ -35,7 +35,7 @@
         "*": 1.0
       },
       "themes": {
-        "*": 1.0
+        "*": 0.2
       },
       "allow_epithets": false
     },

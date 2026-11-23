@@ -518,7 +518,7 @@ class App:
             storyline.get("storyline_id", "?"),
             role.id,
             self.automata_campaign.player_side,
-            self.automata_campaign.actions_per_turn,
+            self.automata_campaign.actions_per_cycle,
         )
         self._play_next_scene()
 
@@ -834,7 +834,11 @@ class App:
             )
         if not archetype_id:
             archetype_id = str(
-                getattr(getattr(self, "selected_role", None), "archetype_id", "")
+                getattr(
+                    getattr(self, "selected_role", None),
+                    "archetype_id",
+                    "",
+                )
                 or ""
             )
         entry = data.get(archetype_id) or {}
@@ -1071,7 +1075,7 @@ class App:
             campaign.preset_id,
             campaign.turn,
             campaign.actions_left,
-            campaign.actions_per_turn,
+            campaign.actions_per_cycle,
         )
 
     def _play_gameplay(self, scene):

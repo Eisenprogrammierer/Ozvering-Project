@@ -47,7 +47,12 @@ from .work import build_interaction_work, build_work
 from .work_trace import trace_from_report
 from .handlers import receive
 
-from .defaults import default_dict, default_list, default_section
+from .defaults import (
+    default_dict,
+    default_list,
+    default_section,
+    load_defaults,
+)
 from .errors import CampaignError
 from .faction_state import (
     CONTEXT_MAX,
@@ -203,7 +208,15 @@ def _build_subfactions(faction, organs, interactions):
 MODEL_DEFAULTS = default_dict("automata_model")
 MODEL_DEFAULTS.update(ORGAN_MODEL_DEFAULTS)
 
-DEFAULT_ACTIONS_PER_TURN = int(default_section("actions_per_turn"))
+_DEFAULTS_DATA = load_defaults()
+DEFAULT_ACTIONS_PER_CYCLE = int(
+    _DEFAULTS_DATA.get(
+        "actions_per_cycle",
+        _DEFAULTS_DATA.get("actions_per_turn", 3),
+    )
+)
+# Совместимый псевдоним для внешних вызовов и старых тестов.
+DEFAULT_ACTIONS_PER_TURN = DEFAULT_ACTIONS_PER_CYCLE
 DEFAULT_RUN_TURNS = int(default_section("run_turns_default"))
 EVENT_LOG_LIMIT = int(default_section("event_log_limit"))
 SNAPSHOT_TAIL = int(default_section("snapshot_tail"))
@@ -959,32 +972,41 @@ class AutomataCampaign:
             )
         )
         self.rng = random.Random(self.seed)
-        turns = scenario.get("turns")
+        limit = scenario.get("cycle_limit")
+        if limit is None:
+            limit = scenario.get("max_turns")
+        if limit is None:
+            limit = scenario.get("turns")
         try:
-            turns_value = int(turns) if turns is not None else 0
+            limit_value = int(limit) if limit is not None else 0
         except (TypeError, ValueError):
-            turns_value = 0
-        self.max_turns = turns_value if turns_value > 0 else None
-        self.actions_per_turn = max(
+            limit_value = 0
+        self.cycle_limit = limit_value if limit_value > 0 else None
+        per_cycle = scenario.get("actions_per_cycle")
+        if per_cycle is None:
+            per_cycle = scenario.get("actions_per_turn")
+        self.actions_per_cycle = max(
             1,
             int(
                 _number(
-                    scenario.get("actions_per_turn"),
-                    DEFAULT_ACTIONS_PER_TURN,
+                    per_cycle,
+                    DEFAULT_ACTIONS_PER_CYCLE,
                 )
             ),
         )
         self.actions_left = 0
         self._turn_active = False
         self.realtime = dict(REALTIME_DEFAULTS)
-        self.realtime.update(
-            {
-                str(key): value
-                for key, value in _as_mapping(
-                    scenario.get("realtime")
-                ).items()
-            }
-        )
+        realtime_source = {
+            str(key): value
+            for key, value in _as_mapping(scenario.get("realtime")).items()
+        }
+        if (
+            "cycle_seconds" not in realtime_source
+            and "turn_seconds" in realtime_source
+        ):
+            realtime_source["cycle_seconds"] = realtime_source["turn_seconds"]
+        self.realtime.update(realtime_source)
         configured_scale = _number(
             self.realtime.get("game_seconds_per_real_second"),
             PHYSICAL_SECONDS_PER_REAL_SECOND,
@@ -1793,7 +1815,7 @@ class AutomataCampaign:
             if self.turn <= 0:
                 self.turn = 1
             self.actions_left = max(
-                self.actions_left, self.actions_per_turn
+                self.actions_left, self.actions_per_cycle
             )
 
     def ensure_clock(self):
@@ -1815,26 +1837,74 @@ class AutomataCampaign:
         if self.finished or self._turn_active:
             return self.snapshot()
         self.turn += 1
-        self.actions_left = self.actions_per_turn
+        self.actions_left = self.actions_per_cycle
         self._turn_active = True
         return self.snapshot()
 
     def action_budget(self):
         return {
             "turn": self.turn,
-            "actions_per_turn": self.actions_per_turn,
+            "actions_per_cycle": self.actions_per_cycle,
+            # Совместимый ключ для старых экранов и сюжетных переменных.
+            "actions_per_turn": self.actions_per_cycle,
             "actions_left": self.actions_left,
             "active": bool(self._turn_active),
             "finished": bool(self.finished),
         }
 
     def _interval(self, name):
-        """Положительный интервал реального времени из конфига."""
-        return max(1e-6, _number(self.realtime.get(name), 1e-6))
+        """Положительный интервал реального времени из конфига.
+
+        Новый канонический ключ — ``cycle_seconds``; старые снимки и
+        шаблоны могли хранить ``turn_seconds``, поэтому чтение откатывается
+        к нему, если канонического ключа нет.
+        """
+        value = self.realtime.get(name)
+        if value is None and name == "cycle_seconds":
+            value = self.realtime.get("turn_seconds")
+        return max(1e-6, _number(value, 1e-6))
+
+    def _snapshot_realtime(self):
+        """Снимок интервалов с каноническими и совместимыми ключами."""
+        data = dict(self.realtime)
+        seconds = self.cycle_seconds
+        data["cycle_seconds"] = seconds
+        data["turn_seconds"] = seconds
+        return data
+
+    @property
+    def cycle_seconds(self):
+        return self._interval("cycle_seconds")
 
     @property
     def turn_seconds(self):
-        return self._interval("turn_seconds")
+        """Совместимый псевдоним ``cycle_seconds``."""
+        return self.cycle_seconds
+
+    @property
+    def actions_per_turn(self):
+        """Совместимый псевдоним ``actions_per_cycle``."""
+        return self.actions_per_cycle
+
+    @actions_per_turn.setter
+    def actions_per_turn(self, value):
+        self.actions_per_cycle = max(1, int(_number(value, 1)))
+
+    @property
+    def max_turns(self):
+        """Совместимый псевдоним ``cycle_limit``."""
+        return self.cycle_limit
+
+    @max_turns.setter
+    def max_turns(self, value):
+        if value is None:
+            self.cycle_limit = None
+            return
+        try:
+            limit = int(value)
+        except (TypeError, ValueError):
+            limit = 0
+        self.cycle_limit = limit if limit > 0 else None
 
     @property
     def action_interval_seconds(self):
@@ -2044,18 +2114,18 @@ class AutomataCampaign:
     def _regenerate_actions(self, seconds):
         if self.finished:
             return
-        if self.actions_left >= self.actions_per_turn:
+        if self.actions_left >= self.actions_per_cycle:
             self._action_progress = 0.0
             return
         self._action_progress += seconds
         interval = self.action_interval_seconds
         while (
             self._action_progress >= interval
-            and self.actions_left < self.actions_per_turn
+            and self.actions_left < self.actions_per_cycle
         ):
             self.actions_left += 1
             self._action_progress -= interval
-        if self.actions_left >= self.actions_per_turn:
+        if self.actions_left >= self.actions_per_cycle:
             self._action_progress = 0.0
 
     def _advance_ai(self, seconds):
@@ -2738,7 +2808,7 @@ class AutomataCampaign:
         if self.actions_left <= 0:
             return (
                 "бюджет действий исчерпан: действия восстанавливаются "
-                "со временем (до %d за интервал)" % self.actions_per_turn
+                "со временем (до %d за интервал)" % self.actions_per_cycle
             )
         return None
 
@@ -6442,7 +6512,7 @@ class AutomataCampaign:
             faction = self.faction(side)
             if faction is None or faction.dissolved:
                 continue
-            self._auto_play_side(side, self.actions_per_turn)
+            self._auto_play_side(side, self.actions_per_cycle)
         self._tick_organizations()
         self._check_outcome()
         self.history.append(self._history_record())
@@ -6452,7 +6522,7 @@ class AutomataCampaign:
 
     def run(self, turns=None, player_action=None, target=None):
         if turns is None:
-            limit = self.max_turns or DEFAULT_RUN_TURNS
+            limit = self.cycle_limit or DEFAULT_RUN_TURNS
         else:
             limit = max(0, int(turns))
         for _ in range(limit):
@@ -7152,13 +7222,16 @@ class AutomataCampaign:
                 getattr(self, "work_trace_version", WORK_TRACE_VERSION)
             ),
             "turn": self.turn,
-            "max_turns": self.max_turns,
-            "actions_per_turn": self.actions_per_turn,
+            "cycle_limit": self.cycle_limit,
+            "actions_per_cycle": self.actions_per_cycle,
+            # Совместимые ключи для снимков, читаемых старым кодом.
+            "max_turns": self.cycle_limit,
+            "actions_per_turn": self.actions_per_cycle,
             "actions_left": self.actions_left,
             "turn_active": bool(self._turn_active),
             "elapsed": round(float(self.elapsed), 6),
             "speed": int(self.speed),
-            "realtime": dict(self.realtime),
+            "realtime": self._snapshot_realtime(),
             "action_progress": round(float(self._action_progress), 6),
             "ai_progress": round(float(self._ai_progress), 6),
             "round_progress": round(float(self._round_progress), 6),
@@ -7399,25 +7472,30 @@ class AutomataCampaign:
             ),
         )
         self.turn = int(_number(snapshot.get("turn"), self.turn))
-        saved_max = snapshot.get("max_turns")
+        saved_max = snapshot.get("cycle_limit")
         if saved_max is None:
-            self.max_turns = None
+            saved_max = snapshot.get("max_turns")
+        if saved_max is None:
+            self.cycle_limit = None
         else:
             value = int(_number(saved_max, 0))
-            self.max_turns = value if value > 0 else None
-        self.actions_per_turn = max(
+            self.cycle_limit = value if value > 0 else None
+        per_cycle = snapshot.get("actions_per_cycle")
+        if per_cycle is None:
+            per_cycle = snapshot.get("actions_per_turn")
+        self.actions_per_cycle = max(
             1,
             int(
                 _number(
-                    snapshot.get("actions_per_turn"),
-                    self.actions_per_turn,
+                    per_cycle,
+                    self.actions_per_cycle,
                 )
             ),
         )
         self.actions_left = max(
             0,
             min(
-                self.actions_per_turn,
+                self.actions_per_cycle,
                 int(
                     _number(
                         snapshot.get("actions_left"), self.actions_left
@@ -7849,6 +7927,7 @@ __all__ = [
     "AutomataCampaign",
     "AutomataCampaignError",
     "CAPABILITY_SCHEMA_VERSION",
+    "DEFAULT_ACTIONS_PER_CYCLE",
     "DEFAULT_ACTIONS_PER_TURN",
     "DEFAULT_CHARACTER_INTERACTIONS",
     "DEFAULT_RUN_TURNS",

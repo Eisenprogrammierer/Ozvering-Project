@@ -43,7 +43,7 @@
 Три разных времени не путать:
 
 - **арена** — такт `1` секунды, скорости `пауза/1x/2x/4x/8x/16x`;
-- **кампания автоматов** — физическое время `1:1`: `turn_seconds = 86400`
+- **кампания автоматов** — физическое время `1:1`: `cycle_seconds = 86400`
   и `action_interval_seconds = 21600` в
   `configs/campaigns/base/automata_defaults.json`;
 - **свободный режим** — те же физические сутки: `seconds_per_day = 86400`
@@ -855,8 +855,8 @@ MAX_CATCHUP_TICKS = 64  (лишние отбрасываются в dropped_tick
 **Код:** `configs/campaigns/base/automata_defaults.json`.
 
 ```text
-turn_seconds = 86400
-actions_per_turn = 3
+cycle_seconds = 86400
+actions_per_cycle = 3
 action_interval_seconds = 21600
 ai_interval_seconds = 43200
 organization_interval_seconds = 86400

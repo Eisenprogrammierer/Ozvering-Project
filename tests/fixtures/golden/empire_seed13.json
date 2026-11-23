@@ -1,6 +1,6 @@
 {
   "actions_left": 0,
-  "digest": "c4c241b80da499c434fd016a0ec6b4b06715d845711e5d9905b6480feb3363d5",
+  "digest": "cf8482b8b05c21e10b87cb230ee5ef19457780539cc6fd6a724dab38384688a8",
   "elapsed": 518400.0,
   "factions": {
     "amber": {
@@ -228,7 +228,7 @@
           "force": 25.759282,
           "id": "char_blue_001",
           "morale": 96.738,
-          "name": "Грета Кёлер",
+          "name": "Сюй Мэй",
           "post_id": "leader"
         },
         {
@@ -237,7 +237,7 @@
           "force": 12.768189,
           "id": "char_blue_002",
           "morale": 89.506,
-          "name": "Элеонора Гильдия Часов",
+          "name": "Сильфа Дикая Малина",
           "post_id": "chief_of_staff"
         },
         {
@@ -246,7 +246,7 @@
           "force": 7.724183,
           "id": "char_blue_003",
           "morale": 88.123,
-          "name": "Инес Альварес",
+          "name": "Фрида Шульц",
           "post_id": "information"
         },
         {
@@ -255,7 +255,7 @@
           "force": 6.730195,
           "id": "char_blue_004",
           "morale": 88.127,
-          "name": "Дриззт Паучий Трон",
+          "name": "Ардашир Лури",
           "post_id": "diplomacy"
         },
         {
@@ -264,7 +264,7 @@
           "force": 4.736441,
           "id": "char_blue_005",
           "morale": 89.324,
-          "name": "Ситлали Тласкала",
+          "name": "Арина Морозова",
           "post_id": "precision"
         },
         {
@@ -273,7 +273,7 @@
           "force": 3.851517,
           "id": "char_blue_006",
           "morale": 88.943,
-          "name": "Судзуки Мидори",
+          "name": "Афина Ставриди",
           "post_id": "rights"
         },
         {
@@ -282,7 +282,7 @@
           "force": 2.925027,
           "id": "char_blue_007",
           "morale": 87.836,
-          "name": "Лука Ломбарди",
+          "name": "Оуэн МакГрегор",
           "post_id": "intendant"
         },
         {
@@ -291,7 +291,7 @@
           "force": 1.713288,
           "id": "char_blue_008",
           "morale": 87.99,
-          "name": "Манназа Молчаливая Книга",
+          "name": "Юн Джихун",
           "post_id": "channel"
         },
         {
@@ -300,7 +300,7 @@
           "force": 0.779094,
           "id": "char_blue_009",
           "morale": 89.871,
-          "name": "Нур аль-Хаким",
+          "name": "Гелиос Тёмная Материя",
           "post_id": "participant_9"
         },
         {
@@ -309,7 +309,7 @@
           "force": 0.742531,
           "id": "char_blue_010",
           "morale": 90.054,
-          "name": "Мина Ахеменид",
+          "name": "Тула Отинде",
           "post_id": "participant_10"
         },
         {
@@ -318,7 +318,7 @@
           "force": 0.929771,
           "id": "char_blue_011",
           "morale": 87.677,
-          "name": "Олусегун Олусун",
+          "name": "Деви Патель",
           "post_id": "participant_11"
         },
         {
@@ -327,7 +327,7 @@
           "force": 0.754515,
           "id": "char_blue_012",
           "morale": 87.398,
-          "name": "Чжао Лань",
+          "name": "Ли Сонхо",
           "post_id": "participant_12"
         }
       ],

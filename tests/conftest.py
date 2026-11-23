@@ -58,6 +58,11 @@ def isolated_json_content():
         "DEFAULT_BIOGRAPHY_PATH",
         configs / "worlds" / "biography.json",
     )
+    patch.setattr(
+        campaign_world,
+        "DEFAULT_WORLD_HANDLERS",
+        configs / "worlds" / "handlers",
+    )
     patch.setattr(campaign_roles, "default_root", lambda: configs / "roles")
     patch.setattr(campaign_roles, "_DEFAULT", None)
     patch.setattr(

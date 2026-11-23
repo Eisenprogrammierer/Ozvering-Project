@@ -1,0 +1,40 @@
+{
+  "form": "ritual",
+  "description": "Обработчик работ дневного мира для формы ritual. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "offer_sacrifice"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "legitimacy": 0.02,
+            "cohesion": 0.01
+          },
+          "player": {
+            "standing": 0.02
+          },
+          "relation_axes": {
+            "ritual": 0.03
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "node": {
+              "cohesion": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

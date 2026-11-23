@@ -331,9 +331,9 @@ mixed = generator.generate_many(count=12, seed=11)
 | Политика | Ключи | Правила |
 |---|---|---|
 | `empire` | `faction_empire`, `empire_campaign` | только европейские культуры; германская имеет вес `8`, остальные — `0.8–1.2`; фэнтези-темы и эпитеты запрещены |
-| `republic` | `faction_republic`, `republic_campaign` | любые реальные культуры и фэнтези-темы; шаблоны с `{epithet}` отфильтрованы |
+| `republic` | `faction_republic`, `republic_campaign` | любые реальные культуры; фэнтези-темы сохранены, но с малым весом (`0.2`), поэтому большинство имён — обычные, а фэнтези встречается редко; шаблоны с `{epithet}` отфильтрованы |
 | `cult` | `faction_cult`, `cult_campaign` | режим `epithets`: личных имён нет, только нейтральные религиозные прозвища; `given` и `family` пустые, `style = "epithet"` |
-| `corporation` | `faction_corporation`, `corporation_campaign` | как у республики: любые имена без прозвищ и эпитетов |
+| `corporation` | `faction_corporation`, `corporation_campaign` | как у республики по запрету прозвищ, но фэнтези-темы сохраняют полный вес — планета остаётся местом смешанных культур |
 
 ```python
 empire = generator.generate(policy="faction_empire", gender="m", seed=11)

@@ -1,0 +1,38 @@
+{
+  "form": "education",
+  "description": "Обработчик работ дневного мира для формы education. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "teach_lesson"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "respect": 0.04,
+            "trust": 0.02,
+            "vassalage": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "respect": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

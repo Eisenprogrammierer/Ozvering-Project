@@ -55,6 +55,7 @@ DEFAULT_PATHS = (
     ROOT / "configs" / "systems" / "playwright.json",
     ROOT / "configs" / "worlds" / "agora_world.json",
     ROOT / "configs" / "worlds" / "actions",
+    ROOT / "configs" / "worlds" / "handlers",
     ROOT / "configs" / "worlds" / "scenes",
     ROOT / "configs" / "storylines",
 )
@@ -1291,6 +1292,12 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         )
     if path.name == "payload_kinds.json":
         problems.extend(lint_payload_kinds_data(data))
+    if (
+        path.parent.name == "handlers"
+        and isinstance(data, Mapping)
+        and ("rules" in data or "form" in data)
+    ):
+        problems.extend(lint_handlers_data(path, data))
     if isinstance(data, Mapping) and "forms" in data:
         problems.extend(lint_forms_data(data))
     is_world = _looks_like_world(data)
@@ -1448,6 +1455,86 @@ def _looks_like_world(data):
         and "actions" in data
         and "domains" in data
     )
+
+
+def _lint_handler_rule(source, rule, seen_ids):
+    problems: List[str] = []
+    if not isinstance(rule, Mapping):
+        return ["%s: правило должно быть объектом" % source]
+    when = _as_mapping(rule.get("when"))
+    action_id = when.get("id")
+    if action_id is not None:
+        action_id = str(action_id)
+        if not action_id.strip():
+            problems.append("%s.when.id: пустой id" % source)
+        elif action_id in seen_ids:
+            problems.append("%s.when.id: повтор id %r" % (source, action_id))
+        else:
+            seen_ids.add(action_id)
+    for branch_name in ("receiver", "failure"):
+        branch = rule.get(branch_name)
+        if branch is None:
+            continue
+        if not isinstance(branch, Mapping):
+            problems.append("%s.%s: ожидался объект" % (source, branch_name))
+            continue
+        effect = branch.get("effect")
+        if effect is None:
+            continue
+        if not isinstance(effect, Mapping):
+            problems.append(
+                "%s.%s.effect: ожидался объект" % (source, branch_name)
+            )
+            continue
+        if "if" in effect:
+            for key in ("then", "else"):
+                part = effect.get(key)
+                if part is not None and not isinstance(part, Mapping):
+                    problems.append(
+                        "%s.%s.effect.%s: ожидался объект"
+                        % (source, branch_name, key)
+                    )
+    sender = rule.get("sender")
+    if sender is not None and not isinstance(sender, Mapping):
+        problems.append("%s.sender: ожидался объект" % source)
+    return problems
+
+
+def lint_handlers_data(path, data):
+    """Проверить JSON обработчика работ: форму, правила и их ветки.
+
+    И кампания, и дневной мир используют один формат: файл
+    ``handlers/<form>.json`` с ``rules`` и ``default``. Линтер ловит
+    структурные ошибки и повторяющиеся ``when.id``; содержание эффектов
+    проверяет тот слой, который их исполняет.
+    """
+    source = str(path)
+    if not isinstance(data, Mapping):
+        return ["%s: обработчик должен быть объектом" % source]
+    problems: List[str] = []
+    form = data.get("form")
+    if not isinstance(form, str) or not form.strip():
+        problems.append("%s.form: не задана форма" % source)
+    elif pathlib.Path(path).stem not in (form, "__init__"):
+        problems.append(
+            "%s.form: %r не совпадает с именем файла" % (source, form)
+        )
+    rules = data.get("rules")
+    if not isinstance(rules, (list, tuple)):
+        problems.append("%s.rules: ожидался список" % source)
+        rules = ()
+    seen_ids = set()
+    for index, rule in enumerate(rules):
+        source_rule = "%s.rules[%d]" % (source, index)
+        problems.extend(
+            _lint_handler_rule(source_rule, rule, seen_ids)
+        )
+    default = data.get("default")
+    if default is not None:
+        problems.extend(
+            _lint_handler_rule("%s.default" % source, default, set())
+        )
+    return problems
 
 
 def lint_world_data(data):

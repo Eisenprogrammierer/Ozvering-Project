@@ -1,0 +1,36 @@
+{
+  "form": "art",
+  "description": "Обработчик работ дневного мира для формы art. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "perform_song"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "cohesion": 0.03
+          },
+          "player": {
+            "standing": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

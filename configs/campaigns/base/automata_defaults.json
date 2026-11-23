@@ -1,5 +1,5 @@
 {
-  "actions_per_turn": 3,
+  "actions_per_cycle": 3,
   "run_turns_default": 72,
   "event_log_limit": 400,
   "snapshot_tail": 80,
@@ -1459,7 +1459,7 @@
     }
   },
   "realtime": {
-    "turn_seconds": 86400.0,
+    "cycle_seconds": 86400.0,
     "action_interval_seconds": 21600.0,
     "ai_interval_seconds": 43200.0,
     "organization_interval_seconds": 86400.0,

@@ -78,7 +78,12 @@ def test_ellipsis_leader_takes_topic_from_previous_turn():
     answer = session.ask("А кто лидер?")
     assert answer.plan_id == "leader_who"
     assert "Республик" in answer.text
-    assert "Грета" in answer.text
+    leader = next(
+        fact.args[3]
+        for fact in session.knowledge.facts
+        if fact.rel == "leader" and fact.args[0] == "faction:blue"
+    )
+    assert leader in answer.text
 
 
 def test_ellipsis_why_takes_topic_from_previous_turn():

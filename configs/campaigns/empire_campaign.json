@@ -52,7 +52,7 @@
       "supply": 0.004,
       "energy": 0.003
     },
-    "actions_per_turn": 3
+    "actions_per_cycle": 3
   },
   "environment": {
     "features": [

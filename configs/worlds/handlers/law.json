@@ -1,0 +1,96 @@
+{
+  "form": "law",
+  "description": "Обработчик работ дневного мира для формы law. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "accept_law"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "propose_law"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "legitimacy": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          },
+          "norm": {
+            "id": "street_charter",
+            "label": "Уличная хартия",
+            "domain": "order",
+            "status": "active",
+            "scope": "agora_street",
+            "description": "Правило, записанное по итогам городского схода."
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "repeal_law"
+      },
+      "receiver": {
+        "effect": {
+          "node": {
+            "legitimacy": -0.02
+          },
+          "player": {
+            "standing": -0.01
+          },
+          "norm": {
+            "id": "$target",
+            "status": "repealed"
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "player": {
+              "standing": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

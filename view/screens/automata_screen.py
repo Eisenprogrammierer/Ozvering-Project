@@ -231,12 +231,18 @@ class AutomataScreen(BaseScreen):
         snapshot = self.campaign.snapshot()
         interp.state["automata"] = snapshot
         interp.set_variable("automata_turn", snapshot["turn"])
-        interp.set_variable("automata_max_turns", snapshot["max_turns"])
+        interp.set_variable(
+            "automata_max_turns",
+            snapshot.get("cycle_limit", snapshot.get("max_turns")),
+        )
         interp.set_variable(
             "automata_actions_left", snapshot["actions_left"]
         )
         interp.set_variable(
-            "automata_actions_per_turn", snapshot["actions_per_turn"]
+            "automata_actions_per_turn",
+            snapshot.get(
+                "actions_per_cycle", snapshot.get("actions_per_turn")
+            ),
         )
         interp.set_variable(
             "automata_slots", snapshot.get("action_slots", 2)
@@ -517,7 +523,7 @@ class AutomataScreen(BaseScreen):
             "Цикл автоматов завершён: цикл=%d, действий=%d/%d, исход=%s",
             self.campaign.turn,
             self.campaign.actions_left,
-            self.campaign.actions_per_turn,
+            self.campaign.actions_per_cycle,
             self.campaign.outcome,
         )
         self._sync_storyline()

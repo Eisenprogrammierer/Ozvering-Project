@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import time
 from collections.abc import Mapping
@@ -24,6 +25,8 @@ from .actions import (
     parse_entity_ref,
 )
 from .character import CampaignCharacter
+from .handlers import HandlerRegistry
+from .work import build_work
 from .item_automaton import (
     apply_item_handler,
     item_automaton_snapshot,
@@ -102,8 +105,15 @@ from .projections import (
     player_projection_view,
 )
 
+logger = logging.getLogger(__name__)
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORLD_PATH = ROOT / "configs" / "worlds" / "agora_world.json"
+DEFAULT_WORLD_HANDLERS = ROOT / "configs" / "worlds" / "handlers"
+WORLD_WORK_DEFAULTS = {
+    "default_form": "world",
+    "default_amount": 0.01,
+}
 
 AUTONOMY_BASE_CHANCE = 0.6
 AUTONOMY_AFFINITY_THRESHOLD = -0.2
@@ -1055,6 +1065,18 @@ class WorldEngine:
         snapshot=None,
     ):
         self.config = validate_world(dict(config))
+        self.work_config = dict(WORLD_WORK_DEFAULTS)
+        work_raw = self.config.get("work")
+        if isinstance(work_raw, Mapping):
+            self.work_config.update(
+                {str(key): value for key, value in work_raw.items()}
+            )
+        handlers_path = self.config.get("handlers_path")
+        if handlers_path:
+            handlers_dir = _resolve_config_path(handlers_path)
+        else:
+            handlers_dir = DEFAULT_WORLD_HANDLERS
+        self.world_handlers = HandlerRegistry(handlers_dir)
         self.seed = _as_int(
             seed,
             _as_int(snapshot.get("seed"), 7) if snapshot else 7,
@@ -3856,7 +3878,12 @@ class WorldEngine:
         outcome = "success" if roll < chance else "failure"
         branch = success if outcome == "success" else failure
         changed.extend(
-            self._apply_character_effects(branch.get("effects"), character)
+            self._world_character_effects(
+                action,
+                context,
+                character,
+                success=(outcome == "success"),
+            )
         )
         changed.extend(self._apply_action_wound(action, outcome))
         self.player.spend_action()
@@ -5660,6 +5687,76 @@ class WorldEngine:
             self._apply_ending(effects.get("ending"), effects.get("text"))
         return self._merge_changes(changed)
 
+    def _world_form(self, action):
+        return str(
+            action.get("form")
+            or self.work_config.get("default_form")
+            or "world"
+        )
+
+    def _branch_effects(self, action, success):
+        branch = (
+            action.get("success") if success else action.get("failure")
+        ) or {}
+        return branch.get("effects") or {}
+
+    def _world_report(self, action, context, target, success):
+        """Собрать ``Work`` для действия мира и принять его обработчиком.
+
+        Действие больше не применяет ``success.effects`` напрямую: оно
+        строит ``WorkPlan`` и идёт через тот же ``receive``, что и
+        кампания автоматов. Если для мира нет обработчика (старый
+        пользовательский мир), сохраняется совместимый откат к эффектам
+        ветки из записи действия.
+        """
+        plan = build_work(
+            action,
+            context.get("node"),
+            target,
+            self,
+            default_amount=_as_float(
+                self.work_config.get("default_amount"), 0.01
+            ),
+            default_form=self._world_form(action),
+        )
+        if plan is None:
+            return None
+        try:
+            return self.world_handlers.receive(
+                plan.to_work(),
+                plan,
+                context.get("node"),
+                target,
+                self,
+                success=success,
+            )
+        except Exception as exc:  # pragma: no cover - защитный откат
+            now = time.time()
+            if now - getattr(self, "_last_world_work_warning", 0.0) > 60:
+                self._last_world_work_warning = now
+                logger.warning("Обработчик мира не сработал: %s", exc)
+            return None
+
+    def _world_effects(
+        self, action, context, target, success, is_player=True
+    ):
+        report = self._world_report(action, context, target, success)
+        effects = dict(report.effect) if report and report.effect else {}
+        if not effects:
+            effects = self._branch_effects(action, success)
+        return self._apply_effects(
+            effects, context, target, is_player=is_player
+        )
+
+    def _world_character_effects(
+        self, action, context, character, success
+    ):
+        report = self._world_report(action, context, character, success)
+        effects = dict(report.effect) if report and report.effect else {}
+        if not effects:
+            effects = self._branch_effects(action, success)
+        return self._apply_character_effects(effects, character)
+
     @staticmethod
     def _merge_changes(changed):
         merged = {}
@@ -6008,8 +6105,12 @@ class WorldEngine:
         outcome = "success" if roll < chance else "failure"
         branch = success if outcome == "success" else failure
         changed.extend(
-            self._apply_effects(
-                branch.get("effects"), context, target, is_player=True
+            self._world_effects(
+                action,
+                context,
+                target,
+                success=(outcome == "success"),
+                is_player=True,
             )
         )
         changed.extend(
@@ -6293,8 +6394,12 @@ class WorldEngine:
         outcome = "success" if roll < chance else "failure"
         branch = success if outcome == "success" else failure
         changed.extend(
-            self._apply_effects(
-                branch.get("effects"), context, target, is_player=False
+            self._world_effects(
+                action,
+                context,
+                target,
+                success=(outcome == "success"),
+                is_player=False,
             )
         )
         text = _text(branch.get("text"), action.get("description", ""))

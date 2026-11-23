@@ -106,9 +106,14 @@
         "upkeep": {
           "$ref": "#/$defs/numberMap"
         },
-        "actions_per_turn": {
+        "actions_per_cycle": {
           "type": "integer",
           "minimum": 1
+        },
+        "actions_per_turn": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Устаревший ключ; читается, если actions_per_cycle отсутствует."
         }
       },
       "additionalProperties": false

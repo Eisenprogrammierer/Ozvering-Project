@@ -5,9 +5,14 @@
   "description": "Файл configs/campaigns/base/automata_defaults.json. Читается campaign/preset.py, campaign/fractal.py и campaign/dispatch.py. Неизвестные ключи верхнего уровня и основных блоков запрещены.",
   "type": "object",
   "properties": {
-    "actions_per_turn": {
+    "actions_per_cycle": {
       "type": "integer",
       "minimum": 1
+    },
+    "actions_per_turn": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Устаревший ключ; читается, если actions_per_cycle отсутствует."
     },
     "run_turns_default": {
       "type": "integer",
@@ -227,6 +232,7 @@
         "game_seconds_per_real_second": true,
         "organization_interval_seconds": true,
         "speeds": true,
+        "cycle_seconds": true,
         "turn_seconds": true
       },
       "additionalProperties": false

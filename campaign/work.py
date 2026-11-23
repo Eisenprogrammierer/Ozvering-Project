@@ -61,10 +61,27 @@ def cost_to_amount(cost):
     Временная мера: цена в активах не списывается бесплатно, но и не
     переводится в энергию 1:1 (это сделает ``conversion_quote`` ниже).
     Здесь нужен только объём работы до конверсии.
+
+    ``cost`` кампании — плоский словарь, но у дневного мира цена
+    сгруппирована по получателю (``{"player": {"influence": 0.03}}``).
+    Поэтому числовые листья суммируются рекурсивно: иначе мирские работы
+    получали бы нулевой объём и не собирались в ``Work``.
     """
     total = 0.0
-    for _key, value in _as_mapping(cost).items():
+
+    def walk(value):
+        nonlocal total
+        if isinstance(value, Mapping):
+            for item in value.values():
+                walk(item)
+            return
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item)
+            return
         total += abs(_number(value, 0.0))
+
+    walk(cost)
     return max(0.0, total)
 
 
@@ -206,7 +223,14 @@ def _hints(action):
     return essence
 
 
-def build_work(action, actor, target, campaign=None):
+def build_work(
+    action,
+    actor,
+    target,
+    campaign=None,
+    default_amount=0.0,
+    default_form="",
+):
     """Собрать ``WorkPlan`` из capability (``action``).
 
     ``amount`` берётся из явного ``template.amount``; иначе — конверсия
@@ -224,6 +248,7 @@ def build_work(action, actor, target, campaign=None):
         form = str(
             template.get("form")
             or action.get("form")
+            or default_form
             or "force"
         )
         cost = _as_mapping(action.get("cost"))
@@ -234,6 +259,11 @@ def build_work(action, actor, target, campaign=None):
             )
         else:
             amount = _number(explicit_amount, 0.0)
+            efficiency = 0.0
+            loss = 0.0
+            entropy = 0.0
+        if amount <= 0.0 and default_amount > 0.0:
+            amount = _number(default_amount, 0.0)
             efficiency = 0.0
             loss = 0.0
             entropy = 0.0

@@ -91,6 +91,39 @@ def test_overlay_wraps_text_above_choices():
     app.quit()
 
 
+def test_long_report_scrolls_without_switching_reports():
+    from view.screens.campaign_reports import ReportsOverlay
+
+    app, campaign = _app_with_campaign()
+    campaign.dispatch.issue()
+    campaign.dispatch.issue()
+    overlay = ReportsOverlay(app, campaign)
+    current = overlay._current()[0]
+    assert current is not None
+    current["text"] = "Доклад " * 400
+    index = overlay.index
+    limit = overlay._max_scroll(current)
+    assert limit > 0
+    assert len(overlay._queue()) >= 2
+
+    overlay.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1})
+    )
+    assert overlay.body_scroll == 1
+    assert overlay.index == index
+
+    overlay.body_scroll = limit + 50
+    overlay.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1})
+    )
+    assert overlay.body_scroll == limit
+    assert overlay.index == index
+    assert len(overlay._body_lines(current)) == overlay._line_limit()
+
+    overlay.draw(pygame.Surface((1280, 720)))
+    app.quit()
+
+
 def test_choice_click_resolves_without_touching_assets(monkeypatch):
     from view.screens.campaign_reports import ReportsOverlay
 

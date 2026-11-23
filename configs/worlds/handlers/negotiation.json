@@ -1,0 +1,39 @@
+{
+  "form": "negotiation",
+  "description": "Обработчик работ дневного мира для формы negotiation. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "ask_favor"
+      },
+      "receiver": {
+        "effect": {
+          "obligation": {
+            "creditor": "player",
+            "kind": "favor",
+            "amount": 1.0,
+            "note": "обещанная услуга"
+          },
+          "target": {
+            "trust": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "trust": -0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

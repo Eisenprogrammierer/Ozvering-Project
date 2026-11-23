@@ -1,0 +1,39 @@
+{
+  "form": "personal_care",
+  "description": "Обработчик работ дневного мира для формы personal_care. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "comfort_person"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "fear": -0.03,
+            "trust": 0.02,
+            "health": 0.05,
+            "family": 0.02
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "fear": 0.01
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

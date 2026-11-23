@@ -2168,8 +2168,15 @@ class CampaignPresetGenerator:
                 if scenario_cfg.get("turns") is not None
                 else None
             ),
-            "actions_per_turn": max(
-                1, _as_int(scenario_cfg.get("actions_per_turn"), 3)
+            "actions_per_cycle": max(
+                1,
+                _as_int(
+                    scenario_cfg.get(
+                        "actions_per_cycle",
+                        scenario_cfg.get("actions_per_turn"),
+                    ),
+                    3,
+                ),
             ),
             "player_side": player_side,
             "enemy_side": enemy_side,

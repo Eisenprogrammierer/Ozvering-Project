@@ -6,7 +6,9 @@
 остаются в аудите.
 
 Текст переносится внутри карточки, а кнопки выбора стоят ниже тела
-сообщения: длинный доклад не залезает за них.
+сообщения: длинный доклад не залезает за них. Если текст не помещается,
+колесо мыши прокручивает тело доклада, а не переключает доклады;
+переключение остаётся на стрелках ‹ ›.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ class ReportsOverlay(OverlayScreen):
         self.index = 0
         self.message = ""
         self.last_result = None
+        self.body_scroll = 0
 
     # --- данные -----------------------------------------------------
     def _pending(self):
@@ -95,35 +98,64 @@ class ReportsOverlay(OverlayScreen):
             max(1, bottom - top),
         )
 
-    def _body_lines(self, report):
-        return self._report_lines(report)
+    def _line_height(self):
+        return self.app.font_small.get_height() + 5
+
+    def _line_limit(self):
+        return max(0, self._body_rect().height // self._line_height())
+
+    def _text_width(self, rect=None):
+        """Ширина строки с отступом под полосу прокрутки."""
+        return max(1, (rect or self._body_rect()).width - 24)
+
+    def _all_lines(self, item):
+        return (
+            self._intercept_lines(item)
+            if self._is_intercept(item)
+            else self._report_lines(item)
+        )
+
+    def _max_scroll(self, item):
+        return max(0, len(self._all_lines(item)) - self._line_limit())
+
+    def _scroll_to(self, item):
+        """Удержать прокрутку в границах текущего доклада."""
+        limit = self._max_scroll(item)
+        self.body_scroll = max(0, min(int(self.body_scroll), limit))
+        return self.body_scroll
+
+    def _body_lines(self, item):
+        """Видимые строки тела: окно прокрутки, а не весь доклад."""
+        lines = self._all_lines(item)
+        limit = self._line_limit()
+        start = self._scroll_to(item)
+        return lines[start:start + limit]
 
     def _report_lines(self, report):
         text = str(report.get("text") or "")
         rect = self._body_rect()
-        line_h = self.app.font_small.get_height() + 5
-        limit = max(0, rect.height // line_h)
-        lines = wrap_text(self.app.font_small, text, rect.width)
+        lines = wrap_text(self.app.font_small, text, self._text_width(rect))
         for key in ("chain_line", "promise_line", "request_line"):
             value = str(report.get(key) or "")
             if not value:
                 continue
             lines.append("")
             lines.extend(
-                wrap_text(self.app.font_small, value, rect.width)
+                wrap_text(self.app.font_small, value, self._text_width(rect))
             )
         counter_line = str(report.get("counter_line") or "")
         if counter_line:
             lines.append("")
             lines.extend(
-                wrap_text(self.app.font_small, counter_line, rect.width)
+                wrap_text(
+                    self.app.font_small, counter_line,
+                    self._text_width(rect),
+                )
             )
-        return lines[:limit]
+        return lines
 
     def _intercept_lines(self, item):
         rect = self._body_rect()
-        line_h = self.app.font_small.get_height() + 5
-        limit = max(0, rect.height // line_h)
         lines = []
         status = str(item.get("status") or "")
         if status == "sealed":
@@ -133,7 +165,7 @@ class ReportsOverlay(OverlayScreen):
                     wrap_text(
                         self.app.font_small,
                         str(item.get("in_transit_text") or ""),
-                        rect.width,
+                        self._text_width(rect),
                     )
                 )
             else:
@@ -141,16 +173,20 @@ class ReportsOverlay(OverlayScreen):
                     wrap_text(
                         self.app.font_small,
                         str(item.get("sealed_text") or ""),
-                        rect.width,
+                        self._text_width(rect),
                     )
                 )
             lines.append("")
             lines.append("Передача: %s." % item.get("faction_name"))
             lines.append("Источник и содержание скрыты.")
-            return lines[:limit]
+            return lines
 
         text = str(item.get("text") or "")
-        lines.extend(wrap_text(self.app.font_small, text, rect.width))
+        lines.extend(
+            wrap_text(
+                self.app.font_small, text, self._text_width(rect)
+            )
+        )
         lines.append("")
         lines.append(
             "Источник: %s · %s"
@@ -174,7 +210,10 @@ class ReportsOverlay(OverlayScreen):
         )
         if decision:
             lines.extend(
-                wrap_text(self.app.font_small, decision, rect.width)
+                wrap_text(
+                    self.app.font_small, decision,
+                    self._text_width(rect),
+                )
             )
         if item.get("motive_revealed") and item.get("motive"):
             lines.append("Мотив: %s" % item.get("motive"))
@@ -182,14 +221,18 @@ class ReportsOverlay(OverlayScreen):
         if counter_text:
             lines.append("")
             lines.extend(
-                wrap_text(self.app.font_small, counter_text, rect.width)
+                wrap_text(
+                    self.app.font_small, counter_text,
+                    self._text_width(rect),
+                )
             )
         retaliation_text = str(item.get("retaliation_text") or "")
         if retaliation_text:
             lines.append("")
             lines.extend(
                 wrap_text(
-                    self.app.font_small, retaliation_text, rect.width
+                    self.app.font_small, retaliation_text,
+                    self._text_width(rect),
                 )
             )
         # Пока контрмера не выбрана, объясняем адресата и выгоду каждой
@@ -211,9 +254,12 @@ class ReportsOverlay(OverlayScreen):
                 if benefit:
                     entry += ": %s" % benefit
                 lines.extend(
-                    wrap_text(self.app.font_small, entry, rect.width)
+                    wrap_text(
+                        self.app.font_small, entry,
+                        self._text_width(rect),
+                    )
                 )
-        return lines[:limit]
+        return lines
 
     def _choice_rects(self, report):
         choices = list(report.get("choices") or ())
@@ -257,12 +303,22 @@ class ReportsOverlay(OverlayScreen):
         if self.close_btn.handle_event(event):
             return
         if event.type == pygame.MOUSEWHEEL:
-            _report, queue = self._current()
+            report, queue = self._current()
+            if report is not None and self._max_scroll(report) > 0:
+                self.body_scroll = max(
+                    0,
+                    min(
+                        self._max_scroll(report),
+                        self.body_scroll - event.y,
+                    ),
+                )
+                return
             if queue:
                 self.index = max(
                     0,
                     min(len(queue) - 1, self.index - event.y),
                 )
+                self.body_scroll = 0
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
@@ -273,10 +329,12 @@ class ReportsOverlay(OverlayScreen):
         if queue and prev_rect.collidepoint(event.pos):
             self.index = max(0, self.index - 1)
             self.message = ""
+            self.body_scroll = 0
             return
         if queue and next_rect.collidepoint(event.pos):
             self.index = min(len(queue) - 1, self.index + 1)
             self.message = ""
+            self.body_scroll = 0
             return
         if self._is_intercept(report):
             if str(report.get("status") or "") == "open":
@@ -305,11 +363,13 @@ class ReportsOverlay(OverlayScreen):
             queue = self._queue()
             if queue:
                 self.index = min(self.index, len(queue) - 1)
+            self.body_scroll = 0
             return
 
     def _open_intercept(self, item):
         if str(item.get("status") or "") != "sealed":
             return
+        self.body_scroll = 0
         if self._now() + 1e-9 < float(item.get("available_at") or 0.0):
             self.message = "Шифр ещё в пути."
             self.last_result = None
@@ -342,6 +402,7 @@ class ReportsOverlay(OverlayScreen):
             )
             if result.get("ok"):
                 self.last_result = result
+                self.body_scroll = 0
                 self.message = str(result.get("text") or "")
                 retaliation = str(
                     (result.get("intercept") or {}).get(
@@ -460,17 +521,30 @@ class ReportsOverlay(OverlayScreen):
         pygame.draw.rect(screen, PANEL_ROW, body, border_radius=6)
         pygame.draw.rect(screen, PANEL_BORDER, body, 1, border_radius=6)
         y = body.y + 10
-        lines = (
-            self._intercept_lines(item)
-            if intercept
-            else self._report_lines(item)
-        )
+        self._scroll_to(item)
+        lines = self._body_lines(item)
         for line in lines:
             screen.blit(
                 self.app.font_small.render(line, True, TEXT),
                 (body.x + 12, y),
             )
-            y += self.app.font_small.get_height() + 5
+            y += self._line_height()
+
+        max_scroll = self._max_scroll(item)
+        if max_scroll > 0:
+            track = pygame.Rect(
+                body.right - 8, body.y + 8, 4, body.height - 16
+            )
+            pygame.draw.rect(screen, PANEL_BORDER, track, border_radius=2)
+            total = len(self._all_lines(item))
+            visible = self._line_limit()
+            thumb_h = max(24, int(track.height * visible / max(1, total)))
+            travel = max(0, track.height - thumb_h)
+            offset = int(travel * self.body_scroll / max(1, max_scroll))
+            thumb = pygame.Rect(
+                track.x, track.y + offset, track.width, thumb_h
+            )
+            pygame.draw.rect(screen, ACCENT, thumb, border_radius=2)
 
         note = self._note_label(item)
         if self.message:

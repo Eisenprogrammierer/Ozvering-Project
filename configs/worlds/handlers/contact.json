@@ -1,0 +1,63 @@
+{
+  "form": "contact",
+  "description": "Обработчик работ дневного мира для формы contact. Эффект ветки — данные, а не Python-код.",
+  "rules": [
+    {
+      "when": {
+        "id": "embrace"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "affinity": 0.03,
+            "trust": 0.04,
+            "family": 0.02
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "affinity": -0.01
+            }
+          }
+        }
+      }
+    },
+    {
+      "when": {
+        "id": "kiss"
+      },
+      "receiver": {
+        "effect": {
+          "target": {
+            "affinity": 0.06,
+            "trust": 0.03,
+            "romance": 0.08
+          },
+          "player": {
+            "standing": 0.01
+          }
+        }
+      },
+      "failure": {
+        "receiver": {
+          "effect": {
+            "target": {
+              "affinity": -0.02,
+              "fear": 0.01,
+              "romance": -0.02
+            }
+          }
+        }
+      }
+    }
+  ],
+  "default": {
+    "receiver": {
+      "effect": {}
+    },
+    "sender": {}
+  }
+}

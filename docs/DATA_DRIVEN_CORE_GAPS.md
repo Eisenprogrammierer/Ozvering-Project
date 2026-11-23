@@ -21,8 +21,9 @@
 
 Осталось:
 
-- [ ] Перевести `WorldEngine.execute()` с отдельного конвейера
-  `immediate/success/failure` на общий `Work`-путь.
+- [x] `WorldEngine.execute()` и соседние пути мира строят `Work` и идут
+  через `receive`; правила получателя лежат в
+  `configs/worlds/handlers/`.
 - [ ] Подключить квинтуплы `configs/naming/interactions` к обработчикам.
 - [ ] Считать шанс работы из контекста, а не только из пары активов
   блока `chance`.
