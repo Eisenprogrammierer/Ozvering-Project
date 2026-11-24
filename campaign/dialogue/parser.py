@@ -8,11 +8,27 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from .errors import DialogueError
 from .morphology import tokenize
-from .model import DialogueCatalog, Grammar, GrammarRule, LexEntry, Parse, RuleItem
+from .model import (
+    DialogueCatalog,
+    Grammar,
+    GrammarRule,
+    LexEntry,
+    Parse,
+    RuleItem,
+)
 from .semantics import flatten, substitute
 
 # Признаки отдельной лексемы. Они не наследуются родителем: иначе лемма

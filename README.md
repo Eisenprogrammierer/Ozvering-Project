@@ -145,7 +145,9 @@ rest_gain = MAX_REST_DELTA * (E/L) * (1 - E/L),  L = L_BASE + L_STEP * rest_unit
 `simulation.py` не менялись.
 
 Эксперименты — в `experiments/` (запуск из корня репозитория); логи в репозитории не
-хранятся — вывод воспроизводится запуском. Текущая воспроизводимая базовая линия
+хранятся — вывод воспроизводится запуском. Игровой журнал
+`operation_ozverin.log` создаётся только с `--log`/`--log-file`,
+перезаписывается при запуске и ограничен по размеру. Текущая воспроизводимая базовая линия
 (канонический прогон, матрица баланса, ограничения) — в [`docs/history/BASELINE.md`](docs/history/BASELINE.md).
 Реальный CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions): на
 каждый push/PR компилируются ядро/GUI/эксперименты и запускается `pytest`
@@ -171,6 +173,8 @@ python3 -m campaign              # РОЛИ/ПРЕСЕТЫ: каталог ро�
 python3 -m campaign --generate --seed 7  # пресет в campaigns/
 python3 main.py --scene battlefield  # легаси RTS (флаг --scene подразумевает --classic)
 python3 main.py --arena          # только АРЕНА: автономный game_engine (HUD)
+python3 main.py --log            # файловый журнал (перезапись при запуске)
+python3 main.py --log-file /tmp/game.log  # свой путь журнала
 python3 main.py --list-checkpoints   # чекпойнты без открытия окна
 python3 warfare.py               # войсковая симуляция: отделения, паника, банзай
 pytest -q                        # весь тестовый набор (см. ниже)
@@ -179,8 +183,9 @@ pytest -q                        # весь тестовый набор (см. �
 **Единая точка запуска — `main.py`** (по умолчанию современный клиент `view/`;
 `--classic`/`--ui` — легаси `ui/`, `--automata` — редактор автоматов,
 `--arena` — арена; `--fullscreen`/`-f`, `--scene NAME`, `--checkpoint`,
-`--checkpoints-dir` — дополнительные флаги). `--scene` без `--view`
-автоматически уходит в легаси-клиент. Отдельные точки входа тоже сохранены:
+`--checkpoints-dir`, `--log`/`--log-file` — дополнительные флаги). `--scene`
+без `--view` автоматически уходит в легаси-клиент. Отдельные точки входа
+тоже сохранены:
 `python3 -m ui` (легаси-игра), `python3 -m view` (кампания),
 `python3 -m automata` (редактор) и `python3 game_engine.py` (арена).
 
@@ -325,6 +330,7 @@ python3 main.py --checkpoint saves/bdi.json   # загрузить BDI-поли�
 python3 main.py --health-factors aging=1.5,illness=2  # множители здоровья
 python3 main.py --sickness 0.5                      # начальная болезнь 0..1
 python3 main.py --speed 4                           # 1x/2x/4x/8x/16x
+python3 main.py --log                               # журнал в operation_ozverin.log
 python3 main.py --no-auto-pause                     # без авто-паузы
 ```
 

@@ -26,7 +26,18 @@
           ]
         }
       ],
-      "initial": true
+      "initial": true,
+      "on_enter": [
+        {
+          "subfactions": {
+            "revisionist": {
+              "assets": {
+                "grievance": 0.012
+              }
+            }
+          }
+        }
+      ]
     },
     "growth": {
       "label": "Рост",
@@ -67,6 +78,13 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "influence": 0.004
+          }
+        }
       ]
     },
     "legitimacy": {
@@ -101,6 +119,14 @@
               "value": 0.45
             }
           ]
+        }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.005,
+            "cohesion": -0.002
+          }
         }
       ]
     },
@@ -137,6 +163,14 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.007,
+            "myth": -0.004
+          }
+        }
       ]
     },
     "crackdown": {
@@ -172,6 +206,14 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "cohesion": -0.008,
+            "fear": 0.004
+          }
+        }
       ]
     },
     "return": {
@@ -193,6 +235,13 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.004
+          }
+        }
       ]
     },
     "purge": {
@@ -200,7 +249,22 @@
       "x": 300,
       "y": 300,
       "transitions": [],
-      "final": true
+      "final": true,
+      "on_enter": [
+        {
+          "assets": {
+            "influence": -0.005
+          },
+          "subfactions": {
+            "revisionist": {
+              "assets": {
+                "influence": -0.03,
+                "grievance": 0.03
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "handlers": {},

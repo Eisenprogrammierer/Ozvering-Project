@@ -102,14 +102,16 @@
         }
       },
       "sender": {
-        "legitimacy": 0.02
+        "legitimacy": 0.02,
+        "myth": 0.3
       },
       "trace": {
         "essence": "legitimize"
       },
       "failure": {
         "sender": {
-          "legitimacy": -0.02
+          "legitimacy": -0.02,
+          "myth": -0.15
         }
       }
     },

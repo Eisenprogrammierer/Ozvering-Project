@@ -1,34 +1,9 @@
-import os
-import logging
+from ..support.log_journal import get_logger
 
 import pygame
 
 
-def _get_logger(name):
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
-        base = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..")
-        )
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        )
-        file_handler = logging.FileHandler(
-            os.path.join(base, "operation_ozverin.log"), encoding="utf-8"
-        )
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-        logger.propagate = False
-    return logger
-
-
-logger = _get_logger("view.ui.time_hud")
+logger = get_logger("view.ui.time_hud")
 
 
 class TimeHUD:

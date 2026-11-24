@@ -514,8 +514,8 @@ class MetricGraph:
                 gap is None for gap in gaps
             ):
                 raise GeometryError(
-                    "orientation.%s: укажите turn у всех соседей или ни у одного"
-                    % node
+                    "orientation.%s: укажите turn у всех соседей "
+                    "или ни у одного" % node
                 )
             if all(gap is None for gap in gaps):
                 turns = cls._uniform_turns(len(neighbors))

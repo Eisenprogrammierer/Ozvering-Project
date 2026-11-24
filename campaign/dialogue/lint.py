@@ -1285,6 +1285,67 @@ def _action_problems(catalog: DialogueCatalog) -> List[str]:
     return problems
 
 
+def _marker_problems(catalog: DialogueCatalog) -> List[str]:
+    """Проверить фразы-маркеры режимов разговора в ``actions.json``."""
+
+    spec = getattr(catalog, "actions", None) or {}
+    markers = spec.get("markers")
+    if markers is None:
+        return []
+    if not isinstance(markers, (list, tuple)) or not markers:
+        return ["actions.markers: ожидался непустой список"]
+    from .parser import ChartParser
+
+    parser = ChartParser(catalog)
+    social = getattr(catalog, "social", None)
+    acts = set((getattr(social, "acts", {}) or {}).keys())
+    problems: List[str] = []
+    seen: Set[str] = set()
+    for index, item in enumerate(markers):
+        where = "actions.markers[%d]" % index
+        if not isinstance(item, Mapping):
+            problems.append("%s: ожидался объект" % where)
+            continue
+        act = str(item.get("act") or "")
+        if not act:
+            problems.append("%s.act: пусто" % where)
+        elif act not in acts:
+            problems.append(
+                "%s.act: неизвестный речевой акт %r" % (where, act)
+            )
+        phrases = item.get("phrases")
+        if not isinstance(phrases, (list, tuple)) or not phrases:
+            problems.append(
+                "%s.phrases: ожидался непустой список" % where
+            )
+            continue
+        for phrase in phrases:
+            value = str(phrase or "").strip()
+            if not value:
+                problems.append("%s.phrases: пустая фраза" % where)
+                continue
+            if value in seen:
+                problems.append("%s.phrases: повтор %r" % (where, value))
+            seen.add(value)
+            parse = parser.parse_best(value)
+            if parse is None:
+                problems.append(
+                    "%s.phrases: фраза не разбирается: %r"
+                    % (where, value)
+                )
+                continue
+            sem = parse.sem if isinstance(parse.sem, Mapping) else {}
+            if (
+                str(sem.get("kind") or "") != "social"
+                or str(sem.get("act") or "") != act
+            ):
+                problems.append(
+                    "%s.phrases: фраза ведёт не к акту %r: %r"
+                    % (where, act, value)
+                )
+    return problems
+
+
 def _sem_values(value, key):
     """Собрать значения ``key`` из вложенной семантики правила."""
 
@@ -2674,6 +2735,7 @@ def lint_catalog(catalog: DialogueCatalog) -> List[str]:
     problems.extend(_paraphrase_problems(catalog))
     problems.extend(_goal_problems(catalog))
     problems.extend(_action_problems(catalog))
+    problems.extend(_marker_problems(catalog))
     problems.extend(_verb_path_problems(catalog))
     problems.extend(_answer_kind_problems(catalog))
     problems.extend(_console_problems(catalog))

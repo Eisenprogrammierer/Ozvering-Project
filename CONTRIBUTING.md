@@ -51,6 +51,30 @@
   (`run_batch(10)` = RL 1 / UtilityAI 9 / без захвата 0) обосновывается и
   вносится в `history/BASELINE.md`.
 
+## Сюжет, контент и журнал
+
+* **Сюжет automata/free-life — проекция симуляции.** Не добавляйте в
+  данные и код авторские `arc`, beat-сцены, `choices`, `win_scene`/
+  `lose_scene`, `variant_by`/`variants` для automata-кампаний. Хроника,
+  эпизоды, стартовая сводка и финал собираются из
+  `AutomataCampaign.narrative` и состояния (`campaign/chronicle.py`,
+  `campaign/world_briefing.py`). Инвариант —
+  [`docs/NARRATIVE_INVARIANT.md`](docs/NARRATIVE_INVARIANT.md).
+* **Литературный слой — только язык.** Курируемые шаблоны хроники лежат в
+  `configs/campaigns/base/chronicle_phrases.json`; они заполняются полями
+  уже посчитанного эпизода и не задают, что случится дальше. Файл
+  проверяется `python -m campaign.content_lint` (структура, категории,
+  плейсхолдеры).
+* **Свободный мир не ограничен главой.** Production-мир
+  `configs/worlds/agora_world.json` не задаёт `days`; `sandbox`/`realtime`
+  включают открытую историю. Не возвращайте «горизонт главы 30» в сводку,
+  эпилог или данные.
+* **Файловый журнал — по флагу.** Единая настройка —
+  `view/support/log_journal.py`, запуск — `main.py --log` или
+  `--log-file PATH`. Без флага файл не создаётся; каждый запуск
+  перезаписывает журнал, размер ограничен. Не добавляйте локальные
+  `FileHandler` в модули.
+
 ## Код и документация
 
 * Публичные модули, классы и функции сопровождаются docstrings; inline-комментарии

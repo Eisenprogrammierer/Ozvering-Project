@@ -56,6 +56,7 @@
 |---|---|---|
 | Поставить окружение и запустить | вход | `main.py`, `view/`, `ui/` · — · `test_gui_smoke.py` · [`ONBOARDING.md`](ONBOARDING.md), [`HOWTO.md`](HOWTO.md), `README.md` |
 | Запустить конкретный режим | вход | `main.py --arena/--scene/--view/--classic/--automata` · — · `test_ui.py`, `test_view.py` · [`ONBOARDING.md`](ONBOARDING.md) §1.4 |
+| Включить файловый журнал | вход | `main.py --log` / `--log-file PATH`, `view/support/log_journal.py` · — · `test_logging_setup.py` · [`ONBOARDING.md`](ONBOARDING.md) §5.8 |
 | Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/faction_state.py`, `campaign/preset.py` · `configs/campaigns/`, `configs/characters/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | Играть в дневной мир должностного лица | мир | `campaign/world.py`, `view/screens/world_screen.py` · `configs/roles/`, `configs/storylines/`, `configs/worlds/agora_world.json` · `test_campaign.py`, `test_world.py`, `test_view_world.py` · [`WORLD.md`](WORLD.md) |
 | Играть свободным жителем без мандата | мир | `configs/roles/roles.json` (`free_citizen`), `configs/storylines/free_life*.json`, `configs/characters/archetypes.json`, `view/screens/archetype_select.py` · `campaign/world.py` (`profile_from_identity`), `view/app.py` (`_free_start_entry`, `_save_world_game`) · `test_free_mode.py`, `test_archetypes.py`, `test_player_avatar.py` · [`WORLD.md`](WORLD.md) §1 |
@@ -133,7 +134,7 @@
 | Общая карта JSON и загрузчиков | [`CONTENT.md`](CONTENT.md) |
 | Роли игрока | `configs/roles/roles.json`, `configs/characters/archetypes.json`, `campaign/roles.py`, `campaign/identity.py`; тесты `test_campaign.py`, `test_archetypes.py` |
 | Управляемый персонаж (аватар) | `campaign/avatar.py`, `campaign/preset.py` (`select_player_character`), `campaign/automata.py` (`avatar_character`, снимок `avatar`), `view/screens/character_select.py`; тест `test_player_avatar.py` |
-| Сюжеты и сцены | `configs/storylines/` (`storyline_tags`), `configs/worlds/scenes/`; `view/support/storyline.py`, `campaign/scenes.py`; тесты `test_view_world.py`, `test_storyline_flex.py`, `test_scene.py` |
+| Сюжеты и сцены | `configs/storylines/` (`storyline_tags`, метаданные и `gameplay`), `configs/worlds/scenes/`; `view/support/storyline.py`, `campaign/scenes.py`; сюжет automata-кампании — `campaign/chronicle.py` и `AutomataCampaign.narrative`; тесты `test_view_world.py`, `test_storyline_flex.py`, `test_narrative_emergence.py`, `test_scene.py` |
 | Миры кампании | `configs/worlds/agora_world.json` (production), `configs/worlds/agora_strategies.json`; `campaign/world.py::load_world` |
 | Биография и личность героя | `configs/worlds/biography.json`, `configs/characters/identity.json`, `configs/characters/archetypes.json`; `campaign/identity.py`, `campaign/world.py::profile_from_identity`, `test_identity.py`, `test_archetypes.py` |
 | Черты персонажей | `configs/characters/traits.json`; `character_traits.py`; `test_people.py` |
@@ -144,7 +145,7 @@
 | Имена и политики имён | `configs/naming/`; `naming/`; `test_naming.py`, `test_people.py`; [`NAMING.md`](NAMING.md) |
 | Приказы, документы, диалоги, время | `configs/content/`; `view/support/content.py`; `test_content_pipeline.py` |
 | Диалог: лексикон, грамматика, планы, стили, дискурс, контрфакты | `configs/dialogue/`; `campaign/dialogue/loader.py`; `test_dialogue.py`, `test_d5_registers.py`; [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) |
-| Реестр действий диалога | ручной `configs/dialogue/actions.json` + проекция `campaign/dialogue/projection.py`; `test_d6_actions.py`, `test_dialogue_projection.py` |
+| Реестр действий диалога | ручной `configs/dialogue/actions.json` (включая `markers` для приказов, угроз и обещаний) + проекция `campaign/dialogue/projection.py`; `test_d6_actions.py`, `test_dialogue_projection.py` |
 | Речевые акты | `configs/dialogue/social.json`, `grammar.json`, `lexicon.json`; `test_d4_social.py`, `test_d7_social.py`, `test_d7_social_acts.py` |
 | Типы ответа диалога | `configs/dialogue/answer_kinds.json`; `campaign/dialogue/answers.py` (`answer_handler_name`); `test_answer_registry.py` |
 | Адаптеры мира | `campaign/perception.py` (`WorldView`, `AutomataCampaignAdapter`, `WorldEngineAdapter`, `SceneAdapter`); `configs/dialogue/world.json.adapters`; `test_world_adapters.py` |
@@ -203,7 +204,7 @@
 | `main.py` | единая точка входа | активный |
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
-| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`), дневной мир `world_actor` и локальные сцены `scenes.py` | активный |
+| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`, доклады источников `dispatch.py` + `dispatch_*.py`, движок `automata.py` + `automata_*.py`), дневной мир `world_actor` (`world.py` — фасад, реализация в `world_*.py`), локальные сцены `scenes.py`, суточная рутина `routine.py`, качественные уровни `qualitative.py`, аудит `audit.py`, восприятие `perception.py`, предметы-автоматы `item_automaton.py`, свободные часы `free_clock.py` | активный |
 | `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
@@ -222,14 +223,14 @@
 | Каталог | Что лежит в поставке | Загрузчик |
 |---|---|---|
 | `configs/roles/` | `roles.json` — 5 ролей (4 лидера + `free_citizen`) | `campaign/roles.py` |
-| `configs/storylines/` | 5 сюжетов + сцены (4 лорных + `free_life`), у каждого `storyline_tags` | `view/support/storyline.py` |
-| `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы; `forms.json` — манифест 19 форм | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py`, `campaign/actions.py` |
+| `configs/storylines/` | 5 сюжетов + сцены (4 лорных + `free_life`), у каждого `storyline_tags`; у 4 лорных — только метаданные и сцена `gameplay`, сюжет собирается из `AutomataCampaign.narrative`; у `free_life` — `world_briefing` + `world`, без главы и `days` | `view/support/storyline.py`, `campaign/chronicle.py` |
+| `configs/campaigns/` | 4 шаблона + `base/`; `base/handlers/*.json` — правила получателя по формам работы; `forms.json` — манифест 19 форм; `base/chronicle_phrases.json` — языковые шаблоны хроники | `campaign/preset.py`, `campaign/defaults.py`, `campaign/handlers.py`, `campaign/actions.py`, `campaign/chronicle.py` |
 | `configs/content/` | приказы, документы, диалоги, время, LOD | `view/support/content.py` |
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json`, `archetypes.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
 | `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, цели и шаги, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |
-| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 65 действий после слияния каталогов, 8 предметов, 6 сцен, `norms`, `sandbox`), `actions/*.json`, `scenes/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/scenes.py`, `campaign/node_strategy.py` |
+| `configs/worlds/` | production: `agora_world.json` (44 узла, 72 должности, 65 действий после слияния каталогов, 8 предметов, 6 сцен, `norms`, `sandbox`/`realtime`/`time_speeds`; без `days` и главы), `actions/*.json`, `scenes/*.json`, `agora_strategies.json`, `biography.json` | `campaign/world.py`, `campaign/actions.py`, `campaign/scenes.py`, `campaign/node_strategy.py` |
 | `configs/knowledge/commonsense/` | курированные факты «субъект — отношение — объект»: речевые акты, режимы, причины эмоций, свойства предметов; `style_hints` связывают режим со стилем ответа; `raw/` — исходные LLM-выгрузки только для провенанса. Используется подсказкой `/смысл` и корпусом парафраз | `campaign/commonsense.py` |
 | `configs/strategy/` | **пуст** | `campaign/strategy.py` |
 | `configs/automata/` | **пуст** | `automata/storage.py` |
@@ -244,12 +245,13 @@
 |---|---|
 | Ядро и арена | `test_core41.py`, `test_health.py`, `test_sickness.py`, `test_payload.py`, `test_composite.py`, `test_environment.py`, `test_clock.py`, `test_math_model.py` |
 | Агенты | `test_train_cli.py`, `test_checkpoints.py`, `test_core41.py` |
-| Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
-| Дневной мир | `test_campaign.py`, `test_world.py`, `test_world_primitives.py`, `test_scene.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
-| Контент и документы | `test_content_pipeline.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_storyline_flex.py`, `test_lore_characters.py`, `test_commonsense.py` |
+| Кампания автоматов | `test_automata_campaign.py`, `test_automata_network.py`, `test_campaign_golden.py`, `test_bdi.py`, `test_divisions.py`, `test_events_runtime.py` |
+| Доклады источников | `test_campaign_dispatch.py`, `test_campaign_reports_overlay.py`, `test_campaign_overlays.py`, `test_perception.py`, `test_provenance.py` |
+| Дневной мир | `test_campaign.py`, `test_world.py`, `test_world_primitives.py`, `test_world_work.py`, `test_scene.py`, `test_free_clock.py`, `test_campaign_energy.py`, `test_campaign_economy.py`, `test_campaign_relations.py`, `test_campaign_values.py`, `test_campaign_coalitions.py`, `test_campaign_planner.py`, `test_campaign_control.py`, `test_campaign_clock.py`, `test_campaign_logbook.py`, `test_campaign_routine.py`, `test_campaign_stats.py`, `test_campaign_success.py`, `test_projections.py`, `test_node_strategy.py` |
+| Контент и документы | `test_content_pipeline.py`, `test_content_lint.py`, `test_content_schema.py`, `test_action_processes.py`, `test_docs_sync.py`, `test_docs_core41.py`, `test_identity.py`, `test_archetypes.py`, `test_player_avatar.py`, `test_story_arcs.py`, `test_narrative_emergence.py`, `test_storyline_flex.py`, `test_lore_characters.py`, `test_commonsense.py`, `test_items.py` |
 | Диалог | `test_dialogue.py`, `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`, `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`, `test_d5_discourse_paragraph.py`, `test_d5_registers.py`, `test_d5_style_hints.py`, `test_dialogue_fallback.py`, `test_view_dialogue_chat.py` |
 | Инструменты | `test_automata.py`, `test_automata_ui.py`, `test_naming.py`, `test_people.py`, `test_systems.py`, `test_organizations.py`, `test_organization_runtime.py`, `test_interaction.py` |
-| UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py` |
+| UI и сейвы | `test_ui.py`, `test_view.py`, `test_view_world.py`, `test_view_rts.py`, `test_view_strategy.py`, `test_battlefield.py`, `test_gui_smoke.py`, `test_save_system.py`, `test_world_text.py`, `test_logging_setup.py` |
 | Легаси и прочее | `test_canon.py`, `test_strategy.py`, `test_warfare.py`, `test_advanced.py`, `test_breakthrough_balance.py`, `test_soak.py`, `test_checks.py`, `test_domain_audit.py` |
 
 ### 0.15. Быстрые команды
@@ -262,6 +264,8 @@ venv/bin/python -m campaign.dialogue.lint         # проверка диало�
 python3 main.py                                    # клиент view/
 python3 main.py --arena                            # арена
 python3 main.py --automata                         # редактор автоматов
+python3 main.py --log                              # файловый журнал (перезапись)
+python3 main.py --log-file /tmp/game.log           # свой путь журнала
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy venv/bin/python -m pytest -q tests/test_gui_smoke.py
 ```
 
@@ -418,6 +422,14 @@ p = sigmoid(
 BDI — не третий тип и не отдельная онтология. Это свойство обработчика и
 состояния. BDI-автомат всё равно имеет `I/O/H/S/F/E/W` и отправляет работу.
 
+**Граница текущей реализации.** `BDIState` с 16 желаниями есть у
+`warfare.Character` — это персонажи арены, automata-кампаний и отрядов
+RTS-мира. Персонажи дневного мира (`campaign/character.py`,
+`CampaignCharacter`) и игрок мира (`campaign/actor.py`, `CampaignActor`) —
+упрощённые `Automaton`-обёртки без BDI; их отношения, доверие, здоровье и
+болезнь живут отдельными полями. То есть тезис «BDI у всех персонажей» —
+целевая модель, а не текущее покрытие.
+
 Игрок — BDI-автомат под управлением человека. Человек принимает решения, но
 сам автомат имеет состояние, потребности, отношения и ограничения. Граница
 между человеческим управлением и автономией BDI пока открыта.
@@ -476,8 +488,9 @@ BDI — не третий тип и не отдельная онтология. 
 `storyline` в конфиге мира добавляет главу: `deadline_day` и пороги
 `win.standing_at_least` / `lose.standing_at_most` + `lose.days`; без блока
 мир остаётся бесконечным. В свободном режиме `sandbox: true` отключает
-главу и горизонт, а `realtime: true` включает `FreeClock`; скорость не
-опускается ниже `1x`, rewind отсутствует.
+главу и горизонт, production-мир `agora_world.json` не задаёт `days`, а
+`realtime: true` включает `FreeClock`; скорость не опускается ниже `1x`,
+rewind отсутствует.
 
 ### 3.5. Старые шкалы — проекции
 
@@ -541,7 +554,7 @@ BDI — не третий тип и не отдельная онтология. 
 | `campaign/item_automaton.py` | предмет как автомат `I/O/H/S/F/E/W`: нормализация JSON, обработчики, `F/E/S`, журнал `W`, снимок и восстановление; эффекты применяет `WorldEngine` | автономные реакции предмета без действия игрока |
 | `agents/` | `BDIPolicy`, `QTablePolicy`, `ArenaAgent`-политики, `PolicyAgent` как легаси-мост, `load_policy`, online-обновление и CLI обучения; у BDI отдельные `campaign_weights` | production-модель, оценка и кампанийная загрузка чекпойнтов |
 | Здоровье | `H=100`, отдых `+0.78/тик`, голод `-0.20/тик`, переполнение урона с коэффициентом `0.25` после `F=0`; факторы `aging/illness/stress/care`; болезнь `sickness ∈ [0,1]` с прогрессом, уроном, отдыхом, `treat()` и шестым действием `TREAT`; контактная передача `CONTAGION_*`; средовой резервуар болезни и острые раны `ArenaEnvironment`; кампанийная передача в одном узле; `condition_state()` и сейв текущих `health`/`sickness`; дневной срез болезни/смерти/распада в кампании; калибровка §2.3.2–2.3.5 | production-планировщик сквозного цикла игрока |
-| `campaign/world.py` | дневной ход; production-мир `configs/worlds/agora_world.json` (44 узла, 72 должности, 65 действий после слияния `action_catalogs`, `norms`), тестовый мир в `tests/fixtures/content/configs/worlds/`; `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; `entity_ref`/`target_ref` для персонажа, предмета, нормы, обязательства и узла; эффекты `item`/`item_work`/`norm`/`obligation` и `cost.items`; `requires.target_status` для отмены нормы и `requires.item_handler` для предмета; `relation_axes`/`relation_effect_weights` из конфига мира, эмоциональные оси `romance/family/ritual/vassalage`; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; `profile_from_identity` собирает профиль свободного режима без фракции; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day`, `sandbox` отключает её | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
+| `campaign/world.py` | дневной ход; production-мир `configs/worlds/agora_world.json` (44 узла, 72 должности, 65 действий после слияния `action_catalogs`, `norms`, `sandbox`/`realtime`, без `days` и главы), тестовый мир в `tests/fixtures/content/configs/worlds/`; `power/wealth/...`, `CampaignActor` на `E/F/H`, planner, экономика, отношения, ценности, коалиции; `entity_ref`/`target_ref` для персонажа, предмета, нормы, обязательства и узла; эффекты `item`/`item_work`/`norm`/`obligation` и `cost.items`; `requires.target_status` для отмены нормы и `requires.item_handler` для предмета; `relation_axes`/`relation_effect_weights` из конфига мира, эмоциональные оси `romance/family/ritual/vassalage`; grace-распад, смена роли, бесконечный горизонт, ограниченный догон; `profile_from_identity` собирает профиль свободного режима без фракции; навыки растут от действий с насыщением `CAMPAIGN_SKILL_CAP`; доход должности возвращает влияние/связи; блок `storyline` задаёт главу с `deadline_day`, `sandbox` отключает её | полная миграция организационных шкал в `F/E/H`, автоматическая карьера политики |
 | `campaign/free_clock.py` | RTS-часы свободного режима: физические секунды, скорость `>= 1x`, без rewind, снимок часов | — |
 | `campaign/clock.py` | `CampaignClock`, `offline_days`, `background_pause_reason`; `86400` физических секунд в сутках, догон не больше 7 дней | production-планировщик сквозного цикла игрока |
 | `campaign/dialogue/` | read-only диалог над BDI и кампанией: разбор, вывод, планы, синтез, стили и дискурс D5.1–D5.4, сравнения D3.1, контрфакты D3.2/D6.2a–c, условия/уступки/косвенная и прямая речь, beam и корпус парафраз D6.2d, раскрытие и ложь D6.3, речевые действия D4 и 7 новых актов P5, память, цели/мост/императивы/псевдонимы D6.4, проекция каталога действий F-13, призма восприятия F-23, реестр типов ответа F-15, адаптеры мира F-16, живой мост F-17 (`declared`/`improvised`, `work`/`trace`), headless-текстовик D7.0, речевые акты как interactions кампании D7.1, перемещение по геометрии игрока D7.2, время и темп D7.3, описание сцены D7.4, аудит лексикона D6.1, `has_leverage`/`blackmail` D7.1 | — |
@@ -560,6 +573,16 @@ BDI — не третий тип и не отдельная онтология. 
 контекстными обработчиками. `core41` пока остаётся дуэльным/аренным срезом, а
 не всем миром; вопрос о переносе/удалении механизма `simulation.py` относится
 к миграции кампании и пока не закрыт.
+
+**Граница кампании и легаси-боя.** Прямых импортов `warfare`/`simulation`
+в `campaign/` на верхнем уровне больше нет: `campaign.automata` и
+`campaign.preset` создают `warfare.Character` лениво, внутри функций.
+Поэтому `import campaign.automata` не загружает `warfare`. Остаётся
+транзитивная зависимость через
+`organizations.runtime.OrganizationRuntime`, который наследует
+`simulation.Environment`; она зафиксирована guard-тестом
+`tests/test_architecture_boundaries.py`. Полный разрыв потребует вынести
+`Agent`/`Environment` в нейтральный модуль — это отдельная миграция.
 
 ---
 
@@ -770,6 +793,48 @@ D7.4 (описание сцены из story/log/events).
   `_receive_channel` из `resolve_work`. Дневной мир (фаза 4b), открытый
   payload-реестр и квинтуплы остаются остатком —
   [`WORK_MECHANIC_PLAN.md`](WORK_MECHANIC_PLAN.md) §2.
+- Доклады источников разложены по швам: `campaign/dispatch.py` — фасад
+  `ReportDispatcher`, реализация — в `campaign/dispatch_core.py`,
+  `dispatch_news.py`, `dispatch_reports.py`, `dispatch_resolve.py`,
+  `dispatch_intercepts.py`, `dispatch_briefing.py`, `dispatch_effects.py`,
+  `dispatch_queue.py` и `dispatch_support.py`. Публичный API и формат
+  снимка не менялись; полный набор 2026-11-24 — 2076 тестов, зелёный.
+- `WorldEngine` разложен тем же способом: `campaign/world.py` — фасад
+  с `__init__`, загрузчиками и `build_world`; реализация — в
+  `campaign/world_core.py` (свойства, такт, день, журнал, LOD),
+  `world_entities.py` (узлы, сущности, сцены, персонажи),
+  `world_relations.py` (отношения, обязательства, ценности, коалиции),
+  `world_career.py` (должности, рынок труда, карьера, намерения),
+  `world_actions.py` (действия, проверки, эффекты, ИИ, стратегии),
+  `world_day.py` (экономика, здоровье, предметы, сюжетные линии),
+  `world_snapshot.py` (`to_dict`/`load_snapshot`) и `world_support.py`
+  (константы, загрузка и валидация конфигов, профили). Публичный API,
+  monkeypatch-точки `campaign.world` и формат снимка сохранены.
+- `AutomataCampaign` разложен аналогично: `campaign/automata.py` — фасад
+  с `__init__`; `automata_core.py` (инициализация, фракции, геометрия,
+  часы, время), `automata_actions.py` (действия и взаимодействия),
+  `automata_processes.py` (процессы, слоты, эффекты), `automata_ai.py`
+  (ИИ и автоигра), `automata_characters.py` (агентность и цели),
+  `automata_orders.py` (заказы фракций), `automata_reports.py` (доклады,
+  решения, перехваты), `automata_snapshot.py` (снимок, сохранение, аудит),
+  `automata_support.py` (константы, помощники, `FactionRuntime`).
+  Алиасы `interact_organ`/`interact_automaton`/`interact_character` и
+  `to_dict` сохранены как атрибуты класса; публичный API и формат снимка
+  не менялись.
+- View-слой разрезан по тем же швам. `view/app.py` — фасад `App` и точка
+  входа `main`; реализация — в `app_core.py` (инициализация, окно, ввод,
+  цикл), `app_storyline.py` (запуск сюжетов), `app_scenes.py` (сцены и
+  переходы), `app_flow.py` (ходы и исходы), `app_dialogue.py` (сессия
+  диалога), `app_saves.py` (сохранения) и `app_menu.py`; общие помощники —
+  в `app_support.py`. `view/screens/world_screen.py` — фасад
+  `WorldScreen` + `world_screen_{core,events,draw,detail,personality}.py`
+  и `world_screen_support.py`. `view/screens/rts_screen.py` — фасад
+  `RTSScreen` + `rts_screen_{core,commands,update,events,draw}.py` и
+  `rts_screen_support.py`. `view/screens/automata_network.py` — фасад
+  `AutomataNetworkScreen` +
+  `automata_network_{core,selection,actions,events,draw}.py` и
+  `automata_network_support.py`. Публичные имена, атрибуты классов и
+  порядок `__init__` сохранены.
 - Легаси-спецификации [`history/MODEL.md`](history/MODEL.md),
   [`history/BASELINE.md`](history/BASELINE.md),
   [`history/DESIGN_ADVANCED.md`](history/DESIGN_ADVANCED.md),
@@ -809,7 +874,8 @@ D7.4 (описание сцены из story/log/events).
   глава задаётся блоком `storyline` (`min_day`, `deadline_day`,
   `win.standing_at_least`, `lose.standing_at_most` + `lose.days`):
   `_check_storyline()` завершает её `win`/`lose`/`neutral`, а без блока мир
-  остаётся бесконечным. Фон и
+  остаётся бесконечным. Production-мир свободной жизни не задаёт `days`:
+  `sandbox` отключает главу и горизонт. Фон и
   оффлайн-догон ограничены `campaign/clock.py` и `saved_at`. В
   `CampaignEnv` есть `TREAT_SELF` (одно действие дня, снимает `0.20`
   болезни) и `target_mode="all"` по умолчанию — действия по всем доступным

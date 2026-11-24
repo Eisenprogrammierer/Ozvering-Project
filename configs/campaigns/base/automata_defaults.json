@@ -706,7 +706,8 @@
     "supply": "снабжение",
     "fear": "страх",
     "morale": "мораль",
-    "energy": "энергия"
+    "energy": "энергия",
+    "myth": "миф"
   },
   "relation_model": {
     "axes": {
@@ -1528,7 +1529,10 @@
     "organization_supply_drain": 0.006,
     "organization_fear": 0.03,
     "organization_morale": 0.002,
-    "collapse_streak": 3
+    "collapse_streak": 3,
+    "course_weight_shift": 0.18,
+    "course_cost_discount": 0.12,
+    "course_effect_bonus": 0.10
   },
   "organ_model": {
     "organ_downscale": 0.6,

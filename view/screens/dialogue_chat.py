@@ -348,23 +348,27 @@ class DialogueChatScreen(BaseScreen):
         self.input_text = ""
         self.message = ""
         try:
-            turn = session.respond(text)
-            answer = turn.answer
-            history.append(
-                {
-                    "role": "agent",
-                    "text": answer.text,
-                    "kind": answer.kind,
-                    "plan": answer.plan_id,
-                }
-            )
-            logger.info(
-                "Чат: %s → %s; план=%s; вид=%s",
-                self.character_id,
-                text[:80],
-                answer.plan_id,
-                answer.kind,
-            )
+            acted = self._try_action(session, text)
+            if acted is not None:
+                history.append(acted)
+            else:
+                turn = session.respond(text)
+                answer = turn.answer
+                history.append(
+                    {
+                        "role": "agent",
+                        "text": answer.text,
+                        "kind": answer.kind,
+                        "plan": answer.plan_id,
+                    }
+                )
+                logger.info(
+                    "Чат: %s → %s; план=%s; вид=%s",
+                    self.character_id,
+                    text[:80],
+                    answer.plan_id,
+                    answer.kind,
+                )
         except Exception as exc:
             logger.exception("Ошибка ответа в чате: %s", exc)
             history.append(
@@ -376,6 +380,55 @@ class DialogueChatScreen(BaseScreen):
             self.message = "Ошибка диалога: %s" % exc
         if len(history) > MAX_HISTORY:
             del history[: len(history) - MAX_HISTORY]
+
+    def _try_action(self, session, text):
+        """Попробовать приказ или речевой акт до обычного ответа.
+
+        ``respond`` остаётся read-only. Если фраза разобрана как действие,
+        но гейт не пропустил её, игрок получает причину отказа, а не
+        энциклопедическую справку. Для чужой стороны мост отключён, и
+        этот метод сразу возвращает ``None``.
+        """
+
+        bridge = getattr(session, "bridge", None)
+        if bridge is None or not getattr(bridge, "allow_actions", False):
+            return None
+        result = session.act(text)
+        if not getattr(result, "performed", False):
+            if getattr(result, "intent", None) is None:
+                return None
+            label = self._action_label(result)
+            reason = str(getattr(result, "reason", "") or "")
+            text_out = (
+                "Не вышло: %s" % reason
+                if reason
+                else "Приказ не исполнен."
+            )
+            logger.info(
+                "Чат: приказ отклонён (%s) — %s", label, reason
+            )
+            return {"role": "agent", "text": text_out, "kind": "action"}
+        label = self._action_label(result)
+        logger.info("Чат: приказ исполнен — %s", label)
+        return {
+            "role": "agent",
+            "text": "Приказ исполнен: %s" % label,
+            "kind": "action",
+            "plan": str(getattr(result, "action_id", "") or ""),
+        }
+
+    def _action_label(self, result):
+        social = (getattr(result, "result", {}) or {}).get("social") or {}
+        label = str(social.get("act_label") or "")
+        if label:
+            return label
+        action_id = str(getattr(result, "action_id", "") or "")
+        catalog = getattr(self, "catalog", None)
+        actions = getattr(catalog, "actions", {}) or {}
+        for item in actions.get("actions") or ():
+            if str(item.get("id")) == action_id:
+                return str(item.get("label") or action_id)
+        return action_id or "действие"
 
     # --- ввод --------------------------------------------------------
 
@@ -457,7 +510,6 @@ class DialogueChatScreen(BaseScreen):
                 self._select_character_id(item.get("id"))
                 return
 
-
     # --- геометрия ---------------------------------------------------
 
     def _faction_rows(self):
@@ -532,7 +584,8 @@ class DialogueChatScreen(BaseScreen):
         )
         screen.blit(
             self.app.font_small.render(
-                "Выберите автомат и собеседника. Тон вычисляют отношения и убеждения.",
+                "Выберите автомат и собеседника. "
+                "Тон вычисляют отношения и убеждения.",
                 True,
                 MUTED,
             ),

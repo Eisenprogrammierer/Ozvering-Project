@@ -8,7 +8,6 @@ from pathlib import Path
 import random
 from typing import Dict, List, Mapping
 
-import warfare as W
 from automata.model import Automaton
 from naming.people import PersonNameGenerator
 from organizations.generator import (
@@ -450,6 +449,11 @@ def _make_character(
     is_player=False,
     is_leader=False,
 ):
+    # Легаси-граница: генератор персонажей опирается на warfare.Character
+    # (он наследует simulation.UtilityAI). Импорт ленивый, чтобы загрузка
+    # пресета не подтягивала simulation без создания персонажа.
+    import warfare as W
+
     defaults = _as_mapping(cfg.get("character_defaults"))
     post_data = _as_mapping(post)
     beliefs = list(defaults.get("beliefs") or ()) + list(

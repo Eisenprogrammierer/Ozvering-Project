@@ -24,9 +24,9 @@
   (`street_musician`, `school_student`, `artisan` и др.), а игра идёт на
   `WorldEngine`, без военного `CampaignState`.
 * `free_life` — бесконечная RTS-песочница: время идёт физическими
-  секундами, скорость не ниже `1x`, без rewind; глава мира и
-  `world_outcome` отключены флагами `sandbox`/`realtime`. Модель —
-  [`FREE_MODE_RTS.md`](FREE_MODE_RTS.md).
+  секундами, скорость не ниже `1x`, без rewind; `days`, глава мира и
+  `world_outcome` отключены флагами `sandbox`/`realtime`, production-мир
+  не задаёт `days`. Модель — [`FREE_MODE_RTS.md`](FREE_MODE_RTS.md).
 * `faction_leader` сохранён для старых тестов и легаси-потока «Хартия Агоры».
   У роли есть тег `legacy`, поэтому `RoleSelectScreen` не показывает её в
   обычном списке.
@@ -243,7 +243,8 @@ P4 добавляет шесть форм-примитивов: `contact` (по�
 6. проверяются grace-распад организации, смена роли при низкой репутации/
    легитимности и смерть; при `infinite=True` прохождение `days` только
    помечает `horizon_passed`, а не даёт `win`. В `sandbox` горизонт и
-   `storyline` не проверяются вовсе.
+   `storyline` не проверяются вовсе, а production-мир свободной жизни не
+   задаёт `days`.
 
 Фон (§7 №31): при неактивном окне `WorldScreen.update(dt)` копит реальные
 секунды в `CampaignClock` (86400 физических секунд на день, то есть при
@@ -327,7 +328,7 @@ P4 добавляет шесть форм-примитивов: `contact` (по�
 | `campaign/clock.py` | фоновые часы кампании, оффлайн-догон и причины авто-паузы |
 | `view/screens/character_creation.py` | биография и сборка профиля |
 | `view/screens/automaton_select.py` | дерево мира, выбор и повторный выбор должности |
-| `view/screens/world_screen.py` | три вкладки, карточки, действия с причинами, прогноз, журнал, смена роли и фоновый догон |
+| `view/screens/world_screen.py` (фасад) + `world_screen_{core,events,draw,detail,personality}.py` | три вкладки, карточки, действия с причинами, прогноз, журнал, смена роли и фоновый догон |
 | `view/support/world_text.py` | качественные прогнозы, отношения, ранги и причины отказа |
 | `view/ui/world_art.py` | портреты, гербы, иконки и тайлсетный фон |
 | `view/support/storyline.py` | загрузка мира, выбор сюжета по `storyline_tags` и условия `world_*` |

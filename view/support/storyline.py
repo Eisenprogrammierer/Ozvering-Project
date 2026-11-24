@@ -1,8 +1,9 @@
 import os
-import logging
 import re
+from collections.abc import Mapping
 
 from .config_loader import load_json
+from .log_journal import get_logger
 
 _VARIABLE_TOKEN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -12,37 +13,7 @@ STORYLINES_DIR = os.path.abspath(
     )
 )
 
-LOG_PATH = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__), "..", "..", "operation_ozverin.log"
-    )
-)
-
-
-def _build_logger():
-    logger = logging.getLogger("core.storyline")
-    if logger.handlers:
-        return logger
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
-    try:
-        file_handler = logging.FileHandler(LOG_PATH, encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    except OSError:
-        pass
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    logger.propagate = False
-    return logger
-
-
-logger = _build_logger()
+logger = get_logger("core.storyline")
 
 DEFAULT_LOSS_LIMIT_PERCENT = 45
 
@@ -182,6 +153,7 @@ def load_storyline(storyline_id, directory=None):
         "lose_conditions": main_data.get("lose_conditions", []),
         "win_scene": main_data.get("win_scene", {}),
         "lose_scene": main_data.get("lose_scene", {}),
+        "arc": main_data.get("arc", {}),
         "adjutant_orders": main_data.get("adjutant_orders", []),
     }
 
@@ -407,6 +379,64 @@ class StorylineInterpreter:
         logger.info(
             "advance: индекс сцены теперь %d", self.current_scene_index
         )
+
+    def take_triggered_beat(self):
+        """Вернуть первый сработавший beat арки и отметить его.
+
+        Beat — данные: ``id``, ``when``, ``scene`` и ``once``. Проверка
+        условий общая: те же ``check_storyline_condition``, что и у
+        win/lose-условий. ``once`` по умолчанию истинно, поэтому сцена не
+        повторяется после сохранения: отметка лежит в ``state`` и попадает
+        в снимок сюжета.
+        """
+
+        arc = self.storyline.get("arc") or {}
+        beats = arc.get("beats") if isinstance(arc, Mapping) else None
+        if not isinstance(beats, (list, tuple)):
+            return None
+        fired = {
+            str(item)
+            for item in (self.state.get("beats") or ())
+            if str(item)
+        }
+        for beat in beats:
+            if not isinstance(beat, Mapping):
+                continue
+            beat_id = str(beat.get("id") or "")
+            once = bool(beat.get("once", True))
+            if once and beat_id in fired:
+                logger.debug("beat уже сыгран: %s", beat_id)
+                continue
+            conditions = beat.get("when") or []
+            if not isinstance(conditions, (list, tuple)):
+                conditions = [conditions]
+            conditions = [
+                item for item in conditions if isinstance(item, Mapping)
+            ]
+            if conditions and not all(
+                check_storyline_condition(
+                    condition,
+                    self._state(),
+                    getattr(self.app, "time_system", None),
+                    self.state,
+                )
+                for condition in conditions
+            ):
+                continue
+            if beat_id:
+                fired.add(beat_id)
+                self.state["beats"] = sorted(fired)
+            logger.info("beat сработал: %s", beat_id or "<без id>")
+            return self.resolve_variant(dict(beat))
+        return None
+
+    def arc_goal(self):
+        """Нарративная цель арки из данных, если она объявлена."""
+        arc = self.storyline.get("arc") or {}
+        if not isinstance(arc, Mapping):
+            return {}
+        goal = arc.get("goal") or {}
+        return dict(goal) if isinstance(goal, Mapping) else {}
 
     def set_variable(self, key, value):
         self.variables[key] = value

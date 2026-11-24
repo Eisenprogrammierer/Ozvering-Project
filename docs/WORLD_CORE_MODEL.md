@@ -205,7 +205,8 @@ R_ij ≠ R_ji
 `obligation` не является осью: это отдельный реестр `ObligationLedger`
 (§2.10), а `reputation` — `standing`/позиция.
 
-Реализация (`campaign/world.py`):
+Реализация (`campaign/world_relations.py`, публичный вход —
+`campaign.world.WorldEngine`):
 
 - скалярная легаси-шкала `node["relations"]` остаётся проекцией `affinity`;
   полные оси лежат рядом в `node["relation_axes"][target]`, поэтому старые
@@ -551,7 +552,9 @@ N=200), голодный урон — 15.9–19.4%. Болезнь не даёт
 #### 2.3.4. Болезнь и смерть в кампании
 
 Кампанийный `WorldEngine` получил первый срез той же физиологии, но с
-дневным шагом (`campaign/world.py`):
+дневным шагом (`campaign/world_day.py` для механики,
+`campaign/world_support.py` для констант; публичный вход —
+`campaign.world.WorldEngine`):
 
 | Параметр | Значение | Смысл |
 |---|---|---|

@@ -73,3 +73,22 @@ def test_chat_send_adds_player_and_agent_messages():
     assert history[0]["text"] == "Кто ты?"
     assert history[-1]["role"] == "agent"
     assert history[-1]["text"]
+
+
+def test_chat_orders_only_for_player_side():
+    _pygame, screen = _chat_screen()
+    campaign = screen.campaign
+    screen.side = campaign.player_side
+    screen.character_id = screen._default_character(screen.side)
+    screen.session = screen._session()
+    assert screen.session.bridge.allow_actions is True
+    screen.input_text = "Покажи силу"
+    screen._send()
+    entry = screen._history()[-1]
+    assert entry["kind"] == "action"
+    assert "Приказ исполнен" in entry["text"]
+
+    screen.side = campaign.rival_side
+    screen.character_id = screen._default_character(screen.side)
+    screen.session = screen._session()
+    assert screen.session.bridge.allow_actions is False

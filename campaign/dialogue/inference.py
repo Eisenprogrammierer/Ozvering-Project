@@ -248,7 +248,9 @@ class InferenceEngine:
                 yield final, (solution.proof,) + steps
 
 
-def explain(engine: InferenceEngine, relation: str, args: Iterable[str]) -> str:
+def explain(
+    engine: InferenceEngine, relation: str, args: Iterable[str]
+) -> str:
     """Текстовая трассировка для отладки; не используется в ответе."""
 
     solutions = engine.prove(relation, args)

@@ -420,18 +420,30 @@ def test_lore_actions_have_player_facing_descriptions():
                 )
 
 
-def test_lore_storylines_have_no_document_scene_and_use_role_title():
+def test_lore_storylines_are_pure_gameplay_simulations():
+    """Сюжет automata-кампании не задаётся сценой, выбором или финалом."""
+
     for template_id in LORE_TEMPLATES:
+        main = json.loads(
+            (STORYLINES / ("%s.json" % template_id)).read_text(
+                encoding="utf-8"
+            )
+        )
+        for key in ("arc", "win_scene", "lose_scene"):
+            assert key not in main, (template_id, key)
         data = json.loads(
             (STORYLINES / ("%s_scenes.json" % template_id)).read_text(
                 encoding="utf-8"
             )
         )
-        types = [scene.get("type") for scene in data["sequence"]]
-        assert "document" not in types, template_id
-        text = json.dumps(data, ensure_ascii=False)
-        assert "hands" not in text.lower(), template_id
-        assert "{player_role_title}" in text, template_id
+        assert [scene.get("type") for scene in data["sequence"]] == [
+            "gameplay"
+        ], template_id
+        text = json.dumps(data, ensure_ascii=False).lower()
+        for legacy in ("слайд", "выбор", "win", "lose", "gameplay"):
+            if legacy in ("gameplay",):
+                continue
+            assert legacy not in text, (template_id, legacy)
 
 
 def test_fractal_organs_are_runtime_nodes_and_snapshot_roundtrip():

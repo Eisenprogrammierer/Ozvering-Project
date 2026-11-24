@@ -18,8 +18,17 @@
           "guard": "влияние выше аппарата",
           "priority": 10,
           "when": [
-            {"kind": "turn", "op": ">=", "value": 1},
-            {"kind": "subfaction", "asset": "influence", "op": ">=", "value": 0.60}
+            {
+              "kind": "turn",
+              "op": ">=",
+              "value": 1
+            },
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.6
+            }
           ]
         },
         {
@@ -28,8 +37,20 @@
           "guard": "влияние упало",
           "priority": 20,
           "when": [
-            {"kind": "subfaction", "asset": "influence", "op": "<", "value": 0.30}
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": "<",
+              "value": 0.3
+            }
           ]
+        }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "cohesion": 0.003
+          }
         }
       ]
     },
@@ -44,8 +65,20 @@
           "guard": "влияние нормализовалось",
           "priority": 10,
           "when": [
-            {"kind": "subfaction", "asset": "influence", "op": "<", "value": 0.48}
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": "<",
+              "value": 0.48
+            }
           ]
+        }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "influence": 0.004
+          }
         }
       ]
     },
@@ -60,16 +93,36 @@
           "guard": "обида превратилась в программу",
           "priority": 10,
           "when": [
-            {"kind": "subfaction", "asset": "grievance", "op": ">=", "value": 0.55},
-            {"kind": "subfaction", "asset": "influence", "op": ">=", "value": 0.45}
+            {
+              "kind": "subfaction",
+              "asset": "grievance",
+              "op": ">=",
+              "value": 0.55
+            },
+            {
+              "kind": "subfaction",
+              "asset": "influence",
+              "op": ">=",
+              "value": 0.45
+            }
           ]
+        }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "cohesion": -0.003
+          }
         }
       ]
     }
   },
   "handlers": {},
   "inputs": {
-    "clauses": ["turn", "subfaction"],
+    "clauses": [
+      "turn",
+      "subfaction"
+    ],
     "authority": "subfaction assets"
   }
 }

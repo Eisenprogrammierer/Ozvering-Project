@@ -279,6 +279,13 @@ class TextGame:
                 value = str(phrase or "")
                 if value:
                     phrases.append(value)
+        for marker in spec.get("markers") or ():
+            if not isinstance(marker, Mapping):
+                continue
+            for phrase in marker.get("phrases") or ():
+                value = str(phrase or "")
+                if value and value not in phrases:
+                    phrases.append(value)
         if not phrases:
             return self._message("hint_empty")
         return self._message("hint_prefix") + "; ".join(phrases)

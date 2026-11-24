@@ -143,7 +143,11 @@ class FormCatalog:
         self.source = str(source or "")
         self._forms: Dict[str, FormSpec] = {}
         for form in forms or ():
-            spec = form if isinstance(form, FormSpec) else FormSpec.from_dict(form)
+            spec = (
+                form
+                if isinstance(form, FormSpec)
+                else FormSpec.from_dict(form)
+            )
             if spec.id in self._forms:
                 raise ActionError("форма %s объявлена дважды" % spec.id)
             self._forms[spec.id] = spec
@@ -398,7 +402,9 @@ def entity_matches(ref, kinds):
     if not kinds:
         return True
     kind = parse_entity_ref(ref)["kind"]
-    return bool(kinds & {kind, "organization"} if kind == "organ" else kinds & {kind})
+    if kind == "organ":
+        return bool(kinds & {kind, "organization"})
+    return bool(kinds & {kind})
 
 
 def build_spec_work(action, actor=None, target=None, campaign=None):

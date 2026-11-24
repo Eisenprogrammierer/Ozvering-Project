@@ -26,7 +26,18 @@
           ]
         }
       ],
-      "initial": true
+      "initial": true,
+      "on_enter": [
+        {
+          "subfactions": {
+            "orthodox": {
+              "assets": {
+                "grievance": 0.01
+              }
+            }
+          }
+        }
+      ]
     },
     "growth": {
       "label": "Рост",
@@ -67,6 +78,13 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "fear": 0.002
+          }
+        }
       ]
     },
     "legitimacy": {
@@ -101,6 +119,13 @@
               "value": 0.55
             }
           ]
+        }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.006
+          }
         }
       ]
     },
@@ -137,6 +162,14 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.008,
+            "cohesion": 0.003
+          }
+        }
       ]
     },
     "crackdown": {
@@ -172,6 +205,21 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "cohesion": -0.008,
+            "fear": 0.005
+          },
+          "subfactions": {
+            "orthodox": {
+              "assets": {
+                "grievance": 0.02
+              }
+            }
+          }
+        }
       ]
     },
     "return": {
@@ -193,6 +241,14 @@
             }
           ]
         }
+      ],
+      "on_enter": [
+        {
+          "assets": {
+            "legitimacy": 0.004,
+            "cohesion": 0.004
+          }
+        }
       ]
     },
     "purge": {
@@ -200,7 +256,22 @@
       "x": 300,
       "y": 300,
       "transitions": [],
-      "final": true
+      "final": true,
+      "on_enter": [
+        {
+          "assets": {
+            "cohesion": -0.006,
+            "influence": -0.004
+          },
+          "subfactions": {
+            "orthodox": {
+              "assets": {
+                "influence": -0.03
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "handlers": {},

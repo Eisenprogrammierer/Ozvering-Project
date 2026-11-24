@@ -1,8 +1,9 @@
 import json
 import os
-import logging
 
 import pygame
+
+from ..support.log_journal import get_logger
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 IMAGES_DIR = os.path.join(BASE_DIR, "assets", "images")
@@ -10,7 +11,6 @@ SUPPORTED_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 PRESENTATION_PATH = os.path.join(
     BASE_DIR, "configs", "view", "presentation.json"
 )
-LOG_PATH = os.path.join(BASE_DIR, "operation_ozverin.log")
 
 
 def _load_presentation():
@@ -24,22 +24,7 @@ def _load_presentation():
 
 _PRESENTATION = _load_presentation()
 
-logger = logging.getLogger("asset_loader")
-if not logger.handlers:
-    logger.setLevel(logging.DEBUG)
-    _file_handler = logging.FileHandler(LOG_PATH, encoding="utf-8")
-    _file_handler.setLevel(logging.DEBUG)
-    _file_handler.setFormatter(
-        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    )
-    logger.addHandler(_file_handler)
-    _console_handler = logging.StreamHandler()
-    _console_handler.setLevel(logging.INFO)
-    _console_handler.setFormatter(
-        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    )
-    logger.addHandler(_console_handler)
-    logger.propagate = False
+logger = get_logger("asset_loader")
 
 
 class AssetLoader:

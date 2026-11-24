@@ -127,7 +127,11 @@ class PlayerAvatar:
                 or data.get("player_character_id")
                 or ""
             ),
-            faction_id=data.get("faction_id") or data.get("player_faction_id") or "",
+            faction_id=(
+                data.get("faction_id")
+                or data.get("player_faction_id")
+                or ""
+            ),
             office_id=data.get("office_id") or data.get("post_id") or "",
             scene_id=data.get("scene_id") or data.get("location") or "",
             control_mode=data.get("control_mode") or "delegated",
@@ -204,7 +208,9 @@ def avatar_from_snapshot(snapshot, fallback_data=None):
         return PlayerAvatar.from_data(raw)
     if raw is None and "avatar" in snapshot:
         return None
-    return avatar_from_preset(fallback_data or snapshot, control_mode="delegated")
+    return avatar_from_preset(
+        fallback_data or snapshot, control_mode="delegated"
+    )
 
 
 __all__ = [

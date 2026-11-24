@@ -121,7 +121,9 @@ class StateSpec:
         except (TypeError, ValueError):
             x = y = 0
         transitions = [
-            TransitionSpec.from_data(item, "%s.transitions[%d]" % (state_id, index))
+            TransitionSpec.from_data(
+                item, "%s.transitions[%d]" % (state_id, index)
+            )
             for index, item in enumerate(_as_list(data.get("transitions")))
         ]
         return cls(
@@ -328,7 +330,9 @@ class StateMachine:
             break
         return reports
 
-    def handle(self, event, context=None, *, actor=None, target=None, scale=1.0):
+    def handle(
+        self, event, context=None, *, actor=None, target=None, scale=1.0
+    ):
         """Выполнить обработчик события, если он объявлен."""
         payload = _as_mapping(self.definition.handlers.get(str(event)))
         if not payload:

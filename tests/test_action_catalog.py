@@ -259,4 +259,6 @@ def test_improvised_work_is_off_by_default_and_traced_when_enabled(forms):
 
 
 def world_data():
-    return json.loads((WORLDS / "agora_world.json").read_text(encoding="utf-8"))
+    return json.loads(
+        (WORLDS / "agora_world.json").read_text(encoding="utf-8")
+    )

@@ -690,10 +690,11 @@
         "influence": 0.006
       },
       "score_assets": {
-        "legitimacy": 0.4,
-        "cohesion": 0.3,
-        "fear": 0.2,
-        "morale": 0.1
+        "legitimacy": 0.32,
+        "cohesion": 0.24,
+        "fear": 0.14,
+        "morale": 0.08,
+        "myth": 0.22
       },
       "organs": [
         {

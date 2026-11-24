@@ -148,6 +148,15 @@
         },
         "asset_relax": {
           "type": "number"
+        },
+        "course_weight_shift": {
+          "type": "number"
+        },
+        "course_cost_discount": {
+          "type": "number"
+        },
+        "course_effect_bonus": {
+          "type": "number"
         }
       },
       "additionalProperties": false

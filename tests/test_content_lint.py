@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import json
+
 import bdi
 import pytest
 
@@ -389,6 +391,37 @@ def test_defaults_require_labels_and_formulas():
     )
 
 
+def test_character_agency_maps_all_sixteen_needs():
+    path = (
+        content_lint.ROOT
+        / "configs"
+        / "campaigns"
+        / "base"
+        / "automata_defaults.json"
+    )
+    base = json.loads(path.read_text(encoding="utf-8"))
+
+    defaults = json.loads(json.dumps(base))
+    goals = defaults["ai_model"]["character_agency"]["goals"]
+    goals["by_need"].pop("hunger")
+    problems = content_lint.check_defaults(defaults, None)
+    assert any(
+        "by_need" in item and "hunger" in item for item in problems
+    )
+
+    defaults = json.loads(json.dumps(base))
+    goals = defaults["ai_model"]["character_agency"]["goals"]
+    goals["by_need"]["hunger"] = "missing_kind"
+    problems = content_lint.check_defaults(defaults, None)
+    assert any("неизвестный вид цели" in item for item in problems)
+
+    defaults = json.loads(json.dumps(base))
+    kinds = defaults["ai_model"]["character_agency"]["goals"]["kinds"]
+    kinds["provision"]["essence"] = "missing_essence"
+    problems = content_lint.check_defaults(defaults, None)
+    assert any("неизвестная суть" in item for item in problems)
+
+
 def test_automaton_targets_and_effects_are_checked():
     broken = {
         "schema": 2,
@@ -434,3 +467,93 @@ def test_automaton_schema_is_checked():
         "automaton",
     )
     assert any("ожидалась 2" in item for item in problems)
+
+
+def test_chronicle_phrases_pass_lint():
+    path = (
+        content_lint.ROOT
+        / "configs"
+        / "campaigns"
+        / "base"
+        / "chronicle_phrases.json"
+    )
+    assert content_lint.lint_path(path) == []
+
+
+def test_chronicle_phrases_reject_unknown_fields():
+    data = {
+        "schema": 1,
+        "buckets": [{"id": "quiet", "min": 0.0}],
+        "openings": {"quiet": ["Ровный ход: "]},
+        "decision_patterns": ["«{decision}» → {body}"],
+        "cause_patterns": ["; причина: «{cause}»"],
+        "facts_unit": "факт(ов)",
+        "changes_prefix": "; изменения: ",
+        "strongest_pattern": "; сильнее всего «{label}»",
+        "empty_actor": "безымянная сторона",
+        "empty_target": "неизвестная цель",
+        "plot": "тайный сюжет",
+    }
+    problems = content_lint.lint_chronicle_phrases_data(data)
+    assert any(
+        "неизвестные поля" in item and "plot" in item
+        for item in problems
+    )
+
+
+def test_chronicle_phrases_reject_wrong_placeholders():
+    data = {
+        "schema": 1,
+        "buckets": [{"id": "quiet", "min": 0.0}],
+        "openings": {"quiet": ["Открытие {decision}"]},
+        "decision_patterns": ["просто текст"],
+        "cause_patterns": ["{cause} и {body}"],
+        "facts_unit": "",
+        "changes_prefix": "; ",
+        "strongest_pattern": "{label} {cause}",
+        "empty_actor": "безымянная сторона",
+        "empty_target": "неизвестная цель",
+    }
+    problems = content_lint.lint_chronicle_phrases_data(data)
+    assert any(
+        "openings.quiet" in item and "плейсхолдер" in item
+        for item in problems
+    )
+    assert any(
+        "decision_patterns" in item
+        and "нет обязательных" in item
+        and "decision" in item
+        for item in problems
+    )
+    assert any(
+        "cause_patterns" in item and "body" in item
+        for item in problems
+    )
+    assert any(
+        "strongest_pattern" in item and "{label}" in item
+        for item in problems
+    )
+    assert any("facts_unit" in item for item in problems)
+
+
+def test_chronicle_phrases_require_openings_for_each_bucket():
+    data = {
+        "schema": 1,
+        "buckets": [
+            {"id": "quiet", "min": 0.0},
+            {"id": "notable", "min": 0.2},
+        ],
+        "openings": {"quiet": ["Ровный ход: "]},
+        "decision_patterns": ["«{decision}» → {body}"],
+        "cause_patterns": ["; причина: «{cause}»"],
+        "facts_unit": "факт(ов)",
+        "changes_prefix": "; изменения: ",
+        "strongest_pattern": "; сильнее всего «{label}»",
+        "empty_actor": "безымянная сторона",
+        "empty_target": "неизвестная цель",
+    }
+    problems = content_lint.lint_chronicle_phrases_data(data)
+    assert any(
+        "нет категорий" in item and "notable" in item
+        for item in problems
+    )

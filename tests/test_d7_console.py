@@ -132,6 +132,13 @@ def test_hint_lists_action_phrases(game):
     assert hint == game.hint()
 
 
+def test_hint_lists_marker_phrases(game):
+    hint = game.hint()
+    assert "Приказываю тебе" in hint
+    assert "Угрожаю тебе" in hint
+    assert "Обещаю тебе" in hint
+
+
 def test_help_and_aliases(game):
     assert "/undo" in game.submit("/help").reply
     assert game.submit("/h").reply == game.submit("/help").reply

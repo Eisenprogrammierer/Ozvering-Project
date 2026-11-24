@@ -268,8 +268,8 @@ bearing = Σ turn(узел, предыдущий, следующий)
 
 `campaign/preset.py` при загрузке шаблона копирует блок нужной стороны в
 запись фракции (`setdefault`, поэтому локальный блок шаблона имеет
-приоритет). Дальше `_build_geometry()` в `campaign/automata.py` строит
-`MetricGraph` и кладёт его в `FactionRuntime.geometry`.
+приоритет). Дальше `_build_geometry()` в `campaign/automata_support.py`
+строит `MetricGraph` и кладёт его в `FactionRuntime.geometry`.
 
 Разделение уровней намеренное: топология органов и их связи остаются в
 `factions.<side>.organs`, а геометрические инварианты — отдельным слоем,

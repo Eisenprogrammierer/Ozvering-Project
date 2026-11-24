@@ -2,7 +2,6 @@
   "id": "agora_world",
   "title": "Агора: мир в движении",
   "subtitle": "Семь сфер, несколько держав и церквей. Вы — должностное лицо.",
-  "days": 30,
   "actions_per_day": 3,
   "action_catalogs": [
     "configs/worlds/actions/agora_actions.json",

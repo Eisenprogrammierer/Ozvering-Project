@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -131,9 +132,15 @@ def test_free_storyline_declares_start_for_every_archetype(storyline, world):
     assert world.get("realtime") is True
     assert world.get("seconds_per_day") == 86400
     assert tuple(world.get("time_speeds")) == (1, 2, 4, 8)
-    # Сюжет начинается с представления и заканчивается миром.
-    assert storyline["scenes"][0]["type"] == "visual_novel"
+    # Свободный мир не ограничен главой и числом дней.
+    assert "days" not in world
+    assert world.get("storyline") is None
+    # Сюжет начинается со сводки мира и заканчивается миром.
+    assert storyline["scenes"][0]["type"] == "world_briefing"
     assert storyline["scenes"][-1]["type"] == "world"
+    assert "slides" not in json.dumps(
+        storyline["scenes"], ensure_ascii=False
+    )
 
     catalog = load_archetypes_catalog(ARCHETYPES, use_cache=False)
     assert catalog is not None

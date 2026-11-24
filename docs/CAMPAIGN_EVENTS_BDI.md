@@ -557,16 +557,18 @@ force += force_recovery * service * (max_force - force) * share_of_day
 
 ## 5. Интеграция
 
-- `campaign/dispatch.py` — модель источника, claim, рамки, выборы,
+- `campaign/dispatch.py` (фасад) и `campaign/dispatch_*.py` — модель
+  источника, claim, рамки, выборы,
   очередь докладов, память получателя, обещания, автоматические решения
   чужих фракций, перехват чужих донесений и сводка штаба.
-- `campaign/automata.py` — тик диспетчера, публичные методы
-  `pending_reports()`, `pending_decisions()`, `decision_pending()`,
+- `campaign/automata.py` — фасад кампании; тик диспетчера и публичные
+  методы `pending_reports()`, `pending_decisions()`, `decision_pending()`,
   `report(id)`, `resolve_report(id, choice)`, `interceptions()`,
   `available_interceptions()`, `intercept(id)`, `open_intercept(id)`,
   `intercept_counters(id)`, `use_intercept(id, counter)`,
-  `staff_briefing()`, снимок и загрузка; там же новости третьих лиц и
-  городские вести с `release_at`.
+  `staff_briefing()`, снимок и загрузка (реализация — в
+  `automata_reports.py`/`automata_snapshot.py`); там же новости третьих
+  лиц и городские вести с `release_at`.
 - `configs/campaigns/base/automata_defaults.json` — секция `dispatch`
   с интервалом, темами, источниками, шаблонами, эффектами, стоимостью
   проверки, блоками `rumor`, `contradiction`, `distortion`, `memory`
@@ -587,9 +589,9 @@ force += force_recovery * service * (max_force - force) * share_of_day
   доставки новостей.
 - `view/screens/campaign_overlays.py` — экстренная остановка эмуляции
   при появлении решения и кнопка «К ДОКЛАДАМ».
-- `campaign/obligations.py`, `campaign/world.py` — журнал обязательств,
-  `breached_day`, цена просрочки в отношениях, переговорах и коалициях
-  дневного мира.
+- `campaign/obligations.py`, `campaign/world_relations.py` — журнал
+  обязательств, `breached_day`, цена просрочки в отношениях, переговорах
+  и коалициях дневного мира (публичный вход — `campaign.world.WorldEngine`).
 - `campaign/audit.py` — события `report_issued`, `report_choice`,
   `memory_spread`, `news_issued`, `promise_made`, `promise_fulfilled`,
   `promise_overdue`, `promise_atoned`, `intercept_available`,

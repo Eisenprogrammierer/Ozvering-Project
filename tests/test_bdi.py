@@ -217,7 +217,9 @@ def test_seed_accepts_property_beliefs_without_object(config):
 
 def test_seed_makes_content_intention_current(config):
     state = _state(config)
-    state.seed(intentions=[{"target": "faction.republic", "essence": "coerce"}])
+    state.seed(
+        intentions=[{"target": "faction.republic", "essence": "coerce"}]
+    )
     latest = state.latest_intention()
     assert latest.target == "faction.republic"
     assert latest.target_kind == "automaton"

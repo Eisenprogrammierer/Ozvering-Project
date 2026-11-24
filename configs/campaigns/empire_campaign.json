@@ -36,7 +36,8 @@
       "defeat": {
         "red": {
           "legitimacy": 0.06,
-          "cohesion": 0.05
+          "cohesion": 0.05,
+          "myth": 0.3
         },
         "blue": {
           "legitimacy": 0.08

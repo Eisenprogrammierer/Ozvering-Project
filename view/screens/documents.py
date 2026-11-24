@@ -1,8 +1,6 @@
-import os
-import logging
-
 import pygame
 
+from ..support.log_journal import get_logger
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
@@ -16,33 +14,7 @@ INK_COLOR = (35, 30, 25)
 ARROW_COLOR = (95, 85, 75)
 TEXT_BOTTOM_MARGIN = 48
 
-_LOG_NAME = "ozverin"
-
-
-def _ensure_journal():
-    root_logger = logging.getLogger(_LOG_NAME)
-    if not root_logger.handlers:
-        root_logger.setLevel(logging.INFO)
-        root = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..")
-        )
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        )
-        file_handler = logging.FileHandler(
-            os.path.join(root, "operation_ozverin.log"), encoding="utf-8"
-        )
-        file_handler.setFormatter(formatter)
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
-        root_logger.addHandler(stream_handler)
-    return root_logger
-
-
-_ensure_journal()
-
-logger = logging.getLogger(_LOG_NAME + ".documents")
+logger = get_logger("ozverin.documents")
 
 
 class DocumentsScreen(BaseScreen):

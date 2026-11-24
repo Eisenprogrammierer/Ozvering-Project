@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import json
 import pathlib
+import string
 import sys
 from collections.abc import Mapping
 from typing import Iterable, List, Sequence
@@ -49,6 +50,7 @@ DEFAULT_PATHS = (
     ROOT / "configs" / "content" / "payload_kinds.json",
     ROOT / "configs" / "campaigns",
     ROOT / "configs" / "campaigns" / "base" / "lore_factions.json",
+    ROOT / "configs" / "campaigns" / "base" / "chronicle_phrases.json",
     ROOT / "configs" / "campaigns" / "base" / "automata_defaults.json",
     ROOT / "configs" / "campaigns" / "base" / "automata",
     ROOT / "configs" / "systems" / "events.json",
@@ -930,6 +932,86 @@ def _order_model_problems(model, prefix="order_model"):
     return problems
 
 
+def _character_agency_problems(defaults, config):
+    """Проверить, что все 16 желаний участвуют в целях автономии.
+
+    ``goals.by_need`` — мост между BDI-потребностью и личной целью
+    персонажа. Если потребности нет в мосте, она растёт, но никогда не
+    становится целью; если вид цели или суть намерения не существуют,
+    персонаж молча теряет мотивацию.
+    """
+
+    model = _as_mapping(
+        _as_mapping(defaults.get("ai_model")).get("character_agency")
+    )
+    if not model:
+        return []
+    problems = []
+    goals = _as_mapping(model.get("goals"))
+    by_need = _as_mapping(goals.get("by_need"))
+    kinds = _as_mapping(goals.get("kinds"))
+    known_needs = set(config.needs) if config is not None else set()
+    essences = set(config.essences) if config is not None else set()
+    if known_needs:
+        missing = sorted(known_needs - set(by_need))
+        extra = sorted(set(by_need) - known_needs)
+        if missing:
+            problems.append(
+                "character_agency.goals.by_need: нет потребностей %s"
+                % ", ".join(missing)
+            )
+        if extra:
+            problems.append(
+                "character_agency.goals.by_need: неизвестные потребности %s"
+                % ", ".join(extra)
+            )
+    for need, kind in by_need.items():
+        kind = str(kind or "")
+        if kind and kind not in kinds:
+            problems.append(
+                "character_agency.goals.by_need.%s: неизвестный вид цели %r"
+                % (need, kind)
+            )
+    allowed_targets = {"organ", "faction", "rival", "leader", "self"}
+    for kind, spec in kinds.items():
+        spec = _as_mapping(spec)
+        needs = [str(item) for item in _as_list(spec.get("needs"))]
+        if not needs:
+            problems.append(
+                "character_agency.goals.kinds.%s: нужен непустой needs"
+                % kind
+            )
+        for need in needs:
+            if known_needs and need not in known_needs:
+                problems.append(
+                    "character_agency.goals.kinds.%s: неизвестная "
+                    "потребность %r" % (kind, need)
+                )
+        essence = str(spec.get("essence") or "")
+        if not essence:
+            problems.append(
+                "character_agency.goals.kinds.%s: пустая essence" % kind
+            )
+        elif essences and essence not in essences:
+            problems.append(
+                "character_agency.goals.kinds.%s: неизвестная суть %r"
+                % (kind, essence)
+            )
+        target = str(spec.get("target") or "")
+        if target and target not in allowed_targets:
+            problems.append(
+                "character_agency.goals.kinds.%s: неизвестная цель %r"
+                % (kind, target)
+            )
+    default_kind = str(goals.get("default_kind") or "")
+    if default_kind and default_kind not in kinds:
+        problems.append(
+            "character_agency.goals.default_kind: неизвестный вид %r"
+            % default_kind
+        )
+    return problems
+
+
 def check_defaults(defaults, factions=None):
     """Проверить ``automata_defaults.json``: подписи и формулы активов."""
     problems: List[str] = []
@@ -966,6 +1048,7 @@ def check_defaults(defaults, factions=None):
         problems.extend(
             _order_model_problems(defaults.get("order_model"))
         )
+    problems.extend(_character_agency_problems(defaults, config))
 
     for faction in faction_map.values():
         faction = _as_mapping(faction)
@@ -1292,6 +1375,8 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         )
     if path.name == "payload_kinds.json":
         problems.extend(lint_payload_kinds_data(data))
+    if path.name == "chronicle_phrases.json":
+        problems.extend(lint_chronicle_phrases_data(data))
     if (
         path.parent.name == "handlers"
         and isinstance(data, Mapping)
@@ -1407,6 +1492,200 @@ def _expand(paths):
         else:
             files.append(path)
     return files
+
+
+CHRONICLE_PHRASES_KEYS = {
+    "schema",
+    "description",
+    "buckets",
+    "openings",
+    "decision_patterns",
+    "cause_patterns",
+    "facts_unit",
+    "changes_prefix",
+    "strongest_pattern",
+    "empty_actor",
+    "empty_target",
+}
+
+
+def _template_fields(text):
+    """Имена плейсхолдеров шаблона; кривой шаблон даёт ``None``."""
+
+    try:
+        return {
+            field
+            for _literal, field, _spec, _conversion in (
+                string.Formatter().parse(text)
+            )
+            if field
+        }
+    except ValueError:
+        return None
+
+
+def _template_list_problems(items, name, required):
+    """Проверить список шаблонов: непустой, с нужными плейсхолдерами."""
+
+    if not isinstance(items, list) or not items:
+        return ["%s должен быть непустым списком" % name]
+    allowed = set(required)
+    problems = []
+    for index, item in enumerate(items):
+        if not isinstance(item, str) or not item.strip():
+            problems.append(
+                "%s[%d]: нужна непустая строка" % (name, index)
+            )
+            continue
+        fields = _template_fields(item)
+        if fields is None:
+            problems.append(
+                "%s[%d]: кривой шаблон %r" % (name, index, item)
+            )
+            continue
+        missing = allowed - fields
+        if missing:
+            problems.append(
+                "%s[%d]: нет обязательных плейсхолдеров %s"
+                % (name, index, ", ".join(sorted(missing)))
+            )
+        extra = fields - allowed
+        if extra:
+            problems.append(
+                "%s[%d]: неизвестные плейсхолдеры %s"
+                % (name, index, ", ".join(sorted(extra)))
+            )
+    return problems
+
+
+def lint_chronicle_phrases_data(data):
+    """Проверить языковые шаблоны хроники.
+
+    Шаблоны описывают только форму уже посчитанного эпизода: категории
+    значимости, открытия и связки с решением/причиной. Линтер следит,
+    чтобы данные не превращались в сюжет и чтобы каждый плейсхолдер был
+    заполним из полей эпизода.
+    """
+
+    if not isinstance(data, Mapping):
+        return ["шаблоны хроники должны быть объектом"]
+    problems = []
+    unknown = set(data) - CHRONICLE_PHRASES_KEYS
+    if unknown:
+        problems.append(
+            "неизвестные поля: %s" % ", ".join(sorted(unknown))
+        )
+    if data.get("schema") != 1:
+        problems.append("schema должен быть равен 1")
+    buckets = data.get("buckets")
+    bucket_ids = []
+    if not isinstance(buckets, list) or not buckets:
+        problems.append("buckets должен быть непустым списком")
+    else:
+        for index, item in enumerate(buckets):
+            if not isinstance(item, Mapping):
+                problems.append(
+                    "buckets[%d] должен быть объектом" % index
+                )
+                continue
+            extra = set(item) - {"id", "min"}
+            if extra:
+                problems.append(
+                    "buckets[%d]: неизвестные поля %s"
+                    % (index, ", ".join(sorted(extra)))
+                )
+            bucket_id = str(item.get("id") or "").strip()
+            if not bucket_id:
+                problems.append("buckets[%d]: пустой id" % index)
+            elif bucket_id in bucket_ids:
+                problems.append(
+                    "buckets[%d]: повтор id %s" % (index, bucket_id)
+                )
+            else:
+                bucket_ids.append(bucket_id)
+            minimum = item.get("min")
+            if isinstance(minimum, bool) or not isinstance(
+                minimum, (int, float)
+            ):
+                problems.append(
+                    "buckets[%d]: min должен быть числом" % index
+                )
+    openings = data.get("openings")
+    if not isinstance(openings, Mapping) or not openings:
+        problems.append("openings должен быть непустым объектом")
+    else:
+        for key, items in openings.items():
+            if key not in bucket_ids:
+                problems.append(
+                    "openings: категория %s отсутствует в buckets" % key
+                )
+            if not isinstance(items, list) or not items:
+                problems.append(
+                    "openings.%s должен быть непустым списком" % key
+                )
+                continue
+            for index, item in enumerate(items):
+                if not isinstance(item, str) or not item.strip():
+                    problems.append(
+                        "openings.%s[%d]: нужна непустая строка"
+                        % (key, index)
+                    )
+                    continue
+                fields = _template_fields(item)
+                if fields is None:
+                    problems.append(
+                        "openings.%s[%d]: кривой шаблон %r"
+                        % (key, index, item)
+                    )
+                elif fields:
+                    problems.append(
+                        "openings.%s[%d]: открытие не должно иметь "
+                        "плейсхолдеров" % (key, index)
+                    )
+        missing = [
+            name for name in bucket_ids if name not in openings
+        ]
+        if missing:
+            problems.append(
+                "openings: нет категорий %s" % ", ".join(missing)
+            )
+    problems.extend(
+        _template_list_problems(
+            data.get("decision_patterns"),
+            "decision_patterns",
+            ("decision", "body"),
+        )
+    )
+    problems.extend(
+        _template_list_problems(
+            data.get("cause_patterns"),
+            "cause_patterns",
+            ("cause",),
+        )
+    )
+    strongest = data.get("strongest_pattern")
+    if not isinstance(strongest, str) or not strongest.strip():
+        problems.append(
+            "strongest_pattern должен быть непустой строкой"
+        )
+    else:
+        fields = _template_fields(strongest)
+        if fields is None:
+            problems.append("strongest_pattern: кривой шаблон")
+        elif fields != {"label"}:
+            problems.append(
+                "strongest_pattern: нужен ровно плейсхолдер {label}"
+            )
+    for key in (
+        "facts_unit",
+        "changes_prefix",
+        "empty_actor",
+        "empty_target",
+    ):
+        value = data.get(key)
+        if not isinstance(value, str) or not value.strip():
+            problems.append("%s должен быть непустой строкой" % key)
+    return problems
 
 
 def lint_payload_kinds_data(data):
@@ -1560,6 +1839,78 @@ def _storyline_path(value):
     return path
 
 
+AUTOMATA_FORBIDDEN_STORY_KEYS = ("arc", "win_scene", "lose_scene")
+
+
+def _campaign_mode(data):
+    """Режим шаблона кампании, если он указан и читается."""
+
+    value = data.get("campaign_template")
+    if not value:
+        return ""
+    path = _storyline_path(value)
+    try:
+        template = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(template, Mapping):
+        return ""
+    scenario = template.get("scenario")
+    if not isinstance(scenario, Mapping):
+        return ""
+    return str(scenario.get("mode") or "")
+
+
+def _lint_automatic_storyline(path, data, problems):
+    """Запретить авторский сюжет там, где сюжет обязан быть симуляцией."""
+
+    if _campaign_mode(data) != "automata":
+        return
+    source = str(path.name)
+    for key in AUTOMATA_FORBIDDEN_STORY_KEYS:
+        if key in data:
+            problems.append(
+                "%s.%s: сюжет automata-кампании задаётся симуляцией, "
+                "а не сценой или финалом в данных" % (source, key)
+            )
+    scenes_id = data.get("scenes")
+    if not scenes_id:
+        return
+    scenes_path = pathlib.Path(path).parent / ("%s.json" % scenes_id)
+    if not scenes_path.is_file():
+        return
+    try:
+        scenes = json.loads(scenes_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    sequence = (
+        scenes.get("sequence")
+        if isinstance(scenes, Mapping)
+        else None
+    )
+    if not isinstance(sequence, (list, tuple)):
+        return
+    for index, scene in enumerate(sequence):
+        if not isinstance(scene, Mapping):
+            problems.append(
+                "%s.sequence[%d]: сцена должна быть объектом"
+                % (scenes_path.name, index)
+            )
+            continue
+        scene_type = str(scene.get("type") or "")
+        if scene_type != "gameplay":
+            problems.append(
+                "%s.sequence[%d]: для automata-кампании допустима только "
+                "сцена gameplay, а не %r"
+                % (scenes_path.name, index, scene_type)
+            )
+        if scene.get("slides") or scene.get("choices"):
+            problems.append(
+                "%s.sequence[%d]: слайды и выборы запрещены"
+                % (scenes_path.name, index)
+            )
+
+
 def lint_storylines_data(path, data):
     """Проверить основной сюжет: теги и ссылки на соседние данные."""
     if not isinstance(data, Mapping):
@@ -1571,6 +1922,8 @@ def lint_storylines_data(path, data):
         return []
     path = pathlib.Path(path)
     problems = []
+    source = str(path.name)
+    _lint_automatic_storyline(path, data, problems)
     storyline_id = str(data.get("storyline_id") or "")
     if storyline_id and storyline_id != path.stem:
         problems.append(

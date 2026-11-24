@@ -207,7 +207,9 @@ class RoleSelectScreen(BaseScreen):
             index = self.filter_order.index(self.filter_mode)
         except ValueError:
             index = -1
-        self.set_filter(self.filter_order[(index + 1) % len(self.filter_order)])
+        self.set_filter(
+            self.filter_order[(index + 1) % len(self.filter_order)]
+        )
 
     def set_filter(self, mode):
         if mode not in self.filter_order:

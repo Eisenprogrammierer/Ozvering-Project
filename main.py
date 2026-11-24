@@ -15,6 +15,9 @@
 --speed, --sickness, --health-factors, --no-auto-checkpoint,
 --checkpoints-dir, --list-checkpoints) пробрасываются выбранному приложению.
 
+Журнал пишется только по флагу ``--log`` (свой путь — ``--log-file``).
+Каждый запуск перезаписывает файл, размер ограничен.
+
 `--list-checkpoints` обрабатывается здесь, до импорта pygame: список
 печатается и без открытия окна, независимо от выбранного клиента.
 """
@@ -28,10 +31,13 @@ USAGE = (
     "               [--classic|--ui] [--interaction] [--scene NAME]\n"
     "               [--checkpoint PATH] [--checkpoints-dir DIR]\n"
     "               [--list-checkpoints] [--fullscreen|-f] [--speed S]\n"
-    "               [--sickness X] [--health-factors ...] [--help|-h]\n"
+    "               [--sickness X] [--health-factors ...] [--log]\n"
+    "               [--log-file PATH] [--help|-h]\n"
     "\n"
     "  (без флага)  кампания (view/), режим по умолчанию\n"
     "  --classic    классическое меню ui/ (легаси)\n"
+    "  --log        писать журнал в operation_ozverin.log\n"
+    "  --log-file   свой путь журнала (включает --log)\n"
 )
 
 
@@ -46,6 +52,41 @@ def _arg_value(argv, name, default=""):
         if arg.startswith(prefix):
             return arg[len(prefix):]
     return default
+
+
+def _strip_logging_flags(argv):
+    """Вынуть флаги журнала из argv до передачи приложению.
+
+    Возвращает ``(argv, enabled, path)``. ``--log-file`` подразумевает
+    включение журнала; пустой путь означает путь по умолчанию.
+    """
+
+    enabled = False
+    path = ""
+    cleaned = []
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--log":
+            enabled = True
+            index += 1
+            continue
+        if arg == "--log-file":
+            enabled = True
+            if index + 1 < len(argv):
+                path = argv[index + 1]
+                index += 2
+            else:
+                index += 1
+            continue
+        if arg.startswith("--log-file="):
+            enabled = True
+            path = arg[len("--log-file="):]
+            index += 1
+            continue
+        cleaned.append(arg)
+        index += 1
+    return cleaned, enabled, path
 
 
 def _list_checkpoints(argv):
@@ -68,6 +109,10 @@ def main(argv=None):
         return 0
     if "--list-checkpoints" in argv:
         return _list_checkpoints(argv)
+    argv, log_enabled, log_path = _strip_logging_flags(argv)
+    from view.support.log_journal import configure_logging
+
+    configure_logging(enabled=log_enabled, path=log_path or None)
     automata = ("--automata" in argv) or ("--editor" in argv)
     view = ("--view" in argv) or ("--campaign" in argv)
     arena = ("--arena" in argv) or ("--engine" in argv)

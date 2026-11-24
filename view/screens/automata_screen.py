@@ -215,6 +215,8 @@ class AutomataScreen(BaseScreen):
         self._options_cache_at = 0.0
         self._faction_cache = {}
         self._faction_cache_at = 0.0
+        self._chronicle_cache = None
+        self._chronicle_key = None
         self._sync_storyline()
         logger.info(
             "Экран автоматов: фракций=%d, цикл=%d, слоты=%d, игрок=%s",
@@ -259,14 +261,10 @@ class AutomataScreen(BaseScreen):
         interp.set_variable("automata_elapsed", snapshot["elapsed"])
         interp.set_variable("automata_speed", snapshot["speed"])
         for side, faction in snapshot["factions"].items():
-            interp.set_variable(
-                "automata_%s_legitimacy" % side,
-                faction["assets"].get("legitimacy", 0.0),
-            )
-            interp.set_variable(
-                "automata_%s_cohesion" % side,
-                faction["assets"].get("cohesion", 0.0),
-            )
+            for key, value in (faction.get("assets") or {}).items():
+                interp.set_variable(
+                    "automata_%s_%s" % (side, key), value
+                )
 
     def update(self, dt):
         """Реальное время: кампания идёт, пока открыт её экран."""
@@ -290,6 +288,90 @@ class AutomataScreen(BaseScreen):
             self._sync_storyline()
         if self.campaign.finished:
             self._check_storyline_outcome()
+
+    def _goal_text(self):
+        """Цель и пороги из ``scenario.outcome`` в одну строку."""
+
+        rules = getattr(self.campaign, "outcome_rules", None) or {}
+        parts = []
+        rival = self.campaign.rival
+        basis = str(rules.get("score_basis") or "assets")
+        basis_label = (
+            "прогрессу" if basis == "progress" else "взвешенной оценке"
+        )
+        if rival is not None and rules.get("score_margin") is not None:
+            parts.append(
+                "цель: превзойти %s по %s" % (rival.name, basis_label)
+            )
+        after = rules.get("score_after")
+        if after:
+            parts.append("проверка после %d циклов" % int(after))
+        defeat = (rules.get("defeat") or {}).get(
+            self.campaign.player_side
+        ) or {}
+        labels = _asset_labels(self._player())
+        limits = [
+            "%s ≤ %.2f" % (labels.get(str(key), key), float(value))
+            for key, value in defeat.items()
+        ]
+        if limits:
+            parts.append("провал: %s" % ", ".join(limits))
+        return " · ".join(parts)
+
+    def _course_label(self):
+        """Курс правящей подфракции — вычисляется из её доли и активов."""
+
+        from campaign.chronicle import subfaction_goal
+
+        player = self._player()
+        if player is None:
+            return ""
+        return subfaction_goal(player)
+
+    def _risk_text(self):
+        """Предупреждение, если актив подошёл к порогу поражения."""
+
+        from campaign.chronicle import risk_warning
+
+        return risk_warning(self.campaign)
+
+    def _progress_text(self):
+        rules = getattr(self.campaign, "outcome_rules", None) or {}
+        if rules.get("score_margin") is None:
+            return ""
+        player = self.campaign.player
+        rival = self.campaign.rival
+        if player is None or rival is None:
+            return ""
+        return "прогресс: вы %.2f · %s %.2f" % (
+            player.progress(),
+            rival.name,
+            rival.progress(),
+        )
+
+    def _draw_progress_bar(self, screen):
+        """Полоса баланса прогресса: без текста, только состояние."""
+
+        rules = getattr(self.campaign, "outcome_rules", None) or {}
+        if rules.get("score_margin") is None:
+            return
+        from campaign.chronicle import score_share
+
+        share = score_share(self.campaign)
+        width = 820
+        height = 3
+        x, y = 430, 100
+        pygame.draw.rect(
+            screen, PANEL_BORDER, (x, y, width, height), border_radius=2
+        )
+        filled = int(round(width * share))
+        if filled > 0:
+            pygame.draw.rect(
+                screen, ACCENT, (x, y, filled, height), border_radius=2
+            )
+        pygame.draw.line(
+            screen, MUTED, (x + width // 2, y - 2), (x + width // 2, y + 7)
+        )
 
     def _player(self):
         return self.campaign.faction(self.campaign.player_side)
@@ -330,27 +412,48 @@ class AutomataScreen(BaseScreen):
         ):
             return cached
         assets = derived_assets(faction)
+        support = ""
+        if faction.organization_snapshot:
+            support = "поддержка: %s" % share_phrase(
+                float(
+                    faction.organization_snapshot.get(
+                        "willing_share", 0.0
+                    )
+                )
+            )
+        subfactions = self._subfaction_line(faction)
+        if subfactions:
+            support = (
+                "%s · %s" % (support, subfactions)
+                if support
+                else subfactions
+            )
         summary = {
             "assets": _asset_line(
                 assets, labels=_asset_labels(faction)
             ),
             "relation": _relation_line(self.campaign, faction),
-            "support": (
-                "поддержка: %s"
-                % share_phrase(
-                    float(
-                        faction.organization_snapshot.get(
-                            "willing_share", 0.0
-                        )
-                    )
-                )
-                if faction.organization_snapshot
-                else ""
-            ),
+            "support": support,
         }
         self._faction_cache[faction.side] = summary
         self._faction_cache_at = now
         return summary
+
+    def _subfaction_line(self, faction):
+        """Доминирующие внутренние фракции — из данных, без имён в коде."""
+
+        items = []
+        for sub in getattr(faction, "subfactions", ()) or ():
+            share = float(getattr(sub, "share", 0.0) or 0.0)
+            if share < 0.05:
+                continue
+            items.append((share, str(getattr(sub, "label", "") or sub.id)))
+        items.sort(reverse=True)
+        return " · ".join(
+            "%s %d%%" % (label, round(share * 100.0))
+            for share, label in items[:2]
+            if label
+        )
 
     def _visible_actions(self):
         return max(
@@ -809,16 +912,39 @@ class AutomataScreen(BaseScreen):
             y += 14
         return y
 
-    def _story_feed(self, limit=None):
-        """События для сведения на главном экране, без требующих выбора.
+    def _chronicle_entries(self):
+        """Эпизоды хроники, собранные из журнала симуляции."""
 
-        Доклады и будущие сюжетные развилки живут в отдельном окне
-        решений и не смешиваются с информационной лентой. Лента отдаёт
-        весь доступный журнал: экран сам решает, сколько строк поместится
-        и с какого смещения начать, чтобы старые вести можно было
-        долистать колесом.
+        records = getattr(self.campaign, "narrative", []) or []
+        if not records:
+            return []
+        last = records[-1]
+        key = (len(records), last.get("turn"), last.get("elapsed"))
+        if self._chronicle_cache is not None and self._chronicle_key == key:
+            return self._chronicle_cache
+        from campaign.chronicle import chronicle, labels_for
+
+        player = self._player()
+        labels = labels_for(
+            (getattr(player, "record", {}) or {}) if player else {}
+        )
+        entries = chronicle(records, limit=6, labels=labels)
+        for entry in entries:
+            entry["effects"] = {}
+            entry["visible"] = True
+            entry["requires_choice"] = False
+        self._chronicle_cache = entries
+        self._chronicle_key = key
+        return entries
+
+    def _story_feed(self, limit=None):
+        """Хроника и вести для главного экрана, без требующих выбора.
+
+        Хроника собирается из ``campaign.narrative``: это факты
+        симуляции, а не заранее написанные сцены. Фоновые доклады и
+        новости добавляются к ней, дубликаты схлопываются.
         """
-        feed = []
+        feed = list(self._chronicle_entries())
         for entry in self.campaign.story_events:
             if entry.get("visible") is False:
                 continue
@@ -834,9 +960,27 @@ class AutomataScreen(BaseScreen):
                 except (TypeError, ValueError):
                     pass
             feed.append(entry)
+        feed.sort(
+            key=lambda item: (
+                int(item.get("turn") or 0),
+                str(item.get("id") or ""),
+            )
+        )
+        unique = []
+        seen = set()
+        for entry in feed:
+            key = (
+                str(entry.get("category") or ""),
+                str(entry.get("title") or ""),
+                str(entry.get("text") or ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(entry)
         if limit is None or int(limit) <= 0:
-            return feed
-        return feed[-int(limit):]
+            return unique
+        return unique[-int(limit):]
 
     def draw(self, screen):
         player = self._player()
@@ -864,6 +1008,37 @@ class AutomataScreen(BaseScreen):
             screen.blit(
                 self.app.font_small.render(subtitle, True, ACCENT), (24, 74)
             )
+        goal = self._goal_text()
+        if goal:
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(self.app.font_tiny, goal, 820), True, MUTED
+                ),
+                (430, 33),
+            )
+        course = self._course_label()
+        if course:
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(self.app.font_tiny, course, 820), True, ACCENT
+                ),
+                (430, 52),
+            )
+        progress = self._progress_text()
+        if progress:
+            screen.blit(
+                self.app.font_tiny.render(progress, True, DIM),
+                (430, 70),
+            )
+        risk = self._risk_text()
+        if risk:
+            screen.blit(
+                self.app.font_tiny.render(
+                    fit_line(self.app.font_tiny, risk, 820), True, WARN
+                ),
+                (430, 86),
+            )
+        self._draw_progress_bar(screen)
 
         self._draw_button(
             screen,
@@ -958,7 +1133,13 @@ class AutomataScreen(BaseScreen):
             if summary["support"]:
                 screen.blit(
                     self.app.font_tiny.render(
-                        summary["support"], True, DIM
+                        fit_line(
+                            self.app.font_tiny,
+                            summary["support"],
+                            rect.width - 20,
+                        ),
+                        True,
+                        DIM,
                     ),
                     (rect.x + 10, rect.bottom - 22),
                 )
@@ -1011,7 +1192,7 @@ class AutomataScreen(BaseScreen):
                 (rect.x + 10, rect.y + 4),
             )
             target = _target_name(self.campaign, action)
-            cost = action.get("cost") or {}
+            cost = option.get("cost") or action.get("cost") or {}
             cost_text = ", ".join(
                 cost_phrase(ASSET_LABELS.get(key, key), float(value))
                 for key, value in cost.items()
@@ -1020,6 +1201,11 @@ class AutomataScreen(BaseScreen):
             detail = "цель: %s" % target
             if organ:
                 detail = "орган: %s · %s" % (organ, detail)
+            course = option.get("course") or {}
+            if course.get("aligned"):
+                detail += " · курс: %s" % str(
+                    course.get("label") or course.get("id") or ""
+                )
             if cost_text:
                 detail += " · цена: %s" % cost_text
             active_process = self.campaign.process_for_action(

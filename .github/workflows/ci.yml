@@ -21,12 +21,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Установка тестовых зависимостей
         run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Компиляция (ядро, GUI, сценный слой, эксперименты)
-        run: python -m compileall -q simulation.py warfare.py game_engine.py main.py ui view automata interaction organizations experiments
+      - name: Компиляция (все пакеты, точка входа, эксперименты)
+        run: python -m compileall -q simulation.py warfare.py game_engine.py main.py bdi.py character_traits.py information.py lod.py observability.py core41 agents campaign naming systems organizations interaction automata ui view experiments
+
+      - name: Стиль (pycodestyle)
+        run: python -m pycodestyle
+
+      - name: Линтеры данных
+        run: |
+          python -m campaign.dialogue.lint
+          python -m campaign.content_lint
 
       - name: Тесты (pytest)
         env:

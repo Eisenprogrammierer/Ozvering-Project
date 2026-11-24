@@ -5,8 +5,8 @@
 > документы читать. Документ не заменяет канон и спецификации, а помогает
 > быстро найти нужный из них.
 >
-> **Дата сверки:** 2026-11-15. Проверялось по коду и тестам, а не только
-> по README. Полный набор — 1508 тестов, прогон зелёный. Если документ
+> **Дата сверки:** 2026-11-24. Проверялось по коду и тестам, а не только
+> по README. Полный набор — 2076 тестов, прогон зелёный (1098 с). Если документ
 > расходится с кодом, доверяйте коду и тестам; расхождение лучше сразу
 > исправлять.
 >
@@ -75,9 +75,10 @@ venv/bin/python main.py
 8. Кнопка «СВЯЗЬ» в свободной области сверху справа открывает игровой чат
    с агентом (`view/screens/dialogue_chat.py`): выбор фракции, персонажа и
    стиля ответа. Ответ агента проходит парсер, состояние диалога, вывод,
-   план, социальный и дискурсивный слои, затем регистровый синтез. Это
-   единственный способ поговорить с агентом в интерфейсе; подробности —
-   §5.9.
+   план, социальный и дискурсивный слои, затем регистровый синтез. Если
+   фраза разобрана как приказ, угроза или обещание, чат сначала пробует
+   `act` и меняет кампанию; обычный вопрос остаётся read-only. Приказы
+   доступны только для своей стороны. Подробности — §5.9.
 9. «Кодекс» показывает всех персонажей и автоматы, включая органы фракций.
    У записи своей фракции внизу карточки есть кнопки действий: персонажа
    можно повысить, наградить, поддержать или допросить, орган — усилить,
@@ -96,7 +97,8 @@ venv/bin/python main.py
 11. Жёсткого лимита ходов нет. Кампания идёт непрерывно и заканчивается,
     когда срабатывает порог поражения или устойчивое преимущество по
     прогрессу (`score_after` + `score_streak`), после чего показывается
-    сюжетная сцена.
+    финал, собранный из состояния. По ходу кампании лента заполняется
+    хроникой: эпизодами работ, взаимодействий и решений по докладам.
 
 «Продолжить» в главном меню открывает только совместимые сохранения —
 автоматы, стратегию или мир. Легаси-военные снимки пропускаются: игра не
@@ -126,6 +128,9 @@ venv/bin/python main.py
 `--sickness`, `--health-factors`, `--no-auto-checkpoint`,
 `--checkpoints-dir` пробрасываются выбранному приложению.
 `--list-checkpoints` печатает список и не открывает окно.
+Журнал включается только флагом `--log`; `--log-file PATH` задаёт свой
+путь и тоже включает запись. Файл перезаписывается при каждом запуске,
+размер ограничен.
 
 `-m` принимает имя модуля через точку, а не путь: `python3 -m campaign/world`
 и `python3 -m core41/arena` — синтаксически неверные команды. Модули
@@ -171,7 +176,7 @@ venv/bin/python main.py
 | `game_engine.py` | автономная арена | `core41`-дуэль + HUD, встраивается в `view/` |
 | `automata/` | редактор автоматов | граф состояний/переходов, JSON-хранилище, без игровой модели |
 | `core41/` | целевой срез 4-2-1 | арена, дуэль, здоровье/болезнь/раны, часы, среда |
-| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, сеть органов `fractal.py`, производные активы `faction_state.py`, сейвы |
+| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, сеть органов `fractal.py`, производные активы `faction_state.py`, доклады источников (`dispatch.py` + `dispatch_*.py`), суточная рутина `routine.py`, качественные метрики `qualitative.py`, аудит `audit.py`, сейвы |
 | `campaign/dialogue/` | детерминированный диалог | парсер, вывод, план ответа, синтез, стили, дискурс, сравнения, контрфакты, речевые действия, память |
 | `agents/` | обучаемые политики | BDI/QTable/MLP, чекпойнты, `agents.train` |
 | `warfare.py` | войсковые автоматы | персонажи, отделения, станы, приказы, мораль, черты |
@@ -207,7 +212,9 @@ main.py
   интерпретирует. Сквозные ограничения контрфактов и отрицания
   описаны в §5.9.
 * `warfare.py` — персонажи и отделения; кампания автоматов использует его
-  для состава фракций и организаций.
+  для состава фракций и организаций. Импорт ленивый (внутри фабрик
+  персонажей), поэтому `import campaign.automata` не загружает `warfare`;
+  границу стережёт `tests/test_architecture_boundaries.py`.
 * `view/` и `ui/` — представление и ввод. Логику лучше держать в чистых
   модулях (`campaign/`, `ui/battlefield.py`, `interaction/`), а экран — тонким.
 * `configs/` — данные, а не код. Новый контент по возможности добавляется
@@ -229,16 +236,16 @@ main.py
 | `configs/systems/*.json` | среда, события, драматург | `systems.*` |
 | `configs/naming/*.json` | лексикон и имена | `naming.*` |
 | `configs/dialogue/` | диалоговый слой: онтология, лексикон, грамматика, правила, факты, планы, синтез, стили и автовыбор, состояние, соц. действия, дискурс, сравнения, контрфакты, цели, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
-| `configs/worlds/` | миров пока нет (только `.gitkeep`) | `campaign.world.load_world()` |
-| `configs/automata/*.json` | графы автоматов для редактора (схема 1) | `automata.storage.AutomataStore` |
+| `configs/worlds/` | production-мир: `agora_world.json` (44 узла, 72 должности, 65 действий после слияния каталогов, 8 предметов, 6 сцен), `actions/`, `scenes/`, `handlers/` (70 правил), `agora_strategies.json`, `biography.json` | `campaign.world.load_world()`, `campaign.actions`, `campaign.scenes`, `campaign.node_strategy` |
+| `configs/automata/*.json` | **пусто** (только `.gitkeep`): редактор читает каталог, но графов автоматов в поставке нет | `automata.storage.AutomataStore` |
 | `configs/campaigns/base/automata/*.json` | исполняемые автоматы фракций и органов (схема 2) | `campaign.state_machine` |
 | `configs/strategy/`, `configs/environments/`, `configs/presets/`, `configs/classes/`, `configs/view/` | пусто (`.gitkeep`) | соответствующие загрузчики |
 
 Тестовый набор контента лежит отдельно: `tests/fixtures/content/`.
 `tests/conftest.py` подменяет рабочие каталоги на фикстуры, поэтому тесты
-не зависят от production-сюжетов. Если нужен пример мира для быстрой
-кампании, смотрите `tests/fixtures/content/configs/worlds/agora_world.json`,
-но не считайте его production-контентом.
+не зависят от production-сюжетов. Production-мир для быстрой кампании —
+`configs/worlds/agora_world.json`; такая же копия в
+`tests/fixtures/content/configs/worlds/` нужна только тестам.
 
 ---
 
@@ -258,7 +265,7 @@ GUI существует и играется, но это **рабочий пе�
 * `tests/test_view_world.py`, `tests/test_view_rts.py`,
   `tests/test_view_strategy.py`, `tests/test_campaign.py` содержат
   headless-проверки современного клиента.
-* Полный набор 2026-11-15: **1508 тестов**, зелёный.
+* Полный набор 2026-11-24: **2076 тестов**, зелёный (1098 с).
 * Профильные диалоговые тесты D0–D5.4 зелёные: `test_dialogue.py`,
   `test_d1_dialogue.py`, `test_d1_5_synthesis.py`, `test_d2_state.py`,
   `test_d3_comparison.py`, `test_d4_social.py`, `test_d5_discourse.py`,
@@ -284,9 +291,11 @@ GUI существует и играется, но это **рабочий пе�
 * Четыре лорные кампании через `configs/roles/roles.json` и
   `configs/storylines/`: Империя, Республика, Культ Земли, Торговая планета.
 * Визуальная новелла, экран кампании автоматов с работами,
-  ценой, шансами, журналом и исходом.
+  ценой, шансами, журналом и исходом; сюжет — хроника из
+  `AutomataCampaign.narrative`, финал и стартовая сводка из состояния.
 * Игровой чат с агентом: кнопка «СВЯЗЬ» на экране автоматов открывает
-  `DialogueChatScreen` (§5.9).
+  `DialogueChatScreen` (§5.9); приказ или речевой акт меняет кампанию,
+  обычный вопрос остаётся read-only.
 * Арена `game_engine` и редактор автоматов.
 * Легаси-клиент `ui/` со сценами меню, нарратива, поля боя, взаимодействий,
   паузы и сохранений.
@@ -307,8 +316,10 @@ GUI существует и играется, но это **рабочий пе�
 * **Настройки `view/` не применяются полностью.** Часть тумблеров меняет
   локальные флаги, но не сохраняется/не влияет на звук, полный экран и
   анимации (B7).
-* **Сейвы и лог пишутся в дерево репозитория** (`saves/`,
-  `operation_ozverin.log`), а не в пользовательский data-dir (D6).
+* **Сейвы пишутся в дерево репозитория** (`saves/`), а не в
+  пользовательский data-dir (D6). Журнал `operation_ozverin.log` тоже
+  лежит в корне, но создаётся только с `--log`/`--log-file` и
+  перезаписывается при запуске.
 * **Схема сейва `view/` версионируется, но миграции ограничены.**
   Проверяйте `SAVE_VERSION` и тесты при изменении снимка.
 * **Баланс и полировка — первый срез.** Кампания автоматов проходится, но
@@ -366,9 +377,27 @@ GUI существует и играется, но это **рабочий пе�
   арена;
 * `warfare.py` — войсковые автоматы;
 * `simulation.py` — легаси-канон, не активный игровой поток;
-* `campaign/world.py` — дневной мир должностного лица (библиотечный модуль;
-  запуск игры — `main.py --view`, не `python3 campaign/world.py`);
-* `campaign/automata.py` — кампания фракций-автоматов.
+* `campaign/world.py` — дневной мир должностного лица: фасад
+  `WorldEngine`, реализация — в `world_core.py`, `world_entities.py`,
+  `world_relations.py`, `world_career.py`, `world_actions.py`,
+  `world_day.py`, `world_snapshot.py`, общие примитивы — в
+  `world_support.py` (библиотечный модуль; запуск игры — `main.py --view`,
+  не `python3 campaign/world.py`);
+* `campaign/automata.py` — кампания фракций-автоматов: фасад
+  `AutomataCampaign`, реализация — в `automata_core.py`,
+  `automata_actions.py`, `automata_processes.py`, `automata_ai.py`,
+  `automata_characters.py`, `automata_orders.py`, `automata_reports.py`,
+  `automata_snapshot.py`, общие примитивы — в `automata_support.py`;
+* `view/app.py` — фасад `App` и `main`; реализация — в `app_core.py`,
+  `app_storyline.py`, `app_scenes.py`, `app_flow.py`, `app_dialogue.py`,
+  `app_saves.py`, `app_menu.py`, общие помощники — в `app_support.py`;
+* `view/screens/world_screen.py`, `rts_screen.py`,
+  `automata_network.py` — фасады экранов; их методы разложены по
+  `*_core.py`, `*_events.py`, `*_draw.py` и профильным модулям
+  (`world_screen_detail.py`, `world_screen_personality.py`,
+  `rts_screen_commands.py`, `rts_screen_update.py`,
+  `automata_network_selection.py`, `automata_network_actions.py`),
+  константы — в `*_support.py`.
 
 Тесты-опоры: `test_core41.py`, `test_canon.py`, `test_warfare.py`,
 `test_campaign_env.py`, `test_math_model.py`.
@@ -388,7 +417,8 @@ GUI существует и играется, но это **рабочий пе�
 * новый мир — `configs/worlds/*.json` (production-пример —
   `agora_world.json`; тестовый — в `tests/fixtures/content/`); для
   свободного режима в мире задаются `sandbox`, `realtime`,
-  `seconds_per_day` и `time_speeds`;
+  `seconds_per_day` и `time_speeds`; `days` и главу свободный мир не
+  задаёт — история не ограничена;
 * новый автомат для редактора — `configs/automata/*.json`;
 * события/среда/драматург — `configs/systems/*.json`;
 * имена — `configs/naming/*.json`;
@@ -422,7 +452,10 @@ venv/bin/python -m pytest -q tests/test_docs_sync.py
    `view.ui.screen_manager.BaseScreen`.
 2. Реализуйте `draw(screen)`, при необходимости `handle_event(event)`,
    `update(dt)`, `on_escape()`.
-3. Зарегистрируйте переход в `view/app.py` или в существующем экране.
+3. Зарегистрируйте переход в `view/app.py` (фасад) или в существующем
+   экране. Крупные экраны собираются из миксинов: смотрите
+   `world_screen.py`/`rts_screen.py`/`automata_network.py` и их
+   `*_core.py`/`*_draw.py`-модули.
 4. Добавьте headless-тест: конструктор, `draw` на `pygame.Surface`,
    навигация и один-два клика/события.
 5. Если экран должен получать HUD времени, выставьте `show_time_hud`;
@@ -450,23 +483,26 @@ venv/bin/python -m pytest -q tests/test_ui.py
   базовые потребности и мораль персонажей, формулы и драйверы производных
   активов (`faction_state`), модель органов, статусы, взаимодействия,
   бюджет действий, интервалы реального времени и скорости.
-  Ядро (`campaign/automata.py`, `campaign/fractal.py`,
-  `campaign/faction_state.py`, `campaign/preset.py`) читает эти значения
-  через `campaign/defaults.py`; шаблон может переопределить их через
-  `scenario.realtime` и `scenario.model`.
+  Ядро (`campaign/automata.py` + `campaign/automata_*.py`,
+  `campaign/fractal.py`, `campaign/faction_state.py`,
+  `campaign/preset.py`) читает эти значения через `campaign/defaults.py`;
+  шаблон может переопределить их через `scenario.realtime` и
+  `scenario.model`.
 * BDI, деления и события: `configs/characters/bdi.json` (16 желаний,
   убеждения и намерения), `configs/characters/divisions.json` (15 делений),
   `configs/systems/events.json` (условия, вероятность, видимость).
 * Роль: `configs/roles/roles.json` — `storyline_id` связывает роль с
   сюжетом.
-* Сюжет: `configs/storylines/<id>.json` и `_scenes.json` — новелла и
-  `gameplay`, флаг `identity_editor`. Лорные сюжеты не содержат сцен
-  `document`: руки и чтение задания удалены, остались новелла и кампания.
+* Сюжет: `configs/storylines/<id>.json` и `_scenes.json` — метаданные и
+  `gameplay`, флаг `identity_editor`. У лорных кампаний нет авторских
+  сцен, выборов и финалов: их собирает `campaign/chronicle.py` из
+  `AutomataCampaign.narrative`.
 * Личность героя: `configs/characters/identity.json`, загрузчик
   `campaign/identity.py`, экран `view/screens/identity_editor.py`.
-* Логика: `campaign/automata.py` (`AutomataCampaign`, работы, кулдауны,
-  бюджет действий, исходы, взаимодействия с органами, персонажами и
-  команды автоматов друг другу), `campaign/work.py` (capability →
+* Логика: `campaign/automata.py` (`AutomataCampaign`: фасад, работы,
+  кулдауны, бюджет действий, исходы, взаимодействия с органами,
+  персонажами и команды автоматов друг другу; реализация — в
+  `automata_*.py`), `campaign/work.py` (capability →
   `WorkPlan`/`Work`), `campaign/handlers.py` (JSON-правила получателя по
   `form`), `campaign/work_trace.py` (trace и баланс),
   `campaign/effects.py` (движок проекций `apply_report`),
@@ -553,8 +589,11 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 
 ### 5.8. «Хочу отладить»
 
-* Лог: `operation_ozverin.log` в корне; смотрите `view.*`, `asset_loader`,
-  `core.storyline`, `view.automata`, `view.dialogue_chat`.
+* Лог включается флагом: `venv/bin/python main.py --log` (файл
+  `operation_ozverin.log` в корне, перезапись при запуске, лимит 5 МиБ)
+  или `--log-file PATH`. Без флага файл не создаётся. Смотрите `view.*`,
+  `asset_loader`, `core.storyline`, `view.automata`,
+  `view.dialogue_chat`.
 * Headless-запуск без окна:
 
   ```bash
@@ -660,7 +699,10 @@ venv/bin/python -m agents.train --episodes 2000 --seed 0 \
 * речевые действия: `social.json` — акты (`command/promise/threat/
   offer/apology`), реакции (`accept/reject/evade/counter/clarify`),
   условия (`AtomSpec`), эффекты (`commitment/refusal/evasion/
-  counter_offer/clarification`);
+  counter_offer/clarification`). В игровом чате фраза-приказ для своей
+  стороны идёт через `DialogueSession.act`: мост проверяет доступное
+  действие и исполняет его в кампании, а при отказе возвращает причину.
+  Обычный вопрос всегда идёт через `respond` и не меняет мир;
 * память: `DialogueMemoryStore` хранит значимые факты и сводки по
   агентам в блоке `dialogue` сейва версии 3;
 * расширение: новое отношение, тип, лексема, конструкция, фраза,
@@ -724,8 +766,13 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 | Канон `simulation.py` | `test_canon.py`, `test_checks.py`, `test_math_model.py` | воспроизводимость, инварианты, скрипты-проверки |
 | Ядро 4-2-1 и арена | `test_core41.py`, `test_clock.py`, `test_health.py`, `test_sickness.py`, `test_environment.py` | энергия/сила/здоровье, болезнь, раны, часы, среда |
 | Войсковые автоматы | `test_warfare.py`, `test_lore_characters.py` | персонажи, потребности, черты, отделения, мораль |
+| Границы архитектуры | `test_architecture_boundaries.py` | в `campaign/` нет верхнеуровневых импортов `warfare`/`simulation`; `campaign.automata` не грузит `warfare` |
 | Дневной мир | `test_world.py`, `test_campaign_env.py`, `test_campaign_planner.py`, `test_campaign_clock.py`, `test_campaign_energy.py` | `WorldEngine`, `CampaignEnv`, планировщик, время |
 | Кампания автоматов | `test_automata_campaign.py`, `test_identity.py` | работы, кулдауны, исходы, органы, личность, кодекс, детерминизм, снимки |
+| Доклады и вести | `test_campaign_dispatch.py`, `test_campaign_reports_overlay.py`, `test_campaign_overlays.py` | очередь докладов, искажение, выбор игрока, память источника, слухи, перехваты и контрмеры |
+| Рутина, метрики, аудит | `test_campaign_routine.py`, `test_campaign_stats.py`, `test_domain_audit.py` | суточная рутина BDI, `CampaignStats`, качественные уровни, сводки |
+| Work и схемы контента | `test_world_work.py`, `test_action_processes.py`, `test_content_lint.py`, `test_content_schema.py` | единый Work-путь, процессы действий, семантический линтер и JSON Schema |
+| Восприятие и провенанс | `test_perception.py`, `test_provenance.py`, `test_items.py`, `test_free_clock.py` | видимость, источник знаний, предметы-автоматы, свободные часы |
 | Диалог D0 | `test_dialogue.py` | онтология, лексикон, грамматика, golden-разборы, JSON-only расширение |
 | Диалог D1 | `test_d1_dialogue.py` | вопросы о мире, доказательства, незнание, детерминизм, read-only |
 | Диалог D1.5 | `test_d1_5_synthesis.py` | композиционный синтез, морфология, расширяемость JSON-ом |
@@ -828,6 +875,8 @@ venv/bin/python -m pytest -q tests/test_dialogue.py \
 - [ ] `venv/bin/python main.py` открывает главное меню.
 - [ ] «Новая игра» → роль → новелла → кампания автоматов.
 - [ ] «СВЯЗЬ» открывает чат, агент отвечает, стиль меняется.
+- [ ] После работы в ленте появляется эпизод хроники, а финал содержит
+  счёт, пороги и решающие эпизоды.
 - [ ] «Дуэль (арена)» открывается и возвращает в меню по `ESC`.
 - [ ] `venv/bin/python main.py --automata` открывает редактор.
 - [ ] `venv/bin/python main.py --classic` открывает легаси-меню.

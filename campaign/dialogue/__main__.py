@@ -35,7 +35,9 @@ def main(argv=None) -> int:
             }
             for item in parses
         ]
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        print(
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+        )
         return 0 if parses else 2
     print("Токены:", " / ".join(tokenize(text)))
     if not parses:

@@ -72,7 +72,7 @@
 | `configs/storylines/<id>_scenes.json` | сцены сюжета | тот же, по полю `scenes` | новый файл | `sequence` | файл (и ссылку) |
 | `configs/roles/roles.json` | базовый каталог ролей | `RoleCatalog.load()` | роль в `roles` | поля роли | роль |
 | `configs/roles/<name>.json` | дополнительный файл роли | `RoleCatalog.load()` | один объект роли или `{"roles": [...]}` | поля | файл |
-| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 65 действий после слияния каталогов, 8 предметов с `automaton`, 6 сцен, `norms`, `sandbox`/`realtime`/`time_speeds`) | `campaign.world.load_world(path)` | новый мир | поля мира, `action_catalogs`, `scene_catalog`, `norms` | файл |
+| `configs/worlds/*.json` | миры кампании; production — `agora_world.json` (44 узла, 72 должности, 65 действий после слияния каталогов, 8 предметов с `automaton`, 6 сцен, `norms`, `sandbox`/`realtime`/`time_speeds`; без `days` и главы) | `campaign.world.load_world(path)` | новый мир | поля мира, `action_catalogs`, `scene_catalog`, `norms` | файл |
 | `configs/worlds/actions/*.json` | открытые каталоги мирских действий; подключаются полем `action_catalogs` и сливаются по `id` после `actions` мира | `campaign.actions.merge_action_catalogs` через `load_world` | новый `*.json` с `actions` | `form`/`target.kinds`/`effects` | файл (проверить `action_catalogs`) |
 | `configs/worlds/scenes/*.json` | локальные сцены: локация, публика, работы, вход/выход, время; подключаются полем `scene_catalog` | `campaign.scenes.SceneCatalog.load` через `load_world` | новый `*.json` с `scenes` | `location`/`public`/`works`/`requires`/`exit`/`time` | файл (проверить `scene_catalog`) |
 | `configs/worlds/handlers/*.json` | обработчики работ дневного мира по формам: правила `when.id` и эффекты `receiver`/`failure` | `campaign.handlers.HandlerRegistry` в `WorldEngine` | новый `*.json` с `form`/`rules` | `form`/`rules`/`default` | файл (проверить `form`, дубли `when.id`) |
@@ -84,6 +84,7 @@
 | `configs/campaigns/forms.json` | манифест 19 форм работы: `payload_kinds`, `target_kinds`, `default_handler`, теги | `campaign.actions.FormCatalog.load()` | форма в `forms` + обработчик `base/handlers/<id>.json` | адресаты/обработчик | форма (проверить обработчик и действия) |
 | `configs/campaigns/base/lore_factions.json` | общие фракции, органы, работы, взаимодействия и геометрия лорных кампаний | `load_template()` по полю `factions_path` | фракция в `factions`, орган в `organs`, работа в `actions`, взаимодействие в `organ_interactions`, геометрия в `geometry.<side>` | цели, активы, титулы, органы, работы, взаимодействия, длины/углы | фракция/орган/работа/взаимодействие/геометрия (проверить `organ_id`, `links` и узлы геометрии) |
 | `configs/campaigns/base/automata_defaults.json` | базовые данные кампании автоматов | `campaign.defaults.load_defaults()` | секция в JSON | модель, интервалы реального времени, скорости, взаимодействия, потребности, бюджет, слоты и длительности процессов | секция (ядро читает без хардкода) |
+| `configs/campaigns/base/chronicle_phrases.json` | языковые шаблоны хроники: открытия по значимости, шаблоны решения и причины | `campaign.chronicle.load_phrases()` | новый шаблон в списке | `openings`/`decision_patterns`/`cause_patterns` | шаблон (проверить `python -m campaign.content_lint`: категории и плейсхолдеры) |
 | `configs/content/payload_kinds.json` | data-driven реестр видов `payload`: обязательные/default/числовые поля, подпись и шаблон описания | `core41.payload.load_payload_kinds()` (по умолчанию при импорте; env `OZVERING_PAYLOAD_KINDS`) | новый вид в `kinds` | `required`/`defaults`/`numeric`/`describe_defaults` | вид (проверить `python -m campaign.content_lint`) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
@@ -194,14 +195,23 @@
   "identity_editor": true,
   "scenes": "empire_campaign_scenes",
   "win_conditions": [{"type": "automata_outcome", "value": "win"}],
-  "lose_conditions": [{"type": "automata_outcome", "value": "lose"}],
-  "win_scene": {"slides": [{"image": "campaign/empire_win", "text": "..."}]},
-  "lose_scene": {"slides": [{"image": "campaign/empire_lose", "text": "..."}]}
+  "lose_conditions": [{"type": "automata_outcome", "value": "lose"}]
 }
 ```
 
+У automata-кампаний нет `arc`, `win_scene`, `lose_scene`, `variants`,
+`variant_by` и `choices`: сюжет собирается из `AutomataCampaign.narrative`
+в `campaign/chronicle.py`, а сцены такой кампании — только `gameplay`.
+Это проверяет `campaign.content_lint`; инвариант описан в
+[`NARRATIVE_INVARIANT.md`](NARRATIVE_INVARIANT.md).
+
 `character_creation` и `scenes` — это **id соседних файлов** в
 `configs/storylines/` (`mini_char` → `mini_char.json`), а не пути к мирам.
+Свободный режим `free_life` использует сцены `world_briefing` и `world`:
+сводка мира собирается `campaign/world_briefing.py` из конфига мира,
+профиля и состояния, а не из авторского слайда. Свободный мир не задаёт
+`days`, главу и дедлайн: история открыта, а в сводке и эпилоге видны
+держава, день, режим и репутация.
 Необязательные поля основного файла: `world_path`, `strategy_path`,
 `biography_path`, `scenario_path`, `adjutant_orders`,
 `storyline_tags`. Теги — свободные строки; `list_storylines(tags=...)`
