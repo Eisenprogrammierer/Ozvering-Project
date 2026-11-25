@@ -16,6 +16,7 @@
 что и арена.
 """
 
+from bdi import BDIState
 from core41 import Automaton, HEALTH_MAX, SICKNESS_MAX
 from core41.model import WOUND_MAX, success_probability
 from core41.types import Work
@@ -23,6 +24,20 @@ from core41.types import Work
 CAMPAIGN_ENERGY_MAX = 100.0
 CAMPAIGN_WOUND_MAX = WOUND_MAX
 CAMPAIGN_CORE_CHANCE_WEIGHT = 0.30
+DAY_SECONDS = 86400.0
+_NEED_TICK_KEYS = frozenset(
+    (
+        "in_combat",
+        "under_fire",
+        "support",
+        "resting",
+        "resting_needs",
+        "order_needs",
+        "rate_multipliers",
+        "trait_model",
+        "seconds_per_unit",
+    )
+)
 
 
 def _clamp(value, low=0.0, high=1.0):
@@ -88,6 +103,61 @@ class CampaignActor:
             skills={"force": 0.6, "info": 0.4},
             authority=_clamp(standing),
         )
+        self.bdi = BDIState(character_id="player")
+        self._sync_bdi_conditions()
+
+    @property
+    def needs(self):
+        """16 потребностей BDI игрока; изменяемая проекция состояния."""
+        return self.bdi.needs
+
+    def load_needs(self, values):
+        self.bdi.needs = {
+            str(key): _clamp(value)
+            for key, value in dict(values or {}).items()
+            if str(key) in self.bdi.needs
+        }
+        return self.bdi.needs
+
+    def _sync_bdi_conditions(self):
+        self.bdi.conditions["sickness"] = _clamp(
+            self.unit.sickness, 0.0, SICKNESS_MAX
+        )
+        self.bdi.conditions["wound"] = _clamp(
+            self.unit.wound, 0.0, CAMPAIGN_WOUND_MAX
+        )
+
+    def tick_needs(self, seconds=DAY_SECONDS, **kwargs):
+        """Продвинуть 16 потребностей; давление BDI идёт в `F/E`."""
+        self._sync_bdi_conditions()
+        allowed = {
+            key: value
+            for key, value in kwargs.items()
+            if key in _NEED_TICK_KEYS
+        }
+        deltas = self.bdi.tick(seconds=seconds, **allowed)
+        if deltas.get("force"):
+            self.force = max(0.0, self.force + float(deltas["force"]))
+        if deltas.get("energy"):
+            self.unit.energy = max(
+                0.0, self.unit.energy + float(deltas["energy"])
+            )
+        self._sync_bdi_conditions()
+        return deltas
+
+    def satisfy(self, effects, morale_bonus=0.0):
+        """Удовлетворить потребности; вернуть восстановленные значения."""
+        result = self.bdi.satisfy(effects)
+        if result.get("force"):
+            self.force = min(
+                self.max_force, max(0.0, self.force + result["force"])
+            )
+        if result.get("energy"):
+            self.unit.energy = min(
+                self.max_energy,
+                max(0.0, self.unit.energy + result["energy"]),
+            )
+        return dict(result.get("restored") or {})
 
     @property
     def energy(self):
@@ -237,6 +307,7 @@ class CampaignActor:
             "sickness": self.sickness,
             "wound": self.wound,
             "alive": self.alive,
+            "needs": dict(self.needs),
         }
 
     def load_state_dict(self, state):
@@ -257,4 +328,6 @@ class CampaignActor:
             self.energy = state["energy"]
         elif "actions_left" in state:
             self.actions_left = state["actions_left"]
+        if "needs" in state:
+            self.load_needs(state.get("needs"))
         return self.state_dict()

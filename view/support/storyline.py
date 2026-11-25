@@ -120,10 +120,13 @@ def load_storyline(storyline_id, directory=None):
         char_path = os.path.join(root, f"{char_id}.json")
         char_data = load_json(char_path, {}) or {}
     scenes_id = main_data.get("scenes")
-    scenes_data = {}
-    if scenes_id:
+    if isinstance(scenes_id, list):
+        scenes_data = {"sequence": list(scenes_id)}
+    elif scenes_id:
         scenes_path = os.path.join(root, f"{scenes_id}.json")
         scenes_data = load_json(scenes_path, {}) or {}
+    else:
+        scenes_data = {}
     logger.info(
         "load_storyline: '%s' загружен, шагов персонажа: %d, сцен: %d",
         storyline_id,

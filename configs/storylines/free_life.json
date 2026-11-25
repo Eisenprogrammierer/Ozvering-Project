@@ -25,7 +25,14 @@
   "campaign_seed": 7,
   "identity_editor": true,
   "sandbox": true,
-  "scenes": "free_life_scenes",
+  "scenes": [
+    {
+      "type": "world_briefing"
+    },
+    {
+      "type": "world"
+    }
+  ],
   "free_start": {
     "street_musician": {
       "node_id": "agora_street",

@@ -55,6 +55,7 @@ class WorldSnapshotMixin:
                 "max_energy": float(self.player_max_energy),
                 "force": float(self.player_force),
                 "max_force": float(self.player.max_force),
+                "needs": dict(self.player.needs),
             },
             "characters": {
                 character_id: dict(
@@ -68,6 +69,7 @@ class WorldSnapshotMixin:
                     sickness=float(character["sickness"]),
                     wound=float(_as_float(character.get("wound"), 0.0)),
                     alive=bool(character["alive"]),
+                    needs=dict(character.needs),
                 )
                 for character_id, character in self.characters.items()
             },
@@ -191,6 +193,8 @@ class WorldSnapshotMixin:
                 0.0,
                 self.player_max_energy,
             )
+        if "needs" in player:
+            self.player.load_needs(player.get("needs"))
         self.career_history = list(player.get("career_history") or [])
         if "items" in player:
             self.player_item_ids = [
@@ -247,6 +251,8 @@ class WorldSnapshotMixin:
                 character["alive"] = bool(saved.get("alive"))
             else:
                 character["alive"] = character["health"] > 0.0
+            if "needs" in saved:
+                character.load_needs(saved.get("needs"))
         for node_id, saved in (snapshot.get("nodes") or {}).items():
             node = self.nodes.get(node_id)
             if node is None:

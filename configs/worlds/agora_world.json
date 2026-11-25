@@ -13,6 +13,9 @@
   "realtime": true,
   "seconds_per_day": 86400,
   "time_speeds": [1, 2, 4, 8],
+  "bdi_routine": {
+    "enabled": true
+  },
   "obligations": {
     "overdue": {
       "enabled": true,

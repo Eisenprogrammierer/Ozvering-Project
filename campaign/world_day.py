@@ -55,6 +55,11 @@ from .world_support import (
 )
 
 
+from .routine import run_day
+
+NEEDS_DAY_SECONDS = 86400.0
+
+
 class WorldDayMixin:
 
     def infect_player(self, severity):
@@ -251,6 +256,85 @@ class WorldDayMixin:
                 )
         return changed
 
+    def _needs_routine_config(self):
+        """Конфиг суточной BDI-рутины мира; ``None`` — слой выключен."""
+        raw = self.config.get("bdi_routine")
+        if not isinstance(raw, dict) or not raw.get("enabled", False):
+            return None
+        config = dict(raw)
+        config["enabled"] = True
+        # Силу и энергию мира двигают собственные правила дня, а не
+        # восстановление рутины арены.
+        config["work_energy"] = 0.0
+        config["energy_recovery"] = 0.0
+        config["force_recovery"] = 0.0
+        return config
+
+    def _needs_service(self, node_id, standing):
+        """Бытовая норма: достаток узла и личное положение персонажа."""
+        node = self.node(node_id) or self.node(self.player_node_id) or {}
+        stats = node.get("stats") or {}
+        supply = _clamp(_as_float(stats.get("wealth"), 0.5))
+        support = _clamp(0.5 + 0.5 * _as_float(standing))
+        return support, supply
+
+    def _run_daily_needs(self):
+        """Прожить суточную рутину BDI для героя и живых персонажей."""
+        config = self._needs_routine_config()
+        if config is None:
+            return []
+        changed = []
+        if self.player_alive:
+            support, supply = self._needs_service(
+                self.player_node_id, self.player.force
+            )
+            result = run_day(
+                self.player,
+                NEEDS_DAY_SECONDS,
+                support=support,
+                supply=supply,
+                config=config,
+            )
+            if result:
+                for key, after_value in result["after"]["needs"].items():
+                    before_value = result["before"]["needs"].get(
+                        key, after_value
+                    )
+                    if abs(after_value - before_value) > 1e-9:
+                        changed.append(
+                            ("герой · %s" % key, after_value - before_value)
+                        )
+        for character_id in self.character_order:
+            character = self.characters[character_id]
+            if not character["alive"]:
+                continue
+            support, supply = self._needs_service(
+                character.get("node_id"),
+                (float(character.get("affinity", 0.0)) + 1.0) / 2.0,
+            )
+            result = run_day(
+                character,
+                NEEDS_DAY_SECONDS,
+                support=support,
+                supply=supply,
+                config=config,
+            )
+            character.sync()
+            if not result:
+                continue
+            for key, after_value in result["after"]["needs"].items():
+                before_value = result["before"]["needs"].get(
+                    key, after_value
+                )
+                if abs(after_value - before_value) > 1e-9:
+                    changed.append(
+                        (
+                            "%s · %s" % (character["name"], key),
+                            after_value - before_value,
+                        )
+                    )
+        return changed
+
     def _advance_conditions(self):
         changed = []
         if not self.player_alive:
@@ -343,6 +427,7 @@ class WorldDayMixin:
                 )
         changed.extend(self._spread_contagion())
         changed.extend(self._apply_environment_wounds())
+        changed.extend(self._run_daily_needs())
         return self._merge_changes(changed)
 
     def _apply_environment_wounds(self):

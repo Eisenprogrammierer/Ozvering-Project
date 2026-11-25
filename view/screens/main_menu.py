@@ -1,5 +1,3 @@
-import pygame
-
 from ..ui.screen_manager import BaseScreen
 from ..ui.widgets import Button
 from ..ui.asset_loader import AssetLoader
@@ -18,40 +16,45 @@ class MainMenuScreen(BaseScreen):
         self.bg = AssetLoader.load("menus/main_menu_bg", (1280, 720))
         has_saves = bool(list_compatible_saves())
         self.btn_continue = Button(
-            (500, 345, 280, 50), "Продолжить", app.font_body, app.continue_game
+            (500, 272, 280, 50), "Продолжить", app.font_body, app.continue_game
         )
         self.btn_continue.enabled = has_saves
-        self.btn_continue.rect = pygame.Rect(500, 305, 280, 50)
         self.buttons = [
             Button(
-                (500, 240, 280, 50), "Новая игра", app.font_body, app.new_game
+                (500, 215, 280, 50), "Новая игра", app.font_body, app.new_game
             ),
             self.btn_continue,
             Button(
-                (500, 370, 280, 50),
+                (500, 329, 280, 50),
                 "Быстрая кампания",
                 app.font_body,
                 app.quick_campaign,
             ),
             Button(
-                (500, 435, 280, 50),
+                (500, 386, 280, 50),
                 "Дуэль (арена)",
                 app.font_body,
                 app.open_arena,
             ),
             Button(
-                (500, 500, 280, 50),
+                (500, 443, 280, 50),
                 "Сохранения",
                 app.font_body,
                 app.open_saves,
             ),
             Button(
-                (500, 565, 280, 50),
+                (500, 500, 280, 50),
+                "Как играть",
+                app.font_body,
+                app.open_how_to_play,
+            ),
+            Button(
+                (500, 557, 280, 50),
                 "Настройки",
                 app.font_body,
                 app.open_settings,
             ),
-            Button((500, 630, 280, 50), "Выход", app.font_body, app.quit),
+            Button((500, 614, 280, 50), "Выход", app.font_body, app.quit),
         ]
         logger.info(
             "Главное меню инициализировано: сохранений=%s",

@@ -218,6 +218,7 @@
         "doctrine": true,
         "intention": true,
         "needs": true,
+        "npc_policy": true,
         "organs": true,
         "relations": true,
         "score_floor": true

@@ -103,7 +103,8 @@
 | Работа: capability → `Work` → обработчик | кампания | `campaign/work.py`, `campaign/handlers.py`, `campaign/work_trace.py`, `campaign/effects.py` · `configs/campaigns/base/handlers/*.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3 |
 | Сеть органов и взаимодействия | кампания | `campaign/fractal.py` · поле `links` в `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.2 |
 | Производные активы фракции | кампания | `campaign/faction_state.py` · `faction_state` в `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §3 |
-| BDI персонажей | кампания | `bdi.py`, `warfare.py` (`Character`) · `configs/characters/bdi.json` · `test_bdi.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
+| BDI персонажей | кампания | `bdi.py`, `warfare.py` (`Character`), `campaign/actor.py`, `campaign/character.py`, `campaign/routine.py` · `configs/characters/bdi.json`, `bdi_routine` в мире · `test_bdi.py`, `test_automata_campaign.py`, `test_world_needs.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
+| Политика NPC поверх BDI | кампания | `campaign/npc_policy.py`, `campaign/automata_ai.py` · `ai_model.npc_policy` в `configs/campaigns/base/automata_defaults.json` · `test_npc_policy.py` · — |
 | 16 потребностей и 15 делений | кампания | `organizations/needs.py`, `campaign/divisions.py`, `character_traits.py` · `configs/characters/bdi.json`, `configs/characters/divisions.json`, `configs/characters/traits.json` · `test_organizations.py`, `test_divisions.py`, `test_people.py` · [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1–§2 |
 | События и их условия | кампания | `systems/events.py` · `configs/systems/events.json` · `test_events_runtime.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §4 |
 | Темп, действия, скорости | кампания | `campaign/defaults.py` · `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
@@ -115,7 +116,7 @@
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
 | Узлы, должности, действия мира | мир | `campaign/world.py`, `campaign/actions.py` · `configs/worlds/agora_world.json`, `configs/worlds/actions/*.json`, `configs/campaigns/forms.json`, `configs/worlds/agora_strategies.json`, фикстуры · `test_world.py`, `test_action_catalog.py`, `test_world_primitives.py`, `test_items.py`, `test_free_mode.py` · [`WORLD.md`](WORLD.md), [`CONTENT.md`](CONTENT.md) |
-| Персонаж `E/F/H` и бюджет действий | мир | `campaign/actor.py`, `campaign/projections.py` · — · `test_projections.py`, `test_campaign_energy.py` · [`WORLD.md`](WORLD.md) |
+| Персонаж `E/F/H`, BDI и бюджет действий | мир | `campaign/actor.py`, `campaign/character.py`, `campaign/routine.py`, `campaign/projections.py` · `bdi_routine` в `configs/worlds/agora_world.json` · `test_projections.py`, `test_campaign_energy.py`, `test_world_needs.py` · [`WORLD.md`](WORLD.md) |
 | Отношения и обязательства | мир | `campaign/relations.py`, `campaign/obligations.py` · — · `test_campaign_relations.py` · [`FORMULAS.md`](FORMULAS.md) §2.3 |
 | Ценности и коалиции | мир | `campaign/values.py`, `campaign/coalitions.py` · блоки `values`/`coalitions` мира · `test_campaign_values.py`, `test_campaign_coalitions.py` · [`FORMULAS.md`](FORMULAS.md) §8 |
 | Экономика, бедность, кредит | мир | `campaign/economy.py` · блок `economy` мира · `test_campaign_economy.py` · [`FORMULAS.md`](FORMULAS.md) §7 |
@@ -135,10 +136,10 @@
 | Роли игрока | `configs/roles/roles.json`, `configs/characters/archetypes.json`, `campaign/roles.py`, `campaign/identity.py`; тесты `test_campaign.py`, `test_archetypes.py` |
 | Управляемый персонаж (аватар) | `campaign/avatar.py`, `campaign/preset.py` (`select_player_character`), `campaign/automata.py` (`avatar_character`, снимок `avatar`), `view/screens/character_select.py`; тест `test_player_avatar.py` |
 | Сюжеты и сцены | `configs/storylines/` (`storyline_tags`, метаданные и `gameplay`), `configs/worlds/scenes/`; `view/support/storyline.py`, `campaign/scenes.py`; сюжет automata-кампании — `campaign/chronicle.py` и `AutomataCampaign.narrative`; тесты `test_view_world.py`, `test_storyline_flex.py`, `test_narrative_emergence.py`, `test_scene.py` |
-| Миры кампании | `configs/worlds/agora_world.json` (production), `configs/worlds/agora_strategies.json`; `campaign/world.py::load_world` |
+| Миры кампании | `configs/worlds/agora_world.json` (production), `configs/worlds/agora_strategies.json`; `campaign/world.py::load_world`; блок `bdi_routine` включает суточные потребности |
 | Биография и личность героя | `configs/worlds/biography.json`, `configs/characters/identity.json`, `configs/characters/archetypes.json`; `campaign/identity.py`, `campaign/world.py::profile_from_identity`, `test_identity.py`, `test_archetypes.py` |
 | Черты персонажей | `configs/characters/traits.json`; `character_traits.py`; `test_people.py` |
-| BDI персонажей | `configs/characters/bdi.json`; `bdi.py`, `warfare.py` (`Character`); `test_bdi.py`, `test_automata_campaign.py`; [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
+| BDI персонажей | `configs/characters/bdi.json`; `bdi.py`, `warfare.py` (`Character`), `campaign/actor.py`, `campaign/character.py`, `campaign/routine.py`; `test_bdi.py`, `test_automata_campaign.py`, `test_world_needs.py`; [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
 | 15 делений | `configs/characters/divisions.json`; `campaign/divisions.py`; `test_divisions.py`; [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §2 |
 | Формулы активов фракции | `configs/campaigns/base/automata_defaults.json` → `faction_state`; `campaign/faction_state.py`; `test_automata_campaign.py` |
 | Среда, события, драматург | `configs/systems/`; `systems/`; `test_systems.py`, `test_events_runtime.py` |
@@ -213,9 +214,9 @@
 | `interaction/` | доменно-нейтральные взаимодействия | активный инструмент |
 | `view/` | кампанийный UI | активный |
 | `ui/` | сценный UI и тактическое поле | активный + легаси-сцены |
-| `game_engine.py` | арена + HUD на `core41` | активный |
+| `game_engine.py` | арена + HUD на `core41` (легаси-клиент, к удалению) | активный |
 | `simulation.py` | легаси-канон дуэлей | легаси/baseline |
-| `warfare.py` | войсковые автоматы | отдельный слой |
+| `warfare.py` | войсковые автоматы (фасад; персонаж — `warfare_character.py`, константы — `warfare_core.py`) | отдельный слой |
 | `observability.py`, `lod.py`, `information.py` | наблюдаемость, LOD, энтропия | текущий код |
 
 ### 0.13. Карта конфигов

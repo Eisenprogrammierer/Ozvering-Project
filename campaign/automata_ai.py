@@ -11,6 +11,7 @@ from .automata_support import (
     _same_id,
     _text,
 )
+from .npc_policy import NeedPolicy
 
 
 class AutomataAIMixin:
@@ -294,6 +295,35 @@ class AutomataAIMixin:
                 )
         return weight
 
+    def _npc_policy(self):
+        """Политика W2 или ``None``, если слой выключен."""
+        config = _as_mapping(_as_mapping(self.ai_model).get("npc_policy"))
+        if not bool(config.get("enabled", False)):
+            return None
+        if getattr(self, "_npc_policy_obj", None) is None:
+            self._npc_policy_obj = NeedPolicy.from_config(
+                config, seed=getattr(self, "seed", 0)
+            )
+        return self._npc_policy_obj
+
+    def _policy_choice(self, side, weighted, leader=None):
+        """Выбрать работу политикой поверх BDI; ``None`` — отдать эвристике."""
+        policy = self._npc_policy()
+        if policy is None:
+            return None
+        needs = _as_mapping(getattr(leader, "needs", {}))
+        candidates = []
+        for option, weight in weighted:
+            essences = self._action_essences(option["action"])
+            need = (
+                self._action_need(essences[0], leader)
+                if essences
+                else ""
+            )
+            if need:
+                candidates.append((option["id"], need, weight))
+        return policy.choose(candidates, needs)
+
     def _ai_weighted_options(
         self, side, turn=None, exclude_active=False
     ):
@@ -348,7 +378,12 @@ class AutomataAIMixin:
             return None
         total = sum(weight for _option, weight in weighted)
         chosen = None
-        if total <= 0.0:
+        policy_choice = self._policy_choice(
+            side, weighted, leader=self._leader(side)
+        )
+        if policy_choice is not None:
+            chosen = policy_choice
+        elif total <= 0.0:
             chosen = weighted[-1][0]["id"]
         else:
             pick = self.rng.random() * total

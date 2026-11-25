@@ -28,6 +28,21 @@ from typing import Iterable, List, Sequence
 import bdi
 import character_traits as CT
 from . import content_schema
+from .content_lint_core import CONDITION_KINDS, EFFECT_KEYS, REQUIRE_KEYS
+from .content_lint_core import (
+    _condition_problems,
+    check_bdi,
+    check_beliefs,
+    check_effects,
+    check_intentions,
+    check_requires,
+)
+from .content_lint_templates import (
+    CHRONICLE_PHRASES_KEYS,
+    lint_chronicle_phrases_data,
+    lint_forms_data,
+    lint_payload_kinds_data,
+)
 from core41.payload import (
     PAYLOAD_KINDS,
     PayloadError,
@@ -39,6 +54,11 @@ from .identity import (
     IDENTITY_SECTIONS,
     ArchetypeCatalog,
     IdentityError,
+)
+from .content_lint_story import (
+    AUTOMATA_FORBIDDEN_STORY_KEYS,
+    lint_scenes_data,
+    lint_storylines_data,
 )
 from .scenes import SceneError, SceneSpec
 from .state_machine import StateMachineDefinition, StateMachineError
@@ -64,9 +84,7 @@ DEFAULT_PATHS = (
 
 # Списки ключей не дублируются: их задаёт JSON Schema, которую исполняет
 # ядро. Иначе новая схема и линтер расходятся.
-EFFECT_KEYS = content_schema.schema_keys("effects")
-REQUIRE_KEYS = content_schema.schema_keys("requires")
-CONDITION_KINDS = content_schema.condition_kinds()
+
 # Поля события кампании. Событие — ролевой слой: оно только отражает
 # состояние и не имеет права ничего производить.
 EVENT_KEYS = {
@@ -106,206 +124,6 @@ def _as_list(value):
 def _load(path):
     with pathlib.Path(path).open(encoding="utf-8") as handle:
         return json.load(handle)
-
-
-def _belief_parts(item):
-    if isinstance(item, Mapping):
-        return (
-            str(item.get("subject") or ""),
-            str(item.get("predicate") or ""),
-            str(item.get("object") or ""),
-        )
-    if isinstance(item, (list, tuple)) and len(item) == 3:
-        return tuple(str(part or "") for part in item)
-    return ("", "", "")
-
-
-def _intention_parts(item):
-    if isinstance(item, Mapping):
-        return (
-            str(item.get("target") or ""),
-            str(item.get("essence") or ""),
-        )
-    if isinstance(item, (list, tuple)) and len(item) == 2:
-        return tuple(str(part or "") for part in item)
-    return ("", "")
-
-
-def check_bdi(config):
-    """Проверить ``configs/characters/bdi.json``."""
-    problems: List[str] = []
-    if tuple(config.needs) != bdi.NEEDS:
-        problems.append(
-            "needs: набор должен совпадать с bdi.NEEDS (%d позиций)"
-            % len(bdi.NEEDS)
-        )
-    for key, definition in config.predicates.items():
-        definition = _as_mapping(definition)
-        kind = str(definition.get("kind") or "")
-        if kind not in ("relation", "property"):
-            problems.append(
-                "belief_predicates.%s: kind должен быть relation/property"
-                % key
-            )
-        rule = definition.get("object")
-        if rule is not None and str(rule) not in ("required", "forbidden"):
-            problems.append(
-                "belief_predicates.%s.object: ожидалось "
-                "required/forbidden" % key
-            )
-    for key, essence in config.essences.items():
-        need = str(_as_mapping(essence).get("need") or "")
-        if need not in config.needs:
-            problems.append(
-                "intention_essences.%s: неизвестная потребность %r"
-                % (key, need)
-            )
-    return problems
-
-
-def check_beliefs(source, items, config):
-    problems: List[str] = []
-    for index, item in enumerate(_as_list(items)):
-        subject, predicate, obj = _belief_parts(item)
-        where = "%s.beliefs[%d]" % (source, index)
-        if not subject or not predicate:
-            problems.append(
-                "%s: убеждение требует subject и predicate" % where
-            )
-            continue
-        if predicate not in config.predicates:
-            problems.append(
-                "%s: неизвестный предикат %r" % (where, predicate)
-            )
-            continue
-        rule = config.predicate_object_rule(predicate)
-        if rule == "required" and not obj:
-            problems.append(
-                "%s: предикат %r требует object" % (where, predicate)
-            )
-        elif rule == "forbidden" and obj:
-            problems.append(
-                "%s: предикат-свойство %r не имеет object"
-                % (where, predicate)
-            )
-    return problems
-
-
-def check_intentions(source, items, config):
-    problems: List[str] = []
-    for index, item in enumerate(_as_list(items)):
-        target, essence = _intention_parts(item)
-        where = "%s.intentions[%d]" % (source, index)
-        if not target or not essence:
-            problems.append(
-                "%s: намерение должно быть дуплетом target/essence" % where
-            )
-            continue
-        if essence not in config.essences:
-            problems.append("%s: неизвестная суть %r" % (where, essence))
-    return problems
-
-
-def check_effects(source, effects):
-    problems: List[str] = content_schema.validate(
-        "effects", effects, source
-    )
-    effects = _as_mapping(effects)
-    for key, value in effects.items():
-        where = "%s.%s" % (source, key)
-        if key not in EFFECT_KEYS:
-            problems.append(
-                "%s: эффект %r не поддерживается ядром" % (where, key)
-            )
-        elif key in (
-            "self",
-            "target",
-            "assets",
-            "needs",
-            "traits",
-            "conditions",
-            "organs",
-            "subfactions",
-            "flags",
-        ):
-            if not isinstance(value, Mapping):
-                problems.append("%s: ожидался объект" % where)
-    return problems
-
-
-def _condition_problems(source, conditions):
-    problems: List[str] = []
-    if isinstance(conditions, Mapping):
-        if any(key in conditions for key in ("all", "any", "not")):
-            items = [conditions]
-        else:
-            items = [conditions]
-    elif isinstance(conditions, (list, tuple)):
-        items = list(conditions)
-    else:
-        return ["%s: условие должно быть объектом или списком" % source]
-    for index, clause in enumerate(items):
-        where = "%s[%d]" % (source, index)
-        clause = _as_mapping(clause)
-        if not clause:
-            problems.append("%s: пустое условие" % where)
-            continue
-        for group in ("all", "any"):
-            if group in clause:
-                problems.extend(
-                    _condition_problems(
-                        "%s.%s" % (where, group), clause.get(group)
-                    )
-                )
-        if "not" in clause:
-            problems.extend(
-                _condition_problems(where + ".not", clause.get("not"))
-            )
-        if any(key in clause for key in ("all", "any", "not")):
-            continue
-        kind = str(clause.get("kind") or "asset")
-        if kind not in CONDITION_KINDS:
-            problems.append(
-                "%s: неизвестный вид условия %r" % (where, kind)
-            )
-        elif kind == "distance" and not (
-            clause.get("from") and clause.get("to")
-        ):
-            problems.append(
-                "%s: для distance нужны from и to" % where
-            )
-        elif kind == "angle" and not (
-            clause.get("node") and clause.get("from") and clause.get("to")
-        ):
-            problems.append(
-                "%s: для angle нужны node, from и to" % where
-            )
-        elif kind == "relation" and not (
-            clause.get("target") or clause.get("key") or clause.get("id")
-        ):
-            problems.append(
-                "%s: для relation нужна цель (target/key)" % where
-            )
-    return problems
-
-
-def check_requires(source, requires):
-    problems: List[str] = content_schema.validate(
-        "requires", requires, source
-    )
-    requires = _as_mapping(requires)
-    for key in requires:
-        if key not in REQUIRE_KEYS:
-            problems.append(
-                "%s: условие %r не поддерживается ядром" % (source, key)
-            )
-    if "when" in requires:
-        problems.extend(
-            _condition_problems(
-                source + ".when", requires.get("when")
-            )
-        )
-    return problems
 
 
 def _faction_organs(faction):
@@ -1413,8 +1231,10 @@ def _problems_for(path, data, config, factions_data=None, forms=None):
         and ("public" in data or "works" in data)
         and "actions" not in data
     )
-    has_scenes = isinstance(data, Mapping) and isinstance(
-        data.get("scenes"), (list, tuple)
+    has_scenes = (
+        isinstance(data, Mapping)
+        and "storyline_id" not in data
+        and isinstance(data.get("scenes"), (list, tuple))
     )
     if has_scenes or looks_like_scene_file:
         problems.extend(lint_scenes_data(data))
@@ -1492,238 +1312,6 @@ def _expand(paths):
         else:
             files.append(path)
     return files
-
-
-CHRONICLE_PHRASES_KEYS = {
-    "schema",
-    "description",
-    "buckets",
-    "openings",
-    "decision_patterns",
-    "cause_patterns",
-    "facts_unit",
-    "changes_prefix",
-    "strongest_pattern",
-    "empty_actor",
-    "empty_target",
-}
-
-
-def _template_fields(text):
-    """Имена плейсхолдеров шаблона; кривой шаблон даёт ``None``."""
-
-    try:
-        return {
-            field
-            for _literal, field, _spec, _conversion in (
-                string.Formatter().parse(text)
-            )
-            if field
-        }
-    except ValueError:
-        return None
-
-
-def _template_list_problems(items, name, required):
-    """Проверить список шаблонов: непустой, с нужными плейсхолдерами."""
-
-    if not isinstance(items, list) or not items:
-        return ["%s должен быть непустым списком" % name]
-    allowed = set(required)
-    problems = []
-    for index, item in enumerate(items):
-        if not isinstance(item, str) or not item.strip():
-            problems.append(
-                "%s[%d]: нужна непустая строка" % (name, index)
-            )
-            continue
-        fields = _template_fields(item)
-        if fields is None:
-            problems.append(
-                "%s[%d]: кривой шаблон %r" % (name, index, item)
-            )
-            continue
-        missing = allowed - fields
-        if missing:
-            problems.append(
-                "%s[%d]: нет обязательных плейсхолдеров %s"
-                % (name, index, ", ".join(sorted(missing)))
-            )
-        extra = fields - allowed
-        if extra:
-            problems.append(
-                "%s[%d]: неизвестные плейсхолдеры %s"
-                % (name, index, ", ".join(sorted(extra)))
-            )
-    return problems
-
-
-def lint_chronicle_phrases_data(data):
-    """Проверить языковые шаблоны хроники.
-
-    Шаблоны описывают только форму уже посчитанного эпизода: категории
-    значимости, открытия и связки с решением/причиной. Линтер следит,
-    чтобы данные не превращались в сюжет и чтобы каждый плейсхолдер был
-    заполним из полей эпизода.
-    """
-
-    if not isinstance(data, Mapping):
-        return ["шаблоны хроники должны быть объектом"]
-    problems = []
-    unknown = set(data) - CHRONICLE_PHRASES_KEYS
-    if unknown:
-        problems.append(
-            "неизвестные поля: %s" % ", ".join(sorted(unknown))
-        )
-    if data.get("schema") != 1:
-        problems.append("schema должен быть равен 1")
-    buckets = data.get("buckets")
-    bucket_ids = []
-    if not isinstance(buckets, list) or not buckets:
-        problems.append("buckets должен быть непустым списком")
-    else:
-        for index, item in enumerate(buckets):
-            if not isinstance(item, Mapping):
-                problems.append(
-                    "buckets[%d] должен быть объектом" % index
-                )
-                continue
-            extra = set(item) - {"id", "min"}
-            if extra:
-                problems.append(
-                    "buckets[%d]: неизвестные поля %s"
-                    % (index, ", ".join(sorted(extra)))
-                )
-            bucket_id = str(item.get("id") or "").strip()
-            if not bucket_id:
-                problems.append("buckets[%d]: пустой id" % index)
-            elif bucket_id in bucket_ids:
-                problems.append(
-                    "buckets[%d]: повтор id %s" % (index, bucket_id)
-                )
-            else:
-                bucket_ids.append(bucket_id)
-            minimum = item.get("min")
-            if isinstance(minimum, bool) or not isinstance(
-                minimum, (int, float)
-            ):
-                problems.append(
-                    "buckets[%d]: min должен быть числом" % index
-                )
-    openings = data.get("openings")
-    if not isinstance(openings, Mapping) or not openings:
-        problems.append("openings должен быть непустым объектом")
-    else:
-        for key, items in openings.items():
-            if key not in bucket_ids:
-                problems.append(
-                    "openings: категория %s отсутствует в buckets" % key
-                )
-            if not isinstance(items, list) or not items:
-                problems.append(
-                    "openings.%s должен быть непустым списком" % key
-                )
-                continue
-            for index, item in enumerate(items):
-                if not isinstance(item, str) or not item.strip():
-                    problems.append(
-                        "openings.%s[%d]: нужна непустая строка"
-                        % (key, index)
-                    )
-                    continue
-                fields = _template_fields(item)
-                if fields is None:
-                    problems.append(
-                        "openings.%s[%d]: кривой шаблон %r"
-                        % (key, index, item)
-                    )
-                elif fields:
-                    problems.append(
-                        "openings.%s[%d]: открытие не должно иметь "
-                        "плейсхолдеров" % (key, index)
-                    )
-        missing = [
-            name for name in bucket_ids if name not in openings
-        ]
-        if missing:
-            problems.append(
-                "openings: нет категорий %s" % ", ".join(missing)
-            )
-    problems.extend(
-        _template_list_problems(
-            data.get("decision_patterns"),
-            "decision_patterns",
-            ("decision", "body"),
-        )
-    )
-    problems.extend(
-        _template_list_problems(
-            data.get("cause_patterns"),
-            "cause_patterns",
-            ("cause",),
-        )
-    )
-    strongest = data.get("strongest_pattern")
-    if not isinstance(strongest, str) or not strongest.strip():
-        problems.append(
-            "strongest_pattern должен быть непустой строкой"
-        )
-    else:
-        fields = _template_fields(strongest)
-        if fields is None:
-            problems.append("strongest_pattern: кривой шаблон")
-        elif fields != {"label"}:
-            problems.append(
-                "strongest_pattern: нужен ровно плейсхолдер {label}"
-            )
-    for key in (
-        "facts_unit",
-        "changes_prefix",
-        "empty_actor",
-        "empty_target",
-    ):
-        value = data.get(key)
-        if not isinstance(value, str) or not value.strip():
-            problems.append("%s должен быть непустой строкой" % key)
-    return problems
-
-
-def lint_payload_kinds_data(data):
-    """Проверить реестр видов payload и его схему."""
-    try:
-        normalize_payload_kinds(data)
-    except PayloadError as exc:
-        return [str(exc)]
-    return []
-
-
-def lint_forms_data(data):
-    """Проверить манифест форм и наличие обработчиков."""
-    if not isinstance(data, Mapping):
-        return ["манифест форм должен быть объектом"]
-    entries = data.get("forms")
-    if not isinstance(entries, list) or not entries:
-        return ["forms должен быть непустым списком"]
-    try:
-        catalog = FormCatalog(entries, source="forms")
-        catalog.check_handlers()
-    except ActionError as exc:
-        return [str(exc)]
-    problems = []
-    for form in catalog:
-        if not form.payload_kinds:
-            problems.append("%s: не задан payload_kinds" % form.id)
-        if not form.target_kinds:
-            problems.append("%s: не задан target_kinds" % form.id)
-        unknown = [
-            kind for kind in form.payload_kinds if kind not in PAYLOAD_KINDS
-        ]
-        if unknown:
-            problems.append(
-                "%s: неизвестные payload_kinds %s"
-                % (form.id, ", ".join(sorted(unknown)))
-            )
-    return problems
 
 
 def _looks_like_world(data):
@@ -1830,203 +1418,6 @@ def lint_world_data(data):
     except (KeyError, TypeError, ValueError) as exc:
         return ["некорректный мир: %s" % exc]
     return []
-
-
-def _storyline_path(value):
-    path = pathlib.Path(str(value))
-    if not path.is_absolute():
-        path = ROOT / path
-    return path
-
-
-AUTOMATA_FORBIDDEN_STORY_KEYS = ("arc", "win_scene", "lose_scene")
-
-
-def _campaign_mode(data):
-    """Режим шаблона кампании, если он указан и читается."""
-
-    value = data.get("campaign_template")
-    if not value:
-        return ""
-    path = _storyline_path(value)
-    try:
-        template = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return ""
-    if not isinstance(template, Mapping):
-        return ""
-    scenario = template.get("scenario")
-    if not isinstance(scenario, Mapping):
-        return ""
-    return str(scenario.get("mode") or "")
-
-
-def _lint_automatic_storyline(path, data, problems):
-    """Запретить авторский сюжет там, где сюжет обязан быть симуляцией."""
-
-    if _campaign_mode(data) != "automata":
-        return
-    source = str(path.name)
-    for key in AUTOMATA_FORBIDDEN_STORY_KEYS:
-        if key in data:
-            problems.append(
-                "%s.%s: сюжет automata-кампании задаётся симуляцией, "
-                "а не сценой или финалом в данных" % (source, key)
-            )
-    scenes_id = data.get("scenes")
-    if not scenes_id:
-        return
-    scenes_path = pathlib.Path(path).parent / ("%s.json" % scenes_id)
-    if not scenes_path.is_file():
-        return
-    try:
-        scenes = json.loads(scenes_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return
-    sequence = (
-        scenes.get("sequence")
-        if isinstance(scenes, Mapping)
-        else None
-    )
-    if not isinstance(sequence, (list, tuple)):
-        return
-    for index, scene in enumerate(sequence):
-        if not isinstance(scene, Mapping):
-            problems.append(
-                "%s.sequence[%d]: сцена должна быть объектом"
-                % (scenes_path.name, index)
-            )
-            continue
-        scene_type = str(scene.get("type") or "")
-        if scene_type != "gameplay":
-            problems.append(
-                "%s.sequence[%d]: для automata-кампании допустима только "
-                "сцена gameplay, а не %r"
-                % (scenes_path.name, index, scene_type)
-            )
-        if scene.get("slides") or scene.get("choices"):
-            problems.append(
-                "%s.sequence[%d]: слайды и выборы запрещены"
-                % (scenes_path.name, index)
-            )
-
-
-def lint_storylines_data(path, data):
-    """Проверить основной сюжет: теги и ссылки на соседние данные."""
-    if not isinstance(data, Mapping):
-        return ["сюжет должен быть объектом"]
-    if not any(
-        key in data
-        for key in ("storyline_id", "world_path", "campaign_template")
-    ):
-        return []
-    path = pathlib.Path(path)
-    problems = []
-    source = str(path.name)
-    _lint_automatic_storyline(path, data, problems)
-    storyline_id = str(data.get("storyline_id") or "")
-    if storyline_id and storyline_id != path.stem:
-        problems.append(
-            "storyline_id %r не совпадает с именем файла %r"
-            % (storyline_id, path.stem)
-        )
-    tags = data.get("storyline_tags")
-    if tags is not None:
-        if not isinstance(tags, (list, tuple)):
-            problems.append("storyline_tags должен быть списком")
-        else:
-            cleaned = [str(tag) for tag in tags if str(tag)]
-            if len(cleaned) != len(tags):
-                problems.append(
-                    "storyline_tags не может содержать пустые теги"
-                )
-            if len(set(cleaned)) != len(cleaned):
-                problems.append("storyline_tags повторяются")
-    for key in ("world_path", "campaign_template"):
-        value = data.get(key)
-        if value and not _storyline_path(value).is_file():
-            problems.append("%s: файл не найден: %s" % (key, value))
-    for key in ("character_creation", "scenes"):
-        value = data.get(key)
-        if not value:
-            continue
-        target = path.parent / ("%s.json" % value)
-        if not target.is_file():
-            problems.append("%s: файл не найден: %s" % (key, target.name))
-    free_start = data.get("free_start")
-    if isinstance(free_start, Mapping) and free_start:
-        from .identity import load_archetypes_catalog
-
-        catalog = load_archetypes_catalog()
-        if catalog is not None:
-            unknown = [
-                str(archetype_id)
-                for archetype_id in free_start
-                if catalog.get(str(archetype_id)) is None
-            ]
-            if unknown:
-                problems.append(
-                    "free_start: неизвестные архетипы %s"
-                    % ", ".join(sorted(unknown))
-                )
-    return problems
-
-
-def lint_scenes_data(data):
-    """Проверить каталог сцен без привязки к узлам и работам мира.
-
-    Ссылки на локации и работы проверяет ``validate_world``: вне мира у
-    сцены нет способа отличить опечатку от ссылки на другой мир.
-    """
-    if isinstance(data, Mapping):
-        entries = data.get("scenes")
-        if entries is None and "id" in data:
-            entries = [data]
-        if entries is None:
-            return []
-    elif isinstance(data, (list, tuple)):
-        entries = data
-    else:
-        return ["каталог сцен должен быть объектом или списком"]
-    if not isinstance(entries, (list, tuple)):
-        return ["scenes должен быть списком"]
-    problems = []
-    seen = set()
-    public_ids = set()
-    for index, raw in enumerate(entries):
-        if not isinstance(raw, Mapping):
-            problems.append("сцена[%d] должна быть объектом" % index)
-            continue
-        try:
-            scene = SceneSpec.from_dict(raw)
-        except SceneError as exc:
-            problems.append(str(exc))
-            continue
-        if scene.id in seen:
-            problems.append("%s: сцена объявлена дважды" % scene.id)
-        seen.add(scene.id)
-        if not scene.works:
-            problems.append("%s: не заданы работы сцены" % scene.id)
-        works = [item for item in scene.works if item]
-        if len(set(works)) != len(works):
-            problems.append("%s: работы сцены повторяются" % scene.id)
-        for person in scene.public:
-            if person.id in public_ids:
-                problems.append(
-                    "%s: публика %r объявлена в нескольких сценах"
-                    % (scene.id, person.id)
-                )
-            public_ids.add(person.id)
-        slots = scene.time.get("slots")
-        if slots is not None:
-            try:
-                if int(slots) < 1:
-                    problems.append(
-                        "%s: time.slots должен быть не меньше 1" % scene.id
-                    )
-            except (TypeError, ValueError):
-                problems.append("%s: time.slots должен быть числом" % scene.id)
-    return problems
 
 
 def lint_actions_data(data, forms=None):

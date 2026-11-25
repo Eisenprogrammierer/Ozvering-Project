@@ -210,6 +210,7 @@ from .world_entities import WorldEntitiesMixin
 from .world_relations import WorldRelationsMixin
 from .world_career import WorldCareerMixin
 from .world_actions import WorldActionsMixin
+from .world_ai import WorldAIMixin
 from .world_day import WorldDayMixin
 from .world_snapshot import WorldSnapshotMixin
 
@@ -282,6 +283,7 @@ class WorldEngine(
     WorldRelationsMixin,
     WorldCareerMixin,
     WorldActionsMixin,
+    WorldAIMixin,
     WorldDayMixin,
     WorldSnapshotMixin,
 ):

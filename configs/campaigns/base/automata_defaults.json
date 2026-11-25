@@ -1192,6 +1192,13 @@
   },
   "ai_model": {
     "score_floor": 0.01,
+    "npc_policy": {
+      "enabled": false,
+      "epsilon": 0.0,
+      "learning_rate": 0.05,
+      "checkpoint": "",
+      "weights": {}
+    },
     "character_agency": {
       "enabled": true,
       "max_characters": 6,
@@ -1971,6 +1978,146 @@
       },
       "hints": {
         "essence": "social_apology"
+      }
+    },
+    {
+      "id": "court",
+      "label": "Ухаживание",
+      "description": "Личное внимание закрывает потребность в любви и укрепляет привязанность; требует времени и влияния.",
+      "cost": {
+        "influence": 0.02,
+        "energy": 0.01
+      },
+      "cooldown": 4,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.05, "affinity": 0.08}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "court"
+      }
+    },
+    {
+      "id": "start_family",
+      "label": "Создать семью",
+      "description": "Семья закрывает потребность в продолжении рода и даёт долгую опору, но связывает обязательством.",
+      "cost": {
+        "influence": 0.03,
+        "supply": 0.01
+      },
+      "cooldown": 6,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.08, "affinity": 0.06}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "reproduce"
+      }
+    },
+    {
+      "id": "teach",
+      "label": "Наставничество",
+      "description": "Передача опыта закрывает потребность в знании у обоих участников и укрепляет доверие.",
+      "cooldown": 3,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.04, "affinity": 0.02}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "learn"
+      }
+    },
+    {
+      "id": "create",
+      "label": "Совместное творчество",
+      "description": "Работа над общим замыслом закрывает потребность в творчестве и сближает.",
+      "cost": {
+        "energy": 0.01
+      },
+      "cooldown": 4,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"affinity": 0.05}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "create"
+      }
+    },
+    {
+      "id": "practice",
+      "label": "Общая тренировка",
+      "description": "Упражнения закрывают потребность в умении и повышают готовность.",
+      "cost": {
+        "energy": 0.01
+      },
+      "cooldown": 3,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.03}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "practice"
+      }
+    },
+    {
+      "id": "reflect",
+      "label": "Общий обряд",
+      "description": "Совместное осмысление закрывает потребность в духовности и снижает тревогу.",
+      "cooldown": 4,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.03, "fear": -0.03}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "seek_meaning"
+      }
+    },
+    {
+      "id": "befriend",
+      "label": "Сближение",
+      "description": "Личное общение закрывает потребность в дружбе и снижает одиночество.",
+      "cooldown": 3,
+      "allow_self": false,
+      "relations": {
+        "source": "character",
+        "axes": {"trust": 0.05, "affinity": 0.04}
+      },
+      "template": {
+        "amount": 0.02,
+        "duration": 1.0
+      },
+      "hints": {
+        "essence": "befriend"
       }
     }
   ]

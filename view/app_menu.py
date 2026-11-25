@@ -43,3 +43,9 @@ class AppMenuMixin:
 
         self.manager.push(SettingsMenuScreen(self))
         logger.debug("Открыто меню настроек")
+
+    def open_how_to_play(self):
+        from .screens.how_to_play import HowToPlayScreen
+
+        self.manager.push(HowToPlayScreen(self))
+        logger.debug("Открыт экран «Как играть»")

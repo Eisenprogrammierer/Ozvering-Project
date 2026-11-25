@@ -48,9 +48,14 @@ class App(
     def __init__(self, checkpoint=""):
         pygame.init()
         pygame.display.set_caption("Operation Ozverin — MVP")
+        from view.support.settings_store import load_settings
+
+        self.settings = load_settings()
         self.fullscreen = False
         self.checkpoint = str(checkpoint or "")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        if self.settings.get("fullscreen"):
+            self.toggle_fullscreen()
         self.clock = pygame.time.Clock()
         self.font_title = load_font(32)
         self.font_body = load_font(20)
@@ -91,6 +96,9 @@ class App(
         self.music = MusicManager(
             os.path.normpath(os.path.join(BASE_DIR, "..", "music"))
         )
+        from view.support.settings_store import apply_music
+
+        apply_music(self.settings, self.music)
         from view.support.content import Content
         from view.support.scenario import build_world
         from view.support.world import CampaignEngine

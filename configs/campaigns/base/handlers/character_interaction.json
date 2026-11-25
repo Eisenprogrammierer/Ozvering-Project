@@ -231,6 +231,169 @@
       "trace": {
         "essence": "social_apology"
       }
+    },
+    {
+      "when": {
+        "id": "court"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 6.0
+          },
+          "needs": {
+            "love": -0.12,
+            "loneliness": -0.06,
+            "anxiety": -0.04,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.03,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "court"
+      }
+    },
+    {
+      "when": {
+        "id": "start_family"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 10.0
+          },
+          "needs": {
+            "reproduction": -0.14,
+            "love": -0.08,
+            "loneliness": -0.08,
+            "character_id": "$character_id"
+          },
+          "traits": {
+            "loyalty": 0.05,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "reproduce"
+      }
+    },
+    {
+      "when": {
+        "id": "teach"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 4.0
+          },
+          "needs": {
+            "knowledge": -0.12,
+            "status": -0.03,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "learn"
+      }
+    },
+    {
+      "when": {
+        "id": "create"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 5.0
+          },
+          "needs": {
+            "creativity": -0.14,
+            "boredom": -0.05,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "create"
+      }
+    },
+    {
+      "when": {
+        "id": "practice"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 3.0
+          },
+          "needs": {
+            "skill": -0.12,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "practice"
+      }
+    },
+    {
+      "when": {
+        "id": "reflect"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 4.0
+          },
+          "needs": {
+            "spirituality": -0.14,
+            "anxiety": -0.05,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "reflect"
+      }
+    },
+    {
+      "when": {
+        "id": "befriend"
+      },
+      "receiver": {
+        "effect": {
+          "morale": {
+            "character_id": "$character_id",
+            "amount": 6.0
+          },
+          "needs": {
+            "friendship": -0.14,
+            "loneliness": -0.07,
+            "character_id": "$character_id"
+          }
+        }
+      },
+      "sender": {},
+      "trace": {
+        "essence": "befriend"
+      }
     }
   ],
   "default": {

@@ -176,10 +176,10 @@ venv/bin/python main.py
 | `game_engine.py` | автономная арена | `core41`-дуэль + HUD, встраивается в `view/` |
 | `automata/` | редактор автоматов | граф состояний/переходов, JSON-хранилище, без игровой модели |
 | `core41/` | целевой срез 4-2-1 | арена, дуэль, здоровье/болезнь/раны, часы, среда |
-| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, сеть органов `fractal.py`, производные активы `faction_state.py`, доклады источников (`dispatch.py` + `dispatch_*.py`), суточная рутина `routine.py`, качественные метрики `qualitative.py`, аудит `audit.py`, сейвы |
+| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, BDI игрока и NPC (`actor.py`, `character.py`), суточная рутина `routine.py`, политика NPC `npc_policy.py`, сеть органов `fractal.py`, производные активы `faction_state.py`, доклады (`dispatch.py` + `dispatch_*.py`), метрики `qualitative.py`, аудит `audit.py`, сейвы |
 | `campaign/dialogue/` | детерминированный диалог | парсер, вывод, план ответа, синтез, стили, дискурс, сравнения, контрфакты, речевые действия, память |
 | `agents/` | обучаемые политики | BDI/QTable/MLP, чекпойнты, `agents.train` |
-| `warfare.py` | войсковые автоматы | персонажи, отделения, станы, приказы, мораль, черты |
+| `warfare.py` | войсковые автоматы | персонажи (`warfare_character.py`), константы и приказы (`warfare_core.py`), отделения, станы, симуляция |
 | `simulation.py` | легаси-канон дуэлей | воспроизводимый baseline, не активный игровой поток |
 
 ### 3.2. Слои и зависимости
@@ -211,7 +211,8 @@ main.py
   Data-Driven: данные в `configs/dialogue/`, Python только
   интерпретирует. Сквозные ограничения контрфактов и отрицания
   описаны в §5.9.
-* `warfare.py` — персонажи и отделения; кампания автоматов использует его
+* `warfare.py` — персонажи и отделения (персонаж вынесен в
+  `warfare_character.py`, константы — в `warfare_core.py`); кампания автоматов использует его
   для состава фракций и организаций. Импорт ленивый (внутри фабрик
   персонажей), поэтому `import campaign.automata` не загружает `warfare`;
   границу стережёт `tests/test_architecture_boundaries.py`.
@@ -375,7 +376,8 @@ GUI существует и играется, но это **рабочий пе�
 
 * `core41/model.py`, `core41/arena.py`, `core41/duel.py` — целевое ядро и
   арена;
-* `warfare.py` — войсковые автоматы;
+* `warfare.py` — войсковые автоматы (фасад: `warfare_core.py`,
+  `warfare_character.py`);
 * `simulation.py` — легаси-канон, не активный игровой поток;
 * `campaign/world.py` — дневной мир должностного лица: фасад
   `WorldEngine`, реализация — в `world_core.py`, `world_entities.py`,
