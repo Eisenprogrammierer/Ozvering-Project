@@ -16,8 +16,9 @@
 >
 > **Переход:** целевая языковая поверхность — RiveScript, когнитивное
 > ядро — Soar. Фасад `campaign/cognition/` уже даёт read-only
-> `understand()`/`decide()` и `UtteranceFrame`; план и метрики —
-> [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md).
+> `understand()`/`decide()`, `UtteranceFrame` и теневой
+> `nlu_backend=shadow`; JSON компилируется в `configs/rive/`. План и
+> метрики — [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md).
 
 ---
 

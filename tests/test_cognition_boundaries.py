@@ -27,7 +27,9 @@ def test_optional_backends_are_imported_only_in_cognition():
     offenders = []
     this_file = Path(__file__).resolve()
     for path in _python_files():
-        if "cognition" in path.parts or path.resolve() == this_file:
+        if "cognition" in path.parts or "tests" in path.parts:
+            continue
+        if path.resolve() == this_file:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for needle in OPTIONAL_IMPORTS:
@@ -36,8 +38,11 @@ def test_optional_backends_are_imported_only_in_cognition():
     assert offenders == []
 
 
-def test_cognition_package_has_no_optional_dependency_yet():
+def test_optional_dependencies_are_confined_to_runtime_modules():
+    allowed = {"rive_runtime.py": ("import rivescript", "from rivescript")}
     for path in (ROOT / "campaign" / "cognition").glob("*.py"):
         text = path.read_text(encoding="utf-8")
         for needle in OPTIONAL_IMPORTS:
+            if needle in allowed.get(path.name, ()):
+                continue
             assert needle not in text, "%s: %s" % (path, needle)

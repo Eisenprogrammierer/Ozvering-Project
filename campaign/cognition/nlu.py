@@ -36,7 +36,7 @@ _ROLE_MAP = {
     "target": "target",
     "destination": "destination",
 }
-_INTENT_NAMES = {
+WH_INTENTS = {
     "why": "ask_reason",
     "what": "ask_what",
     "who": "ask_who",
@@ -126,7 +126,7 @@ def _intent_name(sem: Mapping[str, Any]) -> str:
     kind = str(sem.get("kind") or "")
     if kind == "question":
         wh = str(sem.get("wh") or "yesno")
-        return _INTENT_NAMES.get(wh, "ask_%s" % wh)
+        return WH_INTENTS.get(wh, "ask_%s" % wh)
     if kind == "order":
         return "act"
     if kind == "assert":
@@ -309,6 +309,16 @@ class LegacyNlu:
         )
 
 
+def _nlu_factory(backend: str) -> Optional[Callable[..., Any]]:
+    factory = NLU_FACTORIES.get(backend)
+    if factory is None and backend == "rive":
+        from .rive_runtime import RiveNlu
+
+        register_nlu_backend("rive", RiveNlu, replace=True)
+        factory = NLU_FACTORIES.get(backend)
+    return factory
+
+
 def _run_backend(
     backend: str,
     session: Any,
@@ -316,7 +326,7 @@ def _run_backend(
     text: str,
     topic: str,
 ) -> Any:
-    factory = NLU_FACTORIES.get(backend)
+    factory = _nlu_factory(backend)
     if factory is None:
         raise BackendError(
             "NLU-бэкенд %r не зарегистрирован; доступно: %s"
@@ -388,6 +398,7 @@ if "legacy" not in NLU_FACTORIES:
 __all__ = [
     "LegacyNlu",
     "NLU_FACTORIES",
+    "WH_INTENTS",
     "available_nlu_backends",
     "decide",
     "register_nlu_backend",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -141,11 +142,70 @@ def test_recorded_corpus_roundtrips_through_parity(red):
 
 def test_unavailable_backends_fail_loudly(red):
     with pytest.raises(BackendError):
-        understand("Обними его.", session=red, nlu_backend="rive")
-    with pytest.raises(BackendError):
-        understand("Обними его.", session=red, nlu_backend="shadow")
+        understand("Обними его.", session=red, nlu_backend="unknown")
     with pytest.raises(BackendError):
         register_nlu_backend("legacy", LegacyNlu)
+
+
+def test_rive_backend_builds_action_frame(red):
+    pytest.importorskip("rivescript")
+    result = understand("Покажи силу", session=red, nlu_backend="rive")
+    assert isinstance(result, UtteranceFrame)
+    assert result.intent == "act"
+    assert "rive:action:a:show_of_force:0" in result.evidence
+    legacy = understand("Покажи силу", session=red, nlu_backend="legacy")
+    assert result.core() == legacy.core()
+
+
+def test_shadow_runs_rive_and_returns_legacy(red):
+    pytest.importorskip("rivescript")
+    seen = []
+    result = understand(
+        "Покажи силу",
+        session=red,
+        nlu_backend="shadow",
+        shadow_sink=lambda text, value: seen.append((text, value)),
+    )
+    assert isinstance(result, UtteranceFrame)
+    assert not any(item.startswith("rive:") for item in result.evidence)
+    assert seen and seen[0][0] == "Покажи силу"
+    assert isinstance(seen[0][1], UtteranceFrame)
+    assert "rive:action:a:show_of_force:0" in seen[0][1].evidence
+    assert seen[0][1].core() == result.core()
+
+
+def test_rive_backend_is_read_only_and_deterministic(red):
+    pytest.importorskip("rivescript")
+    before = red.state_snapshot()
+    first = understand("Покажи силу", session=red, nlu_backend="rive")
+    second = understand("Покажи силу", session=red, nlu_backend="rive")
+    assert first == second
+    assert red.state_snapshot() == before
+
+
+def test_rive_shadow_has_full_parity_on_paraphrases(red):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    data = json.loads(
+        (DIALOGUE_DIR / "paraphrases.json").read_text(encoding="utf-8")
+    )
+    entries = data["phrases"]
+    engine = RiveNlu(red)
+    legacy = {}
+    candidate = {}
+    for entry in entries:
+        text = entry["text"]
+        legacy[entry["id"]] = understand(
+            text, session=red, nlu_backend="legacy"
+        )
+        candidate[entry["id"]] = engine.understand(text)
+    report = compare(legacy, candidate)
+    assert report.intent_accuracy == 1.0
+    assert report.slot_f1 == 1.0
+    assert report.frame_exact == 1.0
+    assert report.fallback_rate == 0.0
+    assert report.determinism_match is True
 
 
 def test_decide_delegates_to_need_policy():

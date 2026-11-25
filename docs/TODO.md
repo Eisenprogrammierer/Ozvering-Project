@@ -140,10 +140,12 @@
   явно. Тесты — `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`.
 - [ ] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
   биндинг, добавить опциональный job с нативными зависимостями.
-- [ ] **Phase 1. RiveScript shadow NLU.** Компилятор JSON → `.rive`,
-  object macros, `UtteranceFrame`, двойной прогон с `ChartParser`,
-  линтер NLU и метрики (`intent_accuracy`, `slot_f1`, `frame_exact`,
-  `fallback_rate`).
+- [ ] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
+  `.rive` + манифест (`campaign.cognition.rive_compiler`), теневой
+  `RiveNlu`, `! sub` из лексикона, точные триггеры парафраз/действий,
+  `nlu_backend=shadow`, линтер `--check`, `configs/rive/`. Осталось:
+  object macros, грамматика как триггеры, золотой корпус 100+ фраз и
+  parity-пороги.
 - [ ] **Phase 2. Soar shadow для NPC.** Перенести выбор работы поверх
   BDI, сравнить с `NeedPolicy` на одинаковых seed, включить по фракции.
 - [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план

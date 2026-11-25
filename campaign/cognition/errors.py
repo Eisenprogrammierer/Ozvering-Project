@@ -27,10 +27,15 @@ class CorpusError(CognitionError, ValueError):
     """Золотой корпус повреждён или несовместим по версии."""
 
 
+class RiveError(CognitionError, ValueError):
+    """Сгенерированный RiveScript-артефакт или его источник повреждён."""
+
+
 __all__ = [
     "BackendError",
     "BridgeError",
     "CognitionError",
     "CorpusError",
     "FrameError",
+    "RiveError",
 ]

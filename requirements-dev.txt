@@ -15,6 +15,10 @@ numpy>=1.21,<3
 pygame-ce>=2.5,<3
 matplotlib>=3.5,<4
 pymorphy3>=2.0,<3
+# RiveScript — языковая поверхность NLU (Phase 1). Пакет чистый Python,
+# нужен только теневому и будущему основному NLU; без него legacy-диалог
+# работает как раньше, а nlu_backend=rive отказывает с понятной ошибкой.
+rivescript>=1.15,<2
 black>=24,<27
 pycodestyle>=2.11,<3
 # JSON Schema контента (G-12). Необязательна для рантайма: без неё

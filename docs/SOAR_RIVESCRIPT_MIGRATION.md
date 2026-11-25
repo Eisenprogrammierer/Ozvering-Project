@@ -1,8 +1,10 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0 в работе: добавлен фасад `campaign/cognition/`,
-> флаги, схема `UtteranceFrame`, мост `soar_bridge.v1`, золотой корпус и
-> parity-метрики. Soar и RiveScript ещё не подключены.
+> **Статус:** Phase 0a закрыта, Phase 1a в работе: есть фасад
+> `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
+> `soar_bridge.v1`, золотой корпус, parity-метрики, компилятор
+> `configs/dialogue → configs/rive` и теневой `nlu_backend=shadow`.
+> Soar ещё не подключён.
 >
 > **Дата:** 2026-11-25.
 >
@@ -668,6 +670,29 @@ Deliverables:
 
 **Rollback:** `nlu_backend=legacy`; сгенерированные файлы не влияют на
 игру.
+
+**Сделано (Phase 1a, 2026-11-25):**
+
+- `campaign/cognition/rive_compiler.py`: JSON → `.rive` + манифест,
+  детерминированный `source_digest`, `--check`/`--write`;
+- `campaign/cognition/rive_runtime.py`: `RiveNlu`, точный триггер
+  RiveScript + legacy-кадр, fallback на `ChartParser`; кадр не меняется,
+  добавляются только `evidence` и нижняя граница уверенности;
+- `configs/rive/`: сгенерированные `dialogue.rive` и `manifest.json`
+  (72 триггера, 2056 однозначных лексиконных замен);
+- `! sub` из лексикона, точные триггеры парафраз, действий и маркеров;
+- `nlu_backend=shadow` реально прогоняет RiveScript и возвращает
+  legacy-результат, `nlu_backend=rive` доступен для сравнения;
+- parity на 63 парафразах: `intent_accuracy`, `slot_f1` и `frame_exact`
+  равны 1.0, `fallback_rate` — 0;
+- линтер `python -m campaign.cognition.rive_compiler --check`;
+- `rivescript` добавлен в dev-зависимости; без пакета `rive` отказывает
+  с понятной ошибкой, legacy не страдает.
+
+**Осталось (Phase 1b):** object macros `morph`/`number`/`quality`/
+`entity`, грамматика как триггеры (сейчас только покрытие в манифесте),
+золотой корпус на 100+ фразах, parity-отчёт и пороги `slot_f1`/
+`frame_exact`, линтер неизвестной лексики.
 
 ### Phase 2. Soar shadow для выбора работы NPC (3–4 недели)
 

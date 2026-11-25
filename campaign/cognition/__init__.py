@@ -29,6 +29,7 @@ from .errors import (
     CognitionError,
     CorpusError,
     FrameError,
+    RiveError,
 )
 from .frame import (
     CORE_FIELDS,
@@ -80,6 +81,7 @@ __all__ = [
     "NLU_BACKENDS",
     "ParityReport",
     "Rejection",
+    "RiveError",
     "UtteranceFrame",
     "available_nlu_backends",
     "command_digest",
