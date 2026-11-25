@@ -139,8 +139,10 @@
   `ChartParser`/`NeedPolicy`; `shadow`/`rive` работают, `soar` пока
   отказывает явно. Тесты — `tests/test_cognition_*.py`,
   `tests/test_soar_bridge.py`.
-- [ ] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
+- [x] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
   биндинг, добавить опциональный job с нативными зависимостями.
+  Закрыто: RiveScript 1.15, `soar-sml` 9.6 в отдельном job `soar`;
+  основной job остаётся кроссплатформенным.
 - [ ] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
   `.rive` + манифест, теневой `RiveNlu`, `! sub` из лексикона, точные
   триггеры, object macros `morph`/`number`/`quality`/`entity`, линтер
@@ -152,8 +154,12 @@
   (`decision.json` → `npc_policy.soar`), `SoarNpcPolicy` считает оценку
   и выбирает оператора в Soar, `decide(ai_backend=shadow)` пишет выбор
   в `shadow_sink`, parity 100% на реальных кандидатах кампании,
-  `soar-sml` в отдельной job CI. Осталось: включение по фракции,
-  длинные метрики и жёсткий бюджет тика.
+  `soar-sml` в отдельной job CI. Phase 2b: `npc_policy.backend` и
+  `backends` включают Soar по фракции, `timeout_ms` ограничивает
+  решение, `npc_decision_report()` показывает согласие, ошибки и
+  латентность, 20 ходов кампании в тени совпадают с легаси.
+  Осталось: метрики удовлетворённости/разнообразия на полном
+  горизонте и перевод `soar` в основной режим.
 - [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план
   ответа в Soar; синтез пока старый.
 - [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество

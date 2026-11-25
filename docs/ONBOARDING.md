@@ -159,7 +159,7 @@ venv/bin/python main.py
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
 | «Хочу понять сейвы» | §5.7 | `view/support/save_system.py` | `tests/test_save_system.py` |
 | «Хочу понять диалог с агентами» | §5.9 | `campaign/dialogue/`, `configs/dialogue/` | `tests/test_d0*.py` … `tests/test_d5_*.py` |
-| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | `campaign/cognition/` (фасад, компиляторы, `RiveNlu`, `SoarNpcPolicy`, macros, `corpus_builder`), `configs/rive/`, `configs/soar/` и `configs/cognition/golden_corpus.json` | `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`; `python -m campaign.cognition.rive_compiler --check`; `python -m campaign.cognition.nlu_lint`; `python -m campaign.cognition.corpus_builder --check`; `python -m campaign.cognition.soar_compiler --check` |
+| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | `campaign/cognition/` (фасад, компиляторы, `RiveNlu`, `SoarNpcPolicy`, macros, `corpus_builder`), `campaign/npc_decisions.py`, `configs/rive/`, `configs/soar/` и `configs/cognition/golden_corpus.json` | `tests/test_cognition_*.py`, `tests/test_npc_decisions.py`, `tests/test_soar_bridge.py`; `python -m campaign.cognition.rive_compiler --check`; `python -m campaign.cognition.nlu_lint`; `python -m campaign.cognition.corpus_builder --check`; `python -m campaign.cognition.soar_compiler --check` |
 | «Хочу проверить, что ничего не сломал» | §5.10 | `tests/` | `pytest -q` |
 
 ---
@@ -179,7 +179,7 @@ venv/bin/python main.py
 | `game_engine.py` | автономная арена | `core41`-дуэль + HUD, встраивается в `view/` |
 | `automata/` | редактор автоматов | граф состояний/переходов, JSON-хранилище, без игровой модели |
 | `core41/` | целевой срез 4-2-1 | арена, дуэль, здоровье/болезнь/раны, часы, среда |
-| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, BDI игрока и NPC (`actor.py`, `character.py`), суточная рутина `routine.py`, политика NPC `npc_policy.py`, сеть органов `fractal.py`, производные активы `faction_state.py`, доклады (`dispatch.py` + `dispatch_*.py`), метрики `qualitative.py`, аудит `audit.py`, сейвы |
+| `campaign/` | дневной мир и кампания | роли, пресеты, `WorldEngine`, `CampaignEnv`, `AutomataCampaign`, BDI игрока и NPC (`actor.py`, `character.py`), суточная рутина `routine.py`, политика NPC `npc_policy.py` и метрики решений `npc_decisions.py`, сеть органов `fractal.py`, производные активы `faction_state.py`, доклады (`dispatch.py` + `dispatch_*.py`), метрики `qualitative.py`, аудит `audit.py`, сейвы |
 | `campaign/dialogue/` | детерминированный диалог | парсер, вывод, план ответа, синтез, стили, дискурс, сравнения, контрфакты, речевые действия, память |
 | `agents/` | обучаемые политики | BDI/QTable/MLP, чекпойнты, `agents.train` |
 | `warfare.py` | войсковые автоматы | персонажи (`warfare_character.py`), константы и приказы (`warfare_core.py`), отделения, станы, симуляция |

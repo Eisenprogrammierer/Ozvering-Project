@@ -76,4 +76,4 @@ jobs:
           pip install -r requirements-soar.txt
 
       - name: Soar parity
-        run: pytest -q tests/test_cognition_soar.py
+        run: pytest -q tests/test_cognition_soar.py tests/test_npc_decisions.py

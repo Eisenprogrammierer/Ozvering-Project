@@ -154,6 +154,7 @@ class SoarNpcPolicy:
         model: Optional[DecisionModel] = None,
         policy_path: Optional[Path] = None,
         source_dir: Path = DEFAULT_SOAR_DIR,
+        timeout_ms: Optional[float] = None,
     ):
         self.model = model or load_model(
             Path(source_dir) / DECISION_NAME
@@ -169,6 +170,7 @@ class SoarNpcPolicy:
                 "Запустите python -m campaign.cognition.soar_compiler --write"
                 % self.path
             ) from exc
+        self.timeout_ms = max(0.0, float(timeout_ms or 0.0))
         self.last_elapsed_ms = 0.0
 
     def _agent(self) -> Any:
@@ -252,6 +254,11 @@ class SoarNpcPolicy:
         if decision not in ranks:
             raise SoarError(
                 "Soar выбрал неизвестную работу %r" % (decision,)
+            )
+        if self.timeout_ms and self.last_elapsed_ms > self.timeout_ms:
+            raise SoarError(
+                "Soar превысил бюджет решения: %.2f мс > %.2f мс"
+                % (self.last_elapsed_ms, self.timeout_ms)
             )
         return decision
 

@@ -10,6 +10,7 @@ import pytest
 from campaign.cognition import (
     BackendError,
     CognitionError,
+    CognitionFlags,
     DecisionReport,
     SoarError,
     compare_choices,
@@ -213,6 +214,35 @@ def test_soar_refuses_exploration():
             {"hunger": 0.9},
             explore=True,
         )
+
+
+def test_soar_respects_decision_budget():
+    pytest.importorskip("soar_sml")
+    from campaign.cognition.soar_runtime import SoarNpcPolicy
+
+    soar = SoarNpcPolicy(timeout_ms=0.000001)
+    with pytest.raises(SoarError):
+        soar.choose([("eat", "hunger", 1.0)], {"hunger": 0.9})
+
+
+def test_decide_shadow_falls_back_when_budget_exceeded():
+    _soar()
+    policy = _policy()
+    items = [("eat", "hunger", 1.0), ("rest", "rest", 1.5)]
+    needs = {"hunger": 0.9, "rest": 0.1}
+    seen = []
+    result = decide(
+        policy=policy,
+        candidates=items,
+        needs=needs,
+        ai_backend="shadow",
+        flags=CognitionFlags(decision_timeout_ms=0.000001),
+        shadow_sink=lambda primary, shadow: seen.append(
+            (primary, shadow)
+        ),
+    )
+    assert result == policy.choose(items, needs)
+    assert seen == [(result, None)]
 
 
 def test_missing_policy_artifact_is_reported(tmp_path):

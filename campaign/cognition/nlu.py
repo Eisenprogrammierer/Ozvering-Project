@@ -379,6 +379,7 @@ def _soar_choice(
     candidates: Any,
     needs: Any,
     explore: Optional[bool],
+    timeout_ms: Optional[float] = None,
 ) -> Any:
     from .soar_runtime import SoarNpcPolicy, weights_for
 
@@ -390,7 +391,7 @@ def _soar_choice(
             if need and need not in need_names:
                 need_names.append(need)
     weights = weights_for(policy, need_names)
-    return SoarNpcPolicy().choose(
+    return SoarNpcPolicy(timeout_ms=timeout_ms).choose(
         items,
         needs or {},
         weights=weights,
@@ -417,7 +418,13 @@ def decide(
     if backend == "shadow":
         primary = _legacy_choice(policy, candidates, needs, explore)
         try:
-            shadow = _soar_choice(policy, candidates, needs, explore)
+            shadow = _soar_choice(
+                policy,
+                candidates,
+                needs,
+                explore,
+                timeout_ms=resolved.decision_timeout_ms,
+            )
         except (BackendError, SoarError):
             # Тень не имеет права ломать игру: без Soar остаётся легаси.
             shadow = None
@@ -425,7 +432,13 @@ def decide(
             shadow_sink(primary, shadow)
         return primary
     if backend == "soar":
-        return _soar_choice(policy, candidates, needs, explore)
+        return _soar_choice(
+            policy,
+            candidates,
+            needs,
+            explore,
+            timeout_ms=resolved.decision_timeout_ms,
+        )
     raise BackendError("неизвестный ai_backend: %r" % backend)
 
 

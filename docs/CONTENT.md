@@ -539,6 +539,14 @@ custom = content.get("my_new_file", {})
 `doctrine.essences`. Ни intent, ни форма работы не зашиты в Python:
 `ai_action_weights()` показывает итоговые веса для диагностики.
 
+Блок `ai_model.npc_policy` может включить выбор работы политикой
+`NeedPolicy`. Поле `backend` задаёт бэкенд всех сторон (`legacy`,
+`shadow`, `soar`), `backends` — карту `фракция → backend`, а
+`timeout_ms` — бюджет решения (0 — взять общий
+`timeouts.decision_ms`). В режиме `shadow` Soar считает решение
+параллельно, игра получает выбор легаси, а `npc_decision_report()`
+показывает согласие, ошибки и латентность по сторонам.
+
 Отношения — направленная матрица кампании: `relation_model` в
 `automata_defaults.json` задаёт оси, лимит и веса форм, а
 `effects.relations`, `requires.relations` и условия `kind: relation`

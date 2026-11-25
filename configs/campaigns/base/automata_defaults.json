@@ -1194,6 +1194,9 @@
     "score_floor": 0.01,
     "npc_policy": {
       "enabled": false,
+      "backend": "legacy",
+      "backends": {},
+      "timeout_ms": 0,
       "epsilon": 0.0,
       "learning_rate": 0.05,
       "checkpoint": "",

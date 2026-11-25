@@ -11,6 +11,12 @@ from .automata_support import (
     _same_id,
     _text,
 )
+from .cognition.backends import AI_BACKENDS, load_flags
+from .cognition.errors import BackendError, SoarError
+from .npc_decisions import (
+    DEFAULT_AGREEMENT_THRESHOLD,
+    NpcDecisionMonitor,
+)
 from .npc_policy import NeedPolicy
 
 
@@ -306,6 +312,85 @@ class AutomataAIMixin:
             )
         return self._npc_policy_obj
 
+    def _npc_config(self):
+        return _as_mapping(_as_mapping(self.ai_model).get("npc_policy"))
+
+    def _cognition_flags(self):
+        flags = getattr(self, "_cognition_flags_obj", None)
+        if flags is None:
+            flags = load_flags()
+            self._cognition_flags_obj = flags
+        return flags
+
+    def npc_backend(self, side):
+        """Бэкенд стороны: ``backends`` → ``backend`` → глобальный флаг."""
+        config = self._npc_config()
+        backends = _as_mapping(config.get("backends"))
+        value = backends.get(str(side))
+        if value is None:
+            value = config.get("backend")
+        if value is None:
+            value = self._cognition_flags().ai_backend
+        backend = str(value or "legacy")
+        if backend not in AI_BACKENDS:
+            raise BackendError(
+                "npc_policy.backend=%r не поддерживается; допустимо: %s"
+                % (backend, ", ".join(AI_BACKENDS))
+            )
+        return backend
+
+    def npc_decision_timeout_ms(self):
+        """Бюджет решения: локальный ``timeout_ms`` или общий флаг."""
+        config = self._npc_config()
+        timeout = _number(config.get("timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().decision_timeout_ms
+        return float(timeout)
+
+    def npc_decision_monitor(self):
+        monitor = getattr(self, "_npc_decision_monitor", None)
+        if monitor is None:
+            monitor = NpcDecisionMonitor()
+            self._npc_decision_monitor = monitor
+        return monitor
+
+    def npc_decision_report(
+        self,
+        threshold=DEFAULT_AGREEMENT_THRESHOLD,
+    ):
+        """Сводка согласия Soar с легаси за прогон."""
+        return self.npc_decision_monitor().report(threshold)
+
+    def _soar_policy(self):
+        policy = getattr(self, "_soar_policy_obj", None)
+        if policy is None:
+            from .cognition.soar_runtime import SoarNpcPolicy
+
+            policy = SoarNpcPolicy(
+                timeout_ms=self.npc_decision_timeout_ms()
+            )
+            self._soar_policy_obj = policy
+        return policy
+
+    @staticmethod
+    def _npc_explore(policy):
+        if not bool(getattr(policy, "explore", False)):
+            return False
+        return _number(getattr(policy, "epsilon", 0.0), 0.0) > 0.0
+
+    def _soar_candidate(self, policy, candidates, needs, soar):
+        from .cognition.soar_runtime import weights_for
+
+        names = sorted(
+            {str(need) for _option, need, _base in candidates}
+        )
+        return soar.choose(
+            candidates,
+            needs,
+            weights=weights_for(policy, names),
+            explore=self._npc_explore(policy),
+        )
+
     def _policy_choice(self, side, weighted, leader=None):
         """Выбрать работу политикой поверх BDI; ``None`` — отдать эвристике."""
         policy = self._npc_policy()
@@ -322,7 +407,37 @@ class AutomataAIMixin:
             )
             if need:
                 candidates.append((option["id"], need, weight))
-        return policy.choose(candidates, needs)
+        if not candidates:
+            return None
+        backend = self.npc_backend(side)
+        if backend == "legacy":
+            return policy.choose(candidates, needs)
+        soar = self._soar_policy()
+        elapsed_ms = 0.0
+        error = None
+        candidate = None
+        try:
+            candidate = self._soar_candidate(
+                policy, candidates, needs, soar
+            )
+            elapsed_ms = soar.last_elapsed_ms
+        except (BackendError, SoarError) as exc:
+            if backend == "soar":
+                raise
+            error = str(exc)
+        if backend == "soar":
+            return candidate
+        legacy = policy.choose(candidates, needs)
+        self.npc_decision_monitor().record(
+            side=side,
+            backend=backend,
+            legacy=legacy,
+            candidate=candidate,
+            elapsed_ms=elapsed_ms,
+            error=error,
+            turn=getattr(self, "turn", None),
+        )
+        return legacy
 
     def _ai_weighted_options(
         self, side, turn=None, exclude_active=False
