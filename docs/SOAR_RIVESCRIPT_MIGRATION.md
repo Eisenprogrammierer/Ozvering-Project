@@ -1,11 +1,12 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a и Phase 1a–1c закрыты, Phase 1d и Phase 2a–2b в
-> работе: есть фасад `campaign/cognition/`, флаги, схема `UtteranceFrame`,
-> мост `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
+> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2c закрыты: есть фасад
+> `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
+> `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
 > `configs/dialogue → configs/rive` и `configs/soar → .soar`, object
-> macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow` и
-> `ai_backend=shadow` с Soar-политикой NPC.
+> macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow`,
+> `ai_backend=shadow` с Soar-политикой NPC и грамматика RiveScript в
+> роли NLU-триггеров.
 >
 > **Дата:** 2026-11-25.
 >
@@ -822,9 +823,14 @@ Deliverables:
   потребности и то же разнообразие работ, что и легаси (проверено:
   44 персонажа, 420 решений, 55 работ, `evenness` 0.92); накладные
   расходы ~15% (53 с → 61 с);
+- `ai_model` (включая `npc_policy`) входит в `save_snapshot()`:
+  загрузка сейва сохраняет `legacy|shadow|soar`, бюджет решения и
+  per-side `backends`, а кэши политик пересоздаются из нового конфига;
 - тесты: `test_soar_budget_stops_between_cycles`,
   `test_campaign_outcome_report_covers_needs_and_jobs`,
-  `test_soar_backend_matches_legacy_state_and_outcomes`.
+  `test_soar_backend_matches_legacy_state_and_outcomes`,
+  `test_snapshot_keeps_npc_policy_config`,
+  `test_soar_save_load_continues_with_soar_backend`.
 
 **Осталось (Phase 2d):** калибровка на полном горизонте кампании
 (удовлетворённость и разнообразие на сотнях ходов), перенос бюджета

@@ -204,6 +204,44 @@ def test_campaign_outcome_report_covers_needs_and_jobs():
     assert set(jobs["sides"]) <= set(needs["sides"])
 
 
+def test_snapshot_keeps_npc_policy_config():
+    campaign = _campaign(7)
+    _enable(
+        campaign,
+        backend="legacy",
+        backends={"blue": "shadow"},
+        timeout_ms=25,
+    )
+    restored = AutomataCampaign(
+        _preset(7), seed=7, snapshot=campaign.save_snapshot()
+    )
+    policy = restored.ai_model["npc_policy"]
+    assert policy["backend"] == "legacy"
+    assert policy["backends"] == {"blue": "shadow"}
+    assert policy["timeout_ms"] == 25
+    assert restored.npc_backend("blue") == "shadow"
+    assert restored.npc_backend("red") == "legacy"
+    assert restored.snapshot() == campaign.snapshot()
+
+
+def test_soar_save_load_continues_with_soar_backend():
+    pytest.importorskip("soar_sml")
+    campaign = _campaign(7)
+    _enable(campaign, backend="soar")
+    campaign.run(turns=2)
+    restored = AutomataCampaign(
+        _preset(7), seed=7, snapshot=campaign.save_snapshot()
+    )
+    assert restored.npc_backend("red") == "soar"
+    assert restored.snapshot() == campaign.snapshot()
+    campaign.run(turns=1)
+    restored.run(turns=1)
+    assert restored.snapshot() == campaign.snapshot()
+    assert restored.npc_outcome_report()["needs"] == (
+        campaign.npc_outcome_report()["needs"]
+    )
+
+
 def test_soar_backend_matches_legacy_state_and_outcomes():
     pytest.importorskip("soar_sml")
     soar = _campaign(29)

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import copy
+
 from .automata_support import (
+    AI_MODEL_DEFAULTS,
     AVATAR_SCHEMA_VERSION,
     AvatarError,
     CAPABILITY_SCHEMA_VERSION,
@@ -18,6 +21,7 @@ from .automata_support import (
     WORK_TRACE_VERSION,
     _as_mapping,
     _clamp,
+    _merged_mapping,
     _nested_tuple,
     _number,
     _relation_model,
@@ -170,6 +174,10 @@ class AutomataSnapshotMixin:
     def save_snapshot(self):
         """Полный снимок: журнал, организации и состояние ГСЧ."""
         data = stamp_snapshot(self.snapshot(), SCHEMA_VERSION)
+        # Конфиг ИИ — часть состояния: без него загрузка сейва молча
+        # вернула бы legacy-бэкенд вместо soar/shadow. В ``snapshot()``
+        # его нет, чтобы паритет бэкендов сравнивал только симуляцию.
+        data["ai_model"] = copy.deepcopy(self.ai_model)
         data["capability_schema"] = int(
             getattr(
                 self, "capability_schema", CAPABILITY_SCHEMA_VERSION
@@ -373,6 +381,15 @@ class AutomataSnapshotMixin:
                 )
             ),
         )
+        saved_ai_model = _as_mapping(snapshot.get("ai_model"))
+        if saved_ai_model:
+            self.ai_model = _merged_mapping(
+                AI_MODEL_DEFAULTS, saved_ai_model
+            )
+            # Кэши политик зависят от конфига: после загрузки их нужно
+            # пересоздать, иначе останется бэкенд/бюджет прежней игры.
+            self._npc_policy_obj = None
+            self._soar_policy_obj = None
         self.turn = int(_number(snapshot.get("turn"), self.turn))
         saved_max = snapshot.get("cycle_limit")
         if saved_max is None:
