@@ -143,13 +143,15 @@
   биндинг, добавить опциональный job с нативными зависимостями.
   Закрыто: RiveScript 1.15, `soar-sml` 9.6 в отдельном job `soar`;
   основной job остаётся кроссплатформенным.
-- [ ] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
+- [x] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
   `.rive` + манифест, теневой `RiveNlu`, `! sub` из лексикона, точные
   триггеры, object macros `morph`/`number`/`quality`/`entity`, линтер
   `nlu_lint`, золотой корпус на 144 фразы (`corpus_builder`), parity 1.0,
   `nlu_backend=shadow`, проверки артефактов и корпуса в CI,
-  `configs/rive/`. Осталось: грамматика как триггеры и порог
-  `fallback_rate` на живом вводе.
+  `configs/rive/`. Phase 1d: `grammar_patterns()` компилирует правила
+  `S` в триггеры (23 из 67 правил, закрытые классы — литералы, открытые —
+  `[*]`), `RiveNlu.report()` считает `fallback_rate` на живом вводе с
+  порогом `thresholds.fallback_rate_max`. Основной режим — Phase 4.
 - [ ] **Phase 2. Soar shadow для NPC.** Сделано: `configs/soar/`
   (`decision.json` → `npc_policy.soar`), `SoarNpcPolicy` считает оценку
   и выбирает оператора в Soar, `decide(ai_backend=shadow)` пишет выбор

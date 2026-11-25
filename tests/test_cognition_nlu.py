@@ -182,6 +182,35 @@ def test_rive_backend_is_read_only_and_deterministic(red):
     assert red.state_snapshot() == before
 
 
+def test_rive_runtime_reports_fallback_rate(red):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    engine = RiveNlu(red)
+    engine.understand("Покажи силу")
+    engine.understand("Привет")
+    engine.understand("абракадабра ксизи")
+    engine.understand("   ")
+    report = engine.report()
+    assert report["kind"] == "nlu_runtime"
+    assert report["total"] == 3
+    assert report["matched"] == 2
+    assert report["fallback"] == 1
+    assert report["empty"] == 1
+    assert report["fallback_rate"] == pytest.approx(1.0 / 3.0)
+    assert report["threshold"] == pytest.approx(0.05)
+    assert report["ok"] is False
+    assert report["sources"]["action"] == 1
+    assert report["sources"]["paraphrase"] == 1
+    assert engine.report(threshold=1.0)["ok"] is True
+    engine.reset()
+    reset = engine.report()
+    assert reset["total"] == 0
+    assert reset["fallback_rate"] == 0.0
+    assert reset["ok"] is True
+    assert reset["sources"] == {}
+
+
 def test_rive_shadow_has_full_parity_on_dialogue_corpus(red):
     pytest.importorskip("rivescript")
     from campaign.cognition.nlu_lint import collect_phrases
@@ -204,6 +233,19 @@ def test_rive_shadow_has_full_parity_on_dialogue_corpus(red):
     assert report.frame_exact == 1.0
     assert report.fallback_rate == 0.0
     assert report.determinism_match is True
+    live = engine.report()
+    assert live["total"] + live["empty"] == len(legacy)
+    # Прямая речь в кавычках остаётся legacy-разбору; порог живой
+    # выборки не превышен, и кадр от этого не меняется.
+    assert 0 < live["fallback"] < live["total"]
+    assert live["fallback_rate"] <= live["threshold"]
+    assert live["ok"] is True
+    assert set(live["sources"]) <= {
+        "action",
+        "paraphrase",
+        "marker",
+        "grammar",
+    }
 
 
 def test_decide_delegates_to_need_policy():

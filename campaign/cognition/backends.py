@@ -62,6 +62,7 @@ class CognitionFlags:
     compare_shadow: bool = False
     accept_threshold: float = 0.75
     clarify_threshold: float = 0.45
+    nlu_fallback_max: float = 0.05
     decision_timeout_ms: int = 200
     tick_timeout_ms: int = 50
     source: str = "builtin"
@@ -73,6 +74,8 @@ class CognitionFlags:
             raise BackendError("clarify_threshold вне [0, 1]")
         if not 0.0 <= self.accept_threshold <= 1.0:
             raise BackendError("accept_threshold вне [0, 1]")
+        if not 0.0 <= self.nlu_fallback_max <= 1.0:
+            raise BackendError("nlu_fallback_max вне [0, 1]")
         if self.clarify_threshold > self.accept_threshold:
             raise BackendError(
                 "clarify_threshold не может быть больше accept_threshold"
@@ -91,6 +94,7 @@ class CognitionFlags:
             "thresholds": {
                 "accept": self.accept_threshold,
                 "clarify": self.clarify_threshold,
+                "fallback_rate_max": self.nlu_fallback_max,
             },
             "timeouts": {
                 "decision_ms": self.decision_timeout_ms,
@@ -169,6 +173,10 @@ def load_flags(
         ),
         clarify_threshold=_number(
             thresholds.get("clarify", 0.45), "thresholds.clarify"
+        ),
+        nlu_fallback_max=_number(
+            thresholds.get("fallback_rate_max", 0.05),
+            "thresholds.fallback_rate_max",
         ),
         decision_timeout_ms=int(
             _number(

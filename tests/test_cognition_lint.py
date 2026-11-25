@@ -41,6 +41,13 @@ def test_current_dialogue_has_full_lexicon_coverage():
     assert report.unknown == ()
     assert report.ok()
     assert "0 неизвестных" in report.render()
+    assert report.stats["grammar_triggers"] > 0
+    assert (
+        report.stats["grammar_rules_covered"]
+        + report.stats["grammar_rules_skipped"]
+        == report.stats["grammar_rules"]
+    )
+    assert "грамматика:" in report.render()
 
 
 def test_unknown_token_is_reported_with_phrase_id(tmp_path):

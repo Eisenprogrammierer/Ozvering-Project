@@ -104,6 +104,14 @@ class LintReport:
                 self.stats.get("triggers", 0),
                 self.stats.get("lexicon_conflicts", 0),
             ),
+            "  грамматика: %s правил, покрыто %s, триггеров %s,"
+            " без триггера %s"
+            % (
+                self.stats.get("grammar_rules", 0),
+                self.stats.get("grammar_rules_covered", 0),
+                self.stats.get("grammar_triggers", 0),
+                self.stats.get("grammar_rules_skipped", 0),
+            ),
         ]
         for token, ids in self.unknown[:20]:
             lines.append(

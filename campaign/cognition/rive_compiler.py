@@ -24,9 +24,31 @@ from .serialization import canonical_digest, pretty_json
 
 COMPILER_VERSION = 1
 MANIFEST_VERSION = 1
-TRIGGER_SOURCES = ("paraphrase", "action", "marker")
-_SOURCE_ORDER = {"action": 0, "paraphrase": 1, "marker": 2}
+TRIGGER_SOURCES = ("paraphrase", "action", "marker", "grammar")
+_SOURCE_ORDER = {"action": 0, "paraphrase": 1, "marker": 2, "grammar": 3}
 _QUOTES = frozenset(("«", "»", '"'))
+# Закрытые классы грамматики: их формы берутся из лексикона и становятся
+# литералами триггера. Открытые классы (N, V, ADJ, NP, PP, S) остаются
+# слотами ``[*]``: падежи и согласование проверяет кадр, а не RiveScript.
+GRAMMAR_CLOSED = (
+    "GREETING",
+    "FAREWELL",
+    "WH",
+    "COND",
+    "COP",
+    "HAVE",
+    "NEG",
+    "PART",
+    "TO",
+    "SCONJ",
+    "PRON",
+    "P",
+    "COMP",
+    "ADV",
+)
+# Кавычки — пунктуация: токенизатор их снимает, литералом они не полезны.
+GRAMMAR_IGNORED = frozenset(("QUOTE", "QUOTE_END"))
+
 DEFAULT_DIALOGUE_DIR = (
     Path(__file__).resolve().parents[2] / "configs" / "dialogue"
 )
@@ -279,6 +301,112 @@ def _add_trigger(
         warnings.append("пустой триггер: %s" % trigger.id)
 
 
+def grammar_forms(
+    entries: Iterable[Mapping[str, Any]],
+    substitutions: Mapping[str, str],
+) -> Dict[str, Tuple[str, ...]]:
+    """Формы закрытых классов грамматики после лексиконных замен."""
+
+    forms: Dict[str, set] = {}
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            continue
+        category = str(entry.get("cat") or "")
+        if category not in GRAMMAR_CLOSED:
+            continue
+        bucket = forms.setdefault(category, set())
+        for form in entry_forms(entry):
+            text = _trigger_text(form, substitutions)
+            if text:
+                bucket.add(text)
+    return {
+        category: tuple(sorted(values))
+        for category, values in forms.items()
+    }
+
+
+def _rhs_categories(rule: Mapping[str, Any]) -> Tuple[str, ...]:
+    rhs = rule.get("rhs")
+    if not isinstance(rhs, (list, tuple)):
+        raise RiveError("grammar.rhs должен быть списком")
+    return tuple(
+        str(_mapping(item, "grammar.rhs").get("cat") or "")
+        for item in rhs
+    )
+
+
+def grammar_patterns(
+    grammar: Mapping[str, Any],
+    entries: Iterable[Mapping[str, Any]],
+    substitutions: Mapping[str, str],
+) -> Tuple[
+    List[Tuple[str, str, str]],
+    Tuple[str, ...],
+    Tuple[str, ...],
+]:
+    """Пары ``(rule_id, pattern, rhs)`` и покрытие правил.
+
+    Литералами становятся только закрытые классы из лексикона; открытые
+    классы — слот ``[*]``. Правила без литералов пропускаются: чистый
+    набор wildcard-слотов ничего не доказывает и перехватывал бы ввод.
+    Возвращаются шаблоны, задействованные правила и правила без
+    собственного триггера (включая ``NP``/``PP`` и совпавшие шаблоны).
+    """
+
+    forms = grammar_forms(entries, substitutions)
+    rules = grammar.get("rules") or ()
+    if not isinstance(rules, (list, tuple)):
+        raise RiveError("grammar.rules должен быть списком")
+    patterns: List[Tuple[str, str, str]] = []
+    covered = set()
+    rule_ids: List[str] = []
+    seen = set()
+    for index, rule in enumerate(rules):
+        data = _mapping(rule, "grammar.rule")
+        rule_id = str(data.get("id") or "rule_%d" % index)
+        rule_ids.append(rule_id)
+        categories = _rhs_categories(data)
+        if str(data.get("lhs") or "") != "S":
+            # Триггеры описывают целые высказывания; правила NP/PP
+            # остаются делом кадра, а не RiveScript.
+            continue
+        parts: List[str] = []
+        literals = 0
+        complete = True
+        for category in categories:
+            if category in GRAMMAR_IGNORED:
+                continue
+            if category in GRAMMAR_CLOSED:
+                options = forms.get(category) or ()
+                if not options:
+                    complete = False
+                    break
+                parts.append("(%s)" % "|".join(options))
+                literals += 1
+            else:
+                parts.append("[*]")
+        if not complete or not literals or not parts:
+            continue
+        if "[*]" not in " ".join(parts) and len(parts) == 1:
+            # Полностью закрытое правило (приветствие, прощание): один
+            # триггер на форму, чтобы не перекрывать точные парафразы
+            # составной альтернативой.
+            for option in parts[0][1:-1].split("|"):
+                if option and option not in seen:
+                    seen.add(option)
+                    patterns.append((rule_id, option, " ".join(categories)))
+                    covered.add(rule_id)
+            continue
+        pattern = " ".join(parts)
+        if pattern in seen:
+            continue
+        seen.add(pattern)
+        patterns.append((rule_id, pattern, " ".join(categories)))
+        covered.add(rule_id)
+    skipped = tuple(rule_id for rule_id in rule_ids if rule_id not in covered)
+    return patterns, tuple(sorted(covered)), skipped
+
+
 def compile_dialogue(
     dialogue_dir: Path = DEFAULT_DIALOGUE_DIR,
 ) -> RiveManifest:
@@ -362,6 +490,28 @@ def compile_dialogue(
                 ),
             )
 
+    patterns, _, _ = grammar_patterns(
+        grammar, entries, substitutions
+    )
+    existing = {item.trigger for item in candidates}
+    grammar_added = 0
+    for rule_id, pattern, rhs in patterns:
+        if pattern in existing:
+            # Точная фраза уже есть в парафразах/действиях: она
+            # специфичнее грамматического свидетельства.
+            continue
+        existing.add(pattern)
+        candidates.append(
+            RiveTrigger(
+                id="g:%s" % rule_id,
+                trigger=pattern,
+                source="grammar",
+                text=rhs,
+                kind="grammar",
+            )
+        )
+        grammar_added += 1
+
     candidates.sort(
         key=lambda item: (
             item.trigger,
@@ -391,12 +541,18 @@ def compile_dialogue(
             "grammar": grammar,
         }
     )
+    covered_rules = {
+        item.id[len("g:"):] for item in triggers if item.source == "grammar"
+    }
     stats = {
         "compiler_version": COMPILER_VERSION,
         "lexicon_entries": len(entries),
         "lexicon_substitutions": len(substitutions),
         "lexicon_conflicts": len(conflicts),
         "grammar_rules": len(rules),
+        "grammar_triggers": grammar_added,
+        "grammar_rules_covered": len(covered_rules),
+        "grammar_rules_skipped": len(rules) - len(covered_rules),
         "paraphrases": len(phrases),
         "actions": len(action_items),
         "markers": len(markers),
@@ -550,6 +706,8 @@ __all__ = [
     "check_artifacts",
     "compile_dialogue",
     "entry_forms",
+    "grammar_forms",
+    "grammar_patterns",
     "lexicon_substitutions",
     "main",
     "one_token",

@@ -25,6 +25,7 @@ from .rive_compiler import (
 from .rive_macros import load_macros, register_macros
 
 FALLBACK_ID = "__fallback__"
+RUNTIME_VERSION = 1
 _ENGINE_CACHE: Dict[Tuple[str, int], Any] = {}
 _MANIFEST_CACHE: Dict[Tuple[str, int], RiveManifest] = {}
 
@@ -115,6 +116,46 @@ class RiveNlu:
         )
         self.macros = load_macros()
         register_macros(self.engine, self.macros)
+        self.counts: Dict[str, int] = {
+            "total": 0,
+            "matched": 0,
+            "fallback": 0,
+            "empty": 0,
+        }
+        self.sources: Dict[str, int] = {}
+
+    def reset(self) -> None:
+        """Сбросить счётчики живого ввода."""
+
+        for key in self.counts:
+            self.counts[key] = 0
+        self.sources.clear()
+
+    def report(self, threshold: Optional[float] = None) -> Dict[str, Any]:
+        """Доля fallback на живом вводе и порог из конфига."""
+
+        limit = (
+            float(self.flags.nlu_fallback_max)
+            if threshold is None
+            else float(threshold)
+        )
+        total = self.counts["total"]
+        fallback = self.counts["fallback"]
+        rate = fallback / float(total) if total else 0.0
+        return {
+            "kind": "nlu_runtime",
+            "version": RUNTIME_VERSION,
+            "total": total,
+            "matched": self.counts["matched"],
+            "fallback": fallback,
+            "empty": self.counts["empty"],
+            "fallback_rate": round(rate, 6),
+            "threshold": limit,
+            "ok": rate <= limit,
+            "sources": {
+                key: self.sources[key] for key in sorted(self.sources)
+            },
+        }
 
     def _trigger_id(self, text: str) -> str:
         try:
@@ -130,13 +171,19 @@ class RiveNlu:
         raw = str(text or "")
         base = self.legacy.understand(raw, topic=topic)
         if not raw.strip():
+            self.counts["empty"] += 1
             return base
+        self.counts["total"] += 1
         trigger_id = self._trigger_id(raw)
         if not trigger_id or trigger_id == FALLBACK_ID:
+            self.counts["fallback"] += 1
             return base
         match = self.manifest.get(trigger_id)
         if match is None:
+            self.counts["fallback"] += 1
             return base
+        self.counts["matched"] += 1
+        self.sources[match.source] = self.sources.get(match.source, 0) + 1
         return self._apply(base, match)
 
     def _apply(self, base: Any, match: Any) -> Any:
@@ -145,7 +192,12 @@ class RiveNlu:
         evidence = base.evidence + (
             "rive:%s:%s" % (match.source, match.id),
         )
-        floor = 0.9 if match.source in ("action", "marker") else 0.85
+        if match.source in ("action", "marker"):
+            floor = 0.9
+        elif match.source == "grammar":
+            floor = 0.8
+        else:
+            floor = 0.85
         confidence = min(1.0, max(float(base.confidence), floor))
         return replace(
             base,
@@ -156,6 +208,7 @@ class RiveNlu:
 
 __all__ = [
     "FALLBACK_ID",
+    "RUNTIME_VERSION",
     "RiveNlu",
     "default_manifest_path",
     "default_rive_path",

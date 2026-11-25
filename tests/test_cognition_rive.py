@@ -67,6 +67,84 @@ def test_manifest_roundtrip(tmp_path):
     assert loaded.digest() == manifest.digest()
 
 
+def test_grammar_triggers_cover_closed_constructions():
+    manifest = compile_dialogue()
+    grammar = [
+        item for item in manifest.triggers if item.source == "grammar"
+    ]
+    assert manifest.stats["grammar_triggers"] == len(grammar)
+    assert grammar
+    assert manifest.stats["grammar_rules"] > len(grammar)
+    assert manifest.stats["grammar_rules_covered"] == len(grammar)
+    assert manifest.stats["grammar_rules_skipped"] > 0
+    assert (
+        manifest.stats["grammar_rules_covered"]
+        + manifest.stats["grammar_rules_skipped"]
+        == manifest.stats["grammar_rules"]
+    )
+    ids = {item.id for item in grammar}
+    assert "g:s_conditional" in ids
+    assert "g:np_neg_v_np" in ids
+    assert "g:s_wh_s" in ids
+
+
+def test_grammar_patterns_partition_all_rules():
+    import json
+
+    from campaign.cognition.rive_compiler import grammar_patterns
+
+    grammar = json.loads(
+        (DIALOGUE / "grammar.json").read_text(encoding="utf-8")
+    )
+    lexicon = json.loads(
+        (DIALOGUE / "lexicon.json").read_text(encoding="utf-8")
+    )
+    patterns, covered, skipped = grammar_patterns(
+        grammar, lexicon["entries"], {}
+    )
+    all_ids = [rule["id"] for rule in grammar["rules"]]
+    assert sorted(covered + skipped) == sorted(all_ids)
+    assert not set(covered) & set(skipped)
+    pattern_ids = {rule_id for rule_id, _, _ in patterns}
+    assert pattern_ids <= set(covered)
+    # NP/PP — дело кадра, а не триггера.
+    for rule_id in ("np_noun", "np_adj_noun", "pp_prep_np"):
+        assert rule_id in skipped
+    # Каждая грамматическая конструкция уровня S с закрытым классом
+    # получает хотя бы один шаблон.
+    for rule_id in ("s_conditional", "s_wh_s", "np_neg_v_np"):
+        assert rule_id in covered
+
+
+def test_grammar_triggers_use_lexicon_forms_and_wildcards():
+    manifest = compile_dialogue()
+    conditional = manifest.get("g:s_conditional")
+    assert conditional is not None
+    assert conditional.text == "COND S TO S"
+    assert conditional.trigger.startswith("(если)")
+    assert "(то)" in conditional.trigger
+    assert "[*]" in conditional.trigger
+    negation = manifest.get("g:np_neg_v_np")
+    assert negation is not None
+    assert negation.trigger == "[*] (не) [*] [*]"
+    greeting = manifest.get("g:s_greeting")
+    assert greeting is not None
+    assert greeting.trigger == "добрый день"
+
+
+def test_grammar_triggers_do_not_shadow_exact_phrases():
+    manifest = compile_dialogue()
+    exact = {
+        item.trigger
+        for item in manifest.triggers
+        if item.source != "grammar"
+    }
+    for item in manifest.triggers:
+        if item.source != "grammar":
+            continue
+        assert item.trigger not in exact
+
+
 def test_render_is_stable_and_has_fallback():
     manifest = compile_dialogue()
     text = render_rive(manifest)
@@ -109,6 +187,8 @@ def test_engine_matches_generated_triggers(tmp_path):
         "Покажи силу против Республики": "a:show_of_force:1",
         "Назначь врага": "a:enemy_of_state:0",
         "Приказываю тебе": "m:command:0",
+        "Империя не воюет": "g:np_neg_v_np_adj",
+        "Если империя воюет то республика ждёт": "g:s_conditional",
         "абракадабра ксизи": "__fallback__",
     }
     for text, expected in cases.items():

@@ -4,12 +4,15 @@
     "actions": 13,
     "compiler_version": 1,
     "grammar_rules": 67,
+    "grammar_rules_covered": 23,
+    "grammar_rules_skipped": 44,
+    "grammar_triggers": 23,
     "lexicon_conflicts": 44,
     "lexicon_entries": 422,
     "lexicon_substitutions": 2056,
     "markers": 3,
     "paraphrases": 63,
-    "triggers": 72
+    "triggers": 95
   },
   "substitutions": {
     "абвера": "абвер",
@@ -2072,6 +2075,204 @@
   "triggers": [
     {
       "action_id": "",
+      "expect": {},
+      "id": "g:s_yesno_have_part_pp_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "HAVE PART PP NP",
+      "trigger": "(быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) (бы|ли) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_wh_pron_v_pp",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH PRON V PP",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (вы|им|о вы|о он|о она|о они|о ты|о я|он|она|они|ты|я) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH COND PART S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual_consequent_would",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH COND PART S TO S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*] (то) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual_short",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH COND S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual_consequent",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH COND S TO S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*] (то) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_wh_cop_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH COP NP",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (такой|это|является) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_wh_s",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual_past",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH V PART COND PART S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_counterfactual_past_consequent",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH V PART COND PART S TO S",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*] (то) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_wh_np_have_pp",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH NP HAVE PP",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_wh_np_pp",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "WH NP PP",
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_conditional",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "COND S TO S",
+      "trigger": "(если) [*] (то) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_concessive",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "SCONJ S S",
+      "trigger": "(невзирая на|несмотря на|хотя) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_assert_np_part_v",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP PART V",
+      "trigger": "[*] (бы|ли) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_yesno_v_part_np_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "V PART NP NP",
+      "trigger": "[*] (бы|ли) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_yesno_v_part_np_np_adj",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "V PART NP NP ADJ",
+      "trigger": "[*] (бы|ли) [*] [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_assert_np_have_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP HAVE NP",
+      "trigger": "[*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:np_neg_v_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP NEG V NP",
+      "trigger": "[*] (не) [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:np_neg_v_np_adj",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP NEG V NP ADJ",
+      "trigger": "[*] (не) [*] [*] [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_assert_np_cop_np",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP COP NP",
+      "trigger": "[*] (такой|это|является) [*]"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_indirect_speech",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "NP V COMP S",
+      "trigger": "[*] [*] (что) [*]"
+    },
+    {
+      "action_id": "",
       "expect": {
         "body.have": true,
         "wh": "yesno"
@@ -2157,6 +2358,15 @@
       "source": "paraphrase",
       "text": "Добрый вечер.",
       "trigger": "добрый вечер"
+    },
+    {
+      "action_id": "",
+      "expect": {},
+      "id": "g:s_greeting",
+      "kind": "grammar",
+      "source": "grammar",
+      "text": "GREETING",
+      "trigger": "добрый день"
     },
     {
       "action_id": "",

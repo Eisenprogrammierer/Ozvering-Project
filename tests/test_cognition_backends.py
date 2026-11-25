@@ -53,6 +53,21 @@ def test_env_overrides_backend_but_not_thresholds(tmp_path):
     assert flags.nlu_backend == "rive"
     assert flags.accept_threshold == 0.8
     assert flags.clarify_threshold == 0.4
+    assert flags.nlu_fallback_max == pytest.approx(0.05)
+
+
+def test_fallback_rate_max_is_data_driven(tmp_path):
+    path = _write(
+        tmp_path,
+        {
+            "version": 1,
+            "thresholds": {"fallback_rate_max": 0.12},
+        },
+    )
+    flags = load_flags(path, environ={})
+    assert flags.nlu_fallback_max == pytest.approx(0.12)
+    with pytest.raises(BackendError):
+        CognitionFlags(nlu_fallback_max=1.5)
 
 
 def test_unknown_backend_and_bad_thresholds_are_rejected(tmp_path):

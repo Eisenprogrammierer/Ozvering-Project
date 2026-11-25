@@ -2063,6 +2063,50 @@
 ! sub являются = является
 
 // Точные триггеры.
++ (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) (бы|ли) [*] [*]
+- <call>nlu g:s_yesno_have_part_pp_np</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (вы|им|о вы|о он|о она|о они|о ты|о я|он|она|они|ты|я) [*] [*]
+- <call>nlu g:s_wh_pron_v_pp</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*]
+- <call>nlu g:s_counterfactual</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*] (то) [*]
+- <call>nlu g:s_counterfactual_consequent_would</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*]
+- <call>nlu g:s_counterfactual_short</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*] (то) [*]
+- <call>nlu g:s_counterfactual_consequent</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) (такой|это|является) [*]
+- <call>nlu g:s_wh_cop_np</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) [*]
+- <call>nlu g:s_wh_s</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*]
+- <call>nlu g:s_counterfactual_past</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*] (то) [*]
+- <call>nlu g:s_counterfactual_past_consequent</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]
+- <call>nlu g:s_wh_np_have_pp</call>
++ (где|зачем|как|какой|когда|кто|почему|сколько|что) [*] [*]
+- <call>nlu g:s_wh_np_pp</call>
++ (если) [*] (то) [*]
+- <call>nlu g:s_conditional</call>
++ (невзирая на|несмотря на|хотя) [*] [*]
+- <call>nlu g:s_concessive</call>
++ [*] (бы|ли) [*]
+- <call>nlu g:s_assert_np_part_v</call>
++ [*] (бы|ли) [*] [*]
+- <call>nlu g:s_yesno_v_part_np_np</call>
++ [*] (бы|ли) [*] [*] [*]
+- <call>nlu g:s_yesno_v_part_np_np_adj</call>
++ [*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]
+- <call>nlu g:s_assert_np_have_np</call>
++ [*] (не) [*] [*]
+- <call>nlu g:np_neg_v_np</call>
++ [*] (не) [*] [*] [*]
+- <call>nlu g:np_neg_v_np_adj</call>
++ [*] (такой|это|является) [*]
+- <call>nlu g:s_assert_np_cop_np</call>
++ [*] [*] (что) [*]
+- <call>nlu g:s_indirect_speech</call>
 + быть ли у империя абвер
 - <call>nlu p:yesno_have_organ</call>
 + быть ли у республика абвер
@@ -2079,6 +2123,8 @@
 - <call>nlu p:greeting_good_morning</call>
 + добрый вечер
 - <call>nlu p:greeting_good_evening</call>
++ добрый день
+- <call>nlu g:s_greeting</call>
 + если империя воевать с республика то республика воевать с империя
 - <call>nlu p:conditional_plain</call>
 + если империя не издать эдикт то республика пасть
