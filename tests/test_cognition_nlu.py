@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -183,24 +182,23 @@ def test_rive_backend_is_read_only_and_deterministic(red):
     assert red.state_snapshot() == before
 
 
-def test_rive_shadow_has_full_parity_on_paraphrases(red):
+def test_rive_shadow_has_full_parity_on_dialogue_corpus(red):
     pytest.importorskip("rivescript")
+    from campaign.cognition.nlu_lint import collect_phrases
     from campaign.cognition.rive_runtime import RiveNlu
 
-    data = json.loads(
-        (DIALOGUE_DIR / "paraphrases.json").read_text(encoding="utf-8")
-    )
-    entries = data["phrases"]
+    phrases = collect_phrases(DIALOGUE_DIR)
     engine = RiveNlu(red)
     legacy = {}
     candidate = {}
-    for entry in entries:
-        text = entry["text"]
-        legacy[entry["id"]] = understand(
+    for index, (identifier, text) in enumerate(phrases):
+        key = "%s:%03d" % (identifier, index)
+        legacy[key] = understand(
             text, session=red, nlu_backend="legacy"
         )
-        candidate[entry["id"]] = engine.understand(text)
+        candidate[key] = engine.understand(text)
     report = compare(legacy, candidate)
+    assert report.total >= 80
     assert report.intent_accuracy == 1.0
     assert report.slot_f1 == 1.0
     assert report.frame_exact == 1.0

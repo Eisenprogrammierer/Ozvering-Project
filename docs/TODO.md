@@ -141,11 +141,11 @@
 - [ ] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
   биндинг, добавить опциональный job с нативными зависимостями.
 - [ ] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
-  `.rive` + манифест (`campaign.cognition.rive_compiler`), теневой
-  `RiveNlu`, `! sub` из лексикона, точные триггеры парафраз/действий,
-  `nlu_backend=shadow`, линтер `--check`, `configs/rive/`. Осталось:
-  object macros, грамматика как триггеры, золотой корпус 100+ фраз и
-  parity-пороги.
+  `.rive` + манифест, теневой `RiveNlu`, `! sub` из лексикона, точные
+  триггеры, object macros `morph`/`number`/`quality`/`entity`, линтер
+  `nlu_lint`, parity 1.0 на 84 фразах, `nlu_backend=shadow`,
+  `configs/rive/`. Осталось: грамматика как триггеры, золотой корпус
+  100+ фраз с зафиксированными кадрами, отчёт метрик в CI.
 - [ ] **Phase 2. Soar shadow для NPC.** Перенести выбор работы поверх
   BDI, сравнить с `NeedPolicy` на одинаковых seed, включить по фракции.
 - [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план

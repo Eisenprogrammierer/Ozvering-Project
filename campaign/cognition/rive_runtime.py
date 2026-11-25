@@ -22,6 +22,7 @@ from .rive_compiler import (
     RIVE_NAME,
     RiveManifest,
 )
+from .rive_macros import load_macros, register_macros
 
 FALLBACK_ID = "__fallback__"
 _ENGINE_CACHE: Dict[Tuple[str, int], Any] = {}
@@ -112,6 +113,8 @@ class RiveNlu:
         self.engine = _load_engine(
             Path(rive_path) if rive_path else default_rive_path()
         )
+        self.macros = load_macros()
+        register_macros(self.engine, self.macros)
 
     def _trigger_id(self, text: str) -> str:
         try:

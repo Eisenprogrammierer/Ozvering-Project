@@ -1,10 +1,10 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a закрыта, Phase 1a в работе: есть фасад
+> **Статус:** Phase 0a закрыта, Phase 1a–1b в работе: есть фасад
 > `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
 > `soar_bridge.v1`, золотой корпус, parity-метрики, компилятор
-> `configs/dialogue → configs/rive` и теневой `nlu_backend=shadow`.
-> Soar ещё не подключён.
+> `configs/dialogue → configs/rive`, object macros, NLU-линтер и
+> теневой `nlu_backend=shadow`. Soar ещё не подключён.
 >
 > **Дата:** 2026-11-25.
 >
@@ -689,10 +689,19 @@ Deliverables:
 - `rivescript` добавлен в dev-зависимости; без пакета `rive` отказывает
   с понятной ошибкой, legacy не страдает.
 
-**Осталось (Phase 1b):** object macros `morph`/`number`/`quality`/
-`entity`, грамматика как триггеры (сейчас только покрытие в манифесте),
-золотой корпус на 100+ фразах, parity-отчёт и пороги `slot_f1`/
-`frame_exact`, линтер неизвестной лексики.
+**Сделано (Phase 1b, 2026-11-25):**
+
+- `campaign/cognition/rive_macros.py`: `morph`, `number`, `quality`,
+  `entity`; детерминированные, без LLM; зарегистрированы в движке;
+- `campaign/cognition/nlu_lint.py`: покрытие лексикона по парафразам,
+  действиям и маркерам, `--strict`;
+- parity на 84 фразах (`paraphrases` + `actions` + `markers`):
+  `intent_accuracy`, `slot_f1`, `frame_exact` равны 1.0;
+- `configs/dialogue` не содержит неизвестных лексикону слов.
+
+**Осталось (Phase 1c):** грамматика как триггеры (сейчас только
+покрытие в манифесте), золотой корпус 100+ фраз с зафиксированными
+кадрами, отчёт метрик в CI и порог `fallback_rate` на живом вводе.
 
 ### Phase 2. Soar shadow для выбора работы NPC (3–4 недели)
 

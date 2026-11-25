@@ -54,7 +54,7 @@ def _tokens(text: Any) -> Tuple[str, ...]:
     )
 
 
-def _one_token(text: Any) -> str:
+def one_token(text: Any) -> str:
     tokens = _tokens(text)
     return tokens[0] if len(tokens) == 1 else ""
 
@@ -67,7 +67,7 @@ def _mapping(value: Any, name: str) -> Dict[str, Any]:
     return {str(key): item for key, item in value.items()}
 
 
-def _entry_forms(entry: Mapping[str, Any]) -> List[str]:
+def entry_forms(entry: Mapping[str, Any]) -> List[str]:
     forms = entry.get("forms")
     values: List[str] = []
     if isinstance(forms, Mapping):
@@ -89,11 +89,11 @@ def lexicon_substitutions(
 
     candidates: Dict[str, set] = {}
     for entry in entries:
-        lemma = _one_token(entry.get("lemma"))
+        lemma = one_token(entry.get("lemma"))
         if not lemma:
             continue
-        for form in _entry_forms(entry):
-            token = _one_token(form)
+        for form in entry_forms(entry):
+            token = one_token(form)
             if not token or token == lemma:
                 continue
             candidates.setdefault(token, set()).add(lemma)
@@ -549,8 +549,10 @@ __all__ = [
     "RiveTrigger",
     "check_artifacts",
     "compile_dialogue",
+    "entry_forms",
     "lexicon_substitutions",
     "main",
+    "one_token",
     "render_rive",
     "write_artifacts",
 ]
