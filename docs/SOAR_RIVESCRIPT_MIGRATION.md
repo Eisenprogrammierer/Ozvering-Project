@@ -1,10 +1,11 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a закрыта, Phase 1a–1b в работе: есть фасад
+> **Статус:** Phase 0a закрыта, Phase 1a–1c в работе: есть фасад
 > `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
 > `soar_bridge.v1`, золотой корпус, parity-метрики, компилятор
-> `configs/dialogue → configs/rive`, object macros, NLU-линтер и
-> теневой `nlu_backend=shadow`. Soar ещё не подключён.
+> `configs/dialogue → configs/rive`, object macros, NLU-линтер,
+> `corpus_builder` и теневой `nlu_backend=shadow`. Soar ещё не
+> подключён.
 >
 > **Дата:** 2026-11-25.
 >
@@ -702,6 +703,21 @@ Deliverables:
 **Осталось (Phase 1c):** грамматика как триггеры (сейчас только
 покрытие в манифесте), золотой корпус 100+ фраз с зафиксированными
 кадрами, отчёт метрик в CI и порог `fallback_rate` на живом вводе.
+
+**Сделано (Phase 1c, 2026-11-25):**
+
+- `campaign/cognition/corpus_builder.py`: золотой корпус диалога
+  `configs/cognition/golden_corpus.json` — 144 записи (84 фразы плюс
+  варианты регистра, пунктуации и пробелов), `--write`/`--check`;
+- корпус фиксирует `(seed, snapshot, input) → кадр` legacy-NLU; правка
+  кадра видна в diff, а не тонет в случайных прогонах;
+- `RiveNlu` даёт на корпусе `intent_accuracy`, `slot_f1` и
+  `frame_exact` = 1.0, `fallback_rate` = 0, детерминизм ok;
+- CI: `rive_compiler --check`, `nlu_lint --strict` и
+  `corpus_builder --check` в отдельном шаге «Линтеры когнитивного слоя».
+
+**Осталось (Phase 1d):** грамматика как триггеры (сейчас только
+покрытие в манифесте) и порог `fallback_rate` на живом вводе.
 
 ### Phase 2. Soar shadow для выбора работы NPC (3–4 недели)
 

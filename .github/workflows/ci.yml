@@ -37,6 +37,14 @@ jobs:
           python -m campaign.dialogue.lint
           python -m campaign.content_lint
 
+      - name: Линтеры когнитивного слоя
+        # Артефакты RiveScript генерируются из configs/dialogue и обязаны
+        # совпадать с источником; золотой корпус фиксирует кадры legacy-NLU.
+        run: |
+          python -m campaign.cognition.rive_compiler --check
+          python -m campaign.cognition.nlu_lint --strict
+          python -m campaign.cognition.corpus_builder --check
+
       - name: Тесты (pytest)
         env:
           # Headless-окружение GitHub runner: pygame инициализирует виде/аудио

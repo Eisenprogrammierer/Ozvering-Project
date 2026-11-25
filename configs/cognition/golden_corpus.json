@@ -1,0 +1,6944 @@
+{
+  "entries": [
+    {
+      "category": "greeting_hello",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-1d035bfe1b5b",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Привет.",
+        "tokens": [
+          {
+            "surface": "привет"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "000:greeting_hello",
+      "input": "Привет.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "farewell_bye",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_farewell"
+        ],
+        "id": "u-c95ffe28e7f5",
+        "intent": "farewell",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "До свидания.",
+        "tokens": [
+          {
+            "surface": "до"
+          },
+          {
+            "surface": "свидания"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "001:farewell_bye",
+      "input": "До свидания.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "request_tell",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_request_tell"
+        ],
+        "id": "u-4c90af8fa72a",
+        "intent": "request",
+        "predicate": "tell",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Расскажи о Республике.",
+        "tokens": [
+          {
+            "surface": "расскажи"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "002:request_tell",
+      "input": "Расскажи о Республике.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_belief",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_v_part_np_np_adj",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-df4857d0afb6",
+        "intent": "ask_yesno",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Считает ли Империя Республику незаконной?",
+        "tokens": [
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "003:yesno_belief",
+      "input": "Считает ли Империя Республику незаконной?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_have_organ",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_have_part_pp_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-b0224bfc1824",
+        "intent": "ask_yesno",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Есть ли у Империи Абвер?",
+        "tokens": [
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "004:yesno_have_organ",
+      "input": "Есть ли у Империи Абвер?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_ruler",
+      "expected": {
+        "args": {
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:red"
+        ],
+        "id": "u-bc11826c5006",
+        "intent": "ask_who",
+        "predicate": "rule",
+        "referents": [
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "who"
+        },
+        "speech_act": "question",
+        "text": "Кто правит Империей?",
+        "tokens": [
+          {
+            "surface": "кто"
+          },
+          {
+            "surface": "правит"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "005:wh_ruler",
+      "input": "Кто правит Империей?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_what",
+      "expected": {
+        "args": {
+          "agent": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_cop_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-06160a9a3d8c",
+        "intent": "ask_what",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "Что такое Абвер?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "такое"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "006:wh_what",
+      "input": "Что такое Абвер?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_where",
+      "expected": {
+        "args": {
+          "patient": "faction:amber"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:amber"
+        ],
+        "id": "u-f8de4911bb90",
+        "intent": "ask_where",
+        "predicate": "locate",
+        "referents": [
+          "faction:amber"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "where"
+        },
+        "speech_act": "question",
+        "text": "Где находится Торговая планета?",
+        "tokens": [
+          {
+            "surface": "где"
+          },
+          {
+            "surface": "находится"
+          },
+          {
+            "surface": "торговая"
+          },
+          {
+            "surface": "планета"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "007:wh_where",
+      "input": "Где находится Торговая планета?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_when",
+      "expected": {
+        "args": {
+          "patient": "concept:war"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:concept:war"
+        ],
+        "id": "u-c95f60b01d17",
+        "intent": "ask_when",
+        "predicate": "begin",
+        "referents": [
+          "concept:war"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "when"
+        },
+        "speech_act": "question",
+        "text": "Когда началась война?",
+        "tokens": [
+          {
+            "surface": "когда"
+          },
+          {
+            "surface": "началась"
+          },
+          {
+            "surface": "война"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "008:wh_when",
+      "input": "Когда началась война?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_many",
+      "expected": {
+        "args": {
+          "patient": "asset:legitimacy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:asset:legitimacy"
+        ],
+        "id": "u-42369679c1d9",
+        "intent": "ask_how_many",
+        "predicate": "",
+        "referents": [
+          "asset:legitimacy"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how_many"
+        },
+        "speech_act": "question",
+        "text": "Сколько законности у Империи?",
+        "tokens": [
+          {
+            "surface": "сколько"
+          },
+          {
+            "surface": "законности"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "009:wh_how_many",
+      "input": "Сколько законности у Империи?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_organs",
+      "expected": {
+        "args": {
+          "patient": "noun:organ"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_have_pp",
+          "entity:noun:organ"
+        ],
+        "id": "u-f64c97a7f77d",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:organ"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "Какие органы есть у Империи?",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "органы"
+          },
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "010:wh_organs",
+      "input": "Какие органы есть у Империи?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_works",
+      "expected": {
+        "args": {
+          "patient": "noun:work"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:noun:work"
+        ],
+        "id": "u-1d122e27991e",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:work"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "Какие работы у Империи?",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "работы"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "011:wh_works",
+      "input": "Какие работы у Империи?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_knowledge",
+      "expected": {
+        "args": {
+          "agent": "you_sg",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_pron_v_pp",
+          "entity:faction:blue"
+        ],
+        "id": "u-715864c91c9a",
+        "intent": "ask_what",
+        "predicate": "know",
+        "referents": [
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "Что ты знаешь о Республике?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "ты"
+          },
+          {
+            "surface": "знаешь"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "012:wh_knowledge",
+      "input": "Что ты знаешь о Республике?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_why",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_s",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-72e7f5320a62",
+        "intent": "ask_reason",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "why"
+        },
+        "speech_act": "question",
+        "text": "Почему Империя считает Республику незаконной?",
+        "tokens": [
+          {
+            "surface": "почему"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "013:wh_why",
+      "input": "Почему Империя считает Республику незаконной?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_are_you",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_wh_np"
+        ],
+        "id": "u-728fec24ecde",
+        "intent": "ask_how",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how"
+        },
+        "speech_act": "question",
+        "text": "Как дела?",
+        "tokens": [
+          {
+            "surface": "как"
+          },
+          {
+            "surface": "дела"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "014:wh_how_are_you",
+      "input": "Как дела?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_fight",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-8525f4f4dbee",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Империя воюет с Республикой.",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "015:assert_fight",
+      "input": "Империя воюет с Республикой.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_negated_fight",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:np_neg_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-7310b723b53d",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "statement",
+        "text": "Империя не воюет с Республикой.",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "016:assert_negated_fight",
+      "input": "Империя не воюет с Республикой.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_belief",
+      "expected": {
+        "args": {
+          "agent": "post:red:leader",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_np_adj",
+          "entity:faction:blue",
+          "entity:post:red:leader"
+        ],
+        "id": "u-38ff037614fd",
+        "intent": "inform",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "post:red:leader"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Император считает Республику незаконной.",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "017:assert_belief",
+      "input": "Император считает Республику незаконной.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_short",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_short"
+        ],
+        "id": "u-f192fdaada47",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Что если Империя воюет с Республикой?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "018:counterfactual_short",
+      "input": "Что если Империя воюет с Республикой?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_negated",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_past_consequent"
+        ],
+        "id": "u-fdf4f22bf49f",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "было"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "издала"
+          },
+          {
+            "surface": "эдикт"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "пала"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "019:counterfactual_negated",
+      "input": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "conditional_plain",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_conditional"
+        ],
+        "id": "u-a0f6047aa0a7",
+        "intent": "conditional",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Если Империя воюет с Республикой, то Республика воюет с Империей.",
+        "tokens": [
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "020:conditional_plain",
+      "input": "Если Империя воюет с Республикой, то Республика воюет с Империей.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "conditional_negated",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_conditional"
+        ],
+        "id": "u-4a9a3b4d75e9",
+        "intent": "conditional",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Если Империя не издает эдикт, то Республика падет.",
+        "tokens": [
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "издает"
+          },
+          {
+            "surface": "эдикт"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "падет"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "021:conditional_negated",
+      "input": "Если Империя не издает эдикт, то Республика падет.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "concessive_though",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_concessive"
+        ],
+        "id": "u-d75c366b18e2",
+        "intent": "concessive",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Хотя Империя воюет с Республикой, Республика не воюет с Империей.",
+        "tokens": [
+          {
+            "surface": "хотя"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "022:concessive_though",
+      "input": "Хотя Империя воюет с Республикой, Республика не воюет с Империей.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "concessive_despite",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_concessive"
+        ],
+        "id": "u-b800d3b90377",
+        "intent": "concessive",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Несмотря на Империя воюет с Республикой, Республика не воюет с Империей.",
+        "tokens": [
+          {
+            "surface": "несмотря"
+          },
+          {
+            "surface": "на"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "023:concessive_despite",
+      "input": "Несмотря на Империя воюет с Республикой, Республика не воюет с Империей.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "report_indirect",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_indirect_speech",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-89a57314b162",
+        "intent": "report",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Император сказал, что Империя воюет с Республикой.",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "сказал"
+          },
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "024:report_indirect",
+      "input": "Император сказал, что Империя воюет с Республикой.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "report_direct",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_direct_speech",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-f3efbf427f2e",
+        "intent": "report",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Император сказал: «Империя воюет с Республикой».",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "сказал"
+          },
+          {
+            "surface": "«"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          },
+          {
+            "surface": "»"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "025:report_direct",
+      "input": "Император сказал: «Империя воюет с Республикой».",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_hello_alt",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-1e754e95d41a",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Здравствуй.",
+        "tokens": [
+          {
+            "surface": "здравствуй"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "026:greeting_hello_alt",
+      "input": "Здравствуй.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "request_tell_war",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_request_tell"
+        ],
+        "id": "u-85a2bf1250c7",
+        "intent": "request",
+        "predicate": "tell",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Расскажи о войне.",
+        "tokens": [
+          {
+            "surface": "расскажи"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "войне"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "027:request_tell_war",
+      "input": "Расскажи о войне.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_belief_reverse",
+      "expected": {
+        "args": {
+          "agent": "faction:blue",
+          "patient": "faction:red",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_v_part_np_np_adj",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-aa5ac5d2b47e",
+        "intent": "ask_yesno",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Считает ли Республика Империю незаконной?",
+        "tokens": [
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "империю"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "028:yesno_belief_reverse",
+      "input": "Считает ли Республика Империю незаконной?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_have_organ_reverse",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_have_part_pp_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-177350d92bd7",
+        "intent": "ask_yesno",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Есть ли у Республики Абвер?",
+        "tokens": [
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "республики"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "029:yesno_have_organ_reverse",
+      "input": "Есть ли у Республики Абвер?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_ruler_reverse",
+      "expected": {
+        "args": {
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:blue"
+        ],
+        "id": "u-47760571ecae",
+        "intent": "ask_who",
+        "predicate": "rule",
+        "referents": [
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "who"
+        },
+        "speech_act": "question",
+        "text": "Кто правит Республикой?",
+        "tokens": [
+          {
+            "surface": "кто"
+          },
+          {
+            "surface": "правит"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "030:wh_ruler_reverse",
+      "input": "Кто правит Республикой?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_where_organ",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-cc4fc1a4dc02",
+        "intent": "ask_where",
+        "predicate": "locate",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "where"
+        },
+        "speech_act": "question",
+        "text": "Где находится Абвер?",
+        "tokens": [
+          {
+            "surface": "где"
+          },
+          {
+            "surface": "находится"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "031:wh_where_organ",
+      "input": "Где находится Абвер?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_why_reverse",
+      "expected": {
+        "args": {
+          "agent": "faction:blue",
+          "patient": "faction:red",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_s",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-ce787e142776",
+        "intent": "ask_reason",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "why"
+        },
+        "speech_act": "question",
+        "text": "Почему Республика считает Империю незаконной?",
+        "tokens": [
+          {
+            "surface": "почему"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "империю"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "032:wh_why_reverse",
+      "input": "Почему Республика считает Империю незаконной?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_negated_belief",
+      "expected": {
+        "args": {
+          "agent": "post:red:leader",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:np_neg_v_np_adj",
+          "entity:faction:blue",
+          "entity:post:red:leader"
+        ],
+        "id": "u-1c9c09c83310",
+        "intent": "inform",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "post:red:leader"
+        ],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "statement",
+        "text": "Император не считает Республику незаконной.",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "033:assert_negated_belief",
+      "input": "Император не считает Республику незаконной.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_past",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_past"
+        ],
+        "id": "u-d2ee961ca2fb",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Что было бы, если бы Империя издала эдикт?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "было"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "издала"
+          },
+          {
+            "surface": "эдикт"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "034:counterfactual_past",
+      "input": "Что было бы, если бы Империя издала эдикт?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "conditional_reverse",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_conditional"
+        ],
+        "id": "u-9f9bc6336ec8",
+        "intent": "conditional",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Если Республика воюет с Империей, то Империя воюет с Республикой.",
+        "tokens": [
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "035:conditional_reverse",
+      "input": "Если Республика воюет с Империей, то Империя воюет с Республикой.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "concessive_reverse",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_concessive"
+        ],
+        "id": "u-891f217cbf34",
+        "intent": "concessive",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Хотя Республика воюет с Империей, Империя не воюет с Республикой.",
+        "tokens": [
+          {
+            "surface": "хотя"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "036:concessive_reverse",
+      "input": "Хотя Республика воюет с Империей, Империя не воюет с Республикой.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "report_indirect_reverse",
+      "expected": {
+        "args": {
+          "agent": "faction:blue",
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_indirect_speech",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-6e8dfb016fd2",
+        "intent": "report",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Император сказал, что Республика воюет с Империей.",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "сказал"
+          },
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "037:report_indirect_reverse",
+      "input": "Император сказал, что Республика воюет с Империей.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "report_direct_reverse",
+      "expected": {
+        "args": {
+          "agent": "faction:blue",
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_direct_speech",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-96ac64c344e1",
+        "intent": "report",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Император сказал: «Республика воюет с Империей».",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "сказал"
+          },
+          {
+            "surface": "«"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "империей"
+          },
+          {
+            "surface": "»"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "038:report_direct_reverse",
+      "input": "Император сказал: «Республика воюет с Империей».",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_show_synonym",
+      "expected": {
+        "args": {
+          "patient": "concept:force"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:force"
+        ],
+        "id": "u-257ae9377e62",
+        "intent": "act",
+        "predicate": "show_force",
+        "referents": [
+          "concept:force"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Продемонстрируй силу.",
+        "tokens": [
+          {
+            "surface": "продемонстрируй"
+          },
+          {
+            "surface": "силу"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "039:imperative_show_synonym",
+      "input": "Продемонстрируй силу.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_fortify_synonym",
+      "expected": {
+        "args": {
+          "patient": "concept:garrison"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:garrison"
+        ],
+        "id": "u-10ed4c5e90a0",
+        "intent": "act",
+        "predicate": "fortify_garrison",
+        "referents": [
+          "concept:garrison"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Усиль гарнизон.",
+        "tokens": [
+          {
+            "surface": "усиль"
+          },
+          {
+            "surface": "гарнизон"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "040:imperative_fortify_synonym",
+      "input": "Усиль гарнизон.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_coordinate_synonym",
+      "expected": {
+        "args": {
+          "patient": "concept:plan"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:plan"
+        ],
+        "id": "u-02b99a8ebc8b",
+        "intent": "act",
+        "predicate": "coordinate_plan",
+        "referents": [
+          "concept:plan"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Утверди план.",
+        "tokens": [
+          {
+            "surface": "утверди"
+          },
+          {
+            "surface": "план"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "041:imperative_coordinate_synonym",
+      "input": "Утверди план.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_publish_synonym",
+      "expected": {
+        "args": {
+          "patient": "concept:edict"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:edict"
+        ],
+        "id": "u-a218ae54513d",
+        "intent": "act",
+        "predicate": "publish_edict",
+        "referents": [
+          "concept:edict"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Издай эдикт.",
+        "tokens": [
+          {
+            "surface": "издай"
+          },
+          {
+            "surface": "эдикт"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "042:imperative_publish_synonym",
+      "input": "Издай эдикт.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_appoint_enemy",
+      "expected": {
+        "args": {
+          "patient": "noun:enemy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:enemy"
+        ],
+        "id": "u-d30f298ee77a",
+        "intent": "act",
+        "predicate": "appoint_enemy",
+        "referents": [
+          "noun:enemy"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Назначь врага.",
+        "tokens": [
+          {
+            "surface": "назначь"
+          },
+          {
+            "surface": "врага"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "043:imperative_appoint_enemy",
+      "input": "Назначь врага.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_convene_cathedral",
+      "expected": {
+        "args": {
+          "patient": "noun:cathedral"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:cathedral"
+        ],
+        "id": "u-599139b8dc1d",
+        "intent": "act",
+        "predicate": "convene_cathedral",
+        "referents": [
+          "noun:cathedral"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Созови собор.",
+        "tokens": [
+          {
+            "surface": "созови"
+          },
+          {
+            "surface": "собор"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "044:imperative_convene_cathedral",
+      "input": "Созови собор.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_deploy_hospitals",
+      "expected": {
+        "args": {
+          "patient": "noun:hospital"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:hospital"
+        ],
+        "id": "u-7e15ad3e4195",
+        "intent": "act",
+        "predicate": "deploy_hospitals",
+        "referents": [
+          "noun:hospital"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Разверни госпитали.",
+        "tokens": [
+          {
+            "surface": "разверни"
+          },
+          {
+            "surface": "госпитали"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "045:imperative_deploy_hospitals",
+      "input": "Разверни госпитали.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_protect_ciphers",
+      "expected": {
+        "args": {
+          "patient": "noun:cipher"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:cipher"
+        ],
+        "id": "u-128344d57e0d",
+        "intent": "act",
+        "predicate": "protect_ciphers",
+        "referents": [
+          "noun:cipher"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Защити шифры.",
+        "tokens": [
+          {
+            "surface": "защити"
+          },
+          {
+            "surface": "шифры"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "046:imperative_protect_ciphers",
+      "input": "Защити шифры.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_hold_parade",
+      "expected": {
+        "args": {
+          "patient": "noun:parade"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:parade"
+        ],
+        "id": "u-c586ae2380f7",
+        "intent": "act",
+        "predicate": "hold_parade",
+        "referents": [
+          "noun:parade"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Проведи парад.",
+        "tokens": [
+          {
+            "surface": "проведи"
+          },
+          {
+            "surface": "парад"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "047:imperative_hold_parade",
+      "input": "Проведи парад.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_purge_officers",
+      "expected": {
+        "args": {
+          "patient": "noun:corps"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:corps"
+        ],
+        "id": "u-deb0654e7b4c",
+        "intent": "act",
+        "predicate": "purge_officers",
+        "referents": [
+          "noun:corps"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Очисти корпус.",
+        "tokens": [
+          {
+            "surface": "очисти"
+          },
+          {
+            "surface": "корпус"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "048:imperative_purge_officers",
+      "input": "Очисти корпус.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_arrange_sabotage",
+      "expected": {
+        "args": {
+          "patient": "noun:sabotage"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:sabotage"
+        ],
+        "id": "u-ff066a5eeb13",
+        "intent": "act",
+        "predicate": "arrange_sabotage",
+        "referents": [
+          "noun:sabotage"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Устрой диверсию.",
+        "tokens": [
+          {
+            "surface": "устрой"
+          },
+          {
+            "surface": "диверсию"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "049:imperative_arrange_sabotage",
+      "input": "Устрой диверсию.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_breach_network",
+      "expected": {
+        "args": {
+          "patient": "noun:network"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:network"
+        ],
+        "id": "u-1f3de7cd270c",
+        "intent": "act",
+        "predicate": "breach_network",
+        "referents": [
+          "noun:network"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Вскрой сеть.",
+        "tokens": [
+          {
+            "surface": "вскрой"
+          },
+          {
+            "surface": "сеть"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "050:imperative_breach_network",
+      "input": "Вскрой сеть.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperative_open_hospitals",
+      "expected": {
+        "args": {
+          "patient": "noun:clinic"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:clinic"
+        ],
+        "id": "u-91558f8d307e",
+        "intent": "act",
+        "predicate": "open_hospitals",
+        "referents": [
+          "noun:clinic"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Открой больницы.",
+        "tokens": [
+          {
+            "surface": "открой"
+          },
+          {
+            "surface": "больницы"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "051:imperative_open_hospitals",
+      "input": "Открой больницы.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_zdravstvuyte",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-5c7d174499f4",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Здравствуйте.",
+        "tokens": [
+          {
+            "surface": "здравствуйте"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "052:greeting_zdravstvuyte",
+      "input": "Здравствуйте.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_good_evening",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-859daeda19f0",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Добрый вечер.",
+        "tokens": [
+          {
+            "surface": "добрый"
+          },
+          {
+            "surface": "вечер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "053:greeting_good_evening",
+      "input": "Добрый вечер.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_good_morning",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-58c650719d47",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Доброе утро.",
+        "tokens": [
+          {
+            "surface": "доброе"
+          },
+          {
+            "surface": "утро"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "054:greeting_good_morning",
+      "input": "Доброе утро.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_privetstvuyu",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-1bf9d5f5444f",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Приветствую.",
+        "tokens": [
+          {
+            "surface": "приветствую"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "055:greeting_privetstvuyu",
+      "input": "Приветствую.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "farewell_proshchay",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_farewell"
+        ],
+        "id": "u-cdfb4e81dcd2",
+        "intent": "farewell",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Прощай.",
+        "tokens": [
+          {
+            "surface": "прощай"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "056:farewell_proshchay",
+      "input": "Прощай.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "order_kiss",
+      "expected": {
+        "args": {
+          "patient": "self"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np"
+        ],
+        "id": "u-7371b2346068",
+        "intent": "act",
+        "predicate": "act_kiss",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Поцелуй меня.",
+        "tokens": [
+          {
+            "surface": "поцелуй"
+          },
+          {
+            "surface": "меня"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "057:order_kiss",
+      "input": "Поцелуй меня.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "social_beg_pardon",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_social_beg_pardon"
+        ],
+        "id": "u-d659435621a4",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Извиняюсь.",
+        "tokens": [
+          {
+            "surface": "извиняюсь"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "058:social_beg_pardon",
+      "input": "Извиняюсь.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "social_oath_honor",
+      "expected": {
+        "args": {
+          "patient": "noun:honor"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_oath",
+          "entity:noun:honor"
+        ],
+        "id": "u-7b2eef0e3743",
+        "intent": "social",
+        "predicate": "",
+        "referents": [
+          "noun:honor"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Клянусь честью.",
+        "tokens": [
+          {
+            "surface": "клянусь"
+          },
+          {
+            "surface": "честью"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "059:social_oath_honor",
+      "input": "Клянусь честью.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "social_offer_deal",
+      "expected": {
+        "args": {
+          "patient": "concept:deal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_offer",
+          "entity:concept:deal"
+        ],
+        "id": "u-7c5254b880f0",
+        "intent": "social",
+        "predicate": "",
+        "referents": [
+          "concept:deal"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Предлагаю сделку.",
+        "tokens": [
+          {
+            "surface": "предлагаю"
+          },
+          {
+            "surface": "сделку"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "060:social_offer_deal",
+      "input": "Предлагаю сделку.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_promise",
+      "expected": {
+        "args": {
+          "agent": "self"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v"
+        ],
+        "id": "u-5c9eab44c986",
+        "intent": "inform",
+        "predicate": "promise",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Я обещаю.",
+        "tokens": [
+          {
+            "surface": "я"
+          },
+          {
+            "surface": "обещаю"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "061:assert_promise",
+      "input": "Я обещаю.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_apology",
+      "expected": {
+        "args": {
+          "agent": "self"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v"
+        ],
+        "id": "u-64b8783ee875",
+        "intent": "inform",
+        "predicate": "beg_pardon",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Я извиняюсь.",
+        "tokens": [
+          {
+            "surface": "я"
+          },
+          {
+            "surface": "извиняюсь"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "062:assert_apology",
+      "input": "Я извиняюсь.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "show_of_force",
+      "expected": {
+        "args": {
+          "patient": "concept:force"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:force"
+        ],
+        "id": "u-be426300ab9e",
+        "intent": "act",
+        "predicate": "show_force",
+        "referents": [
+          "concept:force"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Покажи силу",
+        "tokens": [
+          {
+            "surface": "покажи"
+          },
+          {
+            "surface": "силу"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "063:show_of_force",
+      "input": "Покажи силу",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "show_of_force",
+      "expected": {
+        "args": {
+          "patient": "concept:force",
+          "target": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np_pp",
+          "entity:concept:force",
+          "entity:faction:blue"
+        ],
+        "id": "u-f2c377e635e1",
+        "intent": "act",
+        "predicate": "show_force",
+        "referents": [
+          "concept:force",
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Покажи силу против Республики",
+        "tokens": [
+          {
+            "surface": "покажи"
+          },
+          {
+            "surface": "силу"
+          },
+          {
+            "surface": "против"
+          },
+          {
+            "surface": "республики"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "064:show_of_force",
+      "input": "Покажи силу против Республики",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "garrison_network",
+      "expected": {
+        "args": {
+          "patient": "concept:garrison"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:garrison"
+        ],
+        "id": "u-a6b2c550ab2e",
+        "intent": "act",
+        "predicate": "fortify_garrison",
+        "referents": [
+          "concept:garrison"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Укрепи гарнизон",
+        "tokens": [
+          {
+            "surface": "укрепи"
+          },
+          {
+            "surface": "гарнизон"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "065:garrison_network",
+      "input": "Укрепи гарнизон",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "staff_plan",
+      "expected": {
+        "args": {
+          "patient": "concept:plan"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:plan"
+        ],
+        "id": "u-d88fee9d4f1f",
+        "intent": "act",
+        "predicate": "coordinate_plan",
+        "referents": [
+          "concept:plan"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Согласуй план",
+        "tokens": [
+          {
+            "surface": "согласуй"
+          },
+          {
+            "surface": "план"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "066:staff_plan",
+      "input": "Согласуй план",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperial_edict",
+      "expected": {
+        "args": {
+          "patient": "concept:edict"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:concept:edict"
+        ],
+        "id": "u-fc86666eef4d",
+        "intent": "act",
+        "predicate": "publish_edict",
+        "referents": [
+          "concept:edict"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Опубликуй эдикт",
+        "tokens": [
+          {
+            "surface": "опубликуй"
+          },
+          {
+            "surface": "эдикт"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "067:imperial_edict",
+      "input": "Опубликуй эдикт",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "enemy_of_state",
+      "expected": {
+        "args": {
+          "patient": "noun:enemy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:enemy"
+        ],
+        "id": "u-49cc3d95b6ca",
+        "intent": "act",
+        "predicate": "appoint_enemy",
+        "referents": [
+          "noun:enemy"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Назначь врага",
+        "tokens": [
+          {
+            "surface": "назначь"
+          },
+          {
+            "surface": "врага"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "068:enemy_of_state",
+      "input": "Назначь врага",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "imperial_church",
+      "expected": {
+        "args": {
+          "patient": "noun:cathedral"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:cathedral"
+        ],
+        "id": "u-0dded84833c0",
+        "intent": "act",
+        "predicate": "convene_cathedral",
+        "referents": [
+          "noun:cathedral"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Созови собор",
+        "tokens": [
+          {
+            "surface": "созови"
+          },
+          {
+            "surface": "собор"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "069:imperial_church",
+      "input": "Созови собор",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "field_medicine",
+      "expected": {
+        "args": {
+          "patient": "noun:hospital"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:hospital"
+        ],
+        "id": "u-208890cc2ba1",
+        "intent": "act",
+        "predicate": "deploy_hospitals",
+        "referents": [
+          "noun:hospital"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Разверни госпитали",
+        "tokens": [
+          {
+            "surface": "разверни"
+          },
+          {
+            "surface": "госпитали"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "070:field_medicine",
+      "input": "Разверни госпитали",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "cipher_protection",
+      "expected": {
+        "args": {
+          "patient": "noun:cipher"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:cipher"
+        ],
+        "id": "u-709644b5e383",
+        "intent": "act",
+        "predicate": "protect_ciphers",
+        "referents": [
+          "noun:cipher"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Защити шифры",
+        "tokens": [
+          {
+            "surface": "защити"
+          },
+          {
+            "surface": "шифры"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "071:cipher_protection",
+      "input": "Защити шифры",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "guard_parade",
+      "expected": {
+        "args": {
+          "patient": "noun:parade"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:parade"
+        ],
+        "id": "u-8ecda97122ea",
+        "intent": "act",
+        "predicate": "hold_parade",
+        "referents": [
+          "noun:parade"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Проведи парад",
+        "tokens": [
+          {
+            "surface": "проведи"
+          },
+          {
+            "surface": "парад"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "072:guard_parade",
+      "input": "Проведи парад",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "officer_purge",
+      "expected": {
+        "args": {
+          "patient": "noun:corps"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:corps"
+        ],
+        "id": "u-bed8a8d3fd09",
+        "intent": "act",
+        "predicate": "purge_officers",
+        "referents": [
+          "noun:corps"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Очисти корпус",
+        "tokens": [
+          {
+            "surface": "очисти"
+          },
+          {
+            "surface": "корпус"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "073:officer_purge",
+      "input": "Очисти корпус",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "abwehr_sabotage",
+      "expected": {
+        "args": {
+          "patient": "noun:sabotage"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:sabotage"
+        ],
+        "id": "u-d883b95ce994",
+        "intent": "act",
+        "predicate": "arrange_sabotage",
+        "referents": [
+          "noun:sabotage"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Устрой диверсию",
+        "tokens": [
+          {
+            "surface": "устрой"
+          },
+          {
+            "surface": "диверсию"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "074:abwehr_sabotage",
+      "input": "Устрой диверсию",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "cyber_osint",
+      "expected": {
+        "args": {
+          "patient": "noun:network"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:network"
+        ],
+        "id": "u-e604cbb1fc5e",
+        "intent": "act",
+        "predicate": "breach_network",
+        "referents": [
+          "noun:network"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Вскрой сеть",
+        "tokens": [
+          {
+            "surface": "вскрой"
+          },
+          {
+            "surface": "сеть"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "075:cyber_osint",
+      "input": "Вскрой сеть",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "church_hospitals",
+      "expected": {
+        "args": {
+          "patient": "noun:clinic"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_imperative_v_np",
+          "entity:noun:clinic"
+        ],
+        "id": "u-3922399786ae",
+        "intent": "act",
+        "predicate": "open_hospitals",
+        "referents": [
+          "noun:clinic"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "directive",
+        "text": "Открой больницы",
+        "tokens": [
+          {
+            "surface": "открой"
+          },
+          {
+            "surface": "больницы"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "076:church_hospitals",
+      "input": "Открой больницы",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:command",
+      "expected": {
+        "args": {
+          "patient": "you_sg"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_command"
+        ],
+        "id": "u-751ca7f7cc4a",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Приказываю тебе",
+        "tokens": [
+          {
+            "surface": "приказываю"
+          },
+          {
+            "surface": "тебе"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "077:marker:command",
+      "input": "Приказываю тебе",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:command",
+      "expected": {
+        "args": {
+          "patient": "you_pl"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_command"
+        ],
+        "id": "u-e9a2a14ca143",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Приказываю вам",
+        "tokens": [
+          {
+            "surface": "приказываю"
+          },
+          {
+            "surface": "вам"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "078:marker:command",
+      "input": "Приказываю вам",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:threat",
+      "expected": {
+        "args": {
+          "patient": "you_sg"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_threat"
+        ],
+        "id": "u-c8fb411382fb",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Угрожаю тебе",
+        "tokens": [
+          {
+            "surface": "угрожаю"
+          },
+          {
+            "surface": "тебе"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "079:marker:threat",
+      "input": "Угрожаю тебе",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:threat",
+      "expected": {
+        "args": {
+          "patient": "you_pl"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_threat"
+        ],
+        "id": "u-a97b8011e9a9",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Угрожаю вам",
+        "tokens": [
+          {
+            "surface": "угрожаю"
+          },
+          {
+            "surface": "вам"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "080:marker:threat",
+      "input": "Угрожаю вам",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:threat",
+      "expected": {
+        "args": {
+          "patient": "concept:force"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_threat",
+          "entity:concept:force"
+        ],
+        "id": "u-7baf7ab313c6",
+        "intent": "social",
+        "predicate": "",
+        "referents": [
+          "concept:force"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Угрожаю силой",
+        "tokens": [
+          {
+            "surface": "угрожаю"
+          },
+          {
+            "surface": "силой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "081:marker:threat",
+      "input": "Угрожаю силой",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:promise",
+      "expected": {
+        "args": {
+          "patient": "you_sg"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_promise"
+        ],
+        "id": "u-a1c22a62016c",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Обещаю тебе",
+        "tokens": [
+          {
+            "surface": "обещаю"
+          },
+          {
+            "surface": "тебе"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "082:marker:promise",
+      "input": "Обещаю тебе",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "marker:promise",
+      "expected": {
+        "args": {
+          "patient": "you_pl"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_social_promise"
+        ],
+        "id": "u-ef4dbcd189d5",
+        "intent": "social",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Обещаю вам",
+        "tokens": [
+          {
+            "surface": "обещаю"
+          },
+          {
+            "surface": "вам"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "083:marker:promise",
+      "input": "Обещаю вам",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_hello:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-9a6041bb0e44",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "ПРИВЕТ.",
+        "tokens": [
+          {
+            "surface": "привет"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "084:greeting_hello:upper",
+      "input": "ПРИВЕТ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_hello:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-2c6147b4531a",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Привет!",
+        "tokens": [
+          {
+            "surface": "привет"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "085:greeting_hello:bang",
+      "input": "Привет!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "greeting_hello:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_greeting"
+        ],
+        "id": "u-2c71884ddbc9",
+        "intent": "greeting",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "  Привет.  ",
+        "tokens": [
+          {
+            "surface": "привет"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "086:greeting_hello:space",
+      "input": "  Привет.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "farewell_bye:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_farewell"
+        ],
+        "id": "u-56ffe9f05e1b",
+        "intent": "farewell",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "ДО СВИДАНИЯ.",
+        "tokens": [
+          {
+            "surface": "до"
+          },
+          {
+            "surface": "свидания"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "087:farewell_bye:upper",
+      "input": "ДО СВИДАНИЯ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "farewell_bye:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_farewell"
+        ],
+        "id": "u-8009d25db1fc",
+        "intent": "farewell",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "До свидания!",
+        "tokens": [
+          {
+            "surface": "до"
+          },
+          {
+            "surface": "свидания"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "088:farewell_bye:bang",
+      "input": "До свидания!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "farewell_bye:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_farewell"
+        ],
+        "id": "u-d90bb8328840",
+        "intent": "farewell",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "  До свидания.  ",
+        "tokens": [
+          {
+            "surface": "до"
+          },
+          {
+            "surface": "свидания"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "089:farewell_bye:space",
+      "input": "  До свидания.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "request_tell:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_request_tell"
+        ],
+        "id": "u-015ba7ac6bda",
+        "intent": "request",
+        "predicate": "tell",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "РАССКАЖИ О РЕСПУБЛИКЕ.",
+        "tokens": [
+          {
+            "surface": "расскажи"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "090:request_tell:upper",
+      "input": "РАССКАЖИ О РЕСПУБЛИКЕ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "request_tell:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_request_tell"
+        ],
+        "id": "u-ef12137d7106",
+        "intent": "request",
+        "predicate": "tell",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Расскажи о Республике!",
+        "tokens": [
+          {
+            "surface": "расскажи"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "091:request_tell:bang",
+      "input": "Расскажи о Республике!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "request_tell:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_request_tell"
+        ],
+        "id": "u-aec656d90ff8",
+        "intent": "request",
+        "predicate": "tell",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "  Расскажи о Республике.  ",
+        "tokens": [
+          {
+            "surface": "расскажи"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "092:request_tell:space",
+      "input": "  Расскажи о Республике.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_belief:upper",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_v_part_np_np_adj",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-c901dfcfe1d4",
+        "intent": "ask_yesno",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "СЧИТАЕТ ЛИ ИМПЕРИЯ РЕСПУБЛИКУ НЕЗАКОННОЙ?",
+        "tokens": [
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "093:yesno_belief:upper",
+      "input": "СЧИТАЕТ ЛИ ИМПЕРИЯ РЕСПУБЛИКУ НЕЗАКОННОЙ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_belief:bang",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_v_part_np_np_adj",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-c030ea7ea207",
+        "intent": "ask_yesno",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Считает ли Империя Республику незаконной!",
+        "tokens": [
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "094:yesno_belief:bang",
+      "input": "Считает ли Империя Республику незаконной!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_belief:space",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_v_part_np_np_adj",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-c07fc6a68e96",
+        "intent": "ask_yesno",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "  Считает ли Империя Республику незаконной?  ",
+        "tokens": [
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "095:yesno_belief:space",
+      "input": "  Считает ли Империя Республику незаконной?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_have_organ:upper",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_have_part_pp_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-a951bc6e541f",
+        "intent": "ask_yesno",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "ЕСТЬ ЛИ У ИМПЕРИИ АБВЕР?",
+        "tokens": [
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "096:yesno_have_organ:upper",
+      "input": "ЕСТЬ ЛИ У ИМПЕРИИ АБВЕР?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_have_organ:bang",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_have_part_pp_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-e27c912d4d56",
+        "intent": "ask_yesno",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "Есть ли у Империи Абвер!",
+        "tokens": [
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "097:yesno_have_organ:bang",
+      "input": "Есть ли у Империи Абвер!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "yesno_have_organ:space",
+      "expected": {
+        "args": {
+          "patient": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_yesno_have_part_pp_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-24a3b527884f",
+        "intent": "ask_yesno",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "yesno"
+        },
+        "speech_act": "question",
+        "text": "  Есть ли у Империи Абвер?  ",
+        "tokens": [
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "ли"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "098:yesno_have_organ:space",
+      "input": "  Есть ли у Империи Абвер?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_ruler:upper",
+      "expected": {
+        "args": {
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:red"
+        ],
+        "id": "u-9d7060d6c6ed",
+        "intent": "ask_who",
+        "predicate": "rule",
+        "referents": [
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "who"
+        },
+        "speech_act": "question",
+        "text": "КТО ПРАВИТ ИМПЕРИЕЙ?",
+        "tokens": [
+          {
+            "surface": "кто"
+          },
+          {
+            "surface": "правит"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "099:wh_ruler:upper",
+      "input": "КТО ПРАВИТ ИМПЕРИЕЙ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_ruler:bang",
+      "expected": {
+        "args": {
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:red"
+        ],
+        "id": "u-68f53c9a207b",
+        "intent": "ask_who",
+        "predicate": "rule",
+        "referents": [
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "who"
+        },
+        "speech_act": "question",
+        "text": "Кто правит Империей!",
+        "tokens": [
+          {
+            "surface": "кто"
+          },
+          {
+            "surface": "правит"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "100:wh_ruler:bang",
+      "input": "Кто правит Империей!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_ruler:space",
+      "expected": {
+        "args": {
+          "patient": "faction:red"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:red"
+        ],
+        "id": "u-cd9652912038",
+        "intent": "ask_who",
+        "predicate": "rule",
+        "referents": [
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "who"
+        },
+        "speech_act": "question",
+        "text": "  Кто правит Империей?  ",
+        "tokens": [
+          {
+            "surface": "кто"
+          },
+          {
+            "surface": "правит"
+          },
+          {
+            "surface": "империей"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "101:wh_ruler:space",
+      "input": "  Кто правит Империей?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_what:upper",
+      "expected": {
+        "args": {
+          "agent": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_cop_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-0530b8a0c551",
+        "intent": "ask_what",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "ЧТО ТАКОЕ АБВЕР?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "такое"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "102:wh_what:upper",
+      "input": "ЧТО ТАКОЕ АБВЕР?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_what:bang",
+      "expected": {
+        "args": {
+          "agent": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_cop_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-79fca1b1539f",
+        "intent": "ask_what",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "Что такое Абвер!",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "такое"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "103:wh_what:bang",
+      "input": "Что такое Абвер!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_what:space",
+      "expected": {
+        "args": {
+          "agent": "organ:red:abwehr"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_cop_np",
+          "entity:organ:red:abwehr"
+        ],
+        "id": "u-18113adcd568",
+        "intent": "ask_what",
+        "predicate": "",
+        "referents": [
+          "organ:red:abwehr"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "  Что такое Абвер?  ",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "такое"
+          },
+          {
+            "surface": "абвер"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "104:wh_what:space",
+      "input": "  Что такое Абвер?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_where:upper",
+      "expected": {
+        "args": {
+          "patient": "faction:amber"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:amber"
+        ],
+        "id": "u-e62c8084b664",
+        "intent": "ask_where",
+        "predicate": "locate",
+        "referents": [
+          "faction:amber"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "where"
+        },
+        "speech_act": "question",
+        "text": "ГДЕ НАХОДИТСЯ ТОРГОВАЯ ПЛАНЕТА?",
+        "tokens": [
+          {
+            "surface": "где"
+          },
+          {
+            "surface": "находится"
+          },
+          {
+            "surface": "торговая"
+          },
+          {
+            "surface": "планета"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "105:wh_where:upper",
+      "input": "ГДЕ НАХОДИТСЯ ТОРГОВАЯ ПЛАНЕТА?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_where:bang",
+      "expected": {
+        "args": {
+          "patient": "faction:amber"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:amber"
+        ],
+        "id": "u-b39d84ec7c0b",
+        "intent": "ask_where",
+        "predicate": "locate",
+        "referents": [
+          "faction:amber"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "where"
+        },
+        "speech_act": "question",
+        "text": "Где находится Торговая планета!",
+        "tokens": [
+          {
+            "surface": "где"
+          },
+          {
+            "surface": "находится"
+          },
+          {
+            "surface": "торговая"
+          },
+          {
+            "surface": "планета"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "106:wh_where:bang",
+      "input": "Где находится Торговая планета!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_where:space",
+      "expected": {
+        "args": {
+          "patient": "faction:amber"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:faction:amber"
+        ],
+        "id": "u-27f64cb188d3",
+        "intent": "ask_where",
+        "predicate": "locate",
+        "referents": [
+          "faction:amber"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "where"
+        },
+        "speech_act": "question",
+        "text": "  Где находится Торговая планета?  ",
+        "tokens": [
+          {
+            "surface": "где"
+          },
+          {
+            "surface": "находится"
+          },
+          {
+            "surface": "торговая"
+          },
+          {
+            "surface": "планета"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "107:wh_where:space",
+      "input": "  Где находится Торговая планета?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_when:upper",
+      "expected": {
+        "args": {
+          "patient": "concept:war"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:concept:war"
+        ],
+        "id": "u-f3a941d7b559",
+        "intent": "ask_when",
+        "predicate": "begin",
+        "referents": [
+          "concept:war"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "when"
+        },
+        "speech_act": "question",
+        "text": "КОГДА НАЧАЛАСЬ ВОЙНА?",
+        "tokens": [
+          {
+            "surface": "когда"
+          },
+          {
+            "surface": "началась"
+          },
+          {
+            "surface": "война"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "108:wh_when:upper",
+      "input": "КОГДА НАЧАЛАСЬ ВОЙНА?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_when:bang",
+      "expected": {
+        "args": {
+          "patient": "concept:war"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:concept:war"
+        ],
+        "id": "u-20e9569e4694",
+        "intent": "ask_when",
+        "predicate": "begin",
+        "referents": [
+          "concept:war"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "when"
+        },
+        "speech_act": "question",
+        "text": "Когда началась война!",
+        "tokens": [
+          {
+            "surface": "когда"
+          },
+          {
+            "surface": "началась"
+          },
+          {
+            "surface": "война"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "109:wh_when:bang",
+      "input": "Когда началась война!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_when:space",
+      "expected": {
+        "args": {
+          "patient": "concept:war"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_v_np",
+          "entity:concept:war"
+        ],
+        "id": "u-5b98335eac81",
+        "intent": "ask_when",
+        "predicate": "begin",
+        "referents": [
+          "concept:war"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "when"
+        },
+        "speech_act": "question",
+        "text": "  Когда началась война?  ",
+        "tokens": [
+          {
+            "surface": "когда"
+          },
+          {
+            "surface": "началась"
+          },
+          {
+            "surface": "война"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "110:wh_when:space",
+      "input": "  Когда началась война?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_many:upper",
+      "expected": {
+        "args": {
+          "patient": "asset:legitimacy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:asset:legitimacy"
+        ],
+        "id": "u-dcb1bb2b2655",
+        "intent": "ask_how_many",
+        "predicate": "",
+        "referents": [
+          "asset:legitimacy"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how_many"
+        },
+        "speech_act": "question",
+        "text": "СКОЛЬКО ЗАКОННОСТИ У ИМПЕРИИ?",
+        "tokens": [
+          {
+            "surface": "сколько"
+          },
+          {
+            "surface": "законности"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "111:wh_how_many:upper",
+      "input": "СКОЛЬКО ЗАКОННОСТИ У ИМПЕРИИ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_many:bang",
+      "expected": {
+        "args": {
+          "patient": "asset:legitimacy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:asset:legitimacy"
+        ],
+        "id": "u-fbcf1b93e32f",
+        "intent": "ask_how_many",
+        "predicate": "",
+        "referents": [
+          "asset:legitimacy"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how_many"
+        },
+        "speech_act": "question",
+        "text": "Сколько законности у Империи!",
+        "tokens": [
+          {
+            "surface": "сколько"
+          },
+          {
+            "surface": "законности"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "112:wh_how_many:bang",
+      "input": "Сколько законности у Империи!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_many:space",
+      "expected": {
+        "args": {
+          "patient": "asset:legitimacy"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:asset:legitimacy"
+        ],
+        "id": "u-c26bb091404a",
+        "intent": "ask_how_many",
+        "predicate": "",
+        "referents": [
+          "asset:legitimacy"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how_many"
+        },
+        "speech_act": "question",
+        "text": "  Сколько законности у Империи?  ",
+        "tokens": [
+          {
+            "surface": "сколько"
+          },
+          {
+            "surface": "законности"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "113:wh_how_many:space",
+      "input": "  Сколько законности у Империи?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_organs:upper",
+      "expected": {
+        "args": {
+          "patient": "noun:organ"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_have_pp",
+          "entity:noun:organ"
+        ],
+        "id": "u-dadc067512f3",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:organ"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "КАКИЕ ОРГАНЫ ЕСТЬ У ИМПЕРИИ?",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "органы"
+          },
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "114:wh_organs:upper",
+      "input": "КАКИЕ ОРГАНЫ ЕСТЬ У ИМПЕРИИ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_organs:bang",
+      "expected": {
+        "args": {
+          "patient": "noun:organ"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_have_pp",
+          "entity:noun:organ"
+        ],
+        "id": "u-7a0bb41239f1",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:organ"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "Какие органы есть у Империи!",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "органы"
+          },
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "115:wh_organs:bang",
+      "input": "Какие органы есть у Империи!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_organs:space",
+      "expected": {
+        "args": {
+          "patient": "noun:organ"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_have_pp",
+          "entity:noun:organ"
+        ],
+        "id": "u-475e6d2aed94",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:organ"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "  Какие органы есть у Империи?  ",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "органы"
+          },
+          {
+            "surface": "есть"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "116:wh_organs:space",
+      "input": "  Какие органы есть у Империи?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_works:upper",
+      "expected": {
+        "args": {
+          "patient": "noun:work"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:noun:work"
+        ],
+        "id": "u-09e41990e4ed",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:work"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "КАКИЕ РАБОТЫ У ИМПЕРИИ?",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "работы"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "117:wh_works:upper",
+      "input": "КАКИЕ РАБОТЫ У ИМПЕРИИ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_works:bang",
+      "expected": {
+        "args": {
+          "patient": "noun:work"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:noun:work"
+        ],
+        "id": "u-c39ce738ecd8",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:work"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "Какие работы у Империи!",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "работы"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "118:wh_works:bang",
+      "input": "Какие работы у Империи!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_works:space",
+      "expected": {
+        "args": {
+          "patient": "noun:work"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_np_pp",
+          "entity:noun:work"
+        ],
+        "id": "u-2dbbf2a5cec1",
+        "intent": "ask_which",
+        "predicate": "",
+        "referents": [
+          "noun:work"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "which"
+        },
+        "speech_act": "question",
+        "text": "  Какие работы у Империи?  ",
+        "tokens": [
+          {
+            "surface": "какие"
+          },
+          {
+            "surface": "работы"
+          },
+          {
+            "surface": "у"
+          },
+          {
+            "surface": "империи"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "119:wh_works:space",
+      "input": "  Какие работы у Империи?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_knowledge:upper",
+      "expected": {
+        "args": {
+          "agent": "you_sg",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_pron_v_pp",
+          "entity:faction:blue"
+        ],
+        "id": "u-d3fb598b84e5",
+        "intent": "ask_what",
+        "predicate": "know",
+        "referents": [
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "ЧТО ТЫ ЗНАЕШЬ О РЕСПУБЛИКЕ?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "ты"
+          },
+          {
+            "surface": "знаешь"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "120:wh_knowledge:upper",
+      "input": "ЧТО ТЫ ЗНАЕШЬ О РЕСПУБЛИКЕ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_knowledge:bang",
+      "expected": {
+        "args": {
+          "agent": "you_sg",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_pron_v_pp",
+          "entity:faction:blue"
+        ],
+        "id": "u-0108df3b134f",
+        "intent": "ask_what",
+        "predicate": "know",
+        "referents": [
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "Что ты знаешь о Республике!",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "ты"
+          },
+          {
+            "surface": "знаешь"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "121:wh_knowledge:bang",
+      "input": "Что ты знаешь о Республике!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_knowledge:space",
+      "expected": {
+        "args": {
+          "agent": "you_sg",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_pron_v_pp",
+          "entity:faction:blue"
+        ],
+        "id": "u-a29e64b53ec3",
+        "intent": "ask_what",
+        "predicate": "know",
+        "referents": [
+          "faction:blue"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "what"
+        },
+        "speech_act": "question",
+        "text": "  Что ты знаешь о Республике?  ",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "ты"
+          },
+          {
+            "surface": "знаешь"
+          },
+          {
+            "surface": "о"
+          },
+          {
+            "surface": "республике"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "122:wh_knowledge:space",
+      "input": "  Что ты знаешь о Республике?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_why:upper",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_s",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-ac8fd44dcb10",
+        "intent": "ask_reason",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "why"
+        },
+        "speech_act": "question",
+        "text": "ПОЧЕМУ ИМПЕРИЯ СЧИТАЕТ РЕСПУБЛИКУ НЕЗАКОННОЙ?",
+        "tokens": [
+          {
+            "surface": "почему"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "123:wh_why:upper",
+      "input": "ПОЧЕМУ ИМПЕРИЯ СЧИТАЕТ РЕСПУБЛИКУ НЕЗАКОННОЙ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_why:bang",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_s",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-6e11f207e37e",
+        "intent": "ask_reason",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "why"
+        },
+        "speech_act": "question",
+        "text": "Почему Империя считает Республику незаконной!",
+        "tokens": [
+          {
+            "surface": "почему"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "124:wh_why:bang",
+      "input": "Почему Империя считает Республику незаконной!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_why:space",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_wh_s",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-ddbb5d479d1f",
+        "intent": "ask_reason",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive",
+          "wh": "why"
+        },
+        "speech_act": "question",
+        "text": "  Почему Империя считает Республику незаконной?  ",
+        "tokens": [
+          {
+            "surface": "почему"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "125:wh_why:space",
+      "input": "  Почему Империя считает Республику незаконной?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_are_you:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_wh_np"
+        ],
+        "id": "u-e803bc2d3cc5",
+        "intent": "ask_how",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how"
+        },
+        "speech_act": "question",
+        "text": "КАК ДЕЛА?",
+        "tokens": [
+          {
+            "surface": "как"
+          },
+          {
+            "surface": "дела"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "126:wh_how_are_you:upper",
+      "input": "КАК ДЕЛА?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_are_you:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_wh_np"
+        ],
+        "id": "u-1fab18df3414",
+        "intent": "ask_how",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how"
+        },
+        "speech_act": "question",
+        "text": "Как дела!",
+        "tokens": [
+          {
+            "surface": "как"
+          },
+          {
+            "surface": "дела"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "127:wh_how_are_you:bang",
+      "input": "Как дела!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "wh_how_are_you:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_wh_np"
+        ],
+        "id": "u-b9cc1551c7b2",
+        "intent": "ask_how",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive",
+          "wh": "how"
+        },
+        "speech_act": "question",
+        "text": "  Как дела?  ",
+        "tokens": [
+          {
+            "surface": "как"
+          },
+          {
+            "surface": "дела"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "128:wh_how_are_you:space",
+      "input": "  Как дела?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_fight:upper",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-b5ee6e6d7b7b",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "ИМПЕРИЯ ВОЮЕТ С РЕСПУБЛИКОЙ.",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "129:assert_fight:upper",
+      "input": "ИМПЕРИЯ ВОЮЕТ С РЕСПУБЛИКОЙ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_fight:bang",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-631f37559fad",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Империя воюет с Республикой!",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "130:assert_fight:bang",
+      "input": "Империя воюет с Республикой!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_fight:space",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-d461ad4c24fd",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "  Империя воюет с Республикой.  ",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "131:assert_fight:space",
+      "input": "  Империя воюет с Республикой.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_negated_fight:upper",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:np_neg_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-e59335b364cd",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "statement",
+        "text": "ИМПЕРИЯ НЕ ВОЮЕТ С РЕСПУБЛИКОЙ.",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "132:assert_negated_fight:upper",
+      "input": "ИМПЕРИЯ НЕ ВОЮЕТ С РЕСПУБЛИКОЙ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_negated_fight:bang",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:np_neg_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-f631886cae34",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "statement",
+        "text": "Империя не воюет с Республикой!",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "133:assert_negated_fight:bang",
+      "input": "Империя не воюет с Республикой!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_negated_fight:space",
+      "expected": {
+        "args": {
+          "agent": "faction:red",
+          "patient": "faction:blue"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:np_neg_v_pp",
+          "entity:faction:blue",
+          "entity:faction:red"
+        ],
+        "id": "u-9a82327e7405",
+        "intent": "inform",
+        "predicate": "fight",
+        "referents": [
+          "faction:blue",
+          "faction:red"
+        ],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "statement",
+        "text": "  Империя не воюет с Республикой.  ",
+        "tokens": [
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "134:assert_negated_fight:space",
+      "input": "  Империя не воюет с Республикой.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_belief:upper",
+      "expected": {
+        "args": {
+          "agent": "post:red:leader",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_np_adj",
+          "entity:faction:blue",
+          "entity:post:red:leader"
+        ],
+        "id": "u-6a2b9940bc27",
+        "intent": "inform",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "post:red:leader"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "ИМПЕРАТОР СЧИТАЕТ РЕСПУБЛИКУ НЕЗАКОННОЙ.",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "135:assert_belief:upper",
+      "input": "ИМПЕРАТОР СЧИТАЕТ РЕСПУБЛИКУ НЕЗАКОННОЙ.",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_belief:bang",
+      "expected": {
+        "args": {
+          "agent": "post:red:leader",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_np_adj",
+          "entity:faction:blue",
+          "entity:post:red:leader"
+        ],
+        "id": "u-244503399d25",
+        "intent": "inform",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "post:red:leader"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "Император считает Республику незаконной!",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "136:assert_belief:bang",
+      "input": "Император считает Республику незаконной!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "assert_belief:space",
+      "expected": {
+        "args": {
+          "agent": "post:red:leader",
+          "patient": "faction:blue",
+          "theme": "illegal"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "parser:s_assert_np_v_np_adj",
+          "entity:faction:blue",
+          "entity:post:red:leader"
+        ],
+        "id": "u-2ceb64676367",
+        "intent": "inform",
+        "predicate": "believe",
+        "referents": [
+          "faction:blue",
+          "post:red:leader"
+        ],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "statement",
+        "text": "  Император считает Республику незаконной.  ",
+        "tokens": [
+          {
+            "surface": "император"
+          },
+          {
+            "surface": "считает"
+          },
+          {
+            "surface": "республику"
+          },
+          {
+            "surface": "незаконной"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "137:assert_belief:space",
+      "input": "  Император считает Республику незаконной.  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_short:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_short"
+        ],
+        "id": "u-744ffc558186",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "ЧТО ЕСЛИ ИМПЕРИЯ ВОЮЕТ С РЕСПУБЛИКОЙ?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "138:counterfactual_short:upper",
+      "input": "ЧТО ЕСЛИ ИМПЕРИЯ ВОЮЕТ С РЕСПУБЛИКОЙ?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_short:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_short"
+        ],
+        "id": "u-b0a3da672264",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "Что если Империя воюет с Республикой!",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "139:counterfactual_short:bang",
+      "input": "Что если Империя воюет с Республикой!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_short:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_short"
+        ],
+        "id": "u-a10d891a6464",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "positive"
+        },
+        "speech_act": "inform",
+        "text": "  Что если Империя воюет с Республикой?  ",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "воюет"
+          },
+          {
+            "surface": "с"
+          },
+          {
+            "surface": "республикой"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "140:counterfactual_short:space",
+      "input": "  Что если Империя воюет с Республикой?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_negated:upper",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_past_consequent"
+        ],
+        "id": "u-85a562bd3531",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "ЧТО БЫЛО БЫ, ЕСЛИ БЫ ИМПЕРИЯ НЕ ИЗДАЛА ЭДИКТ, ТО РЕСПУБЛИКА БЫ ПАЛА?",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "было"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "издала"
+          },
+          {
+            "surface": "эдикт"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "пала"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "141:counterfactual_negated:upper",
+      "input": "ЧТО БЫЛО БЫ, ЕСЛИ БЫ ИМПЕРИЯ НЕ ИЗДАЛА ЭДИКТ, ТО РЕСПУБЛИКА БЫ ПАЛА?",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_negated:bang",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_past_consequent"
+        ],
+        "id": "u-6e9562013875",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала!",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "было"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "издала"
+          },
+          {
+            "surface": "эдикт"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "пала"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "142:counterfactual_negated:bang",
+      "input": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала!",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    },
+    {
+      "category": "counterfactual_negated:space",
+      "expected": {
+        "args": {},
+        "confidence": 0.85,
+        "evidence": [
+          "parser:s_counterfactual_past_consequent"
+        ],
+        "id": "u-6216e29d88ae",
+        "intent": "counterfactual",
+        "predicate": "",
+        "referents": [],
+        "slots": {
+          "polarity": "negative"
+        },
+        "speech_act": "inform",
+        "text": "  Что было бы, если бы Империя не издала эдикт, то Республика бы пала?  ",
+        "tokens": [
+          {
+            "surface": "что"
+          },
+          {
+            "surface": "было"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "если"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "империя"
+          },
+          {
+            "surface": "не"
+          },
+          {
+            "surface": "издала"
+          },
+          {
+            "surface": "эдикт"
+          },
+          {
+            "surface": "то"
+          },
+          {
+            "surface": "республика"
+          },
+          {
+            "surface": "бы"
+          },
+          {
+            "surface": "пала"
+          }
+        ],
+        "unknowns": [],
+        "version": 1
+      },
+      "id": "143:counterfactual_negated:space",
+      "input": "  Что было бы, если бы Империя не издала эдикт, то Республика бы пала?  ",
+      "notes": "",
+      "seed": 13,
+      "snapshot": {
+        "faction": "red",
+        "source": "dialogue"
+      },
+      "topic": "default"
+    }
+  ],
+  "version": 1
+}

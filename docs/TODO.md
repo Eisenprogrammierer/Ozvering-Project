@@ -136,16 +136,18 @@
   (`understand`/`decide`, `UtteranceFrame`, `soar_bridge.v1`, золотой
   корпус, parity-метрики), `configs/cognition/backends.json` и флаги
   `ai_backend`/`nlu_backend`. Legacy-бэкенд делегирует в
-  `ChartParser`/`NeedPolicy`; `shadow`/`soar`/`rive` пока отказывают
-  явно. Тесты — `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`.
+  `ChartParser`/`NeedPolicy`; `shadow`/`rive` работают, `soar` пока
+  отказывает явно. Тесты — `tests/test_cognition_*.py`,
+  `tests/test_soar_bridge.py`.
 - [ ] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
   биндинг, добавить опциональный job с нативными зависимостями.
 - [ ] **Phase 1. RiveScript shadow NLU.** Сделано: компилятор JSON →
   `.rive` + манифест, теневой `RiveNlu`, `! sub` из лексикона, точные
   триггеры, object macros `morph`/`number`/`quality`/`entity`, линтер
-  `nlu_lint`, parity 1.0 на 84 фразах, `nlu_backend=shadow`,
-  `configs/rive/`. Осталось: грамматика как триггеры, золотой корпус
-  100+ фраз с зафиксированными кадрами, отчёт метрик в CI.
+  `nlu_lint`, золотой корпус на 144 фразы (`corpus_builder`), parity 1.0,
+  `nlu_backend=shadow`, проверки артефактов и корпуса в CI,
+  `configs/rive/`. Осталось: грамматика как триггеры и порог
+  `fallback_rate` на живом вводе.
 - [ ] **Phase 2. Soar shadow для NPC.** Перенести выбор работы поверх
   BDI, сравнить с `NeedPolicy` на одинаковых seed, включить по фракции.
 - [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план
