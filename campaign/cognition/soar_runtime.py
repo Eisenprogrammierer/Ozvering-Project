@@ -193,6 +193,23 @@ class SoarNpcPolicy:
                     "Soar отклонил продукцию: %s" % (result,)
                 )
 
+    def _check_budget(self, started: float) -> None:
+        """Прервать решение между циклами, если бюджет исчерпан.
+
+        Один цикл Soar неделим для SML, поэтому проверка идёт перед
+        каждым циклом: зависание на отдельном цикле поймает только
+        пост-проверка, а затянутая серия циклов обрывается сразу.
+        """
+
+        if not self.timeout_ms:
+            return
+        elapsed = (time.perf_counter() - started) * 1000.0
+        if elapsed > self.timeout_ms:
+            raise SoarError(
+                "Soar превысил бюджет решения до завершения цикла: "
+                "%.2f мс > %.2f мс" % (elapsed, self.timeout_ms)
+            )
+
     def choose(
         self,
         candidates: Iterable[Any],
@@ -241,7 +258,10 @@ class SoarNpcPolicy:
                 )
                 agent.CreateIntWME(node, "rank", ranks[option])
             agent.SynchronizeInputLink()
-            agent.RunSelf(self.model.decision_cycles)
+            cycles = max(1, int(self.model.decision_cycles))
+            for _cycle in range(cycles):
+                self._check_budget(started)
+                agent.RunSelf(1)
             decision = _read_decision(agent)
         finally:
             kernel = _kernel()

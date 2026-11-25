@@ -8,10 +8,50 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+import math
+from typing import Any, Dict, List, Mapping, Optional
 
 MONITOR_VERSION = 1
 DEFAULT_AGREEMENT_THRESHOLD = 0.95
+
+
+def job_diversity(counts: Mapping[str, Any]) -> Dict[str, Any]:
+    """Разнообразие выбранных работ: энтропия, distinct и top_share.
+
+    ``evenness`` — энтропия, нормированная на ``log2(distinct)``: 1.0
+    означает равномерное распределение по использованным работам, 0.0 —
+    одну работу. Это не сравнение с полным каталогом работ (он зависит
+    от хода), а честная мера рассеяния фактических решений.
+    """
+
+    values = []
+    for value in counts.values():
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            count = 0
+        if count > 0:
+            values.append(count)
+    total = sum(values)
+    if total <= 0:
+        return {
+            "total": 0,
+            "distinct": 0,
+            "entropy": 0.0,
+            "evenness": 0.0,
+            "top_share": 0.0,
+        }
+    shares = [value / float(total) for value in values]
+    entropy = -sum(share * math.log2(share) for share in shares)
+    distinct = len(values)
+    evenness = entropy / math.log2(distinct) if distinct > 1 else 0.0
+    return {
+        "total": total,
+        "distinct": distinct,
+        "entropy": round(entropy, 6),
+        "evenness": round(evenness, 6),
+        "top_share": round(max(values) / float(total), 6),
+    }
 
 
 def _side_bundle() -> Dict[str, Any]:
@@ -39,6 +79,38 @@ class NpcDecisionMonitor:
     sides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     mismatches: List[Dict[str, Any]] = field(default_factory=list)
     error_samples: List[Dict[str, Any]] = field(default_factory=list)
+    jobs: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    job_total: int = 0
+
+    def record_action(self, *, side: Any, action_id: Any) -> None:
+        """Учесть выбранную работу для метрик разнообразия."""
+
+        if action_id is None:
+            return
+        counts = self.jobs.setdefault(str(side), {})
+        key = str(action_id)
+        counts[key] = counts.get(key, 0) + 1
+        self.job_total += 1
+
+    def job_report(self) -> Dict[str, Any]:
+        """Сводка разнообразия работ по сторонам и целиком."""
+
+        merged: Dict[str, int] = {}
+        for counts in self.jobs.values():
+            for key, value in counts.items():
+                merged[key] = merged.get(key, 0) + int(value)
+        overall = job_diversity(merged)
+        return {
+            "total": self.job_total,
+            "distinct": overall["distinct"],
+            "entropy": overall["entropy"],
+            "evenness": overall["evenness"],
+            "top_share": overall["top_share"],
+            "sides": {
+                key: job_diversity(counts)
+                for key, counts in sorted(self.jobs.items())
+            },
+        }
 
     def record(
         self,
@@ -140,6 +212,7 @@ class NpcDecisionMonitor:
             },
             "mismatches": [dict(item) for item in self.mismatches],
             "error_samples": [dict(item) for item in self.error_samples],
+            "jobs": self.job_report(),
         }
 
 
@@ -147,4 +220,5 @@ __all__ = [
     "DEFAULT_AGREEMENT_THRESHOLD",
     "MONITOR_VERSION",
     "NpcDecisionMonitor",
+    "job_diversity",
 ]

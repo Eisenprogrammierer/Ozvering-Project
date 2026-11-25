@@ -15,6 +15,7 @@ from .cognition.backends import AI_BACKENDS, load_flags
 from .cognition.errors import BackendError, SoarError
 from .npc_decisions import (
     DEFAULT_AGREEMENT_THRESHOLD,
+    MONITOR_VERSION,
     NpcDecisionMonitor,
 )
 from .npc_policy import NeedPolicy
@@ -361,6 +362,77 @@ class AutomataAIMixin:
         """Сводка согласия Soar с легаси за прогон."""
         return self.npc_decision_monitor().report(threshold)
 
+    def npc_needs_summary(self):
+        """Удовлетворённость 16 потребностей по сторонам (1 − давление)."""
+
+        sides = {}
+        pressures = []
+        for side in getattr(self, "factions", {}) or {}:
+            faction = self.faction(side)
+            if faction is None:
+                continue
+            characters = [
+                character
+                for character in getattr(faction, "characters", ())
+                if isinstance(getattr(character, "needs", None), Mapping)
+            ]
+            if not characters:
+                continue
+            totals = {}
+            for character in characters:
+                for key, value in _as_mapping(character.needs).items():
+                    totals.setdefault(str(key), []).append(
+                        _clamp(_number(value, 0.0))
+                    )
+            per_need = {
+                key: sum(values) / float(len(values))
+                for key, values in totals.items()
+            }
+            pressure = (
+                sum(per_need.values()) / float(len(per_need))
+                if per_need
+                else 0.0
+            )
+            pressures.append(pressure)
+            sides[str(side)] = {
+                "characters": len(characters),
+                "pressure": round(pressure, 6),
+                "satisfaction": round(1.0 - pressure, 6),
+                "needs": {
+                    key: round(value, 6)
+                    for key, value in sorted(per_need.items())
+                },
+            }
+        overall_pressure = (
+            sum(pressures) / float(len(pressures)) if pressures else 0.0
+        )
+        return {
+            "sides": sides,
+            "overall": {
+                "characters": sum(
+                    item["characters"] for item in sides.values()
+                ),
+                "pressure": round(overall_pressure, 6),
+                "satisfaction": round(1.0 - overall_pressure, 6),
+            },
+        }
+
+    def npc_outcome_report(
+        self,
+        threshold=DEFAULT_AGREEMENT_THRESHOLD,
+    ):
+        """Длинные метрики NPC: потребности, работы, паритет решений."""
+
+        decisions = self.npc_decision_report(threshold)
+        return {
+            "kind": "npc_outcomes",
+            "version": MONITOR_VERSION,
+            "needs": self.npc_needs_summary(),
+            "jobs": decisions["jobs"],
+            "decisions": decisions,
+            "ok": bool(decisions["ok"]),
+        }
+
     def _soar_policy(self):
         policy = getattr(self, "_soar_policy_obj", None)
         if policy is None:
@@ -510,6 +582,10 @@ class AutomataAIMixin:
                     break
             if chosen is None:
                 chosen = weighted[-1][0]["id"]
+        if chosen is not None:
+            self.npc_decision_monitor().record_action(
+                side=side, action_id=chosen
+            )
         if self.stats.enabled and self.stats.actions:
             self.stats.log(
                 "ai_choice",

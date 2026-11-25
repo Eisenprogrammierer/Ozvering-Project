@@ -225,6 +225,73 @@ def test_soar_respects_decision_budget():
         soar.choose([("eat", "hunger", 1.0)], {"hunger": 0.9})
 
 
+def test_soar_budget_stops_between_cycles(monkeypatch):
+    pytest.importorskip("soar_sml")
+    from campaign.cognition import soar_runtime
+
+    class _Clock:
+        def __init__(self):
+            self.value = 0.0
+
+        def __call__(self):
+            return self.value
+
+    class _Agent:
+        def __init__(self, clock):
+            self.clock = clock
+            self.cycles = 0
+            self.destroyed = False
+
+        def GetInputLink(self):
+            return None
+
+        def CreateIdWME(self, *_args):
+            return None
+
+        def CreateStringWME(self, *_args):
+            return None
+
+        def CreateFloatWME(self, *_args):
+            return None
+
+        def CreateIntWME(self, *_args):
+            return None
+
+        def SynchronizeInputLink(self):
+            return None
+
+        def RunSelf(self, cycles):
+            assert cycles == 1
+            self.cycles += 1
+            self.clock.value += 0.01
+
+    class _Kernel:
+        def __init__(self, clock):
+            self.clock = clock
+            self.agents = []
+
+        def CreateAgent(self, _name):
+            agent = _Agent(self.clock)
+            self.agents.append(agent)
+            return agent
+
+        def DestroyAgent(self, agent):
+            agent.destroyed = True
+
+    clock = _Clock()
+    kernel = _Kernel(clock)
+    monkeypatch.setattr(soar_runtime.time, "perf_counter", clock)
+    monkeypatch.setattr(soar_runtime, "_kernel", lambda: kernel)
+    soar = soar_runtime.SoarNpcPolicy(timeout_ms=15)
+    monkeypatch.setattr(soar, "_prepare", lambda agent: None)
+    with pytest.raises(SoarError):
+        soar.choose([("eat", "hunger", 1.0)], {"hunger": 0.9})
+    agent = kernel.agents[0]
+    assert agent.destroyed is True
+    assert agent.cycles == 2
+    assert soar.last_elapsed_ms == pytest.approx(20.0)
+
+
 def test_decide_shadow_falls_back_when_budget_exceeded():
     _soar()
     policy = _policy()

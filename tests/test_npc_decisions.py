@@ -8,7 +8,7 @@ import pytest
 
 from campaign.automata import AutomataCampaign
 from campaign.cognition import BackendError
-from campaign.npc_decisions import NpcDecisionMonitor
+from campaign.npc_decisions import NpcDecisionMonitor, job_diversity
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
 
@@ -144,3 +144,80 @@ def test_campaign_shadow_does_not_change_state():
     assert shadow.snapshot() == legacy.snapshot()
     assert shadow.npc_decision_report()["total"] > 0
     assert legacy.npc_decision_report()["total"] == 0
+
+
+def test_job_diversity_reports_spread_and_concentration():
+    single = job_diversity({"work": 4})
+    assert single == {
+        "total": 4,
+        "distinct": 1,
+        "entropy": 0.0,
+        "evenness": 0.0,
+        "top_share": 1.0,
+    }
+    even = job_diversity({"a": 2, "b": 2})
+    assert even["distinct"] == 2
+    assert even["evenness"] == 1.0
+    assert even["top_share"] == 0.5
+    skewed = job_diversity({"a": 3, "b": 1})
+    assert 0.0 < skewed["evenness"] < 1.0
+    assert skewed["top_share"] == 0.75
+    assert job_diversity({})["total"] == 0
+
+
+def test_monitor_records_jobs_per_side():
+    monitor = NpcDecisionMonitor()
+    monitor.record_action(side="red", action_id="drill")
+    monitor.record_action(side="red", action_id="drill")
+    monitor.record_action(side="red", action_id="patrol")
+    monitor.record_action(side="blue", action_id="trade")
+    monitor.record_action(side="blue", action_id=None)
+    report = monitor.report()
+    assert report["jobs"]["total"] == 4
+    assert report["jobs"]["distinct"] == 3
+    assert report["jobs"]["sides"]["red"]["total"] == 3
+    assert report["jobs"]["sides"]["red"]["distinct"] == 2
+    assert report["jobs"]["sides"]["blue"]["total"] == 1
+
+
+def test_campaign_outcome_report_covers_needs_and_jobs():
+    campaign = _campaign(23)
+    _enable(campaign, backend="legacy")
+    campaign.run(turns=8)
+    report = campaign.npc_outcome_report()
+    assert report["kind"] == "npc_outcomes"
+    assert report["ok"] is True
+    needs = report["needs"]
+    assert needs["overall"]["characters"] > 0
+    assert 0.0 <= needs["overall"]["pressure"] <= 1.0
+    assert 0.0 <= needs["overall"]["satisfaction"] <= 1.0
+    for side, item in needs["sides"].items():
+        assert item["characters"] > 0, side
+        assert len(item["needs"]) == 16, side
+        assert 0.0 <= item["pressure"] <= 1.0
+        assert item["satisfaction"] == pytest.approx(
+            1.0 - item["pressure"], abs=1e-5
+        )
+    jobs = report["jobs"]
+    assert jobs["total"] > 0
+    assert jobs["distinct"] >= 1
+    assert set(jobs["sides"]) <= set(needs["sides"])
+
+
+def test_soar_backend_matches_legacy_state_and_outcomes():
+    pytest.importorskip("soar_sml")
+    soar = _campaign(29)
+    legacy = _campaign(29)
+    _enable(soar, backend="soar")
+    _enable(legacy, backend="legacy")
+    soar.run(turns=10)
+    legacy.run(turns=10)
+    assert soar.snapshot() == legacy.snapshot()
+    assert soar.npc_outcome_report()["needs"] == (
+        legacy.npc_outcome_report()["needs"]
+    )
+    assert soar.npc_outcome_report()["jobs"] == (
+        legacy.npc_outcome_report()["jobs"]
+    )
+    assert soar.npc_outcome_report()["decisions"]["errors"] == 0
+    assert soar.npc_outcome_report()["ok"] is True
