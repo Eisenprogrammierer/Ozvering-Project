@@ -55,8 +55,10 @@
         }
       },
       "sender": {
-        "fear": 0.02,
-        "legitimacy": 0.01
+        "legitimacy": 0.01,
+        "assets": {
+          "fear": 0.02
+        }
       },
       "trace": {
         "essence": "purge_organ"

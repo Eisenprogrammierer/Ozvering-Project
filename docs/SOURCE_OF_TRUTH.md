@@ -667,6 +667,7 @@ rewind отсутствует.
 | [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, разбор, синтез, эпистемика | текущая реализация |
+| [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | переход всего ИИ на Soar + RiveScript: границы, NLU-конвейер, фазы, риски | проектный документ, не реализовано |
 | [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | только открытые GAP-пункты; полный аудит — в `history/` | аудит, не канон |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | только открытые фазы; полный план — в `history/` | план |

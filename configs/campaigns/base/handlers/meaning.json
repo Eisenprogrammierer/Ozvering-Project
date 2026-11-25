@@ -11,8 +11,12 @@
       "sender": {
         "legitimacy": 0.02,
         "cohesion": 0.02,
-        "fear": -0.01,
-        "spirituality": 0.02
+        "needs": {
+          "spirituality": 0.02
+        },
+        "assets": {
+          "fear": -0.01
+        }
       },
       "trace": {
         "essence": "ritualize"
@@ -33,7 +37,9 @@
       "sender": {
         "legitimacy": 0.02,
         "cohesion": 0.02,
-        "status": 0.02
+        "needs": {
+          "status": 0.02
+        }
       },
       "trace": {
         "essence": "legitimize"
@@ -53,8 +59,12 @@
       },
       "sender": {
         "legitimacy": 0.025,
-        "fear": -0.02,
-        "anxiety": -0.02
+        "needs": {
+          "anxiety": -0.02
+        },
+        "assets": {
+          "fear": -0.02
+        }
       },
       "trace": {
         "essence": "judge"
@@ -75,7 +85,6 @@
       "sender": {
         "legitimacy": 0.03,
         "cohesion": 0.02,
-        "anxiety": -0.02,
         "subfactions": {
           "moderate": {
             "influence": 0.03,
@@ -84,6 +93,9 @@
           "orthodox": {
             "grievance": 0.03
           }
+        },
+        "needs": {
+          "anxiety": -0.02
         }
       },
       "trace": {
@@ -113,13 +125,17 @@
           "then": {
             "legitimacy": -0.04,
             "cohesion": -0.03,
-            "spirituality": 0.03,
-            "anxiety": -0.01
+            "needs": {
+              "spirituality": 0.03,
+              "anxiety": -0.01
+            }
           },
           "else": {
             "legitimacy": -0.02,
             "cohesion": -0.02,
-            "spirituality": 0.02
+            "needs": {
+              "spirituality": 0.02
+            }
           }
         }
       },
@@ -147,8 +163,10 @@
         "cohesion": 0.02,
         "morale": 0.03,
         "legitimacy": 0.01,
-        "spirituality": 0.03,
-        "anxiety": -0.02
+        "needs": {
+          "spirituality": 0.03,
+          "anxiety": -0.02
+        }
       },
       "trace": {
         "essence": "ritualize"
@@ -169,8 +187,10 @@
       "sender": {
         "legitimacy": 0.03,
         "cohesion": 0.02,
-        "knowledge": 0.03,
-        "spirituality": 0.02
+        "needs": {
+          "knowledge": 0.03,
+          "spirituality": 0.02
+        }
       },
       "trace": {
         "essence": "educate"
@@ -198,11 +218,15 @@
           },
           "then": {
             "legitimacy": -0.03,
-            "anxiety": 0.01
+            "needs": {
+              "anxiety": 0.01
+            }
           },
           "else": {
             "legitimacy": -0.04,
-            "anxiety": 0.02
+            "needs": {
+              "anxiety": 0.02
+            }
           }
         }
       },
@@ -231,7 +255,9 @@
         "legitimacy": 0.02,
         "cohesion": 0.03,
         "morale": 0.02,
-        "spirituality": 0.02
+        "needs": {
+          "spirituality": 0.02
+        }
       },
       "trace": {
         "essence": "ritualize"
@@ -258,20 +284,30 @@
             }
           },
           "then": {
-            "fear": 0.04,
             "legitimacy": -0.03,
-            "anxiety": 0.02
+            "needs": {
+              "anxiety": 0.02
+            },
+            "assets": {
+              "fear": 0.04
+            }
           },
           "else": {
-            "fear": 0.05,
             "legitimacy": -0.04,
-            "anxiety": 0.03
+            "needs": {
+              "anxiety": 0.03
+            },
+            "assets": {
+              "fear": 0.05
+            }
           }
         }
       },
       "sender": {
         "cohesion": 0.02,
-        "fear": 0.02
+        "assets": {
+          "fear": 0.02
+        }
       },
       "trace": {
         "essence": "radicalize"

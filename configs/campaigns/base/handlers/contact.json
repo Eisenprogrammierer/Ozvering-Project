@@ -9,12 +9,16 @@
         "effect": {}
       },
       "sender": {
-        "friendship": 0.03,
-        "loneliness": -0.02
+        "needs": {
+          "friendship": 0.03,
+          "loneliness": -0.02
+        }
       },
       "failure": {
         "sender": {
-          "loneliness": 0.01
+          "needs": {
+            "loneliness": 0.01
+          }
         }
       },
       "trace": {
@@ -29,8 +33,10 @@
         "effect": {}
       },
       "sender": {
-        "friendship": 0.02,
-        "cohesion": 0.01
+        "cohesion": 0.01,
+        "needs": {
+          "friendship": 0.02
+        }
       },
       "trace": {
         "essence": "comfort"
@@ -42,7 +48,9 @@
       "effect": {}
     },
     "sender": {
-      "friendship": 0.01
+      "needs": {
+        "friendship": 0.01
+      }
     }
   }
 }

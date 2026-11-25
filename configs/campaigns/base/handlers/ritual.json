@@ -35,7 +35,9 @@
       },
       "sender": {
         "morale": 0.01,
-        "loneliness": -0.02
+        "needs": {
+          "loneliness": -0.02
+        }
       },
       "trace": {
         "essence": "mourn"

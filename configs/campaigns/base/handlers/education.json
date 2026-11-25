@@ -7,16 +7,22 @@
       },
       "receiver": {
         "effect": {
-          "knowledge": 0.02
+          "needs": {
+            "knowledge": 0.02
+          }
         }
       },
       "sender": {
         "respect": 0.01,
-        "status": 0.01
+        "needs": {
+          "status": 0.01
+        }
       },
       "failure": {
         "sender": {
-          "status": -0.01
+          "needs": {
+            "status": -0.01
+          }
         }
       },
       "trace": {
@@ -31,8 +37,10 @@
         "effect": {}
       },
       "sender": {
-        "knowledge": 0.02,
-        "respect": 0.01
+        "respect": 0.01,
+        "needs": {
+          "knowledge": 0.02
+        }
       },
       "trace": {
         "essence": "learn"
@@ -42,7 +50,9 @@
   "default": {
     "receiver": {
       "effect": {
-        "knowledge": 0.01
+        "needs": {
+          "knowledge": 0.01
+        }
       }
     },
     "sender": {

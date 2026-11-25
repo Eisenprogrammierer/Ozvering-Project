@@ -56,6 +56,52 @@ def test_legacy_flat_format_matches_previous_math():
     assert applied["needs"]
 
 
+def test_handler_needs_reach_bdi_instead_of_creating_assets():
+    import json
+    from types import SimpleNamespace
+
+    from core41.types import Work
+
+    from campaign.effects import apply_report
+    from campaign.handlers import apply_rule
+
+    campaign = _campaign()
+    actor = campaign.faction("red")
+    target = campaign.faction("blue")
+    data = json.loads(
+        (ROOT / "configs" / "campaigns" / "base" / "handlers"
+         / "care.json").read_text(encoding="utf-8")
+    )
+    rule = next(
+        item for item in data["rules"]
+        if item["when"]["id"] == "community_network"
+    )
+    character = actor.characters[0]
+    friendship = character.needs["friendship"]
+    loneliness = character.needs["loneliness"]
+    cohesion = actor.asset("cohesion")
+    report = apply_rule(
+        rule,
+        Work(amount=1.0, form="care"),
+        SimpleNamespace(meta={}, payload=(), essence_hint=""),
+        actor,
+        target,
+        campaign,
+    )
+    applied = apply_report(actor, target, report)
+
+    assert character.needs["friendship"] > friendship
+    assert character.needs["loneliness"] < loneliness
+    assert actor.asset("cohesion") > cohesion
+    written_assets = {item["key"] for item in applied["assets"]}
+    assert "friendship" not in written_assets
+    assert "loneliness" not in written_assets
+    assert any(
+        item["scope"] == "self" and item["key"] == "friendship"
+        for item in applied["needs"]
+    )
+
+
 def test_nested_format_applies_beliefs_and_organs():
     campaign = _campaign()
     actor = campaign.faction("red")

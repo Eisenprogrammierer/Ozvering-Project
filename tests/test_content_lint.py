@@ -214,6 +214,67 @@ def test_handler_lint_reports_broken_branch_and_form(tmp_path):
     assert any("sender" in item for item in problems)
 
 
+def test_handler_lint_rejects_flat_need_keys(tmp_path):
+    path = tmp_path / "care.json"
+    problems = content_lint.lint_handlers_data(
+        path,
+        {
+            "form": "care",
+            "rules": [
+                {
+                    "when": {"id": "field_medicine"},
+                    "receiver": {
+                        "effect": {
+                            "health": 0.02,
+                            "if": {"kind": "condition"},
+                            "then": {"anxiety": -0.01},
+                            "else": {"knowledge": 0.01},
+                        }
+                    },
+                    "sender": {"friendship": 0.01},
+                    "failure": {"sender": {"status": -0.01}},
+                }
+            ],
+        },
+    )
+    assert any("плоский ключ-потребность 'health'" in item
+               for item in problems)
+    assert any("плоский ключ-потребность 'anxiety'" in item
+               for item in problems)
+    assert any("плоский ключ-потребность 'knowledge'" in item
+               for item in problems)
+    assert any("плоский ключ-потребность 'friendship'" in item
+               for item in problems)
+    assert any("плоский ключ-потребность 'status'" in item
+               for item in problems)
+
+
+def test_handler_lint_accepts_explicit_need_and_asset_maps(tmp_path):
+    path = tmp_path / "care.json"
+    problems = content_lint.lint_handlers_data(
+        path,
+        {
+            "form": "care",
+            "rules": [
+                {
+                    "when": {"id": "field_medicine"},
+                    "receiver": {
+                        "effect": {
+                            "needs": {"health": 0.02, "anxiety": -0.01},
+                            "assets": {"fear": 0.03},
+                        }
+                    },
+                    "sender": {
+                        "needs": {"friendship": 0.01},
+                        "assets": {"cohesion": 0.02},
+                    },
+                }
+            ],
+        },
+    )
+    assert problems == []
+
+
 def test_world_handlers_are_linted_from_default_paths():
     handlers = content_lint.ROOT / "configs" / "worlds" / "handlers"
     assert handlers.is_dir()

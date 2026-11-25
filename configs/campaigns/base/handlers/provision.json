@@ -32,8 +32,10 @@
         "cohesion": 0.04,
         "supply": 0.02,
         "legitimacy": 0.01,
-        "anxiety": -0.02,
-        "knowledge": 0.02
+        "needs": {
+          "anxiety": -0.02,
+          "knowledge": 0.02
+        }
       },
       "trace": {
         "essence": "coordinate"
@@ -76,8 +78,10 @@
         "supply": 0.03,
         "cohesion": 0.04,
         "legitimacy": -0.01,
-        "fatigue": 0.02,
-        "status": 0.02
+        "needs": {
+          "fatigue": 0.02,
+          "status": 0.02
+        }
       },
       "trace": {
         "essence": "mobilize"
@@ -99,7 +103,6 @@
       "sender": {
         "cohesion": 0.03,
         "legitimacy": -0.01,
-        "anxiety": 0.02,
         "subfactions": {
           "revisionist": {
             "influence": 0.03
@@ -107,6 +110,9 @@
           "moderate": {
             "grievance": 0.03
           }
+        },
+        "needs": {
+          "anxiety": 0.02
         }
       },
       "trace": {
@@ -129,7 +135,9 @@
       "sender": {
         "supply": 0.04,
         "cohesion": 0.02,
-        "fatigue": -0.02
+        "needs": {
+          "fatigue": -0.02
+        }
       },
       "trace": {
         "essence": "repair"
@@ -150,7 +158,9 @@
       "sender": {
         "supply": 0.04,
         "cohesion": 0.02,
-        "hunger": -0.02
+        "needs": {
+          "hunger": -0.02
+        }
       },
       "trace": {
         "essence": "hoard"

@@ -11,8 +11,10 @@
       "sender": {
         "cohesion": 0.02,
         "influence": 0.02,
-        "knowledge": 0.02,
-        "is_secret": 1.0
+        "is_secret": 1.0,
+        "needs": {
+          "knowledge": 0.02
+        }
       },
       "trace": {
         "essence": "encrypt"
@@ -29,7 +31,9 @@
       "effect": {}
     },
     "sender": {
-      "knowledge": 0.01
+      "needs": {
+        "knowledge": 0.01
+      }
     }
   }
 }

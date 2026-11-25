@@ -18,12 +18,16 @@
           "then": {
             "legitimacy": 0.02,
             "cohesion": 0.02,
-            "anxiety": -0.01
+            "needs": {
+              "anxiety": -0.01
+            }
           },
           "else": {
             "legitimacy": 0.01,
             "cohesion": 0.01,
-            "anxiety": -0.01
+            "needs": {
+              "anxiety": -0.01
+            }
           }
         }
       },
@@ -57,7 +61,9 @@
           "then": {
             "supply": -0.05,
             "cohesion": -0.03,
-            "hunger": 0.02
+            "needs": {
+              "hunger": 0.02
+            }
           },
           "else": {
             "supply": -0.04,

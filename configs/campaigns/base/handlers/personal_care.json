@@ -7,13 +7,17 @@
       },
       "receiver": {
         "effect": {
-          "fear": -0.02,
-          "morale": 0.02
+          "morale": 0.02,
+          "needs": {
+            "fear": -0.02
+          }
         }
       },
       "sender": {
-        "friendship": 0.02,
-        "loneliness": -0.01
+        "needs": {
+          "friendship": 0.02,
+          "loneliness": -0.01
+        }
       },
       "trace": {
         "essence": "comfort"
@@ -25,12 +29,16 @@
       },
       "receiver": {
         "effect": {
-          "health": 0.02
+          "needs": {
+            "health": 0.02
+          }
         }
       },
       "sender": {
         "supply": -0.01,
-        "friendship": 0.02
+        "needs": {
+          "friendship": 0.02
+        }
       },
       "failure": {
         "sender": {
