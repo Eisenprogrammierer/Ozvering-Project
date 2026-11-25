@@ -157,7 +157,7 @@ venv/bin/python main.py
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
 | «Хочу понять сейвы» | §5.7 | `view/support/save_system.py` | `tests/test_save_system.py` |
 | «Хочу понять диалог с агентами» | §5.9 | `campaign/dialogue/`, `configs/dialogue/` | `tests/test_d0*.py` … `tests/test_d5_*.py` |
-| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | будущие `campaign/cognition/`, `configs/rive/` | план фаз и NLU-метрик |
+| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | `campaign/cognition/` (фасад), будущие `configs/rive/` | `tests/test_cognition_*.py`, `tests/test_soar_bridge.py` |
 | «Хочу проверить, что ничего не сломал» | §5.10 | `tests/` | `pytest -q` |
 
 ---

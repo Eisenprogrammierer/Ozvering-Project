@@ -1,7 +1,8 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** проектный документ, не реализация. Фиксирует целевую
-> архитектуру, границы слоёв, конвейер NLU и поэтапный план миграции.
+> **Статус:** Phase 0 в работе: добавлен фасад `campaign/cognition/`,
+> флаги, схема `UtteranceFrame`, мост `soar_bridge.v1`, золотой корпус и
+> parity-метрики. Soar и RiveScript ещё не подключены.
 >
 > **Дата:** 2026-11-25.
 >
@@ -618,8 +619,8 @@ Deliverables:
 - spike: RiveScript с русскими триггерами и object macro;
 - решение по биндингу: официальные SML Python bindings или subprocess +
   JSON/Tcl-протокол;
-- `campaign/cognition/` — фасад с `nlu()` и `decide()`, пока delegating
-  в легаси;
+- `campaign/cognition/` — фасад с `understand()` и `decide()`, пока
+  delegating в легаси;
 - запись золотого корпуса: `(seed, snapshot, input) → trace`;
 - флаги `ai_backend=legacy|shadow|soar`, `nlu_backend=legacy|shadow|rive`;
 - CI-джоб для опциональных зависимостей (не блокирует основной, пока
@@ -629,6 +630,24 @@ Deliverables:
 RiveScript; поведение игры не изменилось; корпус воспроизводим.
 
 **Rollback:** флаги выключены, легаси не тронут.
+
+**Сделано (Phase 0a, 2026-11-25):**
+
+- `campaign/cognition/` — фасад `understand()`/`decide()` с legacy-адаптером;
+- `UtteranceFrame`, `Clarification`, `Rejection` и детерминированная
+  формула уверенности;
+- `soar_bridge.v1` с валидацией запроса, ответа и команд;
+- `GoldenCorpus` и `record_corpus()` для записи `(seed, snapshot, input)`;
+- parity-метрики (`intent_accuracy`, `slot_f1`, `frame_exact`,
+  `fallback_rate`, `clarification_rate`, хеши детерминизма);
+- `configs/cognition/backends.json` и флаги `ai_backend`/`nlu_backend`;
+- read-only `DialogueSession.understand()`, не меняющий состояние;
+- тесты `tests/test_cognition_*.py` и `tests/test_soar_bridge.py`.
+
+**Осталось (Phase 0b):** spike Soar и RiveScript, выбор биндинга,
+опциональный CI-job с нативными зависимостями, 100 эталонных фраз через
+RiveScript. До этого `shadow`/`soar`/`rive` отказывают явно, а не
+молча деградируют.
 
 ### Phase 1. RiveScript shadow NLU (2–3 недели)
 

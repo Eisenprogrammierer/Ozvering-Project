@@ -87,6 +87,7 @@
 | `configs/campaigns/base/chronicle_phrases.json` | языковые шаблоны хроники: открытия по значимости, шаблоны решения и причины | `campaign.chronicle.load_phrases()` | новый шаблон в списке | `openings`/`decision_patterns`/`cause_patterns` | шаблон (проверить `python -m campaign.content_lint`: категории и плейсхолдеры) |
 | `configs/content/payload_kinds.json` | data-driven реестр видов `payload`: обязательные/default/числовые поля, подпись и шаблон описания | `core41.payload.load_payload_kinds()` (по умолчанию при импорте; env `OZVERING_PAYLOAD_KINDS`) | новый вид в `kinds` | `required`/`defaults`/`numeric`/`describe_defaults` | вид (проверить `python -m campaign.content_lint`) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
+| `configs/cognition/backends.json` | флаги и пороги когнитивного слоя: `ai_backend`, `nlu_backend`, `shadow`, `thresholds`, `timeouts` | `campaign.cognition.load_flags()`; env `OZVERIN_AI_BACKEND`/`OZVERIN_NLU_BACKEND` переопределяют только бэкенд | новый ключ в JSON | бэкенд/порог/таймаут | ключ (проверить `tests/test_cognition_backends.py`) |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
 | `configs/view/presentation.json` | плейсхолдеры/подписи ассетов | `view.ui.asset_loader` | ключ | значение | ключ |
 

@@ -32,6 +32,7 @@ def isolated_json_content():
     """Подменить корни контента на тестовый набор на всю сессию."""
     import automata.storage as automata_storage
     import campaign.__main__ as campaign_cli
+    import campaign.cognition.backends as cognition_backends
     import campaign.preset as campaign_preset
     import campaign.roles as campaign_roles
     import campaign.strategy as campaign_strategy
@@ -74,6 +75,11 @@ def isolated_json_content():
         campaign_preset,
         "default_root",
         lambda: configs / "campaigns",
+    )
+    patch.setattr(
+        cognition_backends,
+        "default_config_path",
+        lambda: configs / "cognition" / "backends.json",
     )
     patch.setattr(
         campaign_cli,

@@ -13,6 +13,11 @@
 > [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md).
 >
 > **Дата:** 2026-11-14.
+>
+> **Переход:** целевая языковая поверхность — RiveScript, когнитивное
+> ядро — Soar. Фасад `campaign/cognition/` уже даёт read-only
+> `understand()`/`decide()` и `UtteranceFrame`; план и метрики —
+> [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md).
 
 ---
 

@@ -188,6 +188,31 @@ class DialogueSession:
             parse.sem, phrase=text, action_id=action_id
         )
 
+    def understand(
+        self,
+        text: str,
+        *,
+        topic: str = "default",
+        flags: Any = None,
+        nlu_backend: Optional[str] = None,
+    ):
+        """Read-only кадр понимания через когнитивный фасад.
+
+        Phase 0 делегирует в текущий разбор и возвращает
+        ``UtteranceFrame``/``Clarification``/``Rejection``. Метод не
+        выполняет действий и не меняет состояние разговора.
+        """
+
+        from ..cognition import understand as cognition_understand
+
+        return cognition_understand(
+            text,
+            session=self,
+            topic=topic,
+            flags=flags,
+            nlu_backend=nlu_backend,
+        )
+
     def plan_goal(
         self,
         text: str,

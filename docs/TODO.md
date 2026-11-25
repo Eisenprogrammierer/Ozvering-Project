@@ -1,6 +1,6 @@
 # TODO: только открытые задачи
 
-> **Дата:** 2026-11-24. Закрытые пункты удалены из трекера; их история
+> **Дата:** 2026-11-25. Закрытые пункты удалены из трекера; их история
 > остаётся в git и в [`history/`](history/). Канон и границы — в
 > [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md).
 
@@ -132,10 +132,14 @@
 записи состояния. JSON остаётся источником истины, `.soar`/`.rive`
 генерируются.
 
-- [ ] **Phase 0. Фундамент и spike.** Запустить Soar и RiveScript в CI,
-  выбрать биндинг, добавить `campaign/cognition/` и флаги
-  `ai_backend`/`nlu_backend`, записать золотой корпус, схему
-  `soar_bridge.v1`.
+- [x] **Phase 0a. Фундамент.** Добавлены `campaign/cognition/`
+  (`understand`/`decide`, `UtteranceFrame`, `soar_bridge.v1`, золотой
+  корпус, parity-метрики), `configs/cognition/backends.json` и флаги
+  `ai_backend`/`nlu_backend`. Legacy-бэкенд делегирует в
+  `ChartParser`/`NeedPolicy`; `shadow`/`soar`/`rive` пока отказывают
+  явно. Тесты — `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`.
+- [ ] **Phase 0b. Spike.** Запустить Soar и RiveScript в CI, выбрать
+  биндинг, добавить опциональный job с нативными зависимостями.
 - [ ] **Phase 1. RiveScript shadow NLU.** Компилятор JSON → `.rive`,
   object macros, `UtteranceFrame`, двойной прогон с `ChartParser`,
   линтер NLU и метрики (`intent_accuracy`, `slot_f1`, `frame_exact`,

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "ai_backend": "legacy",
+  "nlu_backend": "legacy",
+  "shadow": {
+    "record": false,
+    "compare": false
+  },
+  "thresholds": {
+    "accept": 0.75,
+    "clarify": 0.45
+  },
+  "timeouts": {
+    "decision_ms": 200,
+    "tick_ms": 50
+  }
+}
