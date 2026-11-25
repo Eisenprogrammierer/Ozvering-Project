@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 from campaign.dialogue.morphology import tokenize
 
 from .backends import CognitionFlags, load_flags
-from .errors import BackendError, CognitionError
+from .errors import BackendError, CognitionError, SoarError
 from .frame import (
     Clarification,
     Rejection,
@@ -361,6 +361,43 @@ def understand(
     raise BackendError("неизвестный nlu_backend: %r" % backend)
 
 
+def _legacy_choice(
+    policy: Any,
+    candidates: Any,
+    needs: Any,
+    explore: Optional[bool],
+) -> Any:
+    if policy is None or not hasattr(policy, "choose"):
+        raise BackendError(
+            "legacy-решение требует политику с методом choose()"
+        )
+    return policy.choose(candidates, needs, explore=explore)
+
+
+def _soar_choice(
+    policy: Any,
+    candidates: Any,
+    needs: Any,
+    explore: Optional[bool],
+) -> Any:
+    from .soar_runtime import SoarNpcPolicy, weights_for
+
+    items = list(candidates or ())
+    need_names = []
+    for item in items:
+        if isinstance(item, (list, tuple)) and len(item) == 3:
+            need = str(item[1] or "")
+            if need and need not in need_names:
+                need_names.append(need)
+    weights = weights_for(policy, need_names)
+    return SoarNpcPolicy().choose(
+        items,
+        needs or {},
+        weights=weights,
+        explore=explore,
+    )
+
+
 def decide(
     *,
     policy: Any,
@@ -369,25 +406,26 @@ def decide(
     explore: Optional[bool] = None,
     flags: Optional[CognitionFlags] = None,
     ai_backend: Optional[str] = None,
+    shadow_sink: Optional[Callable[[Any, Any], None]] = None,
 ) -> Any:
-    """Выбрать действие; Phase 0 делегирует ``NeedPolicy.choose``."""
+    """Выбрать действие: legacy, теневой Soar или Soar-решение."""
 
     resolved = flags or load_flags()
     backend = ai_backend or resolved.ai_backend
     if backend == "legacy":
-        if policy is None or not hasattr(policy, "choose"):
-            raise BackendError(
-                "legacy-решение требует политику с методом choose()"
-            )
-        return policy.choose(candidates, needs, explore=explore)
+        return _legacy_choice(policy, candidates, needs, explore)
     if backend == "shadow":
-        raise BackendError(
-            "ai_backend=shadow появится в Phase 2 вместе с Soar-агентом"
-        )
+        primary = _legacy_choice(policy, candidates, needs, explore)
+        try:
+            shadow = _soar_choice(policy, candidates, needs, explore)
+        except (BackendError, SoarError):
+            # Тень не имеет права ломать игру: без Soar остаётся легаси.
+            shadow = None
+        if shadow_sink is not None:
+            shadow_sink(primary, shadow)
+        return primary
     if backend == "soar":
-        raise BackendError(
-            "ai_backend=soar не подключён: Soar-мост появится в Phase 2"
-        )
+        return _soar_choice(policy, candidates, needs, explore)
     raise BackendError("неизвестный ai_backend: %r" % backend)
 
 

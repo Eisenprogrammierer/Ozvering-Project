@@ -226,8 +226,79 @@ def compare(
     )
 
 
+@dataclass(frozen=True)
+class DecisionReport:
+    """Согласие двух политик на одинаковых решениях."""
+
+    total: int
+    agreements: int
+    mismatches: Tuple[Mapping[str, Any], ...] = ()
+
+    @property
+    def agreement(self) -> float:
+        if not self.total:
+            return 1.0
+        return self.agreements / float(self.total)
+
+    def ok(self, threshold: float = 0.95) -> bool:
+        return self.agreement >= float(threshold)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total": self.total,
+            "agreements": self.agreements,
+            "agreement": round(self.agreement, 6),
+            "mismatches": [dict(item) for item in self.mismatches],
+        }
+
+    def render(self) -> str:
+        lines = [
+            "Decision parity: %d решений" % self.total,
+            "  agreement: %.3f (%d/%d)"
+            % (self.agreement, self.agreements, self.total),
+        ]
+        for item in self.mismatches[:10]:
+            lines.append(
+                "    %s: %s != %s"
+                % (
+                    item.get("id"),
+                    item.get("legacy"),
+                    item.get("candidate"),
+                )
+            )
+        return "\n".join(lines)
+
+
+def compare_choices(legacy: Any, candidate: Any) -> DecisionReport:
+    """Сравнить два набора выборов ``id → option_id``."""
+
+    old = _as_pairs(legacy)
+    new = _as_pairs(candidate)
+    ids = sorted(set(old) | set(new))
+    if not ids:
+        raise CognitionError("нечего сравнивать: выборов нет")
+    agreements = 0
+    mismatches: List[Mapping[str, Any]] = []
+    for key in ids:
+        left = old.get(key)
+        right = new.get(key)
+        if left == right:
+            agreements += 1
+            continue
+        mismatches.append(
+            {"id": key, "legacy": left, "candidate": right}
+        )
+    return DecisionReport(
+        total=len(ids),
+        agreements=agreements,
+        mismatches=tuple(mismatches),
+    )
+
+
 __all__ = [
+    "DecisionReport",
     "ParityReport",
     "compare",
+    "compare_choices",
     "result_core",
 ]

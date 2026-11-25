@@ -216,7 +216,7 @@ def test_decide_delegates_to_need_policy():
     assert chosen == "comfort"
 
 
-def test_decide_rejects_missing_policy_and_unready_backend():
+def test_decide_rejects_missing_policy_and_unknown_backend():
     with pytest.raises(BackendError):
         decide(policy=None, candidates=[], needs={})
     with pytest.raises(BackendError):
@@ -224,5 +224,5 @@ def test_decide_rejects_missing_policy_and_unready_backend():
             policy=NeedPolicy(),
             candidates=[("a", "fear", 1.0)],
             needs={},
-            ai_backend="soar",
+            ai_backend="nope",
         )

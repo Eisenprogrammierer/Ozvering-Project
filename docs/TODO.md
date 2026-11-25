@@ -148,8 +148,12 @@
   `nlu_backend=shadow`, проверки артефактов и корпуса в CI,
   `configs/rive/`. Осталось: грамматика как триггеры и порог
   `fallback_rate` на живом вводе.
-- [ ] **Phase 2. Soar shadow для NPC.** Перенести выбор работы поверх
-  BDI, сравнить с `NeedPolicy` на одинаковых seed, включить по фракции.
+- [ ] **Phase 2. Soar shadow для NPC.** Сделано: `configs/soar/`
+  (`decision.json` → `npc_policy.soar`), `SoarNpcPolicy` считает оценку
+  и выбирает оператора в Soar, `decide(ai_backend=shadow)` пишет выбор
+  в `shadow_sink`, parity 100% на реальных кандидатах кампании,
+  `soar-sml` в отдельной job CI. Осталось: включение по фракции,
+  длинные метрики и жёсткий бюджет тика.
 - [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план
   ответа в Soar; синтез пока старый.
 - [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество

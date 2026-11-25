@@ -305,7 +305,9 @@ python3 experiments/exp_warfare.py               # войсковые автом
 ```
 
 Зависимости: рантайм — `pip install -r requirements.txt` (графики, эксперименты,
-графический движок); тесты — `pip install -r requirements-dev.txt` (только `pytest`).
+графический движок); тесты — `pip install -r requirements-dev.txt` (только `pytest`);
+опциональный Soar для Phase 2 — `pip install -r requirements-soar.txt`
+(только manylinux x86_64).
 Чек-лист ревью — в [`.github/pull_request_template.md`](.github/pull_request_template.md);
 процесс разработки (язык коммитов, ветки, CI, `CHANGELOG`) — в [`CONTRIBUTING.md`](CONTRIBUTING.md).
 Пошаговое руководство «как играть / как обучить / как контрибьютить» —

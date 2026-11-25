@@ -1,11 +1,11 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a закрыта, Phase 1a–1c в работе: есть фасад
-> `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
-> `soar_bridge.v1`, золотой корпус, parity-метрики, компилятор
-> `configs/dialogue → configs/rive`, object macros, NLU-линтер,
-> `corpus_builder` и теневой `nlu_backend=shadow`. Soar ещё не
-> подключён.
+> **Статус:** Phase 0a и Phase 1a–1c закрыты, Phase 1d и Phase 2a–2b в
+> работе: есть фасад `campaign/cognition/`, флаги, схема `UtteranceFrame`,
+> мост `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
+> `configs/dialogue → configs/rive` и `configs/soar → .soar`, object
+> macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow` и
+> `ai_backend=shadow` с Soar-политикой NPC.
 >
 > **Дата:** 2026-11-25.
 >
@@ -736,6 +736,30 @@ Deliverables:
 детерминизм; бюджет тика; нет невалидных действий; откат работает.
 
 **Rollback:** `ai_backend=legacy` для конкретной фракции.
+
+**Сделано (Phase 2a, 2026-11-25):**
+
+- `configs/soar/decision.json` — формула оценки, пороги и настройки
+  выбора; `configs/soar/npc_policy.soar` генерируется
+  `python -m campaign.cognition.soar_compiler --write`;
+- `campaign/cognition/soar_runtime.py` — `SoarNpcPolicy`: кандидаты
+  уходят на input-link, Soar сам считает
+  `max(floor, base × max(factor_floor, 1 + weight × need))` и выбирает
+  оператора; Python читает только `output-link`;
+- детерминизм: `decide indifferent-selection --epsilon-greedy` с
+  `epsilon=0` (по умолчанию Soar 9.6 использует softmax и выбирает
+  случайно); tie-break легаси воспроизводится рангом id;
+- `decide(ai_backend=shadow)` возвращает выбор `NeedPolicy`, пишет
+  выбор Soar в `shadow_sink` и не падает без пакета `soar-sml`;
+- parity на 30 случайных наборах и на реальных кандидатах кампании —
+  100%, решение ~3–7 мс;
+- `soar-sml` вынесен в `requirements-soar.txt`; отдельная job CI
+  ставит его и гоняет `tests/test_cognition_soar.py`;
+- `compare_choices` и `DecisionReport` — метрика согласия политик.
+
+**Осталось (Phase 2b):** включение по фракции/типу NPC, метрики
+удовлетворённости и разнообразия работ на длинном прогоне, бюджет тика
+как жёсткий лимит и проверка отсутствия невалидных действий.
 
 ### Phase 3. Soar shadow для прагматики диалога (4–6 недель)
 

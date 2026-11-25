@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "formula": {
+    "score_floor": 0.01,
+    "factor_floor": 0.05,
+    "tie_epsilon": 1e-12
+  },
+  "selection": {
+    "policy": "epsilon-greedy",
+    "numeric_mode": "sum",
+    "epsilon": 0.0,
+    "random_seed": 0,
+    "decision_cycles": 3
+  }
+}

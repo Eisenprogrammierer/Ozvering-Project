@@ -1,0 +1,21 @@
+// Сгенерировано campaign.cognition.soar_compiler.
+// Не редактировать вручную: источник — configs/soar/decision.json.
+// source_digest: 020ca887992df3c349bc206faf0fd9ee9611bd9f957bd55301e1625734382f5f
+
+// Кандидат: option, base, weight, need, rank.
+sp {npc*propose
+   (state <s> ^io.input-link <il>)
+   (<il> ^candidate <c>)
+   (<c> ^option <oid> ^base <b> ^weight <w> ^need <v> ^rank <r>)
+-->
+   (<s> ^operator <o> + = (+ (max 0.01 (* <b> (max 0.05 (+ 1 (* <w> <v>))))) (* <r> 0.000000000001)))
+   (<o> ^option <oid>)
+}
+
+// Выбранный оператор уходит в output-link.
+sp {npc*apply
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^option <oid>)
+-->
+   (<ol> ^decision <oid>)
+}

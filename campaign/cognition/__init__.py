@@ -2,15 +2,14 @@
 
 Границы слоя:
 
-* ``campaign/cognition`` — единственное место, где появятся импорты Soar и
+* ``campaign/cognition`` — единственное место, где импортируются Soar и
   RiveScript;
 * остальной код вызывает ``understand()`` / ``decide()`` и работает с
   JSON-контрактами;
 * JSON остаётся источником истины, ``.soar`` и ``.rive`` — артефакты.
 
-Phase 0 подключает только ``legacy``-бэкенды. Флаги ``shadow`` и ``soar``
-существуют, но явно отказывают, пока соответствующий бэкенд не
-зарегистрирован.
+NLU: ``legacy`` (ChartParser), ``shadow`` (RiveScript рядом) и ``rive``.
+Решения: ``legacy`` (NeedPolicy), ``shadow`` (Soar рядом) и ``soar``.
 """
 
 from __future__ import annotations
@@ -30,6 +29,7 @@ from .errors import (
     CorpusError,
     FrameError,
     RiveError,
+    SoarError,
 )
 from .frame import (
     CORE_FIELDS,
@@ -46,7 +46,13 @@ from .nlu import (
     register_nlu_backend,
     understand,
 )
-from .parity import ParityReport, compare, result_core
+from .parity import (
+    DecisionReport,
+    ParityReport,
+    compare,
+    compare_choices,
+    result_core,
+)
 from .soar_bridge import (
     BRIDGE_VERSION,
     COMMAND_KINDS,
@@ -74,6 +80,7 @@ __all__ = [
     "CognitionFlags",
     "CorpusEntry",
     "CorpusError",
+    "DecisionReport",
     "FRAME_VERSION",
     "FrameError",
     "GoldenCorpus",
@@ -82,10 +89,12 @@ __all__ = [
     "ParityReport",
     "Rejection",
     "RiveError",
+    "SoarError",
     "UtteranceFrame",
     "available_nlu_backends",
     "command_digest",
     "compare",
+    "compare_choices",
     "decide",
     "default_config_path",
     "frame_confidence",

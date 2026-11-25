@@ -29,6 +29,8 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
+# опционально: Soar SML для Phase 2 (только manylinux x86_64)
+pip install -r requirements-soar.txt
 ```
 
 Используйте `venv/bin/python`: системный Python может не иметь `pygame-ce`.
@@ -157,7 +159,7 @@ venv/bin/python main.py
 | «Хочу добавить механику» | §5.5 | слой по §3.2 | профильные тесты |
 | «Хочу понять сейвы» | §5.7 | `view/support/save_system.py` | `tests/test_save_system.py` |
 | «Хочу понять диалог с агентами» | §5.9 | `campaign/dialogue/`, `configs/dialogue/` | `tests/test_d0*.py` … `tests/test_d5_*.py` |
-| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | `campaign/cognition/` (фасад, компилятор, `RiveNlu`, macros, `corpus_builder`), `configs/rive/` и `configs/cognition/golden_corpus.json` | `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`; `python -m campaign.cognition.rive_compiler --check`; `python -m campaign.cognition.nlu_lint`; `python -m campaign.cognition.corpus_builder --check` |
+| «Хочу понять план перехода ИИ на Soar + RiveScript» | [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | `campaign/cognition/` (фасад, компиляторы, `RiveNlu`, `SoarNpcPolicy`, macros, `corpus_builder`), `configs/rive/`, `configs/soar/` и `configs/cognition/golden_corpus.json` | `tests/test_cognition_*.py`, `tests/test_soar_bridge.py`; `python -m campaign.cognition.rive_compiler --check`; `python -m campaign.cognition.nlu_lint`; `python -m campaign.cognition.corpus_builder --check`; `python -m campaign.cognition.soar_compiler --check` |
 | «Хочу проверить, что ничего не сломал» | §5.10 | `tests/` | `pytest -q` |
 
 ---

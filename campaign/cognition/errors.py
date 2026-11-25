@@ -31,6 +31,10 @@ class RiveError(CognitionError, ValueError):
     """Сгенерированный RiveScript-артефакт или его источник повреждён."""
 
 
+class SoarError(CognitionError, ValueError):
+    """Политика Soar или её артефакт повреждены."""
+
+
 __all__ = [
     "BackendError",
     "BridgeError",
@@ -38,4 +42,5 @@ __all__ = [
     "CorpusError",
     "FrameError",
     "RiveError",
+    "SoarError",
 ]

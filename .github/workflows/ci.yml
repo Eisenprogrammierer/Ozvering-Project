@@ -38,12 +38,13 @@ jobs:
           python -m campaign.content_lint
 
       - name: Линтеры когнитивного слоя
-        # Артефакты RiveScript генерируются из configs/dialogue и обязаны
+        # Артефакты RiveScript и Soar генерируются из configs/ и обязаны
         # совпадать с источником; золотой корпус фиксирует кадры legacy-NLU.
         run: |
           python -m campaign.cognition.rive_compiler --check
           python -m campaign.cognition.nlu_lint --strict
           python -m campaign.cognition.corpus_builder --check
+          python -m campaign.cognition.soar_compiler --check
 
       - name: Тесты (pytest)
         env:
@@ -52,3 +53,27 @@ jobs:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: pytest -q
+
+  # Phase 2: Soar в тени NeedPolicy. SML-колесо собрано только под
+  # manylinux x86_64, поэтому вынесено в requirements-soar.txt: основной
+  # job остаётся кроссплатформенным, а здесь проверяется реальный Soar.
+  soar:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Установка зависимостей и Soar SML
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          pip install -r requirements-soar.txt
+
+      - name: Soar parity
+        run: pytest -q tests/test_cognition_soar.py
