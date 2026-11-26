@@ -148,6 +148,9 @@ class AutomataSnapshotMixin:
             ],
             "score_streak": self.score_streak,
             "score_streak_side": self.score_streak_side,
+            "score_recent": [
+                round(float(value), 6) for value in self.score_recent
+            ],
             "player_side": self.player_side,
             "avatar_schema": AVATAR_SCHEMA_VERSION,
             "avatar": (
@@ -500,6 +503,16 @@ class AutomataSnapshotMixin:
         )
         self.score_streak_side = snapshot.get(
             "score_streak_side", self.score_streak_side
+        )
+        saved_recent = snapshot.get("score_recent")
+        self.score_recent = (
+            [
+                float(value)
+                for value in saved_recent
+                if isinstance(value, (int, float))
+            ]
+            if isinstance(saved_recent, list)
+            else []
         )
         self.outcome = snapshot.get("outcome")
         self.finished = bool(snapshot.get("finished", False))

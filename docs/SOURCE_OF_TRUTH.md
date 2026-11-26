@@ -182,7 +182,7 @@
 | Потребность | Куда идти |
 |---|---|
 | Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
-| Снимок мира и кампании автоматов | `SCHEMA_VERSION = 2` (аватар, `entity_ref`/обязательства, сцена); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
+| Снимок мира и кампании автоматов | `SCHEMA_VERSION = 3` (аватар, `entity_ref`/обязательства, сцена, окно исхода); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
 | Контент без Python | `test_content_without_python.py`; `configs/schemas/` и `campaign/content_schema.py`; `content_lint`; `test_content_lint.py`, `test_content_schema.py` |
 | Стабильность кампании | `test_campaign_golden.py`; `tests/fixtures/golden/empire_seed13.json` |
 | Восприятие и провенанс | `campaign/perception.py`; `build_knowledge(view=...)`; `configs/dialogue/world.json` блок `perception`; `test_perception.py`, `test_provenance.py` |

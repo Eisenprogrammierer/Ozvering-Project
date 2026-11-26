@@ -35,18 +35,19 @@
       "streak_turns": 3,
       "defeat": {
         "green": {
-          "legitimacy": 0.05,
+          "legitimacy": 0.02,
           "cohesion": 0.04
         },
         "red": {
           "legitimacy": 0.08
         }
       },
-      "score_margin": 0.055,
-      "score_bias": -0.135,
+      "score_margin": 0.045,
+      "score_bias": 0.02,
       "score_basis": "progress",
       "score_after": 24,
-      "score_streak": 3
+      "score_streak": 3,
+      "score_window": 12
     },
     "upkeep": {
       "supply": 0.004,

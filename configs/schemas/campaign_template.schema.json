@@ -190,6 +190,10 @@
         "score_streak": {
           "type": "integer",
           "minimum": 1
+        },
+        "score_window": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "additionalProperties": false

@@ -368,6 +368,46 @@ def test_cooldowns_prevent_automata_from_repeating_a_work_next_turn():
             last[key] = campaign.turn
 
 
+def test_score_window_averages_recent_turns():
+    preset = _preset("empire_campaign", seed=11)
+    outcome = preset.scenario["outcome"]
+    outcome.update(
+        {
+            "score_basis": "progress",
+            "score_margin": 0.05,
+            "score_bias": 0.0,
+            "score_after": 0,
+            "score_streak": 1,
+            "score_window": 3,
+            "defeat": {},
+        }
+    )
+    campaign = AutomataCampaign(preset, seed=11)
+    values = iter((0.0, 0.0, 0.0, 0.1, 0.1, 0.1))
+    campaign.player.progress = lambda: next(values)
+    campaign.rival.progress = lambda: 0.0
+    for _ in range(4):
+        campaign.turn += 1
+        campaign._check_outcome()
+    # Один всплеск 0.1 при окне 3 даёт среднее ~0.033 < 0.05.
+    assert campaign.outcome is None
+    assert len(campaign.score_recent) == 3
+    campaign.turn += 1
+    campaign._check_outcome()
+    # Два всплеска подряд уже дают среднее ~0.067 > 0.05.
+    assert campaign.outcome == "win"
+
+
+def test_score_window_survives_snapshot_roundtrip():
+    preset = _preset("empire_campaign", seed=11)
+    preset.scenario["outcome"]["score_window"] = 4
+    campaign = AutomataCampaign(preset, seed=11)
+    campaign.score_recent = [0.01, -0.02, 0.03]
+    snapshot = campaign.save_snapshot()
+    restored = AutomataCampaign(preset, snapshot=snapshot)
+    assert restored.score_recent == campaign.score_recent
+
+
 def test_score_bias_shifts_progress_outcome_boundary():
     preset = _preset("empire_campaign", seed=11)
     outcome = preset.scenario["outcome"]

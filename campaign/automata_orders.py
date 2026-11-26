@@ -639,10 +639,19 @@ class AutomataOrdersMixin:
                     - rival_score
                     + _number(rules.get("score_bias"), 0.0)
                 )
+                window = max(
+                    1, int(_number(rules.get("score_window"), 1))
+                )
+                self.score_recent.append(difference)
+                if len(self.score_recent) > window:
+                    del self.score_recent[:-window]
+                smoothed = sum(self.score_recent) / float(
+                    len(self.score_recent)
+                )
                 side = (
                     "win"
-                    if difference > margin
-                    else ("lose" if difference < -margin else None)
+                    if smoothed > margin
+                    else ("lose" if smoothed < -margin else None)
                 )
                 after = max(1, int(_number(rules.get("score_after"), 1)))
                 required = max(
@@ -666,6 +675,8 @@ class AutomataOrdersMixin:
                     "player": round(player_score, 6),
                     "rival": round(rival_score, 6),
                     "difference": round(difference, 6),
+                    "smoothed": round(smoothed, 6),
+                    "window": int(window),
                     "margin": round(margin, 6),
                     "side": side,
                     "streak": int(self.score_streak),

@@ -42,11 +42,12 @@
           "legitimacy": 0.08
         }
       },
-      "score_margin": 0.039,
-      "score_bias": -0.155,
+      "score_margin": 0.025,
+      "score_bias": -0.185,
       "score_basis": "progress",
       "score_after": 24,
-      "score_streak": 3
+      "score_streak": 3,
+      "score_window": 12
     },
     "upkeep": {
       "supply": 0.004,
