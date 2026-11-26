@@ -68,6 +68,7 @@ class DialogueSession:
         senses: Any = None,
         style_hints: bool = True,
         pragmatics: Any = None,
+        inference: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
@@ -99,6 +100,7 @@ class DialogueSession:
             style_engine=self.style_engine,
             memory=self.memory,
             pragmatics=pragmatics,
+            inference=inference,
         )
         self.planner.set_style(self._profile())
         self.state = build_state(

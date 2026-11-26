@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "runtime": {
+    "run_cycles": 2,
+    "timeout_ms": 5000,
+    "node_limit": 20000
+  }
+}

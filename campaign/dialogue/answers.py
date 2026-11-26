@@ -44,13 +44,19 @@ class AnswerPlanner(AnswerAnswerMixin):
         style_engine: Optional[StyleEngine] = None,
         memory: Any = None,
         pragmatics: Any = None,
+        inference: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.persona = persona
         self.memory = memory
         self.pragmatics = pragmatics
-        self.engine = InferenceEngine(catalog, knowledge)
+        self.inference = inference
+        self.engine = (
+            inference
+            if inference is not None
+            else InferenceEngine(catalog, knowledge)
+        )
         self.style_engine = style_engine or StyleEngine(catalog)
         self.social_engine = SocialEngine(
             catalog, knowledge, self.engine

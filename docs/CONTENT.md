@@ -87,13 +87,15 @@
 | `configs/campaigns/base/chronicle_phrases.json` | языковые шаблоны хроники: открытия по значимости, шаблоны решения и причины | `campaign.chronicle.load_phrases()` | новый шаблон в списке | `openings`/`decision_patterns`/`cause_patterns` | шаблон (проверить `python -m campaign.content_lint`: категории и плейсхолдеры) |
 | `configs/content/payload_kinds.json` | data-driven реестр видов `payload`: обязательные/default/числовые поля, подпись и шаблон описания | `core41.payload.load_payload_kinds()` (по умолчанию при импорте; env `OZVERING_PAYLOAD_KINDS`) | новый вид в `kinds` | `required`/`defaults`/`numeric`/`describe_defaults` | вид (проверить `python -m campaign.content_lint`) |
 | `configs/content/*.json` | именованный UI-контент | `view.support.content.Content` | новый `*.json` доступен через `get(name)` | содержимое файла | файл |
-| `configs/cognition/backends.json` | флаги и пороги когнитивного слоя: `ai_backend`, `nlu_backend`, `dialogue_backend`, `shadow`, `thresholds` (включая `fallback_rate_max`), `timeouts` | `campaign.cognition.load_flags()`; env `OZVERIN_AI_BACKEND`/`OZVERIN_NLU_BACKEND`/`OZVERIN_DIALOGUE_BACKEND` переопределяют только бэкенд | новый ключ в JSON | бэкенд/порог/таймаут | ключ (проверить `tests/test_cognition_backends.py`) |
+| `configs/cognition/backends.json` | флаги и пороги когнитивного слоя: `ai_backend`, `nlu_backend`, `dialogue_backend`, `inference_backend`, `shadow`, `thresholds` (включая `fallback_rate_max`), `timeouts` | `campaign.cognition.load_flags()`; env `OZVERIN_AI_BACKEND`/`OZVERIN_NLU_BACKEND`/`OZVERIN_DIALOGUE_BACKEND`/`OZVERIN_INFERENCE_BACKEND` переопределяют только бэкенд | новый ключ в JSON | бэкенд/порог/таймаут | ключ (проверить `tests/test_cognition_backends.py`) |
 | `configs/cognition/golden_corpus.json` | золотой корпус диалога: 144 записи `(seed, snapshot, input) → кадр` legacy-NLU; фиксирует поведение до миграции | `python -m campaign.cognition.corpus_builder --write` | `configs/dialogue/*` (фразы и лексикон) | кадр, слоты, `intent`, `evidence` | `python -m campaign.cognition.corpus_builder --check` |
 | `configs/rive/` | сгенерированные `dialogue.rive` и `manifest.json` для RiveScript NLU: точные фразы плюс грамматические триггеры (закрытые классы — литералы, открытые — слот `[*]`); **не редактировать вручную** | `python -m campaign.cognition.rive_compiler --write` | `configs/dialogue/lexicon.json`, `paraphrases.json`, `actions.json`, `grammar.json` | триггер, замена, манифест | `python -m campaign.cognition.rive_compiler --check` |
 | `configs/soar/decision.json` | формула и настройки выбора работы NPC: пороги оценки, `epsilon-greedy`, `epsilon`, seed, число циклов | `campaign.cognition.soar_compiler.load_model()` | новый ключ в JSON | формула, порог, режим выбора | `tests/test_cognition_soar.py` |
 | `configs/soar/npc_policy.soar` | сгенерированные продукции Soar: оценка кандидата и запись решения в output-link; **не редактировать вручную** | `python -m campaign.cognition.soar_compiler --write` | `configs/soar/decision.json` | продукция, digest | `python -m campaign.cognition.soar_compiler --check` |
 | `configs/soar/pragmatics.json` | настройки прагматики диалога: `tie_epsilon` и число циклов решения | `campaign.cognition.pragmatics_compiler.load_model()` | новый ключ в JSON | порог, режим выбора | `tests/test_d6_pragmatics.py` |
 | `configs/soar/pragmatics.soar` | сгенерированные продукции Soar: интерпретация кадра, выбор плана и исход раскрытия; **не редактировать вручную** | `python -m campaign.cognition.pragmatics_compiler --write` | `configs/soar/pragmatics.json`, `configs/dialogue/disclosure.json` | продукция, digest | `python -m campaign.cognition.pragmatics_compiler --check` |
+| `configs/soar/inference.json` | настройки прямого замыкания вывода: число циклов, таймаут, лимит узлов | `campaign.cognition.inference_compiler.load_model()` | новый ключ в JSON | циклы, таймаут, лимит | `tests/test_d6_inference.py` |
+| `configs/soar/inference.soar` | сгенерированные продукции Soar: прямое замыкание `rules.json` под `^node`, высота и экспорт в output-link; **не редактировать вручную** | `python -m campaign.cognition.inference_compiler --write` | `configs/dialogue/rules.json`, `configs/dialogue/ontology.json`, `configs/soar/inference.json` | продукция, digest | `python -m campaign.cognition.inference_compiler --check` |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
 | `configs/view/presentation.json` | плейсхолдеры/подписи ассетов | `view.ui.asset_loader` | ключ | значение | ключ |
 
@@ -590,6 +592,19 @@ Soar-решений за ход. Каждое решение получает
 `soar-sml` оба режима понижаются до `legacy` с `unavailable: true`,
 `ok: false`. Ответ несёт `pragmatics_backend` и `pragmatics_trace`;
 откат — `OZVERIN_DIALOGUE_BACKEND=legacy`.
+
+Логический вывод управляется `inference_backend` из того же JSON
+(`legacy`, `shadow`, `soar`; в поставке `shadow`). Soar строит прямое
+замыкание `rules.json` в `inference.soar`; Python выбирает из него
+решения в порядке легаси, проверяет общие переменные правил и отсекает
+циклы, поэтому `Solution`/`ProofStep` совпадают с `InferenceEngine`.
+В `shadow` ответы и доказательства остаются легаси, расхождения
+пишутся в `InferenceBackend.report()` (`queries`, `agreements`,
+`disagreements`, `errors`, `elapsed_ms`); в `soar` ошибки не
+маскируются; без `soar-sml` — деградация до `legacy` с
+`unavailable: true`, `ok: false`. Откат —
+`OZVERIN_INFERENCE_BACKEND=legacy`. `CounterfactualEngine` пока
+остаётся на легаси.
 
 Отношения — направленная матрица кампании: `relation_model` в
 `automata_defaults.json` задаёт оси, лимит и веса форм, а

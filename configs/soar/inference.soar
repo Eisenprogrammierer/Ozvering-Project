@@ -1,0 +1,146 @@
+// Сгенерировано campaign.cognition.inference_compiler.
+// Не редактировать вручную: источники — rules.json,
+// configs/dialogue/ontology.json и configs/soar/inference.json.
+// source_digest: 29f010a92a64dcb1d724048100c3a06d2327c80c8b256bb57b63bb872b2e7c54
+
+// belief_alliance: speaks_for & belief
+sp {infer*rule_belief_alliance
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |allied_with| ^arg4 <v_other> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |allied_with| ^arg1 <v_faction> ^arg2 <v_other> ^rule |belief_alliance| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_depends: speaks_for & belief
+sp {infer*rule_belief_depends
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |depends_on| ^arg4 <v_target> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |depends_on| ^arg1 <v_faction> ^arg2 <v_target> ^rule |belief_depends| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_enemy: speaks_for & belief
+sp {infer*rule_belief_enemy
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |sees_as_enemy| ^arg4 <v_target> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |enemy| ^arg1 <v_faction> ^arg2 <v_target> ^rule |belief_enemy| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_legitimate: speaks_for & belief
+sp {infer*rule_belief_legitimate
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |is_legitimate| ^arg4 |__ozverin_empty__| ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |legitimate| ^arg1 <v_faction> ^rule |belief_legitimate| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_myth: speaks_for & belief
+sp {infer*rule_belief_myth
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |believes_in_own_myth| ^arg4 |__ozverin_empty__| ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |myth| ^arg1 <v_faction> ^rule |belief_myth| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_outlaw: speaks_for & belief
+sp {infer*rule_belief_outlaw
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |considers_illegitimate| ^arg4 <v_target> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |considers_outlaw| ^arg1 <v_faction> ^arg2 <v_target> ^rule |belief_outlaw| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_protects: speaks_for & belief
+sp {infer*rule_belief_protects
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |protects| ^arg4 <v_target> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |protects| ^arg1 <v_faction> ^arg2 <v_target> ^rule |belief_protects| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// belief_threat: speaks_for & belief
+sp {infer*rule_belief_threat
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |speaks_for| ^arg1 <v_speaker> ^arg2 <v_faction> ^height <h0>)
+   -(<p0> ^height 32)
+   (<il> ^node <p1>)
+   (<p1> ^rel |belief| ^arg1 <v_speaker> ^arg2 <v_faction> ^arg3 |sees_as_threat| ^arg4 <v_target> ^height <h1>)
+   -(<p1> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |threatens| ^arg1 <v_faction> ^arg2 <v_target> ^rule |belief_threat| ^child1 <p0> ^child2 <p1> ^height (+ (max <h0> <h1>) 1))
+}
+
+// war_reason_legitimacy: at_war_with
+sp {infer*rule_war_reason_legitimacy
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |at_war_with| ^arg1 <v_a> ^arg2 <v_b> ^height <h0>)
+   -(<p0> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |war_reason| ^arg1 <v_a> ^arg2 <v_b> ^arg3 |asset:legitimacy| ^rule |war_reason_legitimacy| ^child1 <p0> ^height (+ <h0> 1))
+}
+
+// war_symmetric: at_war_with
+sp {infer*rule_war_symmetric
+   (state <s> ^io.input-link <il>)
+   (<il> ^node <p0>)
+   (<p0> ^rel |at_war_with| ^arg1 <v_b> ^arg2 <v_a> ^height <h0>)
+   -(<p0> ^height 32)
+-->
+   (<il> ^node <d>)
+   (<d> ^kind derived ^rel |at_war_with| ^arg1 <v_a> ^arg2 <v_b> ^rule |war_symmetric| ^child1 <p0> ^height (+ <h0> 1))
+}
+
+// Все узлы замыкания (факты и выводы) уходят в output-link.
+sp {infer*export
+   (state <s> ^io.input-link <il> ^io.output-link <ol>)
+   (<il> ^node <n>)
+-->
+   (<ol> ^node <n>)
+}

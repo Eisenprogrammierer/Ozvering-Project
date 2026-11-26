@@ -1,14 +1,15 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2f, Phase 3a закрыты:
+> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2f, Phase 3a–3b закрыты:
 > есть фасад `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
 > `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
 > `configs/dialogue → configs/rive` и `configs/soar → .soar`, object
 > macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow`,
 > `ai_backend=shadow` с Soar-политикой NPC, грамматика RiveScript в
 > роли NLU-триггеров, `ai_backend=soar` включён основным режимом
-> выбора работы NPC, а прагматика диалога (план ответа и раскрытие
-> D6.3) идёт через Soar в режиме `shadow`.
+> выбора работы NPC, прагматика диалога (план ответа и раскрытие D6.3)
+> идёт через Soar в режиме `shadow`, а логический вывод и трассировка
+> доказательства строятся прямым замыканием в Soar (тоже `shadow`).
 >
 > **Дата:** 2026-11-26.
 >
@@ -958,6 +959,53 @@ Deliverables:
   плана, исходы раскрытия, бюджет, режимы, деградация без пакета,
   паритет `legacy|shadow|soar` на корпусе.
 
+**Сделано (Phase 3b, 2026-11-26): прямое замыкание вывода в Soar.**
+
+- `configs/soar/inference.json` — источник runtime (`run_cycles=2`,
+  `timeout_ms`, `node_limit`); `configs/soar/inference.soar` генерируется
+  `python -m campaign.cognition.inference_compiler --write` и проверяется
+  `--check`; `source_digest` покрывает `rules.json`, `ontology.json` и
+  `inference.json`;
+- продукции `infer*rule_<id>` строят прямое замыкание: факты и выводы
+  лежат под общим `^node`, поля `^kind`, `^rel`, `^argN`, `^height`,
+  `^rule`, `^childN`; высота — `(+ (max ...) 1)`, негативные условия
+  `-(<p> ^height max_depth)` обрывают рекурсию; продукция `infer*export`
+  копирует узлы в `output-link`;
+- `SoarInference` (`campaign/cognition/inference_runtime.py`) лениво
+  строит замыкание, кладёт факты в `input-link`, делает два цикла
+  `RunSelf(1)`, читает `output-link` через `ConvertToIdentifier()`,
+  проверяет структуру, высоту и лимит узлов, разрушает агента в
+  `finally` и кэширует `prove()`;
+- Python не выводит факты: он выбирает из готового замыкания, сортирует
+  по `(0, fact_order)` / `(1, rule_order) + child_ranks`, заново
+  унифицирует голову и посылки (общие переменные правила), отсекает
+  повтор `(правило, аргументы)` на пути и дедуплицирует по
+  `(bindings, signature)`; поэтому `Solution`/`ProofStep`, их порядок и
+  `first()` совпадают с `InferenceEngine`;
+- `inference_backend=legacy|shadow|soar` в
+  `configs/cognition/backends.json` и `CognitionFlags`; в поставке
+  `shadow`, в изолированных тестах `legacy`; окружение
+  `OZVERIN_INFERENCE_BACKEND`; `InferenceBackend`/`load_inference`
+  (`campaign/dialogue/inference_backend.py`) в `shadow` возвращает
+  легаси-результат и пишет `queries`, `agreements`, `disagreements`,
+  `errors`, `elapsed_ms`; в `soar` ошибки не маскируются; без `soar-sml`
+  оба режима понижаются до `legacy` с `unavailable: true`,
+  `ok: false`;
+- вывод подключён в `AnswerPlanner`, `DialogueSession`,
+  `repl.build_session` и `corpus_builder.build_default_session`;
+  `CounterfactualEngine` пока остаётся на легаси — подмена фактов требует
+  отдельного замыкания (follow-up Phase 3b);
+- паритет: 14 680 запросов (5 сидов × 4 фракции × 4 говорящих, все
+  отношения, точные/частичные/переменные шаблоны) — 0 расхождений по
+  `bindings`, подписям `ProofStep`, порядку решений и `first()`;
+- **Rollback:** `OZVERIN_INFERENCE_BACKEND=legacy` или
+  `inference_backend=legacy`; `soar` в поставке не включается до
+  подтверждения паритета на живом корпусе;
+- тесты: `tests/test_d6_inference.py` — компилятор и digest, несвязанные
+  head-переменные, повтор правил, запись/проверка артефакта, паритет на
+  корпусе, цикл и depth-cap, read-only, лимит узлов, режимы, деградация,
+  интеграция с сессией.
+
 ### Phase 4. RiveScript как основной NLU + Soar-интерпретация (4–6 недель)
 
 **Цель:** поддерживаемые интенты идут через RiveScript и Soar.
@@ -1221,7 +1269,7 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/morph.py` | object macro | остаётся как библиотека |
 | `dialogue/parser.py` | fallback / удаление | Phase 4–6 |
 | `dialogue/semantics.py` | сборка кадра | остаётся, упрощается |
-| `dialogue/inference.py` | Soar-продукции | Phase 3b |
+| `dialogue/inference.py` | Soar-продукции | Phase 3b сделана; `CounterfactualEngine` — follow-up |
 | `dialogue/planner.py` | Soar-операторы | Phase 3b |
 | `dialogue/answers*.py` | Soar + шаблоны | план/раскрытие — Phase 3a, текст — Phase 4 |
 | `dialogue/realize.py` | RiveScript + realizer | Phase 4 |

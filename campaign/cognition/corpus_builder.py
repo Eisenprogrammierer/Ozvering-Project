@@ -100,7 +100,9 @@ def check_corpus(
 
 
 def build_default_session(
-    seed: int = DEFAULT_SEED, pragmatics: Any = None
+    seed: int = DEFAULT_SEED,
+    pragmatics: Any = None,
+    inference: Any = None,
 ) -> Any:
     """Собрать сессию на игровых конфигах для CLI."""
 
@@ -109,6 +111,7 @@ def build_default_session(
         DialogueSession,
         build_knowledge,
         load_dialogue,
+        load_inference,
     )
     from campaign.preset import CampaignPresetGenerator
     from campaign.roles import RoleCatalog
@@ -120,12 +123,16 @@ def build_default_session(
     )
     campaign = AutomataCampaign(generator.generate(seed=seed), seed=seed)
     catalog = load_dialogue(root / "configs" / "dialogue")
+    knowledge = build_knowledge(catalog, campaign, "red")
+    if inference is None:
+        inference = load_inference(catalog, knowledge)
     return DialogueSession(
         catalog,
-        build_knowledge(catalog, campaign, "red"),
+        knowledge,
         style_id="neutral",
         style_hints=False,
         pragmatics=pragmatics,
+        inference=inference,
     )
 
 

@@ -6,6 +6,12 @@ from .console import ConsoleEntry, TextGame
 from .engine import DialogueSession, Turn
 from .errors import DialogueError
 from .inference import InferenceEngine, ProofStep, Solution
+from .inference_backend import (
+    INFERENCE_BACKENDS,
+    InferenceBackend,
+    InferenceReport,
+    load_inference,
+)
 from .knowledge import AgentKnowledge, Fact, build_knowledge
 from .loader import (
     DEFAULT_DIR,
@@ -83,7 +89,10 @@ __all__ = [
     "GoalPlanner",
     "GoalStep",
     "Grammar",
+    "INFERENCE_BACKENDS",
+    "InferenceBackend",
     "InferenceEngine",
+    "InferenceReport",
     "Intent",
     "LexEntry",
     "Morphology",
@@ -118,6 +127,7 @@ __all__ = [
     "load_console",
     "load_dialogue",
     "load_goals",
+    "load_inference",
     "load_narrator",
     "load_pragmatics",
     "load_styles",

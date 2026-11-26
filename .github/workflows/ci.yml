@@ -46,6 +46,7 @@ jobs:
           python -m campaign.cognition.corpus_builder --check
           python -m campaign.cognition.soar_compiler --check
           python -m campaign.cognition.pragmatics_compiler --check
+          python -m campaign.cognition.inference_compiler --check
 
       - name: Тесты (pytest)
         env:
@@ -77,4 +78,4 @@ jobs:
           pip install -r requirements-soar.txt
 
       - name: Soar parity
-        run: pytest -q tests/test_cognition_soar.py tests/test_npc_decisions.py tests/test_d6_pragmatics.py
+        run: pytest -q tests/test_cognition_soar.py tests/test_npc_decisions.py tests/test_d6_pragmatics.py tests/test_d6_inference.py

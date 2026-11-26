@@ -3,6 +3,7 @@
   "ai_backend": "soar",
   "nlu_backend": "legacy",
   "dialogue_backend": "shadow",
+  "inference_backend": "shadow",
   "shadow": {
     "record": false,
     "compare": false

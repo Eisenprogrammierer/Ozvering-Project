@@ -19,11 +19,13 @@ from .errors import BackendError
 AI_BACKENDS = ("legacy", "shadow", "soar")
 NLU_BACKENDS = ("legacy", "shadow", "rive")
 DIALOGUE_BACKENDS = ("legacy", "shadow", "soar")
+INFERENCE_BACKENDS = ("legacy", "shadow", "soar")
 CONFIG_VERSION = 1
 ENV_CONFIG = "OZVERIN_COGNITION_CONFIG"
 ENV_AI = "OZVERIN_AI_BACKEND"
 ENV_NLU = "OZVERIN_NLU_BACKEND"
 ENV_DIALOGUE = "OZVERIN_DIALOGUE_BACKEND"
+ENV_INFERENCE = "OZVERIN_INFERENCE_BACKEND"
 
 
 def default_config_path() -> Path:
@@ -61,6 +63,7 @@ class CognitionFlags:
     ai_backend: str = "soar"
     nlu_backend: str = "legacy"
     dialogue_backend: str = "legacy"
+    inference_backend: str = "legacy"
     record_shadow: bool = False
     compare_shadow: bool = False
     accept_threshold: float = 0.75
@@ -77,6 +80,11 @@ class CognitionFlags:
             self.dialogue_backend,
             DIALOGUE_BACKENDS,
             "dialogue_backend",
+        )
+        _backend(
+            self.inference_backend,
+            INFERENCE_BACKENDS,
+            "inference_backend",
         )
         if not 0.0 <= self.clarify_threshold <= 1.0:
             raise BackendError("clarify_threshold вне [0, 1]")
@@ -96,6 +104,7 @@ class CognitionFlags:
             "ai_backend": self.ai_backend,
             "nlu_backend": self.nlu_backend,
             "dialogue_backend": self.dialogue_backend,
+            "inference_backend": self.inference_backend,
             "shadow": {
                 "record": self.record_shadow,
                 "compare": self.compare_shadow,
@@ -180,10 +189,19 @@ def load_flags(
         DIALOGUE_BACKENDS,
         "dialogue_backend",
     )
+    inference_backend = _backend(
+        env.get(
+            ENV_INFERENCE,
+            raw.get("inference_backend", "legacy"),
+        ),
+        INFERENCE_BACKENDS,
+        "inference_backend",
+    )
     return CognitionFlags(
         ai_backend=ai_backend,
         nlu_backend=nlu_backend,
         dialogue_backend=dialogue_backend,
+        inference_backend=inference_backend,
         record_shadow=bool(shadow.get("record", False)),
         compare_shadow=bool(shadow.get("compare", False)),
         accept_threshold=_number(
@@ -217,7 +235,9 @@ __all__ = [
     "ENV_AI",
     "ENV_CONFIG",
     "ENV_DIALOGUE",
+    "ENV_INFERENCE",
     "ENV_NLU",
+    "INFERENCE_BACKENDS",
     "NLU_BACKENDS",
     "default_config_path",
     "load_flags",

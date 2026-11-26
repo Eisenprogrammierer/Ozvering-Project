@@ -17,6 +17,7 @@ from __future__ import annotations
 from .backends import (
     AI_BACKENDS,
     DIALOGUE_BACKENDS,
+    INFERENCE_BACKENDS,
     NLU_BACKENDS,
     CognitionFlags,
     default_config_path,
@@ -66,6 +67,31 @@ from .soar_bridge import (
     validate_response,
 )
 
+# Компилятор и рантайм вывода грузятся лениво: иначе запуск
+# ``python -m campaign.cognition.inference_compiler`` (и соседних
+# компиляторов) предупреждал бы о повторном импорте модуля.
+_LAZY = {
+    "InferenceModel": (".inference_compiler", "InferenceModel"),
+    "ProofNode": (".inference_runtime", "ProofNode"),
+    "SoarInference": (".inference_runtime", "SoarInference"),
+    "check_inference": (".inference_compiler", "check_policy"),
+    "compile_inference": (".inference_compiler", "compile_policy"),
+    "load_inference_model": (".inference_compiler", "load_model"),
+    "write_inference": (".inference_compiler", "write_policy"),
+}
+
+
+def __getattr__(name: str):
+    target = _LAZY.get(name)
+    if target is None:
+        raise AttributeError(name)
+    from importlib import import_module
+
+    value = getattr(import_module(target[0], __name__), target[1])
+    globals()[name] = value
+    return value
+
+
 __all__ = [
     "AI_BACKENDS",
     "BRIDGE_VERSION",
@@ -86,21 +112,28 @@ __all__ = [
     "FRAME_VERSION",
     "FrameError",
     "GoldenCorpus",
+    "INFERENCE_BACKENDS",
+    "InferenceModel",
     "LegacyNlu",
     "NLU_BACKENDS",
     "ParityReport",
+    "ProofNode",
     "Rejection",
     "RiveError",
     "SoarError",
+    "SoarInference",
     "UtteranceFrame",
     "available_nlu_backends",
+    "check_inference",
     "command_digest",
     "compare",
     "compare_choices",
+    "compile_inference",
     "decide",
     "default_config_path",
     "frame_confidence",
     "load_flags",
+    "load_inference_model",
     "register_nlu_backend",
     "record_corpus",
     "request_digest",
@@ -109,4 +142,5 @@ __all__ = [
     "validate_command",
     "validate_request",
     "validate_response",
+    "write_inference",
 ]

@@ -12,6 +12,7 @@ from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
 
 from .engine import DialogueSession
+from .inference_backend import load_inference
 from .knowledge import build_knowledge
 from .loader import load_dialogue
 from .pragmatics import load_pragmatics
@@ -54,6 +55,7 @@ def build_session(
         allow_actions=allow_actions,
         campaign=campaign,
         pragmatics=load_pragmatics(),
+        inference=load_inference(catalog, knowledge),
     )
 
 

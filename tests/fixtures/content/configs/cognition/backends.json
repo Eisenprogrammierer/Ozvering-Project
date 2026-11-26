@@ -3,6 +3,7 @@
   "ai_backend": "legacy",
   "nlu_backend": "legacy",
   "dialogue_backend": "legacy",
+  "inference_backend": "legacy",
   "shadow": {
     "record": false,
     "compare": false

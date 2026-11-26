@@ -29,6 +29,7 @@ def test_isolated_config_is_legacy_and_valid():
     assert flags.ai_backend == "legacy"
     assert flags.nlu_backend == "legacy"
     assert flags.dialogue_backend == "legacy"
+    assert flags.inference_backend == "legacy"
     assert flags.accept_threshold > flags.clarify_threshold
     assert default_config_path().is_file()
 
@@ -44,6 +45,7 @@ def test_shipped_config_enables_soar():
     assert flags.ai_backend == "soar"
     assert flags.nlu_backend == "legacy"
     assert flags.dialogue_backend == "shadow"
+    assert flags.inference_backend == "shadow"
 
 
 def test_dialogue_backend_is_validated_and_serialized():
@@ -51,6 +53,13 @@ def test_dialogue_backend_is_validated_and_serialized():
     assert flags.to_dict()["dialogue_backend"] == "shadow"
     with pytest.raises(BackendError):
         CognitionFlags(dialogue_backend="magic")
+
+
+def test_inference_backend_is_validated_and_serialized():
+    flags = CognitionFlags(inference_backend="soar")
+    assert flags.to_dict()["inference_backend"] == "soar"
+    with pytest.raises(BackendError):
+        CognitionFlags(inference_backend="magic")
 
 
 def test_env_overrides_backend_but_not_thresholds(tmp_path):
@@ -70,11 +79,13 @@ def test_env_overrides_backend_but_not_thresholds(tmp_path):
             "OZVERIN_AI_BACKEND": "shadow",
             "OZVERIN_NLU_BACKEND": "rive",
             "OZVERIN_DIALOGUE_BACKEND": "soar",
+            "OZVERIN_INFERENCE_BACKEND": "shadow",
         },
     )
     assert flags.ai_backend == "shadow"
     assert flags.nlu_backend == "rive"
     assert flags.dialogue_backend == "soar"
+    assert flags.inference_backend == "shadow"
     assert flags.accept_threshold == 0.8
     assert flags.clarify_threshold == 0.4
     assert flags.nlu_fallback_max == pytest.approx(0.05)

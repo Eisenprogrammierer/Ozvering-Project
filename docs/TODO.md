@@ -196,12 +196,26 @@
   `legacy` с `unavailable: true`, `ok: false`; ответ несёт
   `pragmatics_backend`/`pragmatics_trace`; откат —
   `OZVERIN_DIALOGUE_BACKEND=legacy`. Паритет `legacy|shadow|soar`
-  закреплён `tests/test_d6_pragmatics.py`. Phase 3a закрыта; вывод и
-  трассировка доказательства (`inference.py`) остаются в Python до
-  Phase 3b.
-- [ ] **Phase 3b. Вывод и доказательство в Soar.** Перенести
-  `dialogue/inference.py` в продукции, сохранив трассировку
-  доказательства и паритет ответов на корпусе.
+  закреплён `tests/test_d6_pragmatics.py`. Phase 3a закрыта.
+- [x] **Phase 3b. Вывод и доказательство в Soar.** Сделано:
+  `configs/soar/inference.json` → `inference.soar` (компилятор и
+  `--check` с `source_digest` по `rules.json` + `ontology.json`),
+  продукции `infer*rule_<id>` строят прямое замыкание под `^node`
+  с `^height`, `^rule`, `^childN`, экспорт — `infer*export` в
+  `output-link`; `SoarInference` кладёт факты в `input-link`, делает
+  два цикла `RunSelf(1)`, читает замыкание и кэширует `prove()`;
+  Python выбирает решения в порядке легаси, проверяет общие переменные
+  правил и отсекает циклы по `(правило, аргументы)`; паритет 14 680
+  запросов — 0 расхождений по `bindings`, `ProofStep`, порядку и
+  `first()`. `inference_backend=legacy|shadow|soar` (в поставке
+  `shadow`, env `OZVERIN_INFERENCE_BACKEND`), `InferenceBackend` в
+  `shadow` возвращает легаси и пишет расхождения, в `soar` ошибки не
+  маскируются, без `soar-sml` — деградация до `legacy` с
+  `unavailable: true`, `ok: false`; откат —
+  `OZVERIN_INFERENCE_BACKEND=legacy`. Вывод подключён в
+  `AnswerPlanner`, `DialogueSession`, `repl` и `corpus_builder`;
+  `CounterfactualEngine` остаётся на легаси (follow-up). Тесты —
+  `tests/test_d6_inference.py`.
 - [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
   идёт через RiveScript + Soar, `ChartParser` — fallback.
 - [ ] **Phase 5. Soar для BDI, фракций и мира.** Решения агентов в Soar,
