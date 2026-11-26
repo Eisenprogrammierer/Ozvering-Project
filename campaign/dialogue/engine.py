@@ -69,9 +69,11 @@ class DialogueSession:
         style_hints: bool = True,
         pragmatics: Any = None,
         inference: Any = None,
+        nlu: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
+        self.nlu = nlu
         self.parser = ChartParser(catalog)
         self.persona = _select_persona(catalog, persona_id, knowledge.side)
         self.style_engine = StyleEngine(catalog)
@@ -481,6 +483,18 @@ class DialogueSession:
         }
 
     def _interpret(self, text: str):
+        if self.nlu is not None:
+            self.nlu.understand(text)
+            sem = self.nlu.last_sem
+            parse = self.nlu.last_parse
+            source = self.nlu.last_source
+            if sem is not None:
+                if source == "fragment":
+                    source = "fragment:%s" % (self.nlu.last_rule or "")
+                elif source == "fallback":
+                    source = "fallback:%s" % (self.nlu.last_rule or "")
+                return sem, parse, source
+            return None, parse, self.nlu.last_reason or "no_match"
         parse = self.parser.parse_best(text)
         if parse is not None:
             return parse.sem, parse, "parser"

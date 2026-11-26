@@ -195,6 +195,13 @@ class LegacyNlu:
         self.session = session
         self.flags = flags or load_flags()
         self._known_tokens = self._build_known_tokens(session.catalog)
+        # Последний разбор: живой путь диалога берёт из него смысл,
+        # чтобы RiveScript мог выбирать триггер, не теряя семантику.
+        self.last_sem: Any = None
+        self.last_parse: Any = None
+        self.last_source = ""
+        self.last_rule = ""
+        self.last_reason = ""
 
     @staticmethod
     def _build_known_tokens(catalog: Any) -> frozenset:
@@ -240,7 +247,13 @@ class LegacyNlu:
     ) -> UnderstandResult:
         raw = str(text or "")
         tokens = tuple(tokenize(raw))
+        self.last_sem = None
+        self.last_parse = None
+        self.last_source = ""
+        self.last_rule = ""
+        self.last_reason = ""
         if not tokens:
+            self.last_reason = "empty"
             return Rejection(
                 id=_frame_id(raw, topic),
                 text=raw,
@@ -265,7 +278,12 @@ class LegacyNlu:
             if sem is not None:
                 source = "fallback"
                 rule = str(fallback_id or "")
+        self.last_parse = parse
+        self.last_source = source
+        self.last_rule = rule
+        self.last_reason = reason
         if sem is None or not isinstance(sem, Mapping):
+            self.last_reason = reason or "no_match"
             return Clarification(
                 id=_frame_id(raw, topic),
                 text=raw,
@@ -276,6 +294,7 @@ class LegacyNlu:
         resolved, unresolved = self.session.state.resolve_pronouns(sem)
         if isinstance(resolved, Mapping):
             sem = resolved
+        self.last_sem = sem
         args = _collect_args(sem)
         confidence = frame_confidence(
             self._specificity(source),

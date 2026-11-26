@@ -581,6 +581,18 @@ Soar-решений за ход. Каждое решение получает
 помечается `ok: false` и не годится для паритетных сравнений
 бэкендов.
 
+Живой NLU диалога управляется `nlu_backend` из того же JSON
+(`legacy`, `shadow`, `rive`; в поставке `legacy`). `NluBackend`
+(`campaign/cognition/nlu_backend.py`) в `legacy` сохраняет прежний
+`ChartParser`/фрагменты/fallback, в `shadow` строит ответ легаси и
+сравнивает его с RiveScript, в `rive` берёт триггер из RiveScript;
+смысл кадра пока собирает legacy-адаптер, поэтому ответы и
+`Turn.source` не меняются. Отчёт — `session.nlu.report.to_dict()`
+(`total`, `matched`, `fallback`, `fallback_rate`, `mismatches`,
+`errors`). Без пакета `rivescript` `shadow` понижается до `legacy`
+с `unavailable: true`, `ok: false`, а `rive` отказывает явной
+`BackendError`; откат — `OZVERIN_NLU_BACKEND=legacy`.
+
 Прагматика диалога управляется `dialogue_backend` из
 `configs/cognition/backends.json` (`legacy`, `shadow`, `soar`; в
 поставке `shadow`). В `shadow` ответ строит легаси, а Soar выбирает

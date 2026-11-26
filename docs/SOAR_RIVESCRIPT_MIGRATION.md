@@ -10,7 +10,10 @@
 > выбора работы NPC, прагматика диалога (план ответа и раскрытие D6.3)
 > идёт через Soar в режиме `shadow`, а логический вывод и трассировка
 > доказательства строятся прямым замыканием в Soar и включены основным
-> режимом (`inference_backend=soar`).
+> режимом (`inference_backend=soar`). Phase 4 начата: `nlu_backend`
+> подключён к живому пути диалога (`NluBackend`), ответы `legacy|shadow|
+> rive` совпадают на корпусе; замена семантики кадра на слоты RiveScript
+> ещё впереди.
 >
 > **Дата:** 2026-11-26.
 >
@@ -1028,6 +1031,31 @@ Deliverables:
 потери поддерживаемых сценариев.
 
 **Rollback:** переключение на `nlu_backend=legacy` и старый state.
+
+**Сделано (Phase 4, шаг 1, 2026-11-26): живой путь чтит `nlu_backend`.**
+
+- `campaign/cognition/nlu_backend.py` — `NluBackend`/`NluReport`/`load_nlu`
+  по образцу `InferenceBackend`: `legacy` (ChartParser/фрагменты/fallback),
+  `shadow` (легаси-ответ, RiveScript рядом, расхождения в отчёте) и
+  `rive` (триггер выбирает RiveScript); без пакета `rivescript` `shadow`
+  понижается до `legacy` с `unavailable: true`, `ok: false`, а `rive`
+  отказывает явной `BackendError`;
+- `DialogueSession` принимает `nlu` и в `_interpret()` берёт последний
+  смысл из бэкенда; `repl.build_session` и
+  `corpus_builder.build_default_session` подключают `load_nlu(session)`;
+- `LegacyNlu`/`RiveNlu` публикуют `last_sem`/`last_parse`/`last_source`/
+  `last_rule`/`last_reason`, поэтому RiveScript может выбирать триггер,
+  не теряя семантику и не меняя `Turn.source`;
+- паритет на золотом корпусе: 144 входа полной сессии — 0 расхождений
+  по `source`, `plan_id`, виду и тексту ответа в `legacy|shadow|rive`;
+  живой `fallback_rate` — 2/144 (1.39%), `mismatches` — 0;
+- **Rollback:** `OZVERIN_NLU_BACKEND=legacy` или `nlu_backend=legacy`;
+- тесты: `tests/test_nlu_backend.py` — режимы, паритет живого пути,
+  счётчик fallback, деградация `shadow` и отказ `rive` без пакета;
+- **Осталось:** строить слоты кадра из RiveScript (`<star>`/манифест),
+  оставив `ChartParser` только fallback; уточнения на rive-пути;
+  save/load состояния диалога и Soar WM; включение `nlu_backend=rive`
+  в поставке после живого порога.
 
 ### Phase 5. Soar для BDI, фракций и мира (4–6 недель)
 

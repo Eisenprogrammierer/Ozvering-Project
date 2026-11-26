@@ -220,6 +220,18 @@
   `tests/test_d6_inference.py`.
 - [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
   идёт через RiveScript + Soar, `ChartParser` — fallback.
+  - [x] **Шаг 1. Живой путь.** `campaign/cognition/nlu_backend.py`
+    (`NluBackend`/`NluReport`/`load_nlu`), режимы
+    `legacy|shadow|rive`, `DialogueSession` принимает `nlu`,
+    `repl`/`corpus_builder` подключают `load_nlu`; паритет на 144
+    входах — 0 расхождений, `fallback_rate` 1.39%, `mismatches` 0;
+    без `rivescript` `shadow` деградирует, `rive` отказывает.
+    Тесты — `tests/test_nlu_backend.py`.
+  - [ ] Строить слоты кадра из RiveScript (`<star>`/манифест), оставив
+    `ChartParser` только fallback.
+  - [ ] Уточнения и восстановление после ошибок на rive-пути.
+  - [ ] Save/load состояния диалога и Soar WM.
+  - [ ] Включить `nlu_backend=rive` в поставке после живого порога.
 - [ ] **Phase 5. Soar для BDI, фракций и мира.** Решения агентов в Soar,
   Python — среда; RL-предпочтения после сравнения.
 - [ ] **Phase 6. Демонтаж GOFAI.** Удалить старые NLU/эвристики и

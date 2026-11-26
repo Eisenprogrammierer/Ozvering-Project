@@ -11,6 +11,7 @@ from campaign.perception import campaign_view
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
 
+from ..cognition.nlu_backend import load_nlu
 from .engine import DialogueSession
 from .inference_backend import load_inference
 from .knowledge import build_knowledge
@@ -49,7 +50,7 @@ def build_session(
     knowledge = build_knowledge(
         catalog, campaign, side, character or None, view=view
     )
-    return DialogueSession(
+    session = DialogueSession(
         catalog,
         knowledge,
         allow_actions=allow_actions,
@@ -57,6 +58,8 @@ def build_session(
         pragmatics=load_pragmatics(),
         inference=load_inference(catalog, knowledge),
     )
+    session.nlu = load_nlu(session)
+    return session
 
 
 def main(argv=None) -> int:

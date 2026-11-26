@@ -123,6 +123,15 @@ class RiveNlu:
             "empty": 0,
         }
         self.sources: Dict[str, int] = {}
+        # Смысл по-прежнему строит legacy-адаптер: RiveScript выбирает
+        # триггер, а живой путь диалога забирает готовый разбор отсюда.
+        self.last_sem: Any = None
+        self.last_parse: Any = None
+        self.last_source = ""
+        self.last_rule = ""
+        self.last_reason = ""
+        self.last_trigger = ""
+        self.last_match: Any = None
 
     def reset(self) -> None:
         """Сбросить счётчики живого ввода."""
@@ -167,9 +176,21 @@ class RiveNlu:
             raise BackendError("RiveScript: %s" % value)
         return value
 
+    def _adopt(self, base: Any) -> None:
+        """Перенести последний legacy-разбор в публичные поля."""
+
+        self.last_sem = self.legacy.last_sem
+        self.last_parse = self.legacy.last_parse
+        self.last_source = self.legacy.last_source
+        self.last_rule = self.legacy.last_rule
+        self.last_reason = self.legacy.last_reason
+        self.last_trigger = ""
+        self.last_match = None
+
     def understand(self, text: str, *, topic: str = "default"):
         raw = str(text or "")
         base = self.legacy.understand(raw, topic=topic)
+        self._adopt(base)
         if not raw.strip():
             self.counts["empty"] += 1
             return base
@@ -184,6 +205,8 @@ class RiveNlu:
             return base
         self.counts["matched"] += 1
         self.sources[match.source] = self.sources.get(match.source, 0) + 1
+        self.last_trigger = match.id
+        self.last_match = match
         return self._apply(base, match)
 
     def _apply(self, base: Any, match: Any) -> Any:

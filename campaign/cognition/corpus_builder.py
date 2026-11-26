@@ -126,7 +126,7 @@ def build_default_session(
     knowledge = build_knowledge(catalog, campaign, "red")
     if inference is None:
         inference = load_inference(catalog, knowledge)
-    return DialogueSession(
+    session = DialogueSession(
         catalog,
         knowledge,
         style_id="neutral",
@@ -134,6 +134,10 @@ def build_default_session(
         pragmatics=pragmatics,
         inference=inference,
     )
+    from .nlu_backend import load_nlu
+
+    session.nlu = load_nlu(session)
+    return session
 
 
 def main(argv: Optional[List[str]] = None) -> int:

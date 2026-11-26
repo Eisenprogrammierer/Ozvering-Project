@@ -22,6 +22,9 @@
 > С Phase 3a план ответа и раскрытие D6.3 считает Soar в режиме
 > `dialogue_backend=shadow`; с Phase 3b там же строится логический
 > вывод и трассировка доказательства (`inference_backend=soar`).
+> Phase 4: живой разбор чтит `nlu_backend` (`NluBackend`), RiveScript
+> выбирает триггер, но смысл кадра пока собирает legacy-адаптер;
+> `fallback_rate` и расхождения видны в `session.nlu.report.to_dict()`.
 
 ---
 

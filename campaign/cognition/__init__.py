@@ -72,6 +72,9 @@ from .soar_bridge import (
 # компиляторов) предупреждал бы о повторном импорте модуля.
 _LAZY = {
     "InferenceModel": (".inference_compiler", "InferenceModel"),
+    "NluBackend": (".nlu_backend", "NluBackend"),
+    "NluReport": (".nlu_backend", "NluReport"),
+    "load_nlu": (".nlu_backend", "load_nlu"),
     "ProofNode": (".inference_runtime", "ProofNode"),
     "SoarInference": (".inference_runtime", "SoarInference"),
     "check_inference": (".inference_compiler", "check_policy"),
@@ -116,6 +119,8 @@ __all__ = [
     "InferenceModel",
     "LegacyNlu",
     "NLU_BACKENDS",
+    "NluBackend",
+    "NluReport",
     "ParityReport",
     "ProofNode",
     "Rejection",
@@ -134,6 +139,7 @@ __all__ = [
     "frame_confidence",
     "load_flags",
     "load_inference_model",
+    "load_nlu",
     "register_nlu_backend",
     "record_corpus",
     "request_digest",
