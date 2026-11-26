@@ -247,6 +247,7 @@ def test_snapshot_keeps_npc_policy_config():
     restored = AutomataCampaign(
         _preset(7), seed=7, snapshot=campaign.save_snapshot()
     )
+    restored._soar_available = lambda: True
     policy = restored.ai_model["npc_policy"]
     assert policy["backend"] == "legacy"
     assert policy["backends"] == {"blue": "shadow"}
