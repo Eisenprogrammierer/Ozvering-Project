@@ -77,13 +77,15 @@ def _campaign(seed=7):
     return AutomataCampaign(generator.generate(seed=seed), seed=seed)
 
 
-def test_policy_layer_is_off_by_default_and_overrides_heuristic_when_on():
+def test_policy_layer_can_be_disabled_and_overrides_heuristic_when_on():
     campaign = _campaign()
     side = [
         item
         for item in campaign.factions
         if item != campaign.player_side
     ][0]
+    campaign.ai_model["npc_policy"] = {"enabled": False}
+    campaign._npc_policy_obj = None
     assert campaign._npc_policy() is None
 
     campaign.ai_model["npc_policy"] = {"enabled": True}

@@ -56,7 +56,7 @@ def _backend(value: Any, allowed, name: str) -> str:
 class CognitionFlags:
     """Проверенный набор флагов и порогов."""
 
-    ai_backend: str = "legacy"
+    ai_backend: str = "soar"
     nlu_backend: str = "legacy"
     record_shadow: bool = False
     compare_shadow: bool = False
@@ -154,7 +154,7 @@ def load_flags(
     if not isinstance(timeouts, Mapping):
         raise BackendError("timeouts должен быть объектом")
     ai_backend = _backend(
-        env.get(ENV_AI, raw.get("ai_backend", "legacy")),
+        env.get(ENV_AI, raw.get("ai_backend", "soar")),
         AI_BACKENDS,
         "ai_backend",
     )

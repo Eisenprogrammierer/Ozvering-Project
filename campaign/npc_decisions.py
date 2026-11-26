@@ -76,6 +76,7 @@ class NpcDecisionMonitor:
     agreements: int = 0
     errors: int = 0
     budget: int = 0
+    unavailable: bool = False
     elapsed_ms: float = 0.0
     max_elapsed_ms: float = 0.0
     sides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -205,7 +206,11 @@ class NpcDecisionMonitor:
         """JSON-совместимая сводка для тестов, CLI и диагностики."""
 
         limit = float(threshold)
-        ok = self.errors == 0 and self.agreement >= limit
+        ok = (
+            self.errors == 0
+            and not self.unavailable
+            and self.agreement >= limit
+        )
         return {
             "kind": "npc_decisions",
             "version": MONITOR_VERSION,
@@ -217,6 +222,7 @@ class NpcDecisionMonitor:
             "ok": ok,
             "errors": self.errors,
             "budget": self.budget,
+            "unavailable": bool(self.unavailable),
             "elapsed_ms": round(self.elapsed_ms, 3),
             "max_elapsed_ms": round(self.max_elapsed_ms, 3),
             "sides": {

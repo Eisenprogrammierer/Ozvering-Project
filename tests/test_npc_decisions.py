@@ -83,6 +83,7 @@ def test_monitor_without_errors_and_full_agreement_is_ok():
 
 def test_npc_backend_uses_side_then_default_then_flag():
     campaign = _campaign()
+    campaign._soar_available = lambda: True
     _enable(campaign, backend="soar", backends={"red": "shadow"})
     assert campaign.npc_backend("red") == "shadow"
     assert campaign.npc_backend("blue") == "soar"
@@ -95,6 +96,16 @@ def test_npc_backend_uses_side_then_default_then_flag():
     campaign.ai_model["npc_policy"] = {"enabled": True}
     assert campaign.npc_backend("green") == "shadow"
     assert campaign.npc_decision_timeout_ms() == 50.0
+
+
+def test_npc_backend_degrades_without_soar_package():
+    campaign = _campaign()
+    campaign._soar_available = lambda: False
+    _enable(campaign, backend="soar")
+    assert campaign.npc_backend("red") == "legacy"
+    report = campaign.npc_decision_report()
+    assert report["unavailable"] is True
+    assert report["ok"] is False
 
 
 def test_npc_backend_rejects_unknown_value():
@@ -114,9 +125,10 @@ def test_default_npc_policy_falls_back_to_global_flag():
     from campaign.automata_support import AI_MODEL_DEFAULTS
 
     config = AI_MODEL_DEFAULTS["npc_policy"]
-    assert config["enabled"] is False
+    assert config["enabled"] is True
     assert "backend" not in config
     campaign = _campaign()
+    campaign._soar_available = lambda: True
     campaign.ai_model["npc_policy"] = {"enabled": True}
     campaign._cognition_flags = lambda: type(
         "Flags",
@@ -310,6 +322,7 @@ def test_tick_budget_resets_on_new_turn():
 
 def test_tick_budget_falls_back_to_legacy_in_shadow():
     campaign = _campaign()
+    campaign._soar_available = lambda: True
     sides = _ai_sides(campaign)
     _enable(
         campaign,
@@ -330,6 +343,7 @@ def test_tick_budget_falls_back_to_legacy_in_shadow():
 
 def test_tick_budget_falls_back_in_strict_soar():
     campaign = _campaign()
+    campaign._soar_available = lambda: True
     _enable(campaign, backend="soar", tick_timeout_ms=1)
     campaign.begin_turn()
     campaign._npc_tick_spent_ms = 1.0

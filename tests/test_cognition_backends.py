@@ -24,12 +24,24 @@ def _write(tmp_path: Path, data: dict) -> Path:
     return path
 
 
-def test_default_config_is_legacy_and_valid():
+def test_isolated_config_is_legacy_and_valid():
     flags = load_flags(environ={})
     assert flags.ai_backend == "legacy"
     assert flags.nlu_backend == "legacy"
     assert flags.accept_threshold > flags.clarify_threshold
     assert default_config_path().is_file()
+
+
+def test_shipped_config_enables_soar():
+    shipped = (
+        Path(__file__).resolve().parents[1]
+        / "configs"
+        / "cognition"
+        / "backends.json"
+    )
+    flags = load_flags(shipped, environ={})
+    assert flags.ai_backend == "soar"
+    assert flags.nlu_backend == "legacy"
 
 
 def test_env_overrides_backend_but_not_thresholds(tmp_path):

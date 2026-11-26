@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "ai_backend": "legacy",
+  "ai_backend": "soar",
   "nlu_backend": "legacy",
   "shadow": {
     "record": false,

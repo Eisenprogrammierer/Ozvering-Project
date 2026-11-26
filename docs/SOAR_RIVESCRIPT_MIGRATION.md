@@ -1,14 +1,15 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2c закрыты: есть фасад
+> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2f закрыты: есть фасад
 > `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
 > `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
 > `configs/dialogue → configs/rive` и `configs/soar → .soar`, object
 > macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow`,
-> `ai_backend=shadow` с Soar-политикой NPC и грамматика RiveScript в
-> роли NLU-триггеров.
+> `ai_backend=shadow` с Soar-политикой NPC, грамматика RiveScript в
+> роли NLU-триггеров, а `ai_backend=soar` включён основным режимом
+> выбора работы NPC.
 >
-> **Дата:** 2026-11-25.
+> **Дата:** 2026-11-26.
 >
 > **Область:** весь ИИ проекта, а не только диалог: диалоговый NLU/NLG,
 > BDI и 16 потребностей, выбор работы NPC, решения фракций, приказы,
@@ -853,8 +854,6 @@ Deliverables:
 - тесты: `test_score_window_averages_recent_turns`,
   `test_score_window_survives_snapshot_roundtrip`.
 
-**Осталось (Phase 2d):** перевод `ai_backend=soar` в основной режим.
-
 **Сделано (Phase 2e, 2026-11-26):**
 
 - бюджет решения перенесён на уровень тика: `npc_policy.tick_timeout_ms`
@@ -882,6 +881,31 @@ Deliverables:
   `test_tick_budget_falls_back_to_legacy_in_shadow`,
   `test_tick_budget_falls_back_in_strict_soar`,
   `test_tick_budget_limits_single_decision`.
+
+**Сделано (Phase 2f, 2026-11-26): Soar — основной режим.**
+
+- `configs/cognition/backends.json` и `load_flags()` по умолчанию
+  отдают `ai_backend = soar`; `ai_model.npc_policy.enabled = true`.
+  Без явного `npc_policy.backend` действует глобальный флаг, поэтому
+  выбор работы NPC идёт через Soar;
+- строгий `soar` проверен на 20 seed × 60 ходов × 4 шаблона: исходы
+  совпадают с легаси (империя 13/7/0, республика 7/11/2, культ 7/10/3,
+  корпорация 12/3/5); паритет снимка и метрик потребностей закреплён
+  тестами, а контрольный прогон 2 seed × 60 ходов дал 560 решений без
+  ошибок и исчерпаний бюджета; ~5.7 мс на решение и ~60 мс на ход при
+  бюджете 250 мс;
+- если `soar-sml` не установлен, `shadow`/`soar` понижаются до
+  `legacy` с тем же выбором (формула и tie-break идентичны), а
+  `npc_decision_report()` помечает прогон `unavailable`/`ok: false`;
+  поэтому основной CI без нативного пакета остаётся зелёным и
+  кроссплатформенным;
+- золотая фикстура переснята: включение политики меняет траекторию
+  (`digest` и действия фракций), но не структуру снимка;
+- **Rollback:** `OZVERIN_AI_BACKEND=legacy` (или `ai_backend=legacy` в
+  `configs/cognition/backends.json`) либо `npc_policy.enabled = false`;
+  оба варианта возвращают прежнее поведение без изменения кода;
+- тесты: `test_npc_backend_degrades_without_soar_package`,
+  `test_default_npc_policy_falls_back_to_global_flag`.
 
 ### Phase 3. Soar shadow для прагматики диалога (4–6 недель)
 

@@ -539,15 +539,21 @@ custom = content.get("my_new_file", {})
 `doctrine.essences`. Ни intent, ни форма работы не зашиты в Python:
 `ai_action_weights()` показывает итоговые веса для диагностики.
 
-Блок `ai_model.npc_policy` может включить выбор работы политикой
-`NeedPolicy`. Поле `backend` задаёт бэкенд всех сторон (`legacy`,
-`shadow`, `soar`), `backends` — карту `фракция → backend`; если ключа
-`backend` нет, действует глобальный `ai_backend` из
-`configs/cognition/backends.json`. `timeout_ms` — бюджет решения (0 —
-взять общий `timeouts.decision_ms`). В режиме `shadow` Soar считает
-решение параллельно, игра получает выбор легаси, а
+Блок `ai_model.npc_policy` включает выбор работы политикой
+`NeedPolicy`; по умолчанию `enabled = true`. Поле `backend` задаёт
+бэкенд всех сторон (`legacy`, `shadow`, `soar`), `backends` — карту
+`фракция → backend`; если ключа `backend` нет, действует глобальный
+`ai_backend` из `configs/cognition/backends.json` (по умолчанию
+`soar`). `timeout_ms` — бюджет решения (0 — взять общий
+`timeouts.decision_ms`). В режиме `shadow` Soar считает решение
+параллельно, игра получает выбор легаси, а
 `npc_decision_report()` показывает согласие, ошибки и латентность по
-сторонам.
+сторонам. Если пакет `soar-sml` недоступен (колесо собрано не под все
+платформы), `shadow`/`soar` понижаются до `legacy`: Soar повторяет
+формулу `NeedPolicy` и tie-break один в один, поэтому выбор тот же, а
+`report()["unavailable"]` и `ok: false` показывают, что заявленный
+бэкенд не работал. Откат — `enabled = false` или
+`OZVERIN_AI_BACKEND=legacy`.
 `npc_outcome_report()` добавляет длинные метрики: `needs` — среднее
 давление и удовлетворённость (`1 − pressure`) по 16 потребностям
 каждой стороны, `jobs` — `distinct`, энтропию, `evenness` и

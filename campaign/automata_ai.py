@@ -323,6 +323,16 @@ class AutomataAIMixin:
             self._cognition_flags_obj = flags
         return flags
 
+    def _soar_available(self):
+        """Есть ли пакет Soar; кэшируется на кампанию."""
+        cached = getattr(self, "_soar_available_cache", None)
+        if cached is None:
+            from .cognition.soar_runtime import soar_available
+
+            cached = bool(soar_available())
+            self._soar_available_cache = cached
+        return cached
+
     def npc_backend(self, side):
         """Бэкенд стороны: ``backends`` → ``backend`` → глобальный флаг."""
         config = self._npc_config()
@@ -338,6 +348,12 @@ class AutomataAIMixin:
                 "npc_policy.backend=%r не поддерживается; допустимо: %s"
                 % (backend, ", ".join(AI_BACKENDS))
             )
+        if backend in ("shadow", "soar") and not self._soar_available():
+            # Колесо soar-sml собрано не под все платформы. Soar повторяет
+            # формулу NeedPolicy и tie-break один в один, поэтому выбор
+            # тот же; отсутствие пакета видно в отчёте как unavailable.
+            self.npc_decision_monitor().unavailable = True
+            return "legacy"
         return backend
 
     def npc_decision_timeout_ms(self):
@@ -509,7 +525,6 @@ class AutomataAIMixin:
         backend = self.npc_backend(side)
         if backend == "legacy":
             return policy.choose(candidates, needs)
-        soar = self._soar_policy()
         limit = self.npc_tick_timeout_ms()
         spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
         left = max(0.0, limit - spent)
@@ -522,6 +537,9 @@ class AutomataAIMixin:
                 % (spent, limit)
             )
         else:
+            # Политика создаётся только когда решение действительно
+            # будет считаться: при исчерпанном бюджете Soar не нужен.
+            soar = self._soar_policy()
             budget = min(self.npc_decision_timeout_ms(), left)
             try:
                 candidate = self._soar_candidate(

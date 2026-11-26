@@ -1193,7 +1193,7 @@
   "ai_model": {
     "score_floor": 0.01,
     "npc_policy": {
-      "enabled": false,
+      "enabled": true,
       "backends": {},
       "timeout_ms": 0,
       "tick_timeout_ms": 0,
