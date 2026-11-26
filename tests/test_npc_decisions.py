@@ -110,6 +110,26 @@ def test_local_timeout_overrides_global_flag():
     assert campaign.npc_decision_timeout_ms() == 17.0
 
 
+def test_default_npc_policy_falls_back_to_global_flag():
+    from campaign.automata_support import AI_MODEL_DEFAULTS
+
+    config = AI_MODEL_DEFAULTS["npc_policy"]
+    assert config["enabled"] is False
+    assert "backend" not in config
+    campaign = _campaign()
+    campaign.ai_model["npc_policy"] = {"enabled": True}
+    campaign._cognition_flags = lambda: type(
+        "Flags",
+        (),
+        {
+            "ai_backend": "soar",
+            "decision_timeout_ms": 200,
+            "tick_timeout_ms": 250,
+        },
+    )()
+    assert campaign.npc_backend("red") == "soar"
+
+
 def test_campaign_shadow_matches_legacy_on_long_run():
     pytest.importorskip("soar_sml")
     campaign = _campaign(13)
@@ -261,6 +281,19 @@ def test_soar_backend_matches_legacy_state_and_outcomes():
     assert soar.npc_outcome_report()["ok"] is True
 
 
+def test_strict_soar_counts_decisions_without_agreement():
+    pytest.importorskip("soar_sml")
+    campaign = _campaign(29)
+    _enable(campaign, backend="soar")
+    campaign.run(turns=4)
+    report = campaign.npc_decision_report()
+    assert report["total"] > 0
+    assert report["evaluated"] == 0
+    assert report["agreement"] == 1.0
+    assert report["errors"] == 0
+    assert report["elapsed_ms"] > 0.0
+
+
 def test_tick_budget_resets_on_new_turn():
     campaign = _campaign()
     _enable(campaign, backend="legacy", tick_timeout_ms=100)
@@ -295,15 +328,17 @@ def test_tick_budget_falls_back_to_legacy_in_shadow():
     assert report["ok"] is False
 
 
-def test_tick_budget_refuses_in_strict_soar():
-    from campaign.cognition import SoarError
-
+def test_tick_budget_falls_back_in_strict_soar():
     campaign = _campaign()
     _enable(campaign, backend="soar", tick_timeout_ms=1)
     campaign.begin_turn()
     campaign._npc_tick_spent_ms = 1.0
-    with pytest.raises(SoarError):
-        campaign.auto_action(_ai_sides(campaign)[0])
+    chosen = campaign.auto_action(_ai_sides(campaign)[0])
+    assert chosen is not None
+    report = campaign.npc_decision_report()
+    assert report["budget"] >= 1
+    assert report["errors"] >= 1
+    assert report["ok"] is False
 
 
 def test_tick_budget_limits_single_decision():

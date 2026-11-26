@@ -172,6 +172,26 @@ class NpcDecisionMonitor:
                 }
             )
 
+    def note_decision(self, *, side: Any, elapsed_ms: float = 0.0) -> None:
+        """Учесть решение без сравнения с легаси (строгий ``soar``).
+
+        Согласие здесь не считается: сравнивать не с чем. Счётчик нужен,
+        чтобы отчёт строгого прогона показывал объём и латентность.
+        """
+
+        key = str(side)
+        bundle = self.sides.setdefault(key, _side_bundle())
+        self.total += 1
+        bundle["total"] += 1
+        elapsed = max(0.0, float(elapsed_ms or 0.0))
+        if elapsed:
+            self.elapsed_ms += elapsed
+            self.max_elapsed_ms = max(self.max_elapsed_ms, elapsed)
+            bundle["elapsed_ms"] += elapsed
+            bundle["max_elapsed_ms"] = max(
+                bundle["max_elapsed_ms"], elapsed
+            )
+
     @property
     def agreement(self) -> float:
         if not self.evaluated:

@@ -206,6 +206,11 @@ def _collect(
         "final_spread": final_spread,
         "final_scores": final,
         "trajectory": trajectory,
+        "npc_decisions": (
+            campaign.npc_decision_report()
+            if npc_policy != "off"
+            else None
+        ),
     }
 
 
@@ -403,6 +408,34 @@ def main(argv=None):
         )
         if max(spreads) < 0.02:
             print("  ВНИМАНИЕ: равновесие, фракции не расходятся")
+        decisions = [
+            record["npc_decisions"]
+            for record in records
+            if record.get("npc_decisions")
+        ]
+        if decisions:
+            total = sum(item["total"] for item in decisions)
+            errors = sum(item["errors"] for item in decisions)
+            budget = sum(item["budget"] for item in decisions)
+            elapsed = sum(item["elapsed_ms"] for item in decisions)
+            evaluated = sum(item["evaluated"] for item in decisions)
+            agreement = (
+                sum(item["agreements"] for item in decisions)
+                / float(evaluated)
+                if evaluated
+                else None
+            )
+            print(
+                "решения NPC: %d, ошибок %d, бюджет тика %d, "
+                "согласие %s, %.1f мс на решение"
+                % (
+                    total,
+                    errors,
+                    budget,
+                    "%.3f" % agreement if agreement is not None else "—",
+                    elapsed / float(total) if total else 0.0,
+                )
+            )
         bias = records[0]["bias"] if records else 0.0
         print("score_bias из шаблона: %+.3f" % bias)
         print(

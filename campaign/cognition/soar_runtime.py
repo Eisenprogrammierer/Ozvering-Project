@@ -69,7 +69,12 @@ def _kernel() -> Any:
             "(pip install -r requirements-soar.txt)"
         ) from exc
     try:
-        _KERNEL = soar_sml.Kernel.CreateKernelInNewThread()
+        # Порт слушателя нужен только отладчику Soar. Фиксированный
+        # порт не даёт запустить второй процесс (игра, эксперимент,
+        # параллельный прогон), поэтому ядро берёт свободный.
+        _KERNEL = soar_sml.Kernel.CreateKernelInNewThread(
+            soar_sml.Kernel.kUseAnyPort
+        )
     except Exception as exc:  # pragma: no cover - среда без Soar
         raise SoarError("не удалось запустить Soar") from exc
     return _KERNEL

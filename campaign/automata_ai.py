@@ -521,8 +521,6 @@ class AutomataAIMixin:
                 "бюджет тика исчерпан: %.2f мс из %.2f мс"
                 % (spent, limit)
             )
-            if backend == "soar":
-                raise SoarError(error)
         else:
             budget = min(self.npc_decision_timeout_ms(), left)
             try:
@@ -540,7 +538,10 @@ class AutomataAIMixin:
             finally:
                 elapsed_ms = float(soar.last_elapsed_ms)
                 self._npc_tick_spent_ms = spent + elapsed_ms
-        if backend == "soar":
+        if backend == "soar" and error is None:
+            self.npc_decision_monitor().note_decision(
+                side=side, elapsed_ms=elapsed_ms
+            )
             return candidate
         legacy = policy.choose(candidates, needs)
         self.npc_decision_monitor().record(
