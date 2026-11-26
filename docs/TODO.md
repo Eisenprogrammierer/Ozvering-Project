@@ -207,8 +207,10 @@
   Python выбирает решения в порядке легаси, проверяет общие переменные
   правил и отсекает циклы по `(правило, аргументы)`; паритет 14 680
   запросов — 0 расхождений по `bindings`, `ProofStep`, порядку и
-  `first()`. `inference_backend=legacy|shadow|soar` (в поставке
-  `shadow`, env `OZVERIN_INFERENCE_BACKEND`), `InferenceBackend` в
+  `first()`. На живом корпусе (144 входа полной сессии, 177 запросов)
+  ответы `legacy|shadow|soar` совпадают, расхождений 0, поэтому в
+  поставке включён `soar`. `inference_backend=legacy|shadow|soar`
+  (env `OZVERIN_INFERENCE_BACKEND`), `InferenceBackend` в
   `shadow` возвращает легаси и пишет расхождения, в `soar` ошибки не
   маскируются, без `soar-sml` — деградация до `legacy` с
   `unavailable: true`, `ok: false`; откат —

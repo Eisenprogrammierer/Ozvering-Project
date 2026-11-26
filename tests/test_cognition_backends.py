@@ -45,7 +45,7 @@ def test_shipped_config_enables_soar():
     assert flags.ai_backend == "soar"
     assert flags.nlu_backend == "legacy"
     assert flags.dialogue_backend == "shadow"
-    assert flags.inference_backend == "shadow"
+    assert flags.inference_backend == "soar"
 
 
 def test_dialogue_backend_is_validated_and_serialized():

@@ -21,7 +21,7 @@
 > метрики — [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md).
 > С Phase 3a план ответа и раскрытие D6.3 считает Soar в режиме
 > `dialogue_backend=shadow`; с Phase 3b там же строится логический
-> вывод и трассировка доказательства (`inference_backend=shadow`).
+> вывод и трассировка доказательства (`inference_backend=soar`).
 
 ---
 
@@ -683,8 +683,8 @@ style_context.json` (автовыбор).
    пишутся в отчёт `DialoguePragmatics`, тексты и синтез — в Python.
    С Phase 3b логический вывод и трассировка доказательства строятся
    прямым замыканием Soar (`configs/soar/inference.soar`,
-   `SoarInference`) в режиме `inference_backend=shadow`; ответы, порядок
-   решений и `ProofStep` обязаны совпадать с `InferenceEngine`.
+   `SoarInference`); в поставке включён `inference_backend=soar`,
+   ответы, порядок решений и `ProofStep` совпадают с `InferenceEngine`.
 10. **D3.2 в тексте ответа.** Сейчас `cf_*` конструкции не используют
     `differences`/`removed`/`added`. «Изменилось бы потому, что …» —
     открытый хвост D6.2. Сквозные контрфакты после D6.2c достижимы и

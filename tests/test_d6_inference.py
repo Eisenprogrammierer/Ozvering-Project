@@ -29,7 +29,9 @@ from campaign.cognition.inference_compiler import (
     source_digest,
     write_policy,
 )
+from campaign.cognition.corpus_builder import dialogue_variants
 from campaign.cognition.inference_runtime import SoarInference
+from campaign.cognition.nlu_lint import collect_phrases
 from campaign.dialogue import (
     DialogueSession,
     InferenceBackend,
@@ -408,19 +410,21 @@ def test_backend_validates_mode():
 
 
 def test_corpus_answers_agree_across_inference_modes():
+    """Живой корпус: 144 входа диалога дают тот же ответ на всех режимах.
+
+    Это проверка не отдельного ``prove()``, а полной сессии: план, вид
+    ответа и текст должны совпасть, а теневой режим — не найти
+    расхождений на всех 177 запросах вывода.
+    """
+
     pytest.importorskip("soar_sml")
     catalog = _catalog()
     knowledge = _campaign_knowledge()
-    phrases = (
-        "Привет",
-        "Кто ты?",
-        "Считает ли Империя Республику незаконной?",
-        "Империя воюет с Республикой?",
-        "Почему?",
-        "Расскажи о Республике",
-        "Что ты знаешь о Республике?",
-        "Пока",
+    phrases = tuple(
+        text
+        for _identifier, text in dialogue_variants(collect_phrases())
     )
+    assert len(phrases) == 144
 
     def run(mode):
         session = DialogueSession(
@@ -436,9 +440,12 @@ def test_corpus_answers_agree_across_inference_modes():
         answers = []
         for text in phrases:
             answer = session.respond(text).answer
-            answers.append(
-                (answer.plan_id, answer.kind, answer.text)
-            )
+            if answer is None:
+                answers.append(None)
+            else:
+                answers.append(
+                    (answer.plan_id, answer.kind, answer.text)
+                )
         return answers, session.planner.inference.to_dict()
 
     base, _report = run("legacy")

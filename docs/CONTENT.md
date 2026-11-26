@@ -594,7 +594,7 @@ Soar-решений за ход. Каждое решение получает
 откат — `OZVERIN_DIALOGUE_BACKEND=legacy`.
 
 Логический вывод управляется `inference_backend` из того же JSON
-(`legacy`, `shadow`, `soar`; в поставке `shadow`). Soar строит прямое
+(`legacy`, `shadow`, `soar`; в поставке `soar`). Soar строит прямое
 замыкание `rules.json` в `inference.soar`; Python выбирает из него
 решения в порядке легаси, проверяет общие переменные правил и отсекает
 циклы, поэтому `Solution`/`ProofStep` совпадают с `InferenceEngine`.

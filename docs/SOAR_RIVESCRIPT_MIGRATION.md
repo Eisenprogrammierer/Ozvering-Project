@@ -9,7 +9,8 @@
 > роли NLU-триггеров, `ai_backend=soar` включён основным режимом
 > выбора работы NPC, прагматика диалога (план ответа и раскрытие D6.3)
 > идёт через Soar в режиме `shadow`, а логический вывод и трассировка
-> доказательства строятся прямым замыканием в Soar (тоже `shadow`).
+> доказательства строятся прямым замыканием в Soar и включены основным
+> режимом (`inference_backend=soar`).
 >
 > **Дата:** 2026-11-26.
 >
@@ -984,7 +985,7 @@ Deliverables:
   `first()` совпадают с `InferenceEngine`;
 - `inference_backend=legacy|shadow|soar` в
   `configs/cognition/backends.json` и `CognitionFlags`; в поставке
-  `shadow`, в изолированных тестах `legacy`; окружение
+  `soar`, в изолированных тестах `legacy`; окружение
   `OZVERIN_INFERENCE_BACKEND`; `InferenceBackend`/`load_inference`
   (`campaign/dialogue/inference_backend.py`) в `shadow` возвращает
   легаси-результат и пишет `queries`, `agreements`, `disagreements`,
@@ -998,9 +999,13 @@ Deliverables:
 - паритет: 14 680 запросов (5 сидов × 4 фракции × 4 говорящих, все
   отношения, точные/частичные/переменные шаблоны) — 0 расхождений по
   `bindings`, подписям `ProofStep`, порядку решений и `first()`;
+- паритет на живом корпусе: все 144 входа золотого корпуса через
+  полную `DialogueSession` (177 запросов вывода) дают одинаковые
+  `plan_id`, вид и текст ответа в `legacy|shadow|soar`, теневой режим —
+  0 расхождений; поэтому в поставке включён `soar`;
 - **Rollback:** `OZVERIN_INFERENCE_BACKEND=legacy` или
-  `inference_backend=legacy`; `soar` в поставке не включается до
-  подтверждения паритета на живом корпусе;
+  `inference_backend=legacy`; `shadow` остаётся доступным для сбора
+  расхождений на новом контенте;
 - тесты: `tests/test_d6_inference.py` — компилятор и digest, несвязанные
   head-переменные, повтор правил, запись/проверка артефакта, паритет на
   корпусе, цикл и depth-cap, read-only, лимит узлов, режимы, деградация,
@@ -1270,7 +1275,7 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/parser.py` | fallback / удаление | Phase 4–6 |
 | `dialogue/semantics.py` | сборка кадра | остаётся, упрощается |
 | `dialogue/inference.py` | Soar-продукции | Phase 3b сделана; `CounterfactualEngine` — follow-up |
-| `dialogue/planner.py` | Soar-операторы | Phase 3b |
+| `dialogue/planner.py` | Soar-операторы | план ответа — Phase 3a; `GoalPlanner` (D6.4, цели разговора) остаётся в Python |
 | `dialogue/answers*.py` | Soar + шаблоны | план/раскрытие — Phase 3a, текст — Phase 4 |
 | `dialogue/realize.py` | RiveScript + realizer | Phase 4 |
 | `dialogue/state.py` | Soar WM + снимок | Phase 4 |
