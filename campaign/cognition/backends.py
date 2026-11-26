@@ -18,10 +18,12 @@ from .errors import BackendError
 
 AI_BACKENDS = ("legacy", "shadow", "soar")
 NLU_BACKENDS = ("legacy", "shadow", "rive")
+DIALOGUE_BACKENDS = ("legacy", "shadow", "soar")
 CONFIG_VERSION = 1
 ENV_CONFIG = "OZVERIN_COGNITION_CONFIG"
 ENV_AI = "OZVERIN_AI_BACKEND"
 ENV_NLU = "OZVERIN_NLU_BACKEND"
+ENV_DIALOGUE = "OZVERIN_DIALOGUE_BACKEND"
 
 
 def default_config_path() -> Path:
@@ -58,6 +60,7 @@ class CognitionFlags:
 
     ai_backend: str = "soar"
     nlu_backend: str = "legacy"
+    dialogue_backend: str = "legacy"
     record_shadow: bool = False
     compare_shadow: bool = False
     accept_threshold: float = 0.75
@@ -70,6 +73,11 @@ class CognitionFlags:
     def __post_init__(self):
         _backend(self.ai_backend, AI_BACKENDS, "ai_backend")
         _backend(self.nlu_backend, NLU_BACKENDS, "nlu_backend")
+        _backend(
+            self.dialogue_backend,
+            DIALOGUE_BACKENDS,
+            "dialogue_backend",
+        )
         if not 0.0 <= self.clarify_threshold <= 1.0:
             raise BackendError("clarify_threshold вне [0, 1]")
         if not 0.0 <= self.accept_threshold <= 1.0:
@@ -87,6 +95,7 @@ class CognitionFlags:
         return {
             "ai_backend": self.ai_backend,
             "nlu_backend": self.nlu_backend,
+            "dialogue_backend": self.dialogue_backend,
             "shadow": {
                 "record": self.record_shadow,
                 "compare": self.compare_shadow,
@@ -163,9 +172,18 @@ def load_flags(
         NLU_BACKENDS,
         "nlu_backend",
     )
+    dialogue_backend = _backend(
+        env.get(
+            ENV_DIALOGUE,
+            raw.get("dialogue_backend", "legacy"),
+        ),
+        DIALOGUE_BACKENDS,
+        "dialogue_backend",
+    )
     return CognitionFlags(
         ai_backend=ai_backend,
         nlu_backend=nlu_backend,
+        dialogue_backend=dialogue_backend,
         record_shadow=bool(shadow.get("record", False)),
         compare_shadow=bool(shadow.get("compare", False)),
         accept_threshold=_number(
@@ -195,8 +213,10 @@ __all__ = [
     "AI_BACKENDS",
     "CONFIG_VERSION",
     "CognitionFlags",
+    "DIALOGUE_BACKENDS",
     "ENV_AI",
     "ENV_CONFIG",
+    "ENV_DIALOGUE",
     "ENV_NLU",
     "NLU_BACKENDS",
     "default_config_path",

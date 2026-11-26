@@ -14,6 +14,7 @@ from campaign.roles import RoleCatalog
 from .engine import DialogueSession
 from .knowledge import build_knowledge
 from .loader import load_dialogue
+from .pragmatics import load_pragmatics
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TEMPLATES = {
@@ -52,6 +53,7 @@ def build_session(
         knowledge,
         allow_actions=allow_actions,
         campaign=campaign,
+        pragmatics=load_pragmatics(),
     )
 
 

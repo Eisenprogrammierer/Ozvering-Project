@@ -99,7 +99,9 @@ def check_corpus(
             )
 
 
-def build_default_session(seed: int = DEFAULT_SEED) -> Any:
+def build_default_session(
+    seed: int = DEFAULT_SEED, pragmatics: Any = None
+) -> Any:
     """Собрать сессию на игровых конфигах для CLI."""
 
     from campaign.automata import AutomataCampaign
@@ -123,6 +125,7 @@ def build_default_session(seed: int = DEFAULT_SEED) -> Any:
         build_knowledge(catalog, campaign, "red"),
         style_id="neutral",
         style_hints=False,
+        pragmatics=pragmatics,
     )
 
 

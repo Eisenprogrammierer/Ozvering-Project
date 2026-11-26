@@ -1,0 +1,144 @@
+// Сгенерировано campaign.cognition.pragmatics_compiler.
+// Не редактировать вручную: источники — configs/soar/pragmatics.json и configs/dialogue/disclosure.json.
+// source_digest: 975f87b52d2ecd2e7af1408266fc230fccba4fe22d9c371e5d869bfa2842068d
+
+// Шаг 1: класс кадра.
+sp {pragmatics*interpret
+   (state <s> ^io.input-link <il>)
+   (<s> -^intent <x>)
+   (<il> ^frame <f>)
+   (<f> ^kind <kind>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name interpret-frame ^intent <kind>)
+}
+
+sp {pragmatics*apply-intent
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^name interpret-frame ^intent <kind>)
+-->
+   (<s> ^intent <kind>)
+   (<ol> ^trace-intent <kind>)
+}
+
+// Шаг 2: план ответа. Приоритет важнее порядка каталога,
+// порядок — tie-break, как в легаси.
+sp {pragmatics*select-plan
+   (state <s> ^intent <kind> ^io.input-link <il>)
+   (<s> -^plan <x>)
+   (<il> ^plan <p>)
+   (<p> ^id <id> ^priority <prio> ^rank <rank>)
+-->
+   (<s> ^operator <o> + = (- <prio> (* <rank> 0.000000001)))
+   (<o> ^name select-plan ^plan <id>)
+}
+
+sp {pragmatics*apply-plan
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^name select-plan ^plan <id>)
+-->
+   (<s> ^plan <id>)
+   (<ol> ^trace-plan <id>)
+}
+
+// Шаг 3: политика раскрытия D6.3.
+// Политика раскрытия: evasive.
+sp {pragmatics*disclose-0
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |evasive| ^lie <lie>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |evade| ^policy |evasive|)
+}
+
+// Политика раскрытия: honest.
+sp {pragmatics*disclose-1
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |honest| ^lie <lie>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |truth| ^policy |honest|)
+}
+
+// Ложь: yes.
+sp {pragmatics*disclose-2-lie-yes
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |lie| ^lie |yes|)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |lie| ^policy |lie|)
+}
+
+// Ложь: no.
+sp {pragmatics*disclose-2-lie-no
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |lie| ^lie |no|)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |truth| ^policy |lie|)
+}
+
+// Политика раскрытия: partial.
+sp {pragmatics*disclose-3
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |partial| ^lie <lie>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |partial| ^policy |partial|)
+}
+
+// Политика раскрытия: withhold.
+sp {pragmatics*disclose-4
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy |withhold| ^lie <lie>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |withhold| ^policy |withhold|)
+}
+
+// Неизвестная политика: безопасное умолчание — правда.
+sp {pragmatics*disclose-fallback
+   (state <s> ^plan <pid> ^io.input-link <il>)
+   (<s> -^disclosure *)
+   (<il> ^disclosure <d>)
+   (<d> ^policy <p>)
+   (<d> -^policy |evasive|)
+   (<d> -^policy |honest|)
+   (<d> -^policy |lie|)
+   (<d> -^policy |partial|)
+   (<d> -^policy |withhold|)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name disclose ^outcome |truth| ^policy <p>)
+}
+
+sp {pragmatics*apply-disclosure
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^name disclose ^outcome <outcome> ^policy <p>)
+-->
+   (<s> ^disclosure <outcome>)
+   (<ol> ^trace-policy <p>)
+   (<ol> ^trace-outcome <outcome>)
+}
+
+// Итог уходит в output-link.
+sp {pragmatics*output
+   (state <s> ^io.output-link <ol>)
+   (<s> ^intent <kind> ^plan <pid> ^disclosure <outcome>)
+-->
+   (<ol> ^intent <kind>)
+   (<ol> ^decision <pid>)
+   (<ol> ^disclosure <outcome>)
+}

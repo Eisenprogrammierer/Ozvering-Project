@@ -2,6 +2,7 @@
   "version": 1,
   "ai_backend": "legacy",
   "nlu_backend": "legacy",
+  "dialogue_backend": "legacy",
   "shadow": {
     "record": false,
     "compare": false

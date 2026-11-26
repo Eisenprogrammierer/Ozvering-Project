@@ -2,6 +2,7 @@
   "version": 1,
   "ai_backend": "soar",
   "nlu_backend": "legacy",
+  "dialogue_backend": "shadow",
   "shadow": {
     "record": false,
     "compare": false

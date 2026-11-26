@@ -43,6 +43,12 @@ from .projection import (
     projected_registry,
 )
 from .realize import Realizer
+from .pragmatics import (
+    DIALOGUE_BACKENDS,
+    DialoguePragmatics,
+    PragmaticsReport,
+    load_pragmatics,
+)
 from .semantics import entity_id, flatten, predicate_id, substitute
 from .state import (
     ConversationState,
@@ -64,9 +70,11 @@ __all__ = [
     "ConversationState",
     "ConsoleEntry",
     "DEFAULT_DIR",
+    "DIALOGUE_BACKENDS",
     "DialogueCatalog",
     "DialogueError",
     "DialogueMemory",
+    "DialoguePragmatics",
     "DialogueMemoryStore",
     "DialogueSession",
     "EntityIndex",
@@ -87,6 +95,7 @@ __all__ = [
     "Ontology",
     "Parse",
     "Persona",
+    "PragmaticsReport",
     "ProjectedAction",
     "ProofStep",
     "Realizer",
@@ -110,6 +119,7 @@ __all__ = [
     "load_dialogue",
     "load_goals",
     "load_narrator",
+    "load_pragmatics",
     "load_styles",
     "load_synthesis",
     "load_time",

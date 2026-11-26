@@ -232,7 +232,7 @@
 | `configs/characters/` | `traits.json` (12 черт), `bdi.json` (16 желаний), `divisions.json` (15 делений), `identity.json`, `archetypes.json` | `character_traits.py`, `bdi.py`, `campaign/divisions.py`, `campaign/identity.py` |
 | `configs/systems/` | `environment.json`, `events.json`, `playwright.json` | `systems/` |
 | `configs/dialogue/` | онтология, лексикон, грамматика, правила, факты, планы, синтез, стили, `style_context`, дискурс, сравнения, контрфакты, цели и шаги, псевдонимы действий, текстовый интерфейс, мост к миру | `campaign.dialogue.loader` |
-| `configs/cognition/` | `backends.json` — флаги `ai_backend`/`nlu_backend`, shadow, пороги и таймауты; `golden_corpus.json` — 144 зафиксированных кадра диалога | `campaign.cognition.load_flags()`, `python -m campaign.cognition.corpus_builder --check` |
+| `configs/cognition/` | `backends.json` — флаги `ai_backend`/`nlu_backend`/`dialogue_backend`, shadow, пороги и таймауты; `golden_corpus.json` — 144 зафиксированных кадра диалога | `campaign.cognition.load_flags()`, `python -m campaign.cognition.corpus_builder --check` |
 | `configs/rive/` | сгенерированные `dialogue.rive` и `manifest.json` (не редактировать вручную) | `python -m campaign.cognition.rive_compiler --write` |
 | `configs/soar/` | `decision.json` — формула, пороги и настройки выбора NPC; `npc_policy.soar` генерируется и не редактируется вручную | `python -m campaign.cognition.soar_compiler --write` |
 | `configs/naming/` | лексикон, классы, взаимодействия, люди, политики | `naming/` |

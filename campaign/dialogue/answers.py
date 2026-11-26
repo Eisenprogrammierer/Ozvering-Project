@@ -43,11 +43,13 @@ class AnswerPlanner(AnswerAnswerMixin):
         persona: Persona,
         style_engine: Optional[StyleEngine] = None,
         memory: Any = None,
+        pragmatics: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
         self.persona = persona
         self.memory = memory
+        self.pragmatics = pragmatics
         self.engine = InferenceEngine(catalog, knowledge)
         self.style_engine = style_engine or StyleEngine(catalog)
         self.social_engine = SocialEngine(
@@ -120,14 +122,30 @@ class AnswerPlanner(AnswerAnswerMixin):
     def _plan(self, sem: Any, plan_id: str = "") -> Answer:
         selected = None
         captures: Dict[str, str] = {}
-        for plan in self.plans:
+        candidates: List[Tuple[str, float, int]] = []
+        for index, plan in enumerate(self.plans):
             found = match_pattern(plan.match, sem)
-            if found is not None:
+            if found is None:
+                continue
+            candidates.append((plan.id, float(plan.priority), index))
+            if selected is None:
                 selected = plan
                 captures = found
-                break
         if selected is None:
             return self._unknown("unmatched")
+        if self.pragmatics is not None and candidates:
+            chosen = self.pragmatics.choose_plan(
+                candidates, self._frame(sem), selected.id
+            )
+            if chosen != selected.id:
+                for plan in self.plans:
+                    if plan.id != chosen:
+                        continue
+                    found = match_pattern(plan.match, sem)
+                    if found is not None:
+                        selected = plan
+                        captures = found
+                    break
         if (
             isinstance(sem, Mapping)
             and sem.get("kind") == "counterfactual"
@@ -142,7 +160,34 @@ class AnswerPlanner(AnswerAnswerMixin):
         if handler is None:
             return self._unknown(selected.id)
         answer = handler(selected, captures)
-        return self._disclose(answer, selected, captures)
+        answer = self._with_pragmatics(answer)
+        return self._disclose(answer, selected, captures, sem=sem)
+
+    def _with_pragmatics(self, answer: Answer) -> Answer:
+        """Пометить ответ выбором Soar, не трогая текст и вывод."""
+
+        if self.pragmatics is None or not self.pragmatics.active:
+            return answer
+        data = dict(answer.data or {})
+        data["pragmatics_backend"] = self.pragmatics.backend
+        trace = self.pragmatics.last_trace
+        if trace:
+            data["pragmatics_trace"] = tuple(trace)
+        return Answer(
+            answer.kind, answer.text, answer.plan_id, answer.proof, data
+        )
+
+    @staticmethod
+    def _frame(sem: Any) -> Mapping[str, str]:
+        """Класс кадра для Soar: только данные, без вывода."""
+
+        if not isinstance(sem, Mapping):
+            return {"kind": "", "act": "", "wh": ""}
+        return {
+            "kind": str(sem.get("kind") or ""),
+            "act": str(sem.get("act") or ""),
+            "wh": str(sem.get("wh") or ""),
+        }
 
     # --- раскрытие и ложь (D6.3) ------------------------------------
 
@@ -221,7 +266,11 @@ class AnswerPlanner(AnswerAnswerMixin):
         return int(digest[:8], 16) / float(0xFFFFFFFF)
 
     def _disclose(
-        self, answer: Answer, plan: PlanSpec, captures: Mapping[str, str]
+        self,
+        answer: Answer,
+        plan: PlanSpec,
+        captures: Mapping[str, str],
+        sem: Any = None,
     ) -> Answer:
         """Применить политику раскрытия к информативному ответу.
 
@@ -229,6 +278,10 @@ class AnswerPlanner(AnswerAnswerMixin):
         исход и тексты заданы в ``disclosure.json``. Ложь включается
         только при ``score < lie_probability`` и всегда оставляет в
         ``Answer.data`` истинный ответ и признак ``lied``.
+
+        В режиме ``soar`` исход выбирает Soar; детерминированный бросок
+        для лжи считает Python и передаёт флагом, чтобы продукции не
+        сравнивали числа с плавающей точкой.
         """
 
         if answer.kind not in self._DISCLOSURE_KINDS:
@@ -246,10 +299,43 @@ class AnswerPlanner(AnswerAnswerMixin):
             return answer
         outcome = str(policy.get("outcome") or "truth")
         data = dict(answer.data or {})
+        active = self.pragmatics is not None and self.pragmatics.active
+        if active:
+            lie_flag = False
+            if outcome == "lie":
+                probability = max(
+                    0.0,
+                    min(
+                        1.0,
+                        float(self.persona.lie_probability or 0.0),
+                    ),
+                )
+                score = self._lie_score(topic, data.get("args") or ())
+                lie_flag = score < probability
+            outcome = self.pragmatics.choose_disclosure(
+                plan.id,
+                policy_id,
+                lie_flag,
+                topic,
+                outcome,
+                frame=self._frame(sem),
+            )
+            data["pragmatics_backend"] = self.pragmatics.backend
+            trace = self.pragmatics.last_trace
+            if trace:
+                data["pragmatics_trace"] = tuple(trace)
+        if outcome == "truth":
+            if not active:
+                return answer
+            return Answer(
+                answer.kind,
+                answer.text,
+                answer.plan_id,
+                answer.proof,
+                data,
+            )
         data["disclosure"] = policy_id
         data["disclosure_topic"] = topic
-        if outcome == "truth":
-            return answer
         if outcome == "partial":
             prefix = str(policy.get("prefix") or "")
             text = (prefix + answer.text).strip()

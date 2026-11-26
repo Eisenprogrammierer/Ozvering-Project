@@ -19,6 +19,8 @@
 > `understand()`/`decide()`, `UtteranceFrame` и теневой
 > `nlu_backend=shadow`; JSON компилируется в `configs/rive/`. План и
 > метрики — [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md).
+> С Phase 3a план ответа и раскрытие D6.3 считает Soar в режиме
+> `dialogue_backend=shadow`.
 
 ---
 
@@ -670,7 +672,11 @@ style_context.json` (автовыбор).
    корпус парафраз.
 9. **D6.3 (политика раскрытия и ложь).** Закрыто: политики в
    `disclosure.json`, `lie_probability` у персоны, детерминированный
-   SHA-256-бросок и трассировка истины в `Answer.data`.
+   SHA-256-бросок и трассировка истины в `Answer.data`. С Phase 3a
+   план ответа и исход раскрытия выбирает Soar
+   (`configs/soar/pragmatics.soar`) в режиме
+   `dialogue_backend=shadow`: ответ остаётся легаси, расхождения
+   пишутся в отчёт `DialoguePragmatics`, тексты и синтез — в Python.
 10. **D3.2 в тексте ответа.** Сейчас `cf_*` конструкции не используют
     `differences`/`removed`/`added`. «Изменилось бы потому, что …» —
     открытый хвост D6.2. Сквозные контрфакты после D6.2c достижимы и

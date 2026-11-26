@@ -1,13 +1,14 @@
 # Переход ИИ на Soar + RiveScript
 
-> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2f закрыты: есть фасад
-> `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
+> **Статус:** Phase 0a и Phase 1a–1d, Phase 2a–2f, Phase 3a закрыты:
+> есть фасад `campaign/cognition/`, флаги, схема `UtteranceFrame`, мост
 > `soar_bridge.v1`, золотой корпус, parity-метрики, компиляторы
 > `configs/dialogue → configs/rive` и `configs/soar → .soar`, object
 > macros, NLU-линтер, `corpus_builder`, теневой `nlu_backend=shadow`,
 > `ai_backend=shadow` с Soar-политикой NPC, грамматика RiveScript в
-> роли NLU-триггеров, а `ai_backend=soar` включён основным режимом
-> выбора работы NPC.
+> роли NLU-триггеров, `ai_backend=soar` включён основным режимом
+> выбора работы NPC, а прагматика диалога (план ответа и раскрытие
+> D6.3) идёт через Soar в режиме `shadow`.
 >
 > **Дата:** 2026-11-26.
 >
@@ -925,6 +926,38 @@ Deliverables:
 
 **Rollback:** `dialogue_backend=legacy`.
 
+**Сделано (Phase 3a, 2026-11-26): Soar выбирает план и раскрытие.**
+
+- `configs/soar/pragmatics.json` — источник настроек (`tie_epsilon`,
+  `decision_cycles`); `configs/soar/pragmatics.soar` генерируется
+  `python -m campaign.cognition.pragmatics_compiler --write` и
+  проверяется `--check`; `source_digest` доказывает соответствие
+  источникам (`pragmatics.json` + `disclosure.json`);
+- продукции проходят три шага: `interpret-frame` → `select-plan` →
+  `disclose`. План выбирается по `priority`, затем по порядку каталога
+  (`rank * tie_epsilon`), как легаси `(-priority, id)`; исход раскрытия
+  D6.3 — продукция на политику; для лжи Python считает
+  детерминированный бросок и передаёт готовый флаг, поэтому Soar не
+  сравнивает числа с плавающей точкой;
+- `dialogue_backend=legacy|shadow|soar` в `configs/cognition/backends.json`
+  и `CognitionFlags`; в поставке по умолчанию `shadow`, в изолированных
+  тестах — `legacy`; окружение `OZVERIN_DIALOGUE_BACKEND`;
+- `DialoguePragmatics` (`campaign/dialogue/pragmatics.py`) в `shadow`
+  возвращает легаси-ответ и пишет расхождения в отчёт
+  (`plan_mismatches`, `disclosure_mismatches`, `decisions`, `errors`,
+  `elapsed_ms`); необязательный `shadow_sink` получает записи
+  `plan`/`disclosure` для корпуса; в `soar` ошибки не маскируются; без
+  `soar-sml` оба режима понижаются до `legacy` с `unavailable: true`,
+  `ok: false`;
+- ответ несёт `pragmatics_backend`/`pragmatics_trace`; знание не
+  меняется — read-only проверено тестом на корпусе;
+- **Rollback:** `OZVERIN_DIALOGUE_BACKEND=legacy` или
+  `dialogue_backend=legacy`; `soar` в поставке не включается до
+  подтверждения паритета на живом корпусе;
+- тесты: `tests/test_d6_pragmatics.py` — компилятор и digest, tie-break
+  плана, исходы раскрытия, бюджет, режимы, деградация без пакета,
+  паритет `legacy|shadow|soar` на корпусе.
+
 ### Phase 4. RiveScript как основной NLU + Soar-интерпретация (4–6 недель)
 
 **Цель:** поддерживаемые интенты идут через RiveScript и Soar.
@@ -1188,9 +1221,9 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/morph.py` | object macro | остаётся как библиотека |
 | `dialogue/parser.py` | fallback / удаление | Phase 4–6 |
 | `dialogue/semantics.py` | сборка кадра | остаётся, упрощается |
-| `dialogue/inference.py` | Soar-продукции | Phase 3 |
-| `dialogue/planner.py` | Soar-операторы | Phase 3 |
-| `dialogue/answers*.py` | Soar + шаблоны | Phase 3–4 |
+| `dialogue/inference.py` | Soar-продукции | Phase 3b |
+| `dialogue/planner.py` | Soar-операторы | Phase 3b |
+| `dialogue/answers*.py` | Soar + шаблоны | план/раскрытие — Phase 3a, текст — Phase 4 |
 | `dialogue/realize.py` | RiveScript + realizer | Phase 4 |
 | `dialogue/state.py` | Soar WM + снимок | Phase 4 |
 | `dialogue/bridge.py` | исполнитель команд | остаётся |

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from .backends import (
     AI_BACKENDS,
+    DIALOGUE_BACKENDS,
     NLU_BACKENDS,
     CognitionFlags,
     default_config_path,
@@ -80,6 +81,7 @@ __all__ = [
     "CognitionFlags",
     "CorpusEntry",
     "CorpusError",
+    "DIALOGUE_BACKENDS",
     "DecisionReport",
     "FRAME_VERSION",
     "FrameError",

@@ -185,8 +185,23 @@
   исчерпаний бюджета); без `soar-sml` бэкенд понижается до `legacy` с
   тем же выбором и пометкой `unavailable`, откат —
   `OZVERIN_AI_BACKEND=legacy` или `enabled=false`. Phase 2 закрыта.
-- [ ] **Phase 3. Soar shadow для прагматики.** Вывод, раскрытие и план
-  ответа в Soar; синтез пока старый.
+- [x] **Phase 3a. Soar для прагматики диалога (shadow).** Сделано:
+  `configs/soar/pragmatics.json` → `pragmatics.soar` (компилятор и
+  `--check` с `source_digest`), продукции `interpret-frame` →
+  `select-plan` → `disclose`; `dialogue_backend=legacy|shadow|soar` в
+  `configs/cognition/backends.json` и `CognitionFlags`, в поставке
+  `shadow`; `DialoguePragmatics` возвращает легаси-ответ и пишет
+  расхождения (`plan_mismatches`, `disclosure_mismatches`, `errors`),
+  в `soar` ошибки не маскируются, без `soar-sml` — деградация до
+  `legacy` с `unavailable: true`, `ok: false`; ответ несёт
+  `pragmatics_backend`/`pragmatics_trace`; откат —
+  `OZVERIN_DIALOGUE_BACKEND=legacy`. Паритет `legacy|shadow|soar`
+  закреплён `tests/test_d6_pragmatics.py`. Phase 3a закрыта; вывод и
+  трассировка доказательства (`inference.py`) остаются в Python до
+  Phase 3b.
+- [ ] **Phase 3b. Вывод и доказательство в Soar.** Перенести
+  `dialogue/inference.py` в продукции, сохранив трассировку
+  доказательства и паритет ответов на корпусе.
 - [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
   идёт через RiveScript + Soar, `ChartParser` — fallback.
 - [ ] **Phase 5. Soar для BDI, фракций и мира.** Решения агентов в Soar,

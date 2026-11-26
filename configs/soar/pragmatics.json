@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "selection": {
+    "tie_epsilon": 0.000000001,
+    "decision_cycles": 6
+  }
+}
