@@ -266,6 +266,7 @@ class AutomataCampaign(
         self.score_streak = 0
         self.score_streak_side = None
         self.score_recent: List[float] = []
+        self._npc_tick_spent_ms = 0.0
         self.player_side = str(scenario.get("player_side") or "red")
         self.rival_side = str(scenario.get("enemy_side") or "blue")
         self.model = dict(MODEL_DEFAULTS)

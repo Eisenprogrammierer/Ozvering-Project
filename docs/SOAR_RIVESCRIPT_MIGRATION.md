@@ -853,8 +853,29 @@ Deliverables:
 - тесты: `test_score_window_averages_recent_turns`,
   `test_score_window_survives_snapshot_roundtrip`.
 
-**Осталось (Phase 2d):** перенос бюджета решения на уровень тика и
-перевод `ai_backend=soar` в основной режим.
+**Осталось (Phase 2d):** перевод `ai_backend=soar` в основной режим.
+
+**Сделано (Phase 2e, 2026-11-26):**
+
+- бюджет решения перенесён на уровень тика: `npc_policy.tick_timeout_ms`
+  (0 — взять `timeouts.tick_ms = 250`) ограничивает сумму Soar-решений
+  за ход, а не только одно решение; счётчик обнуляется в
+  `begin_turn()`, поэтому каждый ход начинает с полного бюджета;
+- `SoarNpcPolicy.choose(timeout_ms=...)` принимает разовый потолок, и
+  `_policy_choice` передаёт `min(timeout_ms, остаток_тика)`: решение не
+  забирает больше остатка, а неделимый цикл Soar ловит пост-проверка;
+- `NpcDecisionMonitor` считает исчерпания бюджета (`budget` в общей
+  сводке и по сторонам); в `shadow` остаток хода решает легаси, и
+  прогон помечается `ok: false`, в `soar` исчерпание — отказ без
+  маскировки;
+- `npc_tick_budget()` отдаёт `limit_ms`/`spent_ms`/`left_ms` текущего
+  хода; бюджет не входит в сейв;
+- замер: 9 решений на ход, 5.3 мс в среднем (максимум 20 мс),
+  50–75 мс на ход при бюджете 250 мс;
+- тесты: `test_tick_budget_resets_on_new_turn`,
+  `test_tick_budget_falls_back_to_legacy_in_shadow`,
+  `test_tick_budget_refuses_in_strict_soar`,
+  `test_tick_budget_limits_single_decision`.
 
 ### Phase 3. Soar shadow для прагматики диалога (4–6 недель)
 

@@ -259,3 +259,63 @@ def test_soar_backend_matches_legacy_state_and_outcomes():
     )
     assert soar.npc_outcome_report()["decisions"]["errors"] == 0
     assert soar.npc_outcome_report()["ok"] is True
+
+
+def test_tick_budget_resets_on_new_turn():
+    campaign = _campaign()
+    _enable(campaign, backend="legacy", tick_timeout_ms=100)
+    campaign.end_turn()
+    assert campaign.turn == 1
+    campaign._npc_tick_spent_ms = 42.0
+    campaign.end_turn()
+    assert campaign.turn == 2
+    assert campaign._npc_tick_spent_ms == 0.0
+    budget = campaign.npc_tick_budget()
+    assert budget["limit_ms"] == 100.0
+    assert budget["left_ms"] == 100.0
+
+
+def test_tick_budget_falls_back_to_legacy_in_shadow():
+    campaign = _campaign()
+    sides = _ai_sides(campaign)
+    _enable(
+        campaign,
+        backend="legacy",
+        backends={side: "shadow" for side in sides},
+        tick_timeout_ms=1,
+    )
+    campaign.begin_turn()
+    campaign._npc_tick_spent_ms = 1.0
+    side = sides[0]
+    chosen = campaign.auto_action(side)
+    assert chosen is not None
+    report = campaign.npc_decision_report()
+    assert report["budget"] >= 1
+    assert report["errors"] >= 1
+    assert report["ok"] is False
+
+
+def test_tick_budget_refuses_in_strict_soar():
+    from campaign.cognition import SoarError
+
+    campaign = _campaign()
+    _enable(campaign, backend="soar", tick_timeout_ms=1)
+    campaign.begin_turn()
+    campaign._npc_tick_spent_ms = 1.0
+    with pytest.raises(SoarError):
+        campaign.auto_action(_ai_sides(campaign)[0])
+
+
+def test_tick_budget_limits_single_decision():
+    pytest.importorskip("soar_sml")
+    from campaign.cognition import SoarError
+    from campaign.cognition.soar_runtime import SoarNpcPolicy
+
+    policy = SoarNpcPolicy()
+    with pytest.raises(SoarError):
+        policy.choose(
+            [("work", "hunger", 1.0)],
+            {"hunger": 0.5},
+            timeout_ms=0.001,
+        )
+    assert policy.last_elapsed_ms > 0.0

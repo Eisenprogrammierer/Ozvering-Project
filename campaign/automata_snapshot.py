@@ -393,6 +393,8 @@ class AutomataSnapshotMixin:
             # пересоздать, иначе останется бэкенд/бюджет прежней игры.
             self._npc_policy_obj = None
             self._soar_policy_obj = None
+        # Бюджет тика не хранится в сейве: новый ход начинается с нуля.
+        self._npc_tick_spent_ms = 0.0
         self.turn = int(_number(snapshot.get("turn"), self.turn))
         saved_max = snapshot.get("cycle_limit")
         if saved_max is None:

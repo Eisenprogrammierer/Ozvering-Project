@@ -663,6 +663,7 @@ class AutomataCoreMixin:
         self.turn += 1
         self.actions_left = self.actions_per_cycle
         self._turn_active = True
+        self.reset_npc_tick_budget()
         return self.snapshot()
 
     def action_budget(self):

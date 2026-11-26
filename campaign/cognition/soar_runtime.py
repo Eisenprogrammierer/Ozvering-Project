@@ -193,7 +193,14 @@ class SoarNpcPolicy:
                     "Soar отклонил продукцию: %s" % (result,)
                 )
 
-    def _check_budget(self, started: float) -> None:
+    def _budget(self, timeout_ms: Optional[float]) -> float:
+        """Бюджет вызова: явный ``timeout_ms`` важнее настроенного."""
+
+        if timeout_ms is None:
+            return self.timeout_ms
+        return max(0.0, float(timeout_ms))
+
+    def _check_budget(self, started: float, limit: float) -> None:
         """Прервать решение между циклами, если бюджет исчерпан.
 
         Один цикл Soar неделим для SML, поэтому проверка идёт перед
@@ -201,13 +208,13 @@ class SoarNpcPolicy:
         пост-проверка, а затянутая серия циклов обрывается сразу.
         """
 
-        if not self.timeout_ms:
+        if not limit:
             return
         elapsed = (time.perf_counter() - started) * 1000.0
-        if elapsed > self.timeout_ms:
+        if elapsed > limit:
             raise SoarError(
                 "Soar превысил бюджет решения до завершения цикла: "
-                "%.2f мс > %.2f мс" % (elapsed, self.timeout_ms)
+                "%.2f мс > %.2f мс" % (elapsed, limit)
             )
 
     def choose(
@@ -217,8 +224,13 @@ class SoarNpcPolicy:
         *,
         weights: Optional[Mapping[str, Any]] = None,
         explore: Optional[bool] = None,
+        timeout_ms: Optional[float] = None,
     ) -> Optional[str]:
-        """Вернуть id работы; ``None``, если кандидатов нет."""
+        """Вернуть id работы; ``None``, если кандидатов нет.
+
+        ``timeout_ms`` ограничивает этот вызов сильнее настроенного
+        бюджета: так бюджет тика передаёт решению только остаток.
+        """
 
         if explore:
             raise BackendError(
@@ -241,7 +253,9 @@ class SoarNpcPolicy:
                 sorted({item[0] for item in items})
             )
         }
+        limit = self._budget(timeout_ms)
         started = time.perf_counter()
+        self.last_elapsed_ms = 0.0
         agent = self._agent()
         try:
             self._prepare(agent)
@@ -260,7 +274,7 @@ class SoarNpcPolicy:
             agent.SynchronizeInputLink()
             cycles = max(1, int(self.model.decision_cycles))
             for _cycle in range(cycles):
-                self._check_budget(started)
+                self._check_budget(started, limit)
                 agent.RunSelf(1)
             decision = _read_decision(agent)
         finally:
@@ -275,10 +289,10 @@ class SoarNpcPolicy:
             raise SoarError(
                 "Soar выбрал неизвестную работу %r" % (decision,)
             )
-        if self.timeout_ms and self.last_elapsed_ms > self.timeout_ms:
+        if limit and self.last_elapsed_ms > limit:
             raise SoarError(
                 "Soar превысил бюджет решения: %.2f мс > %.2f мс"
-                % (self.last_elapsed_ms, self.timeout_ms)
+                % (self.last_elapsed_ms, limit)
             )
         return decision
 

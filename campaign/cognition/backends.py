@@ -64,7 +64,7 @@ class CognitionFlags:
     clarify_threshold: float = 0.45
     nlu_fallback_max: float = 0.05
     decision_timeout_ms: int = 200
-    tick_timeout_ms: int = 50
+    tick_timeout_ms: int = 250
     source: str = "builtin"
 
     def __post_init__(self):
@@ -185,7 +185,7 @@ def load_flags(
             )
         ),
         tick_timeout_ms=int(
-            _number(timeouts.get("tick_ms", 50), "timeouts.tick_ms")
+            _number(timeouts.get("tick_ms", 250), "timeouts.tick_ms")
         ),
         source=str(config_path),
     )

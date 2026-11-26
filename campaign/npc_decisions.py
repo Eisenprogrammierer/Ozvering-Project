@@ -60,6 +60,7 @@ def _side_bundle() -> Dict[str, Any]:
         "evaluated": 0,
         "agreements": 0,
         "errors": 0,
+        "budget": 0,
         "elapsed_ms": 0.0,
         "max_elapsed_ms": 0.0,
     }
@@ -74,6 +75,7 @@ class NpcDecisionMonitor:
     evaluated: int = 0
     agreements: int = 0
     errors: int = 0
+    budget: int = 0
     elapsed_ms: float = 0.0
     max_elapsed_ms: float = 0.0
     sides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -122,6 +124,7 @@ class NpcDecisionMonitor:
         elapsed_ms: float = 0.0,
         error: Optional[str] = None,
         turn: Optional[int] = None,
+        budget: bool = False,
     ) -> None:
         """Записать одно решение; ошибка Soar не считается согласием."""
 
@@ -129,6 +132,9 @@ class NpcDecisionMonitor:
         bundle = self.sides.setdefault(key, _side_bundle())
         self.total += 1
         bundle["total"] += 1
+        if budget:
+            self.budget += 1
+            bundle["budget"] += 1
         elapsed = max(0.0, float(elapsed_ms or 0.0))
         if elapsed:
             self.elapsed_ms += elapsed
@@ -190,6 +196,7 @@ class NpcDecisionMonitor:
             "threshold": limit,
             "ok": ok,
             "errors": self.errors,
+            "budget": self.budget,
             "elapsed_ms": round(self.elapsed_ms, 3),
             "max_elapsed_ms": round(self.max_elapsed_ms, 3),
             "sides": {
@@ -203,6 +210,7 @@ class NpcDecisionMonitor:
                         else 1.0
                     ),
                     "errors": value["errors"],
+                    "budget": value["budget"],
                     "elapsed_ms": round(value["elapsed_ms"], 3),
                     "max_elapsed_ms": round(
                         value["max_elapsed_ms"], 3

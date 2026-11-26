@@ -13,6 +13,6 @@
   },
   "timeouts": {
     "decision_ms": 200,
-    "tick_ms": 50
+    "tick_ms": 250
   }
 }

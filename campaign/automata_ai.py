@@ -348,6 +348,28 @@ class AutomataAIMixin:
             timeout = self._cognition_flags().decision_timeout_ms
         return float(timeout)
 
+    def npc_tick_timeout_ms(self):
+        """Бюджет Soar на ход: локальный ``tick_timeout_ms`` или флаг."""
+        config = self._npc_config()
+        timeout = _number(config.get("tick_timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().tick_timeout_ms
+        return float(timeout)
+
+    def reset_npc_tick_budget(self):
+        """Начать новый ход: израсходованное время решений обнуляется."""
+        self._npc_tick_spent_ms = 0.0
+
+    def npc_tick_budget(self):
+        """Остаток бюджета тика для диагностики и тестов."""
+        limit = self.npc_tick_timeout_ms()
+        spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
+        return {
+            "limit_ms": round(limit, 3),
+            "spent_ms": round(spent, 3),
+            "left_ms": round(max(0.0, limit - spent), 3),
+        }
+
     def npc_decision_monitor(self):
         monitor = getattr(self, "_npc_decision_monitor", None)
         if monitor is None:
@@ -450,7 +472,9 @@ class AutomataAIMixin:
             return False
         return _number(getattr(policy, "epsilon", 0.0), 0.0) > 0.0
 
-    def _soar_candidate(self, policy, candidates, needs, soar):
+    def _soar_candidate(
+        self, policy, candidates, needs, soar, timeout_ms=None
+    ):
         from .cognition.soar_runtime import weights_for
 
         names = sorted(
@@ -461,6 +485,7 @@ class AutomataAIMixin:
             needs,
             weights=weights_for(policy, names),
             explore=self._npc_explore(policy),
+            timeout_ms=timeout_ms,
         )
 
     def _policy_choice(self, side, weighted, leader=None):
@@ -485,18 +510,36 @@ class AutomataAIMixin:
         if backend == "legacy":
             return policy.choose(candidates, needs)
         soar = self._soar_policy()
+        limit = self.npc_tick_timeout_ms()
+        spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
+        left = max(0.0, limit - spent)
         elapsed_ms = 0.0
         error = None
         candidate = None
-        try:
-            candidate = self._soar_candidate(
-                policy, candidates, needs, soar
+        if left <= 0.0:
+            error = (
+                "бюджет тика исчерпан: %.2f мс из %.2f мс"
+                % (spent, limit)
             )
-            elapsed_ms = soar.last_elapsed_ms
-        except (BackendError, SoarError) as exc:
             if backend == "soar":
-                raise
-            error = str(exc)
+                raise SoarError(error)
+        else:
+            budget = min(self.npc_decision_timeout_ms(), left)
+            try:
+                candidate = self._soar_candidate(
+                    policy,
+                    candidates,
+                    needs,
+                    soar,
+                    timeout_ms=budget,
+                )
+            except (BackendError, SoarError) as exc:
+                if backend == "soar":
+                    raise
+                error = str(exc)
+            finally:
+                elapsed_ms = float(soar.last_elapsed_ms)
+                self._npc_tick_spent_ms = spent + elapsed_ms
         if backend == "soar":
             return candidate
         legacy = policy.choose(candidates, needs)
@@ -508,6 +551,7 @@ class AutomataAIMixin:
             elapsed_ms=elapsed_ms,
             error=error,
             turn=getattr(self, "turn", None),
+            budget=left <= 0.0,
         )
         return legacy
 
