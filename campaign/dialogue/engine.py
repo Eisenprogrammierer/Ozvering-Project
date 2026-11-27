@@ -70,6 +70,7 @@ class DialogueSession:
         pragmatics: Any = None,
         inference: Any = None,
         nlu: Any = None,
+        state_store: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
@@ -111,6 +112,9 @@ class DialogueSession:
             self.memory,
             morphology=self.morphology,
         )
+        if state_store is not None:
+            self.state.attach_store(state_store, knowledge.speaker_id)
+            self.state.restore(state_store.load(knowledge.speaker_id))
         self.fallback = FallbackEngine(
             catalog, knowledge, self.state.entities, focus=self.state.focus
         )

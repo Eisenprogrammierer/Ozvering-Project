@@ -12,15 +12,22 @@ from .app_support import (
 
 class AppSavesMixin:
 
+    def _soar_payload(self):
+        store = getattr(self, "soar_snapshots", None)
+        return store.to_dict() if store is not None else None
+
+    def _restore_soar_snapshots(self, snapshot):
+        from campaign.cognition import SoarSnapshotStore
+
+        self.soar_snapshots = SoarSnapshotStore.from_dict(snapshot or {})
+
     def _save_automata_game(self, slot_name, campaign):
         from view.support.save_system import save_game as do_save
 
         storyline_snapshot = None
         if self.storyline_interpreter is not None:
             storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
-        dialogue_snapshot = None
-        if self.dialogue_memory is not None:
-            dialogue_snapshot = self.dialogue_memory.to_dict()
+        dialogue_snapshot = self._dialogue_payload()
         path = do_save(
             _AutomataSaveState(campaign.save_snapshot()),
             None,
@@ -30,6 +37,7 @@ class AppSavesMixin:
             campaign_role=self.selected_role,
             campaign_preset=self.campaign_preset,
             dialogue_snapshot=dialogue_snapshot,
+            soar_snapshot=self._soar_payload(),
         )
         logger.info(
             "Сохранение автоматов записано: слот=%s, цикл=%d",
@@ -105,11 +113,8 @@ class AppSavesMixin:
             storyline_snapshot=storyline_snapshot,
             campaign_role=self.selected_role,
             campaign_preset=None,
-            dialogue_snapshot=(
-                self.dialogue_memory.to_dict()
-                if self.dialogue_memory is not None
-                else None
-            ),
+            dialogue_snapshot=self._dialogue_payload(),
+            soar_snapshot=self._soar_payload(),
         )
         logger.info("Сохранение мира записано: слот=%s", slot_name)
         return path
@@ -152,11 +157,8 @@ class AppSavesMixin:
             storyline_snapshot=storyline_snapshot,
             campaign_role=self.selected_role,
             campaign_preset=self.campaign_preset,
-            dialogue_snapshot=(
-                self.dialogue_memory.to_dict()
-                if self.dialogue_memory is not None
-                else None
-            ),
+            dialogue_snapshot=self._dialogue_payload(),
+            soar_snapshot=self._soar_payload(),
         )
         logger.info("Сохранение записано: слот=%s", slot_name)
         return path
@@ -182,7 +184,28 @@ class AppSavesMixin:
         scenario_path = snapshot.get("scenario_path", "scenarios/mvp.json")
         self.scenario_path = scenario_path
         self.pending_storyline_outcome = None
-        self._restore_dialogue_memory(snapshot.get("dialogue"))
+        dialogue_snapshot = snapshot.get("dialogue")
+        if not isinstance(dialogue_snapshot, dict):
+            dialogue_snapshot = {}
+        from campaign.dialogue import DialogueError
+
+        try:
+            self._restore_dialogue_memory(dialogue_snapshot)
+            self._restore_dialogue_states(dialogue_snapshot.get("states"))
+        except DialogueError as exc:
+            logger.warning(
+                "Диалог из сохранения не восстановлен: %s", exc
+            )
+            return False
+        from campaign.cognition import SnapshotError
+
+        try:
+            self._restore_soar_snapshots(snapshot.get("soar"))
+        except SnapshotError as exc:
+            logger.warning(
+                "Рабочая память Soar не восстановлена: %s", exc
+            )
+            return False
         self.strategy = None
         self.strategy_config = None
         self.world = None

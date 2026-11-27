@@ -35,6 +35,10 @@ class SoarError(CognitionError, ValueError):
     """Политика Soar или её артефакт повреждены."""
 
 
+class SnapshotError(CognitionError, ValueError):
+    """JSON-снимок рабочей памяти Soar несовместим или повреждён."""
+
+
 __all__ = [
     "BackendError",
     "BridgeError",
@@ -42,5 +46,6 @@ __all__ = [
     "CorpusError",
     "FrameError",
     "RiveError",
+    "SnapshotError",
     "SoarError",
 ]

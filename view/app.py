@@ -90,6 +90,8 @@ class App(
         self.campaign_preset = None
         self.automata_campaign = None
         self.dialogue_memory = None
+        self.dialogue_states = None
+        self.soar_snapshots = None
         self._dialogue_catalog_cache = None
         from .ui.music_manager import MusicManager
 

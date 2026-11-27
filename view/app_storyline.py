@@ -29,6 +29,8 @@ class AppStorylineMixin:
         )
         self.pending_storyline_outcome = None
         self.dialogue_memory = None
+        self.dialogue_states = None
+        self.soar_snapshots = None
         free_mode = bool(storyline.get("free_start"))
         if free_mode:
             # Свободный режим живёт на WorldEngine и не требует военного
@@ -139,6 +141,8 @@ class AppStorylineMixin:
         self.player_profile = None
         self.pending_storyline_outcome = None
         self.dialogue_memory = None
+        self.dialogue_states = None
+        self.soar_snapshots = None
         self.storyline_interpreter = StorylineInterpreter(self, storyline)
         interp = self.storyline_interpreter
         interp.set_variable("campaign_mode", "automata")

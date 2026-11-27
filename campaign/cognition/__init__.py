@@ -31,6 +31,7 @@ from .errors import (
     CorpusError,
     FrameError,
     RiveError,
+    SnapshotError,
     SoarError,
 )
 from .frame import (
@@ -66,6 +67,17 @@ from .soar_bridge import (
     validate_request,
     validate_response,
 )
+from .soar_snapshot import (
+    SNAPSHOT_SCHEMA,
+    SNAPSHOT_VERSION,
+    STORE_SCHEMA,
+    STORE_VERSION,
+    SoarSnapshotStore,
+    build_snapshot,
+    create_wm,
+    load_wm,
+    validate_snapshot,
+)
 
 # Компилятор и рантайм вывода грузятся лениво: иначе запуск
 # ``python -m campaign.cognition.inference_compiler`` (и соседних
@@ -77,6 +89,7 @@ _LAZY = {
     "load_nlu": (".nlu_backend", "load_nlu"),
     "ProofNode": (".inference_runtime", "ProofNode"),
     "SoarInference": (".inference_runtime", "SoarInference"),
+    "SoarAgent": (".soar_runtime", "SoarAgent"),
     "check_inference": (".inference_compiler", "check_policy"),
     "compile_inference": (".inference_compiler", "compile_policy"),
     "load_inference_model": (".inference_compiler", "load_model"),
@@ -125,21 +138,31 @@ __all__ = [
     "ProofNode",
     "Rejection",
     "RiveError",
+    "SNAPSHOT_SCHEMA",
+    "SNAPSHOT_VERSION",
+    "STORE_SCHEMA",
+    "STORE_VERSION",
+    "SnapshotError",
+    "SoarAgent",
     "SoarError",
     "SoarInference",
+    "SoarSnapshotStore",
     "UtteranceFrame",
     "available_nlu_backends",
+    "build_snapshot",
     "check_inference",
     "command_digest",
     "compare",
     "compare_choices",
     "compile_inference",
+    "create_wm",
     "decide",
     "default_config_path",
     "frame_confidence",
     "load_flags",
     "load_inference_model",
     "load_nlu",
+    "load_wm",
     "register_nlu_backend",
     "record_corpus",
     "request_digest",
@@ -148,5 +171,6 @@ __all__ = [
     "validate_command",
     "validate_request",
     "validate_response",
+    "validate_snapshot",
     "write_inference",
 ]

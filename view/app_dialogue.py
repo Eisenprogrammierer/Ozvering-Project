@@ -30,6 +30,34 @@ class AppDialogueMixin:
             self._dialogue_catalog().state, snapshot or {}
         )
 
+    def _dialogue_states(self):
+        store = getattr(self, "dialogue_states", None)
+        if store is None:
+            from campaign.dialogue import DialogueStateStore
+
+            store = DialogueStateStore()
+            self.dialogue_states = store
+        return store
+
+    def _restore_dialogue_states(self, snapshot):
+        from campaign.dialogue import DialogueStateStore
+
+        self.dialogue_states = DialogueStateStore.from_dict(snapshot or {})
+
+    def _dialogue_payload(self):
+        """Память и состояния разговора одним блоком сейва."""
+
+        if self.dialogue_memory is None and self.dialogue_states is None:
+            return None
+        payload = (
+            self.dialogue_memory.to_dict()
+            if self.dialogue_memory is not None
+            else {"schema": 1, "agents": {}}
+        )
+        if self.dialogue_states is not None:
+            payload["states"] = self.dialogue_states.to_dict()
+        return payload
+
     def dialogue_session(self, side, character_id=None):
         """Создать сессию диалога с агентом стороны, помня прошлые беседы.
 
@@ -63,4 +91,5 @@ class AppDialogueMixin:
             memory=memory,
             allow_actions=not listen_only,
             campaign=campaign,
+            state_store=self._dialogue_states(),
         )

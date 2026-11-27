@@ -28,6 +28,12 @@
 > вложенные `S`-слоты и служит откатом; `fallback_rate`,
 > `semantic_fallback` и расхождения видны в
 > `session.nlu.report.to_dict()`.
+> Phase 4 закрыт: `ConversationState.to_dict()`/`restore()` и
+> `DialogueStateStore` сохраняют QUD, референты, обязательства и
+> последний смысл по собеседникам (`dialogue.states`); рабочая память
+> Soar — `soar_snapshots.v1` в ключе `soar` (снимок `soar_snapshot.v1`
+> на каждого именного агента). Снимок WM грузится в чистый агент,
+> несовместимая версия в обоих случаях отвергается явно.
 >
 > **Граница слоёв (принята 2026-11-27):** RiveScript сопоставляет фразу
 > и отдаёт кадр-кандидата (`frame`, `rule`, `evidence`); Soar выбирает

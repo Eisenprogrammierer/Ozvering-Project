@@ -15,10 +15,11 @@
 > строится из манифеста RiveScript и захватов `<star>`; ответы
 > `legacy|shadow|rive` совпадают на корпусе, `nlu_backend=rive`
 > включён в поставке, уточнения и восстановление после ошибок движка
-> работают на rive-пути. Остались save/load состояния диалога и
-> Soar WM. Решения §12 приняты 2026-11-27: снимок Soar — полностью
-> JSON, отдельный агент на именного NPC, обучение — Soar RL, язык —
-> только русский.
+> работают на rive-пути. Phase 4 закрыт: состояние диалога и рабочая
+> память Soar сохраняются версионированным JSON (`dialogue.states`,
+> `soar_snapshot.v1`), загрузка идёт в чистый агент. Решения §12
+> приняты 2026-11-27: снимок Soar — полностью JSON, отдельный агент на
+> именного NPC, обучение — Soar RL, язык — только русский.
 >
 > **Дата:** 2026-11-27.
 >
@@ -1151,8 +1152,44 @@ Deliverables:
   `test_low_confidence_is_clarification_on_both_paths`,
   `test_rive_recovers_after_transient_engine_error`,
   `test_shadow_survives_transient_engine_error`,
-  `test_rive_falls_back_after_unrecoverable_error`;
-- **Осталось:** save/load состояния диалога и Soar WM.
+  `test_rive_falls_back_after_unrecoverable_error`.
+
+**Сделано (Phase 4, шаг 4, 2026-11-27): JSON-снимок диалога и Soar WM.**
+
+- `ConversationState.to_dict()`/`restore()` сериализуют текущий
+  разговор: `turn`, `clock`, `location`, QUD, референты, общий фонд,
+  обязательства, `last_sem` и `last_answer`; снимок версионирован
+  (`schema`) и детерминирован (словари отсортированы);
+- `DialogueStateStore` хранит снимки по собеседникам; `DialogueSession`
+  принимает `state_store`, восстанавливает состояние при создании и
+  записывает его после каждого хода (`push_turn`). Память
+  (`DialogueMemoryStore`) остаётся отдельной, оба блока лежат в сейве
+  под `dialogue` (`agents` и `states`). Оба хранилища вынесены в
+  `campaign/dialogue/stores.py`, чтобы `state.py` оставался в бюджете
+  активных модулей;
+- `campaign/cognition/soar_snapshot.py` — `soar_snapshot.v1`:
+  `snapshot_version`, `agent_id`, `ai_model`, `tick`, `counters` и
+  узлы WM (`id|string|int|double`); `SoarSnapshotStore`
+  (`soar_snapshots.v1`) держит по снимку на каждого именного агента.
+  `validate_snapshot` работает без SML, проверяет глубину и типы;
+  будущая версия отвергается явной `SnapshotError`, для старых версий
+  предусмотрена таблица миграций;
+- `SoarAgent` — долгоживущий агент: `add_wm`, `snapshot`, `restore`.
+  Снимок — JSON-зеркало input-link (Python — единственный писатель;
+  внутренние WME Soar выводятся из входа), `restore` всегда создаёт
+  чистый агент и заново применяет продукции, поэтому повторная
+  загрузка не удваивает WME; чужой `agent_id` отвергается;
+- сейв получил верхнеуровневый ключ `soar` с набором
+  `soar_snapshots.v1`; несовместимый снимок диалога или Soar прерывает
+  загрузку с предупреждением, а не обнуляет состояние молча. Пока
+  NPC-политика считает решение в одноразовом агенте, набор пуст:
+  формат и `SoarAgent` готовы к долгоживущим агентам Phase 5;
+- тесты: `tests/test_d2_state.py` (roundtrip состояния, изоляция
+  собеседников, отказ будущей схемы, сохранение/загрузка) и
+  `tests/test_soar_snapshot.py` (валидация, версии, типы, roundtrip
+  `SoarAgent`); SML-часть входит в job `soar`;
+- **Rollback:** старые сейвы читаются (блоки `dialogue.states` и
+  `soar` необязательны); при несовместимости — явный отказ загрузки.
 
 ### Phase 5. Soar для BDI, фракций и мира (4–6 недель)
 

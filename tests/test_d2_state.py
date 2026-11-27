@@ -10,9 +10,11 @@ import pytest
 
 from campaign.automata import AutomataCampaign
 from campaign.dialogue import (
+    DialogueError,
     DialogueMemory,
     DialogueMemoryStore,
     DialogueSession,
+    DialogueStateStore,
     build_knowledge,
     load_dialogue,
 )
@@ -245,6 +247,93 @@ def test_save_payload_roundtrips_dialogue_memory(
     assert "dialogue" in raw
     restored_agent = restored.agents["character:char_red_001"]
     assert restored_agent.to_dict() == session.memory.to_dict()
+
+
+def test_conversation_state_snapshot_roundtrips(catalog, campaign):
+    session = _session(catalog, campaign, "red")
+    session.ask("Какие органы есть у Империи?")
+    session.ask("А у Республики?")
+    store = DialogueStateStore()
+    store.save("character:char_red_001", session.state)
+    payload = _snapshot(store.to_dict())
+    restored_store = DialogueStateStore.from_dict(payload)
+
+    left = _session(catalog, campaign, "red")
+    left.state.restore(restored_store.load("character:char_red_001"))
+    right = _session(catalog, campaign, "red")
+    right.state.restore(restored_store.load("character:char_red_001"))
+
+    assert left.state.to_dict() == session.state.to_dict()
+    assert left.state.qud[-1]["wh"] == "which"
+    assert left.state.turn == session.state.turn
+    assert left.ask("Почему?").text == right.ask("Почему?").text
+
+
+def test_dialogue_state_store_refuses_future_schema():
+    with pytest.raises(DialogueError):
+        DialogueStateStore.from_dict({"schema": 99, "agents": {}})
+
+
+def test_conversation_state_refuses_future_schema(catalog, campaign):
+    session = _session(catalog, campaign, "red")
+
+    with pytest.raises(DialogueError):
+        session.state.restore({"schema": 99, "turn": 1})
+
+
+def test_session_persists_state_between_visits(catalog, campaign):
+    store = DialogueStateStore()
+    first = DialogueSession(
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        memory=DialogueMemory(catalog.state, run_id="run", clock=0),
+        style_id="neutral",
+        state_store=store,
+    )
+    first.ask("Какие органы есть у Империи?")
+    key = build_knowledge(catalog, campaign, "red").speaker_id
+
+    second = DialogueSession(
+        catalog,
+        build_knowledge(catalog, campaign, "red"),
+        memory=DialogueMemory(catalog.state, run_id="run", clock=0),
+        style_id="neutral",
+        state_store=store,
+    )
+
+    assert key in store.states
+    assert store.states[key] == first.state.to_dict()
+    assert second.state.turn == first.state.turn
+    assert second.state.qud[-1]["wh"] == "which"
+    assert second.ask("А у Республики?").plan_id == "organs_list"
+
+
+def test_save_payload_roundtrips_dialogue_state(
+    catalog, campaign, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(save_system, "SAVES_DIR", tmp_path)
+    session = _session(catalog, campaign, "red")
+    session.ask("Какие органы есть у Империи?")
+    states = DialogueStateStore()
+    states.save("character:char_red_001", session.state)
+    memory = DialogueMemoryStore(catalog.state)
+    memory.agents["character:char_red_001"] = session.memory
+    payload = memory.to_dict()
+    payload["states"] = states.to_dict()
+
+    class State:
+        def to_snapshot(self):
+            return {"day": 4}
+
+    save_system.save_game(
+        State(), None, "slot", dialogue_snapshot=payload
+    )
+    loaded = save_system.load_game("slot")
+    restored = DialogueStateStore.from_dict(
+        loaded["dialogue"]["states"]
+    )
+
+    assert restored.load("character:char_red_001") == session.state.to_dict()
 
 
 def _copy_dialogue(tmp_path, name="state_data"):

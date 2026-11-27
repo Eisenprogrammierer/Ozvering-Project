@@ -206,6 +206,7 @@ def save_game(
     campaign_role=None,
     campaign_preset=None,
     dialogue_snapshot=None,
+    soar_snapshot=None,
 ):
     _ensure_dir()
     payload = {
@@ -222,6 +223,11 @@ def save_game(
         "dialogue": (
             dialogue_snapshot
             if isinstance(dialogue_snapshot, dict)
+            else {}
+        ),
+        "soar": (
+            soar_snapshot
+            if isinstance(soar_snapshot, dict)
             else {}
         ),
     }

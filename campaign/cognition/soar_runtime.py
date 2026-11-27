@@ -15,6 +15,7 @@ SML — опциональная зависимость: без пакета ``s
 
 from __future__ import annotations
 
+import copy
 import itertools
 from pathlib import Path
 import time
@@ -29,7 +30,7 @@ from typing import (
     Tuple,
 )
 
-from .errors import BackendError, SoarError
+from .errors import BackendError, SnapshotError, SoarError
 from .soar_compiler import (
     DECISION_NAME,
     DEFAULT_SOAR_DIR,
@@ -37,6 +38,12 @@ from .soar_compiler import (
     DecisionModel,
     check_policy,
     load_model,
+)
+from .soar_snapshot import (
+    build_snapshot,
+    create_wm,
+    load_wm,
+    validate_snapshot,
 )
 
 _AGENT_NAMES = itertools.count(1)
@@ -150,6 +157,28 @@ def _normalise(
     return items
 
 
+def _new_agent() -> Any:
+    kernel = _kernel()
+    agent = kernel.CreateAgent("npc_%d" % next(_AGENT_NAMES))
+    if agent is None:
+        raise SoarError("Soar не создал агента")
+    return agent
+
+
+def _prepare_agent(agent: Any, model: DecisionModel, text: str) -> None:
+    for command in model.commands():
+        agent.ExecuteCommandLine(command)
+    blocks = production_blocks(text)
+    if not blocks:
+        raise SoarError("в политике Soar нет продукций")
+    for block in blocks:
+        result = agent.ExecuteCommandLine(block)
+        if str(result or "").strip() != "*":
+            raise SoarError(
+                "Soar отклонил продукцию: %s" % (result,)
+            )
+
+
 class SoarNpcPolicy:
     """Выбор работы NPC продукциями Soar с parity к ``NeedPolicy``."""
 
@@ -179,24 +208,10 @@ class SoarNpcPolicy:
         self.last_elapsed_ms = 0.0
 
     def _agent(self) -> Any:
-        kernel = _kernel()
-        agent = kernel.CreateAgent("npc_%d" % next(_AGENT_NAMES))
-        if agent is None:
-            raise SoarError("Soar не создал агента")
-        return agent
+        return _new_agent()
 
     def _prepare(self, agent: Any) -> None:
-        for command in self.model.commands():
-            agent.ExecuteCommandLine(command)
-        blocks = production_blocks(self.text)
-        if not blocks:
-            raise SoarError("в политике Soar нет продукций")
-        for block in blocks:
-            result = agent.ExecuteCommandLine(block)
-            if str(result or "").strip() != "*":
-                raise SoarError(
-                    "Soar отклонил продукцию: %s" % (result,)
-                )
+        _prepare_agent(agent, self.model, self.text)
 
     def _budget(self, timeout_ms: Optional[float]) -> float:
         """Бюджет вызова: явный ``timeout_ms`` важнее настроенного."""
@@ -302,6 +317,106 @@ class SoarNpcPolicy:
         return decision
 
 
+class SoarAgent:
+    """Долгоживущий Soar-агент с JSON-снимком рабочей памяти.
+
+    Снимок — единственный способ сохранить состояние: родной бинарный
+    формат Soar не используется. ``restore`` всегда создаёт чистый агент,
+    заново применяет продукции и загружает WM, поэтому повторная загрузка
+    не удваивает WME.
+    """
+
+    def __init__(
+        self,
+        *,
+        agent_id: str,
+        model: Optional[DecisionModel] = None,
+        policy_path: Optional[Path] = None,
+        source_dir: Path = DEFAULT_SOAR_DIR,
+        ai_model: str = "",
+    ):
+        self.agent_id = str(agent_id or "").strip()
+        if not self.agent_id:
+            raise BackendError("agent_id обязателен")
+        self.model = model or load_model(
+            Path(source_dir) / DECISION_NAME
+        )
+        self.path = Path(policy_path) if policy_path else (
+            Path(source_dir) / POLICY_NAME
+        )
+        try:
+            self.text = self.path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise BackendError(
+                "нет сгенерированной политики Soar: %s. "
+                "Запустите python -m campaign.cognition.soar_compiler --write"
+                % self.path
+            ) from exc
+        self.ai_model = str(ai_model or "")
+        self.tick = 0
+        self.counters: Dict[str, int] = {}
+        self.wm: List[Dict[str, Any]] = []
+        self.agent: Any = None
+
+    def start(self) -> "SoarAgent":
+        if self.agent is None:
+            agent = _new_agent()
+            try:
+                _prepare_agent(agent, self.model, self.text)
+            except Exception:
+                _kernel().DestroyAgent(agent)
+                raise
+            self.agent = agent
+        return self
+
+    def close(self) -> None:
+        if self.agent is not None:
+            _kernel().DestroyAgent(self.agent)
+            self.agent = None
+
+    def __enter__(self) -> "SoarAgent":
+        return self.start()
+
+    def __exit__(self, *_exc: Any) -> None:
+        self.close()
+
+    def add_wm(self, nodes: Any) -> List[Dict[str, Any]]:
+        """Добавить WME из JSON-описания в input-link и его зеркало."""
+
+        self.start()
+        normalised = create_wm(self.agent, nodes)
+        self.wm.extend(copy.deepcopy(normalised))
+        return normalised
+
+    def snapshot(self) -> Dict[str, Any]:
+        """Снять зеркало input-link в JSON."""
+
+        return build_snapshot(
+            copy.deepcopy(self.wm),
+            agent_id=self.agent_id,
+            ai_model=self.ai_model,
+            tick=self.tick,
+            counters=self.counters,
+        )
+
+    def restore(self, snapshot: Any) -> Dict[str, Any]:
+        """Загрузить JSON-снимок в чистый агент."""
+
+        data = validate_snapshot(snapshot)
+        if data["agent_id"] != self.agent_id:
+            raise SnapshotError(
+                "снимок принадлежит агенту %r, а не %r"
+                % (data["agent_id"], self.agent_id)
+            )
+        self.close()
+        self.start()
+        load_wm(self.agent, data)
+        self.wm = copy.deepcopy(data["wm"])
+        self.tick = data["tick"]
+        self.counters = dict(data["counters"])
+        return data
+
+
 def check_artifacts(
     source_dir: Path = DEFAULT_SOAR_DIR,
 ) -> DecisionModel:
@@ -323,6 +438,7 @@ def weights_for(
 
 
 __all__ = [
+    "SoarAgent",
     "SoarNpcPolicy",
     "check_artifacts",
     "default_policy_path",

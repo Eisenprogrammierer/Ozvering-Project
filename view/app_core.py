@@ -43,6 +43,8 @@ class AppCoreMixin:
         self.campaign_preset = None
         self.automata_campaign = None
         self.dialogue_memory = None
+        self.dialogue_states = None
+        self.soar_snapshots = None
         self.strategy = None
         self.strategy_config = None
         self.world = None

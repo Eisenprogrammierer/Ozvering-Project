@@ -60,10 +60,10 @@ from .semantics import entity_id, flatten, predicate_id, substitute
 from .state import (
     ConversationState,
     DialogueMemory,
-    DialogueMemoryStore,
     EntityIndex,
     build_state,
 )
+from .stores import DialogueMemoryStore, DialogueStateStore
 from .style import StyleEngine
 from .timeflow import TimeGuide, TimeResult
 
@@ -83,6 +83,7 @@ __all__ = [
     "DialogueMemory",
     "DialoguePragmatics",
     "DialogueMemoryStore",
+    "DialogueStateStore",
     "DialogueSession",
     "EntityIndex",
     "Fact",

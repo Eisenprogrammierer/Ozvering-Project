@@ -32,10 +32,12 @@ from typing import (
     Tuple,
 )
 
+from .errors import DialogueError
 from .morph import Morphology
 from .morphology import tokenize
 
 SCHEMA = 1
+STATE_SCHEMA = 1
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
@@ -774,6 +776,97 @@ class ConversationState:
         for key, record in self.memory.common_ground.items():
             self.common_ground[key] = dict(record)
 
+    # --- снимок состояния -------------------------------------------
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Сериализовать разговор в версионированный JSON-снимок.
+
+        Память хранится отдельно (``DialogueMemoryStore``), поэтому здесь
+        только текущий разговор: QUD, референты, обязательства, локация и
+        последний смысл. Снимок детерминирован: словари отсортированы.
+        """
+
+        return {
+            "schema": STATE_SCHEMA,
+            "turn": self.turn,
+            "clock": self.clock,
+            "location": self.location,
+            "qud": copy.deepcopy(self.qud),
+            "referents": {
+                key: _ordered_record(record)
+                for key, record in sorted(self.referents.items())
+            },
+            "common_ground": {
+                key: _ordered_record(record)
+                for key, record in sorted(self.common_ground.items())
+            },
+            "commitments": [dict(item) for item in self.commitments],
+            "last_sem": copy.deepcopy(self.last_sem),
+            "last_answer": dict(self.last_answer),
+        }
+
+    def restore(self, data: Any) -> None:
+        """Загрузить снимок в текущее состояние.
+
+        Несовместимая версия — явная ошибка, а не тихое обнуление.
+        Пустой снимок допустим: новая беседа начинается с чистого листа.
+        """
+
+        raw = _mapping(data)
+        if not raw:
+            return
+        schema = _integer(raw.get("schema"), STATE_SCHEMA)
+        if schema > STATE_SCHEMA:
+            raise DialogueError(
+                "снимок состояния диалога новее этой сборки: %d > %d"
+                % (schema, STATE_SCHEMA)
+            )
+        if schema < 1:
+            raise DialogueError(
+                "неизвестная версия снимка состояния диалога: %r" % schema
+            )
+        self.turn = max(0, _integer(raw.get("turn")))
+        self.clock = _integer(raw.get("clock"))
+        self.location = _text(raw.get("location"))
+        self.qud = [
+            dict(item)
+            for item in raw.get("qud") or ()
+            if isinstance(item, Mapping)
+        ]
+        self.referents = {}
+        for record in _mapping(raw.get("referents")).values():
+            if not isinstance(record, Mapping):
+                continue
+            identifier = _text(record.get("id"))
+            if identifier:
+                self.referents[identifier] = dict(record)
+        self.common_ground = {
+            str(key): dict(record)
+            for key, record in _mapping(
+                raw.get("common_ground")
+            ).items()
+            if isinstance(record, Mapping)
+        }
+        self.commitments = [
+            dict(item)
+            for item in raw.get("commitments") or ()
+            if isinstance(item, Mapping)
+        ]
+        self.last_sem = copy.deepcopy(raw.get("last_sem"))
+        self.last_answer = dict(_mapping(raw.get("last_answer")))
+
+    def attach_store(self, store: Any, agent_id: str) -> None:
+        """Записывать состояние в хранилище после каждого хода."""
+
+        self._state_store = store
+        self._state_agent_id = _text(agent_id) or "agent"
+
+    def _persist_state(self) -> None:
+        store = getattr(self, "_state_store", None)
+        if store is None:
+            return
+        store.save(getattr(self, "_state_agent_id", ""), self)
+
     def begin_turn(self, clock: int) -> None:
         self.turn += 1
         self.clock = _integer(clock)
@@ -1215,6 +1308,7 @@ class ConversationState:
             limit = max(1, _integer(qud.get("max_size"), 16))
             if len(self.qud) > limit:
                 self.qud = self.qud[-limit:]
+        self._persist_state()
 
     def remember(
         self,
@@ -1280,6 +1374,7 @@ class ConversationState:
             )
         self.memory.turns += 1
         self.memory.prune()
+        self._persist_state()
 
     def _answer_entities(self, data: Mapping[str, Any]) -> List[str]:
         found: List[str] = []
@@ -1365,57 +1460,6 @@ class ConversationState:
                 self.common_ground.values(), key=_record_sort_key
             )[:limit]
             self.common_ground = {str(item["key"]): item for item in keep}
-
-
-class DialogueMemoryStore:
-    """Память по агентам в рамках одной партии.
-
-    Каждый собеседник имеет собственный след разговора: один агент не
-    должен помнить то, что игрок сказал другому. Хранилище целиком лежит
-    в сейве партии, поэтому новая игра начинается с пустой памяти.
-    """
-
-    SCHEMA = 1
-
-    def __init__(
-        self,
-        policy: Mapping[str, Any],
-        data: Any = None,
-    ):
-        self.policy = policy
-        self.agents: Dict[str, DialogueMemory] = {}
-        raw = _mapping(data)
-        for agent_id, item in _mapping(raw.get("agents")).items():
-            self.agents[str(agent_id)] = DialogueMemory.from_dict(policy, item)
-
-    @classmethod
-    def from_dict(
-        cls, policy: Mapping[str, Any], data: Any
-    ) -> "DialogueMemoryStore":
-        return cls(policy, data)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "schema": self.SCHEMA,
-            "agents": {
-                key: memory.to_dict()
-                for key, memory in sorted(self.agents.items())
-            },
-        }
-
-    def memory(
-        self,
-        agent_id: str,
-        run_id: str = "",
-        clock: int = 0,
-    ) -> DialogueMemory:
-        key = _text(agent_id) or "agent"
-        memory = self.agents.get(key)
-        if memory is None or (run_id and memory.run_id != run_id):
-            memory = DialogueMemory(self.policy, run_id=run_id, clock=clock)
-            self.agents[key] = memory
-        memory.observe_clock(clock)
-        return memory
 
 
 def build_state(

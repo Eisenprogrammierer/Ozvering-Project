@@ -218,7 +218,7 @@
   `AnswerPlanner`, `DialogueSession`, `repl` и `corpus_builder`;
   `CounterfactualEngine` остаётся на легаси (follow-up). Тесты —
   `tests/test_d6_inference.py`.
-- [ ] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
+- [x] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
   идёт через RiveScript + Soar, `ChartParser` — fallback.
   - [x] **Шаг 1. Живой путь.** `campaign/cognition/nlu_backend.py`
     (`NluBackend`/`NluReport`/`load_nlu`), режимы
@@ -245,12 +245,19 @@
     после временного сбоя; `NluReport.recoveries` считает
     восстановления, `errors` — только невосстановленные отказы.
     Тесты — `tests/test_nlu_backend.py`.
-  - [ ] **Шаг 4. Save/load состояния диалога и Soar WM.** Формат —
-    полностью JSON (решение §12.6): состояние диалога и рабочая память
-    сериализуются в версионированный снимок, загрузка идёт в чистый
-    агент, несовместимая версия — миграция или отказ. Гранулярность —
-    отдельный Soar-агент на именного NPC (§12.2), язык — только
-    русский (§12.7).
+  - [x] **Шаг 4. Save/load состояния диалога и Soar WM.** Формат —
+    полностью JSON (решение §12.6): `ConversationState.to_dict/restore`
+    и `DialogueStateStore` хранят QUD, референты, обязательства,
+    локацию и последний смысл по каждому собеседнику; снимок лежит в
+    сейве под `dialogue.states` и пишется после каждого хода. Рабочая
+    память Soar — `soar_snapshot.v1` (`agent_id`, `ai_model`, `tick`,
+    `counters`, узлы WM) в наборе `soar_snapshots.v1` по именным
+    агентам; `SoarAgent` грузит снимок только в чистый агент;
+    несовместимая версия — явная `DialogueError`/`SnapshotError`, без
+    тихого обнуления. Сейв пишет ключ `soar`; пока NPC-политика
+    одноразовая, набор пуст — долгоживущие агенты появятся в Phase 5.
+    Тесты — `tests/test_d2_state.py`,
+    `tests/test_soar_snapshot.py`.
 - [ ] **Phase 5. Soar для BDI, фракций и мира.** Решения агентов в Soar,
   Python — среда; отдельный Soar-агент на именного NPC, общий пул —
   только LOD-исключение; RL-предпочтения после сравнения, владелец

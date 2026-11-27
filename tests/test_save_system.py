@@ -41,6 +41,8 @@ def test_save_roundtrip_writes_current_version(tmp_path, monkeypatch):
         raw = json.load(handle)
     assert raw["version"] == save_system.SAVE_VERSION
     assert raw["campaign"]["day"] == 3
+    assert raw["dialogue"] == {}
+    assert raw["soar"] == {}
 
     loaded = save_system.load_game("slot")
     assert loaded["version"] == save_system.SAVE_VERSION
