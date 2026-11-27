@@ -582,16 +582,21 @@ Soar-решений за ход. Каждое решение получает
 бэкендов.
 
 Живой NLU диалога управляется `nlu_backend` из того же JSON
-(`legacy`, `shadow`, `rive`; в поставке `legacy`). `NluBackend`
+(`legacy`, `shadow`, `rive`; в поставке `rive`). `NluBackend`
 (`campaign/cognition/nlu_backend.py`) в `legacy` сохраняет прежний
 `ChartParser`/фрагменты/fallback, в `shadow` строит ответ легаси и
-сравнивает его с RiveScript, в `rive` берёт триггер из RiveScript;
-смысл кадра пока собирает legacy-адаптер, поэтому ответы и
-`Turn.source` не меняются. Отчёт — `session.nlu.report.to_dict()`
-(`total`, `matched`, `fallback`, `fallback_rate`, `mismatches`,
-`errors`). Без пакета `rivescript` `shadow` понижается до `legacy`
-с `unavailable: true`, `ok: false`, а `rive` отказывает явной
-`BackendError`; откат — `OZVERIN_NLU_BACKEND=legacy`.
+сравнивает его с RiveScript, в `rive` берёт триггер и слоты из
+RiveScript. Точные триггеры несут готовый кадр из манифеста,
+грамматические — шаблон правила и роли слотов, которые заполняют
+`<star>`; `ChartParser` остаётся для вложенных `S`-слотов и полного
+отката. Поэтому ответы и `Turn.source` не меняются. Отчёт —
+`session.nlu.report.to_dict()`
+(`total`, `matched`, `fallback`, `semantic_fallback`, `fallback_rate`,
+`mismatches`, `errors`). Без пакета `rivescript` `shadow` понижается
+до `legacy` с `unavailable: true`, `ok: false`, а `rive` отказывает
+явной `BackendError`; ошибка движка на ходу не срывает ход — отчёт
+помечает её, ответ строит легаси. Откат —
+`OZVERIN_NLU_BACKEND=legacy`.
 
 Прагматика диалога управляется `dialogue_backend` из
 `configs/cognition/backends.json` (`legacy`, `shadow`, `soar`; в

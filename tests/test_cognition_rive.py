@@ -88,6 +88,36 @@ def test_grammar_triggers_cover_closed_constructions():
     assert "g:s_wh_s" in ids
 
 
+def test_manifest_compiles_frames_and_slot_rhs():
+    manifest = compile_dialogue()
+    assert manifest.stats["exact_frames"] > 0
+    assert manifest.stats["missing_frames"] == 0
+    assert manifest.stats["grammar_templates"] == len(
+        [item for item in manifest.triggers if item.source == "grammar"]
+    )
+    greeting = manifest.get("p:greeting_hello")
+    assert greeting is not None
+    assert greeting.frame == {"kind": "greeting", "id": "hello"}
+    assert greeting.rule == "s_greeting"
+    conditional = manifest.get("g:s_conditional")
+    assert conditional is not None
+    assert conditional.frame.get("kind") == "conditional"
+    assert conditional.rule == "s_conditional"
+    assert conditional.rhs == (
+        ("COND", "cond"),
+        ("S", "antecedent"),
+        ("TO", "then"),
+        ("S", "consequent"),
+    )
+    assert conditional.captures() == 4
+
+
+def test_render_passes_star_captures_for_grammar():
+    text = render_rive(compile_dialogue())
+    assert "\u241f<star1>" in text
+    assert "g:s_conditional\u241f<star1>" in text
+
+
 def test_grammar_patterns_partition_all_rules():
     import json
 
@@ -123,10 +153,10 @@ def test_grammar_triggers_use_lexicon_forms_and_wildcards():
     assert conditional.text == "COND S TO S"
     assert conditional.trigger.startswith("(если)")
     assert "(то)" in conditional.trigger
-    assert "[*]" in conditional.trigger
+    assert "*" in conditional.trigger
     negation = manifest.get("g:np_neg_v_np")
     assert negation is not None
-    assert negation.trigger == "[*] (не) [*] [*]"
+    assert negation.trigger == "* (не) * *"
     greeting = manifest.get("g:s_greeting")
     assert greeting is not None
     assert greeting.trigger == "добрый день"
@@ -178,7 +208,9 @@ def test_engine_matches_generated_triggers(tmp_path):
     engine.sort_replies()
     engine.set_subroutine(
         "nlu",
-        lambda rs, args: args[0] if args else "__fallback__",
+        lambda rs, args: (
+            args[0].split("\u241f")[0] if args else "__fallback__"
+        ),
     )
     cases = {
         "Привет.": "p:greeting_hello",
@@ -187,7 +219,7 @@ def test_engine_matches_generated_triggers(tmp_path):
         "Покажи силу против Республики": "a:show_of_force:1",
         "Назначь врага": "a:enemy_of_state:0",
         "Приказываю тебе": "m:command:0",
-        "Империя не воюет": "g:np_neg_v_np_adj",
+        "Империя не считает Республику незаконной": "g:np_neg_v_np_adj",
         "Если империя воюет то республика ждёт": "g:s_conditional",
         "абракадабра ксизи": "__fallback__",
     }

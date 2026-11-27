@@ -2,15 +2,18 @@
   "source_digest": "3474b3dfe20309be327b05f6e7d0794ea3b265717346729020c7982d836ddff4",
   "stats": {
     "actions": 13,
-    "compiler_version": 1,
+    "compiler_version": 2,
+    "exact_frames": 72,
     "grammar_rules": 67,
     "grammar_rules_covered": 23,
     "grammar_rules_skipped": 44,
+    "grammar_templates": 23,
     "grammar_triggers": 23,
     "lexicon_conflicts": 44,
     "lexicon_entries": 422,
     "lexicon_substitutions": 2056,
     "markers": 3,
+    "missing_frames": 0,
     "paraphrases": 63,
     "triggers": 95
   },
@@ -2076,200 +2079,776 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "have": true,
+          "kind": "assert",
+          "object": "$obj",
+          "owner": "$owner"
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "g:s_yesno_have_part_pp_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "HAVE",
+          "have"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "PP",
+          "owner"
+        ],
+        [
+          "NP",
+          "obj"
+        ]
+      ],
+      "rule": "s_yesno_have_part_pp_np",
       "source": "grammar",
       "text": "HAVE PART PP NP",
-      "trigger": "(быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) (бы|ли) [*] [*]"
+      "trigger": "(быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) (бы|ли) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": "$obj",
+          "predicate": "$verb",
+          "subject": "$subj"
+        },
+        "kind": "question",
+        "wh": "$wh"
+      },
       "id": "g:s_wh_pron_v_pp",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "PRON",
+          "subj"
+        ],
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "PP",
+          "obj"
+        ]
+      ],
+      "rule": "s_wh_pron_v_pp",
       "source": "grammar",
       "text": "WH PRON V PP",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (вы|им|о вы|о он|о она|о они|о ты|о я|он|она|они|ты|я) [*] [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (вы|им|о вы|о он|о она|о они|о ты|о я|он|она|они|ты|я) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "S",
+          "body"
+        ]
+      ],
+      "rule": "s_counterfactual",
       "source": "grammar",
       "text": "WH COND PART S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "consequent": "$consequent",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual_consequent_would",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "S",
+          "body"
+        ],
+        [
+          "TO",
+          "then"
+        ],
+        [
+          "S",
+          "consequent"
+        ]
+      ],
+      "rule": "s_counterfactual_consequent_would",
       "source": "grammar",
       "text": "WH COND PART S TO S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) [*] (то) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) (бы|ли) * (то) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual_short",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "S",
+          "body"
+        ]
+      ],
+      "rule": "s_counterfactual_short",
       "source": "grammar",
       "text": "WH COND S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "consequent": "$consequent",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual_consequent",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "S",
+          "body"
+        ],
+        [
+          "TO",
+          "then"
+        ],
+        [
+          "S",
+          "consequent"
+        ]
+      ],
+      "rule": "s_counterfactual_consequent",
       "source": "grammar",
       "text": "WH COND S TO S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) [*] (то) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (если) * (то) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "copula": true,
+          "kind": "assert",
+          "subject": "$subj"
+        },
+        "kind": "question",
+        "wh": "$wh"
+      },
       "id": "g:s_wh_cop_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "COP",
+          "cop"
+        ],
+        [
+          "NP",
+          "subj"
+        ]
+      ],
+      "rule": "s_wh_cop_np",
       "source": "grammar",
       "text": "WH COP NP",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (такой|это|является) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) (такой|это|является) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": "$body",
+        "kind": "question",
+        "wh": "$wh"
+      },
       "id": "g:s_wh_s",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "S",
+          "body"
+        ]
+      ],
+      "rule": "s_wh_s",
       "source": "grammar",
       "text": "WH S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual_past",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "V",
+          ""
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "PART",
+          "cond_part"
+        ],
+        [
+          "S",
+          "body"
+        ]
+      ],
+      "rule": "s_counterfactual_past",
       "source": "grammar",
       "text": "WH V PART COND PART S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) * (бы|ли) (если) (бы|ли) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$body",
+        "consequent": "$consequent",
+        "kind": "counterfactual"
+      },
       "id": "g:s_counterfactual_past_consequent",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "V",
+          ""
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "PART",
+          "cond_part"
+        ],
+        [
+          "S",
+          "body"
+        ],
+        [
+          "TO",
+          "then"
+        ],
+        [
+          "S",
+          "consequent"
+        ]
+      ],
+      "rule": "s_counterfactual_past_consequent",
       "source": "grammar",
       "text": "WH V PART COND PART S TO S",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (бы|ли) (если) (бы|ли) [*] (то) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) * (бы|ли) (если) (бы|ли) * (то) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "have": true,
+          "kind": "assert",
+          "object": "$obj",
+          "owner": "$owner"
+        },
+        "kind": "question",
+        "wh": "$wh"
+      },
       "id": "g:s_wh_np_have_pp",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "NP",
+          "obj"
+        ],
+        [
+          "HAVE",
+          "have"
+        ],
+        [
+          "PP",
+          "owner"
+        ]
+      ],
+      "rule": "s_wh_np_have_pp",
       "source": "grammar",
       "text": "WH NP HAVE PP",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) * (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "kind": "quantity",
+          "object": "$obj",
+          "owner": "$owner"
+        },
+        "kind": "question",
+        "wh": "$wh"
+      },
       "id": "g:s_wh_np_pp",
       "kind": "grammar",
+      "rhs": [
+        [
+          "WH",
+          "wh"
+        ],
+        [
+          "NP",
+          "obj"
+        ],
+        [
+          "PP",
+          "owner"
+        ]
+      ],
+      "rule": "s_wh_np_pp",
       "source": "grammar",
       "text": "WH NP PP",
-      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) [*] [*]"
+      "trigger": "(где|зачем|как|какой|когда|кто|почему|сколько|что) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "antecedent": "$antecedent",
+        "consequent": "$consequent",
+        "kind": "conditional"
+      },
       "id": "g:s_conditional",
       "kind": "grammar",
+      "rhs": [
+        [
+          "COND",
+          "cond"
+        ],
+        [
+          "S",
+          "antecedent"
+        ],
+        [
+          "TO",
+          "then"
+        ],
+        [
+          "S",
+          "consequent"
+        ]
+      ],
+      "rule": "s_conditional",
       "source": "grammar",
       "text": "COND S TO S",
-      "trigger": "(если) [*] (то) [*]"
+      "trigger": "(если) * (то) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "clause": "$clause",
+        "concession": "$first",
+        "kind": "concessive"
+      },
       "id": "g:s_concessive",
       "kind": "grammar",
+      "rhs": [
+        [
+          "SCONJ",
+          "concession"
+        ],
+        [
+          "S",
+          "first"
+        ],
+        [
+          "S",
+          "clause"
+        ]
+      ],
+      "rule": "s_concessive",
       "source": "grammar",
       "text": "SCONJ S S",
-      "trigger": "(невзирая на|несмотря на|хотя) [*] [*]"
+      "trigger": "(невзирая на|несмотря на|хотя) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "kind": "assert",
+        "predicate": "$verb",
+        "subject": "$subj"
+      },
       "id": "g:s_assert_np_part_v",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "V",
+          "verb"
+        ]
+      ],
+      "rule": "s_assert_np_part_v",
       "source": "grammar",
       "text": "NP PART V",
-      "trigger": "[*] (бы|ли) [*]"
+      "trigger": "* (бы|ли) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": "$obj",
+          "predicate": "$verb",
+          "subject": "$subj"
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "g:s_yesno_v_part_np_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "NP",
+          "obj"
+        ]
+      ],
+      "rule": "s_yesno_v_part_np_np",
       "source": "grammar",
       "text": "V PART NP NP",
-      "trigger": "[*] (бы|ли) [*] [*]"
+      "trigger": "* (бы|ли) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": "$obj",
+          "predicate": "$verb",
+          "subject": "$subj",
+          "value": "$value"
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "g:s_yesno_v_part_np_np_adj",
       "kind": "grammar",
+      "rhs": [
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "PART",
+          "part"
+        ],
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "NP",
+          "obj"
+        ],
+        [
+          "ADJ",
+          "value"
+        ]
+      ],
+      "rule": "s_yesno_v_part_np_np_adj",
       "source": "grammar",
       "text": "V PART NP NP ADJ",
-      "trigger": "[*] (бы|ли) [*] [*] [*]"
+      "trigger": "* (бы|ли) * * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "have": true,
+        "kind": "assert",
+        "object": "$obj",
+        "subject": "$subj"
+      },
       "id": "g:s_assert_np_have_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "HAVE",
+          "have"
+        ],
+        [
+          "NP",
+          "obj"
+        ]
+      ],
+      "rule": "s_assert_np_have_np",
       "source": "grammar",
       "text": "NP HAVE NP",
-      "trigger": "[*] (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) [*]"
+      "trigger": "* (быть|имеем|имеет|имеете|имеется|имеешь|имею|имеют|имеются) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "kind": "assert",
+        "negated": true,
+        "object": "$obj",
+        "predicate": "$verb",
+        "subject": "$subj"
+      },
       "id": "g:np_neg_v_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "NEG",
+          "neg"
+        ],
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "NP",
+          "obj"
+        ]
+      ],
+      "rule": "np_neg_v_np",
       "source": "grammar",
       "text": "NP NEG V NP",
-      "trigger": "[*] (не) [*] [*]"
+      "trigger": "* (не) * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "kind": "assert",
+        "negated": true,
+        "object": "$obj",
+        "predicate": "$verb",
+        "subject": "$subj",
+        "value": "$value"
+      },
       "id": "g:np_neg_v_np_adj",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "NEG",
+          "neg"
+        ],
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "NP",
+          "obj"
+        ],
+        [
+          "ADJ",
+          "value"
+        ]
+      ],
+      "rule": "np_neg_v_np_adj",
       "source": "grammar",
       "text": "NP NEG V NP ADJ",
-      "trigger": "[*] (не) [*] [*] [*]"
+      "trigger": "* (не) * * *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "copula": true,
+        "kind": "assert",
+        "object": "$obj",
+        "subject": "$subj"
+      },
       "id": "g:s_assert_np_cop_np",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "subj"
+        ],
+        [
+          "COP",
+          "cop"
+        ],
+        [
+          "NP",
+          "obj"
+        ]
+      ],
+      "rule": "s_assert_np_cop_np",
       "source": "grammar",
       "text": "NP COP NP",
-      "trigger": "[*] (такой|это|является) [*]"
+      "trigger": "* (такой|это|является) *"
     },
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "body": "$body",
+        "kind": "report",
+        "mode": "indirect",
+        "predicate": "$verb",
+        "speaker": "$speaker"
+      },
       "id": "g:s_indirect_speech",
       "kind": "grammar",
+      "rhs": [
+        [
+          "NP",
+          "speaker"
+        ],
+        [
+          "V",
+          "verb"
+        ],
+        [
+          "COMP",
+          "comp"
+        ],
+        [
+          "S",
+          "body"
+        ]
+      ],
+      "rule": "s_indirect_speech",
       "source": "grammar",
       "text": "NP V COMP S",
-      "trigger": "[*] [*] (что) [*]"
+      "trigger": "* * (что) *"
     },
     {
       "action_id": "",
@@ -2277,8 +2856,34 @@
         "body.have": true,
         "wh": "yesno"
       },
+      "frame": {
+        "body": {
+          "have": true,
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "organ:red:abwehr"
+            },
+            "kind": "np"
+          },
+          "owner": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "at"
+          }
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "p:yesno_have_organ",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_yesno_have_part_pp_np",
       "source": "paraphrase",
       "text": "Есть ли у Империи Абвер?",
       "trigger": "быть ли у империя абвер"
@@ -2289,8 +2894,34 @@
         "body.have": true,
         "wh": "yesno"
       },
+      "frame": {
+        "body": {
+          "have": true,
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "organ:red:abwehr"
+            },
+            "kind": "np"
+          },
+          "owner": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "at"
+          }
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "p:yesno_have_organ_reverse",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_yesno_have_part_pp_np",
       "source": "paraphrase",
       "text": "Есть ли у Республики Абвер?",
       "trigger": "быть ли у республика абвер"
@@ -2298,8 +2929,20 @@
     {
       "action_id": "cyber_osint",
       "expect": {},
+      "frame": {
+        "action": "breach_network",
+        "instrument": {
+          "head": {
+            "entity": "noun:network"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:cyber_osint:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Вскрой сеть",
       "trigger": "вскрой сеть"
@@ -2310,8 +2953,24 @@
         "body.predicate": "locate",
         "wh": "where"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "organ:red:abwehr"
+            },
+            "kind": "np"
+          },
+          "predicate": "locate"
+        },
+        "kind": "question",
+        "wh": "where"
+      },
       "id": "p:wh_where_organ",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_v_np",
       "source": "paraphrase",
       "text": "Где находится Абвер?",
       "trigger": "где находиться абвер"
@@ -2322,8 +2981,24 @@
         "body.predicate": "locate",
         "wh": "where"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:amber"
+            },
+            "kind": "np"
+          },
+          "predicate": "locate"
+        },
+        "kind": "question",
+        "wh": "where"
+      },
       "id": "p:wh_where",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_v_np",
       "source": "paraphrase",
       "text": "Где находится Торговая планета?",
       "trigger": "где находиться торговый планета"
@@ -2331,8 +3006,14 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "id": "bye",
+        "kind": "farewell"
+      },
       "id": "p:farewell_bye",
       "kind": "farewell",
+      "rhs": [],
+      "rule": "s_farewell",
       "source": "paraphrase",
       "text": "До свидания.",
       "trigger": "до свидания"
@@ -2342,8 +3023,14 @@
       "expect": {
         "id": "hello"
       },
+      "frame": {
+        "id": "hello",
+        "kind": "greeting"
+      },
       "id": "p:greeting_good_morning",
       "kind": "greeting",
+      "rhs": [],
+      "rule": "s_greeting",
       "source": "paraphrase",
       "text": "Доброе утро.",
       "trigger": "доброе утро"
@@ -2353,8 +3040,14 @@
       "expect": {
         "id": "hello"
       },
+      "frame": {
+        "id": "hello",
+        "kind": "greeting"
+      },
       "id": "p:greeting_good_evening",
       "kind": "greeting",
+      "rhs": [],
+      "rule": "s_greeting",
       "source": "paraphrase",
       "text": "Добрый вечер.",
       "trigger": "добрый вечер"
@@ -2362,8 +3055,14 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "id": "hello",
+        "kind": "greeting"
+      },
       "id": "g:s_greeting",
       "kind": "grammar",
+      "rhs": [],
+      "rule": "s_greeting",
       "source": "grammar",
       "text": "GREETING",
       "trigger": "добрый день"
@@ -2374,8 +3073,53 @@
         "antecedent.predicate": "fight",
         "consequent.predicate": "fight"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "consequent": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "conditional"
+      },
       "id": "p:conditional_plain",
       "kind": "conditional",
+      "rhs": [],
+      "rule": "s_conditional",
       "source": "paraphrase",
       "text": "Если Империя воюет с Республикой, то Республика воюет с Империей.",
       "trigger": "если империя воевать с республика то республика воевать с империя"
@@ -2387,8 +3131,40 @@
         "antecedent.predicate": "issue",
         "consequent.predicate": "fall"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "negated": true,
+          "object": {
+            "head": {
+              "entity": "concept:edict"
+            },
+            "kind": "np"
+          },
+          "predicate": "issue",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "consequent": {
+          "kind": "assert",
+          "predicate": "fall",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "conditional"
+      },
       "id": "p:conditional_negated",
       "kind": "conditional",
+      "rhs": [],
+      "rule": "s_conditional",
       "source": "paraphrase",
       "text": "Если Империя не издает эдикт, то Республика падет.",
       "trigger": "если империя не издать эдикт то республика пасть"
@@ -2399,8 +3175,53 @@
         "antecedent.predicate": "fight",
         "consequent.predicate": "fight"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "consequent": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "conditional"
+      },
       "id": "p:conditional_reverse",
       "kind": "conditional",
+      "rhs": [],
+      "rule": "s_conditional",
       "source": "paraphrase",
       "text": "Если Республика воюет с Империей, то Империя воюет с Республикой.",
       "trigger": "если республика воевать с империя то империя воевать с республика"
@@ -2408,8 +3229,20 @@
     {
       "action_id": "cipher_protection",
       "expect": {},
+      "frame": {
+        "action": "protect_ciphers",
+        "instrument": {
+          "head": {
+            "entity": "noun:cipher"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:cipher_protection:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Защити шифры",
       "trigger": "защити шифр"
@@ -2419,8 +3252,14 @@
       "expect": {
         "act": "beg_pardon"
       },
+      "frame": {
+        "act": "beg_pardon",
+        "kind": "social"
+      },
       "id": "p:social_beg_pardon",
       "kind": "social",
+      "rhs": [],
+      "rule": "s_social_beg_pardon",
       "source": "paraphrase",
       "text": "Извиняюсь.",
       "trigger": "извиняться"
@@ -2430,8 +3269,20 @@
       "expect": {
         "action": "publish_edict"
       },
+      "frame": {
+        "action": "publish_edict",
+        "instrument": {
+          "head": {
+            "entity": "concept:edict"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "p:imperative_publish_synonym",
       "kind": "order",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "paraphrase",
       "text": "Издай эдикт.",
       "trigger": "издай эдикт"
@@ -2442,8 +3293,28 @@
         "negated": true,
         "predicate": "believe"
       },
+      "frame": {
+        "kind": "assert",
+        "negated": true,
+        "object": {
+          "head": {
+            "entity": "faction:blue"
+          },
+          "kind": "np"
+        },
+        "predicate": "believe",
+        "subject": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        },
+        "value": "illegal"
+      },
       "id": "p:assert_negated_belief",
       "kind": "assert",
+      "rhs": [],
+      "rule": "np_neg_v_np_adj",
       "source": "paraphrase",
       "text": "Император не считает Республику незаконной.",
       "trigger": "император не считать республика незаконный"
@@ -2455,8 +3326,41 @@
         "mode": "direct",
         "predicate": "say"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "report",
+        "mode": "direct",
+        "predicate": "say",
+        "speaker": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:report_direct",
       "kind": "report",
+      "rhs": [],
+      "rule": "s_direct_speech",
       "source": "paraphrase",
       "text": "Император сказал: «Империя воюет с Республикой».",
       "trigger": "император сказать империя воевать с республика"
@@ -2468,8 +3372,41 @@
         "mode": "direct",
         "predicate": "say"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "report",
+        "mode": "direct",
+        "predicate": "say",
+        "speaker": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:report_direct_reverse",
       "kind": "report",
+      "rhs": [],
+      "rule": "s_direct_speech",
       "source": "paraphrase",
       "text": "Император сказал: «Республика воюет с Империей».",
       "trigger": "император сказать республика воевать с империя"
@@ -2481,8 +3418,41 @@
         "mode": "indirect",
         "predicate": "say"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "report",
+        "mode": "indirect",
+        "predicate": "say",
+        "speaker": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:report_indirect",
       "kind": "report",
+      "rhs": [],
+      "rule": "s_indirect_speech",
       "source": "paraphrase",
       "text": "Император сказал, что Империя воюет с Республикой.",
       "trigger": "император сказать что империя воевать с республика"
@@ -2494,8 +3464,41 @@
         "mode": "indirect",
         "predicate": "say"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "report",
+        "mode": "indirect",
+        "predicate": "say",
+        "speaker": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:report_indirect_reverse",
       "kind": "report",
+      "rhs": [],
+      "rule": "s_indirect_speech",
       "source": "paraphrase",
       "text": "Император сказал, что Республика воюет с Империей.",
       "trigger": "император сказать что республика воевать с империя"
@@ -2506,8 +3509,27 @@
         "predicate": "believe",
         "value": "illegal"
       },
+      "frame": {
+        "kind": "assert",
+        "object": {
+          "head": {
+            "entity": "faction:blue"
+          },
+          "kind": "np"
+        },
+        "predicate": "believe",
+        "subject": {
+          "head": {
+            "entity": "post:red:leader"
+          },
+          "kind": "np"
+        },
+        "value": "illegal"
+      },
       "id": "p:assert_belief",
       "kind": "assert",
+      "rhs": [],
+      "rule": "s_assert_np_v_np_adj",
       "source": "paraphrase",
       "text": "Император считает Республику незаконной.",
       "trigger": "император считать республика незаконный"
@@ -2519,8 +3541,30 @@
         "predicate": "fight",
         "subject.head.entity": "faction:red"
       },
+      "frame": {
+        "kind": "assert",
+        "object": {
+          "kind": "pp",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "prep": "with"
+        },
+        "predicate": "fight",
+        "subject": {
+          "head": {
+            "entity": "faction:red"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:assert_fight",
       "kind": "assert",
+      "rhs": [],
+      "rule": "s_assert_np_v_pp",
       "source": "paraphrase",
       "text": "Империя воюет с Республикой.",
       "trigger": "империя воевать с республика"
@@ -2531,8 +3575,31 @@
         "negated": true,
         "predicate": "fight"
       },
+      "frame": {
+        "kind": "assert",
+        "negated": true,
+        "object": {
+          "kind": "pp",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "prep": "with"
+        },
+        "predicate": "fight",
+        "subject": {
+          "head": {
+            "entity": "faction:red"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:assert_negated_fight",
       "kind": "assert",
+      "rhs": [],
+      "rule": "np_neg_v_pp",
       "source": "paraphrase",
       "text": "Империя не воюет с Республикой.",
       "trigger": "империя не воевать с республика"
@@ -2542,8 +3609,23 @@
       "expect": {
         "wh": "how"
       },
+      "frame": {
+        "body": {
+          "kind": "topic",
+          "topic": {
+            "head": {
+              "entity": "concept:affairs"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "question",
+        "wh": "how"
+      },
       "id": "p:wh_how_are_you",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_np",
       "source": "paraphrase",
       "text": "Как дела?",
       "trigger": "как дело"
@@ -2555,8 +3637,34 @@
         "body.object.head.entity": "noun:organ",
         "wh": "which"
       },
+      "frame": {
+        "body": {
+          "have": true,
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "noun:organ"
+            },
+            "kind": "np"
+          },
+          "owner": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "at"
+          }
+        },
+        "kind": "question",
+        "wh": "which"
+      },
       "id": "p:wh_organs",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_np_have_pp",
       "source": "paraphrase",
       "text": "Какие органы есть у Империи?",
       "trigger": "какой орган быть у империя"
@@ -2566,8 +3674,33 @@
       "expect": {
         "wh": "which"
       },
+      "frame": {
+        "body": {
+          "kind": "quantity",
+          "object": {
+            "head": {
+              "entity": "noun:work"
+            },
+            "kind": "np"
+          },
+          "owner": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "at"
+          }
+        },
+        "kind": "question",
+        "wh": "which"
+      },
       "id": "p:wh_works",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_np_pp",
       "source": "paraphrase",
       "text": "Какие работы у Империи?",
       "trigger": "какой работа у империя"
@@ -2578,8 +3711,20 @@
         "act": "oath",
         "object.head.entity": "noun:honor"
       },
+      "frame": {
+        "act": "oath",
+        "kind": "social",
+        "object": {
+          "head": {
+            "entity": "noun:honor"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:social_oath_honor",
       "kind": "social",
+      "rhs": [],
+      "rule": "s_social_oath",
       "source": "paraphrase",
       "text": "Клянусь честью.",
       "trigger": "клясться честь"
@@ -2590,8 +3735,24 @@
         "body.predicate": "begin",
         "wh": "when"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "concept:war"
+            },
+            "kind": "np"
+          },
+          "predicate": "begin"
+        },
+        "kind": "question",
+        "wh": "when"
+      },
       "id": "p:wh_when",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_v_np",
       "source": "paraphrase",
       "text": "Когда началась война?",
       "trigger": "когда начаться война"
@@ -2602,8 +3763,24 @@
         "body.predicate": "rule",
         "wh": "who"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          },
+          "predicate": "rule"
+        },
+        "kind": "question",
+        "wh": "who"
+      },
       "id": "p:wh_ruler",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_v_np",
       "source": "paraphrase",
       "text": "Кто правит Империей?",
       "trigger": "кто править империя"
@@ -2614,8 +3791,24 @@
         "body.predicate": "rule",
         "wh": "who"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "predicate": "rule"
+        },
+        "kind": "question",
+        "wh": "who"
+      },
       "id": "p:wh_ruler_reverse",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_v_np",
       "source": "paraphrase",
       "text": "Кто правит Республикой?",
       "trigger": "кто править республика"
@@ -2623,8 +3816,20 @@
     {
       "action_id": "enemy_of_state",
       "expect": {},
+      "frame": {
+        "action": "appoint_enemy",
+        "instrument": {
+          "head": {
+            "entity": "noun:enemy"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:enemy_of_state:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Назначь врага",
       "trigger": "назначь враг"
@@ -2635,8 +3840,54 @@
         "clause.negated": true,
         "concession.predicate": "fight"
       },
+      "frame": {
+        "clause": {
+          "kind": "assert",
+          "negated": true,
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "concession": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "concessive"
+      },
       "id": "p:concessive_despite",
       "kind": "concessive",
+      "rhs": [],
+      "rule": "s_concessive",
       "source": "paraphrase",
       "text": "Несмотря на Империя воюет с Республикой, Республика не воюет с Империей.",
       "trigger": "несмотря на империя воевать с республика республика не воевать с империя"
@@ -2644,8 +3895,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "promise",
+        "kind": "social",
+        "object": {
+          "head": "you_pl",
+          "kind": "np"
+        }
+      },
       "id": "m:promise:1",
       "kind": "promise",
+      "rhs": [],
+      "rule": "s_social_promise",
       "source": "marker",
       "text": "Обещаю вам",
       "trigger": "обещать вы"
@@ -2653,8 +3914,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "promise",
+        "kind": "social",
+        "object": {
+          "head": "you_sg",
+          "kind": "np"
+        }
+      },
       "id": "m:promise:0",
       "kind": "promise",
+      "rhs": [],
+      "rule": "s_social_promise",
       "source": "marker",
       "text": "Обещаю тебе",
       "trigger": "обещать ты"
@@ -2662,8 +3933,20 @@
     {
       "action_id": "imperial_edict",
       "expect": {},
+      "frame": {
+        "action": "publish_edict",
+        "instrument": {
+          "head": {
+            "entity": "concept:edict"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:imperial_edict:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Опубликуй эдикт",
       "trigger": "опубликуй эдикт"
@@ -2671,8 +3954,20 @@
     {
       "action_id": "church_hospitals",
       "expect": {},
+      "frame": {
+        "action": "open_hospitals",
+        "instrument": {
+          "head": {
+            "entity": "noun:clinic"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:church_hospitals:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Открой больницы",
       "trigger": "открой больница"
@@ -2680,8 +3975,20 @@
     {
       "action_id": "officer_purge",
       "expect": {},
+      "frame": {
+        "action": "purge_officers",
+        "instrument": {
+          "head": {
+            "entity": "noun:corps"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:officer_purge:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Очисти корпус",
       "trigger": "очисти корпус"
@@ -2691,8 +3998,14 @@
       "expect": {
         "id": "bye"
       },
+      "frame": {
+        "id": "bye",
+        "kind": "farewell"
+      },
       "id": "p:farewell_proshchay",
       "kind": "farewell",
+      "rhs": [],
+      "rule": "s_farewell",
       "source": "paraphrase",
       "text": "Прощай.",
       "trigger": "пока"
@@ -2700,8 +4013,20 @@
     {
       "action_id": "show_of_force",
       "expect": {},
+      "frame": {
+        "action": "show_force",
+        "instrument": {
+          "head": {
+            "entity": "concept:force"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:show_of_force:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Покажи силу",
       "trigger": "покажи сила"
@@ -2709,8 +4034,30 @@
     {
       "action_id": "show_of_force",
       "expect": {},
+      "frame": {
+        "action": "show_force",
+        "instrument": {
+          "head": {
+            "entity": "concept:force"
+          },
+          "kind": "np"
+        },
+        "kind": "order",
+        "target": {
+          "kind": "pp",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "prep": "against"
+        }
+      },
       "id": "a:show_of_force:1",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np_pp",
       "source": "action",
       "text": "Покажи силу против Республики",
       "trigger": "покажи сила против республика"
@@ -2720,8 +4067,18 @@
       "expect": {
         "action": "act_kiss"
       },
+      "frame": {
+        "action": "act_kiss",
+        "instrument": {
+          "head": "self",
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "p:order_kiss",
       "kind": "order",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "paraphrase",
       "text": "Поцелуй меня.",
       "trigger": "поцелуй я"
@@ -2732,8 +4089,31 @@
         "body.predicate": "believe",
         "wh": "why"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "predicate": "believe",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          },
+          "value": "illegal"
+        },
+        "kind": "question",
+        "wh": "why"
+      },
       "id": "p:wh_why",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_s",
       "source": "paraphrase",
       "text": "Почему Империя считает Республику незаконной?",
       "trigger": "почему империя считать республика незаконный"
@@ -2744,8 +4124,31 @@
         "body.predicate": "believe",
         "wh": "why"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          },
+          "predicate": "believe",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "value": "illegal"
+        },
+        "kind": "question",
+        "wh": "why"
+      },
       "id": "p:wh_why_reverse",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_s",
       "source": "paraphrase",
       "text": "Почему Республика считает Империю незаконной?",
       "trigger": "почему республика считать империя незаконный"
@@ -2756,8 +4159,20 @@
         "act": "offer",
         "object.head.entity": "concept:deal"
       },
+      "frame": {
+        "act": "offer",
+        "kind": "social",
+        "object": {
+          "head": {
+            "entity": "concept:deal"
+          },
+          "kind": "np"
+        }
+      },
       "id": "p:social_offer_deal",
       "kind": "social",
+      "rhs": [],
+      "rule": "s_social_offer",
       "source": "paraphrase",
       "text": "Предлагаю сделку.",
       "trigger": "предлагать сделка"
@@ -2765,8 +4180,14 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "id": "hello",
+        "kind": "greeting"
+      },
       "id": "p:greeting_hello",
       "kind": "greeting",
+      "rhs": [],
+      "rule": "s_greeting",
       "source": "paraphrase",
       "text": "Привет.",
       "trigger": "привет"
@@ -2774,8 +4195,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "command",
+        "kind": "social",
+        "object": {
+          "head": "you_pl",
+          "kind": "np"
+        }
+      },
       "id": "m:command:1",
       "kind": "command",
+      "rhs": [],
+      "rule": "s_social_command",
       "source": "marker",
       "text": "Приказываю вам",
       "trigger": "приказывать вы"
@@ -2783,8 +4214,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "command",
+        "kind": "social",
+        "object": {
+          "head": "you_sg",
+          "kind": "np"
+        }
+      },
       "id": "m:command:0",
       "kind": "command",
+      "rhs": [],
+      "rule": "s_social_command",
       "source": "marker",
       "text": "Приказываю тебе",
       "trigger": "приказывать ты"
@@ -2792,8 +4233,20 @@
     {
       "action_id": "guard_parade",
       "expect": {},
+      "frame": {
+        "action": "hold_parade",
+        "instrument": {
+          "head": {
+            "entity": "noun:parade"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:guard_parade:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Проведи парад",
       "trigger": "проведи парад"
@@ -2803,8 +4256,20 @@
       "expect": {
         "action": "show_force"
       },
+      "frame": {
+        "action": "show_force",
+        "instrument": {
+          "head": {
+            "entity": "concept:force"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "p:imperative_show_synonym",
       "kind": "order",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "paraphrase",
       "text": "Продемонстрируй силу.",
       "trigger": "продемонстрируй сила"
@@ -2812,8 +4277,20 @@
     {
       "action_id": "field_medicine",
       "expect": {},
+      "frame": {
+        "action": "deploy_hospitals",
+        "instrument": {
+          "head": {
+            "entity": "noun:hospital"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:field_medicine:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Разверни госпитали",
       "trigger": "разверни госпиталь"
@@ -2823,8 +4300,24 @@
       "expect": {
         "action": "tell"
       },
+      "frame": {
+        "action": "tell",
+        "kind": "request",
+        "topic": {
+          "kind": "pp",
+          "object": {
+            "head": {
+              "entity": "concept:war"
+            },
+            "kind": "np"
+          },
+          "prep": "about"
+        }
+      },
       "id": "p:request_tell_war",
       "kind": "request",
+      "rhs": [],
+      "rule": "s_request_tell",
       "source": "paraphrase",
       "text": "Расскажи о войне.",
       "trigger": "рассказать о война"
@@ -2834,8 +4327,24 @@
       "expect": {
         "action": "tell"
       },
+      "frame": {
+        "action": "tell",
+        "kind": "request",
+        "topic": {
+          "kind": "pp",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "prep": "about"
+        }
+      },
       "id": "p:request_tell",
       "kind": "request",
+      "rhs": [],
+      "rule": "s_request_tell",
       "source": "paraphrase",
       "text": "Расскажи о Республике.",
       "trigger": "рассказать о республика"
@@ -2845,8 +4354,33 @@
       "expect": {
         "wh": "how_many"
       },
+      "frame": {
+        "body": {
+          "kind": "quantity",
+          "object": {
+            "head": {
+              "entity": "asset:legitimacy"
+            },
+            "kind": "np"
+          },
+          "owner": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "at"
+          }
+        },
+        "kind": "question",
+        "wh": "how_many"
+      },
       "id": "p:wh_how_many",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_np_pp",
       "source": "paraphrase",
       "text": "Сколько законности у Империи?",
       "trigger": "сколько законность у империя"
@@ -2854,8 +4388,20 @@
     {
       "action_id": "staff_plan",
       "expect": {},
+      "frame": {
+        "action": "coordinate_plan",
+        "instrument": {
+          "head": {
+            "entity": "concept:plan"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:staff_plan:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Согласуй план",
       "trigger": "согласуй план"
@@ -2863,8 +4409,20 @@
     {
       "action_id": "imperial_church",
       "expect": {},
+      "frame": {
+        "action": "convene_cathedral",
+        "instrument": {
+          "head": {
+            "entity": "noun:cathedral"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:imperial_church:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Созови собор",
       "trigger": "созови собор"
@@ -2876,8 +4434,31 @@
         "body.value": "illegal",
         "wh": "yesno"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "predicate": "believe",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          },
+          "value": "illegal"
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "p:yesno_belief",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_yesno_v_part_np_np_adj",
       "source": "paraphrase",
       "text": "Считает ли Империя Республику незаконной?",
       "trigger": "считать ли империя республика незаконный"
@@ -2889,8 +4470,31 @@
         "body.value": "illegal",
         "wh": "yesno"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          },
+          "predicate": "believe",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          },
+          "value": "illegal"
+        },
+        "kind": "question",
+        "wh": "yesno"
+      },
       "id": "p:yesno_belief_reverse",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_yesno_v_part_np_np_adj",
       "source": "paraphrase",
       "text": "Считает ли Республика Империю незаконной?",
       "trigger": "считать ли республика империя незаконный"
@@ -2898,8 +4502,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "threat",
+        "kind": "social",
+        "object": {
+          "head": "you_pl",
+          "kind": "np"
+        }
+      },
       "id": "m:threat:1",
       "kind": "threat",
+      "rhs": [],
+      "rule": "s_social_threat",
       "source": "marker",
       "text": "Угрожаю вам",
       "trigger": "угрожать вы"
@@ -2907,8 +4521,20 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "threat",
+        "kind": "social",
+        "object": {
+          "head": {
+            "entity": "concept:force"
+          },
+          "kind": "np"
+        }
+      },
       "id": "m:threat:2",
       "kind": "threat",
+      "rhs": [],
+      "rule": "s_social_threat",
       "source": "marker",
       "text": "Угрожаю силой",
       "trigger": "угрожать сила"
@@ -2916,8 +4542,18 @@
     {
       "action_id": "",
       "expect": {},
+      "frame": {
+        "act": "threat",
+        "kind": "social",
+        "object": {
+          "head": "you_sg",
+          "kind": "np"
+        }
+      },
       "id": "m:threat:0",
       "kind": "threat",
+      "rhs": [],
+      "rule": "s_social_threat",
       "source": "marker",
       "text": "Угрожаю тебе",
       "trigger": "угрожать ты"
@@ -2925,8 +4561,20 @@
     {
       "action_id": "garrison_network",
       "expect": {},
+      "frame": {
+        "action": "fortify_garrison",
+        "instrument": {
+          "head": {
+            "entity": "concept:garrison"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:garrison_network:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Укрепи гарнизон",
       "trigger": "укрепи гарнизон"
@@ -2936,8 +4584,20 @@
       "expect": {
         "action": "fortify_garrison"
       },
+      "frame": {
+        "action": "fortify_garrison",
+        "instrument": {
+          "head": {
+            "entity": "concept:garrison"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "p:imperative_fortify_synonym",
       "kind": "order",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "paraphrase",
       "text": "Усиль гарнизон.",
       "trigger": "усиль гарнизон"
@@ -2945,8 +4605,20 @@
     {
       "action_id": "abwehr_sabotage",
       "expect": {},
+      "frame": {
+        "action": "arrange_sabotage",
+        "instrument": {
+          "head": {
+            "entity": "noun:sabotage"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "a:abwehr_sabotage:0",
       "kind": "",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "action",
       "text": "Устрой диверсию",
       "trigger": "устрой диверсия"
@@ -2956,8 +4628,20 @@
       "expect": {
         "action": "coordinate_plan"
       },
+      "frame": {
+        "action": "coordinate_plan",
+        "instrument": {
+          "head": {
+            "entity": "concept:plan"
+          },
+          "kind": "np"
+        },
+        "kind": "order"
+      },
       "id": "p:imperative_coordinate_synonym",
       "kind": "order",
+      "rhs": [],
+      "rule": "s_imperative_v_np",
       "source": "paraphrase",
       "text": "Утверди план.",
       "trigger": "утверди план"
@@ -2968,8 +4652,54 @@
         "clause.negated": true,
         "concession.predicate": "fight"
       },
+      "frame": {
+        "clause": {
+          "kind": "assert",
+          "negated": true,
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "concession": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "concessive"
+      },
       "id": "p:concessive_though",
       "kind": "concessive",
+      "rhs": [],
+      "rule": "s_concessive",
       "source": "paraphrase",
       "text": "Хотя Империя воюет с Республикой, Республика не воюет с Империей.",
       "trigger": "хотя империя воевать с республика республика не воевать с империя"
@@ -2980,8 +4710,54 @@
         "clause.negated": true,
         "concession.predicate": "fight"
       },
+      "frame": {
+        "clause": {
+          "kind": "assert",
+          "negated": true,
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "concession": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:red"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "concessive"
+      },
       "id": "p:concessive_reverse",
       "kind": "concessive",
+      "rhs": [],
+      "rule": "s_concessive",
       "source": "paraphrase",
       "text": "Хотя Республика воюет с Империей, Империя не воюет с Республикой.",
       "trigger": "хотя республика воевать с империя империя не воевать с республика"
@@ -2991,8 +4767,29 @@
       "expect": {
         "antecedent.predicate": "issue"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "object": {
+            "head": {
+              "entity": "concept:edict"
+            },
+            "kind": "np"
+          },
+          "predicate": "issue",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "counterfactual"
+      },
       "id": "p:counterfactual_past",
       "kind": "counterfactual",
+      "rhs": [],
+      "rule": "s_counterfactual_past",
       "source": "paraphrase",
       "text": "Что было бы, если бы Империя издала эдикт?",
       "trigger": "что быть бы если бы империя издать эдикт"
@@ -3004,8 +4801,40 @@
         "antecedent.predicate": "issue",
         "consequent.predicate": "fall"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "negated": true,
+          "object": {
+            "head": {
+              "entity": "concept:edict"
+            },
+            "kind": "np"
+          },
+          "predicate": "issue",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "consequent": {
+          "kind": "assert",
+          "predicate": "fall",
+          "subject": {
+            "head": {
+              "entity": "faction:blue"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "counterfactual"
+      },
       "id": "p:counterfactual_negated",
       "kind": "counterfactual",
+      "rhs": [],
+      "rule": "s_counterfactual_past_consequent",
       "source": "paraphrase",
       "text": "Что было бы, если бы Империя не издала эдикт, то Республика бы пала?",
       "trigger": "что быть бы если бы империя не издать эдикт то республика бы пасть"
@@ -3015,8 +4844,33 @@
       "expect": {
         "antecedent.predicate": "fight"
       },
+      "frame": {
+        "antecedent": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "with"
+          },
+          "predicate": "fight",
+          "subject": {
+            "head": {
+              "entity": "faction:red"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "counterfactual"
+      },
       "id": "p:counterfactual_short",
       "kind": "counterfactual",
+      "rhs": [],
+      "rule": "s_counterfactual_short",
       "source": "paraphrase",
       "text": "Что если Империя воюет с Республикой?",
       "trigger": "что если империя воевать с республика"
@@ -3026,8 +4880,24 @@
       "expect": {
         "wh": "what"
       },
+      "frame": {
+        "body": {
+          "copula": true,
+          "kind": "assert",
+          "subject": {
+            "head": {
+              "entity": "organ:red:abwehr"
+            },
+            "kind": "np"
+          }
+        },
+        "kind": "question",
+        "wh": "what"
+      },
       "id": "p:wh_what",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_cop_np",
       "source": "paraphrase",
       "text": "Что такое Абвер?",
       "trigger": "что такой абвер"
@@ -3038,8 +4908,29 @@
         "body.predicate": "know",
         "wh": "what"
       },
+      "frame": {
+        "body": {
+          "kind": "assert",
+          "object": {
+            "kind": "pp",
+            "object": {
+              "head": {
+                "entity": "faction:blue"
+              },
+              "kind": "np"
+            },
+            "prep": "about"
+          },
+          "predicate": "know",
+          "subject": "you_sg"
+        },
+        "kind": "question",
+        "wh": "what"
+      },
       "id": "p:wh_knowledge",
       "kind": "question",
+      "rhs": [],
+      "rule": "s_wh_pron_v_pp",
       "source": "paraphrase",
       "text": "Что ты знаешь о Республике?",
       "trigger": "что ты знать о республика"
@@ -3050,8 +4941,18 @@
         "predicate": "beg_pardon",
         "subject.head": "self"
       },
+      "frame": {
+        "kind": "assert",
+        "predicate": "beg_pardon",
+        "subject": {
+          "head": "self",
+          "kind": "np"
+        }
+      },
       "id": "p:assert_apology",
       "kind": "assert",
+      "rhs": [],
+      "rule": "s_assert_np_v",
       "source": "paraphrase",
       "text": "Я извиняюсь.",
       "trigger": "я извиняться"
@@ -3062,14 +4963,24 @@
         "predicate": "promise",
         "subject.head": "self"
       },
+      "frame": {
+        "kind": "assert",
+        "predicate": "promise",
+        "subject": {
+          "head": "self",
+          "kind": "np"
+        }
+      },
       "id": "p:assert_promise",
       "kind": "assert",
+      "rhs": [],
+      "rule": "s_assert_np_v",
       "source": "paraphrase",
       "text": "Я обещаю.",
       "trigger": "я обещать"
     }
   ],
-  "version": 1,
+  "version": 2,
   "warnings": [
     "лексикон: 44 неоднозначных форм оставлены парсеру",
     "дубликат триггера 'вскрой сеть': a:cyber_osint:0 и p:imperative_breach_network",

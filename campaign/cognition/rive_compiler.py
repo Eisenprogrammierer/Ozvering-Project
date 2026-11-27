@@ -12,7 +12,7 @@ Phase 1 компилирует то, что можно проверить без
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
@@ -22,10 +22,14 @@ from campaign.dialogue.morphology import tokenize
 from .errors import RiveError
 from .serialization import canonical_digest, pretty_json
 
-COMPILER_VERSION = 1
-MANIFEST_VERSION = 1
+COMPILER_VERSION = 2
+MANIFEST_VERSION = 2
 TRIGGER_SOURCES = ("paraphrase", "action", "marker", "grammar")
 _SOURCE_ORDER = {"action": 0, "paraphrase": 1, "marker": 2, "grammar": 3}
+# Разделитель полезной нагрузки ``<call>``: RiveScript режет аргументы по
+# пробелам, поэтому id триггера и захваты ``<star>`` склеиваются редким
+# символом, который не встречается в обычной фразе.
+PAYLOAD_SEPARATOR = "\u241f"
 _QUOTES = frozenset(("«", "»", '"'))
 # Закрытые классы грамматики: их формы берутся из лексикона и становятся
 # литералами триггера. Открытые классы (N, V, ADJ, NP, PP, S) остаются
@@ -155,6 +159,12 @@ class RiveTrigger:
     kind: str = ""
     action_id: str = ""
     expect: Mapping[str, Any] = field(default_factory=dict)
+    # Скомпилированный кадр: полная логическая форма для точного
+    # триггера или шаблон правила со ссылками ``$role`` для грамматики.
+    frame: Mapping[str, Any] = field(default_factory=dict)
+    rule: str = ""
+    # Категории и роли открытых слотов в порядке захватов ``<star>``.
+    rhs: Tuple[Tuple[str, str], ...] = ()
 
     def __post_init__(self):
         if not str(self.id or "").strip():
@@ -167,6 +177,20 @@ class RiveTrigger:
             )
         if not isinstance(self.expect, Mapping):
             raise RiveError("expect триггера должен быть объектом")
+        if not isinstance(self.frame, Mapping):
+            raise RiveError("frame триггера должен быть объектом")
+        if not isinstance(self.rhs, tuple) or not all(
+            isinstance(item, tuple)
+            and len(item) == 2
+            and all(isinstance(part, str) for part in item)
+            for item in self.rhs
+        ):
+            raise RiveError("rhs триггера должен быть кортежем пар")
+
+    def captures(self) -> int:
+        """Сколько ``<star>`` вернёт RiveScript для этого триггера."""
+
+        return self.trigger.count("(") + self.trigger.count("*")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -177,12 +201,23 @@ class RiveTrigger:
             "kind": self.kind,
             "action_id": self.action_id,
             "expect": dict(self.expect),
+            "frame": dict(self.frame),
+            "rule": self.rule,
+            "rhs": [list(item) for item in self.rhs],
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "RiveTrigger":
         if not isinstance(data, Mapping):
             raise RiveError("триггер должен быть объектом")
+        raw_rhs = data.get("rhs") or ()
+        if not isinstance(raw_rhs, (list, tuple)):
+            raise RiveError("rhs триггера должен быть списком")
+        rhs = []
+        for item in raw_rhs:
+            if not isinstance(item, (list, tuple)) or len(item) != 2:
+                raise RiveError("rhs триггера должен состоять из пар")
+            rhs.append((str(item[0]), str(item[1])))
         return cls(
             id=str(data.get("id") or ""),
             trigger=str(data.get("trigger") or ""),
@@ -191,6 +226,9 @@ class RiveTrigger:
             kind=str(data.get("kind") or ""),
             action_id=str(data.get("action_id") or ""),
             expect=_mapping(data.get("expect"), "expect"),
+            frame=_mapping(data.get("frame"), "frame"),
+            rule=str(data.get("rule") or ""),
+            rhs=tuple(rhs),
         )
 
 
@@ -347,10 +385,11 @@ def grammar_patterns(
     """Пары ``(rule_id, pattern, rhs)`` и покрытие правил.
 
     Литералами становятся только закрытые классы из лексикона; открытые
-    классы — слот ``[*]``. Правила без литералов пропускаются: чистый
-    набор wildcard-слотов ничего не доказывает и перехватывал бы ввод.
-    Возвращаются шаблоны, задействованные правила и правила без
-    собственного триггера (включая ``NP``/``PP`` и совпавшие шаблоны).
+    классы — слот ``*``, который RiveScript отдаёт как ``<star>``. Правила
+    без литералов пропускаются: чистый набор wildcard-слотов ничего не
+    доказывает и перехватывал бы ввод. Возвращаются шаблоны,
+    задействованные правила и правила без собственного триггера (включая
+    ``NP``/``PP`` и совпавшие шаблоны).
     """
 
     forms = grammar_forms(entries, substitutions)
@@ -384,10 +423,10 @@ def grammar_patterns(
                 parts.append("(%s)" % "|".join(options))
                 literals += 1
             else:
-                parts.append("[*]")
+                parts.append("*")
         if not complete or not literals or not parts:
             continue
-        if "[*]" not in " ".join(parts) and len(parts) == 1:
+        if "*" not in " ".join(parts) and len(parts) == 1:
             # Полностью закрытое правило (приветствие, прощание): один
             # триггер на форму, чтобы не перекрывать точные парафразы
             # составной альтернативой.
@@ -405,6 +444,68 @@ def grammar_patterns(
         covered.add(rule_id)
     skipped = tuple(rule_id for rule_id in rule_ids if rule_id not in covered)
     return patterns, tuple(sorted(covered)), skipped
+
+
+def grammar_rhs(
+    rule: Mapping[str, Any],
+    pattern: str,
+) -> Tuple[Tuple[str, str], ...]:
+    """Категории и роли слотов в порядке захватов ``<star>``.
+
+    Полностью закрытое правило (приветствие, прощание) отдаётся одним
+    литеральным триггером без групп, поэтому захватов нет.
+    """
+
+    if "(" not in pattern and "*" not in pattern:
+        return ()
+    rhs = rule.get("rhs") or ()
+    if not isinstance(rhs, (list, tuple)):
+        raise RiveError("grammar.rhs должен быть списком")
+    found = []
+    for item in rhs:
+        data = _mapping(item, "grammar.rhs")
+        category = str(data.get("cat") or "")
+        if category in GRAMMAR_IGNORED:
+            continue
+        found.append((category, str(data.get("as") or "")))
+    return tuple(found)
+
+
+def compile_exact_frames(
+    triggers: Iterable[RiveTrigger],
+    dialogue_dir: Path,
+) -> Tuple[Dict[str, Tuple[Mapping[str, Any], str]], Tuple[str, ...]]:
+    """Скомпилировать полный кадр точных триггеров из JSON-грамматики.
+
+    Точная фраза не зависит от состояния мира, поэтому её логическую
+    форму можно зафиксировать в манифесте. JSON остаётся источником
+    истины: ``--check`` перегенерирует кадры и поймает расхождение.
+    """
+
+    try:
+        from campaign.dialogue.loader import load_dialogue
+        from campaign.dialogue.parser import ChartParser
+    except Exception as exc:  # noqa: BLE001 — компилятор не должен падать молча
+        raise RiveError("не удалось загрузить диалоговый парсер") from exc
+    try:
+        catalog = load_dialogue(Path(dialogue_dir))
+    except Exception as exc:  # noqa: BLE001 — понятная ошибка компилятора
+        raise RiveError(
+            "не удалось прочитать диалог для компиляции кадров: %s" % exc
+        ) from exc
+    parser = ChartParser(catalog)
+    frames: Dict[str, Tuple[Mapping[str, Any], str]] = {}
+    missing: List[str] = []
+    for trigger in triggers:
+        if trigger.source == "grammar":
+            continue
+        parse = parser.parse_best(trigger.text)
+        sem = parse.sem if parse is not None else None
+        if not isinstance(sem, Mapping):
+            missing.append(trigger.id)
+            continue
+        frames[trigger.id] = (dict(sem), str(parse.rule or ""))
+    return frames, tuple(missing)
 
 
 def compile_dialogue(
@@ -490,6 +591,14 @@ def compile_dialogue(
                 ),
             )
 
+    rules = grammar.get("rules") or ()
+    if not isinstance(rules, (list, tuple)):
+        raise RiveError("grammar.rules должен быть списком")
+    rules_by_id: Dict[str, Mapping[str, Any]] = {}
+    for index, item in enumerate(rules):
+        data = _mapping(item, "grammar.rule")
+        rules_by_id[str(data.get("id") or "rule_%d" % index)] = data
+
     patterns, _, _ = grammar_patterns(
         grammar, entries, substitutions
     )
@@ -501,6 +610,7 @@ def compile_dialogue(
             # специфичнее грамматического свидетельства.
             continue
         existing.add(pattern)
+        rule = rules_by_id.get(rule_id) or {}
         candidates.append(
             RiveTrigger(
                 id="g:%s" % rule_id,
@@ -508,6 +618,9 @@ def compile_dialogue(
                 source="grammar",
                 text=rhs,
                 kind="grammar",
+                frame=_mapping(rule.get("sem"), "grammar.sem"),
+                rule=rule_id,
+                rhs=grammar_rhs(rule, pattern),
             )
         )
         grammar_added += 1
@@ -530,9 +643,31 @@ def compile_dialogue(
         seen[item.trigger] = item
     triggers = tuple(seen[key] for key in sorted(seen))
 
-    rules = grammar.get("rules") or ()
-    if not isinstance(rules, (list, tuple)):
-        raise RiveError("grammar.rules должен быть списком")
+    try:
+        frames, missing_frames = compile_exact_frames(triggers, root)
+    except RiveError as exc:
+        # Минимальные фикстуры линтера содержат только четыре JSON-файла
+        # и не обязаны загружаться полным каталогом диалога. Рантайм
+        # такого манифеста уходит в legacy-откат.
+        warnings.append("кадры не скомпилированы: %s" % exc)
+        frames, missing_frames = {}, ()
+    if missing_frames:
+        warnings.append(
+            "точные триггеры без кадра: %d" % len(missing_frames)
+        )
+    triggers = tuple(
+        replace(
+            trigger,
+            frame=frames[trigger.id][0],
+            rule=frames[trigger.id][1],
+        )
+        if trigger.id in frames
+        else trigger
+        for trigger in triggers
+    )
+    grammar_templates = sum(
+        1 for trigger in triggers if trigger.source == "grammar"
+    )
     source_digest = canonical_digest(
         {
             "paraphrases": paraphrases,
@@ -557,6 +692,9 @@ def compile_dialogue(
         "actions": len(action_items),
         "markers": len(markers),
         "triggers": len(triggers),
+        "exact_frames": len(frames),
+        "missing_frames": len(missing_frames),
+        "grammar_templates": grammar_templates,
     }
     return RiveManifest(
         source_digest=source_digest,
@@ -581,10 +719,13 @@ def render_rive(manifest: RiveManifest) -> str:
     ]
     for form, lemma in sorted(manifest.substitutions.items()):
         lines.append("! sub %s = %s" % (form, lemma))
-    lines.extend(("", "// Точные триггеры."))
+    lines.extend(("", "// Точные триггеры и захваты слотов."))
     for trigger in manifest.triggers:
+        payload = trigger.id
+        for index in range(len(trigger.rhs)):
+            payload += "%s<star%d>" % (PAYLOAD_SEPARATOR, index + 1)
         lines.append("+ %s" % trigger.trigger)
-        lines.append("- <call>nlu %s</call>" % trigger.id)
+        lines.append("- <call>nlu %s</call>" % payload)
     lines.extend(
         (
             "",
@@ -699,15 +840,18 @@ __all__ = [
     "DEFAULT_RIVE_DIR",
     "MANIFEST_NAME",
     "MANIFEST_VERSION",
+    "PAYLOAD_SEPARATOR",
     "RIVE_NAME",
     "RiveError",
     "RiveManifest",
     "RiveTrigger",
     "check_artifacts",
     "compile_dialogue",
+    "compile_exact_frames",
     "entry_forms",
     "grammar_forms",
     "grammar_patterns",
+    "grammar_rhs",
     "lexicon_substitutions",
     "main",
     "one_token",

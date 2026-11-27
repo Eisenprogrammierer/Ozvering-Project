@@ -6,14 +6,14 @@
 * ``legacy`` — прежний ``ChartParser``/фрагменты/fallback;
 * ``shadow`` — ответ строит легаси, RiveScript выбирает триггер рядом и
   сравнивается; расхождения попадают в отчёт;
-* ``rive`` — триггер выбирает RiveScript, но смысл кадра по-прежнему
-  собирает legacy-адаптер; без пакета ``rivescript`` режим отказывает с
-  понятной ошибкой.
+* ``rive`` — триггер и слоты выбирает RiveScript, кадр собирается из
+  манифеста и захватов ``<star>``; без пакета ``rivescript`` режим
+  отказывает с понятной ошибкой.
 
-Смысловая часть намеренно не меняется: ``LegacyNlu`` остаётся
-единственным источником ``sem``, а ``NluBackend`` отдаёт его живому
-пути диалога. Это шов Phase 4: следующий шаг — строить слоты из
-RiveScript, не трогая ответы до подтверждения паритета.
+Смысловая часть совпадает с ``LegacyNlu`` на золотом корпусе, поэтому
+ответы и ``Turn.source`` не меняются. ``ChartParser`` разбирает
+вложенные ``S``-слоты и служит полным откатом при неизвестном триггере
+или неразрешённом слоте.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import time
 from typing import Any, Callable, Dict, Optional
 
 from .backends import NLU_BACKENDS, CognitionFlags, load_flags
-from .errors import BackendError
+from .errors import BackendError, RiveError
 from .nlu import LegacyNlu
 from .parity import result_core
 
@@ -38,6 +38,7 @@ class NluReport:
     total: int = 0
     matched: int = 0
     fallback: int = 0
+    semantic_fallback: int = 0
     mismatches: int = 0
     errors: int = 0
     last_error: str = ""
@@ -60,6 +61,7 @@ class NluReport:
             "total": self.total,
             "matched": self.matched,
             "fallback": self.fallback,
+            "semantic_fallback": self.semantic_fallback,
             "fallback_rate": round(self.fallback_rate, 6),
             "mismatches": self.mismatches,
             "errors": self.errors,
@@ -136,6 +138,9 @@ class NluBackend:
         self.report.total = rive.counts["total"]
         self.report.matched = rive.counts["matched"]
         self.report.fallback = rive.counts["fallback"]
+        self.report.semantic_fallback = rive.counts.get(
+            "semantic_fallback", 0
+        )
 
     def understand(self, text: str, *, topic: str = "default"):
         """Разобрать фразу, сохранив последний смысл для живого пути."""
@@ -170,7 +175,17 @@ class NluBackend:
                 raise BackendError(
                     "nlu_backend=rive недоступен: %s" % exc
                 ) from exc
-            result = rive.understand(text, topic=topic)
+            try:
+                result = rive.understand(text, topic=topic)
+            except (BackendError, RiveError) as exc:
+                # Сбой движка не имеет права сорвать ход: отдаём
+                # legacy-разбор и честно помечаем ошибку в отчёте.
+                self.report.errors += 1
+                self.report.last_error = str(exc)
+                result = self.legacy.understand(text, topic=topic)
+                self._adopt(self.legacy)
+                self._sync()
+                return result
             self._adopt(rive)
             self._sync()
             return result

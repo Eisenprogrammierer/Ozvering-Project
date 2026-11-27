@@ -43,7 +43,7 @@ def test_shipped_config_enables_soar():
     )
     flags = load_flags(shipped, environ={})
     assert flags.ai_backend == "soar"
-    assert flags.nlu_backend == "legacy"
+    assert flags.nlu_backend == "rive"
     assert flags.dialogue_backend == "shadow"
     assert flags.inference_backend == "soar"
 

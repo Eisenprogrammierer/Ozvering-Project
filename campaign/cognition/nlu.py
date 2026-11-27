@@ -295,12 +295,33 @@ class LegacyNlu:
         if isinstance(resolved, Mapping):
             sem = resolved
         self.last_sem = sem
+        return self.build_result(
+            sem, raw, source, rule, unresolved, topic=topic
+        )
+
+    def build_result(
+        self,
+        sem: Mapping[str, Any],
+        raw: str,
+        source: str,
+        rule: str,
+        unresolved: Tuple[str, ...] = (),
+        *,
+        topic: str = "default",
+    ) -> UnderstandResult:
+        """Собрать ``UtteranceFrame`` из готовой логической формы.
+
+        Общий путь легаси-адаптера и RiveScript-рантайма: смысл уже
+        разрешён, остаётся уверенность, слоты и следы.
+        """
+
+        tokens = tuple(tokenize(raw))
         args = _collect_args(sem)
         confidence = frame_confidence(
             self._specificity(source),
             self._slot_fill(args, sem),
             self._lex_coverage(tokens),
-            len(unresolved) / float(len(tokens)),
+            len(unresolved) / float(len(tokens)) if tokens else 0.0,
         )
         evidence = self._evidence(source, rule, args)
         if confidence < self.flags.clarify_threshold:

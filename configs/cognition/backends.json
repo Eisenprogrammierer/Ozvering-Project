@@ -1,7 +1,7 @@
 {
   "version": 1,
   "ai_backend": "soar",
-  "nlu_backend": "legacy",
+  "nlu_backend": "rive",
   "dialogue_backend": "shadow",
   "inference_backend": "soar",
   "shadow": {

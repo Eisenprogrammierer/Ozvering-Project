@@ -95,6 +95,102 @@ def test_live_path_matches_legacy_on_corpus(
         assert answers == base
 
 
+def test_rive_builds_frame_from_manifest_without_parser(
+    catalog, knowledge
+):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.frame import UtteranceFrame
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    session = _session(catalog, knowledge, "legacy")
+    engine = RiveNlu(session)
+
+    def boom(*_args, **_kwargs):
+        raise AssertionError("ChartParser не должен участвовать")
+
+    session.parser.parse_best = boom
+    for text, prefix in (
+        ("Привет.", "p:"),
+        ("Считает ли Империя Абвер незаконным?", "g:"),
+    ):
+        result = engine.understand(text)
+        assert isinstance(result, UtteranceFrame)
+        assert engine.last_trigger.startswith(prefix)
+        assert engine.counts["semantic_fallback"] == 0
+
+
+def test_rive_grammar_stars_fill_roles(catalog, knowledge):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.nlu import LegacyNlu
+    from campaign.cognition.parity import result_core
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    text = "Считает ли Империя Абвер незаконным?"
+    session = _session(catalog, knowledge, "legacy")
+    engine = RiveNlu(session)
+    result = engine.understand(text)
+    assert engine.last_trigger == "g:s_yesno_v_part_np_np_adj"
+    assert engine.counts["semantic_fallback"] == 0
+    legacy = LegacyNlu(session).understand(text)
+    assert result_core(result) == result_core(legacy)
+
+
+def test_rive_grammar_multword_stars_and_yo(catalog, knowledge):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.nlu import LegacyNlu
+    from campaign.cognition.parity import result_core
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    text = "Если Империя воюет с Республикой то Республика ждёт"
+    session = _session(catalog, knowledge, "legacy")
+    engine = RiveNlu(session)
+    result = engine.understand(text)
+    assert engine.last_trigger == "g:s_conditional"
+    assert engine.counts["semantic_fallback"] == 0
+    legacy = LegacyNlu(session).understand(text)
+    assert result_core(result) == result_core(legacy)
+
+
+def test_rive_survives_foreign_nlu_subroutine(catalog, knowledge):
+    pytest.importorskip("rivescript")
+    from rivescript import RiveScript
+
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    session = _session(catalog, knowledge, "legacy")
+    engine = RiveNlu(session)
+    # RiveScript 1.15 держит Python-объекты в общем словаре: чужой
+    # движок может перетереть ``nlu`` и лишить захваты звёзд.
+    foreign = RiveScript(utf8=True)
+    foreign.set_subroutine("nlu", lambda rs, args: "broken")
+    result = engine.understand("Считает ли Империя Абвер незаконным?")
+    assert engine.last_trigger == "g:s_yesno_v_part_np_np_adj"
+    assert engine.counts["semantic_fallback"] == 0
+    assert result.intent == "ask_yesno"
+
+
+def test_rive_semantic_fallback_keeps_legacy(
+    monkeypatch, catalog, knowledge
+):
+    pytest.importorskip("rivescript")
+    from campaign.cognition.nlu import LegacyNlu
+    from campaign.cognition.parity import result_core
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    text = "Привет."
+    session = _session(catalog, knowledge, "legacy")
+    engine = RiveNlu(session)
+
+    def unresolved(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(engine, "_build_sem", unresolved)
+    result = engine.understand(text)
+    assert engine.counts["semantic_fallback"] == 1
+    legacy = LegacyNlu(session).understand(text)
+    assert result_core(result) == result_core(legacy)
+
+
 def test_rive_counts_unknown_phrase_as_fallback(catalog, knowledge):
     session = _session(catalog, knowledge, "rive")
     session.respond("абракадабра зюзьга")
@@ -102,6 +198,23 @@ def test_rive_counts_unknown_phrase_as_fallback(catalog, knowledge):
     assert report["total"] >= 1
     assert report["fallback"] >= 1
     assert report["fallback_rate"] > 0.0
+
+
+def test_rive_recovers_from_engine_error(monkeypatch, catalog, knowledge):
+    pytest.importorskip("rivescript")
+    session = _session(catalog, knowledge, "rive")
+    rive = session.nlu._ensure_rive()
+
+    def boom(*_args, **_kwargs):
+        raise BackendError("движок упал")
+
+    monkeypatch.setattr(rive, "understand", boom)
+    turn = session.respond("Привет")
+    assert turn.answer is not None
+    report = session.nlu.report.to_dict()
+    assert report["errors"] == 1
+    assert "движок упал" in report["last_error"]
+    assert report["backend"] == "rive"
 
 
 def test_shadow_degrades_without_rive(monkeypatch, catalog, knowledge):
