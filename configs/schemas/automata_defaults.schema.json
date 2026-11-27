@@ -216,6 +216,7 @@
         "character_agency": true,
         "defense": true,
         "doctrine": true,
+        "faction_policy": true,
         "intention": true,
         "needs": true,
         "npc_policy": true,

@@ -631,6 +631,12 @@ text → legacy(parse, intent, plan)  ─┐
 Автомат по-прежнему применяет `on_enter`/`on_tick` через `effects.py`.
 Soar не дублирует переходы и не пишет активы напрямую.
 
+Реализовано (Phase 5, шаг 2a): действие и приказ выбирает
+`SoarFactionPolicy` по тем же числам, что легаси-рулетка. Python
+считает веса и `pick`, Soar — первого кандидата по накопленной границе;
+получатель, эффекты, цена и перезарядка остаются в Python. Режимы
+`legacy|shadow|soar` включаются через `ai_model.faction_policy`.
+
 ### 6.6. Обучение
 
 - Soar RL — предпочтения операторов для игровых NPC (принято
@@ -1266,15 +1272,45 @@ Deliverables:
   снимку с легаси, `disagreements=0`; на 10 ходах на 44 персонажах
   прогон занимает около 10.4 с в легаси и 21.5 с в Soar (примерно
   вдвое), одно решение — около 5.7 мс при 10 кандидатах после
-  отсечения. Поэтому следующий шаг Phase 5 — бюджет тика и
-  долгоживущие агенты;
+  отсечения. Поэтому дальше — бюджет тика, долгоживущие агенты и
+  решения фракций;
 - **Rollback:** `OZVERIN_AI_BACKEND=legacy` или `bdi.backend="legacy"`;
 - тесты: `tests/test_cognition_intention.py`,
   `tests/test_npc_decisions.py::test_campaign_shadow_intentions_match_legacy`.
 
-**Осталось в Phase 5:** приказы и действия фракций, реакции на доклады
-и угрозы, RL-предпочтения, LOD массовых NPC, полные прогоны мира,
-долгоживущий Soar-агент на именного NPC с BDI-памятью.
+**Сделано (Phase 5, шаг 2a, 2026-11-27): приказы и действия фракций.**
+
+- `campaign/cognition/faction_compiler.py` компилирует
+  `configs/soar/faction.json` в `configs/soar/faction.soar`;
+  `--check` держит артефакт и `source_digest` в согласии с JSON;
+- `campaign/cognition/faction_runtime.py` (`SoarFactionPolicy`)
+  повторяет легаси-рулетку: Python считает веса, накопленные границы и
+  `pick = rng.random() * total`, Soar выбирает первого кандидата, чья
+  граница не меньше `pick`; ранг с шагом `tie_epsilon` сохраняет
+  порядок при нулевых весах;
+- `AutomataAIMixin._faction_select` — единая точка для `auto_action`
+  (действия) и `_choose_order` (приказы), режимы `legacy|shadow|soar`;
+  `rng.random()` вызывается ровно один раз и передаётся обоим путям,
+  поэтому расход генератора и снимок кампании не меняются;
+- `FactionDecisionMonitor` сводит согласие по видам (`action`/`order`)
+  и сторонам; `AutomataCampaign.faction_decision_report()` и ключ
+  `factions` в `npc_outcome_report()`;
+- бюджет тика: лимит берётся из `faction_policy.tick_timeout_ms` или
+  глобального флага, а израсходованное время общее с NPC-политикой;
+  при исчерпании остаток хода решает легаси, факт пишется в монитор;
+  без `soar-sml` режимы `shadow|soar` деградируют до легаси с
+  `unavailable: true`;
+- паритет: 200 случайных наборов кандидатов — 0 расхождений с
+  `roulette_choice`; теневой и строгий прогоны кампании (6 ходов)
+  совпадают по снимку, `agreement=1.0`, `errors=0`; покрыты оба вида
+  решений;
+- **Rollback:** `ai_model.faction_policy.backend="legacy"` или
+  `OZVERIN_AI_BACKEND=legacy`;
+- тесты: `tests/test_cognition_faction.py`.
+
+**Осталось в Phase 5:** реакции на доклады и угрозы, RL-предпочтения,
+LOD массовых NPC, полные прогоны мира, долгоживущий Soar-агент на
+именного NPC с BDI-памятью.
 
 ### Phase 6. Демонтаж GOFAI (2–3 недели)
 
@@ -1534,7 +1570,7 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/bridge.py` | исполнитель команд | остаётся |
 | `bdi.py` | формулы + адаптер WM | остаётся; выбор намерения — Soar (Phase 5 шаг 1) |
 | `npc_policy.py` | Soar-предпочтения | Phase 2/5 |
-| `automata_ai.py` | Soar-решения | Phase 5 |
+| `automata_ai.py` | Soar-решения | Phase 5; действия/приказы — шаг 2a |
 | `state_machine.py` | среда | остаётся |
 | `routine.py` | среда | остаётся |
 | `agents/` | арена/бенчмарк | остаётся |

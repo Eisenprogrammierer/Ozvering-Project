@@ -1,0 +1,24 @@
+// Сгенерировано campaign.cognition.faction_compiler.
+// Не редактировать вручную: источник — configs/soar/faction.json.
+// source_digest: 1225969445161d342540bb45f15dbbfb236e982266d33dbe2e40ee6ca911a32d
+
+// Кандидат: id, накопленный вес upto, ранг.
+// Выбирается первый, чья граница не меньше pick; ранг с
+// крошечным шагом сохраняет порядок при равных границах.
+sp {faction*propose
+   (state <s> ^io.input-link <il>)
+   (<il> ^pick <p> ^candidate <c>)
+   (<c> ^id <id> ^upto <u> ^rank <r>)
+   (<c> ^upto >= <p>)
+-->
+   (<s> ^operator <o> + = (+ (- 0 <u>) (- 0 (* <r> 0.000000000001))))
+   (<o> ^id <id>)
+}
+
+// Выбранное действие/приказ уходит в output-link.
+sp {faction*apply
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^id <id>)
+-->
+   (<ol> ^decision <id>)
+}

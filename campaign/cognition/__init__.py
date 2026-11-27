@@ -9,7 +9,8 @@
 * JSON остаётся источником истины, ``.soar`` и ``.rive`` — артефакты.
 
 NLU: ``legacy`` (ChartParser), ``shadow`` (RiveScript рядом) и ``rive``.
-Решения: ``legacy`` (NeedPolicy), ``shadow`` (Soar рядом) и ``soar``.
+Решения: ``legacy`` (NeedPolicy и рулетка), ``shadow`` (Soar рядом) и
+``soar``.
 """
 
 from __future__ import annotations
@@ -83,6 +84,11 @@ from .soar_snapshot import (
 # ``python -m campaign.cognition.inference_compiler`` (и соседних
 # компиляторов) предупреждал бы о повторном импорте модуля.
 _LAZY = {
+    "FactionDecisionMonitor": (
+        ".faction_runtime",
+        "FactionDecisionMonitor",
+    ),
+    "FactionModel": (".faction_compiler", "FactionModel"),
     "InferenceModel": (".inference_compiler", "InferenceModel"),
     "IntentionModel": (".intention_compiler", "IntentionModel"),
     "IntentionMonitor": (".intention_runtime", "IntentionMonitor"),
@@ -91,16 +97,23 @@ _LAZY = {
     "load_nlu": (".nlu_backend", "load_nlu"),
     "ProofNode": (".inference_runtime", "ProofNode"),
     "SoarAgent": (".soar_runtime", "SoarAgent"),
+    "SoarFactionPolicy": (".faction_runtime", "SoarFactionPolicy"),
     "SoarInference": (".inference_runtime", "SoarInference"),
     "SoarIntention": (".intention_runtime", "SoarIntention"),
+    "check_faction": (".faction_compiler", "check_policy"),
     "check_inference": (".inference_compiler", "check_policy"),
     "check_intention": (".intention_compiler", "check_policy"),
+    "compile_faction": (".faction_compiler", "compile_policy"),
     "compile_inference": (".inference_compiler", "compile_policy"),
     "compile_intention": (".intention_compiler", "compile_policy"),
+    "faction_available": (".faction_runtime", "faction_available"),
     "intention_available": (".intention_runtime", "intention_available"),
+    "load_faction_model": (".faction_compiler", "load_model"),
     "load_inference_model": (".inference_compiler", "load_model"),
     "load_intention_model": (".intention_compiler", "load_model"),
+    "roulette_choice": (".faction_runtime", "roulette_choice"),
     "shared_intention": (".intention_runtime", "shared_intention"),
+    "write_faction": (".faction_compiler", "write_policy"),
     "write_inference": (".inference_compiler", "write_policy"),
     "write_intention": (".intention_compiler", "write_policy"),
 }
@@ -135,6 +148,8 @@ __all__ = [
     "DIALOGUE_BACKENDS",
     "DecisionReport",
     "FRAME_VERSION",
+    "FactionDecisionMonitor",
+    "FactionModel",
     "FrameError",
     "GoldenCorpus",
     "INFERENCE_BACKENDS",
@@ -156,24 +171,29 @@ __all__ = [
     "SnapshotError",
     "SoarAgent",
     "SoarError",
+    "SoarFactionPolicy",
     "SoarInference",
     "SoarIntention",
     "SoarSnapshotStore",
     "UtteranceFrame",
     "available_nlu_backends",
     "build_snapshot",
+    "check_faction",
     "check_inference",
     "check_intention",
     "command_digest",
     "compare",
     "compare_choices",
+    "compile_faction",
     "compile_inference",
     "compile_intention",
     "create_wm",
     "decide",
     "default_config_path",
+    "faction_available",
     "frame_confidence",
     "intention_available",
+    "load_faction_model",
     "load_flags",
     "load_inference_model",
     "load_intention_model",
@@ -183,12 +203,14 @@ __all__ = [
     "record_corpus",
     "request_digest",
     "result_core",
+    "roulette_choice",
     "shared_intention",
     "understand",
     "validate_command",
     "validate_request",
     "validate_response",
     "validate_snapshot",
+    "write_faction",
     "write_inference",
     "write_intention",
 ]

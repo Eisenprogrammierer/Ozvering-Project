@@ -62,11 +62,21 @@ class AutomataOrdersMixin:
             max(1e-6, _number(item["order"].get("priority"), 1.0))
             for item in options
         ]
-        pick = self.rng.random() * sum(weights)
-        upto = 0.0
-        for item, weight in zip(options, weights):
-            upto += weight
-            if pick <= upto:
+        candidates = [
+            (str(item["order"].get("id")), weight)
+            for item, weight in zip(options, weights)
+        ]
+        roll = self.rng.random()
+        selected = self._faction_select(
+            side=faction.side,
+            kind="order",
+            candidates=candidates,
+            roll=roll,
+        )
+        if selected is None:
+            return None
+        for item in options:
+            if str(item["order"].get("id")) == str(selected):
                 return item["order"]
         return options[-1]["order"]
 

@@ -393,6 +393,145 @@ class AutomataAIMixin:
             self._npc_decision_monitor = monitor
         return monitor
 
+    def _faction_config(self):
+        return _as_mapping(
+            _as_mapping(self.ai_model).get("faction_policy")
+        )
+
+    def faction_backend(self, side):
+        """Бэкенд решений фракции: ``backends`` → ``backend`` → флаг."""
+
+        config = self._faction_config()
+        if not config or not bool(config.get("enabled", True)):
+            return "legacy"
+        backends = _as_mapping(config.get("backends"))
+        value = backends.get(str(side))
+        if value is None:
+            value = config.get("backend")
+        if value is None:
+            value = self._cognition_flags().ai_backend
+        backend = str(value or "legacy")
+        if backend not in AI_BACKENDS:
+            raise BackendError(
+                "faction_policy.backend=%r не поддерживается; допустимо: %s"
+                % (backend, ", ".join(AI_BACKENDS))
+            )
+        if backend in ("shadow", "soar") and not self._soar_available():
+            # Без soar-sml рулетка остаётся легаси; факт виден в отчёте.
+            self.faction_decision_monitor().unavailable = True
+            return "legacy"
+        return backend
+
+    def faction_decision_timeout_ms(self):
+        """Бюджет решения фракции: локальный ``timeout_ms`` или флаг."""
+
+        config = self._faction_config()
+        timeout = _number(config.get("timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().decision_timeout_ms
+        return float(timeout)
+
+    def faction_tick_timeout_ms(self):
+        """Бюджет Soar на ход для фракции: локальный или общий флаг."""
+
+        config = self._faction_config()
+        timeout = _number(config.get("tick_timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().tick_timeout_ms
+        return float(timeout)
+
+    def faction_decision_monitor(self):
+        monitor = getattr(self, "_faction_decision_monitor", None)
+        if monitor is None:
+            from .cognition.faction_runtime import (
+                FactionDecisionMonitor,
+            )
+
+            monitor = FactionDecisionMonitor()
+            self._faction_decision_monitor = monitor
+        return monitor
+
+    def faction_decision_report(
+        self,
+        threshold=DEFAULT_AGREEMENT_THRESHOLD,
+    ):
+        """Сводка согласия Soar с легаси по действиям и приказам."""
+
+        return self.faction_decision_monitor().report(threshold)
+
+    def _soar_faction(self):
+        policy = getattr(self, "_soar_faction_obj", None)
+        if policy is None:
+            from .cognition.faction_runtime import SoarFactionPolicy
+
+            policy = SoarFactionPolicy(
+                timeout_ms=self.faction_decision_timeout_ms()
+            )
+            self._soar_faction_obj = policy
+        return policy
+
+    def _faction_select(self, *, side, kind, candidates, roll):
+        """Выбрать id рулеткой: легаси, теневой Soar или строгий Soar.
+
+        ``roll`` берётся из ``self.rng`` один раз и передаётся и легаси,
+        и Soar: расход генератора не меняется, поэтому снимок кампании
+        совпадает во всех режимах.
+        """
+
+        from .cognition.faction_runtime import roulette_choice
+
+        candidates = list(candidates)
+        legacy = roulette_choice(candidates, roll)
+        if legacy is None:
+            return None
+        backend = self.faction_backend(side)
+        if backend == "legacy":
+            return legacy
+        limit = self.faction_tick_timeout_ms()
+        spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
+        left = max(0.0, limit - spent)
+        elapsed_ms = 0.0
+        error = None
+        candidate = None
+        if left <= 0.0:
+            error = (
+                "бюджет тика исчерпан: %.2f мс из %.2f мс"
+                % (spent, limit)
+            )
+        else:
+            soar = self._soar_faction()
+            decision = self.faction_decision_timeout_ms()
+            budget = min(decision, left) if decision > 0 else left
+            try:
+                candidate = soar.choose(
+                    candidates, roll, timeout_ms=budget
+                )
+            except (BackendError, SoarError) as exc:
+                if backend == "soar":
+                    raise
+                error = str(exc)
+            finally:
+                elapsed_ms = float(soar.last_elapsed_ms)
+                self._npc_tick_spent_ms = spent + elapsed_ms
+        monitor = self.faction_decision_monitor()
+        if backend == "soar" and error is None:
+            monitor.note(
+                kind=kind, side=side, elapsed_ms=elapsed_ms
+            )
+            return candidate
+        monitor.record(
+            kind=kind,
+            side=side,
+            backend=backend,
+            legacy=legacy,
+            candidate=candidate,
+            elapsed_ms=elapsed_ms,
+            error=error,
+            turn=getattr(self, "turn", None),
+            budget=left <= 0.0,
+        )
+        return legacy
+
     def npc_decision_report(
         self,
         threshold=DEFAULT_AGREEMENT_THRESHOLD,
@@ -463,6 +602,7 @@ class AutomataAIMixin:
 
         decisions = self.npc_decision_report(threshold)
         intentions = self.intention_report()
+        factions = self.faction_decision_report(threshold)
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
@@ -470,7 +610,12 @@ class AutomataAIMixin:
             "jobs": decisions["jobs"],
             "decisions": decisions,
             "intentions": intentions,
-            "ok": bool(decisions["ok"] and intentions["ok"]),
+            "factions": factions,
+            "ok": bool(
+                decisions["ok"]
+                and intentions["ok"]
+                and factions["ok"]
+            ),
         }
 
     def _soar_policy(self):
@@ -542,7 +687,8 @@ class AutomataAIMixin:
             # Политика создаётся только когда решение действительно
             # будет считаться: при исчерпанном бюджете Soar не нужен.
             soar = self._soar_policy()
-            budget = min(self.npc_decision_timeout_ms(), left)
+            decision = self.npc_decision_timeout_ms()
+            budget = min(decision, left) if decision > 0 else left
             try:
                 candidate = self._soar_candidate(
                     policy,
@@ -638,13 +784,16 @@ class AutomataAIMixin:
         elif total <= 0.0:
             chosen = weighted[-1][0]["id"]
         else:
-            pick = self.rng.random() * total
-            upto = 0.0
-            for option, weight in weighted:
-                upto += weight
-                if pick <= upto:
-                    chosen = option["id"]
-                    break
+            roll = self.rng.random()
+            chosen = self._faction_select(
+                side=side,
+                kind="action",
+                candidates=[
+                    (option["id"], weight)
+                    for option, weight in weighted
+                ],
+                roll=roll,
+            )
             if chosen is None:
                 chosen = weighted[-1][0]["id"]
         if chosen is not None:

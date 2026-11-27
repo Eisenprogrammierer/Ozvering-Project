@@ -1202,6 +1202,12 @@
       "checkpoint": "",
       "weights": {}
     },
+    "faction_policy": {
+      "enabled": true,
+      "backends": {},
+      "timeout_ms": 0,
+      "tick_timeout_ms": 0
+    },
     "character_agency": {
       "enabled": true,
       "max_characters": 6,
