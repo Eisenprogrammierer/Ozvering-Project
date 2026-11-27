@@ -520,3 +520,76 @@ class AutomataCharactersMixin:
                     "Намерение персонажа %s не выбрано",
                     getattr(character, "name", "?"),
                 )
+
+    def intention_report(self):
+        """Сводка выбора BDI-намерений по всем персонажам кампании."""
+
+        total = {
+            "characters": 0,
+            "queries": 0,
+            "evaluated": 0,
+            "agreements": 0,
+            "disagreements": 0,
+            "errors": 0,
+            "unavailable": False,
+            "elapsed_ms": 0.0,
+        }
+        sides = {}
+        for faction in self.factions.values():
+            side = {
+                "characters": 0,
+                "queries": 0,
+                "evaluated": 0,
+                "agreements": 0,
+                "disagreements": 0,
+                "errors": 0,
+                "unavailable": False,
+                "elapsed_ms": 0.0,
+            }
+            for character in getattr(faction, "characters", ()) or ():
+                bdi = getattr(character, "bdi", None)
+                monitor = getattr(bdi, "intention_monitor", None)
+                if monitor is None:
+                    continue
+                report = monitor.report()
+                for bucket in (total, side):
+                    bucket["characters"] += 1
+                    for key in (
+                        "queries",
+                        "evaluated",
+                        "agreements",
+                        "disagreements",
+                        "errors",
+                    ):
+                        bucket[key] += int(report.get(key, 0))
+                    bucket["unavailable"] = bool(
+                        bucket["unavailable"]
+                        or report.get("unavailable", False)
+                    )
+                    bucket["elapsed_ms"] += float(
+                        report.get("elapsed_ms", 0.0)
+                    )
+            if side["characters"]:
+                side["agreement"] = (
+                    side["agreements"] / float(side["evaluated"])
+                    if side["evaluated"]
+                    else 0.0
+                )
+                side["ok"] = bool(
+                    not side["unavailable"]
+                    and not side["errors"]
+                    and not side["disagreements"]
+                )
+                sides[str(faction.side)] = side
+        total["agreement"] = (
+            total["agreements"] / float(total["evaluated"])
+            if total["evaluated"]
+            else 0.0
+        )
+        total["ok"] = bool(
+            not total["unavailable"]
+            and not total["errors"]
+            and not total["disagreements"]
+        )
+        total["sides"] = sides
+        return total

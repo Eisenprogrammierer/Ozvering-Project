@@ -369,3 +369,25 @@ def test_tick_budget_limits_single_decision():
             timeout_ms=0.001,
         )
     assert policy.last_elapsed_ms > 0.0
+
+
+def test_campaign_shadow_intentions_match_legacy(monkeypatch):
+    pytest.importorskip("soar_sml")
+    monkeypatch.setenv("OZVERIN_AI_BACKEND", "shadow")
+    shadow = _campaign(23)
+    shadow.ai_model["npc_policy"] = {"enabled": False}
+    shadow._npc_policy_obj = None
+    shadow.run(turns=6)
+
+    monkeypatch.setenv("OZVERIN_AI_BACKEND", "legacy")
+    legacy = _campaign(23)
+    legacy.ai_model["npc_policy"] = {"enabled": False}
+    legacy._npc_policy_obj = None
+    legacy.run(turns=6)
+
+    assert shadow.snapshot() == legacy.snapshot()
+    report = shadow.intention_report()
+    assert report["queries"] > 0
+    assert report["errors"] == 0
+    assert report["disagreements"] == 0
+    assert report["ok"] is True

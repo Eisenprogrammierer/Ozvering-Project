@@ -92,6 +92,8 @@
 | `configs/rive/` | сгенерированные `dialogue.rive` и `manifest.json` для RiveScript NLU: точные фразы плюс грамматические триггеры (закрытые классы — литералы, открытые — слот `[*]`); **не редактировать вручную** | `python -m campaign.cognition.rive_compiler --write` | `configs/dialogue/lexicon.json`, `paraphrases.json`, `actions.json`, `grammar.json` | триггер, замена, манифест | `python -m campaign.cognition.rive_compiler --check` |
 | `configs/soar/decision.json` | формула и настройки выбора работы NPC: пороги оценки, `epsilon-greedy`, `epsilon`, seed, число циклов | `campaign.cognition.soar_compiler.load_model()` | новый ключ в JSON | формула, порог, режим выбора | `tests/test_cognition_soar.py` |
 | `configs/soar/npc_policy.soar` | сгенерированные продукции Soar: оценка кандидата и запись решения в output-link; **не редактировать вручную** | `python -m campaign.cognition.soar_compiler --write` | `configs/soar/decision.json` | продукция, digest | `python -m campaign.cognition.soar_compiler --check` |
+| `configs/soar/intention.json` | настройки выбора BDI-намерения: `tie_epsilon`, `epsilon-greedy`, seed, число циклов | `campaign.cognition.intention_compiler.load_model()` | новый ключ в JSON | формула, режим выбора | `tests/test_cognition_intention.py` |
+| `configs/soar/intention.soar` | сгенерированные продукции Soar: оценка намерения, выбор максимума и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.intention_compiler --write` | `configs/soar/intention.json` | продукция, digest | `python -m campaign.cognition.intention_compiler --check` |
 | `configs/soar/pragmatics.json` | настройки прагматики диалога: `tie_epsilon` и число циклов решения | `campaign.cognition.pragmatics_compiler.load_model()` | новый ключ в JSON | порог, режим выбора | `tests/test_d6_pragmatics.py` |
 | `configs/soar/pragmatics.soar` | сгенерированные продукции Soar: интерпретация кадра, выбор плана и исход раскрытия; **не редактировать вручную** | `python -m campaign.cognition.pragmatics_compiler --write` | `configs/soar/pragmatics.json`, `configs/dialogue/disclosure.json` | продукция, digest | `python -m campaign.cognition.pragmatics_compiler --check` |
 | `configs/soar/inference.json` | настройки прямого замыкания вывода: число циклов, таймаут, лимит узлов | `campaign.cognition.inference_compiler.load_model()` | новый ключ в JSON | циклы, таймаут, лимит | `tests/test_d6_inference.py` |
@@ -561,8 +563,9 @@ custom = content.get("my_new_file", {})
 `npc_outcome_report()` добавляет длинные метрики: `needs` — среднее
 давление и удовлетворённость (`1 − pressure`) по 16 потребностям
 каждой стороны, `jobs` — `distinct`, энтропию, `evenness` и
-`top_share` выбранных работ. Метрики живут в памяти и не попадают в
-сейв.
+`top_share` выбранных работ, `intentions` — согласие Soar с легаси при
+выборе BDI-намерения (по сторонам и суммарно). Метрики живут в памяти
+и не попадают в сейв.
 
 Бюджет ограничен на двух уровнях. `timeout_ms` (по умолчанию
 `timeouts.decision_ms = 200`) — потолок одного решения;

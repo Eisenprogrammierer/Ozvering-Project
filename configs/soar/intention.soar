@@ -1,0 +1,23 @@
+// Сгенерировано campaign.cognition.intention_compiler.
+// Не редактировать вручную: источник — configs/soar/intention.json.
+// source_digest: 1225969445161d342540bb45f15dbbfb236e982266d33dbe2e40ee6ca911a32d
+
+// Кандидат: essence, need, belief, predicate, should, preferred, rank.
+sp {intention*propose
+   (state <s> ^io.input-link <il>)
+   (<il> ^candidate <c>)
+   (<c> ^essence <e> ^need <n> ^belief <b> ^predicate <p> ^should <sh> ^preferred <pr> ^rank <r>)
+   (<il> ^weights <w>)
+   (<w> ^need_weight <nw> ^belief_weight <bw> ^intention_weight <iw> ^preferred_bonus <pb>)
+-->
+   (<s> ^operator <o> + = (+ (+ (+ (+ (* <n> <nw>) (* <b> <bw>)) (+ (* <p> <bw>) (* <sh> (* <iw> 0.5)))) (* <pr> (+ <pb> <iw>))) (- 0 (* <r> 0.000000000001))))
+   (<o> ^essence <e> ^score (+ (+ (+ (* <n> <nw>) (* <b> <bw>)) (+ (* <p> <bw>) (* <sh> (* <iw> 0.5)))) (* <pr> (+ <pb> <iw>))))
+}
+
+// Выбранное намерение уходит в output-link.
+sp {intention*apply
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^essence <e> ^score <score>)
+-->
+   (<ol> ^intention <e> ^score <score>)
+}

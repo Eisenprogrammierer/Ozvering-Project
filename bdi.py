@@ -26,7 +26,16 @@ from functools import lru_cache
 import json
 import math
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 DEFAULT_PATH = (
     Path(__file__).resolve().parent
@@ -523,6 +532,10 @@ class BDIState:
     conditions: Dict[str, float] = field(default_factory=dict)
     traits: Dict[str, float] = field(default_factory=dict)
     last_deltas: Dict[str, float] = field(default_factory=dict)
+    backend: Optional[str] = None
+    intention_monitor: Any = field(
+        default=None, repr=False, compare=False
+    )
 
     def __post_init__(self):
         self.character_id = _text(self.character_id, "character")
@@ -771,12 +784,14 @@ class BDIState:
             )
         return max(0.0, min(1.0, factor))
 
-    def choose_intention(self, trait_model=None, context=None):
-        """Выбрать дуплет ``(объект, суть)`` по желаниям и убеждениям.
+    def intention_terms(self, trait_model=None, context=None):
+        """Разложить намерения на слагаемые легаси-оценки.
 
-        Контекст может задать ``targets`` — доступные объекты для
-        социальных намерений. Без контекста объектом становится сама
-        потребность, что соответствует дуплету «потребность + суть».
+        Возвращает ``(candidates, weights, meta)``. Python считает
+        желания, бонусы убеждений и подсказки; Soar складывает их и
+        выбирает максимум. ``forbidden`` — жёсткий фильтр: легаси
+        приравнивал такие намерения к ``-1.0``, поэтому они не попадают
+        в кандидаты Soar.
         """
         context = dict(context or {})
         desires = self.weighted_desires(trait_model)
@@ -794,39 +809,274 @@ class BDIState:
             self.config.needs,
             key=lambda key: (desires[key], key),
         )
-        best_essence = ""
-        best_score = -1.0
         preferred = str(context.get("preferred") or "")
-        forbidden = {str(item) for item in context.get("forbidden") or ()}
-        for essence, data in self.config.essences.items():
+        forbidden = {
+            str(item) for item in context.get("forbidden") or ()
+        }
+        candidates = []
+        predicate_total = 0.0
+        for predicate_name, weight in predicate_weights.items():
+            predicate_total += (
+                self.belief_value(predicate_name)
+                * _number(weight, 0.0)
+            )
+        for rank, (essence, data) in enumerate(
+            self.config.essences.items()
+        ):
             need = str(data.get("need") or "")
             if not need:
                 continue
-            score = desires.get(need, 0.0) * base
-            score += _number(data.get("belief_bonus"), 0.0) * belief_weight
-            for predicate, weight in predicate_weights.items():
-                score += (
-                    self.belief_value(predicate)
-                    * _number(weight, 0.0)
-                    * belief_weight
-                )
-            if self.should(essence):
-                score += intention_weight * 0.5
-            if preferred and essence == preferred:
-                score += 0.75 + intention_weight
+            candidates.append(
+                {
+                    "essence": essence,
+                    "need": desires.get(need, 0.0),
+                    "belief": _number(
+                        data.get("belief_bonus"), 0.0
+                    ),
+                    "predicate": predicate_total,
+                    "should": 1.0 if self.should(essence) else 0.0,
+                    "preferred": (
+                        1.0 if preferred and essence == preferred else 0.0
+                    ),
+                    "forbidden": essence in forbidden,
+                    "rank": rank,
+                }
+            )
+        weights = {
+            "need_weight": base,
+            "belief_weight": belief_weight,
+            "intention_weight": intention_weight,
+            "preferred_bonus": 0.75,
+        }
+        target = str(context.get("target") or "")
+        if not target:
+            target = (
+                best_need
+                if best_need in NEEDS
+                else self.character_id
+            )
+        meta = {
+            "preferred": preferred,
+            "forbidden": forbidden,
+            "best_need": best_need,
+            "target": target,
+        }
+        return candidates, weights, meta
+
+    def _fallback_essence(self, meta):
+        """Намерение, когда ни один кандидат не набрал баллов."""
+
+        preferred = str(meta.get("preferred") or "")
+        forbidden = set(meta.get("forbidden") or ())
+        if preferred and preferred not in forbidden:
+            return preferred
+        data = self.config.essences.get("rest") or {}
+        if data:
+            return "rest"
+        return next(iter(self.config.essences))
+
+    def _legacy_essence(self, terms):
+        """Легаси-выбор сути по уже разложенным слагаемым."""
+
+        candidates, weights, meta = terms
+        preferred = str(meta.get("preferred") or "")
+        forbidden = set(meta.get("forbidden") or ())
+        best_score = -1.0
+        best_essence = ""
+        for item in candidates:
+            essence = item["essence"]
             if essence in forbidden:
                 score = -1.0
+            else:
+                score = item["need"] * weights["need_weight"]
+                score += item["belief"] * weights["belief_weight"]
+                score += item["predicate"] * weights["belief_weight"]
+                score += (
+                    item["should"]
+                    * weights["intention_weight"]
+                    * 0.5
+                )
+                if preferred and essence == preferred:
+                    score += 0.75 + weights["intention_weight"]
             if score > best_score:
                 best_score, best_essence = score, essence
         if best_score < 0.0 and preferred and preferred not in forbidden:
             best_essence = preferred
         if not best_essence:
-            data = self.config.essences.get("rest") or {}
-            best_essence = "rest" if data else next(self.config.essences)
-        target = str(context.get("target") or "")
-        if not target:
-            target = best_need if best_need in NEEDS else self.character_id
-        return self.intend(target, best_essence)
+            best_essence = self._fallback_essence(meta)
+        return best_essence
+
+    def _soar_candidates(self, candidates, weights):
+        """Отсечь намерения, которые не могут выиграть у максимума.
+
+        Оценка легаси — сумма желания, бонуса убеждения, общей суммы
+        предикатов, поддержки и подсказки. Общая сумма предикатов
+        одинакова для всех сутей, поэтому границы считаются без неё.
+        Верхняя граница берёт ``max(0, belief)``, нижняя —
+        ``min(0, belief)``. Кандидат с верхней границей ниже лучшей
+        нижней не может победить и не отправляется в Soar: это
+        сокращает рабочую память с ~99 сутей до нескольких, не меняя
+        выбор.
+        """
+
+        need_weight = weights["need_weight"]
+        belief_weight = weights["belief_weight"]
+        intention_weight = weights["intention_weight"]
+        bounds = []
+        for item in candidates:
+            if item["forbidden"]:
+                continue
+            base = item["need"] * need_weight
+            base += item["should"] * intention_weight * 0.5
+            base += item["preferred"] * (
+                0.75 + intention_weight
+            )
+            upper = base + max(0.0, item["belief"]) * belief_weight
+            lower = base + min(0.0, item["belief"]) * belief_weight
+            bounds.append((upper, lower, item))
+        if not bounds:
+            return []
+        floor = max(lower for _, lower, _ in bounds)
+        return [
+            item
+            for upper, _lower, item in bounds
+            if upper >= floor - 1e-9
+        ]
+
+    def _intention_mode(self):
+        mode = self.backend
+        if mode is None:
+            cached = getattr(self, "_intention_mode_cache", None)
+            if cached is None:
+                from campaign.cognition.backends import load_flags
+
+                cached = load_flags().ai_backend
+                self._intention_mode_cache = cached
+            mode = cached
+        mode = str(mode or "legacy")
+        if mode not in ("legacy", "shadow", "soar"):
+            raise BDIError(
+                "intention_backend=%r не поддерживается" % (mode,)
+            )
+        return mode
+
+    def _intention_monitor(self):
+        monitor = self.intention_monitor
+        if monitor is None:
+            from campaign.cognition.intention_runtime import (
+                IntentionMonitor,
+            )
+
+            monitor = IntentionMonitor()
+            self.intention_monitor = monitor
+        return monitor
+
+    def _soar_intention(self):
+        policy = getattr(self, "_soar_intention_obj", None)
+        if policy is None:
+            from campaign.cognition.backends import load_flags
+            from campaign.cognition.intention_runtime import (
+                shared_intention,
+            )
+
+            policy = shared_intention(
+                timeout_ms=load_flags().decision_timeout_ms
+            )
+            self._soar_intention_obj = policy
+        return policy
+
+    def _soar_intention_ready(self):
+        from campaign.cognition.intention_runtime import (
+            intention_available,
+        )
+
+        if intention_available():
+            return True
+        self._intention_monitor().unavailable = True
+        return False
+
+    def _resolve_essence(self, candidate, score, meta):
+        """Повторить постобработку легаси-цикла для решения Soar.
+
+        Легаси начинает с ``best_score = -1.0`` и при отрицательном
+        максимуме отдаёт предпочтение ``preferred``; если же ни одно
+        намерение не превысило ``-1.0``, берётся ``rest``/первая суть.
+        ``score`` здесь — оценка без tie-break по рангу, поэтому
+        сравнение совпадает с легаси.
+        """
+
+        if candidate is None:
+            return self._fallback_essence(meta)
+        if score < 0.0:
+            preferred = str(meta.get("preferred") or "")
+            forbidden = set(meta.get("forbidden") or ())
+            if preferred and preferred not in forbidden:
+                return preferred
+            if score <= -1.0:
+                return self._fallback_essence(meta)
+        return candidate
+
+    def choose_intention(self, trait_model=None, context=None):
+        """Выбрать дуплет ``(объект, суть)`` по желаниям и убеждениям.
+
+        Контекст может задать ``targets`` — доступные объекты для
+        социальных намерений. Без контекста объектом становится сама
+        потребность, что соответствует дуплету «потребность + суть».
+
+        Режим берётся из ``backend`` BDI или глобального ``ai_backend``:
+        ``legacy`` — прежний цикл, ``shadow`` — Soar рядом с легаси,
+        ``soar`` — решение Soar. Без пакета Soar оба режима деградируют
+        до легаси и помечают монитор как ``unavailable``.
+        """
+        terms = self.intention_terms(trait_model, context)
+        candidates, weights, meta = terms
+        mode = self._intention_mode()
+        essence = None
+        legacy = None
+        if mode == "legacy" or not self._soar_intention_ready():
+            essence = self._legacy_essence(terms)
+        else:
+            monitor = self._intention_monitor()
+            if mode == "shadow":
+                legacy = self._legacy_essence(terms)
+            allowed = self._soar_candidates(candidates, weights)
+            policy = None
+            try:
+                policy = self._soar_intention()
+                chosen = policy.choose(
+                    allowed,
+                    weights,
+                    timeout_ms=policy.timeout_ms or None,
+                )
+                if chosen is None:
+                    candidate = None
+                    score = -1.0
+                else:
+                    candidate, score = chosen
+                candidate = self._resolve_essence(
+                    candidate, score, meta
+                )
+                monitor.record(
+                    legacy,
+                    candidate,
+                    elapsed_ms=policy.last_elapsed_ms,
+                )
+                essence = legacy if mode == "shadow" else candidate
+            except Exception as exc:
+                monitor.record(
+                    legacy,
+                    None,
+                    elapsed_ms=(
+                        policy.last_elapsed_ms
+                        if policy is not None
+                        else 0.0
+                    ),
+                    error=str(exc),
+                )
+                if mode == "soar":
+                    raise
+                essence = self._legacy_essence(terms)
+        return self.intend(meta["target"], essence)
 
     def tick(
         self,

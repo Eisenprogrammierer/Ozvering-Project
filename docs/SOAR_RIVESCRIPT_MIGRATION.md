@@ -855,7 +855,8 @@ Deliverables:
   и `top_share`;
 - `AutomataCampaign.npc_outcome_report()` отдаёт JSON без записи в
   сейв: `needs` по сторонам (16 потребностей, `pressure` и
-  `satisfaction = 1 − pressure`), `jobs` и `decisions`;
+  `satisfaction = 1 − pressure`), `jobs`, `decisions` и `intentions` —
+  согласие Soar с легаси при выборе BDI-намерения;
 - строгий `ai_backend=soar` на 40 ходах даёт тот же снимок, те же
   потребности и то же разнообразие работ, что и легаси (проверено:
   44 персонажа, 420 решений, 55 работ, `evenness` 0.92); накладные
@@ -1230,6 +1231,51 @@ Deliverables:
 **Rollback:** `ai_backend=legacy`; старые `NeedPolicy` и эвристики
 сохраняются до Phase 6.
 
+**Сделано (Phase 5, шаг 1, 2026-11-27): BDI-намерения в Soar.**
+
+- `campaign/cognition/intention_compiler.py` компилирует
+  `configs/soar/intention.json` в `configs/soar/intention.soar`;
+  `--check` держит артефакт и `source_digest` в согласии с JSON;
+- `campaign/cognition/intention_runtime.py` (`SoarIntention`) считает
+  оценку намерения в Soar и выбирает строгий максимум; ранг с шагом
+  `tie_epsilon` повторяет легаси-tie-break «первое намерение в порядке
+  конфига»;
+- `BDIState.choose_intention` раскладывает оценку на слагаемые
+  (желание, бонус убеждения, сумма предикатов, поддержка текущего
+  намерения, подсказка) и передаёт их Soar; `legacy|shadow|soar`
+  берётся из `backend` BDI или глобального `ai_backend`;
+- `shadow` возвращает легаси-намерение и пишет согласие/расхождение в
+  `IntentionMonitor`; `soar` не маскирует ошибки; без `soar-sml` оба
+  режима деградируют до легаси с `unavailable: true`;
+- перед отправкой в Soar отсекаются кандидаты, чья верхняя граница
+  оценки ниже лучшей нижней границы: это сокращает рабочую память с
+  ~99 сутей до нескольких и не меняет выбор; `SoarIntention`
+  переиспользует долгоживущий агент и сбрасывает WM через
+  `init-soar`. Пока это общий stateless-селектор намерений: отдельный
+  агент на именного NPC с полной BDI-памятью — следующий шаг Phase 5,
+  как и записано в §4.3;
+- Soar отдаёт оценку без tie-break по рангу, а `_resolve_essence`
+  повторяет постобработку легаси: при отрицательном максимуме
+  выбирается `preferred`, при отсутствии намерения выше `-1.0` —
+  `rest`/первая суть;
+- `AutomataCampaign.intention_report()` сводит мониторы персонажей по
+  фракциям; `warfare.Character.deliberate` (арена и кампания) идёт
+  через тот же путь;
+- паритет: 180 комбинаций желаний/черт/контекста — 0 расхождений по
+  `target`/`essence`; теневой прогон кампании (6 ходов) совпадает по
+  снимку с легаси, `disagreements=0`; на 10 ходах на 44 персонажах
+  прогон занимает около 10.4 с в легаси и 21.5 с в Soar (примерно
+  вдвое), одно решение — около 5.7 мс при 10 кандидатах после
+  отсечения. Поэтому следующий шаг Phase 5 — бюджет тика и
+  долгоживущие агенты;
+- **Rollback:** `OZVERIN_AI_BACKEND=legacy` или `bdi.backend="legacy"`;
+- тесты: `tests/test_cognition_intention.py`,
+  `tests/test_npc_decisions.py::test_campaign_shadow_intentions_match_legacy`.
+
+**Осталось в Phase 5:** приказы и действия фракций, реакции на доклады
+и угрозы, RL-предпочтения, LOD массовых NPC, полные прогоны мира,
+долгоживущий Soar-агент на именного NPC с BDI-памятью.
+
 ### Phase 6. Демонтаж GOFAI (2–3 недели)
 
 **Цель:** один когнитивный путь, без двойного maintenance.
@@ -1486,7 +1532,7 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/realize.py` | RiveScript + realizer | Phase 4 |
 | `dialogue/state.py` | Soar WM + снимок | Phase 4 |
 | `dialogue/bridge.py` | исполнитель команд | остаётся |
-| `bdi.py` | формулы + адаптер WM | остаётся |
+| `bdi.py` | формулы + адаптер WM | остаётся; выбор намерения — Soar (Phase 5 шаг 1) |
 | `npc_policy.py` | Soar-предпочтения | Phase 2/5 |
 | `automata_ai.py` | Soar-решения | Phase 5 |
 | `state_machine.py` | среда | остаётся |

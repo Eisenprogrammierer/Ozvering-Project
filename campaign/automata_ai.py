@@ -462,13 +462,15 @@ class AutomataAIMixin:
         """Длинные метрики NPC: потребности, работы, паритет решений."""
 
         decisions = self.npc_decision_report(threshold)
+        intentions = self.intention_report()
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
             "needs": self.npc_needs_summary(),
             "jobs": decisions["jobs"],
             "decisions": decisions,
-            "ok": bool(decisions["ok"]),
+            "intentions": intentions,
+            "ok": bool(decisions["ok"] and intentions["ok"]),
         }
 
     def _soar_policy(self):
