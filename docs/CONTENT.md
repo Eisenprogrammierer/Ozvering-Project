@@ -592,11 +592,17 @@ RiveScript. Точные триггеры несут готовый кадр и�
 отката. Поэтому ответы и `Turn.source` не меняются. Отчёт —
 `session.nlu.report.to_dict()`
 (`total`, `matched`, `fallback`, `semantic_fallback`, `fallback_rate`,
-`mismatches`, `errors`). Без пакета `rivescript` `shadow` понижается
-до `legacy` с `unavailable: true`, `ok: false`, а `rive` отказывает
-явной `BackendError`; ошибка движка на ходу не срывает ход — отчёт
-помечает её, ответ строит легаси. Откат —
-`OZVERIN_NLU_BACKEND=legacy`.
+`mismatches`, `errors`, `recoveries`). Без пакета `rivescript` `shadow`
+понижается до `legacy` с `unavailable: true`, `ok: false`, а `rive`
+отказывает явной `BackendError`; ошибка движка на ходу не срывает ход —
+бэкенд один раз перезагружает движок и повторяет разбор, затем отдаёт
+legacy-ответ. Откат — `OZVERIN_NLU_BACKEND=legacy`.
+
+Поддерживается **только русский язык** (решение 2026-11-27): лексикон,
+триггеры, шаблоны и корпус русские; переключателя языка и
+мультиязычных веток нет. Снимок когниции — **полностью JSON**
+(состояние диалога и рабочая память Soar), родной бинарный снимок Soar
+не используется.
 
 Прагматика диалога управляется `dialogue_backend` из
 `configs/cognition/backends.json` (`legacy`, `shadow`, `soar`; в

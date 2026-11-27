@@ -71,6 +71,14 @@ def _load_manifest(path: Path) -> RiveManifest:
     return manifest
 
 
+def _forget_engine(path: Path) -> None:
+    """Выбросить упавший движок из кэша перед перезагрузкой."""
+
+    target = str(path)
+    for key in [key for key in _ENGINE_CACHE if key[0] == target]:
+        _ENGINE_CACHE.pop(key, None)
+
+
 def _load_engine(path: Path) -> Any:
     source = Path(path)
     try:
@@ -132,9 +140,10 @@ class RiveNlu:
         self.manifest = _load_manifest(
             Path(manifest_path) if manifest_path else default_manifest_path()
         )
-        self.engine = _load_engine(
+        self.rive_path = (
             Path(rive_path) if rive_path else default_rive_path()
         )
+        self.engine = _load_engine(self.rive_path)
         self.macros = load_macros()
         register_macros(self.engine, self.macros)
         self.counts: Dict[str, int] = {
@@ -160,6 +169,22 @@ class RiveNlu:
         for key in self.counts:
             self.counts[key] = 0
         self.sources.clear()
+
+    def recover(self) -> bool:
+        """Перезагрузить движок после сбоя, сохранив манифест и макросы.
+
+        Кэш движков ключуется путём и mtime, поэтому упавший экземпляр
+        нужно выбросить явно: иначе ``_load_engine`` вернёт его же.
+        Возвращает ``False``, если перезагрузка не удалась.
+        """
+
+        _forget_engine(self.rive_path)
+        try:
+            self.engine = _load_engine(self.rive_path)
+            register_macros(self.engine, self.macros)
+        except Exception:  # noqa: BLE001 — решение об отказе принимает бэкенд
+            return False
+        return True
 
     def report(self, threshold: Optional[float] = None) -> Dict[str, Any]:
         """Доля fallback на живом вводе и порог из конфига."""
@@ -254,7 +279,13 @@ class RiveNlu:
             tuple(unresolved),
             topic=topic,
         )
-        return self._apply(result, match)
+        result = self._apply(result, match)
+        if not isinstance(result, UtteranceFrame):
+            # Триггер сработал, но уверенности не хватило: уточнение
+            # должно дойти до движка диалога, а не раствориться в кадре.
+            self.last_sem = None
+            self.last_reason = str(getattr(result, "reason", "") or "")
+        return result
 
     def _fallback(self, raw: str, topic: str):
         base = self.legacy.understand(raw, topic=topic)

@@ -241,3 +241,162 @@ def test_rive_refuses_without_package(monkeypatch, catalog, knowledge):
     monkeypatch.setattr(NluBackend, "_ensure_rive", missing)
     with pytest.raises(BackendError):
         session.respond("Привет")
+
+
+def test_rive_clarifications_match_legacy(catalog, knowledge):
+    """Уточнения и отказы на rive-пути не теряются и совпадают с legacy."""
+
+    pytest.importorskip("rivescript")
+
+    cases = (
+        "",
+        "А он?",
+        "Почему?",
+        "Обними его",
+        "абракадабра ксизи",
+    )
+
+    def run(mode):
+        session = _session(catalog, knowledge, mode)
+        rows = []
+        for text in cases:
+            turn = session.respond(text)
+            rows.append(
+                (
+                    turn.source,
+                    turn.answer.kind,
+                    turn.answer.plan_id,
+                    turn.answer.text,
+                )
+            )
+        return rows, session.nlu.report.to_dict()
+
+    base, base_report = run("legacy")
+    candidate, report = run("rive")
+    assert candidate == base
+    assert base_report["errors"] == 0
+    assert report["errors"] == 0
+    # Уточнение — это ответ по причине, а не «не понял» без следа.
+    assert [row[0] for row in candidate[:3]] == [
+        "empty",
+        "no_referent",
+        "no_qud",
+    ]
+    assert candidate[3][1:3] == ("clarification", "state:no_referent")
+    assert candidate[4][1] == "unknown"
+
+
+def test_rive_recovers_after_transient_engine_error(
+    monkeypatch, catalog, knowledge
+):
+    """Первый сбой движка перезагружает RiveScript и не портит ход."""
+
+    pytest.importorskip("rivescript")
+    session = _session(catalog, knowledge, "rive")
+    rive = session.nlu._ensure_rive()
+    original = rive.understand
+    calls = {"count": 0}
+
+    def flaky(text, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise BackendError("временный сбой")
+        return original(text, **kwargs)
+
+    monkeypatch.setattr(rive, "understand", flaky)
+    turn = session.respond("Привет")
+    report = session.nlu.report.to_dict()
+    assert turn.answer.kind == "smalltalk"
+    assert calls["count"] == 2
+    assert report["recoveries"] == 1
+    assert report["errors"] == 0
+    assert report["ok"] is True
+
+
+def test_shadow_survives_transient_engine_error(
+    monkeypatch, catalog, knowledge
+):
+    """Тень не выключается навсегда из-за одного временного сбоя."""
+
+    pytest.importorskip("rivescript")
+    session = _session(catalog, knowledge, "shadow")
+    rive = session.nlu._ensure_rive()
+    original = rive.understand
+    calls = {"count": 0}
+
+    def flaky(text, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise BackendError("временный сбой")
+        return original(text, **kwargs)
+
+    monkeypatch.setattr(rive, "understand", flaky)
+    session.respond("Привет")
+    report = session.nlu.report.to_dict()
+    assert report["backend"] == "shadow"
+    assert report["recoveries"] == 1
+    assert report["errors"] == 0
+    assert report["mismatches"] == 0
+
+
+def test_rive_falls_back_after_unrecoverable_error(
+    monkeypatch, catalog, knowledge
+):
+    """Если перезагрузка не помогла, ход строит legacy, а rive живёт дальше."""
+
+    pytest.importorskip("rivescript")
+    session = _session(catalog, knowledge, "rive")
+    rive = session.nlu._ensure_rive()
+
+    def boom(*_args, **_kwargs):
+        raise BackendError("движок упал")
+
+    monkeypatch.setattr(rive, "understand", boom)
+    first = session.respond("Привет")
+    assert first.answer is not None
+    report = session.nlu.report.to_dict()
+    assert report["errors"] == 1
+    assert report["recoveries"] == 0
+    assert report["backend"] == "rive"
+
+    # Следующий ход снова идёт через rive: бэкенд не деградировал.
+    monkeypatch.undo()
+    second = session.respond("Привет")
+    assert second.source == "parser"
+    assert session.nlu.report.to_dict()["backend"] == "rive"
+
+
+def test_low_confidence_is_clarification_on_both_paths(catalog, knowledge):
+    """Неполный кадр доходит до диалога как уточнение, а не как ответ."""
+
+    pytest.importorskip("rivescript")
+    from campaign.cognition.backends import CognitionFlags
+    from campaign.cognition.frame import Clarification
+    from campaign.cognition.nlu import LegacyNlu
+    from campaign.cognition.rive_runtime import RiveNlu
+
+    flags = CognitionFlags(
+        clarify_threshold=1.0,
+        accept_threshold=1.0,
+    )
+    session = _session(catalog, knowledge, "legacy")
+
+    legacy = LegacyNlu(session, flags)
+    legacy_result = legacy.understand("Привет.")
+    assert isinstance(legacy_result, Clarification)
+    assert legacy_result.reason == "low_confidence"
+    assert legacy.last_sem is None
+    assert legacy.last_reason == "low_confidence"
+
+    rive = RiveNlu(session, flags)
+    rive_result = rive.understand("Привет.")
+    assert isinstance(rive_result, Clarification)
+    assert rive_result.reason == "low_confidence"
+    assert rive.last_sem is None
+    assert rive.last_reason == "low_confidence"
+
+    live = NluBackend(session, flags=flags, backend="rive")
+    session.nlu = live
+    turn = session.respond("Привет.")
+    assert turn.answer.kind == "clarification"
+    assert turn.source == "low_confidence"

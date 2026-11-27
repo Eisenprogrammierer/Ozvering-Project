@@ -295,9 +295,15 @@ class LegacyNlu:
         if isinstance(resolved, Mapping):
             sem = resolved
         self.last_sem = sem
-        return self.build_result(
+        result = self.build_result(
             sem, raw, source, rule, unresolved, topic=topic
         )
+        if not isinstance(result, UtteranceFrame):
+            # Уточнение/отказ — это не готовый смысл: живой путь должен
+            # увидеть причину, а не ответить по неполному кадру.
+            self.last_sem = None
+            self.last_reason = str(getattr(result, "reason", "") or "")
+        return result
 
     def build_result(
         self,

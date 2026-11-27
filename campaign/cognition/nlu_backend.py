@@ -13,7 +13,9 @@
 Смысловая часть совпадает с ``LegacyNlu`` на золотом корпусе, поэтому
 ответы и ``Turn.source`` не меняются. ``ChartParser`` разбирает
 вложенные ``S``-слоты и служит полным откатом при неизвестном триггере
-или неразрешённом слоте.
+или неразрешённом слоте. Сбой движка не срывает ход: бэкенд один раз
+перезагружает RiveScript и повторяет разбор, а при неудаче отдаёт
+legacy-ответ; уточнения и отказы доходят до диалога с причиной.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ class NluReport:
     semantic_fallback: int = 0
     mismatches: int = 0
     errors: int = 0
+    recoveries: int = 0
     last_error: str = ""
     elapsed_ms: float = 0.0
 
@@ -65,6 +68,7 @@ class NluReport:
             "fallback_rate": round(self.fallback_rate, 6),
             "mismatches": self.mismatches,
             "errors": self.errors,
+            "recoveries": self.recoveries,
             "last_error": self.last_error,
             "elapsed_ms": round(self.elapsed_ms, 3),
         }
@@ -142,6 +146,25 @@ class NluBackend:
             "semantic_fallback", 0
         )
 
+    def _retry_rive(
+        self, rive: Any, text: str, topic: str
+    ) -> Any:
+        """Перезагрузить движок и повторить разбор один раз.
+
+        ``None`` означает, что восстановление не удалось: вызывающий
+        код решает, отдать легаси-ответ или продолжить без тени.
+        """
+
+        if not rive.recover():
+            return None
+        try:
+            result = rive.understand(text, topic=topic)
+        except (BackendError, RiveError) as exc:
+            self.report.last_error = str(exc)
+            return None
+        self.report.recoveries += 1
+        return result
+
     def understand(self, text: str, *, topic: str = "default"):
         """Разобрать фразу, сохранив последний смысл для живого пути."""
 
@@ -157,17 +180,27 @@ class NluBackend:
                 self._adopt(self.legacy)
                 try:
                     rive = self._ensure_rive()
-                    shadow = rive.understand(text, topic=topic)
-                    self._sync()
-                    if result_core(primary) == result_core(shadow):
-                        pass
-                    else:
-                        self.report.mismatches += 1
-                    if self.shadow_sink is not None:
-                        self.shadow_sink(text, shadow)
                 except Exception as exc:
                     self.report.errors += 1
+                    self.report.last_error = str(exc)
                     self._degrade(str(exc))
+                    return primary
+                try:
+                    shadow = rive.understand(text, topic=topic)
+                except (BackendError, RiveError) as exc:
+                    self.report.last_error = str(exc)
+                    shadow = self._retry_rive(rive, text, topic)
+                    if shadow is None:
+                        self.report.errors += 1
+                        self._sync()
+                        return primary
+                self._sync()
+                if result_core(primary) == result_core(shadow):
+                    pass
+                else:
+                    self.report.mismatches += 1
+                if self.shadow_sink is not None:
+                    self.shadow_sink(text, shadow)
                 return primary
             try:
                 rive = self._ensure_rive()
@@ -178,14 +211,17 @@ class NluBackend:
             try:
                 result = rive.understand(text, topic=topic)
             except (BackendError, RiveError) as exc:
-                # Сбой движка не имеет права сорвать ход: отдаём
-                # legacy-разбор и честно помечаем ошибку в отчёте.
-                self.report.errors += 1
+                # Сбой движка не имеет права сорвать ход: сначала
+                # пробуем перезагрузить движок и повторить разбор,
+                # затем отдаём legacy-разбор и честно помечаем ошибку.
                 self.report.last_error = str(exc)
-                result = self.legacy.understand(text, topic=topic)
-                self._adopt(self.legacy)
-                self._sync()
-                return result
+                result = self._retry_rive(rive, text, topic)
+                if result is None:
+                    self.report.errors += 1
+                    result = self.legacy.understand(text, topic=topic)
+                    self._adopt(self.legacy)
+                    self._sync()
+                    return result
             self._adopt(rive)
             self._sync()
             return result
