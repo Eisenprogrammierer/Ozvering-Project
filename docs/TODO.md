@@ -215,16 +215,18 @@
   маскируются, без `soar-sml` — деградация до `legacy` с
   `unavailable: true`, `ok: false`; откат —
   `OZVERIN_INFERENCE_BACKEND=legacy`. Вывод подключён в
-  `AnswerPlanner`, `DialogueSession`, `repl` и `corpus_builder`;
-  `CounterfactualEngine` остаётся на легаси (follow-up). Тесты —
-  `tests/test_d6_inference.py`.
+  `AnswerPlanner`, `DialogueSession`, `repl`, `corpus_builder` и TUI
+  (`view/app_dialogue.py`). `CounterfactualEngine` берёт движок из
+  `InferenceBackend.for_knowledge`: база и контрмодель считаются тем же
+  режимом, отчёт общий. Тесты — `tests/test_d6_inference.py`.
 - [x] **Phase 4. RiveScript основной NLU.** Поддерживаемое множество
   идёт через RiveScript + Soar, `ChartParser` — fallback.
   - [x] **Шаг 1. Живой путь.** `campaign/cognition/nlu_backend.py`
     (`NluBackend`/`NluReport`/`load_nlu`), режимы
     `legacy|shadow|rive`, `DialogueSession` принимает `nlu`,
-    `repl`/`corpus_builder` подключают `load_nlu`; паритет на 144
-    входах — 0 расхождений, `fallback_rate` 1.39%, `mismatches` 0;
+    `repl`/`corpus_builder`/TUI (`view/app_dialogue.py`) подключают
+    `load_nlu`; паритет на 144 входах — 0 расхождений,
+    `fallback_rate` 1.39%, `mismatches` 0;
     без `rivescript` `shadow` деградирует, `rive` отказывает.
     Тесты — `tests/test_nlu_backend.py`.
   - [x] **Шаг 2. Кадр из манифеста и `<star>`.** Манифест v2 хранит

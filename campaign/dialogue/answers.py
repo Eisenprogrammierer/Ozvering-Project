@@ -61,7 +61,9 @@ class AnswerPlanner(AnswerAnswerMixin):
         self.social_engine = SocialEngine(
             catalog, knowledge, self.engine
         )
-        self.counterfactual = CounterfactualEngine(catalog, knowledge)
+        self.counterfactual = CounterfactualEngine(
+            catalog, knowledge, backend=self.inference
+        )
         self.realizer = Realizer(
             catalog,
             knowledge,

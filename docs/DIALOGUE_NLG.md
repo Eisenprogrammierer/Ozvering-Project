@@ -468,6 +468,9 @@ Unicode NFC, `ё → е` для поиска, нижний регистр для
 - **Движок.** `CounterfactualEngine.with_facts(remove, add)` собирает
   новый `AgentKnowledge` без мутаций. Whitelist отношений —
   `counterfactual.json: relations`. Правила вывода не подменяются.
+  Если у сессии есть `InferenceBackend`, база и контрмодель считаются
+  тем же режимом (`legacy|shadow|soar`) через `for_knowledge`; без
+  бэкенда — прямым `InferenceEngine`.
 - **Сравнение.** `compare(relation, args, remove, add)` доказывает цель
   в базе и в контрмодели. Исход: `changed` / `unchanged` / `unknown`.
   `_differences` обходит базу сверху вниз и возвращает **первый

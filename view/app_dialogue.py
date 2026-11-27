@@ -69,7 +69,12 @@ class AppDialogueMixin:
         campaign = getattr(self, "automata_campaign", None)
         if campaign is None:
             return None
-        from campaign.dialogue import DialogueSession, build_knowledge
+        from campaign.cognition.nlu_backend import load_nlu
+        from campaign.dialogue import (
+            DialogueSession,
+            build_knowledge,
+            load_inference,
+        )
         from campaign.perception import campaign_view
 
         catalog = self._dialogue_catalog()
@@ -85,11 +90,14 @@ class AppDialogueMixin:
             knowledge.clock,
         )
         listen_only = str(side) != str(campaign.player_side)
-        return DialogueSession(
+        session = DialogueSession(
             catalog,
             knowledge,
             memory=memory,
             allow_actions=not listen_only,
             campaign=campaign,
+            inference=load_inference(catalog, knowledge),
             state_store=self._dialogue_states(),
         )
+        session.nlu = load_nlu(session)
+        return session

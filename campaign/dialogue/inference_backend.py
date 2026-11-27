@@ -95,6 +95,7 @@ class InferenceBackend:
         shadow_sink: Optional[
             Callable[[Mapping[str, Any]], None]
         ] = None,
+        report: Optional[InferenceReport] = None,
     ):
         text = str(backend or "legacy")
         if text not in INFERENCE_BACKENDS:
@@ -115,7 +116,8 @@ class InferenceBackend:
         self.rules = self.legacy.rules
         self._soar = soar
         self._ready = soar is not None
-        self.report = InferenceReport(
+        self._owns_report = report is None
+        self.report = report or InferenceReport(
             backend=self.backend, requested=self.requested
         )
 
@@ -132,9 +134,29 @@ class InferenceBackend:
     def _degrade(self, reason: str) -> None:
         self.backend = "legacy"
         self._ready = False
-        self.report.backend = "legacy"
+        if self._owns_report:
+            self.report.backend = "legacy"
         self.report.unavailable = True
         self.report.last_error = str(reason)
+
+    def for_knowledge(self, knowledge: Any) -> "InferenceBackend":
+        """Тот же режим и отчёт, но другое знание.
+
+        Нужен контрфактам: контрмодель — копия знания с подменёнными
+        фактами. Текущий режим берётся из ``self.backend``, поэтому после
+        деградации до ``legacy`` новый бэкенд не пытается снова поднять
+        Soar. Отчёт общий, чтобы теневые запросы контрмодели попадали в
+        те же счётчики.
+        """
+
+        return InferenceBackend(
+            self.catalog,
+            knowledge,
+            self.backend,
+            timeout_ms=self.timeout_ms,
+            shadow_sink=self.shadow_sink,
+            report=self.report,
+        )
 
     def _ensure_soar(self) -> bool:
         """Лениво поднять Soar; без пакета — понижение до легаси."""

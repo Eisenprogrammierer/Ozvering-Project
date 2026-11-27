@@ -52,9 +52,11 @@ class CounterfactualEngine:
         self,
         catalog: DialogueCatalog,
         knowledge: AgentKnowledge,
+        backend: Any = None,
     ):
         self.catalog = catalog
         self.knowledge = knowledge
+        self.backend = backend
         self.spec: Optional[CounterfactualSpec] = getattr(
             catalog, "counterfactual", None
         )
@@ -119,6 +121,24 @@ class CounterfactualEngine:
             player_gender=self.knowledge.player_gender,
         )
 
+    def _engine(self, knowledge: AgentKnowledge) -> Any:
+        """Движок вывода для знания: бэкенд сессии или легаси.
+
+        Если передан ``InferenceBackend``, он чтит ``inference_backend``
+        и для контрмодели создаёт дочерний бэкенд с тем же режимом. Без
+        бэкенда поведение прежнее — прямой ``InferenceEngine``.
+        """
+
+        backend = self.backend
+        if backend is None:
+            return InferenceEngine(self.catalog, knowledge)
+        if knowledge is self.knowledge:
+            return backend
+        factory = getattr(backend, "for_knowledge", None)
+        if factory is None:
+            return InferenceEngine(self.catalog, knowledge)
+        return factory(knowledge)
+
     def compare(
         self,
         relation: str,
@@ -133,9 +153,9 @@ class CounterfactualEngine:
             return CounterfactualResult(
                 outcome="disabled", construction=""
             )
-        base_engine = InferenceEngine(self.catalog, self.knowledge)
+        base_engine = self._engine(self.knowledge)
         model = self.with_facts(remove=remove, add=add)
-        model_engine = InferenceEngine(self.catalog, model)
+        model_engine = self._engine(model)
         base = base_engine.first(relation, *args)
         other = model_engine.first(relation, *args)
         differences = self._differences(base, other)

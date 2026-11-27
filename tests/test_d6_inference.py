@@ -40,6 +40,7 @@ from campaign.dialogue import (
     load_dialogue,
     load_inference,
 )
+from campaign.dialogue.counterfactual import CounterfactualEngine
 from campaign.dialogue.loader import DEFAULT_DIR
 from campaign.preset import CampaignPresetGenerator
 from campaign.roles import RoleCatalog
@@ -457,3 +458,62 @@ def test_corpus_answers_agree_across_inference_modes():
         if mode == "shadow":
             assert report["disagreements"] == 0
             assert report["agreements"] == report["queries"]
+
+
+# --- контрфакты -----------------------------------------------------
+
+
+def _war_case(knowledge):
+    wars = [
+        fact for fact in knowledge.facts if fact.rel == "at_war_with"
+    ]
+    assert wars
+    fact = wars[0]
+    return fact, [fact]
+
+
+def test_counterfactual_matches_legacy_on_soar():
+    pytest.importorskip("soar_sml")
+    catalog = _catalog()
+    knowledge = _campaign_knowledge()
+    fact, remove = _war_case(knowledge)
+    legacy = CounterfactualEngine(catalog, knowledge)
+    backend = InferenceBackend(catalog, knowledge, "soar")
+    soar = CounterfactualEngine(catalog, knowledge, backend=backend)
+
+    left = legacy.compare("at_war_with", fact.args, remove=remove)
+    right = soar.compare("at_war_with", fact.args, remove=remove)
+
+    assert right.outcome == left.outcome
+    assert [item.key() for item in right.differences] == [
+        item.key() for item in left.differences
+    ]
+    assert right.base_proof.proof.signature() == (
+        left.base_proof.proof.signature()
+    )
+    if left.model_proof is None:
+        assert right.model_proof is None
+    else:
+        assert right.model_proof.proof.signature() == (
+            left.model_proof.proof.signature()
+        )
+    assert backend.report.queries == 2
+    assert backend.report.errors == 0
+
+
+def test_counterfactual_shadow_agrees_with_legacy():
+    pytest.importorskip("soar_sml")
+    catalog = _catalog()
+    knowledge = _campaign_knowledge()
+    fact, remove = _war_case(knowledge)
+    legacy = CounterfactualEngine(catalog, knowledge)
+    backend = InferenceBackend(catalog, knowledge, "shadow")
+    shadow = CounterfactualEngine(catalog, knowledge, backend=backend)
+
+    left = legacy.compare("at_war_with", fact.args, remove=remove)
+    right = shadow.compare("at_war_with", fact.args, remove=remove)
+
+    assert right.outcome == left.outcome
+    assert backend.report.queries == 2
+    assert backend.report.agreements == backend.report.queries
+    assert backend.report.disagreements == 0

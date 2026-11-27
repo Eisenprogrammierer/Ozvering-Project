@@ -1026,9 +1026,8 @@ Deliverables:
   оба режима понижаются до `legacy` с `unavailable: true`,
   `ok: false`;
 - вывод подключён в `AnswerPlanner`, `DialogueSession`,
-  `repl.build_session` и `corpus_builder.build_default_session`;
-  `CounterfactualEngine` пока остаётся на легаси — подмена фактов требует
-  отдельного замыкания (follow-up Phase 3b);
+  `repl.build_session`, `corpus_builder.build_default_session` и TUI
+  (`view/app_dialogue.py`);
 - паритет: 14 680 запросов (5 сидов × 4 фракции × 4 говорящих, все
   отношения, точные/частичные/переменные шаблоны) — 0 расхождений по
   `bindings`, подписям `ProofStep`, порядку решений и `first()`;
@@ -1043,6 +1042,25 @@ Deliverables:
   head-переменные, повтор правил, запись/проверка артефакта, паритет на
   корпусе, цикл и depth-cap, read-only, лимит узлов, режимы, деградация,
   интеграция с сессией.
+
+**Сделано (Phase 3b, follow-up, 2026-11-27): контрфакты через Soar.**
+
+- `CounterfactualEngine` принимает `backend` (обычно `InferenceBackend`
+  сессии) и строит движок через `_engine()`: база считается на
+  переданном бэкенде, контрмодель — на `InferenceBackend.for_knowledge`;
+- `for_knowledge` сохраняет режим (`legacy|shadow|soar`), таймаут,
+  `shadow_sink` и общий `InferenceReport`; после деградации до `legacy`
+  дочерний бэкенд не поднимает Soar повторно;
+- в `shadow` контрмодель тоже сравнивается с легаси и попадает в те же
+  счётчики `queries`/`agreements`/`disagreements`, в `soar` ошибки не
+  маскируются; без бэкенда поведение прежнее (прямой `InferenceEngine`);
+- `AnswerPlanner` передаёт `self.inference`, поэтому `repl`, корпус и
+  TUI считают контрфакты тем же режимом, что и обычный вывод;
+- паритет: `changed/unchanged/unknown`, `differences` и подписи
+  `ProofStep` совпадают с легаси; теневой режим — 0 расхождений;
+- **Rollback:** `OZVERIN_INFERENCE_BACKEND=legacy`;
+- тесты: `tests/test_d6_inference.py` — `test_counterfactual_matches_legacy_on_soar`,
+  `test_counterfactual_shadow_agrees_with_legacy`.
 
 ### Phase 4. RiveScript как основной NLU + Soar-интерпретация (4–6 недель)
 
@@ -1071,8 +1089,9 @@ Deliverables:
   понижается до `legacy` с `unavailable: true`, `ok: false`, а `rive`
   отказывает явной `BackendError`;
 - `DialogueSession` принимает `nlu` и в `_interpret()` берёт последний
-  смысл из бэкенда; `repl.build_session` и
-  `corpus_builder.build_default_session` подключают `load_nlu(session)`;
+  смысл из бэкенда; `repl.build_session`,
+  `corpus_builder.build_default_session` и TUI
+  (`view/app_dialogue.py`) подключают `load_nlu(session)`;
 - `LegacyNlu`/`RiveNlu` публикуют `last_sem`/`last_parse`/`last_source`/
   `last_rule`/`last_reason`, поэтому RiveScript может выбирать триггер,
   не теряя семантику и не меняя `Turn.source`;
@@ -1461,7 +1480,7 @@ NLU считаются; есть отчёт с ограничениями и р�
 | `dialogue/morph.py` | object macro | остаётся как библиотека |
 | `dialogue/parser.py` | fallback / удаление | Phase 4–6 |
 | `dialogue/semantics.py` | сборка кадра | остаётся, упрощается |
-| `dialogue/inference.py` | Soar-продукции | Phase 3b сделана; `CounterfactualEngine` — follow-up |
+| `dialogue/inference.py` | Soar-продукции | Phase 3b сделана; контрфакты — через `InferenceBackend` |
 | `dialogue/planner.py` | Soar-операторы | план ответа — Phase 3a; `GoalPlanner` (D6.4, цели разговора) остаётся в Python |
 | `dialogue/answers*.py` | Soar + шаблоны | план/раскрытие — Phase 3a, текст — Phase 4 |
 | `dialogue/realize.py` | RiveScript + realizer | Phase 4 |
