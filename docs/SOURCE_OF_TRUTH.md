@@ -54,7 +54,7 @@
 
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
-| Поставить окружение и запустить | вход | `main.py`, `view/`, `ui/` · — · `test_gui_smoke.py` · [`ONBOARDING.md`](ONBOARDING.md), [`HOWTO.md`](HOWTO.md), `README.md` |
+| Поставить окружение и запустить | вход | `main.py`, `view/`, `ui/` · — · `test_gui_smoke.py` · [`ONBOARDING.md`](ONBOARDING.md), [`DEMO.md`](DEMO.md), [`HOWTO.md`](HOWTO.md), `README.md` |
 | Запустить конкретный режим | вход | `main.py --arena/--scene/--view/--classic/--automata` · — · `test_ui.py`, `test_view.py` · [`ONBOARDING.md`](ONBOARDING.md) §1.4 |
 | Включить файловый журнал | вход | `main.py --log` / `--log-file PATH`, `view/support/log_journal.py` · — · `test_logging_setup.py` · [`ONBOARDING.md`](ONBOARDING.md) §5.8 |
 | Играть в кампанию автоматов | кампания | `campaign/automata.py`, `campaign/fractal.py`, `campaign/faction_state.py`, `campaign/preset.py` · `configs/campaigns/`, `configs/characters/` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
@@ -677,6 +677,7 @@ rewind отсутствует.
 | [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | только открытые GAP-пункты; полный аудит — в `history/` | аудит, не канон |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | только открытые фазы; полный план — в `history/` | план |
+| [`DEMO.md`](DEMO.md) | быстрый запуск, проверенный демо-путь, ограничения и что доделать | руководство |
 | [`ONBOARDING.md`](ONBOARDING.md) | карта проекта по потребностям | руководство |
 | [`HOWTO.md`](HOWTO.md) | как играть, обучать, контрибьютить | руководство |
 | [`SUMMARY.md`](SUMMARY.md) | сжатый конспект | не источник истины |
