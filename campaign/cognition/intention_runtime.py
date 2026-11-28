@@ -41,6 +41,37 @@ WEIGHT_KEYS = (
     "preferred_bonus",
 )
 
+LATENCY_SAMPLES = 256
+"""Сколько последних замеров держит селектор для p50/p95."""
+
+
+def latency_summary(values: Iterable[Any]) -> Dict[str, Any]:
+    """Сводка задержек в миллисекундах: p50, p95 и максимум.
+
+    Список ограничен последними замерами, поэтому это скользящая
+    оценка стоимости решения, а не полная статистика за прогон.
+    """
+
+    samples = sorted(max(0.0, float(value)) for value in values)
+    if not samples:
+        return {
+            "samples": 0,
+            "p50_ms": 0.0,
+            "p95_ms": 0.0,
+            "max_ms": 0.0,
+        }
+
+    def pick(fraction: float) -> float:
+        index = int(round((len(samples) - 1) * fraction))
+        return round(samples[max(0, min(len(samples) - 1, index))], 3)
+
+    return {
+        "samples": len(samples),
+        "p50_ms": pick(0.5),
+        "p95_ms": pick(0.95),
+        "max_ms": round(samples[-1], 3),
+    }
+
 
 def _float(value: Any, name: str) -> float:
     try:
@@ -219,6 +250,10 @@ class SoarIntention:
             ) from exc
         self.timeout_ms = max(0.0, float(timeout_ms or 0.0))
         self.last_elapsed_ms = 0.0
+        self.queries = 0
+        self.errors = 0
+        self.elapsed_ms = 0.0
+        self._latencies: List[float] = []
         self._agent: Any = None
 
     def _agent_for(self) -> Any:
@@ -238,6 +273,32 @@ class SoarIntention:
         if self._agent is not None:
             _kernel().DestroyAgent(self._agent)
             self._agent = None
+
+    def _record_latency(self, elapsed_ms: float, error: bool = False) -> None:
+        self.queries += 1
+        if error:
+            self.errors += 1
+        value = max(0.0, float(elapsed_ms))
+        self.elapsed_ms += value
+        self._latencies.append(value)
+        if len(self._latencies) > LATENCY_SAMPLES:
+            del self._latencies[: len(self._latencies) - LATENCY_SAMPLES]
+
+    def latency_samples(self) -> List[float]:
+        """Последние замеры решения (не больше ``LATENCY_SAMPLES``)."""
+
+        return list(self._latencies)
+
+    def latency_report(self) -> Dict[str, Any]:
+        report = latency_summary(self._latencies)
+        report.update(
+            {
+                "queries": self.queries,
+                "errors": self.errors,
+                "elapsed_ms": round(self.elapsed_ms, 3),
+            }
+        )
+        return report
 
     def _reset(self, agent: Any) -> None:
         """Сбросить рабочую память перед следующим запросом.
@@ -323,6 +384,9 @@ class SoarIntention:
             self.last_elapsed_ms = (
                 time.perf_counter() - started
             ) * 1000.0
+            self._record_latency(
+                self.last_elapsed_ms, error=not ok or decision is None
+            )
             if not ok:
                 self.close()
         if decision is None:
@@ -340,7 +404,102 @@ class SoarIntention:
         return essence, score
 
 
-_SHARED: Dict[Tuple[float, str], SoarIntention] = {}
+class SoarIntentionPool:
+    """LOD-пул общих селекторов намерений для массовых NPC.
+
+    Выбор намерения — stateless-запрос, поэтому один агент обслуживает
+    всех не-именных персонажей. Пул ограничен ``max_agents`` (по
+    умолчанию один) и выгружает самого давнего агента по LRU: память
+    Soar не растёт с числом персонажей. Именные NPC с собственной
+    BDI-памятью живут в ``SoarNpcPool`` и сюда не попадают.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_agents: int = 1,
+        source_dir: Path = DEFAULT_SOAR_DIR,
+    ):
+        self.max_agents = max(1, int(max_agents))
+        self.source_dir = Path(source_dir)
+        self.agents: Dict[Tuple[float, str], SoarIntention] = {}
+        self.starts = 0
+        self.evictions = 0
+        self._clock = 0
+        self._used: Dict[Tuple[float, str], int] = {}
+
+    def __len__(self) -> int:
+        return len(self.agents)
+
+    def get(
+        self,
+        timeout_ms: Optional[float] = None,
+        *,
+        source_dir: Optional[Path] = None,
+    ) -> SoarIntention:
+        key = (
+            float(timeout_ms or 0.0),
+            str(Path(source_dir or self.source_dir)),
+        )
+        self._clock += 1
+        policy = self.agents.get(key)
+        if policy is None:
+            if len(self.agents) >= self.max_agents:
+                self._evict()
+            policy = SoarIntention(
+                timeout_ms=timeout_ms,
+                source_dir=Path(source_dir or self.source_dir),
+            )
+            self.agents[key] = policy
+            self.starts += 1
+        self._used[key] = self._clock
+        return policy
+
+    def _evict(self) -> None:
+        if not self.agents:
+            return
+        key = min(
+            self.agents,
+            key=lambda item: self._used.get(item, 0),
+        )
+        self.agents.pop(key).close()
+        self._used.pop(key, None)
+        self.evictions += 1
+
+    def report(self) -> Dict[str, Any]:
+        policies = list(self.agents.values())
+        latency = latency_summary(
+            value
+            for policy in policies
+            for value in policy.latency_samples()
+        )
+        latency.update(
+            {
+                "elapsed_ms": round(
+                    sum(policy.elapsed_ms for policy in policies), 3
+                ),
+                "queries": sum(policy.queries for policy in policies),
+                "errors": sum(policy.errors for policy in policies),
+            }
+        )
+        return {
+            "agents": len(policies),
+            "max_agents": self.max_agents,
+            "starts": self.starts,
+            "evictions": self.evictions,
+            "queries": latency["queries"],
+            "errors": latency["errors"],
+            "latency": latency,
+        }
+
+    def close(self) -> None:
+        for policy in self.agents.values():
+            policy.close()
+        self.agents.clear()
+        self._used.clear()
+
+
+_POOL = SoarIntentionPool()
 
 
 def shared_intention(
@@ -350,18 +509,24 @@ def shared_intention(
     """Общий селектор намерений: продукции ставятся один раз.
 
     Выбор намерения — stateless-запрос к рабочей памяти, поэтому один
-    долгоживущий агент обслуживает всех персонажей процесса. Отдельный
-    агент на именного NPC появится вместе с полной BDI-памятью Phase 5.
+    долгоживущий агент обслуживает всех массовых персонажей процесса.
+    Это и есть LOD-исключение плана: отдельные агенты с BDI-памятью
+    получают только именные NPC (``SoarNpcPool``).
     """
 
-    key = (float(timeout_ms or 0.0), str(Path(source_dir)))
-    policy = _SHARED.get(key)
-    if policy is None:
-        policy = SoarIntention(
-            timeout_ms=timeout_ms, source_dir=source_dir
-        )
-        _SHARED[key] = policy
-    return policy
+    return _POOL.get(timeout_ms, source_dir=source_dir)
+
+
+def intention_pool_report() -> Dict[str, Any]:
+    """Состояние общего пула селекторов намерений."""
+
+    return _POOL.report()
+
+
+def close_intention_pool() -> None:
+    """Закрыть общий пул (тесты и завершение процесса)."""
+
+    _POOL.close()
 
 
 def intention_available() -> bool:
@@ -372,8 +537,13 @@ def intention_available() -> bool:
 
 __all__ = [
     "IntentionMonitor",
+    "LATENCY_SAMPLES",
     "SoarIntention",
+    "SoarIntentionPool",
     "WEIGHT_KEYS",
+    "close_intention_pool",
     "intention_available",
+    "intention_pool_report",
+    "latency_summary",
     "shared_intention",
 ]

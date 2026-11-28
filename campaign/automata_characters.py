@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from .automata_support import (
     Mapping,
     _as_mapping,
@@ -479,50 +481,134 @@ class AutomataCharactersMixin:
         every = max(
             1, int(_number(model.get("deliberate_every"), 1))
         )
-        for character in faction.characters:
-            if bool(
-                getattr(
-                    character,
-                    "is_dead",
-                    getattr(character, "dead", False),
+        started = time.perf_counter()
+        characters = 0
+        deliberated = 0
+        try:
+            for character in faction.characters:
+                if bool(
+                    getattr(
+                        character,
+                        "is_dead",
+                        getattr(character, "dead", False),
+                    )
+                ):
+                    continue
+                characters += 1
+                state = self._agency_state(character, faction)
+                state["trust"] = 0.5 + (
+                    _number(state.get("trust"), 0.5) - 0.5
+                ) * decay
+                state["grievance"] = _clamp(
+                    _number(state.get("grievance"), 0.0) * decay
                 )
-            ):
-                continue
-            state = self._agency_state(character, faction)
-            state["trust"] = 0.5 + (
-                _number(state.get("trust"), 0.5) - 0.5
-            ) * decay
-            state["grievance"] = _clamp(
-                _number(state.get("grievance"), 0.0) * decay
+                state["initiative"] = _clamp(
+                    _number(state.get("initiative"), 0.0) * decay
+                )
+                character.campaign_agency = state
+                goal = _as_mapping(
+                    getattr(character, "campaign_goal", {})
+                )
+                started_turn = int(
+                    _number(goal.get("started"), -10 ** 9)
+                )
+                if not goal or int(self.turn) - started_turn >= hold:
+                    goal = self._character_goal(character, faction)
+                    goal["started"] = int(self.turn)
+                    goal["revised"] = int(self.turn)
+                    character.campaign_goal = goal
+                if bool(getattr(character, "campaign_is_player", False)):
+                    continue
+                if every and int(self.turn) % every:
+                    continue
+                deliberated += 1
+                try:
+                    character.deliberate(
+                        target=_text(goal.get("target")) or None,
+                        preferred=_text(goal.get("essence")) or None,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Намерение персонажа %s не выбрано",
+                        getattr(character, "name", "?"),
+                    )
+        finally:
+            self._record_mass_npc_tick(
+                faction, started, characters, deliberated
             )
-            state["initiative"] = _clamp(
-                _number(state.get("initiative"), 0.0) * decay
+
+    def _record_mass_npc_tick(
+        self, faction, started, characters, deliberated
+    ):
+        """Замерить стоимость тика автономии массовых NPC.
+
+        Один замер — один такт одной фракции. Список ограничен
+        последними замерами: метрика живёт в памяти и не попадает в
+        сейв.
+        """
+
+        elapsed = (time.perf_counter() - started) * 1000.0
+        samples = getattr(self, "_mass_npc_samples", None)
+        if samples is None:
+            samples = []
+            self._mass_npc_samples = samples
+        samples.append(
+            {
+                "side": _text(getattr(faction, "side", "")),
+                "turn": int(getattr(self, "turn", 0) or 0),
+                "characters": max(0, int(characters)),
+                "deliberated": max(0, int(deliberated)),
+                "elapsed_ms": round(max(0.0, elapsed), 3),
+            }
+        )
+        if len(samples) > 256:
+            del samples[: len(samples) - 256]
+
+    def mass_npc_report(self):
+        """Стоимость тика автономии массовых NPC и LOD-бюджет.
+
+        Персонажи без отдельного Soar-агента выбирают намерение через
+        общий селектор (``SoarIntentionPool``). Здесь измеряется именно
+        цикл ``_tick_character_autonomy``: сколько персонажей обошли,
+        сколько дошло до выбора и сколько это заняло.
+        """
+
+        from .cognition.intention_runtime import latency_summary
+
+        samples = list(getattr(self, "_mass_npc_samples", ()) or ())
+        latency = latency_summary(
+            item.get("elapsed_ms", 0.0) for item in samples
+        )
+        budget = max(
+            0.0,
+            _number(self._agency_model().get("tick_budget_ms"), 0.0),
+        )
+        exceeded = bool(
+            budget
+            and any(
+                float(item.get("elapsed_ms", 0.0)) > budget
+                for item in samples
             )
-            character.campaign_agency = state
-            goal = _as_mapping(getattr(character, "campaign_goal", {}))
-            started = int(_number(goal.get("started"), -10 ** 9))
-            if not goal or int(self.turn) - started >= hold:
-                goal = self._character_goal(character, faction)
-                goal["started"] = int(self.turn)
-                goal["revised"] = int(self.turn)
-                character.campaign_goal = goal
-            if bool(getattr(character, "campaign_is_player", False)):
-                continue
-            if every and int(self.turn) % every:
-                continue
-            try:
-                character.deliberate(
-                    target=_text(goal.get("target")) or None,
-                    preferred=_text(goal.get("essence")) or None,
-                )
-            except Exception:
-                logger.exception(
-                    "Намерение персонажа %s не выбрано",
-                    getattr(character, "name", "?"),
-                )
+        )
+        return {
+            "kind": "mass_npc",
+            "ticks": len(samples),
+            "characters": sum(
+                int(item.get("characters", 0)) for item in samples
+            ),
+            "deliberated": sum(
+                int(item.get("deliberated", 0)) for item in samples
+            ),
+            "latency": latency,
+            "budget_ms": round(budget, 3),
+            "exceeded": exceeded,
+            "ok": not exceeded,
+        }
 
     def intention_report(self):
         """Сводка выбора BDI-намерений по всем персонажам кампании."""
+
+        from .cognition.intention_runtime import latency_summary
 
         total = {
             "characters": 0,
@@ -534,6 +620,7 @@ class AutomataCharactersMixin:
             "unavailable": False,
             "elapsed_ms": 0.0,
         }
+        policies = {}
         sides = {}
         for faction in self.factions.values():
             side = {
@@ -551,6 +638,9 @@ class AutomataCharactersMixin:
                 monitor = getattr(bdi, "intention_monitor", None)
                 if monitor is None:
                     continue
+                policy = getattr(bdi, "_soar_intention_obj", None)
+                if policy is not None:
+                    policies[id(policy)] = policy
                 report = monitor.report()
                 for bucket in (total, side):
                     bucket["characters"] += 1
@@ -591,5 +681,25 @@ class AutomataCharactersMixin:
             and not total["errors"]
             and not total["disagreements"]
         )
+        samples = [
+            value
+            for policy in policies.values()
+            for value in policy.latency_samples()
+        ]
+        latency = latency_summary(samples)
+        latency["elapsed_ms"] = round(
+            sum(policy.elapsed_ms for policy in policies.values()), 3
+        )
+        total["latency"] = latency
+        total["pool"] = {
+            "agents": len(policies),
+            "queries": sum(
+                policy.queries for policy in policies.values()
+            ),
+            "errors": sum(
+                policy.errors for policy in policies.values()
+            ),
+            "shared": len(policies) == 1,
+        }
         total["sides"] = sides
         return total

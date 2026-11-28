@@ -744,6 +744,7 @@ class AutomataAIMixin:
         factions = self.faction_decision_report(threshold)
         reactions = self.reaction_decision_report(threshold)
         agents = self.soar_agent_report()
+        mass_npc = self.mass_npc_report()
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
@@ -754,12 +755,14 @@ class AutomataAIMixin:
             "factions": factions,
             "reactions": reactions,
             "agents": agents,
+            "mass_npc": mass_npc,
             "ok": bool(
                 decisions["ok"]
                 and intentions["ok"]
                 and factions["ok"]
                 and reactions["ok"]
                 and not agents["errors"]
+                and mass_npc["ok"]
             ),
         }
 

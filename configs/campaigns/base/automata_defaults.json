@@ -1235,6 +1235,7 @@
       "sabotage_floor": 0.35,
       "goal_hold_turns": 3,
       "deliberate_every": 1,
+      "tick_budget_ms": 0,
       "memory_decay": 0.92,
       "order_trust": 0.1,
       "order_grievance": 0.15,
