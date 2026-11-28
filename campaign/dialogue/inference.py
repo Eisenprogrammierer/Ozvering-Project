@@ -1,11 +1,18 @@
 """Детерминированный логический вывод с трассировкой.
 
+Статус: **глубокий fallback** (``LEGACY_ROLE = "deep-fallback"``).
+Основной путь — Soar (``inference_backend=soar``); движок остаётся для
+режима ``legacy``, платформ без ``soar-sml`` и как эталон паритета.
+Удаление допустимо только после отказа от этих режимов.
+
 Правила живут в ``rules.json``. Движок умеет только унифицировать атомы,
 доказывать посылки и возвращать объяснение; никаких предметных знаний в
 коде нет.
 """
 
 from __future__ import annotations
+
+LEGACY_ROLE = "deep-fallback"
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Iterator, List, Mapping, Optional, Tuple

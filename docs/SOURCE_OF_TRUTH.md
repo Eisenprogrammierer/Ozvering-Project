@@ -104,7 +104,7 @@
 | Сеть органов и взаимодействия | кампания | `campaign/fractal.py` · поле `links` в `configs/campaigns/base/lore_factions.json` · `test_automata_campaign.py`, `test_automata_network.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) §3.2 |
 | Производные активы фракции | кампания | `campaign/faction_state.py` · `faction_state` в `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §3 |
 | BDI персонажей | кампания | `bdi.py`, `warfare.py` (`Character`), `campaign/actor.py`, `campaign/character.py`, `campaign/routine.py` · `configs/characters/bdi.json`, `bdi_routine` в мире · `test_bdi.py`, `test_automata_campaign.py`, `test_world_needs.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1 |
-| Политика NPC поверх BDI | кампания | `campaign/npc_policy.py`, `campaign/automata_ai.py` (`npc_outcome_report`), `campaign/npc_decisions.py` (`NpcDecisionMonitor`, `job_diversity`) · `ai_model.npc_policy` (`backend`, `backends`, `timeout_ms`, `tick_timeout_ms`) в `configs/campaigns/base/automata_defaults.json` · `test_npc_policy.py`, `test_npc_decisions.py` · — |
+| Политика NPC поверх BDI | кампания | `campaign/npc_policy.py` (`NeedPolicy` — запасное решение, `LEGACY_ROLE = "decision-fallback"`), `campaign/automata_ai.py` (`npc_outcome_report`), `campaign/npc_decisions.py` (`NpcDecisionMonitor`, `job_diversity`) · `ai_model.npc_policy` (`backend`, `backends`, `timeout_ms`, `tick_timeout_ms`) в `configs/campaigns/base/automata_defaults.json` · `test_npc_policy.py`, `test_npc_decisions.py` · — |
 | 16 потребностей и 15 делений | кампания | `organizations/needs.py`, `campaign/divisions.py`, `character_traits.py` · `configs/characters/bdi.json`, `configs/characters/divisions.json`, `configs/characters/traits.json` · `test_organizations.py`, `test_divisions.py`, `test_people.py` · [`ORGANIZATIONS.md`](ORGANIZATIONS.md), [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §1–§2 |
 | События и их условия | кампания | `systems/events.py` · `configs/systems/events.json` · `test_events_runtime.py`, `test_automata_campaign.py` · [`CONTENT_BDI_DIVISIONS_EVENTS.md`](CONTENT_BDI_DIVISIONS_EVENTS.md) §4 |
 | Темп, действия, скорости | кампания | `campaign/defaults.py` · `configs/campaigns/base/automata_defaults.json` · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
@@ -207,7 +207,7 @@
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
 | `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`, доклады источников `dispatch.py` + `dispatch_*.py`, движок `automata.py` + `automata_*.py`), дневной мир `world_actor` (`world.py` — фасад, реализация в `world_*.py`), локальные сцены `scenes.py`, суточная рутина `routine.py`, качественные уровни `qualitative.py`, аудит `audit.py`, восприятие `perception.py`, предметы-автоматы `item_automaton.py`, свободные часы `free_clock.py` | активный |
-| `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия | активный |
+| `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия; `ChartParser`/`InferenceEngine` — явный глубокий fallback (`LEGACY_ROLE = "deep-fallback"`) | активный |
 | `campaign/cognition/` | когнитивный фасад: `understand`/`decide`, `UtteranceFrame`, `soar_bridge.v1`, золотой корпус, parity; единственное место для будущих импортов Soar/RiveScript | активный фундамент |
 | `automata/` | редактор автоматов | активный инструмент |
 | `naming/` | имена и названия | активный инструмент |
@@ -673,7 +673,7 @@ rewind отсутствует.
 | [`WARFARE.md`](WARFARE.md) | войсковые автоматы, психология отрядов | текущий код |
 | [`CAMPAIGN_UI.md`](CAMPAIGN_UI.md) | кампанийный UI `view/` | текущая реализация |
 | [`DIALOGUE_NLG.md`](DIALOGUE_NLG.md) | детерминированный диалог без LLM: архитектура, разбор, синтез, эпистемика | текущая реализация |
-| [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | переход всего ИИ на Soar + RiveScript: границы, NLU-конвейер, фазы, принятые решения §12 | Phase 0–4 закрыты; Phase 5: BDI-намерения, приказы/действия фракций и реакции на доклады/угрозы, дальше — LOD и мир; Phase 6 в плане |
+| [`SOAR_RIVESCRIPT_MIGRATION.md`](SOAR_RIVESCRIPT_MIGRATION.md) | переход всего ИИ на Soar + RiveScript: границы, NLU-конвейер, фазы, принятые решения §12 | Phase 0–5 закрыты; Phase 6: этап 6a (явный fallback и метрики) закрыт, удаление legacy и shadow отложено до покрытия языка, RL-сравнения и переносимого Soar |
 | [`CHAT_STYLES_PLAN.md`](CHAT_STYLES_PLAN.md) | стилевой слой, регистровый профиль, автовыбор, дискурс | текущая реализация + план |
 | [`DATA_DRIVEN_CORE_GAPS.md`](DATA_DRIVEN_CORE_GAPS.md) | только открытые GAP-пункты; полный аудит — в `history/` | аудит, не канон |
 | [`DATA_DRIVEN_CORE_PLAN.md`](DATA_DRIVEN_CORE_PLAN.md) | только открытые фазы; полный план — в `history/` | план |

@@ -341,6 +341,19 @@
     `tests/test_cognition_rl.py`.
 - [ ] **Phase 6. Демонтаж GOFAI.** Удалить старые NLU/эвристики и
   shadow-флаги, обновить канон и fitness-тесты.
+  - [x] **Этап 6a. Явный fallback и финальные метрики.**
+    `ChartParser`, `InferenceEngine`, `NeedPolicy` помечены
+    `LEGACY_ROLE` и описаны как откат, а не второй путь; добавлен
+    `tests/test_legacy_fallback.py`; в документации — таблица метрик
+    Phase 5 и список ограничений. Удаление legacy-модулей и
+    shadow-флагов отложено: без `soar-sml` нужен рабочий fallback,
+    RL-сравнение не пройдено, `dialogue_backend=shadow` ещё
+    сравнивается с легаси.
+  - [ ] Удалить `ChartParser` после доказанного покрытия языка и
+    стабильного `fallback_rate`.
+  - [ ] Удалить `InferenceEngine`/`NeedPolicy` после отказа от
+    legacy-режимов и деградации без Soar.
+  - [ ] Убрать shadow-флаги после завершения сравнения диалога.
 
 ## 2. Диалог
 

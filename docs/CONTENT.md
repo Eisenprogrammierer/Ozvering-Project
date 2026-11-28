@@ -552,7 +552,10 @@ custom = content.get("my_new_file", {})
 `ai_action_weights()` показывает итоговые веса для диагностики.
 
 Блок `ai_model.npc_policy` включает выбор работы политикой
-`NeedPolicy`; по умолчанию `enabled = true`. Поле `backend` задаёт
+`NeedPolicy`; по умолчанию `enabled = true`. Это запасное решение
+(`LEGACY_ROLE = "decision-fallback"`): основной путь — Soar, а легаси
+остаётся для `legacy`, платформ без `soar-sml` и как эталон сравнения.
+Поле `backend` задаёт
 бэкенд всех сторон (`legacy`, `shadow`, `soar`), `backends` — карту
 `фракция → backend`; если ключа `backend` нет, действует глобальный
 `ai_backend` из `configs/cognition/backends.json` (по умолчанию
@@ -660,7 +663,8 @@ Soar-решений за ход. Каждое решение получает
 RiveScript. Точные триггеры несут готовый кадр из манифеста,
 грамматические — шаблон правила и роли слотов, которые заполняют
 `<star>`; `ChartParser` остаётся для вложенных `S`-слотов и полного
-отката. Поэтому ответы и `Turn.source` не меняются. Отчёт —
+отката как явный глубокий fallback (`LEGACY_ROLE = "deep-fallback"`), а
+не второй NLU. Поэтому ответы и `Turn.source` не меняются. Отчёт —
 `session.nlu.report.to_dict()`
 (`total`, `matched`, `fallback`, `semantic_fallback`, `fallback_rate`,
 `mismatches`, `errors`, `recoveries`). Без пакета `rivescript` `shadow`
@@ -698,7 +702,9 @@ legacy-ответ. Откат — `OZVERIN_NLU_BACKEND=legacy`.
 (`legacy`, `shadow`, `soar`; в поставке `soar`). Soar строит прямое
 замыкание `rules.json` в `inference.soar`; Python выбирает из него
 решения в порядке легаси, проверяет общие переменные правил и отсекает
-циклы, поэтому `Solution`/`ProofStep` совпадают с `InferenceEngine`.
+циклы, поэтому `Solution`/`ProofStep` совпадают с `InferenceEngine`. Движок остаётся
+явным глубоким fallback (`LEGACY_ROLE = "deep-fallback"`) для `legacy`,
+платформ без `soar-sml` и эталона паритета.
 В `shadow` ответы и доказательства остаются легаси, расхождения
 пишутся в `InferenceBackend.report()` (`queries`, `agreements`,
 `disagreements`, `errors`, `elapsed_ms`); в `soar` ошибки не
