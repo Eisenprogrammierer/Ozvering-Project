@@ -400,6 +400,10 @@ class AutomataSnapshotMixin:
         # Бюджет тика не хранится в сейве: новый ход начинается с нуля.
         self._npc_tick_spent_ms = 0.0
         self._mass_npc_samples = []
+        # Эпизоды RL и последнее сравнение — метрики прогона, не состояние.
+        self._rl_episodes = []
+        self._rl_pending = {}
+        self._rl_comparison = None
         self.turn = int(_number(snapshot.get("turn"), self.turn))
         saved_max = snapshot.get("cycle_limit")
         if saved_max is None:

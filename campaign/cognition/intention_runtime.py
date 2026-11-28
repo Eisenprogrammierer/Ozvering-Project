@@ -497,6 +497,11 @@ class SoarIntentionPool:
             policy.close()
         self.agents.clear()
         self._used.clear()
+        # Закрытый пул начинает новую жизнь: счётчики не текут между
+        # прогонами и тестами.
+        self.starts = 0
+        self.evictions = 0
+        self._clock = 0
 
 
 _POOL = SoarIntentionPool()

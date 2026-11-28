@@ -393,6 +393,118 @@ class AutomataAIMixin:
             self._npc_decision_monitor = monitor
         return monitor
 
+    def _rl_config(self):
+        return _as_mapping(self._npc_config().get("rl"))
+
+    def rl_enabled(self):
+        """Включён ли сбор эпизодов для RL-предпочтений."""
+
+        return bool(self._rl_config().get("enabled", False))
+
+    @staticmethod
+    def _rl_satisfaction(leader):
+        needs = _as_mapping(getattr(leader, "needs", {}))
+        if not needs:
+            return 0.0
+        values = [_clamp(value) for value in needs.values()]
+        return 1.0 - sum(values) / float(len(values))
+
+    def _rl_context(self, side, leader, satisfaction):
+        band = min(3, max(0, int(satisfaction * 4.0)))
+        archetype = _text(getattr(leader, "archetype", "")) or "unknown"
+        return "%s|%s|%d" % (_text(side), archetype, band)
+
+    def _rl_observe(self, side, leader, candidates, chosen):
+        """Записать ход в эпизод RL: награда — прирост нужд.
+
+        Награда за решение известна только на следующем ходу, поэтому
+        эпизод закрывается при следующем выборе той же стороны.
+        """
+
+        if not self.rl_enabled() or chosen is None:
+            return
+        config = self._rl_config()
+        limit = max(
+            1, int(_number(config.get("max_episodes"), 512))
+        )
+        episodes = getattr(self, "_rl_episodes", None)
+        if episodes is None:
+            episodes = []
+            self._rl_episodes = episodes
+        pending = getattr(self, "_rl_pending", None)
+        if pending is None:
+            pending = {}
+            self._rl_pending = pending
+        satisfaction = self._rl_satisfaction(leader)
+        key = _text(side)
+        previous = pending.get(key)
+        if previous is not None:
+            episodes.append(
+                {
+                    "context": previous["context"],
+                    "candidates": list(previous["candidates"]),
+                    "chosen": previous["chosen"],
+                    "reward": round(
+                        satisfaction - previous["satisfaction"], 6
+                    ),
+                }
+            )
+            if len(episodes) > limit:
+                del episodes[: len(episodes) - limit]
+        names = [str(option) for option, _need, _base in candidates]
+        if str(chosen) not in names:
+            pending.pop(key, None)
+            return
+        pending[key] = {
+            "context": self._rl_context(side, leader, satisfaction),
+            "candidates": names,
+            "chosen": str(chosen),
+            "satisfaction": satisfaction,
+        }
+
+    def rl_episode_report(self):
+        """Собранные эпизоды RL и последнее сравнение с легаси."""
+
+        episodes = list(getattr(self, "_rl_episodes", ()) or ())
+        comparison = getattr(self, "_rl_comparison", None)
+        enabled = self.rl_enabled()
+        return {
+            "enabled": enabled,
+            "episodes": len(episodes),
+            "contexts": len(
+                {str(item.get("context")) for item in episodes}
+            ),
+            "pending": len(getattr(self, "_rl_pending", {}) or {}),
+            "last_reward": (
+                round(float(episodes[-1].get("reward", 0.0)), 6)
+                if episodes
+                else 0.0
+            ),
+            "comparison": comparison,
+            "ok": bool(
+                not enabled
+                or comparison is None
+                or comparison.get("ok")
+            ),
+        }
+
+    def rl_compare(self, episodes=None):
+        """Обучить RL на эпизодах и сравнить с записанным выбором."""
+
+        from .cognition.soar_rl import compare_episodes
+
+        items = list(
+            episodes
+            if episodes is not None
+            else getattr(self, "_rl_episodes", ()) or ()
+        )
+        config = dict(self._rl_config())
+        if "seed" not in config:
+            config["seed"] = int(getattr(self, "seed", 0) or 0)
+        report = compare_episodes(items, config=config)
+        self._rl_comparison = report
+        return report
+
     def _faction_config(self):
         return _as_mapping(
             _as_mapping(self.ai_model).get("faction_policy")
@@ -745,6 +857,7 @@ class AutomataAIMixin:
         reactions = self.reaction_decision_report(threshold)
         agents = self.soar_agent_report()
         mass_npc = self.mass_npc_report()
+        rl = self.rl_episode_report()
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
@@ -756,6 +869,7 @@ class AutomataAIMixin:
             "reactions": reactions,
             "agents": agents,
             "mass_npc": mass_npc,
+            "rl": rl,
             "ok": bool(
                 decisions["ok"]
                 and intentions["ok"]
@@ -763,6 +877,7 @@ class AutomataAIMixin:
                 and reactions["ok"]
                 and not agents["errors"]
                 and mass_npc["ok"]
+                and rl["ok"]
             ),
         }
 
@@ -907,7 +1022,9 @@ class AutomataAIMixin:
             return None
         backend = self.npc_backend(side)
         if backend == "legacy":
-            return policy.choose(candidates, needs)
+            legacy = policy.choose(candidates, needs)
+            self._rl_observe(side, leader, candidates, legacy)
+            return legacy
         limit = self.npc_tick_timeout_ms()
         spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
         left = max(0.0, limit - spent)
@@ -975,6 +1092,7 @@ class AutomataAIMixin:
             self.npc_decision_monitor().note_decision(
                 side=side, elapsed_ms=elapsed_ms
             )
+            self._rl_observe(side, leader, candidates, candidate)
             return candidate
         legacy = policy.choose(candidates, needs)
         self.npc_decision_monitor().record(
@@ -987,6 +1105,7 @@ class AutomataAIMixin:
             turn=getattr(self, "turn", None),
             budget=left <= 0.0,
         )
+        self._rl_observe(side, leader, candidates, legacy)
         return legacy
 
     def _ai_weighted_options(

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "rl",
+  "learning": {
+    "enabled": true,
+    "learning_rate": 0.3,
+    "discount_rate": 0.9,
+    "step_size_parameter": 1.0,
+    "decay_mode": "normal"
+  },
+  "selection": {
+    "policy": "epsilon-greedy",
+    "numeric_mode": "sum",
+    "epsilon": 0.0,
+    "random_seed": 0,
+    "decision_cycles": 4
+  },
+  "limits": {
+    "max_candidates": 32,
+    "max_contexts": 128,
+    "max_episodes": 512
+  },
+  "comparison": {
+    "min_episodes": 20,
+    "coverage_threshold": 0.5,
+    "reward_tolerance": 0.0
+  }
+}

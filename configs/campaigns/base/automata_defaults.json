@@ -1205,6 +1205,15 @@
         "max_agents": 32,
         "max_beliefs": 64,
         "max_intentions": 8
+      },
+      "rl": {
+        "enabled": false,
+        "seed": 0,
+        "train_epsilon": 0.1,
+        "max_episodes": 512,
+        "min_episodes": 20,
+        "coverage_threshold": 0.5,
+        "reward_tolerance": 0.0
       }
     },
     "faction_policy": {

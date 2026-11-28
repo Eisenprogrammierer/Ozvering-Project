@@ -1,0 +1,61 @@
+// Сгенерировано campaign.cognition.rl_compiler.
+// Не редактировать вручную: источник — configs/soar/rl.json.
+// source_digest: cc77a94a15c70a85f76ddfd62336c4a6c69f98c3562c3373a2ae4acc40d630ea
+
+// Корневое состояние эпизода.
+sp {rl*init
+   (state <s> ^superstate nil)
+-->
+   (<s> ^name rl)
+}
+
+// Контекст эпизода: сторона, архетип и полоса нужд.
+sp {rl*context
+   (state <s> ^superstate nil ^io.input-link <i>)
+   (<i> ^context <c>)
+-->
+   (<s> ^context <c>)
+}
+
+// Один оператор на кандидата.
+sp {rl*propose
+   (state <s> ^name rl ^io.input-link <i>)
+   (<i> ^candidate <c>)
+   (<c> ^name <n>)
+-->
+   (<s> ^operator <o> +)
+   (<o> ^name <n>)
+}
+
+// RL-шаблон: значение оператора ведёт Soar RL.
+sp {rl*choose
+   :template
+   (state <s> ^name rl ^context <ctx> ^operator <o> +)
+   (<o> ^name <n>)
+-->
+   (<s> ^operator <o> = 0)
+}
+
+// Обучение: награда относится к действию из эпизода.
+sp {rl*force
+   (state <s> ^name rl ^io.input-link <i>)
+   (<i> ^chosen <n> ^candidate <c>)
+   (<c> ^name <n>)
+-->
+   (<s> ^operator <o> + = 1000)
+   (<o> ^name <n>)
+}
+
+// Фиксация выбора, награда и остановка: RL обновляет
+// значения только при halt.
+sp {rl*finish
+   (state <s> ^name rl ^operator <o> ^reward-link <r> ^io <io>)
+   (<o> ^name <n>)
+   (<io> ^input-link <i>)
+   (<i> ^reward <v>)
+-->
+   (<s> ^chosen <n>)
+   (<r> ^reward <rid>)
+   (<rid> ^value <v>)
+   (halt)
+}

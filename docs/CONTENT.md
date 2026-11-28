@@ -96,6 +96,8 @@
 | `configs/soar/intention.soar` | сгенерированные продукции Soar: оценка намерения, выбор максимума и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.intention_compiler --write` | `configs/soar/intention.json` | продукция, digest | `python -m campaign.cognition.intention_compiler --check` |
 | `configs/soar/faction.json` | настройки выбора действия/приказа фракции: `tie_epsilon`, `epsilon-greedy`, seed, число циклов | `campaign.cognition.faction_compiler.load_model()` | новый ключ в JSON | формула, режим выбора | `tests/test_cognition_faction.py` |
 | `configs/soar/faction.soar` | сгенерированные продукции Soar: выбор первого кандидата по накопленной границе веса и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.faction_compiler --write` | `configs/soar/faction.json` | продукция, digest | `python -m campaign.cognition.faction_compiler --check` |
+| `configs/soar/rl.json` | настройки RL-предпочтений: параметры обучения, режим выбора, лимиты кандидатов/контекстов/эпизодов, пороги сравнения | `campaign.cognition.rl_compiler.load_model()` | новый ключ в JSON | формула, режим выбора, порог | `tests/test_cognition_rl.py` |
+| `configs/soar/rl.soar` | сгенерированные продукции Soar: RL-шаблон `:template`, принудительный выбор действия при обучении, награда и `halt`; **не редактировать вручную** | `python -m campaign.cognition.rl_compiler --write` | `configs/soar/rl.json` | продукция, digest | `python -m campaign.cognition.rl_compiler --check` |
 | `configs/soar/reaction.json` | настройки реакции на доклад/угрозу: `tie_epsilon`, `epsilon-greedy`, seed, число циклов | `campaign.cognition.reaction_compiler.load_model()` | новый ключ в JSON | формула, режим выбора | `tests/test_cognition_reaction.py` |
 | `configs/soar/reaction.soar` | сгенерированные продукции Soar: строгий максимум оценки реакции и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.reaction_compiler --write` | `configs/soar/reaction.json` | продукция, digest | `python -m campaign.cognition.reaction_compiler --check` |
 | `configs/soar/pragmatics.json` | настройки прагматики диалога: `tie_epsilon` и число циклов решения | `campaign.cognition.pragmatics_compiler.load_model()` | новый ключ в JSON | порог, режим выбора | `tests/test_d6_pragmatics.py` |
@@ -589,6 +591,25 @@ input-link после синхронизации, поэтому вход зам
 бюджета) задаёт порог, превышение которого даёт `mass_npc.exceeded` и
 `ok: false` в `npc_outcome_report()`, но не меняет решения.
 
+Блок `ai_model.npc_policy.rl` включает сбор эпизодов для RL-предпочтений
+Soar (по умолчанию `enabled = false`). `configs/soar/rl.json`
+компилируется в `configs/soar/rl.soar`: RL-шаблон `:template` получает
+numeric-indifferent предпочтение, при обучении выбранное действие
+поднимается выше остальных, награда кладётся в `^reward-link`, а
+`halt` запускает обновление значений. Кампания пишет эпизод
+«контекст (сторона, архетип лидера, полоса удовлетворённости),
+кандидаты, выбранное действие, награда»; награда — прирост
+удовлетворённости нужд лидера за ход, поэтому эпизод закрывается на
+следующем выборе той же стороны. `rl_episode_report()` показывает
+`enabled`, число эпизодов, контекстов и незакрытых ходов,
+`rl_compare()` обучает шаблон на первых 70% хронологии и сравнивает на
+остальных: покрытие контекстов, согласие с записанным выбором и
+выигрыш прямой оценки награды. Порог задают `min_episodes`,
+`coverage_threshold`, `reward_tolerance`; непрохождение даёт
+`ok: false`, но не меняет игру. В поставляемом конфиге RL выключен:
+пилотное сравнение не прошло порог, владельцем решения остаётся
+`NeedPolicy`.
+
 Блоки `ai_model.faction_policy` и `ai_model.reaction_policy` включают
 Soar для действий/приказов фракции и реакций на доклады/угрозы. Поля те
 же: `enabled`, `backend`, `backends`, `timeout_ms`, `tick_timeout_ms`;
@@ -605,8 +626,9 @@ Soar для действий/приказов фракции и реакций �
 `factions` — согласие по действиям и приказам фракций, `reactions` —
 согласие по реакциям на доклады и угрозы (по сторонам и суммарно),
 `agents` — состояние пула именных NPC, `mass_npc` — стоимость тика
-автономии массовых NPC и LOD-бюджет. Метрики живут в памяти и не
-попадают в сейв.
+автономии массовых NPC и LOD-бюджет, `rl` — собранные эпизоды
+RL-предпочтений и последнее сравнение с записанным выбором. Метрики
+живут в памяти и не попадают в сейв.
 
 Полные прогоны проверяются тестами: 20 ходов кампании и 10 дней мира с
 `ai_backend=soar` совпадают с легаси по снимку, 15 ходов укладываются в
