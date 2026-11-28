@@ -42,7 +42,8 @@ from .soar_compiler import (
 from .soar_snapshot import (
     build_snapshot,
     create_wm,
-    load_wm,
+    create_wm_handles,
+    load_wm_handles,
     validate_snapshot,
 )
 
@@ -179,6 +180,83 @@ def _prepare_agent(agent: Any, model: DecisionModel, text: str) -> None:
             )
 
 
+def candidate_nodes(
+    items: Sequence[Tuple[str, str, float]],
+    needs: Mapping[str, Any],
+    weights: Optional[Mapping[str, Any]] = None,
+) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """Разложить кандидатов в JSON-узлы input-link.
+
+    Возвращает ``(узлы, ранги)``. Ранг — порядок id: так tie-break
+    легаси ``max((score, id))`` воспроизводится числовым предпочтением.
+    Общая функция держит одноразовую политику и долгоживущего агента
+    на одном формате входа.
+    """
+
+    weight_values = {
+        str(key): _float(value, "weights")
+        for key, value in dict(weights or {}).items()
+    }
+    need_values = {
+        str(key): _clamp(value) for key, value in dict(needs or {}).items()
+    }
+    ranks: Dict[str, int] = {
+        option: index
+        for index, option in enumerate(
+            sorted({item[0] for item in items})
+        )
+    }
+    nodes: List[Dict[str, Any]] = []
+    for option, need, base in items:
+        nodes.append(
+            {
+                "attribute": "candidate",
+                "kind": "id",
+                "children": [
+                    {
+                        "attribute": "option",
+                        "kind": "string",
+                        "value": option,
+                    },
+                    {
+                        "attribute": "base",
+                        "kind": "double",
+                        "value": base,
+                    },
+                    {
+                        "attribute": "weight",
+                        "kind": "double",
+                        "value": weight_values.get(need, 0.0),
+                    },
+                    {
+                        "attribute": "need",
+                        "kind": "double",
+                        "value": need_values.get(need, 0.0),
+                    },
+                    {
+                        "attribute": "rank",
+                        "kind": "int",
+                        "value": ranks[option],
+                    },
+                ],
+            }
+        )
+    return nodes, ranks
+
+
+def check_decision_budget(started: float, limit: float) -> None:
+    """Прервать решение между циклами Soar, если бюджет исчерпан."""
+
+    if not limit:
+        return
+    elapsed = (time.perf_counter() - started) * 1000.0
+    if elapsed > limit:
+        raise SoarError(
+            "Soar превысил бюджет решения до завершения цикла: "
+            "%.2f мс > %.2f мс" % (elapsed, limit)
+        )
+
+
 class SoarNpcPolicy:
     """Выбор работы NPC продукциями Soar с parity к ``NeedPolicy``."""
 
@@ -260,38 +338,14 @@ class SoarNpcPolicy:
         items = _normalise(candidates)
         if not items:
             return None
-        need_values = {
-            str(key): _clamp(value) for key, value in dict(needs or {}).items()
-        }
-        weight_values = {
-            str(key): _float(value, "weights")
-            for key, value in dict(weights or {}).items()
-        }
-        ranks: Dict[str, int] = {
-            option: index
-            for index, option in enumerate(
-                sorted({item[0] for item in items})
-            )
-        }
+        nodes, ranks = candidate_nodes(items, needs, weights)
         limit = self._budget(timeout_ms)
         started = time.perf_counter()
         self.last_elapsed_ms = 0.0
         agent = self._agent()
         try:
             self._prepare(agent)
-            link = agent.GetInputLink()
-            for option, need, base in items:
-                node = agent.CreateIdWME(link, "candidate")
-                agent.CreateStringWME(node, "option", option)
-                agent.CreateFloatWME(node, "base", base)
-                agent.CreateFloatWME(
-                    node, "weight", weight_values.get(need, 0.0)
-                )
-                agent.CreateFloatWME(
-                    node, "need", need_values.get(need, 0.0)
-                )
-                agent.CreateIntWME(node, "rank", ranks[option])
-            agent.SynchronizeInputLink()
+            create_wm(agent, nodes)
             cycles = max(1, int(self.model.decision_cycles))
             for _cycle in range(cycles):
                 self._check_budget(started, limit)
@@ -357,6 +411,10 @@ class SoarAgent:
         self.counters: Dict[str, int] = {}
         self.wm: List[Dict[str, Any]] = []
         self.agent: Any = None
+        # SML-хэндлы верхнего уровня input-link. После
+        # ``SynchronizeInputLink`` менять их нельзя, поэтому замена входа
+        # идёт через ``init-soar``; хэндлы хранятся для диагностики.
+        self._handles: List[Any] = []
 
     def start(self) -> "SoarAgent":
         if self.agent is None:
@@ -373,6 +431,13 @@ class SoarAgent:
         if self.agent is not None:
             _kernel().DestroyAgent(self.agent)
             self.agent = None
+        self._handles = []
+
+    def __del__(self):  # pragma: no cover - финализатор
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def __enter__(self) -> "SoarAgent":
         return self.start()
@@ -384,9 +449,39 @@ class SoarAgent:
         """Добавить WME из JSON-описания в input-link и его зеркало."""
 
         self.start()
-        normalised = create_wm(self.agent, nodes)
+        normalised, handles = create_wm_handles(self.agent, nodes)
+        self._handles.extend(handles)
         self.wm.extend(copy.deepcopy(normalised))
         return normalised
+
+    def replace_wm(self, nodes: Any) -> List[Dict[str, Any]]:
+        """Заменить вход целиком, сохранив продукции агента.
+
+        SML отдаёт input-link только на запись после
+        ``SynchronizeInputLink``: удалять и обновлять прошлые WME нельзя
+        (это роняет процесс). Поэтому вход очищается ``init-soar``, а
+        настройки выбора выдаются заново; продукции остаются в агенте.
+        """
+
+        self.reset_wm()
+        normalised, handles = create_wm_handles(self.agent, nodes)
+        self._handles = list(handles)
+        self.wm = copy.deepcopy(normalised)
+        return normalised
+
+    def reset_wm(self) -> None:
+        """Очистить рабочую память, сохранив продукции агента."""
+
+        self.start()
+        result = self.agent.ExecuteCommandLine("init-soar")
+        text = str(result or "")
+        if "error" in text.lower():
+            raise SoarError("Soar не сбросил рабочую память: %s" % text)
+        # ``init-soar`` сбрасывает настройки выбора, но не продукции.
+        for command in self.model.commands():
+            self.agent.ExecuteCommandLine(command)
+        self._handles = []
+        self.wm = []
 
     def snapshot(self) -> Dict[str, Any]:
         """Снять зеркало input-link в JSON."""
@@ -410,7 +505,8 @@ class SoarAgent:
             )
         self.close()
         self.start()
-        load_wm(self.agent, data)
+        data, handles = load_wm_handles(self.agent, data)
+        self._handles = list(handles)
         self.wm = copy.deepcopy(data["wm"])
         self.tick = data["tick"]
         self.counters = dict(data["counters"])
@@ -440,7 +536,9 @@ def weights_for(
 __all__ = [
     "SoarAgent",
     "SoarNpcPolicy",
+    "candidate_nodes",
     "check_artifacts",
+    "check_decision_budget",
     "default_policy_path",
     "production_blocks",
     "soar_available",

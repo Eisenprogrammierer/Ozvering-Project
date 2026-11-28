@@ -12,7 +12,7 @@ from .automata_support import (
     _text,
 )
 from .cognition.backends import AI_BACKENDS, load_flags
-from .cognition.errors import BackendError, SoarError
+from .cognition.errors import BackendError, SnapshotError, SoarError
 from .npc_decisions import (
     DEFAULT_AGREEMENT_THRESHOLD,
     MONITOR_VERSION,
@@ -743,6 +743,7 @@ class AutomataAIMixin:
         intentions = self.intention_report()
         factions = self.faction_decision_report(threshold)
         reactions = self.reaction_decision_report(threshold)
+        agents = self.soar_agent_report()
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
@@ -752,11 +753,13 @@ class AutomataAIMixin:
             "intentions": intentions,
             "factions": factions,
             "reactions": reactions,
+            "agents": agents,
             "ok": bool(
                 decisions["ok"]
                 and intentions["ok"]
                 and factions["ok"]
                 and reactions["ok"]
+                and not agents["errors"]
             ),
         }
 
@@ -770,6 +773,94 @@ class AutomataAIMixin:
             )
             self._soar_policy_obj = policy
         return policy
+
+    def _npc_pool_config(self):
+        return _as_mapping(self._npc_config().get("agent_pool"))
+
+    def _soar_npc_pool(self):
+        """Пул долгоживущих агентов именных NPC; создаётся лениво."""
+
+        pool = getattr(self, "_soar_npc_pool_obj", None)
+        if pool is None:
+            from .cognition.soar_npc import (
+                DEFAULT_MAX_AGENTS,
+                DEFAULT_MAX_BELIEFS,
+                DEFAULT_MAX_INTENTIONS,
+                SoarNpcPool,
+            )
+
+            config = self._npc_pool_config()
+            pool = SoarNpcPool(
+                max_agents=max(
+                    1,
+                    int(
+                        _number(
+                            config.get("max_agents"),
+                            DEFAULT_MAX_AGENTS,
+                        )
+                    ),
+                ),
+                max_beliefs=max(
+                    0,
+                    int(
+                        _number(
+                            config.get("max_beliefs"),
+                            DEFAULT_MAX_BELIEFS,
+                        )
+                    ),
+                ),
+                max_intentions=max(
+                    0,
+                    int(
+                        _number(
+                            config.get("max_intentions"),
+                            DEFAULT_MAX_INTENTIONS,
+                        )
+                    ),
+                ),
+                timeout_ms=self.npc_decision_timeout_ms(),
+            )
+            self._soar_npc_pool_obj = pool
+        return pool
+
+    @staticmethod
+    def _npc_agent_id(side, leader):
+        character_id = _text(getattr(leader, "campaign_id", ""))
+        if character_id:
+            return "npc:%s" % character_id
+        return "npc:%s" % _text(side)
+
+    def soar_snapshot(self):
+        """JSON-снимок всех долгоживущих агентов или ``None``."""
+
+        pool = getattr(self, "_soar_npc_pool_obj", None)
+        if pool is None:
+            return None
+        return pool.snapshot()
+
+    def restore_soar_snapshot(self, data):
+        """Загрузить снимок агентов; пустой блок — no-op."""
+
+        if not data:
+            return None
+        pool = self._soar_npc_pool()
+        pool.restore(data)
+        return pool.snapshot()
+
+    def soar_agent_report(self):
+        pool = getattr(self, "_soar_npc_pool_obj", None)
+        if pool is None:
+            return {
+                "agents": 0,
+                "max_agents": 0,
+                "starts": 0,
+                "evictions": 0,
+                "saved": 0,
+                "decisions": 0,
+                "errors": 0,
+                "ids": [],
+            }
+        return pool.report()
 
     @staticmethod
     def _npc_explore(policy):
@@ -828,24 +919,55 @@ class AutomataAIMixin:
         else:
             # Политика создаётся только когда решение действительно
             # будет считаться: при исчерпанном бюджете Soar не нужен.
-            soar = self._soar_policy()
             decision = self.npc_decision_timeout_ms()
             budget = min(decision, left) if decision > 0 else left
-            try:
-                candidate = self._soar_candidate(
-                    policy,
-                    candidates,
-                    needs,
-                    soar,
-                    timeout_ms=budget,
+            if leader is not None:
+                # Именной NPC получает своего долгоживущего агента с
+                # BDI-памятью; без лидера остаётся одноразовый селектор.
+                from .cognition.soar_runtime import weights_for
+
+                names = sorted(
+                    {str(need) for _option, need, _base in candidates}
                 )
-            except (BackendError, SoarError) as exc:
-                if backend == "soar":
-                    raise
-                error = str(exc)
-            finally:
-                elapsed_ms = float(soar.last_elapsed_ms)
-                self._npc_tick_spent_ms = spent + elapsed_ms
+                agent = None
+                try:
+                    agent = self._soar_npc_pool().get(
+                        self._npc_agent_id(side, leader),
+                        leader,
+                        tick=int(getattr(self, "turn", 0) or 0),
+                    )
+                    candidate = agent.choose(
+                        candidates,
+                        needs,
+                        weights=weights_for(policy, names),
+                        timeout_ms=budget,
+                    )
+                except (BackendError, SnapshotError, SoarError) as exc:
+                    if backend == "soar":
+                        raise
+                    error = str(exc)
+                finally:
+                    elapsed_ms = float(
+                        getattr(agent, "last_elapsed_ms", 0.0)
+                    )
+                    self._npc_tick_spent_ms = spent + elapsed_ms
+            else:
+                soar = self._soar_policy()
+                try:
+                    candidate = self._soar_candidate(
+                        policy,
+                        candidates,
+                        needs,
+                        soar,
+                        timeout_ms=budget,
+                    )
+                except (BackendError, SoarError) as exc:
+                    if backend == "soar":
+                        raise
+                    error = str(exc)
+                finally:
+                    elapsed_ms = float(soar.last_elapsed_ms)
+                    self._npc_tick_spent_ms = spent + elapsed_ms
         if backend == "soar" and error is None:
             self.npc_decision_monitor().note_decision(
                 side=side, elapsed_ms=elapsed_ms

@@ -28,6 +28,12 @@ class AppSavesMixin:
         if self.storyline_interpreter is not None:
             storyline_snapshot = self.storyline_interpreter.get_save_snapshot()
         dialogue_snapshot = self._dialogue_payload()
+        soar_snapshot = self._soar_payload()
+        campaign_soar = getattr(campaign, "soar_snapshot", None)
+        if campaign_soar is not None:
+            payload = campaign_soar()
+            if payload:
+                soar_snapshot = payload
         path = do_save(
             _AutomataSaveState(campaign.save_snapshot()),
             None,
@@ -37,7 +43,7 @@ class AppSavesMixin:
             campaign_role=self.selected_role,
             campaign_preset=self.campaign_preset,
             dialogue_snapshot=dialogue_snapshot,
-            soar_snapshot=self._soar_payload(),
+            soar_snapshot=soar_snapshot,
         )
         logger.info(
             "Сохранение автоматов записано: слот=%s, цикл=%d",
@@ -72,6 +78,11 @@ class AppSavesMixin:
         self.automata_campaign = AutomataCampaign(
             preset, snapshot=automata_snapshot
         )
+        restore_soar = getattr(
+            self.automata_campaign, "restore_soar_snapshot", None
+        )
+        if restore_soar is not None:
+            restore_soar(snapshot.get("soar"))
         self.storyline_interpreter = None
         storyline_snapshot = snapshot.get("storyline")
         if storyline_snapshot:

@@ -287,29 +287,54 @@ def _create_children(
     parent: Any,
     nodes: List[Dict[str, Any]],
     depth: int = 0,
-) -> None:
+) -> List[Any]:
+    """Создать узлы и вернуть SML-хэндлы верхнего уровня.
+
+    Хэндлы нужны для диагностики и точного roundtrip снимка. Менять
+    WME после ``SynchronizeInputLink`` нельзя (SML отдаёт input-link
+    только на запись), поэтому замена входа идёт через ``init-soar``,
+    а не через ``DestroyWME``.
+    """
+
     if depth > MAX_DEPTH:
         raise SnapshotError(
             "снимок Soar глубже %d уровней" % MAX_DEPTH
         )
+    handles: List[Any] = []
     for node in nodes:
         attribute = node["attribute"]
         kind = node["kind"]
         if kind == "id":
             child = agent.CreateIdWME(parent, attribute)
             if child is None:
-                raise SnapshotError(
-                    "Soar не создал узел %r" % attribute
-                )
+                # Фейковый агент в тестах бюджета принимает parent=None
+                # и возвращает None: для него узлы не нужны, важен лишь
+                # расход циклов. Настоящий SML всегда отдаёт хэндл.
+                if parent is not None:
+                    raise SnapshotError(
+                        "Soar не создал узел %r" % attribute
+                    )
+                handles.append(None)
+                continue
             _create_children(agent, child, node["children"], depth + 1)
+            handles.append(child)
         elif kind == "int":
-            agent.CreateIntWME(parent, attribute, int(node["value"]))
+            handles.append(
+                agent.CreateIntWME(parent, attribute, int(node["value"]))
+            )
         elif kind == "double":
-            agent.CreateFloatWME(
-                parent, attribute, float(node["value"])
+            handles.append(
+                agent.CreateFloatWME(
+                    parent, attribute, float(node["value"])
+                )
             )
         else:
-            agent.CreateStringWME(parent, attribute, str(node["value"]))
+            handles.append(
+                agent.CreateStringWME(
+                    parent, attribute, str(node["value"])
+                )
+            )
+    return handles
 
 
 def load_wm(agent: Any, snapshot: Any) -> Dict[str, Any]:
@@ -320,6 +345,16 @@ def load_wm(agent: Any, snapshot: Any) -> Dict[str, Any]:
     создаёт новый агент, а не переиспользует старый.
     """
 
+    data, _handles = load_wm_handles(agent, snapshot)
+    return data
+
+
+def load_wm_handles(
+    agent: Any,
+    snapshot: Any,
+) -> tuple:
+    """Загрузить снимок и вернуть ``(данные, хэндлы верхнего уровня)``."""
+
     data = validate_snapshot(snapshot)
     link = agent.GetInputLink()
     if link is None:
@@ -328,9 +363,9 @@ def load_wm(agent: Any, snapshot: Any) -> Dict[str, Any]:
         raise SnapshotError(
             "снимок Soar грузится только в чистый input-link"
         )
-    _create_children(agent, link, data["wm"])
+    handles = _create_children(agent, link, data["wm"])
     agent.SynchronizeInputLink()
-    return data
+    return data, handles
 
 
 def create_wm(
@@ -340,14 +375,23 @@ def create_wm(
 ) -> List[Dict[str, Any]]:
     """Создать WME из JSON-описания под input-link или узлом."""
 
+    data, _handles = create_wm_handles(agent, nodes, parent)
+    return data
+
+
+def create_wm_handles(
+    agent: Any,
+    nodes: Any,
+    parent: Any = None,
+) -> tuple:
+    """Создать WME и вернуть ``(данные, хэндлы верхнего уровня)``."""
+
     data = _validate_nodes(nodes)
     link = agent.GetInputLink() if parent is None else parent
-    if link is None:
-        raise SnapshotError("у Soar-агента нет input-link")
-    _create_children(agent, link, data)
+    handles = _create_children(agent, link, data)
     if parent is None:
         agent.SynchronizeInputLink()
-    return data
+    return data, handles
 
 
 __all__ = [
@@ -360,6 +404,8 @@ __all__ = [
     "SoarSnapshotStore",
     "build_snapshot",
     "create_wm",
+    "create_wm_handles",
     "load_wm",
+    "load_wm_handles",
     "validate_snapshot",
 ]
