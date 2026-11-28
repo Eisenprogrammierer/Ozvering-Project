@@ -556,26 +556,31 @@ whitelist по P8/P9. Тесты — `tests/test_d3_counterfactual.py`.
 5. Ограничение глубины вывода и размера chart — константы в JSON.
 6. При таймауте/лимите — не случайный ответ, а уточнение.
 
-### 8.2. Инструмент `--debug-dialogue`
+### 8.2. Инструмент отладки диалога
 
-Для каждой реплики печатается:
+Отдельного флага `--debug-dialogue` нет. Диалог запускается REPL-ом
+`campaign.dialogue.repl`; флаг `--debug` печатает источник, план, кадр и
+строки доказательства:
 
-```
-Ввод:      Почему Империя считает Республику незаконной?
-Токены:    почему / империя / считать / республика / незаконный
-Разбор:    [дерево]
-Логика:    question(why, belief(red, is_outlaw, blue, ?v))
-Агент:     char_red_001 (Император)
-Знание:    belief(value=0.8, source=edict, turn=2)
-Вывод:     conflict(red, blue) ← belief(...) ← edict(...)
-Акт:       explain
-План:      kernel + 2 premises, stance=confident
-Ходы:      justify (topic), answer (rheme)
-Связка:    официальная, plain
-Ответ:     «Империя всегда побеждает. При этом она сильна.»
+```bash
+venv/bin/python -m campaign.dialogue.repl --debug \
+  --ask "Почему Империя считает Республику незаконной?"
 ```
 
-Любой шаг можно прогнать отдельно: `parse("...")`, `infer(form, agent)`,
+Для каждой реплики выводятся ответ, затем служебные строки:
+
+```
+Причина: Лидер фракции считает цель незаконной, друг.
+[источник] parser
+[план] belief_why
+[форма] {"body": {...}, "kind": "question", "wh": "why"}
+[вывод] considers_outlaw(faction:red, faction:blue) [belief_outlaw]
+[вывод]   speaks_for(char_red_001, faction:red) [факт]
+```
+
+Флаг `--json` вместо этого печатает машиночитаемый объект (`input`,
+`kind`, `text`, `plan`, `source`, `proof`, `sem`). Любой шаг можно
+прогнать отдельно: `parse("...")`, `infer(form, agent)`,
 `plan(form, proof, persona)`, `render_moves(moves)`.
 
 ---

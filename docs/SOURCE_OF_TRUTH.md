@@ -111,7 +111,7 @@
 | Исходы, поражение, распад | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 | ИИ кампании и приоритеты | кампания | `campaign/automata.py` · шаблон кампании · `test_automata_campaign.py` · [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) |
 
-### 0.6. Изменить дневной мир `world_actor`
+### 0.6. Изменить дневной мир (`free_citizen`/`world_actor`)
 
 | Потребность | Слой | Код · конфиги · тесты · документ |
 |---|---|---|
@@ -181,7 +181,7 @@
 
 | Потребность | Куда идти |
 |---|---|
-| Сейвы `view/` | `view/app.py`, `ui/save.py`; `SAVE_VERSION`; тест `test_save_system.py` |
+| Сейвы `view/` | `view/app.py`, `view/support/save_system.py` (`SAVE_VERSION = 4`); тест `test_save_system.py` |
 | Снимок мира и кампании автоматов | `SCHEMA_VERSION = 3` (аватар, `entity_ref`/обязательства, сцена, окно исхода); `migrate_snapshot()`; `WorldEngine.to_dict()/load_snapshot()`; `test_projections.py`, `test_migrations.py` |
 | Контент без Python | `test_content_without_python.py`; `configs/schemas/` и `campaign/content_schema.py`; `content_lint`; `test_content_lint.py`, `test_content_schema.py` |
 | Стабильность кампании | `test_campaign_golden.py`; `tests/fixtures/golden/empire_seed13.json` |
@@ -206,7 +206,7 @@
 | `main.py` | единая точка входа | активный |
 | `core41/` | ядро 4-2-1: `Work`, `Automaton`, арена, среда, клок, payload | активный срез |
 | `agents/` | политики, обучение, чекпойнты | активный |
-| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`, доклады источников `dispatch.py` + `dispatch_*.py`, движок `automata.py` + `automata_*.py`), дневной мир `world_actor` (`world.py` — фасад, реализация в `world_*.py`), локальные сцены `scenes.py`, суточная рутина `routine.py`, качественные уровни `qualitative.py`, аудит `audit.py`, восприятие `perception.py`, предметы-автоматы `item_automaton.py`, свободные часы `free_clock.py` | активный |
+| `campaign/` | кампании автоматов (работа: `work.py` → `handlers.py` → `work_trace.py`, проекции `effects.py`, открытые формы/действия `actions.py`, доклады источников `dispatch.py` + `dispatch_*.py`, движок `automata.py` + `automata_*.py`), дневной мир (`free_citizen`/`world_actor`: `world.py` — фасад, реализация в `world_*.py`), локальные сцены `scenes.py`, суточная рутина `routine.py`, качественные уровни `qualitative.py`, аудит `audit.py`, восприятие `perception.py`, предметы-автоматы `item_automaton.py`, свободные часы `free_clock.py` | активный |
 | `campaign/dialogue/` | детерминированный диалог: парсер, вывод, планы, синтез, стили, дискурс, сравнения, контрфакты, речевые действия; `ChartParser`/`InferenceEngine` — явный глубокий fallback (`LEGACY_ROLE = "deep-fallback"`) | активный |
 | `campaign/cognition/` | когнитивный фасад: `understand`/`decide`, `UtteranceFrame`, `soar_bridge.v1`, золотой корпус, parity; единственное место для будущих импортов Soar/RiveScript | активный фундамент |
 | `automata/` | редактор автоматов | активный инструмент |
@@ -654,7 +654,7 @@ rewind отсутствует.
 | `SOURCE_OF_TRUTH.md` | главный источник истины и навигатор | канон |
 | [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md) | целевая модель 4-2-1, реестр закрытых решений и открытых пунктов (§7.0) | канон целевой модели |
 | [`FORMULAS.md`](FORMULAS.md) | формулы ядра, арены, кампании и легаси: обозначения, единицы, примеры | справочник текущего кода + целевых констант |
-| [`WORLD.md`](WORLD.md) | текущий поток `world_actor`/`WorldEngine` | текущая реализация |
+| [`WORLD.md`](WORLD.md) | текущий поток дневного мира `WorldEngine` (`free_citizen`; в фикстурах `world_actor`) | текущая реализация |
 | [`AUTOMATA_CAMPAIGN.md`](AUTOMATA_CAMPAIGN.md) | кампании автоматов: фракции, органы, темп, исходы, конвейер работы | текущая реализация |
 | [`CAMPAIGN_EVENTS_BDI.md`](CAMPAIGN_EVENTS_BDI.md) | BDI, доклады, слухи, перехваты, контрмеры и лента событий кампании | текущая реализация |
 | [`CAMPAIGN_LOGIC_AUDIT.md`](CAMPAIGN_LOGIC_AUDIT.md) | разбор исправленных проблем игрового слоя кампании и их проверки | аудит, не канон |
@@ -725,7 +725,7 @@ rewind отсутствует.
 Реестр закрытых решений и открытых пунктов — [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md)
 §7, сводка открытых пунктов — §7.0 там же. **Не все пункты §7 являются
 блокерами:** большинство помечено «Закрыто» и фиксирует принятые решения.
-На 2026-11-14 действительно открыты:
+На 2026-11-28 действительно открыты:
 
 | Пункт | Что уже есть | Что осталось |
 |---|---|---|
@@ -807,7 +807,7 @@ D7.4 (описание сцены из story/log/events).
   `dispatch_news.py`, `dispatch_reports.py`, `dispatch_resolve.py`,
   `dispatch_intercepts.py`, `dispatch_briefing.py`, `dispatch_effects.py`,
   `dispatch_queue.py` и `dispatch_support.py`. Публичный API и формат
-  снимка не менялись; полный набор 2026-11-24 — 2076 тестов, зелёный.
+  снимка не менялись; полный набор 2026-11-28 — 2425 тестов, зелёный.
 - `WorldEngine` разложен тем же способом: `campaign/world.py` — фасад
   с `__init__`, загрузчиками и `build_world`; реализация — в
   `campaign/world_core.py` (свойства, такт, день, журнал, LOD),

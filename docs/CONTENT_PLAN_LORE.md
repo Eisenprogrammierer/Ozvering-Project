@@ -922,8 +922,9 @@ configs/campaigns/base/automata/
 * `python -m campaign.content_lint` — схема, ссылки, неизвестные ключи.
 * `pytest tests/test_content_pipeline.py` — загрузка.
 * `pytest tests/test_bdi.py` — 16 потребностей.
-* Новый `tests/test_data_driven_core.py` — сценарии из §6
-  `DATA_DRIVEN_CORE_GAPS.md`.
+* Планируемый `tests/test_data_driven_core.py` — сценарии из §6
+  `DATA_DRIVEN_CORE_GAPS.md` (файла пока нет; это задача, а не
+  существующий тест).
 * Golden-снимок 72 ходов для детерминизма.
 
 ---

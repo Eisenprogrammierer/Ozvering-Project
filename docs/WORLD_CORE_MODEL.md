@@ -907,9 +907,10 @@ train/serve совпадают с активной игрой; `--no-with-env` �
 `vacancy_board()` отдаёт плоский список вакансий; `office_options()`
 сохраняет поле `competition` и добавляет `generation`/`refresh_in`.
 
-**Сохранения.** `SAVE_VERSION = 3`. `migrate_save()` аддитивно переводит
-версию 1 → 2 (`node_strategy_state`, `environment_plan`) и 2 → 3
-(память диалога партии), неизвестную
+**Сохранения.** `SAVE_VERSION = 4`. `migrate_save()` аддитивно переводит
+версию 1 → 2 (`node_strategy_state`, `environment_plan`), 2 → 3
+(память диалога партии) и 3 → 4 (`CAPABILITY_SCHEMA_VERSION = 2`,
+`WORK_TRACE_VERSION = 1`), неизвестную
 будущую версию возвращает как есть с предупреждением. `save_game()`
 всегда пишет контейнеры текущей версии; `load_game()` мигрирует старый
 файл до отдачи в `view.app`.

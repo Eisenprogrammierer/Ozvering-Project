@@ -152,7 +152,9 @@
   Закрыто: экран «Как играть» в меню, причины недоступности в HUD
   уже выводятся, настройки (`sound`, `music_volume`, `fullscreen`,
   `animations`, `text_speed`) хранятся в `saves/settings.json` и
-  применяются при старте; тест `test_view_settings.py`.
+  переживают перезапуск; звук, громкость и полный экран применяются,
+  `animations`/`text_speed` пока только сохраняются; тест
+  `test_view_settings.py`.
 
 ## 1.3. Переход ИИ на Soar + RiveScript
 

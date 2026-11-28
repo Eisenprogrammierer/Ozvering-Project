@@ -877,8 +877,10 @@ Greedy-режим (`explore=False`) систематически занижае�
 
 Кампания оценивается `experiments/exp_campaign_calibration.py` на
 held-out seed'ах; `--days` — горизонт усечения, `--deadline` — сюжетный
-дедлайн, `--world` — путь к JSON-миру (при пустом `configs/worlds/`
-используйте `tests/fixtures/content/configs/worlds/agora_world.json`).
+дедлайн, `--world` — путь к JSON-миру (без флага берётся production-мир
+`configs/worlds/agora_world.json`; фикстура
+`tests/fixtures/content/configs/worlds/agora_world.json` удобна для
+быстрых прогонов).
 Плечи `--drift-scale`, `--dismissal-standing`,
 `--dismissal-legitimacy`, `--collapse-grace` переопределяют конфиг мира
 только на время прогона.

@@ -1,7 +1,7 @@
 # Обучаемые агенты и RL-срез
 
 **Статус:** текущая реализация. Это первый слой, а не полная миграция мира.
-**Дата:** 2026-11-09
+**Дата:** 2026-11-28
 **Связанные документы:** [`SOURCE_OF_TRUTH.md`](SOURCE_OF_TRUTH.md),
 [`WORLD_CORE_MODEL.md`](WORLD_CORE_MODEL.md),
 [`history/MODEL.md`](history/MODEL.md), [`ALGORITHMS.md`](ALGORITHMS.md),

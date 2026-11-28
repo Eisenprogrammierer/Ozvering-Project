@@ -105,7 +105,7 @@
 | `configs/soar/inference.json` | настройки прямого замыкания вывода: число циклов, таймаут, лимит узлов | `campaign.cognition.inference_compiler.load_model()` | новый ключ в JSON | циклы, таймаут, лимит | `tests/test_d6_inference.py` |
 | `configs/soar/inference.soar` | сгенерированные продукции Soar: прямое замыкание `rules.json` под `^node`, высота и экспорт в output-link; **не редактировать вручную** | `python -m campaign.cognition.inference_compiler --write` | `configs/dialogue/rules.json`, `configs/dialogue/ontology.json`, `configs/soar/inference.json` | продукция, digest | `python -m campaign.cognition.inference_compiler --check` |
 | `campaigns/*.json` | сохранённые пресеты | `campaign.storage.list_presets()` | `save_preset()` | пересохранить | файл |
-| `configs/view/presentation.json` | плейсхолдеры/подписи ассетов | `view.ui.asset_loader` | ключ | значение | ключ |
+| `configs/view/presentation.json` | плейсхолдеры/подписи ассетов; в поставке файла нет, `AssetLoader` использует `use_placeholders=true` по умолчанию | `view.ui.asset_loader` | ключ | значение | ключ |
 
 `configs/presets/` и `configs/classes/` относятся к отдельному
 экспериментальному дереву и текущим игровым загрузчиком не используются.

@@ -161,7 +161,9 @@
 | RL | `agents/policies.py`, `core41/env.py`, `campaign/env.py` | чекпойнты | арена, автопилот, `CampaignEnv` |
 | Хроника | `chronicle.py` | `chronicle_phrases.json` | проекция журнала, не ИИ |
 
-**Базовая линия для сравнения:** полный `pytest` — 2125 тестов;
+**Базовая линия для сравнения:** полный `pytest` на 2026-11-28 — 2425
+тестов (тайминг-тест Soar под полной нагрузкой нестабилен, отдельно
+проходит);
 `campaign.content_lint` и `campaign.dialogue.lint` — чистые. Любая фаза
 миграции обязана сохранять этот зелёный уровень либо явно заменять
 тесты легаси эквивалентными.
@@ -332,20 +334,31 @@ configs/rive/
    явная миграция или отказ, не «тихое» обнуление. То же правило
    действует для состояния диалога.
 
-### 4.7. Предлагаемая раскладка модулей
+### 4.7. Фактическая раскладка модулей
+
+Первоначальный план называл `nlu_frame.py`, `nlu_entities.py`,
+`nlu_morph.py`, `nlu_compile.py`, `lint_nlu.py` и `soar_agent.py`; в
+реализации роли разделены иначе. Актуальные модули:
 
 | Модуль | Ответственность |
 |---|---|
-| `campaign/cognition/__init__.py` | фасад `understand()` / `decide()`, флаги |
-| `campaign/cognition/nlu.py` | конвейер стадий 0–5 |
-| `campaign/cognition/nlu_frame.py` | схема `UtteranceFrame`, валидация |
-| `campaign/cognition/nlu_entities.py` | сущности, числа, время, местоимения |
-| `campaign/cognition/nlu_morph.py` | object macros и адаптер морфологии |
-| `campaign/cognition/nlu_compile.py` | JSON → `.rive` + манифест |
-| `campaign/cognition/lint_nlu.py` | линтер триггеров, слотов и топиков |
-| `campaign/cognition/soar_bridge.py` | протокол, команды, таймауты |
-| `campaign/cognition/soar_agent.py` | запуск/снимок/восстановление Soar |
-| `campaign/cognition/parity.py` | двойной прогон и метрики |
+| `campaign/cognition/__init__.py` | фасад `understand()` / `decide()`, границы слоя |
+| `campaign/cognition/backends.py` | флаги бэкендов из `configs/cognition/backends.json` |
+| `campaign/cognition/frame.py` | схема `UtteranceFrame` и результаты понимания |
+| `campaign/cognition/nlu.py` | конвейер понимания фразы, фасад NLU |
+| `campaign/cognition/nlu_backend.py` | живой бэкенд диалога: `legacy` / `shadow` / `rive` |
+| `campaign/cognition/nlu_lint.py` | линтер лексикона, триггеров и неоднозначностей |
+| `campaign/cognition/rive_compiler.py` | JSON → `.rive` + манифест |
+| `campaign/cognition/rive_macros.py` | object macros: морфология, числа, сущности |
+| `campaign/cognition/rive_runtime.py` | исполнение RiveScript в живом NLU |
+| `campaign/cognition/soar_bridge.py` | протокол `soar_bridge.v1`, команды, таймауты |
+| `campaign/cognition/soar_runtime.py` | политика NPC в Soar через SML |
+| `campaign/cognition/soar_snapshot.py` | JSON-снимок рабочей памяти агента |
+| `campaign/cognition/soar_npc.py` | долгоживущие агенты именных NPC |
+| `campaign/cognition/soar_compiler.py` | JSON → продукции решения NPC |
+| `campaign/cognition/{inference,intention,pragmatics,reaction,faction}_*.py` | компиляторы и рантаймы соответствующих решений |
+| `campaign/cognition/corpus*.py`, `parity.py` | золотой корпус и parity-метрики |
+| `campaign/cognition/serialization.py`, `errors.py` | детерминированная сериализация и ошибки |
 | `configs/rive/ru/*.rive` | сгенерированные и служебные триггеры |
 | `configs/soar/*.soar` | сгенерированные и общие продукции |
 | `configs/cognition/*.json` | пороги, топики, схемы слотов, флаги |

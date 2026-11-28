@@ -19,7 +19,7 @@
 |---|---|---|
 | `core41/` + `agents/` | целевой срез 4-2-1 и обучаемые политики арены | `core41/`, `agents/` |
 | Кампания автоматов | фракции, органы, работы, BDI персонажей, реальное время | `campaign/automata.py`, `configs/campaigns/` |
-| Дневной мир `world_actor` | должности, свободная жизнь, `WorldEngine` | `campaign/world.py`, `configs/worlds/` |
+| Дневной мир (`free_citizen`/`world_actor`) | должности, свободная жизнь, `WorldEngine` | `campaign/world.py`, `configs/worlds/` |
 
 `simulation.py` остаётся легаси-каноном дуэлей; активные сцены его не
 используют. Целевая модель и текущая реализация различаются осознанно,

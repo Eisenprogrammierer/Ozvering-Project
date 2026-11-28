@@ -903,7 +903,7 @@ organization.<key>      context.<key>
 создаёт второй источник истины: следующий тик снова считает актив
 формулой.
 
-### 10.4. День `world_actor`
+### 10.4. День дневного мира
 
 **Код:** `campaign/clock.py`.
 
@@ -1026,7 +1026,7 @@ p       = P_BASE / (1 + e^(−logit))
 | `DUEL_CHECKPOINT_VERSION` | `5` |
 | аренные признаки `bdi`/`qtable`/`mlp` | `22` |
 | признаки `duel-mlp` | `30` |
-| `SCHEMA_VERSION` снимка мира | `1` |
+| `SCHEMA_VERSION` снимка мира | `3` |
 
 ---
 
@@ -1045,7 +1045,7 @@ p       = P_BASE / (1 + e^(−logit))
 | Отношения | `campaign/relations.py` |
 | Награду кампании | `campaign/env.py`, `CAMPAIGN_REWARD_*` |
 | Темп кампании автоматов | `configs/campaigns/base/automata_defaults.json` |
-| День `world_actor` | `campaign/clock.py`, `SECONDS_PER_DAY` |
+| День дневного мира | `campaign/clock.py`, `SECONDS_PER_DAY` |
 
 **Правило.** Если формула задаёт поведение ядра, её константы живут в коде
 ядра; если это данные мира (темп, цены, пороги контента) — в `configs/`.
