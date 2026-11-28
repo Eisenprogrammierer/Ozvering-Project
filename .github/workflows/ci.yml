@@ -81,4 +81,4 @@ jobs:
           pip install -r requirements-soar.txt
 
       - name: Soar parity
-        run: pytest -q tests/test_cognition_soar.py tests/test_cognition_intention.py tests/test_cognition_faction.py tests/test_cognition_reaction.py tests/test_cognition_soar_npc.py tests/test_cognition_crowd.py tests/test_soar_snapshot.py tests/test_npc_decisions.py tests/test_d6_pragmatics.py tests/test_d6_inference.py
+        run: pytest -q tests/test_cognition_soar.py tests/test_cognition_intention.py tests/test_cognition_faction.py tests/test_cognition_reaction.py tests/test_cognition_soar_npc.py tests/test_cognition_crowd.py tests/test_soar_snapshot.py tests/test_soar_full_runs.py tests/test_npc_decisions.py tests/test_d6_pragmatics.py tests/test_d6_inference.py
