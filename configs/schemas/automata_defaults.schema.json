@@ -221,6 +221,7 @@
         "needs": true,
         "npc_policy": true,
         "organs": true,
+        "reaction_policy": true,
         "relations": true,
         "score_floor": true
       },

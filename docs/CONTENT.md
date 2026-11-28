@@ -96,6 +96,8 @@
 | `configs/soar/intention.soar` | сгенерированные продукции Soar: оценка намерения, выбор максимума и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.intention_compiler --write` | `configs/soar/intention.json` | продукция, digest | `python -m campaign.cognition.intention_compiler --check` |
 | `configs/soar/faction.json` | настройки выбора действия/приказа фракции: `tie_epsilon`, `epsilon-greedy`, seed, число циклов | `campaign.cognition.faction_compiler.load_model()` | новый ключ в JSON | формула, режим выбора | `tests/test_cognition_faction.py` |
 | `configs/soar/faction.soar` | сгенерированные продукции Soar: выбор первого кандидата по накопленной границе веса и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.faction_compiler --write` | `configs/soar/faction.json` | продукция, digest | `python -m campaign.cognition.faction_compiler --check` |
+| `configs/soar/reaction.json` | настройки реакции на доклад/угрозу: `tie_epsilon`, `epsilon-greedy`, seed, число циклов | `campaign.cognition.reaction_compiler.load_model()` | новый ключ в JSON | формула, режим выбора | `tests/test_cognition_reaction.py` |
+| `configs/soar/reaction.soar` | сгенерированные продукции Soar: строгий максимум оценки реакции и запись в output-link; **не редактировать вручную** | `python -m campaign.cognition.reaction_compiler --write` | `configs/soar/reaction.json` | продукция, digest | `python -m campaign.cognition.reaction_compiler --check` |
 | `configs/soar/pragmatics.json` | настройки прагматики диалога: `tie_epsilon` и число циклов решения | `campaign.cognition.pragmatics_compiler.load_model()` | новый ключ в JSON | порог, режим выбора | `tests/test_d6_pragmatics.py` |
 | `configs/soar/pragmatics.soar` | сгенерированные продукции Soar: интерпретация кадра, выбор плана и исход раскрытия; **не редактировать вручную** | `python -m campaign.cognition.pragmatics_compiler --write` | `configs/soar/pragmatics.json`, `configs/dialogue/disclosure.json` | продукция, digest | `python -m campaign.cognition.pragmatics_compiler --check` |
 | `configs/soar/inference.json` | настройки прямого замыкания вывода: число циклов, таймаут, лимит узлов | `campaign.cognition.inference_compiler.load_model()` | новый ключ в JSON | циклы, таймаут, лимит | `tests/test_d6_inference.py` |
@@ -562,12 +564,22 @@ custom = content.get("my_new_file", {})
 `report()["unavailable"]` и `ok: false` показывают, что заявленный
 бэкенд не работал. Откат — `enabled = false` или
 `OZVERIN_AI_BACKEND=legacy`.
+
+Блоки `ai_model.faction_policy` и `ai_model.reaction_policy` включают
+Soar для действий/приказов фракции и реакций на доклады/угрозы. Поля те
+же: `enabled`, `backend`, `backends`, `timeout_ms`, `tick_timeout_ms`;
+бюджет тика общий с NPC-политикой. `faction_decision_report()` и
+`reaction_decision_report()` показывают согласие по видам и сторонам,
+а без `soar-sml` режимы `shadow`/`soar` деградируют до легаси с
+`unavailable: true`.
+
 `npc_outcome_report()` добавляет длинные метрики: `needs` — среднее
 давление и удовлетворённость (`1 − pressure`) по 16 потребностям
 каждой стороны, `jobs` — `distinct`, энтропию, `evenness` и
 `top_share` выбранных работ, `intentions` — согласие Soar с легаси при
-выборе BDI-намерения (по сторонам и суммарно). Метрики живут в памяти
-и не попадают в сейв.
+выборе BDI-намерения, `factions` — согласие по действиям и приказам
+фракций, `reactions` — согласие по реакциям на доклады и угрозы (по
+сторонам и суммарно). Метрики живут в памяти и не попадают в сейв.
 
 Бюджет ограничен на двух уровнях. `timeout_ms` (по умолчанию
 `timeouts.decision_ms = 200`) — потолок одного решения;

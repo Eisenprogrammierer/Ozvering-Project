@@ -128,6 +128,7 @@ def _read_decision(agent: Any) -> Optional[str]:
 class FactionDecisionMonitor:
     """Счётчики согласия Soar с легаси по действиям и приказам."""
 
+    REPORT_KIND = "faction_decisions"
     max_samples: int = 20
     unavailable: bool = False
     monitors: Dict[str, NpcDecisionMonitor] = field(default_factory=dict)
@@ -258,7 +259,7 @@ class FactionDecisionMonitor:
             and agreement >= limit
         )
         return {
-            "kind": "faction_decisions",
+            "kind": self.REPORT_KIND,
             "version": MONITOR_VERSION,
             "total": total,
             "evaluated": evaluated,

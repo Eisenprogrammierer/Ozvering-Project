@@ -637,6 +637,12 @@ Soar не дублирует переходы и не пишет активы н
 получатель, эффекты, цена и перезарядка остаются в Python. Режимы
 `legacy|shadow|soar` включаются через `ai_model.faction_policy`.
 
+Реализовано (Phase 5, шаг 2b): реакцию на доклад и угрозу выбирает
+`SoarReactionPolicy` по оценкам «довериться/проверить/игнорировать».
+Python считает оценки и шум, Soar берёт строгий максимум с легаси-
+tie-break; последствия, память источника и `sees_as_threat` остаются в
+Python. Режимы — через `ai_model.reaction_policy`.
+
 ### 6.6. Обучение
 
 - Soar RL — предпочтения операторов для игровых NPC (принято
@@ -861,8 +867,9 @@ Deliverables:
   и `top_share`;
 - `AutomataCampaign.npc_outcome_report()` отдаёт JSON без записи в
   сейв: `needs` по сторонам (16 потребностей, `pressure` и
-  `satisfaction = 1 − pressure`), `jobs`, `decisions` и `intentions` —
-  согласие Soar с легаси при выборе BDI-намерения;
+  `satisfaction = 1 − pressure`), `jobs`, `decisions`, `intentions`,
+  `factions` и `reactions` — согласие Soar с легаси при выборе
+  BDI-намерения, действий/приказов и реакций на доклады/угрозы;
 - строгий `ai_backend=soar` на 40 ходах даёт тот же снимок, те же
   потребности и то же разнообразие работ, что и легаси (проверено:
   44 персонажа, 420 решений, 55 работ, `evenness` 0.92); накладные
@@ -1308,9 +1315,35 @@ Deliverables:
   `OZVERIN_AI_BACKEND=legacy`;
 - тесты: `tests/test_cognition_faction.py`.
 
-**Осталось в Phase 5:** реакции на доклады и угрозы, RL-предпочтения,
-LOD массовых NPC, полные прогоны мира, долгоживущий Soar-агент на
-именного NPC с BDI-памятью.
+**Сделано (Phase 5, шаг 2b, 2026-11-27): реакции на доклады и угрозы.**
+
+- `campaign/cognition/reaction_compiler.py` компилирует
+  `configs/soar/reaction.json` в `configs/soar/reaction.soar`;
+  `--check` держит артефакт и `source_digest` в согласии с JSON;
+- `campaign/cognition/reaction_runtime.py` (`SoarReactionPolicy`)
+  повторяет легаси-argmax: Python считает оценки
+  «довериться/проверить/игнорировать» и шум из `rng` в прежнем порядке,
+  Soar выбирает строгий максимум, ранг с шагом `tie_epsilon`
+  воспроизводит лексикографический tie-break легаси;
+- `dispatch_reports._ai_choice` передаёт готовые оценки в
+  `AutomataAIMixin._report_select`; режимы `legacy|shadow|soar` берутся
+  из `ai_model.reaction_policy`, решение в полосе угрозы учитывается
+  как `threat`, иначе как `report`;
+- `ReactionDecisionMonitor` сводит согласие по видам (`report`/`threat`)
+  и сторонам; `AutomataCampaign.reaction_decision_report()` и ключ
+  `reactions` в `npc_outcome_report()`;
+- бюджет тика общий с NPC-политикой и фракциями; при исчерпании
+  остаток хода решает легаси, факт пишется в монитор; без `soar-sml`
+  режимы `shadow|soar` деградируют до легаси с `unavailable: true`;
+- паритет: 200 случайных наборов оценок — 0 расхождений, включая
+  точные равенства и отрицательные оценки; теневой и строгий прогоны
+  кампании совпадают по снимку, `agreement=1.0`, `errors=0`;
+- **Rollback:** `ai_model.reaction_policy.backend="legacy"` или
+  `OZVERIN_AI_BACKEND=legacy`;
+- тесты: `tests/test_cognition_reaction.py`.
+
+**Осталось в Phase 5:** RL-предпочтения, LOD массовых NPC, полные
+прогоны мира, долгоживущий Soar-агент на именного NPC с BDI-памятью.
 
 ### Phase 6. Демонтаж GOFAI (2–3 недели)
 

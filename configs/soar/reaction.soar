@@ -1,0 +1,23 @@
+// Сгенерировано campaign.cognition.reaction_compiler.
+// Не редактировать вручную: источник — configs/soar/reaction.json.
+// source_digest: 1225969445161d342540bb45f15dbbfb236e982266d33dbe2e40ee6ca911a32d
+
+// Кандидат: id реакции, её оценка и ранг tie-break.
+// Ранг идёт вверх с крошечным шагом: при равных оценках
+// побеждает лексикографически старший id, как в легаси.
+sp {reaction*propose
+   (state <s> ^io.input-link <il>)
+   (<il> ^candidate <c>)
+   (<c> ^id <id> ^score <score> ^rank <r>)
+-->
+   (<s> ^operator <o> + = (+ <score> (* <r> 0.000000000001)))
+   (<o> ^id <id> ^score <score>)
+}
+
+// Выбранная реакция уходит в output-link.
+sp {reaction*apply
+   (state <s> ^operator <o> ^io.output-link <ol>)
+   (<o> ^id <id>)
+-->
+   (<ol> ^decision <id>)
+}

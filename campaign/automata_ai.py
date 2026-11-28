@@ -532,6 +532,145 @@ class AutomataAIMixin:
         )
         return legacy
 
+    def _reaction_config(self):
+        return _as_mapping(
+            _as_mapping(self.ai_model).get("reaction_policy")
+        )
+
+    def reaction_backend(self, side):
+        """Бэкенд реакции на доклад: ``backends`` → ``backend`` → флаг."""
+
+        config = self._reaction_config()
+        if not config or not bool(config.get("enabled", True)):
+            return "legacy"
+        backends = _as_mapping(config.get("backends"))
+        value = backends.get(str(side))
+        if value is None:
+            value = config.get("backend")
+        if value is None:
+            value = self._cognition_flags().ai_backend
+        backend = str(value or "legacy")
+        if backend not in AI_BACKENDS:
+            raise BackendError(
+                "reaction_policy.backend=%r не поддерживается; "
+                "допустимо: %s" % (backend, ", ".join(AI_BACKENDS))
+            )
+        if backend in ("shadow", "soar") and not self._soar_available():
+            # Без soar-sml решение остаётся легаси; факт виден в отчёте.
+            self.reaction_decision_monitor().unavailable = True
+            return "legacy"
+        return backend
+
+    def reaction_decision_timeout_ms(self):
+        """Бюджет решения реакции: локальный ``timeout_ms`` или флаг."""
+
+        config = self._reaction_config()
+        timeout = _number(config.get("timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().decision_timeout_ms
+        return float(timeout)
+
+    def reaction_tick_timeout_ms(self):
+        """Бюджет Soar на ход для реакции: локальный или общий флаг."""
+
+        config = self._reaction_config()
+        timeout = _number(config.get("tick_timeout_ms"), 0.0)
+        if timeout <= 0.0:
+            timeout = self._cognition_flags().tick_timeout_ms
+        return float(timeout)
+
+    def reaction_decision_monitor(self):
+        monitor = getattr(self, "_reaction_decision_monitor", None)
+        if monitor is None:
+            from .cognition.reaction_runtime import (
+                ReactionDecisionMonitor,
+            )
+
+            monitor = ReactionDecisionMonitor()
+            self._reaction_decision_monitor = monitor
+        return monitor
+
+    def reaction_decision_report(
+        self,
+        threshold=DEFAULT_AGREEMENT_THRESHOLD,
+    ):
+        """Сводка согласия Soar с легаси по докладам и угрозам."""
+
+        return self.reaction_decision_monitor().report(threshold)
+
+    def _soar_reaction(self):
+        policy = getattr(self, "_soar_reaction_obj", None)
+        if policy is None:
+            from .cognition.reaction_runtime import SoarReactionPolicy
+
+            policy = SoarReactionPolicy(
+                timeout_ms=self.reaction_decision_timeout_ms()
+            )
+            self._soar_reaction_obj = policy
+        return policy
+
+    def _report_select(self, *, side, kind, candidates):
+        """Выбрать реакцию на доклад: легаси, теневой Soar или строгий Soar.
+
+        Оценки вариантов и шум уже посчитаны диспетчером — Soar получает
+        готовые числа и не трогает ``rng``. Поэтому расход генератора и
+        снимок кампании совпадают во всех режимах.
+        """
+
+        from .cognition.reaction_runtime import reaction_choice
+
+        candidates = list(candidates)
+        legacy = reaction_choice(candidates)
+        if legacy is None:
+            return None
+        backend = self.reaction_backend(side)
+        if backend == "legacy":
+            return legacy
+        limit = self.reaction_tick_timeout_ms()
+        spent = float(getattr(self, "_npc_tick_spent_ms", 0.0) or 0.0)
+        left = max(0.0, limit - spent)
+        elapsed_ms = 0.0
+        error = None
+        candidate = None
+        if left <= 0.0:
+            error = (
+                "бюджет тика исчерпан: %.2f мс из %.2f мс"
+                % (spent, limit)
+            )
+        else:
+            soar = self._soar_reaction()
+            decision = self.reaction_decision_timeout_ms()
+            budget = min(decision, left) if decision > 0 else left
+            try:
+                candidate = soar.choose(
+                    candidates, timeout_ms=budget
+                )
+            except (BackendError, SoarError) as exc:
+                if backend == "soar":
+                    raise
+                error = str(exc)
+            finally:
+                elapsed_ms = float(soar.last_elapsed_ms)
+                self._npc_tick_spent_ms = spent + elapsed_ms
+        monitor = self.reaction_decision_monitor()
+        if backend == "soar" and error is None:
+            monitor.note(
+                kind=kind, side=side, elapsed_ms=elapsed_ms
+            )
+            return candidate
+        monitor.record(
+            kind=kind,
+            side=side,
+            backend=backend,
+            legacy=legacy,
+            candidate=candidate,
+            elapsed_ms=elapsed_ms,
+            error=error,
+            turn=getattr(self, "turn", None),
+            budget=left <= 0.0,
+        )
+        return legacy
+
     def npc_decision_report(
         self,
         threshold=DEFAULT_AGREEMENT_THRESHOLD,
@@ -603,6 +742,7 @@ class AutomataAIMixin:
         decisions = self.npc_decision_report(threshold)
         intentions = self.intention_report()
         factions = self.faction_decision_report(threshold)
+        reactions = self.reaction_decision_report(threshold)
         return {
             "kind": "npc_outcomes",
             "version": MONITOR_VERSION,
@@ -611,10 +751,12 @@ class AutomataAIMixin:
             "decisions": decisions,
             "intentions": intentions,
             "factions": factions,
+            "reactions": reactions,
             "ok": bool(
                 decisions["ok"]
                 and intentions["ok"]
                 and factions["ok"]
+                and reactions["ok"]
             ),
         }
 

@@ -1208,6 +1208,12 @@
       "timeout_ms": 0,
       "tick_timeout_ms": 0
     },
+    "reaction_policy": {
+      "enabled": true,
+      "backends": {},
+      "timeout_ms": 0,
+      "tick_timeout_ms": 0
+    },
     "character_agency": {
       "enabled": true,
       "max_characters": 6,

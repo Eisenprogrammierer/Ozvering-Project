@@ -119,6 +119,13 @@ class ReportMixin:
         return result
 
     def _ai_choice(self, report, faction, leader):
+        """Оценки реакции и выбор: Soar при ``reaction_policy``, иначе argmax.
+
+        Доверие, проверка и игнорирование считаются здесь, вместе с
+        шумом из ``rng``. Сам выбор делает ``campaign._report_select``
+        (Soar), а легаси-argmax с tie-break по имени остаётся резервом.
+        """
+
         cfg = self.ai_config
         source = self._character(report.get("source_id"))
         values = getattr(
@@ -195,7 +202,33 @@ class ReportMixin:
         if noise:
             for key in scores:
                 scores[key] += self.rng.uniform(-noise, noise)
+        candidates = [(key, scores[key]) for key in scores]
+        selector = getattr(self.campaign, "_report_select", None)
+        if callable(selector):
+            chosen = selector(
+                side=report.get("side"),
+                kind=self._reaction_kind(report),
+                candidates=candidates,
+            )
+            if chosen is not None:
+                return chosen
         return max(scores, key=lambda key: (scores[key], key))
+
+    def _reaction_kind(self, report):
+        """Вид решения: доклад или доклад в полосе угрозы."""
+
+        bands = {
+            str(item)
+            for item in _as_list(
+                self.threat_config.get("bands")
+            )
+        }
+        if (
+            self.threat_enabled
+            and str(report.get("band") or "") in bands
+        ):
+            return "threat"
+        return "report"
 
     def issue(self, faction=None):
         """Создать один доклад от подходящего источника."""
